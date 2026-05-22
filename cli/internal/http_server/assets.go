@@ -20,25 +20,24 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
-	// Post-ADR-030-Phase-4 attachment routes (kind-less). New uploads use these.
+	// Attachment routes are kind-less. Both new uploads and legacy
+	// attachments (whose S3 objects still live at
+	// `spaces/{server|DM}/attachments/{id}`) are served through these
+	// routes; the storage layer probes both layouts transparently.
 	s.router.GET("/assets/attachments/:attachmentId", s.serveAttachment)
-	s.router.GET("/assets/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachmentByID)
-	// Legacy routes — kept for attachments uploaded before Phase 4 whose S3
-	// objects still live at `spaces/{server|DM}/attachments/{id}`.
-	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId", s.serveSpaceAttachment)
-	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
+	s.router.GET("/assets/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
 }
 
 // transformRequest holds the parameters for a transformed asset request.
 // This allows sharing the transformation logic between different asset types.
 type transformRequest struct {
 	// ResourceID1 and ResourceID2 are used for signing verification.
-	// For space attachments: (spaceID, attachmentID)
+	// For attachments: ("attachment", attachmentID)
 	// For server assets: ("server", key)
 	ResourceID1 string
 	ResourceID2 string
 	SignedPath  string
-	// CachePrefix distinguishes cache keys between asset types (e.g., "space", "server")
+	// CachePrefix distinguishes cache keys between asset types (e.g., "attachment", "server")
 	CachePrefix string
 	// AssetID is used for ETag generation and logging
 	AssetID string
@@ -103,42 +102,24 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	)
 }
 
-// serveSpaceAttachment serves an attachment from a space's storage (NATS or S3).
-//
-// Authorization runs off the canonical Attachment record in SERVER_BODIES:
-// we look up the record by ID, verify room membership, then redirect to a
-// presigned S3 URL (if applicable) or stream from NATS.
-func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
-	spaceID := c.Param("spaceId")
-	attachmentID := c.Param("attachmentId")
-	ctx := c.Request.Context()
-
-	s.logger.Debug("Serving space attachment", "space_id", spaceID, "attachment_id", attachmentID)
-	s.serveAttachmentInner(c, spaceID, attachmentID, ctx)
-}
-
-// serveAttachment serves an attachment uploaded via the post-ADR-030-Phase-4
-// kind-less URL pattern (`/assets/attachments/{id}`). Mirrors
-// serveSpaceAttachment but passes an empty spaceID for the kind-less
-// S3 layout.
+// serveAttachment serves an attachment by ID. Authorization runs off
+// the canonical Attachment record in SERVER_BODIES: we look up the
+// record by ID, verify room membership, then redirect to a presigned
+// S3 URL (if applicable) or stream from NATS. The storage layer probes
+// both the post-ADR-030-Phase-4 kind-less S3 layout and the legacy
+// `spaces/{server|DM}/attachments/{id}` layout transparently.
 func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	attachmentID := c.Param("attachmentId")
 	ctx := c.Request.Context()
 
 	s.logger.Debug("Serving attachment", "attachment_id", attachmentID)
-	s.serveAttachmentInner(c, "", attachmentID, ctx)
-}
 
-// serveAttachmentInner is the shared implementation for both attachment
-// URL shapes. Resolves the room ID via the canonical Attachment record,
-// authorizes membership, then serves the binary.
-func (s *HTTPServer) serveAttachmentInner(c *gin.Context, spaceID, attachmentID string, ctx context.Context) {
 	if !s.requireAttachmentAccess(c, ctx, attachmentID) {
 		return
 	}
 
 	// Try S3 presigned redirect first (zero-copy, full Range support).
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, spaceID, attachmentID); err == nil {
+	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, "", attachmentID); err == nil {
 		// Cache the redirect itself — the attachment URL is immutable
 		c.Header("Cache-Control", "public, max-age=3600")
 		c.Redirect(http.StatusFound, presignedURL)
@@ -147,9 +128,9 @@ func (s *HTTPServer) serveAttachmentInner(c *gin.Context, spaceID, attachmentID 
 
 	// Fall back to probing both NATS and S3 backends (handles transient S3 errors
 	// where the presigned URL fails but direct S3 fetch succeeds).
-	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
+	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
 	if err != nil {
-		s.logger.Error("Failed to get attachment", "error", err, "space_id", spaceID, "attachment_id", attachmentID)
+		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", attachmentID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return
 	}
@@ -164,11 +145,7 @@ func (s *HTTPServer) serveAttachmentInner(c *gin.Context, spaceID, attachmentID 
 
 	// Immutable asset - cache forever
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	if spaceID != "" {
-		c.Header("ETag", fmt.Sprintf("\"%s-%s\"", spaceID, attachmentID))
-	} else {
-		c.Header("ETag", fmt.Sprintf("\"%s\"", attachmentID))
-	}
+	c.Header("ETag", fmt.Sprintf("\"%s\"", attachmentID))
 	c.Header("Vary", "Accept-Encoding")
 
 	// Stream directly — no io.ReadAll, no memory buffering
@@ -392,43 +369,10 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 }
 
 // serveTransformedAttachment serves a dynamically transformed version of an attachment.
-// URL format: /assets/space/{spaceId}/attachments/{attachmentId}/t/{signedPath}
+// URL format: /assets/attachments/{attachmentId}/t/{signedPath}
 // where signedPath is {base64params}.{signature}
 // Probes both NATS and S3 backends for the attachment.
 func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
-	spaceID := c.Param("spaceId")
-	attachmentID := c.Param("attachmentId")
-	signedPath := c.Param("signedPath")
-
-	s.logger.Debug("Serving transformed attachment",
-		"space_id", spaceID,
-		"attachment_id", attachmentID)
-
-	s.serveTransformedAsset(c, transformRequest{
-		ResourceID1: spaceID,
-		ResourceID2: attachmentID,
-		SignedPath:  signedPath,
-		CachePrefix: spaceID,
-		AssetID:     attachmentID,
-		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
-			if err != nil {
-				return nil, "", err
-			}
-			return reader, info.ContentType, nil
-		},
-		Authorize: func(c *gin.Context) bool {
-			return s.requireAttachmentAccess(c, c.Request.Context(), attachmentID)
-		},
-	})
-}
-
-// serveTransformedAttachmentByID serves a dynamically transformed version of
-// a post-ADR-030-Phase-4 attachment.
-// URL format: /assets/attachments/{attachmentId}/t/{signedPath}
-// Mirrors serveTransformedAttachment but signs with ("attachment", id)
-// instead of (spaceID, id), and uses the kind-less cache namespace.
-func (s *HTTPServer) serveTransformedAttachmentByID(c *gin.Context) {
 	attachmentID := c.Param("attachmentId")
 	signedPath := c.Param("signedPath")
 

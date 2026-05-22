@@ -70,8 +70,8 @@
 	);
 
 	// Vidstack auto-detects media type from URL extensions, but our attachment
-	// URLs have no extension (/assets/space/.../attachments/...). We must
-	// provide an explicit type so Vidstack recognizes it as video/mp4.
+	// URLs have no extension (/assets/attachments/...). We must provide an
+	// explicit type so Vidstack recognizes it as video/mp4.
 	const videoSrc = $derived(
 		selectedVariant ? { src: selectedVariant.url, type: 'video/mp4' } : undefined
 	);

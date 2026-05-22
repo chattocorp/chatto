@@ -84,7 +84,6 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 
 	result := &model.VideoProcessing{
 		Status:                status,
-		SpaceID:               obj.SpaceId,
 		ThumbnailAttachmentID: state.ThumbnailAttachmentId,
 	}
 
@@ -108,7 +107,6 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 			Width:        v.Width,
 			Height:       v.Height,
 			Size:         v.Size,
-			SpaceID:      obj.SpaceId,
 			AttachmentID: v.AttachmentId,
 		})
 	}
@@ -526,7 +524,7 @@ func (r *videoProcessingResolver) ThumbnailURL(ctx context.Context, obj *model.V
 	if obj.ThumbnailAttachmentID == "" {
 		return nil, nil
 	}
-	url := r.core.GetAttachmentURL(obj.SpaceID, obj.ThumbnailAttachmentID)
+	url := r.core.GetAttachmentURL(obj.ThumbnailAttachmentID)
 	return &url, nil
 }
 
@@ -542,7 +540,7 @@ func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Conte
 
 // URL is the resolver for the url field.
 func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant) (string, error) {
-	return r.core.GetAttachmentURL(obj.SpaceID, obj.AttachmentID), nil
+	return r.core.GetAttachmentURL(obj.AttachmentID), nil
 }
 
 // Attachment returns AttachmentResolver implementation.

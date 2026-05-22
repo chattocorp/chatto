@@ -34,10 +34,11 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // are generated on-the-fly via transforms. The storage backend (NATS or
 // S3) is determined by configuration.
 //
-// New attachments use the kind-less `attachments/{id}` S3 key (and the
-// `/assets/attachments/{id}` URL pattern). `Attachment.SpaceId` is left
-// empty on the returned proto — it's reserved for pre-ADR-030-Phase-4
-// records that are still stored at `spaces/{server|DM}/attachments/{id}`.
+// New attachments use the kind-less `attachments/{id}` S3 key.
+// `Attachment.SpaceId` is left empty on the returned proto — it's
+// reserved for pre-ADR-030-Phase-4 records whose S3 objects still live
+// at `spaces/{server|DM}/attachments/{id}` and is consulted only by the
+// S3-key fallback probe (`attachmentS3KeyCandidates`).
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
 	roomID string,
@@ -256,16 +257,6 @@ func attachmentS3KeyCandidates(spaceID, attachmentID string) []string {
 		S3KeySpaceAttachment(spaceID, attachmentID),
 		S3KeyAttachment(attachmentID),
 	}
-}
-
-// attachmentCachePrefix returns the resize-cache namespace component for an
-// attachment. Matches the cache prefix used by the HTTP transform handlers
-// so deletes and lookups land in the same namespace.
-func attachmentCachePrefix(spaceID string) string {
-	if spaceID == "" {
-		return AttachmentSignResource
-	}
-	return spaceID
 }
 
 // GetAttachmentFromAnyBackend retrieves an attachment by probing both NATS and S3 backends.
@@ -487,11 +478,10 @@ func (c *ChattoCore) DeleteAttachment(ctx context.Context, spaceID, attachmentID
 	}
 
 	// Delete any cached resizes for this attachment (best-effort, don't fail on error)
-	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, spaceID, attachmentID)
+	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for attachment",
 			"attachment_id", attachmentID,
-			"space_id", spaceID,
 			"error", cacheErr)
 	} else if deletedCount > 0 {
 		c.logger.Debug("Deleted cached resizes for attachment",
@@ -581,61 +571,42 @@ func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, spaceID, att
 }
 
 // AttachmentSignResource is the first resource component fed to the
-// signed-URL signer for post-ADR-030-Phase-4 attachment transform URLs.
-// Stable so existing signatures continue to verify across deployments.
+// signed-URL signer for attachment transform URLs. Stable so existing
+// signatures continue to verify across deployments.
 const AttachmentSignResource = "attachment"
 
-// GetAttachmentURL returns the URL for accessing an attachment by its
-// canonical (legacy) identifier. New code should prefer
-// GetAttachmentURLFromStorage which routes new vs legacy paths based on
-// the Attachment record itself. A non-empty spaceID emits the legacy
-// `/assets/space/{spaceId}/attachments/{id}` URL; an empty spaceID emits
-// the new kind-less `/assets/attachments/{id}` URL.
-func (c *ChattoCore) GetAttachmentURL(spaceID, attachmentID string) string {
-	if spaceID == "" {
-		return c.assetURL(fmt.Sprintf("/assets/attachments/%s", attachmentID))
-	}
-	return c.assetURL(fmt.Sprintf("/assets/space/%s/attachments/%s", spaceID, attachmentID))
+// GetAttachmentURL returns the URL for accessing an attachment. All
+// attachments — including those whose S3 objects still live at the
+// pre-ADR-030-Phase-4 `spaces/{server|DM}/attachments/{id}` layout —
+// are served through the kind-less `/assets/attachments/{id}` URL.
+// The HTTP handler probes both storage layouts to resolve the binary.
+func (c *ChattoCore) GetAttachmentURL(attachmentID string) string {
+	return c.assetURL(fmt.Sprintf("/assets/attachments/%s", attachmentID))
 }
 
 // GetAttachmentURLFromStorage returns the URL for accessing an attachment.
-// Storage backend is an internal implementation detail that should not leak
-// into URLs. Legacy attachments (recorded with a `space_id` value before
-// ADR-030 Phase 4) keep their `/assets/space/{spaceId}/...` URL so the
-// existing S3 objects remain reachable; new uploads emit the kind-less
-// `/assets/attachments/{id}` URL.
+// Storage backend is an internal implementation detail that does not leak
+// into URLs.
 func (c *ChattoCore) GetAttachmentURLFromStorage(attachment *corev1.Attachment) string {
-	return c.GetAttachmentURL(attachment.SpaceId, attachment.Id)
+	return c.GetAttachmentURL(attachment.Id)
 }
 
 // GetTransformedAttachmentURL returns the URL for accessing a transformed
 // version of an attachment. The URL includes an HMAC signature to prevent
 // parameter tampering.
 //
-// Legacy format (spaceID non-empty):
-//
-//	/assets/space/{spaceId}/attachments/{attachmentId}/t/{params}.{signature}
-//
-// New format (spaceID empty):
-//
 //	/assets/attachments/{attachmentId}/t/{params}.{signature}
 //
 // {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}.
-func (c *ChattoCore) GetTransformedAttachmentURL(spaceID, attachmentID string, width, height int, fit string) string {
-	if spaceID == "" {
-		signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, attachmentID, width, height, fit)
-		return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", attachmentID, signedPath))
-	}
-	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, spaceID, attachmentID, width, height, fit)
-	return c.assetURL(fmt.Sprintf("/assets/space/%s/attachments/%s/t/%s",
-		spaceID, attachmentID, signedPath))
+func (c *ChattoCore) GetTransformedAttachmentURL(attachmentID string, width, height int, fit string) string {
+	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, attachmentID, width, height, fit)
+	return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", attachmentID, signedPath))
 }
 
-// GetTransformedAttachmentURLFromStorage routes new vs legacy attachment
-// transform URLs based on the Attachment record. See
-// GetAttachmentURLFromStorage for the new vs legacy rules.
+// GetTransformedAttachmentURLFromStorage returns a transform URL for an
+// attachment record.
 func (c *ChattoCore) GetTransformedAttachmentURLFromStorage(attachment *corev1.Attachment, width, height int, fit string) string {
-	return c.GetTransformedAttachmentURL(attachment.SpaceId, attachment.Id, width, height, fit)
+	return c.GetTransformedAttachmentURL(attachment.Id, width, height, fit)
 }
 
 // GetTransformedServerAssetURL returns the URL for accessing a transformed version of an server asset.
@@ -713,15 +684,13 @@ func (c *ChattoCore) StoreCachedResize(ctx context.Context, key string, data []b
 }
 
 // DeleteCachedResizesForAttachment deletes all cached resizes for an
-// attachment. Pass an empty spaceID for post-ADR-030-Phase-4 attachments;
-// the helper picks the matching cache namespace.
-// Returns the number of deleted cache entries and any error encountered.
-// Does nothing if the cache is disabled.
-func (c *ChattoCore) DeleteCachedResizesForAttachment(ctx context.Context, spaceID, attachmentID string) (int, error) {
-	// Cache keys follow the pattern: {prefix}.{attachmentId}.{paramsHash},
-	// where {prefix} matches what the transform handler used at insertion
-	// time (spaceID for legacy attachments, "attachment" for new ones).
-	return c.DeleteCachedResizesForKey(ctx, attachmentCachePrefix(spaceID), attachmentID)
+// attachment. Returns the number of deleted cache entries and any error
+// encountered. Does nothing if the cache is disabled. Pre-ADR-030-Phase-4
+// cache entries written under a {server|DM} prefix are not cleaned up
+// and are left to age out — the transform-URL signer always uses the
+// kind-less prefix now, so no lookups land on them.
+func (c *ChattoCore) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
+	return c.DeleteCachedResizesForKey(ctx, AttachmentSignResource, attachmentID)
 }
 
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.

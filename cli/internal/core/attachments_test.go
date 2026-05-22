@@ -335,9 +335,9 @@ func TestChattoCore_GetAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	t.Run("generate basic attachment URL", func(t *testing.T) {
-		url := core.GetAttachmentURL("space123", "attachment456")
+		url := core.GetAttachmentURL("attachment456")
 
-		expected := "/assets/space/space123/attachments/attachment456"
+		expected := "/assets/attachments/attachment456"
 		if url != expected {
 			t.Errorf("Expected URL '%s', got '%s'", expected, url)
 		}
@@ -348,22 +348,22 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	t.Run("generate transform URL with dimensions", func(t *testing.T) {
-		url := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
+		url := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
 
 		// URL should contain the base path
-		if !bytes.Contains([]byte(url), []byte("/assets/space/space123/attachments/attachment456/t/")) {
+		if !bytes.Contains([]byte(url), []byte("/assets/attachments/attachment456/t/")) {
 			t.Errorf("URL doesn't contain expected base path: %s", url)
 		}
 
 		// URL should have a signed path component (non-empty after /t/)
-		if len(url) <= len("/assets/space/space123/attachments/attachment456/t/") {
+		if len(url) <= len("/assets/attachments/attachment456/t/") {
 			t.Error("URL missing signed path component")
 		}
 	})
 
 	t.Run("different dimensions produce different URLs", func(t *testing.T) {
-		url1 := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL("space123", "attachment456", 400, 300, "contain")
+		url1 := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
+		url2 := core.GetTransformedAttachmentURL("attachment456", 400, 300, "contain")
 
 		if url1 == url2 {
 			t.Error("Different dimensions should produce different URLs")
@@ -371,8 +371,8 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 	})
 
 	t.Run("different fit modes produce different URLs", func(t *testing.T) {
-		url1 := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "cover")
+		url1 := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
+		url2 := core.GetTransformedAttachmentURL("attachment456", 200, 150, "cover")
 
 		if url1 == url2 {
 			t.Error("Different fit modes should produce different URLs")
@@ -389,9 +389,9 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 	t.Run("GetAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url := core.GetAttachmentURL("space123", "attachment456")
+		url := core.GetAttachmentURL("attachment456")
 
-		expected := "/assets/space/space123/attachments/attachment456"
+		expected := "/assets/attachments/attachment456"
 		if url != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, url)
 		}
@@ -401,9 +401,9 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetAttachmentURL("space123", "attachment456")
+		url := core.GetAttachmentURL("attachment456")
 
-		expected := "https://chat.example.com/assets/space/space123/attachments/attachment456"
+		expected := "https://chat.example.com/assets/attachments/attachment456"
 		if url != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, url)
 		}
@@ -413,9 +413,9 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
+		url := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
 
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/space/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})
@@ -521,7 +521,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 2. Verify URL generation
-	url := core.GetAttachmentURL(ServerSpaceID, attachment.Id)
+	url := core.GetAttachmentURL(attachment.Id)
 	if url == "" {
 		t.Error("URL generation failed")
 	}
@@ -857,10 +857,12 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	// Simulate cached resizes by storing them directly
-	cacheKey1 := ImageCacheKey(ServerSpaceID, attachment.Id, 200, 150, "contain")
-	cacheKey2 := ImageCacheKey(ServerSpaceID, attachment.Id, 400, 300, "cover")
-	cacheKey3 := ImageCacheKey(ServerSpaceID, attachment.Id, 100, 100, "contain")
+	// Simulate cached resizes by storing them directly. The HTTP handler
+	// signs transform URLs with AttachmentSignResource and the cache uses
+	// that same prefix.
+	cacheKey1 := ImageCacheKey(AttachmentSignResource, attachment.Id, 200, 150, "contain")
+	cacheKey2 := ImageCacheKey(AttachmentSignResource, attachment.Id, 400, 300, "cover")
+	cacheKey3 := ImageCacheKey(AttachmentSignResource, attachment.Id, 100, 100, "contain")
 
 	// Store fake cached data
 	fakeWebP := []byte("fake webp data")
@@ -916,8 +918,8 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	attachment2, _ := core.UploadAttachment(ctx, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
 
 	// Cache entries for both attachments
-	key1 := ImageCacheKey(ServerSpaceID, attachment1.Id, 200, 150, "contain")
-	key2 := ImageCacheKey(ServerSpaceID, attachment2.Id, 200, 150, "contain")
+	key1 := ImageCacheKey(AttachmentSignResource, attachment1.Id, 200, 150, "contain")
+	key2 := ImageCacheKey(AttachmentSignResource, attachment2.Id, 200, 150, "contain")
 
 	fakeWebP := []byte("fake webp data")
 	core.StoreCachedResize(ctx, key1, fakeWebP)
@@ -948,7 +950,7 @@ func TestChattoCore_DeleteCachedResizesForAttachment_NoCacheEnabled(t *testing.T
 	ctx := testContext(t)
 
 	// Should not error when cache is disabled
-	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "space", "attachment")
+	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "attachment")
 	if err != nil {
 		t.Errorf("Should not error when cache is disabled: %v", err)
 	}
@@ -962,7 +964,7 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 	ctx := testContext(t)
 
 	// Should handle empty cache gracefully
-	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "space", "attachment")
+	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "attachment")
 	if err != nil {
 		t.Errorf("Should not error on empty cache: %v", err)
 	}

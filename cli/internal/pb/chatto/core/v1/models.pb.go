@@ -892,9 +892,11 @@ type Attachment struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Legacy "server"/"DM" discriminator; wire-frozen because it's
 	// embedded in the S3 key path (`spaces/{spaceId}/attachments/{id}`)
-	// and asset URL (`/assets/space/{spaceId}/attachments/{id}`) of
-	// existing attachments. Use Asset.S3Asset.key on `storage` instead
-	// for new attachments. See ADR-030.
+	// of existing attachments and consulted only by the S3-key fallback
+	// probe (`attachmentS3KeyCandidates`). New uploads leave this empty
+	// and store binaries under `attachments/{id}` instead. The URL
+	// namespace no longer carries this discriminator — all attachments
+	// are served from `/assets/attachments/{id}`. See ADR-030.
 	SpaceId string `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID where this attachment was posted (for authorization)
 	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
