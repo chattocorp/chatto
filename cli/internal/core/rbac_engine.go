@@ -1,4 +1,4 @@
-package rbac
+package core
 
 import (
 	"context"
@@ -79,6 +79,86 @@ func NewEngine(kv jetstream.KeyValue, config Config) *Engine {
 // Use this for permission resolution that needs to check keys directly.
 func (e *Engine) KV() jetstream.KeyValue {
 	return e.kv
+}
+
+// ============================================================================
+// Scoped Permission Writes
+// ============================================================================
+//
+// These three methods are the canonical "write a permission to KV" surface,
+// shared by every grant/deny/clear call in the codebase regardless of
+// scope (server / group / room) or subject (role or userID).
+
+// Grant writes an allow at the given scope for the given subject + permission.
+// Deletes the matching deny key so the (allow, deny) pair stays mutually
+// exclusive. `scopeID` is ignored for ScopeServer and required for
+// ScopeGroup / ScopeRoom.
+func (e *Engine) Grant(ctx context.Context, scope PermissionScope, scopeID, subject string, perm Permission) error {
+	allowKey, denyKey, err := e.scopedKeys(scope, scopeID, subject, perm)
+	if err != nil {
+		return err
+	}
+	_ = e.kv.Delete(ctx, denyKey)
+	if _, err := e.kv.Put(ctx, allowKey, []byte("1")); err != nil {
+		return fmt.Errorf("failed to grant permission: %w", err)
+	}
+	e.log().Debug("Granted permission", "scope", scope, "scope_id", scopeID, "subject", subject, "permission", perm)
+	return nil
+}
+
+// Deny writes a deny at the given scope for the given subject + permission.
+// Deletes the matching allow key so the (allow, deny) pair stays mutually
+// exclusive.
+func (e *Engine) Deny(ctx context.Context, scope PermissionScope, scopeID, subject string, perm Permission) error {
+	allowKey, denyKey, err := e.scopedKeys(scope, scopeID, subject, perm)
+	if err != nil {
+		return err
+	}
+	_ = e.kv.Delete(ctx, allowKey)
+	if _, err := e.kv.Put(ctx, denyKey, []byte("1")); err != nil {
+		return fmt.Errorf("failed to deny permission: %w", err)
+	}
+	e.log().Debug("Denied permission", "scope", scope, "scope_id", scopeID, "subject", subject, "permission", perm)
+	return nil
+}
+
+// Clear removes both allow and deny at the given scope for the given
+// subject + permission. Idempotent — missing keys are not an error.
+func (e *Engine) Clear(ctx context.Context, scope PermissionScope, scopeID, subject string, perm Permission) error {
+	allowKey, denyKey, err := e.scopedKeys(scope, scopeID, subject, perm)
+	if err != nil {
+		return err
+	}
+	if err := e.kv.Delete(ctx, allowKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to clear grant: %w", err)
+	}
+	if err := e.kv.Delete(ctx, denyKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to clear denial: %w", err)
+	}
+	e.log().Debug("Cleared permission state", "scope", scope, "scope_id", scopeID, "subject", subject, "permission", perm)
+	return nil
+}
+
+// scopedKeys resolves the (allow, deny) KV key pair for a (scope, scopeID,
+// subject, permission). Returns an error for unknown scopes or invalid
+// permissions.
+func (e *Engine) scopedKeys(scope PermissionScope, scopeID, subject string, perm Permission) (allowKey, denyKey string, err error) {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return "", "", fmt.Errorf("invalid permission: %s", perm)
+	}
+	switch scope {
+	case ScopeServer:
+		return AllowKey(subject, parts.Verb, parts.ObjectType, ObjectIdAny),
+			DenyKey(subject, parts.Verb, parts.ObjectType, ObjectIdAny), nil
+	case ScopeGroup:
+		return GroupAllowKey(scopeID, subject, parts.Verb, parts.ObjectType),
+			GroupDenyKey(scopeID, subject, parts.Verb, parts.ObjectType), nil
+	case ScopeRoom:
+		return RoomAllowKey(scopeID, subject, parts.Verb, parts.ObjectType),
+			RoomDenyKey(scopeID, subject, parts.Verb, parts.ObjectType), nil
+	}
+	return "", "", fmt.Errorf("unknown scope: %s", scope)
 }
 
 // ============================================================================

@@ -8,7 +8,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // ResetRBAC wipes the SERVER_RBAC bucket, re-seeds the system roles plus
@@ -48,13 +47,13 @@ func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfi
 		description string
 		position    int32
 	}{
-		{RoleOwner, "Owner", "Full server control", rbac.PositionOwner},
-		{RoleAdmin, "Admin", "Full administrative access", rbac.PositionAdmin},
-		{RoleModerator, "Moderator", "Moderation permissions without administrative reach", rbac.PositionModerator},
+		{RoleOwner, "Owner", "Full server control", PositionOwner},
+		{RoleAdmin, "Admin", "Full administrative access", PositionAdmin},
+		{RoleModerator, "Moderator", "Moderation permissions without administrative reach", PositionModerator},
 	}
 	for _, spec := range roleSpecs {
 		if _, err := engine.CreateRoleWithPosition(ctx, spec.name, spec.displayName, spec.description, spec.position); err != nil {
-			if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+			if !errors.Is(err, ErrRoleAlreadyExists) {
 				return fmt.Errorf("create role %q: %w", spec.name, err)
 			}
 		}

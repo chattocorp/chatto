@@ -1,4 +1,4 @@
-package rbac
+package core
 
 import (
 	"fmt"
@@ -280,8 +280,8 @@ func IsRoleSubject(subject string) bool {
 // Key Parsing
 // ============================================================================
 
-// PermissionKeyParts holds the parsed components of a permission key.
-type PermissionKeyParts struct {
+// RBACKeyParts holds the parsed components of a permission key.
+type RBACKeyParts struct {
 	Subject    string
 	Verb       string
 	ObjectType string
@@ -291,29 +291,29 @@ type PermissionKeyParts struct {
 // ParseAllowKey extracts components from an allow key.
 // Returns empty struct if the key format is invalid.
 // Expected format: allow.{subject}.{verb}.{objectType}.{objectId}
-func ParseAllowKey(key string) PermissionKeyParts {
+func ParseAllowKey(key string) RBACKeyParts {
 	return parsePermissionKey(key, AllowKeyPrefix)
 }
 
 // ParseDenyKey extracts components from a deny key.
 // Returns empty struct if the key format is invalid.
 // Expected format: deny.{subject}.{verb}.{objectType}.{objectId}
-func ParseDenyKey(key string) PermissionKeyParts {
+func ParseDenyKey(key string) RBACKeyParts {
 	return parsePermissionKey(key, DenyKeyPrefix)
 }
 
-func parsePermissionKey(key, prefix string) PermissionKeyParts {
+func parsePermissionKey(key, prefix string) RBACKeyParts {
 	if !strings.HasPrefix(key, prefix) {
-		return PermissionKeyParts{}
+		return RBACKeyParts{}
 	}
 
 	rest := key[len(prefix):]
 	parts := strings.SplitN(rest, ".", 4)
 	if len(parts) != 4 {
-		return PermissionKeyParts{}
+		return RBACKeyParts{}
 	}
 
-	return PermissionKeyParts{
+	return RBACKeyParts{
 		Subject:    parts[0],
 		Verb:       parts[1],
 		ObjectType: parts[2],
@@ -321,10 +321,10 @@ func parsePermissionKey(key, prefix string) PermissionKeyParts {
 	}
 }
 
-// ScopedPermissionKeyParts holds the parsed components of a set/room-scoped
+// ScopedRBACKeyParts holds the parsed components of a set/room-scoped
 // permission key. The container's identifier (groupId or roomId) sits right
 // after the prefix, followed by the subject, verb, and objectType.
-type ScopedPermissionKeyParts struct {
+type ScopedRBACKeyParts struct {
 	ScopeID    string // groupId for set_*, roomId for room_*
 	Subject    string
 	Verb       string
@@ -334,43 +334,43 @@ type ScopedPermissionKeyParts struct {
 // ParseSetAllowKey extracts components from a set-scope allow key.
 // Returns empty struct if the key format is invalid.
 // Expected format: group_allow.{groupId}.{subject}.{verb}.{objectType}
-func ParseSetAllowKey(key string) ScopedPermissionKeyParts {
+func ParseSetAllowKey(key string) ScopedRBACKeyParts {
 	return parseScopedPermissionKey(key, GroupAllowKeyPrefix)
 }
 
 // ParseSetDenyKey extracts components from a set-scope deny key.
 // Returns empty struct if the key format is invalid.
 // Expected format: group_deny.{groupId}.{subject}.{verb}.{objectType}
-func ParseSetDenyKey(key string) ScopedPermissionKeyParts {
+func ParseSetDenyKey(key string) ScopedRBACKeyParts {
 	return parseScopedPermissionKey(key, GroupDenyKeyPrefix)
 }
 
 // ParseRoomAllowKey extracts components from a room-override allow key.
 // Returns empty struct if the key format is invalid.
 // Expected format: room_allow.{roomId}.{subject}.{verb}.{objectType}
-func ParseRoomAllowKey(key string) ScopedPermissionKeyParts {
+func ParseRoomAllowKey(key string) ScopedRBACKeyParts {
 	return parseScopedPermissionKey(key, RoomAllowKeyPrefix)
 }
 
 // ParseRoomDenyKey extracts components from a room-override deny key.
 // Returns empty struct if the key format is invalid.
 // Expected format: room_deny.{roomId}.{subject}.{verb}.{objectType}
-func ParseRoomDenyKey(key string) ScopedPermissionKeyParts {
+func ParseRoomDenyKey(key string) ScopedRBACKeyParts {
 	return parseScopedPermissionKey(key, RoomDenyKeyPrefix)
 }
 
-func parseScopedPermissionKey(key, prefix string) ScopedPermissionKeyParts {
+func parseScopedPermissionKey(key, prefix string) ScopedRBACKeyParts {
 	if !strings.HasPrefix(key, prefix) {
-		return ScopedPermissionKeyParts{}
+		return ScopedRBACKeyParts{}
 	}
 
 	rest := key[len(prefix):]
 	parts := strings.SplitN(rest, ".", 4)
 	if len(parts) != 4 {
-		return ScopedPermissionKeyParts{}
+		return ScopedRBACKeyParts{}
 	}
 
-	return ScopedPermissionKeyParts{
+	return ScopedRBACKeyParts{
 		ScopeID:    parts[0],
 		Subject:    parts[1],
 		Verb:       parts[2],

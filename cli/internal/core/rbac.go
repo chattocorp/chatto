@@ -1,7 +1,7 @@
 package core
 
-// rbac.go is the unified RBAC surface on ChattoCore. It used to live in
-// instance_rbac.go (server-tier) and space_rbac.go (space-tier); after Phase
+// go is the unified RBAC surface on ChattoCore. It used to live in
+// instance_go (server-tier) and space_go (space-tier); after Phase
 // 5 of #330 there is only one tier — every role and grant lives in
 // SERVER_RBAC — so the two files have been merged here.
 //
@@ -18,7 +18,6 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // SystemActorID is used for internal/bootstrap operations that bypass permission checks.
@@ -81,18 +80,18 @@ const rbacDefaultsSentinel = "defaults_initialized"
 func (c *ChattoCore) initServerRBAC(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", rbac.PositionOwner); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", PositionOwner); err != nil {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create owner role: %w", err)
 		}
 	}
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Full administrative access to the server", rbac.PositionAdmin); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Full administrative access to the server", PositionAdmin); err != nil {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create admin role: %w", err)
 		}
 	}
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "View access to admin panels without management permissions", rbac.PositionModerator); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "View access to admin panels without management permissions", PositionModerator); err != nil {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create moderator role: %w", err)
 		}
 	}
@@ -122,18 +121,18 @@ func (c *ChattoCore) initServerRBAC(ctx context.Context) error {
 func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", rbac.PositionOwner); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", PositionOwner); err != nil {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create owner role: %w", err)
 		}
 	}
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage server settings, roles, and members", rbac.PositionAdmin); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage server settings, roles, and members", PositionAdmin); err != nil {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create admin role: %w", err)
 		}
 	}
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "Can manage rooms and remove members", rbac.PositionModerator); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "Can manage rooms and remove members", PositionModerator); err != nil {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create moderator role: %w", err)
 		}
 	}
@@ -284,7 +283,7 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	if actorID != SystemActorID {
 		role, err := engine.GetRole(ctx, roleName)
 		if err != nil {
-			if errors.Is(err, rbac.ErrRoleNotFound) {
+			if errors.Is(err, ErrRoleNotFound) {
 				return ErrRoleNotFound
 			}
 			return err
@@ -313,7 +312,7 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	}
 
 	if err := engine.AssignRole(ctx, userID, roleName); err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
+		if errors.Is(err, ErrRoleNotFound) {
 			return ErrRoleNotFound
 		}
 		return err
@@ -345,7 +344,7 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 
 		role, err := engine.GetRole(ctx, roleName)
 		if err != nil {
-			if errors.Is(err, rbac.ErrRoleNotFound) {
+			if errors.Is(err, ErrRoleNotFound) {
 				return ErrRoleNotFound
 			}
 			return err
@@ -374,7 +373,7 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 	}
 
 	if err := engine.RevokeRole(ctx, userID, roleName); err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
+		if errors.Is(err, ErrRoleNotFound) {
 			return ErrRoleNotFound
 		}
 		return err
@@ -393,7 +392,7 @@ func (c *ChattoCore) GetRoleUsers(ctx context.Context, roleName string) ([]strin
 
 	users, err := c.storage.serverRBACEngine.GetRoleUsers(ctx, roleName)
 	if err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
+		if errors.Is(err, ErrRoleNotFound) {
 			return nil, ErrRoleNotFound
 		}
 		return nil, err
@@ -433,7 +432,7 @@ func (c *ChattoCore) GetUserRoles(ctx context.Context, userID string) ([]string,
 // space-tier and room-tier counterparts.)
 func (c *ChattoCore) RevokeServerPermission(ctx context.Context, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.RevokeRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
+	if err := c.storage.serverRBACEngine.RevokeRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, ObjectIdAny); err != nil {
 		return err
 	}
 	c.logger.Info("Revoked server permission", "role", roleName, "permission", perm)
@@ -538,7 +537,7 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 // Role names must be lowercase letters only (e.g., "editor", "moderator").
 // System role names (owner, admin, moderator, everyone) are reserved.
 func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
-	if err := rbac.ValidateRoleName(name); err != nil {
+	if err := ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
 
@@ -548,10 +547,10 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 
 	role, err := c.storage.serverRBACEngine.CreateRole(ctx, name, displayName, description)
 	if err != nil {
-		if errors.Is(err, rbac.ErrRoleAlreadyExists) {
+		if errors.Is(err, ErrRoleAlreadyExists) {
 			return nil, ErrRoleAlreadyExists
 		}
-		if errors.Is(err, rbac.ErrInvalidRoleName) {
+		if errors.Is(err, ErrInvalidRoleName) {
 			return nil, ErrInvalidRoleName
 		}
 		return nil, err
@@ -575,7 +574,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
 	role, err := c.storage.serverRBACEngine.UpdateRole(ctx, name, displayName, description)
 	if err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
+		if errors.Is(err, ErrRoleNotFound) {
 			return nil, ErrRoleNotFound
 		}
 		return nil, err
@@ -601,7 +600,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, de
 func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithPermissions, error) {
 	role, err := c.storage.serverRBACEngine.GetRole(ctx, name)
 	if err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
+		if errors.Is(err, ErrRoleNotFound) {
 			return nil, ErrRoleNotFound
 		}
 		return nil, err
@@ -630,10 +629,10 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, name string) error {
 	}
 
 	if err := c.storage.serverRBACEngine.DeleteRole(ctx, name); err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
+		if errors.Is(err, ErrRoleNotFound) {
 			return ErrRoleNotFound
 		}
-		if errors.Is(err, rbac.ErrCannotDeleteSystemRole) {
+		if errors.Is(err, ErrCannotDeleteSystemRole) {
 			return ErrCannotDeleteSystemRole
 		}
 		return err
@@ -686,12 +685,12 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string)
 func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
 	kv := c.storage.serverRBACKV
 
-	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.RoomAllowPatternForRoom(roomID))
+	allowKeys, err := listKeysWithPattern(ctx, kv, RoomAllowPatternForRoom(roomID))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range allowKeys {
-		parts := rbac.ParseRoomAllowKey(key)
+		parts := ParseRoomAllowKey(key)
 		if parts.Subject == roleName {
 			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
 			if perm != "" {
@@ -700,12 +699,12 @@ func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleNam
 		}
 	}
 
-	denyKeys, err := listKeysWithPattern(ctx, kv, rbac.RoomDenyPatternForRoom(roomID))
+	denyKeys, err := listKeysWithPattern(ctx, kv, RoomDenyPatternForRoom(roomID))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range denyKeys {
-		parts := rbac.ParseRoomDenyKey(key)
+		parts := ParseRoomDenyKey(key)
 		if parts.Subject == roleName {
 			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
 			if perm != "" {
@@ -722,12 +721,12 @@ func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleNam
 func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleName string) (grants []Permission, denials []Permission, err error) {
 	kv := c.storage.serverRBACKV
 
-	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.GroupAllowPatternForGroup(groupID))
+	allowKeys, err := listKeysWithPattern(ctx, kv, GroupAllowPatternForGroup(groupID))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range allowKeys {
-		parts := rbac.ParseSetAllowKey(key)
+		parts := ParseSetAllowKey(key)
 		if parts.Subject == roleName {
 			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
 			if perm != "" {
@@ -736,12 +735,12 @@ func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleN
 		}
 	}
 
-	denyKeys, err := listKeysWithPattern(ctx, kv, rbac.GroupDenyPatternForGroup(groupID))
+	denyKeys, err := listKeysWithPattern(ctx, kv, GroupDenyPatternForGroup(groupID))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range denyKeys {
-		parts := rbac.ParseSetDenyKey(key)
+		parts := ParseSetDenyKey(key)
 		if parts.Subject == roleName {
 			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
 			if perm != "" {
@@ -758,17 +757,7 @@ func (c *ChattoCore) GrantGroupPermission(ctx context.Context, groupID, roleName
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return fmt.Errorf("invalid permission: %s", perm)
-	}
-	kv := c.storage.serverRBACKV
-	if _, err := kv.Put(ctx, rbac.GroupAllowKey(groupID, roleName, parts.Verb, parts.ObjectType), []byte("1")); err != nil {
-		return fmt.Errorf("write set allow: %w", err)
-	}
-	_ = kv.Delete(ctx, rbac.GroupDenyKey(groupID, roleName, parts.Verb, parts.ObjectType))
-	c.logger.Debug("Granted set permission", "set", groupID, "role", roleName, "permission", perm)
-	return nil
+	return c.storage.serverRBACEngine.Grant(ctx, ScopeGroup, groupID, roleName, perm)
 }
 
 // DenyGroupPermission writes a group-scope deny for a role on a specific room group.
@@ -776,30 +765,12 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, groupID, roleName 
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return fmt.Errorf("invalid permission: %s", perm)
-	}
-	kv := c.storage.serverRBACKV
-	if _, err := kv.Put(ctx, rbac.GroupDenyKey(groupID, roleName, parts.Verb, parts.ObjectType), []byte("1")); err != nil {
-		return fmt.Errorf("write set deny: %w", err)
-	}
-	_ = kv.Delete(ctx, rbac.GroupAllowKey(groupID, roleName, parts.Verb, parts.ObjectType))
-	c.logger.Debug("Denied set permission", "set", groupID, "role", roleName, "permission", perm)
-	return nil
+	return c.storage.serverRBACEngine.Deny(ctx, ScopeGroup, groupID, roleName, perm)
 }
 
 // ClearGroupPermissionState removes both allow and deny for a role on a set.
 func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, groupID, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return fmt.Errorf("invalid permission: %s", perm)
-	}
-	kv := c.storage.serverRBACKV
-	_ = kv.Delete(ctx, rbac.GroupAllowKey(groupID, roleName, parts.Verb, parts.ObjectType))
-	_ = kv.Delete(ctx, rbac.GroupDenyKey(groupID, roleName, parts.Verb, parts.ObjectType))
-	c.logger.Debug("Cleared set permission", "set", groupID, "role", roleName, "permission", perm)
-	return nil
+	return c.storage.serverRBACEngine.Clear(ctx, ScopeGroup, groupID, roleName, perm)
 }
 
 // OutranksUser reports whether actor outranks target by role-hierarchy

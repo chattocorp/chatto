@@ -1,4 +1,4 @@
-package rbac
+package core
 
 import (
 	"errors"

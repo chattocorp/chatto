@@ -7,7 +7,6 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // ============================================================================
@@ -1231,14 +1230,14 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 		}
 
 		// System role positions: everyone=0, moderator=100, admin=900, owner=1000.
-		if ownerPos != rbac.PositionOwner {
-			t.Errorf("Expected owner position %d, got %d", rbac.PositionOwner, ownerPos)
+		if ownerPos != PositionOwner {
+			t.Errorf("Expected owner position %d, got %d", PositionOwner, ownerPos)
 		}
-		if adminPos != rbac.PositionAdmin {
-			t.Errorf("Expected admin position %d, got %d", rbac.PositionAdmin, adminPos)
+		if adminPos != PositionAdmin {
+			t.Errorf("Expected admin position %d, got %d", PositionAdmin, adminPos)
 		}
-		if modPos != rbac.PositionModerator {
-			t.Errorf("Expected moderator position %d, got %d", rbac.PositionModerator, modPos)
+		if modPos != PositionModerator {
+			t.Errorf("Expected moderator position %d, got %d", PositionModerator, modPos)
 		}
 	})
 }
@@ -1257,11 +1256,11 @@ func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
 		// everyone (0) and moderator (100), so they outrank everyone but
 		// not the system roles.
 		t.Logf("Custom role 'reviewer' got position %d", role.Position)
-		if role.Position <= rbac.PositionEveryone {
-			t.Errorf("Expected custom role position > %d, got %d", rbac.PositionEveryone, role.Position)
+		if role.Position <= PositionEveryone {
+			t.Errorf("Expected custom role position > %d, got %d", PositionEveryone, role.Position)
 		}
-		if role.Position >= rbac.PositionModerator {
-			t.Errorf("Expected custom role position < %d (moderator), got %d", rbac.PositionModerator, role.Position)
+		if role.Position >= PositionModerator {
+			t.Errorf("Expected custom role position < %d (moderator), got %d", PositionModerator, role.Position)
 		}
 	})
 
@@ -1306,49 +1305,6 @@ func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
 			}
 		}
 	})
-}
-
-// ============================================================================
-// Role Name Validation Tests
-// ============================================================================
-
-func TestValidateRoleName(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantErr bool
-	}{
-		// Valid role names - lowercase letters, digits, and dashes;
-		// must start with a letter and end with a letter or digit.
-		{"simple", "admin", false},
-		{"moderator", "moderator", false},
-		{"single-char", "a", false},
-		{"with-dash", "content-mod", false},
-		{"with-number", "tier1", false},
-		{"ends-with-number", "admin42", false},
-		{"max-length", "abcdefghijklmnopqrstuvwxyzabcdef", false}, // 32 chars
-
-		// Invalid names
-		{"empty", "", true},
-		{"uppercase", "Admin", true},
-		{"mixed-case", "contentModerator", true},
-		{"starts-with-number", "1admin", true},
-		{"starts-with-dash", "-admin", true},
-		{"ends-with-dash", "admin-", true},
-		{"contains-underscore", "content_mod", true},
-		{"contains-space", "content mod", true},
-		{"contains-dot", "content.mod", true},
-		{"too-long", "abcdefghijklmnopqrstuvwxyzabcdefg", true}, // 33 chars
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := rbac.ValidateRoleName(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateRoleName(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-			}
-		})
-	}
 }
 
 // ============================================================================

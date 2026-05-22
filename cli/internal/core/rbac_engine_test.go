@@ -1,4 +1,4 @@
-package rbac_test
+package core
 
 import (
 	"context"
@@ -10,11 +10,10 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // setupTestEngine creates an embedded NATS server, KV bucket, and RBAC engine for testing.
-func setupTestEngine(t *testing.T, config rbac.Config) (*rbac.Engine, func()) {
+func setupTestEngine(t *testing.T, config Config) (*Engine, func()) {
 	t.Helper()
 
 	// Start embedded NATS server with JetStream
@@ -59,7 +58,7 @@ func setupTestEngine(t *testing.T, config rbac.Config) (*rbac.Engine, func()) {
 		t.Fatalf("Failed to create KV bucket: %v", err)
 	}
 
-	engine := rbac.NewEngine(kv, config)
+	engine := NewEngine(kv, config)
 
 	cleanup := func() {
 		nc.Close()
@@ -70,8 +69,8 @@ func setupTestEngine(t *testing.T, config rbac.Config) (*rbac.Engine, func()) {
 }
 
 // Default test config without user overrides
-func defaultTestConfig() rbac.Config {
-	return rbac.Config{
+func defaultTestConfig() Config {
+	return Config{
 		SystemRoles: []string{"admin", "everyone"},
 		AdminRole:   "admin",
 		ValidateVerbObjectType: func(verb, objectType string) error {
@@ -87,7 +86,7 @@ func defaultTestConfig() rbac.Config {
 			}
 			key := verb + "." + objectType
 			if !validCombos[key] {
-				return rbac.ErrInvalidPermission
+				return ErrInvalidPermission
 			}
 			return nil
 		},
@@ -115,14 +114,14 @@ func TestEngine_CreateRole(t *testing.T) {
 
 	t.Run("returns ErrRoleAlreadyExists for duplicate", func(t *testing.T) {
 		_, err := engine.CreateRole(ctx, "moderator", "Mod2", "Another mod")
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+		if !errors.Is(err, ErrRoleAlreadyExists) {
 			t.Errorf("CreateRole() error = %v, want ErrRoleAlreadyExists", err)
 		}
 	})
 
 	t.Run("returns ErrInvalidRoleName for invalid name", func(t *testing.T) {
 		_, err := engine.CreateRole(ctx, "Invalid Name", "Invalid", "Bad name")
-		if !errors.Is(err, rbac.ErrInvalidRoleName) {
+		if !errors.Is(err, ErrInvalidRoleName) {
 			t.Errorf("CreateRole() error = %v, want ErrInvalidRoleName", err)
 		}
 	})
@@ -152,7 +151,7 @@ func TestEngine_GetRole(t *testing.T) {
 
 	t.Run("returns ErrRoleNotFound for nonexistent", func(t *testing.T) {
 		_, err := engine.GetRole(ctx, "nonexistent")
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("GetRole() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -216,7 +215,7 @@ func TestEngine_UpdateRole(t *testing.T) {
 
 	t.Run("returns ErrRoleNotFound for nonexistent", func(t *testing.T) {
 		_, err := engine.UpdateRole(ctx, "nonexistent", "Name", "Desc")
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("UpdateRole() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -233,7 +232,7 @@ func TestEngine_DeleteRole(t *testing.T) {
 		engine.CreateRole(ctx, "admin", "Admin", "System admin")
 
 		err := engine.DeleteRole(ctx, "admin")
-		if !errors.Is(err, rbac.ErrCannotDeleteSystemRole) {
+		if !errors.Is(err, ErrCannotDeleteSystemRole) {
 			t.Errorf("DeleteRole() error = %v, want ErrCannotDeleteSystemRole", err)
 		}
 	})
@@ -244,7 +243,7 @@ func TestEngine_DeleteRole(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateRole() error = %v", err)
 		}
-		engine.GrantRolePermission(ctx, "deletable", "create", "room", rbac.ObjectIdAny)
+		engine.GrantRolePermission(ctx, "deletable", "create", "room", ObjectIdAny)
 		engine.AssignRole(ctx, "user1", "deletable")
 
 		// Delete it
@@ -255,14 +254,14 @@ func TestEngine_DeleteRole(t *testing.T) {
 
 		// Verify it's gone
 		_, err = engine.GetRole(ctx, "deletable")
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("GetRole() after delete error = %v, want ErrRoleNotFound", err)
 		}
 	})
 
 	t.Run("returns ErrRoleNotFound for nonexistent", func(t *testing.T) {
 		err := engine.DeleteRole(ctx, "nonexistent")
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("DeleteRole() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -278,7 +277,7 @@ func TestEngine_GrantRolePermission(t *testing.T) {
 	engine.CreateRole(ctx, "permtest", "Perm Test", "For testing perms")
 
 	t.Run("grants permission successfully", func(t *testing.T) {
-		err := engine.GrantRolePermission(ctx, "permtest", "create", "room", rbac.ObjectIdAny)
+		err := engine.GrantRolePermission(ctx, "permtest", "create", "room", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("GrantPermission() error = %v", err)
 		}
@@ -292,22 +291,22 @@ func TestEngine_GrantRolePermission(t *testing.T) {
 	})
 
 	t.Run("is idempotent", func(t *testing.T) {
-		err := engine.GrantRolePermission(ctx, "permtest", "create", "room", rbac.ObjectIdAny)
+		err := engine.GrantRolePermission(ctx, "permtest", "create", "room", ObjectIdAny)
 		if err != nil {
 			t.Errorf("GrantPermission() second call error = %v", err)
 		}
 	})
 
 	t.Run("returns error for invalid permission", func(t *testing.T) {
-		err := engine.GrantRolePermission(ctx, "permtest", "invalid", "perm", rbac.ObjectIdAny)
-		if !errors.Is(err, rbac.ErrInvalidPermission) {
+		err := engine.GrantRolePermission(ctx, "permtest", "invalid", "perm", ObjectIdAny)
+		if !errors.Is(err, ErrInvalidPermission) {
 			t.Errorf("GrantPermission() error = %v, want ErrInvalidPermission", err)
 		}
 	})
 
 	t.Run("returns ErrRoleNotFound for nonexistent role", func(t *testing.T) {
-		err := engine.GrantRolePermission(ctx, "nonexistent", "create", "room", rbac.ObjectIdAny)
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		err := engine.GrantRolePermission(ctx, "nonexistent", "create", "room", ObjectIdAny)
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("GrantPermission() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -321,10 +320,10 @@ func TestEngine_RevokeRolePermission(t *testing.T) {
 
 	// Setup: create role with permission
 	engine.CreateRole(ctx, "revoketest", "Revoke Test", "For testing")
-	engine.GrantRolePermission(ctx, "revoketest", "create", "room", rbac.ObjectIdAny)
+	engine.GrantRolePermission(ctx, "revoketest", "create", "room", ObjectIdAny)
 
 	t.Run("revokes permission successfully", func(t *testing.T) {
-		err := engine.RevokeRolePermission(ctx, "revoketest", "create", "room", rbac.ObjectIdAny)
+		err := engine.RevokeRolePermission(ctx, "revoketest", "create", "room", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("RevokePermission() error = %v", err)
 		}
@@ -336,7 +335,7 @@ func TestEngine_RevokeRolePermission(t *testing.T) {
 	})
 
 	t.Run("is idempotent for non-granted permission", func(t *testing.T) {
-		err := engine.RevokeRolePermission(ctx, "revoketest", "post", "message", rbac.ObjectIdAny)
+		err := engine.RevokeRolePermission(ctx, "revoketest", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Errorf("RevokePermission() for non-granted error = %v", err)
 		}
@@ -373,7 +372,7 @@ func TestEngine_AssignRole(t *testing.T) {
 
 	t.Run("returns ErrRoleNotFound for nonexistent role", func(t *testing.T) {
 		err := engine.AssignRole(ctx, "user456", "nonexistent")
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("AssignRole() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -432,7 +431,7 @@ func TestEngine_GetRoleUsers(t *testing.T) {
 
 	t.Run("returns ErrRoleNotFound for nonexistent", func(t *testing.T) {
 		_, err := engine.GetRoleUsers(ctx, "nonexistent")
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("GetRoleUsers() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -447,13 +446,13 @@ func TestEngine_HasPermissionViaRoles(t *testing.T) {
 	// Setup: create admin and regular roles
 	engine.CreateRole(ctx, "admin", "Admin", "Full access")
 	engine.CreateRole(ctx, "editor", "Editor", "Can edit")
-	engine.GrantRolePermission(ctx, "editor", "post", "message", rbac.ObjectIdAny)
+	engine.GrantRolePermission(ctx, "editor", "post", "message", ObjectIdAny)
 
 	t.Run("admin needs explicit permissions like any other role", func(t *testing.T) {
 		engine.AssignRole(ctx, "admin-user", "admin")
 
 		// Admin does NOT have implicit all permissions - must be granted explicitly
-		has, err := engine.HasPermissionViaRoles(ctx, "admin-user", "post", "message", rbac.ObjectIdAny)
+		has, err := engine.HasPermissionViaRoles(ctx, "admin-user", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -462,8 +461,8 @@ func TestEngine_HasPermissionViaRoles(t *testing.T) {
 		}
 
 		// Grant the permission explicitly
-		engine.GrantRolePermission(ctx, "admin", "post", "message", rbac.ObjectIdAny)
-		has, err = engine.HasPermissionViaRoles(ctx, "admin-user", "post", "message", rbac.ObjectIdAny)
+		engine.GrantRolePermission(ctx, "admin", "post", "message", ObjectIdAny)
+		has, err = engine.HasPermissionViaRoles(ctx, "admin-user", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -472,7 +471,7 @@ func TestEngine_HasPermissionViaRoles(t *testing.T) {
 		}
 
 		// Admin should NOT have non-granted permissions
-		has, err = engine.HasPermissionViaRoles(ctx, "admin-user", "manage", "space", rbac.ObjectIdAny)
+		has, err = engine.HasPermissionViaRoles(ctx, "admin-user", "manage", "space", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -484,7 +483,7 @@ func TestEngine_HasPermissionViaRoles(t *testing.T) {
 	t.Run("user with role has granted permission", func(t *testing.T) {
 		engine.AssignRole(ctx, "editor-user", "editor")
 
-		has, err := engine.HasPermissionViaRoles(ctx, "editor-user", "post", "message", rbac.ObjectIdAny)
+		has, err := engine.HasPermissionViaRoles(ctx, "editor-user", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -494,7 +493,7 @@ func TestEngine_HasPermissionViaRoles(t *testing.T) {
 	})
 
 	t.Run("user without role has no permission", func(t *testing.T) {
-		has, err := engine.HasPermissionViaRoles(ctx, "random-user", "post", "message", rbac.ObjectIdAny)
+		has, err := engine.HasPermissionViaRoles(ctx, "random-user", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -504,7 +503,7 @@ func TestEngine_HasPermissionViaRoles(t *testing.T) {
 	})
 
 	t.Run("user with role doesn't have non-granted permission", func(t *testing.T) {
-		has, err := engine.HasPermissionViaRoles(ctx, "editor-user", "manage", "space", rbac.ObjectIdAny)
+		has, err := engine.HasPermissionViaRoles(ctx, "editor-user", "manage", "space", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -525,7 +524,7 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 	engine.CreateRole(ctx, "suspended", "Suspended", "Suspended user")
 
 	t.Run("DenyRolePermission creates denial", func(t *testing.T) {
-		err := engine.DenyRolePermission(ctx, "suspended", "post", "message", rbac.ObjectIdAny)
+		err := engine.DenyRolePermission(ctx, "suspended", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("DenyRolePermission() error = %v", err)
 		}
@@ -543,7 +542,7 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 
 	t.Run("DenyRolePermission removes existing grant", func(t *testing.T) {
 		// First grant the permission
-		engine.GrantRolePermission(ctx, "editor", "post", "message", rbac.ObjectIdAny)
+		engine.GrantRolePermission(ctx, "editor", "post", "message", ObjectIdAny)
 
 		// Verify it's granted
 		perms, _ := engine.GetRolePermissions(ctx, "editor")
@@ -552,7 +551,7 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 		}
 
 		// Now deny it
-		err := engine.DenyRolePermission(ctx, "editor", "post", "message", rbac.ObjectIdAny)
+		err := engine.DenyRolePermission(ctx, "editor", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("DenyRolePermission() error = %v", err)
 		}
@@ -572,7 +571,7 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 
 	t.Run("GrantRolePermission removes existing denial", func(t *testing.T) {
 		// First deny the permission
-		engine.DenyRolePermission(ctx, "editor", "manage", "space", rbac.ObjectIdAny)
+		engine.DenyRolePermission(ctx, "editor", "manage", "space", ObjectIdAny)
 
 		// Verify it's denied
 		denials, _ := engine.GetRolePermissionDenials(ctx, "editor")
@@ -588,7 +587,7 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 		}
 
 		// Now grant it
-		err := engine.GrantRolePermission(ctx, "editor", "manage", "space", rbac.ObjectIdAny)
+		err := engine.GrantRolePermission(ctx, "editor", "manage", "space", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("GrantRolePermission() error = %v", err)
 		}
@@ -617,16 +616,16 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 
 	t.Run("ClearRolePermissionState removes both grant and denial", func(t *testing.T) {
 		// Set a grant
-		engine.GrantRolePermission(ctx, "editor", "create", "room", rbac.ObjectIdAny)
+		engine.GrantRolePermission(ctx, "editor", "create", "room", ObjectIdAny)
 		// Set a denial on different permission
-		engine.DenyRolePermission(ctx, "editor", "delete", "room", rbac.ObjectIdAny)
+		engine.DenyRolePermission(ctx, "editor", "delete", "room", ObjectIdAny)
 
 		// Clear both
-		err := engine.ClearRolePermissionState(ctx, "editor", "create", "room", rbac.ObjectIdAny)
+		err := engine.ClearRolePermissionState(ctx, "editor", "create", "room", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("ClearRolePermissionState() error = %v", err)
 		}
-		err = engine.ClearRolePermissionState(ctx, "editor", "delete", "room", rbac.ObjectIdAny)
+		err = engine.ClearRolePermissionState(ctx, "editor", "delete", "room", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("ClearRolePermissionState() error = %v", err)
 		}
@@ -650,17 +649,17 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 
 	t.Run("role denial overrides grant from another role", func(t *testing.T) {
 		// Create a new user and assign them to two roles
-		engine.GrantRolePermission(ctx, "editor", "post", "message", rbac.ObjectIdAny)
+		engine.GrantRolePermission(ctx, "editor", "post", "message", ObjectIdAny)
 
 		// Create a fresh user
 		engine.AssignRole(ctx, "test-user", "editor")
 		engine.AssignRole(ctx, "test-user", "suspended")
 
 		// Verify user has editor permission
-		engine.DenyRolePermission(ctx, "suspended", "post", "message", rbac.ObjectIdAny)
+		engine.DenyRolePermission(ctx, "suspended", "post", "message", ObjectIdAny)
 
 		// Now check: suspended role should deny what editor grants
-		has, err := engine.HasPermissionViaRoles(ctx, "test-user", "post", "message", rbac.ObjectIdAny)
+		has, err := engine.HasPermissionViaRoles(ctx, "test-user", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -672,13 +671,13 @@ func TestEngine_RolePermissionDenials(t *testing.T) {
 	t.Run("admin role is subject to role denials like any other role", func(t *testing.T) {
 		// Create admin role and assign it
 		engine.CreateRole(ctx, "admin", "Admin", "Admin role")
-		engine.GrantRolePermission(ctx, "admin", "post", "message", rbac.ObjectIdAny) // Admin must have explicit grants
+		engine.GrantRolePermission(ctx, "admin", "post", "message", ObjectIdAny) // Admin must have explicit grants
 		engine.AssignRole(ctx, "admin-user", "admin")
 		engine.AssignRole(ctx, "admin-user", "suspended")
 
 		// Admin should NOT have the permission due to suspended role denial
 		// (deny-wins pattern applies to admin like any other role)
-		has, err := engine.HasPermissionViaRoles(ctx, "admin-user", "post", "message", rbac.ObjectIdAny)
+		has, err := engine.HasPermissionViaRoles(ctx, "admin-user", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("HasPermissionViaRoles() error = %v", err)
 		}
@@ -779,7 +778,7 @@ func TestEngine_UtilityFunctions(t *testing.T) {
 	ctx := context.Background()
 
 	engine.CreateRole(ctx, "utiltest", "Util Test", "For testing")
-	engine.GrantRolePermission(ctx, "utiltest", "create", "room", rbac.ObjectIdAny)
+	engine.GrantRolePermission(ctx, "utiltest", "create", "room", ObjectIdAny)
 
 	t.Run("RoleExists", func(t *testing.T) {
 		exists, err := engine.RoleExists(ctx, "utiltest")
@@ -820,7 +819,7 @@ func TestEngine_UtilityFunctions(t *testing.T) {
 	})
 
 	t.Run("RoleHasPermission", func(t *testing.T) {
-		has, err := engine.RoleHasPermission(ctx, "utiltest", "create", "room", rbac.ObjectIdAny)
+		has, err := engine.RoleHasPermission(ctx, "utiltest", "create", "room", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("RoleHasPermission() error = %v", err)
 		}
@@ -828,7 +827,7 @@ func TestEngine_UtilityFunctions(t *testing.T) {
 			t.Error("RoleHasPermission() = false, want true")
 		}
 
-		has, err = engine.RoleHasPermission(ctx, "utiltest", "post", "message", rbac.ObjectIdAny)
+		has, err = engine.RoleHasPermission(ctx, "utiltest", "post", "message", ObjectIdAny)
 		if err != nil {
 			t.Fatalf("RoleHasPermission() error = %v", err)
 		}
@@ -854,7 +853,7 @@ func TestParseKeyFunctions(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			role, user := rbac.ParseMemberKey(tt.key)
+			role, user := ParseMemberKey(tt.key)
 			if role != tt.wantRole || user != tt.wantUser {
 				t.Errorf("ParseMemberKey(%q) = (%q, %q), want (%q, %q)",
 					tt.key, role, user, tt.wantRole, tt.wantUser)
@@ -880,7 +879,7 @@ func TestParseKeyFunctions(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			parts := rbac.ParseAllowKey(tt.key)
+			parts := ParseAllowKey(tt.key)
 			if parts.Subject != tt.wantSubject || parts.Verb != tt.wantVerb ||
 				parts.ObjectType != tt.wantObjectType || parts.ObjectId != tt.wantObjectId {
 				t.Errorf("ParseAllowKey(%q) = {Subject:%q, Verb:%q, ObjectType:%q, ObjectId:%q}, want {Subject:%q, Verb:%q, ObjectType:%q, ObjectId:%q}",
@@ -907,7 +906,7 @@ func TestParseKeyFunctions(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			parts := rbac.ParseDenyKey(tt.key)
+			parts := ParseDenyKey(tt.key)
 			if parts.Subject != tt.wantSubject || parts.Verb != tt.wantVerb ||
 				parts.ObjectType != tt.wantObjectType || parts.ObjectId != tt.wantObjectId {
 				t.Errorf("ParseDenyKey(%q) = {Subject:%q, Verb:%q, ObjectType:%q, ObjectId:%q}, want {Subject:%q, Verb:%q, ObjectType:%q, ObjectId:%q}",
@@ -938,8 +937,8 @@ func TestEngine_GetUserHighestPosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetUserHighestPosition() error = %v", err)
 		}
-		if pos != rbac.PositionEveryone {
-			t.Errorf("GetUserHighestPosition() = %d, want %d (PositionEveryone)", pos, rbac.PositionEveryone)
+		if pos != PositionEveryone {
+			t.Errorf("GetUserHighestPosition() = %d, want %d (PositionEveryone)", pos, PositionEveryone)
 		}
 	})
 
@@ -996,15 +995,15 @@ func TestEngine_CanUserManageRole(t *testing.T) {
 	ctx := context.Background()
 
 	// Higher position = higher rank.
-	engine.CreateRoleWithPosition(ctx, "owner", "Owner", "Owner role", rbac.PositionOwner)
-	engine.CreateRoleWithPosition(ctx, "admin", "Admin", "Admin role", rbac.PositionAdmin)
-	engine.CreateRoleWithPosition(ctx, "moderator", "Moderator", "Moderator role", rbac.PositionModerator)
+	engine.CreateRoleWithPosition(ctx, "owner", "Owner", "Owner role", PositionOwner)
+	engine.CreateRoleWithPosition(ctx, "admin", "Admin", "Admin role", PositionAdmin)
+	engine.CreateRoleWithPosition(ctx, "moderator", "Moderator", "Moderator role", PositionModerator)
 	engine.CreateRoleWithPosition(ctx, "editor", "Editor", "Editor role", 50)
 
 	t.Run("owner can manage any role", func(t *testing.T) {
 		engine.AssignRole(ctx, "owner-user", "owner")
 
-		for _, p := range []int32{rbac.PositionOwner, rbac.PositionAdmin, rbac.PositionModerator, 50} {
+		for _, p := range []int32{PositionOwner, PositionAdmin, PositionModerator, 50} {
 			can, err := engine.CanUserManageRole(ctx, "owner-user", p)
 			if err != nil {
 				t.Fatalf("CanUserManageRole(%d): %v", p, err)
@@ -1019,7 +1018,7 @@ func TestEngine_CanUserManageRole(t *testing.T) {
 		engine.AssignRole(ctx, "admin-user", "admin")
 
 		// Admin cannot manage admin (same position) or owner (higher rank).
-		for _, p := range []int32{rbac.PositionAdmin, rbac.PositionOwner} {
+		for _, p := range []int32{PositionAdmin, PositionOwner} {
 			can, _ := engine.CanUserManageRole(ctx, "admin-user", p)
 			if can {
 				t.Errorf("Admin should NOT be able to manage role at position %d", p)
@@ -1027,7 +1026,7 @@ func TestEngine_CanUserManageRole(t *testing.T) {
 		}
 
 		// Admin can manage moderator (lower rank).
-		can, _ := engine.CanUserManageRole(ctx, "admin-user", rbac.PositionModerator)
+		can, _ := engine.CanUserManageRole(ctx, "admin-user", PositionModerator)
 		if !can {
 			t.Error("Admin should be able to manage moderator role")
 		}
@@ -1045,7 +1044,7 @@ func TestEngine_CanUserManageRole(t *testing.T) {
 	t.Run("user cannot manage roles at same position", func(t *testing.T) {
 		engine.AssignRole(ctx, "mod-user-2", "moderator")
 
-		can, _ := engine.CanUserManageRole(ctx, "mod-user-2", rbac.PositionModerator)
+		can, _ := engine.CanUserManageRole(ctx, "mod-user-2", PositionModerator)
 		if can {
 			t.Error("Moderator should NOT be able to manage roles at same position")
 		}
@@ -1054,7 +1053,7 @@ func TestEngine_CanUserManageRole(t *testing.T) {
 	t.Run("user cannot manage roles at higher position (higher rank)", func(t *testing.T) {
 		engine.AssignRole(ctx, "editor-user", "editor")
 
-		for _, p := range []int32{rbac.PositionModerator, rbac.PositionAdmin} {
+		for _, p := range []int32{PositionModerator, PositionAdmin} {
 			can, _ := engine.CanUserManageRole(ctx, "editor-user", p)
 			if can {
 				t.Errorf("Editor should NOT be able to manage role at position %d", p)
@@ -1077,8 +1076,8 @@ func TestEngine_OutranksUser_Hierarchy(t *testing.T) {
 	ctx := context.Background()
 
 	// Higher position = higher rank.
-	engine.CreateRoleWithPosition(ctx, "admin", "Admin", "Admin role", rbac.PositionAdmin)
-	engine.CreateRoleWithPosition(ctx, "moderator", "Moderator", "Moderator role", rbac.PositionModerator)
+	engine.CreateRoleWithPosition(ctx, "admin", "Admin", "Admin role", PositionAdmin)
+	engine.CreateRoleWithPosition(ctx, "moderator", "Moderator", "Moderator role", PositionModerator)
 	engine.CreateRoleWithPosition(ctx, "editor", "Editor", "Editor role", 50)
 
 	// Assign roles
@@ -1181,8 +1180,8 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetNextAvailablePosition() error = %v", err)
 		}
-		if pos != rbac.PositionCustomFirst {
-			t.Errorf("GetNextAvailablePosition() = %d, want %d (PositionCustomFirst)", pos, rbac.PositionCustomFirst)
+		if pos != PositionCustomFirst {
+			t.Errorf("GetNextAvailablePosition() = %d, want %d (PositionCustomFirst)", pos, PositionCustomFirst)
 		}
 	})
 
@@ -1190,7 +1189,7 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		engine, cleanup := setupTestEngine(t, defaultTestConfig())
 		defer cleanup()
 
-		_, err := engine.CreateRoleWithPosition(ctx, "firstrole", "First Role", "First", rbac.PositionCustomFirst)
+		_, err := engine.CreateRoleWithPosition(ctx, "firstrole", "First Role", "First", PositionCustomFirst)
 		if err != nil {
 			t.Fatalf("CreateRoleWithPosition() error = %v", err)
 		}
@@ -1199,11 +1198,11 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetNextAvailablePosition() error = %v", err)
 		}
-		if pos != rbac.PositionCustomFirst+1 {
-			t.Errorf("GetNextAvailablePosition() = %d, want %d", pos, rbac.PositionCustomFirst+1)
+		if pos != PositionCustomFirst+1 {
+			t.Errorf("GetNextAvailablePosition() = %d, want %d", pos, PositionCustomFirst+1)
 		}
 
-		_, err = engine.CreateRoleWithPosition(ctx, "secondrole", "Second Role", "Second", rbac.PositionCustomFirst+1)
+		_, err = engine.CreateRoleWithPosition(ctx, "secondrole", "Second Role", "Second", PositionCustomFirst+1)
 		if err != nil {
 			t.Fatalf("CreateRoleWithPosition() error = %v", err)
 		}
@@ -1212,8 +1211,8 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetNextAvailablePosition() error = %v", err)
 		}
-		if pos != rbac.PositionCustomFirst+2 {
-			t.Errorf("GetNextAvailablePosition() = %d, want %d", pos, rbac.PositionCustomFirst+2)
+		if pos != PositionCustomFirst+2 {
+			t.Errorf("GetNextAvailablePosition() = %d, want %d", pos, PositionCustomFirst+2)
 		}
 	})
 
@@ -1282,7 +1281,7 @@ func TestEngine_UpdateRolePosition(t *testing.T) {
 
 	t.Run("returns ErrRoleNotFound for nonexistent role", func(t *testing.T) {
 		_, err := engine.UpdateRolePosition(ctx, "nonexistent", 1)
-		if !errors.Is(err, rbac.ErrRoleNotFound) {
+		if !errors.Is(err, ErrRoleNotFound) {
 			t.Errorf("UpdateRolePosition() error = %v, want ErrRoleNotFound", err)
 		}
 	})
@@ -1296,9 +1295,9 @@ func TestEngine_ReorderRoles(t *testing.T) {
 
 	// Create custom roles with initial positions starting at PositionCustomFirst
 	// to avoid collisions with system roles (admin=1, moderator=2).
-	engine.CreateRoleWithPosition(ctx, "alpha", "Alpha", "First", rbac.PositionCustomFirst)
-	engine.CreateRoleWithPosition(ctx, "beta", "Beta", "Second", rbac.PositionCustomFirst+1)
-	engine.CreateRoleWithPosition(ctx, "gamma", "Gamma", "Third", rbac.PositionCustomFirst+2)
+	engine.CreateRoleWithPosition(ctx, "alpha", "Alpha", "First", PositionCustomFirst)
+	engine.CreateRoleWithPosition(ctx, "beta", "Beta", "Second", PositionCustomFirst+1)
+	engine.CreateRoleWithPosition(ctx, "gamma", "Gamma", "Third", PositionCustomFirst+2)
 
 	t.Run("reorders roles correctly", func(t *testing.T) {
 		// Reorder: gamma, alpha, beta (reversed order with gamma first).
@@ -1315,9 +1314,9 @@ func TestEngine_ReorderRoles(t *testing.T) {
 		}
 
 		want := map[string]int32{
-			"gamma": rbac.PositionCustomFirst,
-			"alpha": rbac.PositionCustomFirst + 1,
-			"beta":  rbac.PositionCustomFirst + 2,
+			"gamma": PositionCustomFirst,
+			"alpha": PositionCustomFirst + 1,
+			"beta":  PositionCustomFirst + 2,
 		}
 		for name, w := range want {
 			if posMap[name] != w {

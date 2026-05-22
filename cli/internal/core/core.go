@@ -19,7 +19,6 @@ import (
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/core/rbac"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/migrations"
@@ -309,7 +308,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// Phase 5 of #330 collapsed the dual instance-/space-RBAC engines into a
 	// single server-RBAC engine wrapping SERVER_RBAC. All permission checks
 	// go through here.
-	storage.serverRBACEngine = rbac.NewEngine(storage.serverRBACKV, rbac.Config{
+	storage.serverRBACEngine = NewEngine(storage.serverRBACKV, Config{
 		SystemRoles:  []string{RoleOwner, RoleAdmin, RoleModerator, RoleEveryone},
 		AdminRole:    RoleOwner,
 		VirtualRoles: VirtualRoles(),
@@ -411,7 +410,7 @@ type storage struct {
 	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
 	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
 	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
-	serverRBACEngine   *rbac.Engine          // rbac.Engine wrapping serverRBACKV
+	serverRBACEngine   *Engine          // Engine wrapping serverRBACKV
 	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies (#330 phase 4c)
 	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
 	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)

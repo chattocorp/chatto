@@ -1,7 +1,6 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/core/rbac"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -45,7 +44,7 @@ func VirtualRoles() []*corev1.Role {
 			Name:        RoleEveryone,
 			DisplayName: "Everyone",
 			Description: "All authenticated users",
-			Position:    rbac.PositionEveryone,
+			Position:    PositionEveryone,
 		},
 	}
 }

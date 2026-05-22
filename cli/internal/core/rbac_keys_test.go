@@ -1,4 +1,4 @@
-package rbac
+package core
 
 import "testing"
 
@@ -221,27 +221,27 @@ func TestParseAllowKey(t *testing.T) {
 	tests := []struct {
 		name string
 		key  string
-		want PermissionKeyParts
+		want RBACKeyParts
 	}{
 		{
 			"valid allow key",
 			"allow.admin.create.room.any",
-			PermissionKeyParts{Subject: "admin", Verb: "create", ObjectType: "room", ObjectId: "any"},
+			RBACKeyParts{Subject: "admin", Verb: "create", ObjectType: "room", ObjectId: "any"},
 		},
 		{
 			"allow key with room id",
 			"allow.everyone.post.message.Rabc456",
-			PermissionKeyParts{Subject: "everyone", Verb: "post", ObjectType: "message", ObjectId: "Rabc456"},
+			RBACKeyParts{Subject: "everyone", Verb: "post", ObjectType: "message", ObjectId: "Rabc456"},
 		},
 		{
 			"invalid prefix",
 			"deny.admin.create.room.any",
-			PermissionKeyParts{},
+			RBACKeyParts{},
 		},
 		{
 			"too few parts",
 			"allow.admin.create",
-			PermissionKeyParts{},
+			RBACKeyParts{},
 		},
 	}
 
@@ -259,17 +259,17 @@ func TestParseDenyKey(t *testing.T) {
 	tests := []struct {
 		name string
 		key  string
-		want PermissionKeyParts
+		want RBACKeyParts
 	}{
 		{
 			"valid deny key",
 			"deny.everyone.create.room.any",
-			PermissionKeyParts{Subject: "everyone", Verb: "create", ObjectType: "room", ObjectId: "any"},
+			RBACKeyParts{Subject: "everyone", Verb: "create", ObjectType: "room", ObjectId: "any"},
 		},
 		{
 			"invalid prefix",
 			"allow.everyone.create.room.any",
-			PermissionKeyParts{},
+			RBACKeyParts{},
 		},
 	}
 
@@ -368,27 +368,27 @@ func TestParseSetAllowKey(t *testing.T) {
 	tests := []struct {
 		name string
 		key  string
-		want ScopedPermissionKeyParts
+		want ScopedRBACKeyParts
 	}{
 		{
 			"valid set allow",
 			"group_allow.Sgeneral.everyone.post.message",
-			ScopedPermissionKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"},
+			ScopedRBACKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"},
 		},
 		{
 			"user subject in set",
 			"group_allow.Seng.U9mP2qR5tYz3wK.manage.room",
-			ScopedPermissionKeyParts{ScopeID: "Seng", Subject: "U9mP2qR5tYz3wK", Verb: "manage", ObjectType: "room"},
+			ScopedRBACKeyParts{ScopeID: "Seng", Subject: "U9mP2qR5tYz3wK", Verb: "manage", ObjectType: "room"},
 		},
 		{
 			"wrong prefix",
 			"group_deny.Sgeneral.everyone.post.message",
-			ScopedPermissionKeyParts{},
+			ScopedRBACKeyParts{},
 		},
 		{
 			"too few parts",
 			"group_allow.Sgeneral.everyone.post",
-			ScopedPermissionKeyParts{},
+			ScopedRBACKeyParts{},
 		},
 	}
 
@@ -404,7 +404,7 @@ func TestParseSetAllowKey(t *testing.T) {
 
 func TestParseSetDenyKey(t *testing.T) {
 	got := ParseSetDenyKey("group_deny.Sgeneral.everyone.post.message")
-	want := ScopedPermissionKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"}
+	want := ScopedRBACKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"}
 	if got != want {
 		t.Errorf("ParseSetDenyKey() = %+v, want %+v", got, want)
 	}
@@ -412,7 +412,7 @@ func TestParseSetDenyKey(t *testing.T) {
 
 func TestParseRoomAllowKey(t *testing.T) {
 	got := ParseRoomAllowKey("room_allow.Rannounce.moderator.post.message")
-	want := ScopedPermissionKeyParts{ScopeID: "Rannounce", Subject: "moderator", Verb: "post", ObjectType: "message"}
+	want := ScopedRBACKeyParts{ScopeID: "Rannounce", Subject: "moderator", Verb: "post", ObjectType: "message"}
 	if got != want {
 		t.Errorf("ParseRoomAllowKey() = %+v, want %+v", got, want)
 	}
@@ -420,7 +420,7 @@ func TestParseRoomAllowKey(t *testing.T) {
 
 func TestParseRoomDenyKey(t *testing.T) {
 	got := ParseRoomDenyKey("room_deny.Rannounce.everyone.post.message")
-	want := ScopedPermissionKeyParts{ScopeID: "Rannounce", Subject: "everyone", Verb: "post", ObjectType: "message"}
+	want := ScopedRBACKeyParts{ScopeID: "Rannounce", Subject: "everyone", Verb: "post", ObjectType: "message"}
 	if got != want {
 		t.Errorf("ParseRoomDenyKey() = %+v, want %+v", got, want)
 	}
@@ -429,10 +429,10 @@ func TestParseRoomDenyKey(t *testing.T) {
 func TestParseScopedKey_RejectsLegacyShape(t *testing.T) {
 	// The legacy server-scope allow.X.Y.Z.W format must not match the scoped
 	// parsers, even though the part counts coincide.
-	if got := ParseSetAllowKey("allow.everyone.post.message.any"); got != (ScopedPermissionKeyParts{}) {
+	if got := ParseSetAllowKey("allow.everyone.post.message.any"); got != (ScopedRBACKeyParts{}) {
 		t.Errorf("ParseSetAllowKey on legacy key = %+v, want zero", got)
 	}
-	if got := ParseRoomAllowKey("allow.everyone.post.message.Rabc"); got != (ScopedPermissionKeyParts{}) {
+	if got := ParseRoomAllowKey("allow.everyone.post.message.Rabc"); got != (ScopedRBACKeyParts{}) {
 		t.Errorf("ParseRoomAllowKey on legacy key = %+v, want zero", got)
 	}
 }

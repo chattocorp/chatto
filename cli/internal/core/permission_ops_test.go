@@ -4,31 +4,30 @@ import (
 	"context"
 	"testing"
 
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // Helper to construct expected allow key from permission
 func expectedAllowKey(subject string, perm Permission, objectId string) string {
 	parts := perm.KeyParts()
-	return rbac.AllowKey(subject, parts.Verb, parts.ObjectType, objectId)
+	return AllowKey(subject, parts.Verb, parts.ObjectType, objectId)
 }
 
 // Helper to construct expected deny key from permission
 func expectedDenyKey(subject string, perm Permission, objectId string) string {
 	parts := perm.KeyParts()
-	return rbac.DenyKey(subject, parts.Verb, parts.ObjectType, objectId)
+	return DenyKey(subject, parts.Verb, parts.ObjectType, objectId)
 }
 
 // Helper to construct expected room-override allow key from permission
 func expectedRoomAllowKey(roomID, subject string, perm Permission) string {
 	parts := perm.KeyParts()
-	return rbac.RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType)
+	return RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType)
 }
 
 // Helper to construct expected room-override deny key from permission
 func expectedRoomDenyKey(roomID, subject string, perm Permission) string {
 	parts := perm.KeyParts()
-	return rbac.RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType)
+	return RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType)
 }
 
 // ============================================================================
@@ -47,7 +46,7 @@ func TestGrantServerPermission(t *testing.T) {
 
 		// Verify key was created
 		kv := core.storage.serverRBACEngine.KV()
-		expectedKey := expectedAllowKey(RoleModerator, PermDMWrite, rbac.ObjectIdAny)
+		expectedKey := expectedAllowKey(RoleModerator, PermDMWrite, ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
 			t.Errorf("Expected KV key %s to exist, got error: %v", expectedKey, err)
@@ -69,7 +68,7 @@ func TestGrantServerPermission(t *testing.T) {
 
 		// Verify denial was removed
 		kv := core.storage.serverRBACEngine.KV()
-		denyKey := expectedDenyKey(RoleModerator, PermDMView, rbac.ObjectIdAny)
+		denyKey := expectedDenyKey(RoleModerator, PermDMView, ObjectIdAny)
 		_, err = kv.Get(ctx, denyKey)
 		if err == nil {
 			t.Error("Expected denial key to be removed after grant")
@@ -96,7 +95,7 @@ func TestDenyServerPermission(t *testing.T) {
 
 		// Verify deny key was created
 		kv := core.storage.serverRBACEngine.KV()
-		expectedKey := expectedDenyKey(RoleEveryone, PermDMWrite, rbac.ObjectIdAny)
+		expectedKey := expectedDenyKey(RoleEveryone, PermDMWrite, ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
 			t.Errorf("Expected deny key %s to exist, got error: %v", expectedKey, err)
@@ -118,7 +117,7 @@ func TestDenyServerPermission(t *testing.T) {
 
 		// Verify grant was removed
 		kv := core.storage.serverRBACEngine.KV()
-		grantKey := expectedAllowKey(RoleEveryone, PermDMWrite, rbac.ObjectIdAny)
+		grantKey := expectedAllowKey(RoleEveryone, PermDMWrite, ObjectIdAny)
 		_, err = kv.Get(ctx, grantKey)
 		if err == nil {
 			t.Error("Expected grant key to be removed after denial")
@@ -152,8 +151,8 @@ func TestClearServerPermissionState(t *testing.T) {
 
 		// Verify both keys are gone
 		kv := core.storage.serverRBACEngine.KV()
-		grantKey := expectedAllowKey(RoleModerator, PermDMView, rbac.ObjectIdAny)
-		denyKey := expectedDenyKey(RoleModerator, PermDMView, rbac.ObjectIdAny)
+		grantKey := expectedAllowKey(RoleModerator, PermDMView, ObjectIdAny)
+		denyKey := expectedDenyKey(RoleModerator, PermDMView, ObjectIdAny)
 
 		if _, err := kv.Get(ctx, grantKey); err == nil {
 			t.Error("Expected grant key to be cleared")
@@ -189,7 +188,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 
 		// Verify key was created in space RBAC KV
 		kv := core.storage.serverRBACKV
-		expectedKey := expectedAllowKey(RoleEveryone, PermRoomCreate, rbac.ObjectIdAny)
+		expectedKey := expectedAllowKey(RoleEveryone, PermRoomCreate, ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
 			t.Errorf("Expected space KV key to exist, got error: %v", err)
@@ -227,7 +226,7 @@ func TestDenySpaceRolePermission(t *testing.T) {
 
 		// Verify deny key was created
 		kv := core.storage.serverRBACKV
-		expectedKey := expectedDenyKey(RoleEveryone, PermMessagePost, rbac.ObjectIdAny)
+		expectedKey := expectedDenyKey(RoleEveryone, PermMessagePost, ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
 			t.Errorf("Expected space deny key to exist, got error: %v", err)
@@ -252,7 +251,7 @@ func TestClearSpaceRolePermission(t *testing.T) {
 
 		// Verify keys are gone
 		kv := core.storage.serverRBACKV
-		grantKey := expectedAllowKey(RoleEveryone, PermRoomJoin, rbac.ObjectIdAny)
+		grantKey := expectedAllowKey(RoleEveryone, PermRoomJoin, ObjectIdAny)
 		if _, err := kv.Get(ctx, grantKey); err == nil {
 			t.Error("Expected grant key to be cleared")
 		}
@@ -398,8 +397,8 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 
 		// Verify grant is gone and deny exists
 		kv := core.storage.serverRBACEngine.KV()
-		grantKey := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
-		denyKey := expectedDenyKey(RoleEveryone, perm, rbac.ObjectIdAny)
+		grantKey := expectedAllowKey(RoleEveryone, perm, ObjectIdAny)
+		denyKey := expectedDenyKey(RoleEveryone, perm, ObjectIdAny)
 
 		if _, err := kv.Get(ctx, grantKey); err == nil {
 			t.Error("Grant key should be removed after deny")
@@ -428,7 +427,7 @@ func TestInitServerDefaults(t *testing.T) {
 		// identical to owner.
 		for _, perm := range PermissionsForScope(ScopeServer) {
 			kv := core.storage.serverRBACEngine.KV()
-			key := expectedAllowKey(RoleAdmin, perm.Permission, rbac.ObjectIdAny)
+			key := expectedAllowKey(RoleAdmin, perm.Permission, ObjectIdAny)
 			_, err := kv.Get(ctx, key)
 			if err != nil {
 				t.Errorf("Expected admin to have permission %s, but key not found", perm.Permission)
@@ -438,7 +437,7 @@ func TestInitServerDefaults(t *testing.T) {
 
 	t.Run("everyone has dm.view permission", func(t *testing.T) {
 		kv := core.storage.serverRBACEngine.KV()
-		key := expectedAllowKey(RoleEveryone, PermDMView, rbac.ObjectIdAny)
+		key := expectedAllowKey(RoleEveryone, PermDMView, ObjectIdAny)
 		_, err := kv.Get(ctx, key)
 		if err != nil {
 			t.Error("Expected instance-everyone to have dm.view permission")
@@ -449,7 +448,7 @@ func TestInitServerDefaults(t *testing.T) {
 		kv := core.storage.serverRBACEngine.KV()
 		expectedPerms := []Permission{PermDMView, PermDMWrite, PermUserDeleteSelf}
 		for _, perm := range expectedPerms {
-			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
+			key := expectedAllowKey(RoleEveryone, perm, ObjectIdAny)
 			_, err := kv.Get(ctx, key)
 			if err != nil {
 				t.Errorf("Expected instance-everyone to have permission %s, but key not found", perm)
@@ -474,7 +473,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 		// else.
 		kv := core.storage.serverRBACKV
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			key := expectedAllowKey(RoleOwner, perm.Permission, rbac.ObjectIdAny)
+			key := expectedAllowKey(RoleOwner, perm.Permission, ObjectIdAny)
 			if _, err := kv.Get(ctx, key); err != nil {
 				t.Errorf("Expected owner to have permission %s, but key not found", perm.Permission)
 			}
@@ -506,7 +505,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 	t.Run("everyone has default member permissions", func(t *testing.T) {
 		kv := core.storage.serverRBACKV
 		for _, perm := range DefaultEveryonePermissions() {
-			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
+			key := expectedAllowKey(RoleEveryone, perm, ObjectIdAny)
 			if _, err := kv.Get(ctx, key); err != nil {
 				t.Errorf("Expected everyone to have permission %s, but key not found", perm)
 			}
@@ -517,7 +516,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 		kv := core.storage.serverRBACKV
 		moderatorPerms := []Permission{PermMessageManage}
 		for _, perm := range moderatorPerms {
-			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
+			key := expectedAllowKey("moderator", perm, ObjectIdAny)
 			if _, err := kv.Get(ctx, key); err != nil {
 				t.Errorf("Expected moderator to have permission %s, but key not found", perm)
 			}

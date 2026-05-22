@@ -9,7 +9,6 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // PermissionResolver handles permission resolution using a single
@@ -223,14 +222,14 @@ func (r *PermissionResolver) probeUserLevel(ctx context.Context, userID string, 
 // returns the decision. Uses the legacy allow.{subject}.{verb}.{type}.any
 // keys. Used for server-scope checks and DM rooms.
 func (r *PermissionResolver) probeServerOnce(ctx context.Context, kv jetstream.KeyValue, subject string, parts PermissionKeyParts) (DecisionKind, error) {
-	allowed, err := r.keyExists(ctx, kv, rbac.AllowKey(subject, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	allowed, err := r.keyExists(ctx, kv, AllowKey(subject, parts.Verb, parts.ObjectType, ObjectIdAny))
 	if err != nil {
 		return DecisionNone, err
 	}
 	if allowed {
 		return DecisionAllow, nil
 	}
-	denied, err := r.keyExists(ctx, kv, rbac.DenyKey(subject, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	denied, err := r.keyExists(ctx, kv, DenyKey(subject, parts.Verb, parts.ObjectType, ObjectIdAny))
 	if err != nil {
 		return DecisionNone, err
 	}
@@ -243,14 +242,14 @@ func (r *PermissionResolver) probeServerOnce(ctx context.Context, kv jetstream.K
 // probeRoomOnce checks the per-room override (allow, deny) pair for a subject
 // against a specific roomID. Reads room_allow.{roomId}.{subject}.{verb}.{type}.
 func (r *PermissionResolver) probeRoomOnce(ctx context.Context, kv jetstream.KeyValue, subject string, parts PermissionKeyParts, roomID string) (DecisionKind, error) {
-	allowed, err := r.keyExists(ctx, kv, rbac.RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType))
+	allowed, err := r.keyExists(ctx, kv, RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return DecisionNone, err
 	}
 	if allowed {
 		return DecisionAllow, nil
 	}
-	denied, err := r.keyExists(ctx, kv, rbac.RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType))
+	denied, err := r.keyExists(ctx, kv, RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return DecisionNone, err
 	}
@@ -263,14 +262,14 @@ func (r *PermissionResolver) probeRoomOnce(ctx context.Context, kv jetstream.Key
 // probeSetOnce checks the set-scope (allow, deny) pair for a subject against
 // a specific groupID. Reads group_allow.{groupId}.{subject}.{verb}.{type}.
 func (r *PermissionResolver) probeSetOnce(ctx context.Context, kv jetstream.KeyValue, subject string, parts PermissionKeyParts, groupID string) (DecisionKind, error) {
-	allowed, err := r.keyExists(ctx, kv, rbac.GroupAllowKey(groupID, subject, parts.Verb, parts.ObjectType))
+	allowed, err := r.keyExists(ctx, kv, GroupAllowKey(groupID, subject, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return DecisionNone, err
 	}
 	if allowed {
 		return DecisionAllow, nil
 	}
-	denied, err := r.keyExists(ctx, kv, rbac.GroupDenyKey(groupID, subject, parts.Verb, parts.ObjectType))
+	denied, err := r.keyExists(ctx, kv, GroupDenyKey(groupID, subject, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return DecisionNone, err
 	}
@@ -457,19 +456,19 @@ func (r *PermissionResolver) probeServer(
 	ctx context.Context, kv jetstream.KeyValue, rp roleWithPosition,
 	parts PermissionKeyParts, visit visitFunc,
 ) (decided, stop bool, err error) {
-	granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	granted, err := r.keyExists(ctx, kv, AllowKey(rp.name, parts.Verb, parts.ObjectType, ObjectIdAny))
 	if err != nil {
 		return false, false, err
 	}
 	if granted {
-		return true, visit(TraceEntry{Level: LevelServer, RoleName: rp.name, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop, nil
+		return true, visit(TraceEntry{Level: LevelServer, RoleName: rp.name, Decision: DecisionAllow, ObjectID: ObjectIdAny}) == visitStop, nil
 	}
-	denied, err := r.keyExists(ctx, kv, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	denied, err := r.keyExists(ctx, kv, DenyKey(rp.name, parts.Verb, parts.ObjectType, ObjectIdAny))
 	if err != nil {
 		return false, false, err
 	}
 	if denied {
-		return true, visit(TraceEntry{Level: LevelServer, RoleName: rp.name, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop, nil
+		return true, visit(TraceEntry{Level: LevelServer, RoleName: rp.name, Decision: DecisionDeny, ObjectID: ObjectIdAny}) == visitStop, nil
 	}
 	return false, false, nil
 }
@@ -480,14 +479,14 @@ func (r *PermissionResolver) probeRoom(
 	ctx context.Context, kv jetstream.KeyValue, rp roleWithPosition,
 	parts PermissionKeyParts, roomID string, visit visitFunc,
 ) (decided, stop bool, err error) {
-	granted, err := r.keyExists(ctx, kv, rbac.RoomAllowKey(roomID, rp.name, parts.Verb, parts.ObjectType))
+	granted, err := r.keyExists(ctx, kv, RoomAllowKey(roomID, rp.name, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return false, false, err
 	}
 	if granted {
 		return true, visit(TraceEntry{Level: LevelRoom, RoleName: rp.name, Decision: DecisionAllow, ObjectID: roomID}) == visitStop, nil
 	}
-	denied, err := r.keyExists(ctx, kv, rbac.RoomDenyKey(roomID, rp.name, parts.Verb, parts.ObjectType))
+	denied, err := r.keyExists(ctx, kv, RoomDenyKey(roomID, rp.name, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return false, false, err
 	}
@@ -503,14 +502,14 @@ func (r *PermissionResolver) probeSet(
 	ctx context.Context, kv jetstream.KeyValue, rp roleWithPosition,
 	parts PermissionKeyParts, groupID string, visit visitFunc,
 ) (decided, stop bool, err error) {
-	granted, err := r.keyExists(ctx, kv, rbac.GroupAllowKey(groupID, rp.name, parts.Verb, parts.ObjectType))
+	granted, err := r.keyExists(ctx, kv, GroupAllowKey(groupID, rp.name, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return false, false, err
 	}
 	if granted {
 		return true, visit(TraceEntry{Level: LevelGroup, RoleName: rp.name, Decision: DecisionAllow, ObjectID: groupID}) == visitStop, nil
 	}
-	denied, err := r.keyExists(ctx, kv, rbac.GroupDenyKey(groupID, rp.name, parts.Verb, parts.ObjectType))
+	denied, err := r.keyExists(ctx, kv, GroupDenyKey(groupID, rp.name, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return false, false, err
 	}
@@ -594,7 +593,7 @@ func (r *PermissionResolver) getUserServerRolesWithPositions(ctx context.Context
 
 	result := make([]roleWithPosition, 0, len(roleNames))
 	for _, name := range roleNames {
-		pos := rbac.PositionEveryone // Default for virtual roles or if lookup fails
+		pos := PositionEveryone // Default for virtual roles or if lookup fails
 		if role, err := engine.GetRole(ctx, name); err == nil && role != nil {
 			pos = role.Position
 		}
