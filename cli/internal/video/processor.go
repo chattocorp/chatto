@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -217,7 +216,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 
 	// Download original from asset store
 	inputPath := filepath.Join(tmpDir, "input")
-	if err := s.downloadAttachment(ctx, req.SpaceID, req.AttachmentID, inputPath); err != nil {
+	if err := s.downloadAttachment(ctx, req.AttachmentID, inputPath); err != nil {
 		return s.failProcessing(ctx, req, fmt.Errorf("failed to download original: %w", err))
 	}
 
@@ -261,7 +260,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	// Upload thumbnail as attachment
 	var thumbnailAttachmentID string
 	if thumbPath != "" {
-		thumbID, err := s.uploadFile(ctx, req.SpaceID, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
+		thumbID, err := s.uploadFile(ctx, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
@@ -296,7 +295,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
 		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AttachmentID, filepath.Ext(req.AttachmentID)), quality)
-		variantID, err := s.uploadFile(ctx, req.SpaceID, req.RoomID, filename, "video/mp4", outputPath)
+		variantID, err := s.uploadFile(ctx, req.RoomID, filename, "video/mp4", outputPath)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
 			continue
@@ -335,14 +334,19 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		return fmt.Errorf("failed to set completed state: %w", err)
 	}
 
-	// Delete the original attachment (save storage — variants replace it)
-	if err := s.core.DeleteAttachmentFromStorageByID(ctx, req.SpaceID, req.AttachmentID); err != nil {
+	// Delete the original attachment (save storage — variants replace it).
+	// Post-ADR-030-Phase-4 originals live at the kind-less S3 key
+	// (`attachments/{id}`); passing an empty spaceID picks that layout.
+	if err := s.core.DeleteAttachmentFromStorageByID(ctx, "", req.AttachmentID); err != nil {
 		s.logger.Warn("Failed to delete original after transcoding", "error", err)
 		// Non-fatal — the variants are already uploaded
 	}
 
 	// Publish live event
-	if err := s.core.PublishVideoProcessingCompleted(ctx, core.KindForSpace(req.SpaceID), req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
+	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
+	if err != nil {
+		s.logger.Warn("Failed to resolve room kind for video-completed event", "error", err)
+	} else if err := s.core.PublishVideoProcessingCompleted(ctx, kind, req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
 		s.logger.Warn("Failed to publish video processing completed event", "error", err)
 	}
 
@@ -359,7 +363,6 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 	// Log the full error for server-side debugging (may contain file paths, ffmpeg output, etc.)
 	s.logger.Error("Video processing failed",
 		"attachment_id", req.AttachmentID,
-		"space_id", req.SpaceID,
 		"error", originalErr)
 
 	state := &corev1.VideoProcessingState{
@@ -370,15 +373,19 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 		s.logger.Error("Failed to set error state", "error", err)
 	}
 	// Publish live event even on failure so frontend can update
-	if err := s.core.PublishVideoProcessingCompleted(ctx, core.KindForSpace(req.SpaceID), req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
+	kind, kindErr := s.core.FindRoomKind(ctx, req.RoomID)
+	if kindErr != nil {
+		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
+	} else if err := s.core.PublishVideoProcessingCompleted(ctx, kind, req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	return originalErr
 }
 
 // downloadAttachment downloads an attachment from the asset store to a local file.
-func (s *Service) downloadAttachment(ctx context.Context, spaceID, attachmentID, destPath string) error {
-	reader, _, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
+func (s *Service) downloadAttachment(ctx context.Context, attachmentID, destPath string) error {
+	// New uploads use the kind-less S3 layout (empty spaceID).
+	reader, _, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
 	if err != nil {
 		return err
 	}
@@ -400,18 +407,17 @@ func (s *Service) downloadAttachment(ctx context.Context, spaceID, attachmentID,
 }
 
 // uploadFile uploads a local file as an attachment and returns the new attachment ID.
-func (s *Service) uploadFile(ctx context.Context, spaceID, roomID, filename, contentType, srcPath string) (string, error) {
+func (s *Service) uploadFile(ctx context.Context, roomID, filename, contentType, srcPath string) (string, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
 
-	att, err := s.core.UploadAttachment(ctx, spaceID, roomID, filename, contentType, f)
+	att, err := s.core.UploadAttachment(ctx, roomID, filename, contentType, f)
 	if err != nil {
 		return "", err
 	}
 
 	return att.Id, nil
 }
-

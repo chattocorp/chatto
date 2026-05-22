@@ -51,7 +51,6 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
-			ServerSpaceID,
 			room.Id,
 			"test-image.png",
 			"image/png",
@@ -78,8 +77,9 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 			t.Errorf("Expected content type 'image/png', got '%s'", attachment.ContentType)
 		}
 
-		if attachment.SpaceId != ServerSpaceID {
-			t.Errorf("Expected space ID '%s', got '%s'", ServerSpaceID, attachment.SpaceId)
+		// New uploads no longer carry a space_id (ADR-030 Phase 4).
+		if attachment.SpaceId != "" {
+			t.Errorf("Expected empty space_id on new upload, got '%s'", attachment.SpaceId)
 		}
 
 		if attachment.RoomId != room.Id {
@@ -109,7 +109,6 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
-			ServerSpaceID,
 			room.Id,
 			"test-file.txt",
 			"text/plain",
@@ -159,7 +158,6 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
 		room.Id,
 		"test-file.txt",
 		"text/plain",
@@ -221,7 +219,6 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
 		room.Id,
 		"test-file.txt",
 		"text/plain",
@@ -274,7 +271,7 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -304,7 +301,7 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -446,14 +443,15 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		}
 
 		imageData := createTestPNG(50, 50)
-		attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
+		attachment, err := core.UploadAttachment(ctx, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
 		if err != nil {
 			t.Fatalf("Failed to upload: %v", err)
 		}
 
 		url := core.GetAttachmentURLFromStorage(attachment)
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/space/")) {
-			t.Errorf("Expected absolute URL, got '%s'", url)
+		// New uploads emit the kind-less `/assets/attachments/{id}` path.
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
+			t.Errorf("Expected absolute URL with /assets/attachments/ prefix, got '%s'", url)
 		}
 	})
 }
@@ -513,7 +511,6 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	// 1. Upload
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
 		room.Id,
 		"lifecycle-test.txt",
 		"text/plain",
@@ -568,7 +565,6 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 		content := []byte("Attachment content " + string(rune('A'+i)))
 		att, err := core.UploadAttachment(
 			ctx,
-			ServerSpaceID,
 			room.Id,
 			"attachment"+string(rune('A'+i))+".txt",
 			"text/plain",
@@ -619,7 +615,6 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 
 			attachment, err := core.UploadAttachment(
 				ctx,
-				ServerSpaceID,
 				room.Id,
 				tc.name+".png",
 				"image/png",
@@ -853,7 +848,6 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	imageData := createTestPNG(100, 100)
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
 		room.Id,
 		"test-image.png",
 		"image/png",
@@ -918,8 +912,8 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 
 	// Create two attachments
 	imageData := createTestPNG(100, 100)
-	attachment1, _ := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
-	attachment2, _ := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
+	attachment1, _ := core.UploadAttachment(ctx, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
+	attachment2, _ := core.UploadAttachment(ctx, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
 
 	// Cache entries for both attachments
 	key1 := ImageCacheKey(ServerSpaceID, attachment1.Id, 200, 150, "contain")

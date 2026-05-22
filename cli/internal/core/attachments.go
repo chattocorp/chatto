@@ -29,16 +29,17 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 	return c.storage.serverAttachments, nil
 }
 
-// UploadAttachment uploads a file as an attachment and returns the attachment metadata.
-// For images, it extracts dimensions. Thumbnails are generated on-the-fly via transforms.
-// The storage backend (NATS or S3) is determined by configuration.
+// UploadAttachment uploads a file as an attachment and returns the
+// attachment metadata. For images, it extracts dimensions. Thumbnails
+// are generated on-the-fly via transforms. The storage backend (NATS or
+// S3) is determined by configuration.
 //
-// `spaceID` is the persisted-shape space ID ("server" or "DM"). It's used for
-// the on-disk S3 key path (wire-frozen) and the Attachment.SpaceId proto field.
-// Callers with a kind in hand should convert via SpaceIDForKind first.
+// New attachments use the kind-less `attachments/{id}` S3 key (and the
+// `/assets/attachments/{id}` URL pattern). `Attachment.SpaceId` is left
+// empty on the returned proto — it's reserved for pre-ADR-030-Phase-4
+// records that are still stored at `spaces/{server|DM}/attachments/{id}`.
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
-	spaceID string,
 	roomID string,
 	filename string,
 	contentType string,
@@ -90,7 +91,7 @@ func (c *ChattoCore) UploadAttachment(
 	var storage *corev1.Asset
 	if c.ShouldUseS3() {
 		// Upload to S3
-		s3Key := S3KeySpaceAttachment(spaceID, attachmentID)
+		s3Key := S3KeyAttachment(attachmentID)
 		_, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, content, contentType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload attachment to S3: %w", err)
@@ -136,7 +137,6 @@ func (c *ChattoCore) UploadAttachment(
 
 	c.logger.Debug("Uploaded attachment",
 		"attachment_id", attachmentID,
-		"space_id", spaceID,
 		"room_id", roomID,
 		"filename", filename,
 		"content_type", contentType,
@@ -146,7 +146,6 @@ func (c *ChattoCore) UploadAttachment(
 
 	return &corev1.Attachment{
 		Id:          attachmentID,
-		SpaceId:     spaceID,
 		RoomId:      roomID,
 		Filename:    filename,
 		ContentType: contentType,
@@ -207,8 +206,52 @@ func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.Read
 	}, nil
 }
 
+// attachmentS3Key returns the preferred S3 key for an attachment. New
+// attachments (with no SpaceId) use the kind-less layout; legacy
+// attachments stay at their pre-ADR-030-Phase-4 layout
+// (`spaces/{server|DM}/attachments/{id}`).
+func attachmentS3Key(spaceID, attachmentID string) string {
+	if spaceID == "" {
+		return S3KeyAttachment(attachmentID)
+	}
+	return S3KeySpaceAttachment(spaceID, attachmentID)
+}
+
+// attachmentS3KeyCandidates returns the S3 key to try first plus any
+// fallbacks. We probe across layouts so layout mismatches between caller
+// hint and actual storage (e.g. a legacy in-flight video processing
+// request handled by a Phase-4 binary, or a new variant attached to a
+// legacy parent video) resolve transparently.
+func attachmentS3KeyCandidates(spaceID, attachmentID string) []string {
+	if spaceID == "" {
+		// Prefer the new layout but fall back to known legacy spaceIDs.
+		return []string{
+			S3KeyAttachment(attachmentID),
+			S3KeySpaceAttachment(ServerSpaceID, attachmentID),
+			S3KeySpaceAttachment(DMSpaceID, attachmentID),
+		}
+	}
+	// Prefer the requested legacy layout, fall back to the new one.
+	return []string{
+		S3KeySpaceAttachment(spaceID, attachmentID),
+		S3KeyAttachment(attachmentID),
+	}
+}
+
+// attachmentCachePrefix returns the resize-cache namespace component for an
+// attachment. Matches the cache prefix used by the HTTP transform handlers
+// so deletes and lookups land in the same namespace.
+func attachmentCachePrefix(spaceID string) string {
+	if spaceID == "" {
+		return AttachmentSignResource
+	}
+	return spaceID
+}
+
 // GetAttachmentFromAnyBackend retrieves an attachment by probing both NATS and S3 backends.
 // It tries NATS first (for backwards compatibility with existing attachments), then S3.
+// An empty spaceID selects the kind-less S3 layout used for new uploads;
+// a non-empty spaceID selects the legacy `spaces/{spaceId}/...` layout.
 // Returns a reader for the attachment content and metadata.
 // The caller is responsible for closing the reader if it implements io.Closer.
 func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, attachmentID string) (io.Reader, *AttachmentInfo, error) {
@@ -223,19 +266,23 @@ func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, a
 		}, nil
 	}
 
-	// If NATS failed and S3 is configured, try S3
+	// If NATS failed and S3 is configured, try S3. Probe across layouts
+	// so legacy-vs-new mismatches in the caller's hint resolve cleanly.
 	if c.s3Client != nil {
-		s3Key := S3KeySpaceAttachment(spaceID, attachmentID)
-		s3Reader, s3Info, s3Err := c.GetS3Attachment(ctx, s3Key)
-		if s3Err == nil {
-			return s3Reader, s3Info, nil
+		var lastS3Err error
+		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
+			s3Reader, s3Info, s3Err := c.GetS3Attachment(ctx, s3Key)
+			if s3Err == nil {
+				return s3Reader, s3Info, nil
+			}
+			lastS3Err = s3Err
 		}
-		// Log S3 error but return the original NATS error
+		// Log the last S3 error but return the original NATS error
 		c.logger.Debug("Attachment not found in either backend",
 			"space_id", spaceID,
 			"attachment_id", attachmentID,
 			"nats_error", err,
-			"s3_error", s3Err)
+			"s3_error", lastS3Err)
 	}
 
 	return nil, nil, err
@@ -311,61 +358,91 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	}
 }
 
-// TryPresignedAttachmentURL attempts to generate a presigned S3 URL for an attachment.
-// Returns the URL string if the attachment exists in S3, or an error if S3 is not
-// configured or the attachment is not found in S3.
+// TryPresignedAttachmentURL attempts to generate a presigned S3 URL for an
+// attachment. Returns the URL string if the attachment exists in S3, or an
+// error if S3 is not configured or the attachment is not found in S3.
+// Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
+// the helper falls back to the legacy `spaces/{server|DM}/...` keys for
+// layout mismatches.
 func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, spaceID, attachmentID string) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
 
-	s3Key := S3KeySpaceAttachment(spaceID, attachmentID)
-
-	// Stat to verify the object exists (presigned URLs don't check existence)
-	if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
-		return "", err
+	var lastErr error
+	for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
+		// Stat to verify the object exists (presigned URLs don't check existence)
+		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
+			lastErr = err
+			continue
+		}
+		presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, time.Hour)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+		}
+		return presignedURL.String(), nil
 	}
-
-	presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, time.Hour)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	if lastErr == nil {
+		lastErr = fmt.Errorf("attachment not found")
 	}
-
-	return presignedURL.String(), nil
+	return "", lastErr
 }
 
-// GetAttachmentURL returns the URL for accessing an attachment.
-// For legacy attachments without storage info, defaults to NATS path.
+// AttachmentSignResource is the first resource component fed to the
+// signed-URL signer for post-ADR-030-Phase-4 attachment transform URLs.
+// Stable so existing signatures continue to verify across deployments.
+const AttachmentSignResource = "attachment"
+
+// GetAttachmentURL returns the URL for accessing an attachment by its
+// canonical (legacy) identifier. New code should prefer
+// GetAttachmentURLFromStorage which routes new vs legacy paths based on
+// the Attachment record itself. A non-empty spaceID emits the legacy
+// `/assets/space/{spaceId}/attachments/{id}` URL; an empty spaceID emits
+// the new kind-less `/assets/attachments/{id}` URL.
 func (c *ChattoCore) GetAttachmentURL(spaceID, attachmentID string) string {
+	if spaceID == "" {
+		return c.assetURL(fmt.Sprintf("/assets/attachments/%s", attachmentID))
+	}
 	return c.assetURL(fmt.Sprintf("/assets/space/%s/attachments/%s", spaceID, attachmentID))
 }
 
 // GetAttachmentURLFromStorage returns the URL for accessing an attachment.
-// The URL is always the standard attachment URL format regardless of storage backend.
-// Storage backend is an internal implementation detail that should not leak into URLs.
+// Storage backend is an internal implementation detail that should not leak
+// into URLs. Legacy attachments (recorded with a `space_id` value before
+// ADR-030 Phase 4) keep their `/assets/space/{spaceId}/...` URL so the
+// existing S3 objects remain reachable; new uploads emit the kind-less
+// `/assets/attachments/{id}` URL.
 func (c *ChattoCore) GetAttachmentURLFromStorage(attachment *corev1.Attachment) string {
-	// Always use the standard attachment URL - the HTTP handler will determine storage
 	return c.GetAttachmentURL(attachment.SpaceId, attachment.Id)
 }
 
-// GetTransformedAttachmentURL returns the URL for accessing a transformed version of an attachment.
-// The URL includes HMAC signature to prevent parameter tampering.
-// Format: /assets/space/{spaceId}/attachments/{attachmentId}/t/{params}.{signature}
-// where {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}
+// GetTransformedAttachmentURL returns the URL for accessing a transformed
+// version of an attachment. The URL includes an HMAC signature to prevent
+// parameter tampering.
+//
+// Legacy format (spaceID non-empty):
+//
+//	/assets/space/{spaceId}/attachments/{attachmentId}/t/{params}.{signature}
+//
+// New format (spaceID empty):
+//
+//	/assets/attachments/{attachmentId}/t/{params}.{signature}
+//
+// {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}.
 func (c *ChattoCore) GetTransformedAttachmentURL(spaceID, attachmentID string, width, height int, fit string) string {
-	// Generate signed transform path component
+	if spaceID == "" {
+		signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, attachmentID, width, height, fit)
+		return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", attachmentID, signedPath))
+	}
 	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, spaceID, attachmentID, width, height, fit)
-
-	// Return signed transform URL with base64 path
 	return c.assetURL(fmt.Sprintf("/assets/space/%s/attachments/%s/t/%s",
 		spaceID, attachmentID, signedPath))
 }
 
-// GetTransformedAttachmentURLFromStorage returns the URL for accessing a transformed version of an attachment.
-// The URL is always the standard transformed attachment URL format regardless of storage backend.
-// Storage backend is an internal implementation detail that should not leak into URLs.
+// GetTransformedAttachmentURLFromStorage routes new vs legacy attachment
+// transform URLs based on the Attachment record. See
+// GetAttachmentURLFromStorage for the new vs legacy rules.
 func (c *ChattoCore) GetTransformedAttachmentURLFromStorage(attachment *corev1.Attachment, width, height int, fit string) string {
-	// Always use the standard transformed attachment URL - the HTTP handler will determine storage
 	return c.GetTransformedAttachmentURL(attachment.SpaceId, attachment.Id, width, height, fit)
 }
 
@@ -443,12 +520,16 @@ func (c *ChattoCore) StoreCachedResize(ctx context.Context, key string, data []b
 	return nil
 }
 
-// DeleteCachedResizesForAttachment deletes all cached resizes for an attachment.
+// DeleteCachedResizesForAttachment deletes all cached resizes for an
+// attachment. Pass an empty spaceID for post-ADR-030-Phase-4 attachments;
+// the helper picks the matching cache namespace.
 // Returns the number of deleted cache entries and any error encountered.
 // Does nothing if the cache is disabled.
 func (c *ChattoCore) DeleteCachedResizesForAttachment(ctx context.Context, spaceID, attachmentID string) (int, error) {
-	// Cache keys follow the pattern: {spaceId}.{attachmentId}.{paramsHash}
-	return c.DeleteCachedResizesForKey(ctx, spaceID, attachmentID)
+	// Cache keys follow the pattern: {prefix}.{attachmentId}.{paramsHash},
+	// where {prefix} matches what the transform handler used at insertion
+	// time (spaceID for legacy attachments, "attachment" for new ones).
+	return c.DeleteCachedResizesForKey(ctx, attachmentCachePrefix(spaceID), attachmentID)
 }
 
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
@@ -549,16 +630,16 @@ func (c *ChattoCore) InitVideoProcessingState(ctx context.Context, attachmentID 
 }
 
 // PublishVideoProcessingRequest publishes a video processing request to NATS.
-// Call this AFTER PostMessage, once the messageBodyID is known.
-func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, spaceID, roomID, attachmentID, contentType, messageBodyID string) error {
+// Call this AFTER PostMessage, once the messageBodyID is known. The video
+// service consumes this subject via a transient (non-JetStream) subscription,
+// so the payload format can evolve freely.
+func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, roomID, attachmentID, contentType, messageBodyID string) error {
 	payload := struct {
-		SpaceID       string `json:"space_id"`
 		RoomID        string `json:"room_id"`
 		AttachmentID  string `json:"attachment_id"`
 		ContentType   string `json:"content_type"`
 		MessageBodyID string `json:"message_body_id"`
 	}{
-		SpaceID:       spaceID,
 		RoomID:        roomID,
 		AttachmentID:  attachmentID,
 		ContentType:   contentType,
@@ -575,7 +656,6 @@ func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, spaceID,
 	}
 
 	c.logger.Debug("Requested video processing",
-		"space_id", spaceID,
 		"attachment_id", attachmentID,
 	)
 
@@ -600,9 +680,12 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind R
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
-// DeleteAttachmentFromStorageByID deletes an attachment from storage by space ID and attachment ID.
-// This probes both NATS and S3 backends. Used by the video service to delete the original
-// after successful transcoding.
+// DeleteAttachmentFromStorageByID deletes an attachment from storage by
+// space ID and attachment ID. This probes both NATS and S3 backends. Used
+// by the video service to delete the original after successful transcoding.
+// Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
+// the helper probes all known S3 layouts so layout mismatches resolve
+// transparently.
 func (c *ChattoCore) DeleteAttachmentFromStorageByID(ctx context.Context, spaceID, attachmentID string) error {
 	// Try NATS first
 	err := c.DeleteAttachment(ctx, spaceID, attachmentID)
@@ -610,11 +693,12 @@ func (c *ChattoCore) DeleteAttachmentFromStorageByID(ctx context.Context, spaceI
 		return nil
 	}
 
-	// Try S3
+	// Try S3 across known layouts.
 	if c.s3Client != nil {
-		s3Key := S3KeySpaceAttachment(spaceID, attachmentID)
-		if s3Err := c.s3Client.DeleteObject(ctx, s3Key); s3Err == nil {
-			return nil
+		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
+			if s3Err := c.s3Client.DeleteObject(ctx, s3Key); s3Err == nil {
+				return nil
+			}
 		}
 	}
 

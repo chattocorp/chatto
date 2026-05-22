@@ -174,6 +174,13 @@ func TestS3KeyHelpers(t *testing.T) {
 		expected string
 	}{
 		{
+			name: "Attachment",
+			function: func() string {
+				return core.S3KeyAttachment("attach456")
+			},
+			expected: "attachments/attach456",
+		},
+		{
 			name: "SpaceAttachment",
 			function: func() string {
 				return core.S3KeySpaceAttachment("space123", "attach456")
@@ -257,4 +264,3 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		require.Equal(t, assetID, s3Asset.GetS3().Key)
 	})
 }
-

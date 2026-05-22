@@ -253,7 +253,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 
 			attachment, err := r.core.UploadAttachment(
 				ctx,
-				core.SpaceIDForKind(kind),
 				input.RoomID,
 				upload.Filename,
 				upload.ContentType,
@@ -348,7 +347,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		if msg := event.GetMessagePosted(); msg != nil {
 			for _, att := range attachments {
 				if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
-					if err := r.core.PublishVideoProcessingRequest(ctx, core.SpaceIDForKind(kind), input.RoomID, att.Id, att.ContentType, msg.MessageBodyId); err != nil {
+					if err := r.core.PublishVideoProcessingRequest(ctx, input.RoomID, att.Id, att.ContentType, msg.MessageBodyId); err != nil {
 						r.logger.Warn("Failed to request video processing", "attachment_id", att.Id, "error", err)
 					}
 				}

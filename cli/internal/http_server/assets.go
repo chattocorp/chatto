@@ -16,10 +16,15 @@ import (
 )
 
 func (s *HTTPServer) setupAssetRoutes() {
-	// Instance assets use *path which catches everything including /t/signedPath for transforms
+	// Server assets use *path which catches everything including /t/signedPath for transforms
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
+	// Post-ADR-030-Phase-4 attachment routes (kind-less). New uploads use these.
+	s.router.GET("/assets/attachments/:attachmentId", s.serveAttachment)
+	s.router.GET("/assets/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachmentByID)
+	// Legacy routes — kept for attachments uploaded before Phase 4 whose S3
+	// objects still live at `spaces/{server|DM}/attachments/{id}`.
 	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId", s.serveSpaceAttachment)
 	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
 }
@@ -117,7 +122,7 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, spaceID, attachmentID); err == nil {
 		// S3 attachments don't store roomID, so authorizeAttachmentAccess passes
 		// with empty roomID (same as the previous proxying behavior).
-		if !s.authorizeAttachmentAccess(c, spaceID, "") {
+		if !s.authorizeAttachmentAccess(c, "") {
 			return
 		}
 
@@ -139,7 +144,7 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 		defer closer.Close()
 	}
 
-	if !s.authorizeAttachmentAccess(c, spaceID, info.RoomID) {
+	if !s.authorizeAttachmentAccess(c, info.RoomID) {
 		return
 	}
 
@@ -157,9 +162,67 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
+// serveAttachment serves an attachment uploaded via the post-ADR-030-Phase-4
+// kind-less URL pattern (`/assets/attachments/{id}`).
+//
+// Mirrors serveSpaceAttachment but passes an empty spaceID to the core
+// helpers, which picks the new `attachments/{id}` S3 layout for S3-stored
+// attachments. NATS-stored attachments use the same attachment ID regardless
+// of upload era.
+func (s *HTTPServer) serveAttachment(c *gin.Context) {
+	attachmentID := c.Param("attachmentId")
+	ctx := c.Request.Context()
+
+	s.logger.Debug("Serving attachment", "attachment_id", attachmentID)
+
+	// Try S3 presigned redirect first (zero-copy, full Range support)
+	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, "", attachmentID); err == nil {
+		// S3 attachments don't store roomID, so authorizeAttachmentAccess passes
+		// with empty roomID (same as the legacy proxying behavior).
+		if !s.authorizeAttachmentAccess(c, "") {
+			return
+		}
+
+		// Cache the redirect itself — the attachment URL is immutable
+		c.Header("Cache-Control", "public, max-age=3600")
+		c.Redirect(http.StatusFound, presignedURL)
+		return
+	}
+
+	// Fall back to probing both NATS and S3 backends
+	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+	if err != nil {
+		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", attachmentID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+
+	if !s.authorizeAttachmentAccess(c, info.RoomID) {
+		return
+	}
+
+	contentType := info.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// Immutable asset - cache forever
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("ETag", fmt.Sprintf("\"%s\"", attachmentID))
+	c.Header("Vary", "Accept-Encoding")
+
+	// Stream directly — no io.ReadAll, no memory buffering
+	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
+}
+
 // authorizeAttachmentAccess checks if the current user can access an attachment.
 // Returns true if authorized, false if not (and sends appropriate error response).
-func (s *HTTPServer) authorizeAttachmentAccess(c *gin.Context, spaceID, roomID string) bool {
+// An empty roomID is treated as public (matches legacy S3 attachment behavior,
+// where the room ID isn't recoverable from the storage backend).
+func (s *HTTPServer) authorizeAttachmentAccess(c *gin.Context, roomID string) bool {
 	if roomID == "" {
 		return true
 	}
@@ -170,7 +233,14 @@ func (s *HTTPServer) authorizeAttachmentAccess(c *gin.Context, spaceID, roomID s
 		return false
 	}
 
-	isMember, err := s.core.RoomMembershipExists(c.Request.Context(), core.KindForSpace(spaceID), userID, roomID)
+	kind, err := s.core.FindRoomKind(c.Request.Context(), roomID)
+	if err != nil {
+		s.logger.Error("Failed to resolve room kind for attachment auth", "error", err, "room_id", roomID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
+		return false
+	}
+
+	isMember, err := s.core.RoomMembershipExists(c.Request.Context(), kind, userID, roomID)
 	if err != nil {
 		s.logger.Error("Failed to check room membership", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
@@ -397,7 +467,52 @@ func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
 				cachedRoomID = info.RoomID
 				roomIDFetched = true
 			}
-			return s.authorizeAttachmentAccess(c, spaceID, cachedRoomID)
+			return s.authorizeAttachmentAccess(c, cachedRoomID)
+		},
+	})
+}
+
+// serveTransformedAttachmentByID serves a dynamically transformed version of
+// a post-ADR-030-Phase-4 attachment.
+// URL format: /assets/attachments/{attachmentId}/t/{signedPath}
+// Mirrors serveTransformedAttachment but signs with ("attachment", id)
+// instead of (spaceID, id), and uses the kind-less cache namespace.
+func (s *HTTPServer) serveTransformedAttachmentByID(c *gin.Context) {
+	attachmentID := c.Param("attachmentId")
+	signedPath := c.Param("signedPath")
+
+	s.logger.Debug("Serving transformed attachment", "attachment_id", attachmentID)
+
+	var cachedRoomID string
+	var roomIDFetched bool
+
+	s.serveTransformedAsset(c, transformRequest{
+		ResourceID1: core.AttachmentSignResource,
+		ResourceID2: attachmentID,
+		SignedPath:  signedPath,
+		CachePrefix: core.AttachmentSignResource,
+		AssetID:     attachmentID,
+		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
+			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+			if err != nil {
+				return nil, "", err
+			}
+			cachedRoomID = info.RoomID
+			roomIDFetched = true
+			return reader, info.ContentType, nil
+		},
+		Authorize: func(c *gin.Context) bool {
+			if !roomIDFetched {
+				_, info, err := s.core.GetAttachmentFromAnyBackend(c.Request.Context(), "", attachmentID)
+				if err != nil {
+					s.logger.Error("Failed to get attachment for auth", "error", err)
+					c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+					return false
+				}
+				cachedRoomID = info.RoomID
+				roomIDFetched = true
+			}
+			return s.authorizeAttachmentAccess(c, cachedRoomID)
 		},
 	})
 }

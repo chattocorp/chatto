@@ -344,7 +344,7 @@ func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 
 	// Upload an attachment (using createTestPNG from attachments_test.go)
 	imageData := createTestPNG(100, 100)
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -406,11 +406,11 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 
 	// Upload two attachments
 	imageData := createTestPNG(100, 100)
-	attachment1, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test1.png", "image/png", bytes.NewReader(imageData))
+	attachment1, err := core.UploadAttachment(ctx, room.Id, "test1.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment 1: %v", err)
 	}
-	attachment2, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test2.png", "image/png", bytes.NewReader(imageData))
+	attachment2, err := core.UploadAttachment(ctx, room.Id, "test2.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment 2: %v", err)
 	}
@@ -482,7 +482,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 
 	// Upload attachment and post message as author
 	imageData := createTestPNG(100, 100)
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -523,7 +523,7 @@ func TestChattoCore_DeleteMessage_DeletesS3Attachments(t *testing.T) {
 
 	// Upload attachment (stored in S3)
 	imageData := createTestPNG(100, 100)
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -567,11 +567,11 @@ func TestChattoCore_DeleteAttachmentFromMessage_S3(t *testing.T) {
 
 	// Upload two attachments (stored in S3)
 	imageData := createTestPNG(100, 100)
-	attachment1, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test1.png", "image/png", bytes.NewReader(imageData))
+	attachment1, err := core.UploadAttachment(ctx, room.Id, "test1.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment 1: %v", err)
 	}
-	attachment2, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test2.png", "image/png", bytes.NewReader(imageData))
+	attachment2, err := core.UploadAttachment(ctx, room.Id, "test2.png", "image/png", bytes.NewReader(imageData))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment 2: %v", err)
 	}

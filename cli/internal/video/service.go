@@ -24,8 +24,14 @@ import (
 )
 
 // ProcessRequest is the payload published to request video processing.
+//
+// The video processing subject (`chatto.video.process`) is a NATS Core
+// subscription, not JetStream — there are no persisted requests to worry
+// about. The legacy `space_id` field was dropped in ADR-030 Phase 4; any
+// stale in-flight request from a pre-Phase-4 binary will simply have its
+// `space_id` ignored (unknown JSON fields are dropped silently) and the
+// downstream code paths handle the empty-spaceID case.
 type ProcessRequest struct {
-	SpaceID       string `json:"space_id"`
 	RoomID        string `json:"room_id"`
 	AttachmentID  string `json:"attachment_id"`
 	ContentType   string `json:"content_type"`
@@ -36,11 +42,11 @@ type ProcessRequest struct {
 // It subscribes to a NATS subject for processing requests and manages
 // a pool of concurrent ffmpeg workers.
 type Service struct {
-	core       *core.ChattoCore
-	nc         *nats.Conn
-	config     config.VideoConfig
-	logger     *log.Logger
-	ffmpegPath string
+	core        *core.ChattoCore
+	nc          *nats.Conn
+	config      config.VideoConfig
+	logger      *log.Logger
+	ffmpegPath  string
 	ffprobePath string
 }
 
@@ -90,7 +96,6 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 
 		s.logger.Info("Received video processing request",
-			"space_id", req.SpaceID,
 			"attachment_id", req.AttachmentID,
 		)
 
@@ -108,7 +113,6 @@ func (s *Service) Run(ctx context.Context) error {
 
 			if err := s.processVideo(ctx, req); err != nil {
 				s.logger.Error("Video processing failed",
-					"space_id", req.SpaceID,
 					"attachment_id", req.AttachmentID,
 					"error", err,
 				)
