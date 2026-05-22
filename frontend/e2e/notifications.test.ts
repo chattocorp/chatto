@@ -1022,6 +1022,91 @@ test.describe('Cross-Tab Sync', () => {
       await context2.close();
     }
   });
+
+  test('dismissing a mention notification clears the room orange dot on other tabs and survives reload', async ({
+    page,
+    chatPage,
+    notificationsPage,
+    browser,
+    serverURL
+  }) => {
+    // Verifies the cross-device fix: dismissing a mention notification on
+    // Tab 1 not only removes the notification on Tab 2, but also clears the
+    // room-level mention indicator (orange dot in the room list). The reload
+    // step proves the server-side KV mention flag was cleared — not just the
+    // local frontend state — by hitting the GraphQL Room.hasMention resolver
+    // on a fresh load.
+
+    const userA = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    await chatPage.enterRoom('announcements');
+
+    // The room-level orange dot on #general (warning-colored). Scoped to
+    // #general's room link so we don't catch the bell or other rooms.
+    const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
+    const generalMentionDot = generalLink.locator('.bg-warning');
+
+    const context1b = await browser!.newContext({ baseURL: serverURL });
+    const page1b = await context1b.newPage();
+    const context2 = await browser!.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+
+    try {
+      // User A: second tab, also navigated to announcements so #general's
+      // mention dot is visible in the sidebar.
+      await loginTestUser(page1b, userA);
+      await page1b.goto(routes.space());
+      const chatPage1b = new ChatPage(page1b);
+      await chatPage1b.enterRoom('announcements');
+      const generalLink1b = chatPage1b.roomList.locator('a', { hasText: '# general' });
+      const generalMentionDot1b = generalLink1b.locator('.bg-warning');
+
+      // User B: mention User A in #general.
+      await createAndLoginTestUser(page2);
+      await joinSpace(page2);
+      await page2.goto(routes.space());
+      const chatPage2 = new ChatPage(page2);
+      const roomPage2 = new RoomPage(page2);
+      await chatPage2.enterRoom('general');
+      await roomPage2.sendMessage(`@${userA.login} cross-device mention sync test`);
+
+      // Both tabs show the orange room-level mention dot and the bell.
+      await expect(generalMentionDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(generalMentionDot1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await notificationsPage.expectBellIndicatorVisible();
+
+      // Tab 1: dismiss the mention via the bell panel — does NOT enter the
+      // room. Pre-fix this would only sync the bell across tabs; the
+      // room-level dot would linger on Tab 2 and re-appear after reload.
+      await notificationsPage.goto();
+      const notification = notificationsPage.getNotificationBySummary('mentioned you');
+      await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await notificationsPage.dismissNotification(notification);
+      await notificationsPage.expectEmptyState();
+
+      // Tab 2: the orange dot disappears via the new MentionStatusClearedEvent.
+      await expect(generalMentionDot1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      // Tab 2: hard reload. If the dot reappears, the KV mention flag wasn't
+      // cleared server-side — local state covered for it transiently. The
+      // dot staying gone proves Room.hasMention now returns false from the
+      // resolver, which is the Option A guarantee.
+      await page1b.reload();
+      await page1b.waitForURL(routes.patterns.anySpace);
+      const chatPage1bAfter = new ChatPage(page1b);
+      await chatPage1bAfter.enterRoom('announcements');
+      const generalLink1bAfter = chatPage1bAfter.roomList.locator('a', { hasText: '# general' });
+      // Use toPass so we tolerate the brief window during reload where the
+      // sidebar is still hydrating and the dot might briefly flash.
+      await expect(async () => {
+        await expect(generalLink1bAfter.locator('.bg-warning')).not.toBeVisible();
+      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+    } finally {
+      await context1b.close();
+      await context2.close();
+    }
+  });
 });
 
 test.describe('Real-time Notification Updates', () => {

@@ -171,6 +171,19 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 	// Publish sync event for cross-device sync (WebSocket)
 	c.publishNotificationDismissedEvent(ctx, userID, notificationID)
 
+	// For a mention notification, also clear the room-level mention KV flag so
+	// the orange dot disappears on every device — not just locally on the tab
+	// that handled the dismissal. ClearMentionStatus publishes its own live
+	// event, which propagates to other tabs via MentionStatusClearedEvent.
+	if mention, ok := notif.Notification.(*corev1.Notification_Mention); ok && mention.Mention != nil {
+		if err := c.ClearMentionStatus(ctx, mention.Mention.RoomId, userID); err != nil {
+			c.logger.Warn("Failed to clear mention status on dismiss",
+				"user_id", userID,
+				"room_id", mention.Mention.RoomId,
+				"error", err)
+		}
+	}
+
 	// Call the notification callback for push dismissal (if set)
 	// Run asynchronously to avoid blocking notification dismissal
 	if c.OnNotificationDismissed != nil {
@@ -204,7 +217,23 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 	}
 
 	deleted := 0
+	// Track which rooms had a mention notification dismissed, so we can clear
+	// the corresponding room-level mention KV flag once per room (dedup since
+	// a room may have multiple pending mentions sharing one flag).
+	mentionRooms := make(map[string]struct{})
 	for _, key := range keys {
+		// Read before delete so we can detect mention notifications and trigger
+		// the corresponding mention-status clears. Best-effort: a read failure
+		// just means we don't get the cross-device flag clear for this one.
+		if entry, err := c.storage.notificationsKV.Get(ctx, key); err == nil {
+			var notif corev1.Notification
+			if proto.Unmarshal(entry.Value(), &notif) == nil {
+				if m, ok := notif.Notification.(*corev1.Notification_Mention); ok && m.Mention != nil {
+					mentionRooms[m.Mention.RoomId] = struct{}{}
+				}
+			}
+		}
+
 		if err := c.storage.notificationsKV.Delete(ctx, key); err != nil {
 			if !errors.Is(err, jetstream.ErrKeyNotFound) {
 				c.logger.Warn("Failed to delete notification", "key", key, "error", err)
@@ -218,6 +247,18 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 		keyPrefix := userID + "."
 		if notificationID := strings.TrimPrefix(key, keyPrefix); notificationID != key {
 			c.publishNotificationDismissedEvent(ctx, userID, notificationID)
+		}
+	}
+
+	// Clear room-level mention flags last so each room gets at most one KV op
+	// and one MentionStatusClearedEvent published, regardless of how many
+	// pending mention notifications referenced it.
+	for roomID := range mentionRooms {
+		if err := c.ClearMentionStatus(ctx, roomID, userID); err != nil {
+			c.logger.Warn("Failed to clear mention status on dismiss-all",
+				"user_id", userID,
+				"room_id", roomID,
+				"error", err)
 		}
 	}
 

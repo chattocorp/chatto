@@ -214,6 +214,10 @@ type ComplexityRoot struct {
 		ThreadRootEventID func(childComplexity int) int
 	}
 
+	MentionStatusClearedEvent struct {
+		RoomId func(childComplexity int) int
+	}
+
 	MessageDeletedEvent struct {
 		MessageEventID func(childComplexity int) int
 		RoomId         func(childComplexity int) int
@@ -1673,6 +1677,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MentionNotificationItem.ThreadRootEventID(childComplexity), true
+
+	case "MentionStatusClearedEvent.roomId":
+		if e.complexity.MentionStatusClearedEvent.RoomId == nil {
+			break
+		}
+
+		return e.complexity.MentionStatusClearedEvent.RoomId(childComplexity), true
 
 	case "MessageDeletedEvent.messageEventId":
 		if e.complexity.MessageDeletedEvent.MessageEventID == nil {
@@ -8785,6 +8796,35 @@ func (ec *executionContext) _MentionNotificationItem_threadRootEventId(ctx conte
 func (ec *executionContext) fieldContext_MentionNotificationItem_threadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MentionNotificationItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MentionStatusClearedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MentionStatusClearedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MentionStatusClearedEvent_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MentionStatusClearedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MentionStatusClearedEvent",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -27410,6 +27450,11 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._MessageDeletedEvent(ctx, sel, obj)
+	case *corev1.MentionStatusClearedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MentionStatusClearedEvent(ctx, sel, obj)
 	case *corev1.MentionNotificationEvent:
 		if obj == nil {
 			return graphql.Null
@@ -29087,6 +29132,45 @@ func (ec *executionContext) _MentionNotificationItem(ctx context.Context, sel as
 			}
 		case "threadRootEventId":
 			out.Values[i] = ec._MentionNotificationItem_threadRootEventId(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var mentionStatusClearedEventImplementors = []string{"MentionStatusClearedEvent", "ServerEventType"}
+
+func (ec *executionContext) _MentionStatusClearedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MentionStatusClearedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mentionStatusClearedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MentionStatusClearedEvent")
+		case "roomId":
+			out.Values[i] = ec._MentionStatusClearedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
