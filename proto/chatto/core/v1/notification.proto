@@ -54,8 +54,8 @@ message DMMessageNotification {
 // MentionNotification is created when someone @mentions a user in a message.
 // The recipient is the mentioned user.
 message MentionNotification {
-  // Space where the mention occurred
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room where the mention occurred
   string room_id = 2;
@@ -71,8 +71,8 @@ message MentionNotification {
 // ReplyNotification is created when someone replies to a user's message.
 // The recipient is the original message author.
 message ReplyNotification {
-  // Space where the reply occurred
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room where the reply occurred
   string room_id = 2;
@@ -92,8 +92,8 @@ message ReplyNotification {
 // Only fires for root messages (thread replies do not generate ALL_MESSAGES
 // notifications), so no in_thread field is needed.
 message RoomMessageNotification {
-  // Space where the message was posted
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room where the message was posted
   string room_id = 2;

@@ -105,8 +105,7 @@ func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*mod
 // getMessageBody loads a message body, using per-request caching if available.
 // This prevents redundant KV lookups when Body, Attachments, and UpdatedAt
 // resolvers all need the same MessageBody for a single message.
-func (r *Resolver) getMessageBody(ctx context.Context, spaceID, messageBodyKey string) (*core.DecryptedMessageBody, error) {
-	kind := core.KindForSpace(spaceID)
+func (r *Resolver) getMessageBody(ctx context.Context, kind core.RoomKind, messageBodyKey string) (*core.DecryptedMessageBody, error) {
 	if loaders := dataloader.ForContext(ctx); loaders != nil {
 		return loaders.GetMessageBody(ctx, kind, messageBodyKey)
 	}

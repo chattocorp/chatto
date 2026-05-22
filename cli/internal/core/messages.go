@@ -105,7 +105,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
-				SpaceId:          SpaceIDForKind(kind),
 				RoomId:           room_id,
 				InReplyTo:        inReplyTo,
 				InThread:         inThread,
@@ -302,7 +301,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			CreatedAt: event.CreatedAt,
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
-					SpaceId:                   SpaceIDForKind(kind),
 					RoomId:                    room_id,
 					MessageBodyId:             messageBodyKey,
 					InReplyTo:                 inReplyTo,
@@ -369,7 +367,6 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 		_, err = c.CreateNotification(ctx, memberID, authorID, &corev1.Notification{
 			Notification: &corev1.Notification_RoomMessage{
 				RoomMessage: &corev1.RoomMessageNotification{
-					SpaceId: SpaceIDForKind(kind),
 					RoomId:  roomID,
 					EventId: eventID,
 				},

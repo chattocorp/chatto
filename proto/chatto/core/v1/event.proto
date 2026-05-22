@@ -173,35 +173,40 @@ message HeartbeatEvent {}
 // ============================================================================
 
 message RoomCreatedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
   string name = 3;
   string description = 4;
 }
 
 message RoomUpdatedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
   string name = 3;
   string description = 4;
 }
 
 message RoomDeletedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }
 
 // RoomArchivedEvent is published when a room is archived.
 // Archived rooms are hidden from sidebars and Browse Rooms.
 message RoomArchivedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }
 
 // RoomUnarchivedEvent is published when a room is unarchived.
 // The room becomes visible again in sidebars and Browse Rooms.
 message RoomUnarchivedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }
 
@@ -210,21 +215,24 @@ message RoomUnarchivedEvent {
 // ============================================================================
 
 message UserJoinedRoomEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }
 
 message UserLeftRoomEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }
 
 // SpaceMemberDeletedEvent is published when a user's account is deleted.
-// This notifies all space members that the user is gone, so they can:
+// This notifies all server members that the user is gone, so they can:
 // - Update their member lists
 // - Refresh messages to show "Deleted User" and unavailable content
 message SpaceMemberDeletedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string user_id = 2;
 }
 
@@ -233,9 +241,8 @@ message SpaceMemberDeletedEvent {
 // ============================================================================
 
 message MessagePostedEvent {
-  // Space ID - required to locate the message body in the correct
-  // SPACE_{spaceId}_BODIES KV bucket for lazy-loading
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID - identifies which room this message belongs to
   string room_id = 2;

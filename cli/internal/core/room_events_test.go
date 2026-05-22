@@ -47,7 +47,7 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	for _, event := range events {
 		if msg := event.GetMessagePosted(); msg != nil {
 			// Body is lazy-loaded, fetch it separately using messageBodyId
-			fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(msg.SpaceId), msg.MessageBodyId)
+			fetchedBody, err := core.GetMessageBody(ctx, KindChannel, msg.MessageBodyId)
 			if err != nil {
 				t.Errorf("Failed to fetch message body: %v", err)
 			}
@@ -241,7 +241,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	messagePosted := messageEvent.GetMessagePosted()
 
 	// Verify the body is empty (deleted) when fetched via GetMessageBody
-	fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(messagePosted.SpaceId), messagePosted.MessageBodyId)
+	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}

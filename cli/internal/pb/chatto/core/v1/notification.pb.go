@@ -241,8 +241,6 @@ func (x *DMMessageNotification) GetEventId() string {
 // The recipient is the mentioned user.
 type MentionNotification struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space where the mention occurred
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room where the mention occurred
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message containing the mention
@@ -284,13 +282,6 @@ func (*MentionNotification) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *MentionNotification) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *MentionNotification) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -316,8 +307,6 @@ func (x *MentionNotification) GetInThread() string {
 // The recipient is the original message author.
 type ReplyNotification struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space where the reply occurred
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room where the reply occurred
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the reply message
@@ -360,13 +349,6 @@ func (*ReplyNotification) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ReplyNotification) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *ReplyNotification) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -401,8 +383,6 @@ func (x *ReplyNotification) GetInThread() string {
 // notifications), so no in_thread field is needed.
 type RoomMessageNotification struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space where the message was posted
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room where the message was posted
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message
@@ -441,13 +421,6 @@ func (*RoomMessageNotification) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RoomMessageNotification) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomMessageNotification) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -481,22 +454,19 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\fnotification\"K\n" +
 	"\x15DMMessageNotification\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\x81\x01\n" +
-	"\x13MentionNotification\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"v\n" +
+	"\x13MentionNotification\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x1b\n" +
-	"\tin_thread\x18\x04 \x01(\tR\binThread\"\xa4\x01\n" +
-	"\x11ReplyNotification\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\tin_thread\x18\x04 \x01(\tR\binThreadJ\x04\b\x01\x10\x02R\bspace_id\"\x99\x01\n" +
+	"\x11ReplyNotification\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12#\n" +
 	"\x0ein_reply_to_id\x18\x04 \x01(\tR\vinReplyToId\x12\x1b\n" +
-	"\tin_thread\x18\x05 \x01(\tR\binThread\"h\n" +
-	"\x17RoomMessageNotification\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\tin_thread\x18\x05 \x01(\tR\binThreadJ\x04\b\x01\x10\x02R\bspace_id\"]\n" +
+	"\x17RoomMessageNotification\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x03 \x01(\tR\aeventIdB\xb4\x01\n" +
+	"\bevent_id\x18\x03 \x01(\tR\aeventIdJ\x04\b\x01\x10\x02R\bspace_idB\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11NotificationProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (

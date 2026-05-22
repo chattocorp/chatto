@@ -47,7 +47,7 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 
 		// Body is lazy-loaded, fetch it separately using messageBodyId
 		messagePosted := event.GetMessagePosted()
-		fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(messagePosted.SpaceId), messagePosted.MessageBodyId)
+		fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
 		if err != nil {
 			t.Fatalf("Failed to fetch message body: %v", err)
 		}

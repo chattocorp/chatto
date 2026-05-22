@@ -172,7 +172,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-456",
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-1",
 					RoomId:  "room-2",
 					EventId: "event-3",
 				},
@@ -197,7 +196,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-456",
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-1",
 					RoomId:  "room-2",
 					EventId: "event-3",
 				},
@@ -220,8 +218,7 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-789",
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-1",
-					RoomId:  "room-2",
+					RoomId: "room-2",
 					// No EventId
 				},
 			},
@@ -239,7 +236,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",
@@ -270,7 +266,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "mid-thread-msg", // The specific message replied to (not the root)
@@ -296,7 +291,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",
@@ -320,7 +314,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",

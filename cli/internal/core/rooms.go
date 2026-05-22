@@ -230,7 +230,6 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 				RoomId:      room_id,
 				Name:        name,
 				Description: description,
-				SpaceId:     SpaceIDForKind(kind),
 			},
 		},
 	})
@@ -344,7 +343,6 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 				RoomId:      room_id,
 				Name:        name,
 				Description: description,
-				SpaceId:     SpaceIDForKind(kind),
 			},
 		},
 	})
@@ -372,8 +370,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomDeleted{
 			RoomDeleted: &corev1.RoomDeletedEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  room_id,
+				RoomId: room_id,
 			},
 		},
 	})
@@ -437,8 +434,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomArchived{
 			RoomArchived: &corev1.RoomArchivedEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})
@@ -482,8 +478,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomUnarchived{
 			RoomUnarchived: &corev1.RoomUnarchivedEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})

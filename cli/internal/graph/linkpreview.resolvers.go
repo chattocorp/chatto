@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -36,7 +35,11 @@ func (r *linkPreviewResolver) ImageURL(ctx context.Context, obj *corev1.LinkPrev
 // LinkPreview is the resolver for the linkPreview field.
 // Lazy-loads the link preview from the MessageBody in the KV bucket.
 func (r *messagePostedEventResolver) LinkPreview(ctx context.Context, obj *corev1.MessagePostedEvent) (*corev1.LinkPreview, error) {
-	messageBody, err := r.core.GetFullMessageBody(ctx, core.KindForSpace(obj.SpaceId), obj.MessageBodyId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
+	}
+	messageBody, err := r.core.GetFullMessageBody(ctx, kind, obj.MessageBodyId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}
