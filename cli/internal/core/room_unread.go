@@ -37,8 +37,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_RoomMarkedAsRead{
 			RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	}

@@ -362,26 +362,20 @@ func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 					t.Fatal("Received nil event")
 				}
 				if mentioned := event.GetMentionNotification(); mentioned != nil {
-					if mentioned.SpaceId != core.ServerSpaceID {
-						t.Errorf("Expected space ID %s, got %s", core.ServerSpaceID, mentioned.SpaceId)
-					}
 					if mentioned.RoomId != env.testRoom.Id {
 						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, mentioned.RoomId)
 					}
 					if mentioned.MentionedByUserId != userB.Id {
 						t.Errorf("Expected mentioner ID %s, got %s", userB.Id, mentioned.MentionedByUserId)
 					}
-					t.Logf("Successfully received mention notification in space %s, room %s", mentioned.SpaceId, mentioned.RoomId)
+					t.Logf("Successfully received mention notification in room %s", mentioned.RoomId)
 					return
 				}
 				if notifCreated := event.GetNotificationCreated(); notifCreated != nil {
-					if notifCreated.SpaceId != core.ServerSpaceID {
-						t.Errorf("Expected space ID %s, got %s", core.ServerSpaceID, notifCreated.SpaceId)
-					}
 					if notifCreated.RoomId != env.testRoom.Id {
 						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
 					}
-					t.Logf("Successfully received notification created event for mention in space %s, room %s", notifCreated.SpaceId, notifCreated.RoomId)
+					t.Logf("Successfully received notification created event for mention in room %s", notifCreated.RoomId)
 					return
 				}
 				t.Logf("Ignoring non-mention event: %T", event.Event)

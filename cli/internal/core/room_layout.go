@@ -52,9 +52,7 @@ func (c *ChattoCore) PublishRoomGroupsUpdated(ctx context.Context, actorID strin
 		CreatedAt: timestamppb.Now(),
 		ActorId:   actorID,
 		Event: &corev1.Event_RoomGroupsUpdated{
-			RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{
-				SpaceId: SpaceIDForKind(kind),
-			},
+			RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{},
 		},
 	}
 

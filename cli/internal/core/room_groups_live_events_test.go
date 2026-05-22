@@ -58,15 +58,11 @@ func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID stri
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		evt := got.GetRoomGroupsUpdated()
-		if evt == nil {
+		if got.GetRoomGroupsUpdated() == nil {
 			t.Fatalf("expected RoomGroupsUpdatedEvent, got %T", got.Event)
 		}
 		if got.ActorId != wantActorID {
 			t.Errorf("ActorId = %q, want %q", got.ActorId, wantActorID)
-		}
-		if evt.SpaceId != ServerSpaceID {
-			t.Errorf("SpaceId = %q, want %q", evt.SpaceId, ServerSpaceID)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for RoomGroupsUpdatedEvent")

@@ -1658,12 +1658,11 @@ func (x *ServerUserPreferencesUpdatedEvent) GetTimeFormat() TimeFormat {
 }
 
 // NotificationLevelChangedEvent is published when a user changes their notification
-// level for a space or room. User-scoped: only delivered to the user who changed it.
+// level for the server or a specific room. User-scoped: only delivered to the user
+// who changed it.
 type NotificationLevelChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The space whose notification level was changed.
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	// The room whose notification level was changed (empty for space-level changes).
+	// The room whose notification level was changed (empty for server-level changes).
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// The explicitly set level.
 	Level NotificationLevel `protobuf:"varint,3,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
@@ -1701,13 +1700,6 @@ func (x *NotificationLevelChangedEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NotificationLevelChangedEvent.ProtoReflect.Descriptor instead.
 func (*NotificationLevelChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *NotificationLevelChangedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
 }
 
 func (x *NotificationLevelChangedEvent) GetRoomId() string {
@@ -1915,9 +1907,6 @@ func (x *ServerDeletedEvent) GetServerId() string {
 
 type MessageUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID - required to locate the message body in the correct
-	// SPACE_{spaceId}_BODIES KV bucket for lazy-loading
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID - identifies which room this message belongs to
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Compound key for body storage in KV: {userId}.{eventId}
@@ -1967,13 +1956,6 @@ func (*MessageUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *MessageUpdatedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *MessageUpdatedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2018,8 +2000,6 @@ func (x *MessageUpdatedEvent) GetEventId() string {
 
 type MessageDeletedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID - identifies which space the message belonged to
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID - identifies which room the message belonged to
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Compound key for body storage in KV: {userId}.{eventId}
@@ -2062,13 +2042,6 @@ func (*MessageDeletedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *MessageDeletedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *MessageDeletedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2092,8 +2065,6 @@ func (x *MessageDeletedEvent) GetMessageEventId() string {
 
 type ReactionAddedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID - identifies the space containing the message
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID - identifies the room containing the message
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message being reacted to (NanoID)
@@ -2134,13 +2105,6 @@ func (*ReactionAddedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *ReactionAddedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *ReactionAddedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2164,8 +2128,6 @@ func (x *ReactionAddedEvent) GetEmoji() string {
 
 type ReactionRemovedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID - identifies the space containing the message
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID - identifies the room containing the message
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message the reaction was removed from (NanoID)
@@ -2206,13 +2168,6 @@ func (*ReactionRemovedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *ReactionRemovedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *ReactionRemovedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2239,8 +2194,6 @@ func (x *ReactionRemovedEvent) GetEmoji() string {
 // Clients should implement timeout-based clearing (e.g., 6 seconds).
 type UserTypingEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID where the user is typing
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID where the user is typing
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Thread root event ID (optional). If set, the user is typing a reply in this thread.
@@ -2280,13 +2233,6 @@ func (*UserTypingEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *UserTypingEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *UserTypingEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2304,7 +2250,7 @@ func (x *UserTypingEvent) GetThreadRootEventId() string {
 // Notifies clients that a user's presence status changed.
 // Published when a user comes online, goes offline, or changes their status.
 // The user whose presence changed is identified by the parent envelope's actor_id.
-// Presence is server-wide; the space context is implicit in the subscription.
+// Presence is server-wide; the server context is implicit in the subscription.
 type PresenceChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
@@ -2355,8 +2301,6 @@ func (x *PresenceChangedEvent) GetStatus() string {
 // This is a transient notification — the KV bucket tracks persistent state.
 type MentionNotificationEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID where the mention occurred
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID where the mention occurred
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// User ID of the person who mentioned them (the message author)
@@ -2393,13 +2337,6 @@ func (x *MentionNotificationEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MentionNotificationEvent.ProtoReflect.Descriptor instead.
 func (*MentionNotificationEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *MentionNotificationEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
 }
 
 func (x *MentionNotificationEvent) GetRoomId() string {
@@ -2480,7 +2417,6 @@ type NotificationCreatedEvent struct {
 	// The notification ID
 	NotificationId string `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
 	// Navigation context (optional fields for routing)
-	SpaceId       string `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	EventId       string `protobuf:"bytes,4,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	InReplyToId   string `protobuf:"bytes,5,opt,name=in_reply_to_id,json=inReplyToId,proto3" json:"in_reply_to_id,omitempty"`
@@ -2521,13 +2457,6 @@ func (*NotificationCreatedEvent) Descriptor() ([]byte, []int) {
 func (x *NotificationCreatedEvent) GetNotificationId() string {
 	if x != nil {
 		return x.NotificationId
-	}
-	return ""
-}
-
-func (x *NotificationCreatedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
 	}
 	return ""
 }
@@ -2605,8 +2534,6 @@ func (x *NotificationDismissedEvent) GetNotificationId() string {
 // only to the user whose follow state changed, for multi-tab/multi-device sync.
 type ThreadFollowChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The space containing the thread.
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// The room containing the thread.
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// The root event ID of the thread.
@@ -2647,13 +2574,6 @@ func (*ThreadFollowChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{30}
 }
 
-func (x *ThreadFollowChangedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *ThreadFollowChangedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2675,13 +2595,10 @@ func (x *ThreadFollowChangedEvent) GetIsFollowing() bool {
 	return false
 }
 
-// Published to the user who marked a room as read.
-// This enables real-time updates to space unread indicators when the user
-// reads rooms within a space.
+// Published to the user who marked a room as read. This enables real-time
+// updates to other tabs/devices for the same user.
 type RoomMarkedAsReadEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID containing the room
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID that was marked as read
 	RoomId        string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2718,13 +2635,6 @@ func (*RoomMarkedAsReadEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *RoomMarkedAsReadEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomMarkedAsReadEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2736,9 +2646,7 @@ func (x *RoomMarkedAsReadEvent) GetRoomId() string {
 // or membership) were updated. Clients should refetch `Server.roomGroups`.
 // Published as a live server event (not stored in JetStream).
 type RoomGroupsUpdatedEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID whose groups were updated
-	SpaceId       string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2771,13 +2679,6 @@ func (x *RoomGroupsUpdatedEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RoomGroupsUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*RoomGroupsUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *RoomGroupsUpdatedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
 }
 
 // Notifies a user that their session has been terminated.
@@ -2830,11 +2731,9 @@ func (x *SessionTerminatedEvent) GetReason() string {
 }
 
 // Notifies clients that video processing has completed (or failed) for an attachment.
-// Published on live.space.{spaceId}.video.processed so room subscribers receive it.
+// Published on the room's live subject so room subscribers receive it.
 type VideoProcessingCompletedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID containing the video
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID containing the message with the video
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Attachment ID of the original video
@@ -2878,13 +2777,6 @@ func (*VideoProcessingCompletedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *VideoProcessingCompletedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *VideoProcessingCompletedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2914,10 +2806,9 @@ func (x *VideoProcessingCompletedEvent) GetMessageEventId() string {
 }
 
 // Notifies room members that a user joined a voice call.
-// Published as a live space event when a user requests a call token.
+// Published as a live room event when a user requests a call token.
 type CallParticipantJoinedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2953,13 +2844,6 @@ func (*CallParticipantJoinedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *CallParticipantJoinedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *CallParticipantJoinedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -2968,10 +2852,9 @@ func (x *CallParticipantJoinedEvent) GetRoomId() string {
 }
 
 // Notifies room members that a user left a voice call.
-// Published as a live space event when a user explicitly leaves.
+// Published as a live room event when a user explicitly leaves.
 type CallParticipantLeftEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3005,13 +2888,6 @@ func (x *CallParticipantLeftEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CallParticipantLeftEvent.ProtoReflect.Descriptor instead.
 func (*CallParticipantLeftEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *CallParticipantLeftEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
 }
 
 func (x *CallParticipantLeftEvent) GetRoomId() string {
@@ -3129,12 +3005,11 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"!ServerUserPreferencesUpdatedEvent\x12\x1a\n" +
 	"\btimezone\x18\x01 \x01(\tR\btimezone\x12;\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatR\n" +
-	"timeFormat\"\xd8\x01\n" +
-	"\x1dNotificationLevelChangedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"timeFormat\"\xcd\x01\n" +
+	"\x1dNotificationLevelChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x127\n" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\x12J\n" +
-	"\x0feffective_level\x18\x04 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x0eeffectiveLevel\"g\n" +
+	"\x0feffective_level\x18\x04 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x0eeffectiveLevelJ\x04\b\x01\x10\x02R\bspace_id\"g\n" +
 	"\x12ServerCreatedEvent\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -3147,76 +3022,63 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"banner_url\x18\x05 \x01(\tR\tbannerUrl\"1\n" +
 	"\x12ServerDeletedEvent\x12\x1b\n" +
-	"\tserver_id\x18\x01 \x01(\tR\bserverId\"\xfa\x01\n" +
-	"\x13MessageUpdatedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\"\xef\x01\n" +
+	"\x13MessageUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x04 \x01(\tR\rmessageBodyId\x12\x1e\n" +
 	"\vin_reply_to\x18\x05 \x01(\tR\tinReplyTo\x12\x1b\n" +
 	"\tin_thread\x18\x06 \x01(\tR\binThread\x12(\n" +
 	"\x10message_event_id\x18\a \x01(\tR\x0emessageEventId\x12\x1a\n" +
-	"\bevent_id\x18\xe8\a \x01(\tR\aeventIdJ\x04\b\x03\x10\x04\"\x9b\x01\n" +
-	"\x13MessageDeletedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\bevent_id\x18\xe8\a \x01(\tR\aeventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\bspace_id\"\x90\x01\n" +
+	"\x13MessageDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventId\"\x88\x01\n" +
-	"\x12ReactionAddedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"}\n" +
+	"\x12ReactionAddedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
-	"\x05emoji\x18\x04 \x01(\tR\x05emoji\"\x8a\x01\n" +
-	"\x14ReactionRemovedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_id\"\x7f\n" +
+	"\x14ReactionRemovedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
-	"\x05emoji\x18\x04 \x01(\tR\x05emoji\"\x94\x01\n" +
-	"\x0fUserTypingEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_id\"\x89\x01\n" +
+	"\x0fUserTypingEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x124\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
-	"\x15_thread_root_event_id\".\n" +
+	"\x15_thread_root_event_idJ\x04\b\x01\x10\x02R\bspace_id\".\n" +
 	"\x14PresenceChangedEvent\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\"\x7f\n" +
-	"\x18MentionNotificationEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"t\n" +
+	"\x18MentionNotificationEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12/\n" +
-	"\x14mentioned_by_user_id\x18\x03 \x01(\tR\x11mentionedByUserId\"Y\n" +
+	"\x14mentioned_by_user_id\x18\x03 \x01(\tR\x11mentionedByUserIdJ\x04\b\x01\x10\x02R\bspace_id\"Y\n" +
 	"!NewDirectMessageNotificationEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\tR\bsenderId\"\xb7\x01\n" +
+	"\tsender_id\x18\x02 \x01(\tR\bsenderId\"\xac\x01\n" +
 	"\x18NotificationCreatedEvent\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12\x19\n" +
-	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x04 \x01(\tR\aeventId\x12#\n" +
-	"\x0ein_reply_to_id\x18\x05 \x01(\tR\vinReplyToId\"E\n" +
+	"\x0ein_reply_to_id\x18\x05 \x01(\tR\vinReplyToIdJ\x04\b\x02\x10\x03R\bspace_id\"E\n" +
 	"\x1aNotificationDismissedEvent\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\"\xa2\x01\n" +
-	"\x18ThreadFollowChangedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\"\x97\x01\n" +
+	"\x18ThreadFollowChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12!\n" +
-	"\fis_following\x18\x04 \x01(\bR\visFollowing\"K\n" +
-	"\x15RoomMarkedAsReadEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"3\n" +
-	"\x16RoomGroupsUpdatedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\"0\n" +
+	"\fis_following\x18\x04 \x01(\bR\visFollowingJ\x04\b\x01\x10\x02R\bspace_id\"@\n" +
+	"\x15RoomMarkedAsReadEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"(\n" +
+	"\x16RoomGroupsUpdatedEventJ\x04\b\x01\x10\x02R\bspace_id\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason\"\xca\x01\n" +
-	"\x1dVideoProcessingCompletedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\"\xbf\x01\n" +
+	"\x1dVideoProcessingCompletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12#\n" +
 	"\rattachment_id\x18\x03 \x01(\tR\fattachmentId\x12&\n" +
 	"\x0fmessage_body_id\x18\x04 \x01(\tR\rmessageBodyId\x12(\n" +
-	"\x10message_event_id\x18\x05 \x01(\tR\x0emessageEventId\"P\n" +
-	"\x1aCallParticipantJoinedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"N\n" +
-	"\x18CallParticipantLeftEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomIdB\xad\x01\n" +
+	"\x10message_event_id\x18\x05 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"E\n" +
+	"\x1aCallParticipantJoinedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"C\n" +
+	"\x18CallParticipantLeftEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_idB\xad\x01\n" +
 	"\x12com.chatto.core.v1B\n" +
 	"EventProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 

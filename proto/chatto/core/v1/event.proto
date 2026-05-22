@@ -337,11 +337,12 @@ message ServerUserPreferencesUpdatedEvent {
 }
 
 // NotificationLevelChangedEvent is published when a user changes their notification
-// level for a space or room. User-scoped: only delivered to the user who changed it.
+// level for the server or a specific room. User-scoped: only delivered to the user
+// who changed it.
 message NotificationLevelChangedEvent {
-  // The space whose notification level was changed.
-  string space_id = 1;
-  // The room whose notification level was changed (empty for space-level changes).
+  reserved 1;
+  reserved "space_id";
+  // The room whose notification level was changed (empty for server-level changes).
   string room_id = 2;
   // The explicitly set level.
   NotificationLevel level = 3;
@@ -374,13 +375,12 @@ message ServerDeletedEvent {
 }
 
 // ============================================================================
-// MESSAGE MUTATION EVENTS (space-scoped)
+// MESSAGE MUTATION EVENTS (room-scoped)
 // ============================================================================
 
 message MessageUpdatedEvent {
-  // Space ID - required to locate the message body in the correct
-  // SPACE_{spaceId}_BODIES KV bucket for lazy-loading
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID - identifies which room this message belongs to
   string room_id = 2;
@@ -407,8 +407,8 @@ message MessageUpdatedEvent {
 }
 
 message MessageDeletedEvent {
-  // Space ID - identifies which space the message belonged to
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID - identifies which room the message belonged to
   string room_id = 2;
@@ -423,12 +423,12 @@ message MessageDeletedEvent {
 }
 
 // ============================================================================
-// REACTION EVENTS (space-scoped — KV bucket is source of truth)
+// REACTION EVENTS (room-scoped — KV bucket is source of truth)
 // ============================================================================
 
 message ReactionAddedEvent {
-  // Space ID - identifies the space containing the message
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID - identifies the room containing the message
   string room_id = 2;
@@ -441,8 +441,8 @@ message ReactionAddedEvent {
 }
 
 message ReactionRemovedEvent {
-  // Space ID - identifies the space containing the message
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID - identifies the room containing the message
   string room_id = 2;
@@ -455,15 +455,15 @@ message ReactionRemovedEvent {
 }
 
 // ============================================================================
-// TYPING INDICATOR EVENTS (space-scoped)
+// TYPING INDICATOR EVENTS (room-scoped)
 // ============================================================================
 
 // Notifies clients that a user is typing in a room or thread.
 // Published directly to NATS Core (bypasses JetStream storage).
 // Clients should implement timeout-based clearing (e.g., 6 seconds).
 message UserTypingEvent {
-  // Space ID where the user is typing
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID where the user is typing
   string room_id = 2;
@@ -474,13 +474,13 @@ message UserTypingEvent {
 }
 
 // ============================================================================
-// PRESENCE EVENTS (space-scoped, constructed from KV watcher)
+// PRESENCE EVENTS (server-scoped, constructed from KV watcher)
 // ============================================================================
 
 // Notifies clients that a user's presence status changed.
 // Published when a user comes online, goes offline, or changes their status.
 // The user whose presence changed is identified by the parent envelope's actor_id.
-// Presence is server-wide; the space context is implicit in the subscription.
+// Presence is server-wide; the server context is implicit in the subscription.
 message PresenceChangedEvent {
   // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
   string status = 1;
@@ -494,8 +494,8 @@ message PresenceChangedEvent {
 // Published as a server-scoped live event to the mentioned user.
 // This is a transient notification — the KV bucket tracks persistent state.
 message MentionNotificationEvent {
-  // Space ID where the mention occurred
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID where the mention occurred
   string room_id = 2;
@@ -525,8 +525,10 @@ message NotificationCreatedEvent {
   // The notification ID
   string notification_id = 1;
 
+  reserved 2;
+  reserved "space_id";
+
   // Navigation context (optional fields for routing)
-  string space_id = 2;
   string room_id = 3;
   string event_id = 4;
   string in_reply_to_id = 5;
@@ -547,8 +549,8 @@ message NotificationDismissedEvent {
 // (follow or unfollow, including auto-follow on posting). User-scoped: delivered
 // only to the user whose follow state changed, for multi-tab/multi-device sync.
 message ThreadFollowChangedEvent {
-  // The space containing the thread.
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   // The room containing the thread.
   string room_id = 2;
   // The root event ID of the thread.
@@ -561,12 +563,11 @@ message ThreadFollowChangedEvent {
 // UNREAD INDICATOR EVENTS (server-scoped)
 // ============================================================================
 
-// Published to the user who marked a room as read.
-// This enables real-time updates to space unread indicators when the user
-// reads rooms within a space.
+// Published to the user who marked a room as read. This enables real-time
+// updates to other tabs/devices for the same user.
 message RoomMarkedAsReadEvent {
-  // Space ID containing the room
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID that was marked as read
   string room_id = 2;
@@ -580,8 +581,8 @@ message RoomMarkedAsReadEvent {
 // or membership) were updated. Clients should refetch `Server.roomGroups`.
 // Published as a live server event (not stored in JetStream).
 message RoomGroupsUpdatedEvent {
-  // Space ID whose groups were updated
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 }
 
 // ============================================================================
@@ -598,14 +599,14 @@ message SessionTerminatedEvent {
 }
 
 // ============================================================================
-// VIDEO PROCESSING EVENTS (space-scoped)
+// VIDEO PROCESSING EVENTS (room-scoped)
 // ============================================================================
 
 // Notifies clients that video processing has completed (or failed) for an attachment.
-// Published on live.space.{spaceId}.video.processed so room subscribers receive it.
+// Published on the room's live subject so room subscribers receive it.
 message VideoProcessingCompletedEvent {
-  // Space ID containing the video
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
 
   // Room ID containing the message with the video
   string room_id = 2;
@@ -622,19 +623,21 @@ message VideoProcessingCompletedEvent {
 }
 
 // ============================================================================
-// VOICE CALL EVENTS (space-scoped)
+// VOICE CALL EVENTS (room-scoped)
 // ============================================================================
 
 // Notifies room members that a user joined a voice call.
-// Published as a live space event when a user requests a call token.
+// Published as a live room event when a user requests a call token.
 message CallParticipantJoinedEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }
 
 // Notifies room members that a user left a voice call.
-// Published as a live space event when a user explicitly leaves.
+// Published as a live room event when a user explicitly leaves.
 message CallParticipantLeftEvent {
-  string space_id = 1;
+  reserved 1;
+  reserved "space_id";
   string room_id = 2;
 }

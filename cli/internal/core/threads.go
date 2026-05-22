@@ -544,7 +544,6 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_ThreadFollowChanged{
 			ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{
-				SpaceId:           SpaceIDForKind(kind),
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,

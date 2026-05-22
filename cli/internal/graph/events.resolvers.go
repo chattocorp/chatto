@@ -124,7 +124,7 @@ func (r *heartbeatEventResolver) Alive(ctx context.Context, obj *corev1.Heartbea
 
 // Room is the resolver for the room field.
 func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId)
+	return r.core.FindRoomByID(ctx, obj.RoomId)
 }
 
 // Actor is the resolver for the actor field.
@@ -136,7 +136,6 @@ func (r *mentionNotificationEventResolver) Actor(ctx context.Context, obj *corev
 func (r *messageDeletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageDeletedEvent) (string, error) {
 	if obj.MessageEventId == "" {
 		r.logger.Warn("MessageDeletedEvent has empty messageEventId",
-			"space_id", obj.SpaceId,
 			"room_id", obj.RoomId,
 			"message_body_id", obj.MessageBodyId)
 	}
@@ -349,7 +348,6 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 func (r *messageUpdatedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageUpdatedEvent) (string, error) {
 	if obj.MessageEventId == "" {
 		r.logger.Warn("MessageUpdatedEvent has empty messageEventId",
-			"space_id", obj.SpaceId,
 			"room_id", obj.RoomId,
 			"message_body_id", obj.MessageBodyId)
 	}
@@ -500,7 +498,6 @@ func (r *videoProcessingResolver) ThumbnailURL(ctx context.Context, obj *model.V
 func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (string, error) {
 	if obj.MessageEventId == "" {
 		r.logger.Warn("VideoProcessingCompletedEvent has empty messageEventId",
-			"space_id", obj.SpaceId,
 			"room_id", obj.RoomId,
 			"message_body_id", obj.MessageBodyId)
 	}

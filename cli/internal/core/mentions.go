@@ -105,7 +105,6 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 			CreatedAt: timestamppb.Now(),
 			Event: &corev1.Event_MentionNotification{
 				MentionNotification: &corev1.MentionNotificationEvent{
-					SpaceId:           spaceID,
 					RoomId:            roomID,
 					MentionedByUserId: authorID,
 				},

@@ -140,9 +140,6 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		if deleted.RoomId != room.Id {
 			t.Errorf("RoomId = %q, want %q", deleted.RoomId, room.Id)
 		}
-		if deleted.SpaceId != ServerSpaceID {
-			t.Errorf("SpaceId = %q, want %q", deleted.SpaceId, ServerSpaceID)
-		}
 		if deleted.MessageEventId != event.Id {
 			t.Errorf("MessageEventId = %q, want %q", deleted.MessageEventId, event.Id)
 		}

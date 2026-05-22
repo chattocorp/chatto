@@ -274,17 +274,14 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 // publishNotificationCreatedEvent publishes a live event for cross-device sync.
 func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif *corev1.Notification) {
 	// Extract navigation context from the notification payload
-	var spaceID, roomID, eventID, inReplyToID string
+	var roomID, eventID, inReplyToID string
 	switch n := notif.Notification.(type) {
 	case *corev1.Notification_DmMessage:
-		spaceID = DMSpaceID
 		roomID = n.DmMessage.RoomId
 	case *corev1.Notification_Mention:
-		spaceID = n.Mention.SpaceId
 		roomID = n.Mention.RoomId
 		eventID = n.Mention.EventId
 	case *corev1.Notification_Reply:
-		spaceID = n.Reply.SpaceId
 		roomID = n.Reply.RoomId
 		eventID = n.Reply.EventId
 		inReplyToID = n.Reply.InReplyToId
@@ -297,7 +294,6 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 		Event: &corev1.Event_NotificationCreated{
 			NotificationCreated: &corev1.NotificationCreatedEvent{
 				NotificationId: notif.Id,
-				SpaceId:        spaceID,
 				RoomId:         roomID,
 				EventId:        eventID,
 				InReplyToId:    inReplyToID,

@@ -517,21 +517,32 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string)
 	return room, nil
 }
 
-// FindRoomKind resolves the room kind ("channel" or "dm") for a room given
-// only its ID. Tries the channel kind first, then DMs. Returns ErrNotFound
-// if neither has the room.
+// FindRoomByID resolves a room from its ID alone by probing the channel
+// bucket first, then DMs. Returns ErrNotFound if neither has the room.
 //
-// Post-PR(b) the GraphQL surface no longer carries `spaceId`, so resolvers
-// that take just a room ID use this to recover the kind context the core
-// API still needs for KV partitioning.
+// Live events carry only a room ID (no kind discriminator on the wire),
+// so resolvers and consumers downstream of those events use this to
+// recover both the room and the kind context the core API still needs
+// for KV partitioning.
+func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*corev1.Room, error) {
+	if room, err := c.GetRoom(ctx, KindChannel, room_id); err == nil {
+		return room, nil
+	}
+	if room, err := c.GetRoom(ctx, KindDM, room_id); err == nil {
+		return room, nil
+	}
+	return nil, ErrNotFound
+}
+
+// FindRoomKind is a thin wrapper around FindRoomByID for callers that
+// only need the kind. The room load is paid either way; the wrapper is
+// just there for ergonomics.
 func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind, error) {
-	if _, err := c.GetRoom(ctx, KindChannel, room_id); err == nil {
-		return KindChannel, nil
+	room, err := c.FindRoomByID(ctx, room_id)
+	if err != nil {
+		return "", err
 	}
-	if _, err := c.GetRoom(ctx, KindDM, room_id); err == nil {
-		return KindDM, nil
-	}
-	return "", ErrNotFound
+	return KindForSpace(room.SpaceId), nil
 }
 
 // ListRooms retrieves all rooms of the given kind from the CONFIG bucket.

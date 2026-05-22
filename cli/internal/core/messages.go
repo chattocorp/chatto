@@ -443,7 +443,6 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind RoomKi
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_MessageDeleted{
 			MessageDeleted: &corev1.MessageDeletedEvent{
-				SpaceId:        SpaceIDForKind(kind),
 				RoomId:         roomID,
 				MessageBodyId:  messageBodyID,
 				MessageEventId: messageEventID,
@@ -695,7 +694,6 @@ func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, kind RoomKi
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_MessageUpdated{
 			MessageUpdated: &corev1.MessageUpdatedEvent{
-				SpaceId:        SpaceIDForKind(kind),
 				RoomId:         roomID,
 				MessageBodyId:  messageBodyID,
 				MessageEventId: messageEventID,
