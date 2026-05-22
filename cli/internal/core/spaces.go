@@ -49,12 +49,10 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	}
 
 	if isAccountDeletion {
-		spaceID := SpaceIDForKind(kind)
 		memberDeletedEvent := newEvent(userID, &corev1.Event{
 			Event: &corev1.Event_SpaceMemberDeleted{
 				SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{
-					SpaceId: spaceID,
-					UserId:  userID,
+					UserId: userID,
 				},
 			},
 		})

@@ -787,7 +787,6 @@ func (*HeartbeatEvent) Descriptor() ([]byte, []int) {
 
 type RoomCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -825,13 +824,6 @@ func (*RoomCreatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RoomCreatedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomCreatedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -855,7 +847,6 @@ func (x *RoomCreatedEvent) GetDescription() string {
 
 type RoomUpdatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -893,13 +884,6 @@ func (*RoomUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *RoomUpdatedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomUpdatedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -923,7 +907,6 @@ func (x *RoomUpdatedEvent) GetDescription() string {
 
 type RoomDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -959,13 +942,6 @@ func (*RoomDeletedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RoomDeletedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomDeletedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -977,7 +953,6 @@ func (x *RoomDeletedEvent) GetRoomId() string {
 // Archived rooms are hidden from sidebars and Browse Rooms.
 type RoomArchivedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1013,13 +988,6 @@ func (*RoomArchivedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *RoomArchivedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomArchivedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -1031,7 +999,6 @@ func (x *RoomArchivedEvent) GetRoomId() string {
 // The room becomes visible again in sidebars and Browse Rooms.
 type RoomUnarchivedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1067,13 +1034,6 @@ func (*RoomUnarchivedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *RoomUnarchivedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *RoomUnarchivedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -1083,7 +1043,6 @@ func (x *RoomUnarchivedEvent) GetRoomId() string {
 
 type UserJoinedRoomEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1119,13 +1078,6 @@ func (*UserJoinedRoomEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UserJoinedRoomEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *UserJoinedRoomEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -1135,7 +1087,6 @@ func (x *UserJoinedRoomEvent) GetRoomId() string {
 
 type UserLeftRoomEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1171,13 +1122,6 @@ func (*UserLeftRoomEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *UserLeftRoomEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *UserLeftRoomEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
@@ -1186,12 +1130,11 @@ func (x *UserLeftRoomEvent) GetRoomId() string {
 }
 
 // SpaceMemberDeletedEvent is published when a user's account is deleted.
-// This notifies all space members that the user is gone, so they can:
+// This notifies all server members that the user is gone, so they can:
 // - Update their member lists
 // - Refresh messages to show "Deleted User" and unavailable content
 type SpaceMemberDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1227,13 +1170,6 @@ func (*SpaceMemberDeletedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SpaceMemberDeletedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
-}
-
 func (x *SpaceMemberDeletedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
@@ -1243,9 +1179,6 @@ func (x *SpaceMemberDeletedEvent) GetUserId() string {
 
 type MessagePostedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID - required to locate the message body in the correct
-	// SPACE_{spaceId}_BODIES KV bucket for lazy-loading
-	SpaceId string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID - identifies which room this message belongs to
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Compound key for body storage in KV: {userId}.{eventId}
@@ -1299,13 +1232,6 @@ func (x *MessagePostedEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MessagePostedEvent.ProtoReflect.Descriptor instead.
 func (*MessagePostedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *MessagePostedEvent) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
-	}
-	return ""
 }
 
 func (x *MessagePostedEvent) GetRoomId() string {
@@ -3012,37 +2938,28 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x12session_terminated\x18\xf4\b \x01(\v2&.chatto.core.v1.SessionTerminatedEventH\x00R\x11sessionTerminated\x12?\n" +
 	"\theartbeat\x18\xb0\t \x01(\v2\x1e.chatto.core.v1.HeartbeatEventH\x00R\theartbeatB\a\n" +
 	"\x05eventJ\x06\b\xa9F\x10\xaaF\"\x10\n" +
-	"\x0eHeartbeatEvent\"|\n" +
-	"\x10RoomCreatedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x0eHeartbeatEvent\"q\n" +
+	"\x10RoomCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\"|\n" +
-	"\x10RoomUpdatedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescriptionJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
+	"\x10RoomUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\"F\n" +
-	"\x10RoomDeletedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"G\n" +
-	"\x11RoomArchivedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"I\n" +
-	"\x13RoomUnarchivedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"I\n" +
-	"\x13UserJoinedRoomEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"G\n" +
-	"\x11UserLeftRoomEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"M\n" +
-	"\x17SpaceMemberDeletedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"\xeb\x02\n" +
-	"\x12MessagePostedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescriptionJ\x04\b\x01\x10\x02R\bspace_id\";\n" +
+	"\x10RoomDeletedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
+	"\x11RoomArchivedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\">\n" +
+	"\x13RoomUnarchivedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\">\n" +
+	"\x13UserJoinedRoomEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
+	"\x11UserLeftRoomEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"B\n" +
+	"\x17SpaceMemberDeletedEvent\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\xe0\x02\n" +
+	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
@@ -3050,7 +2967,7 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12\x1a\n" +
-	"\bevent_id\x18\xe9\a \x01(\tR\aeventIdJ\x06\b\xe8\a\x10\xe9\a\"\xa5\x01\n" +
+	"\bevent_id\x18\xe9\a \x01(\tR\aeventIdJ\x04\b\x01\x10\x02J\x06\b\xe8\a\x10\xe9\aR\bspace_id\"\xa5\x01\n" +
 	"\x18ServerConfigUpdatedEvent\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12\x12\n" +

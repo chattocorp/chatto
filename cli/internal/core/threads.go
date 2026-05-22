@@ -301,7 +301,6 @@ func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind RoomKind, r
 		_, err = c.CreateNotification(ctx, followerID, replyAuthorID, &corev1.Notification{
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     SpaceIDForKind(kind),
 					RoomId:      roomID,
 					EventId:     replyEventID,
 					InReplyToId: threadRootID,
@@ -376,7 +375,6 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 	_, err = c.CreateNotification(ctx, originalAuthorID, replyAuthorID, &corev1.Notification{
 		Notification: &corev1.Notification_Reply{
 			Reply: &corev1.ReplyNotification{
-				SpaceId:     SpaceIDForKind(kind),
 				RoomId:      roomID,
 				EventId:     replyEventID,
 				InReplyToId: inReplyToEventID,

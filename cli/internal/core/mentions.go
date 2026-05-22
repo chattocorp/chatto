@@ -72,7 +72,6 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // a thread, or empty string for room-level messages. The frontend uses this to
 // route notification clicks directly into the thread pane.
 func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
-	spaceID := SpaceIDForKind(kind)
 	for _, mentionedUserID := range mentionedUserIDs {
 		// Don't notify the author if they mentioned themselves
 		if mentionedUserID == authorID {
@@ -122,7 +121,6 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 		_, createErr := c.CreateNotification(ctx, mentionedUserID, authorID, &corev1.Notification{
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId:  spaceID,
 					RoomId:   roomID,
 					EventId:  eventID,
 					InThread: inThread,

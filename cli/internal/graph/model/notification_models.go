@@ -72,17 +72,16 @@ func (DMMessageNotificationItem) IsNotificationItem() {}
 
 // MentionNotificationItem represents a mention notification.
 type MentionNotificationItem struct {
-	ID        string                 `json:"id"`
-	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
-	Actor     *corev1.User           `json:"actor"`
-	Summary   string                 `json:"summary"`
-	Room      *corev1.Room           `json:"room"`
-	EventID            string                 `json:"eventId"`
-	ThreadRootEventID  *string                `json:"threadRootEventId,omitempty"`
+	ID                string                 `json:"id"`
+	CreatedAt         *timestamppb.Timestamp `json:"createdAt"`
+	Actor             *corev1.User           `json:"actor"`
+	Summary           string                 `json:"summary"`
+	Room              *corev1.Room           `json:"room"`
+	EventID           string                 `json:"eventId"`
+	ThreadRootEventID *string                `json:"threadRootEventId,omitempty"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`
-	SpaceID string `json:"-"` // Persisted on the proto; carried through for room-kind disambiguation.
 	RoomID  string `json:"-"`
 }
 
@@ -90,18 +89,17 @@ func (MentionNotificationItem) IsNotificationItem() {}
 
 // ReplyNotificationItem represents a reply notification.
 type ReplyNotificationItem struct {
-	ID          string                 `json:"id"`
-	CreatedAt   *timestamppb.Timestamp `json:"createdAt"`
-	Actor       *corev1.User           `json:"actor"`
-	Summary     string                 `json:"summary"`
-	Room        *corev1.Room           `json:"room"`
-	EventID            string                 `json:"eventId"`
-	InReplyToID        string                 `json:"inReplyToId"`
-	ThreadRootEventID  *string                `json:"threadRootEventId,omitempty"`
+	ID                string                 `json:"id"`
+	CreatedAt         *timestamppb.Timestamp `json:"createdAt"`
+	Actor             *corev1.User           `json:"actor"`
+	Summary           string                 `json:"summary"`
+	Room              *corev1.Room           `json:"room"`
+	EventID           string                 `json:"eventId"`
+	InReplyToID       string                 `json:"inReplyToId"`
+	ThreadRootEventID *string                `json:"threadRootEventId,omitempty"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`
-	SpaceID string `json:"-"` // Persisted on the proto; carried through for room-kind disambiguation.
 	RoomID  string `json:"-"`
 }
 

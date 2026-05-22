@@ -146,7 +146,11 @@ func (r *messageDeletedEventResolver) MessageEventID(ctx context.Context, obj *c
 // Lazy-loads the message body from the KV bucket using the message body ID.
 // Returns nil if the message has been deleted (GDPR).
 func (r *messagePostedEventResolver) Body(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error) {
-	messageBody, err := r.getMessageBody(ctx, obj.SpaceId, obj.MessageBodyId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
+	}
+	messageBody, err := r.getMessageBody(ctx, kind, obj.MessageBodyId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}
@@ -159,7 +163,11 @@ func (r *messagePostedEventResolver) Body(ctx context.Context, obj *corev1.Messa
 // Attachments is the resolver for the attachments field.
 // Lazy-loads attachments from the MessageBody in the KV bucket.
 func (r *messagePostedEventResolver) Attachments(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*corev1.Attachment, error) {
-	messageBody, err := r.getMessageBody(ctx, obj.SpaceId, obj.MessageBodyId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
+	}
+	messageBody, err := r.getMessageBody(ctx, kind, obj.MessageBodyId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}
@@ -201,7 +209,11 @@ func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *corev1.
 // UpdatedAt is the resolver for the updatedAt field.
 // Lazy-loads the updated_at timestamp from the message body. Returns nil if never edited.
 func (r *messagePostedEventResolver) UpdatedAt(ctx context.Context, obj *corev1.MessagePostedEvent) (*timestamppb.Timestamp, error) {
-	messageBody, err := r.getMessageBody(ctx, obj.SpaceId, obj.MessageBodyId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
+	}
+	messageBody, err := r.getMessageBody(ctx, kind, obj.MessageBodyId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}
@@ -238,7 +250,12 @@ func (r *messagePostedEventResolver) ReplyCount(ctx context.Context, obj *corev1
 	}
 
 	// For root messages, get thread metadata using event ID
-	metadata, err := r.core.GetThreadMetadata(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId, obj.EventId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		r.logger.Debug("Failed to resolve room kind for replyCount", "error", err, "event_id", obj.EventId)
+		return 0, nil
+	}
+	metadata, err := r.core.GetThreadMetadata(ctx, kind, obj.RoomId, obj.EventId)
 	if err != nil {
 		// Log but don't fail - return 0 as fallback
 		r.logger.Debug("Failed to get thread metadata for replyCount", "error", err, "event_id", obj.EventId)
@@ -258,7 +275,12 @@ func (r *messagePostedEventResolver) LastReplyAt(ctx context.Context, obj *corev
 	}
 
 	// For root messages, get thread metadata using event ID
-	metadata, err := r.core.GetThreadMetadata(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId, obj.EventId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		r.logger.Debug("Failed to resolve room kind for lastReplyAt", "error", err, "event_id", obj.EventId)
+		return nil, nil
+	}
+	metadata, err := r.core.GetThreadMetadata(ctx, kind, obj.RoomId, obj.EventId)
 	if err != nil {
 		// Log but don't fail - return nil as fallback
 		r.logger.Debug("Failed to get thread metadata for lastReplyAt", "error", err, "event_id", obj.EventId)
@@ -282,7 +304,12 @@ func (r *messagePostedEventResolver) ThreadParticipants(ctx context.Context, obj
 	}
 
 	// For root messages, get thread metadata using event ID
-	metadata, err := r.core.GetThreadMetadata(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId, obj.EventId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		r.logger.Debug("Failed to resolve room kind for threadParticipants", "error", err, "event_id", obj.EventId)
+		return []*corev1.User{}, nil
+	}
+	metadata, err := r.core.GetThreadMetadata(ctx, kind, obj.RoomId, obj.EventId)
 	if err != nil {
 		r.logger.Debug("Failed to get thread metadata for threadParticipants", "error", err, "event_id", obj.EventId)
 		return []*corev1.User{}, nil
@@ -335,7 +362,12 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 		return nil, nil
 	}
 
-	isFollowing, err := r.core.IsFollowingThread(ctx, core.KindForSpace(obj.SpaceId), currentUser.Id, obj.RoomId, obj.EventId)
+	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+	if err != nil {
+		r.logger.Debug("Failed to resolve room kind for viewerIsFollowingThread", "error", err, "event_id", obj.EventId)
+		return nil, nil
+	}
+	isFollowing, err := r.core.IsFollowingThread(ctx, kind, currentUser.Id, obj.RoomId, obj.EventId)
 	if err != nil {
 		r.logger.Debug("Failed to check thread follow status", "error", err, "event_id", obj.EventId)
 		return nil, nil
@@ -444,7 +476,11 @@ func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event
 	if err != nil {
 		return nil, err
 	}
-	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(msg.SpaceId), user.Id, msg.RoomId)
+	kind, err := r.core.FindRoomKind(ctx, msg.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, msg.RoomId)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +488,7 @@ func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event
 		return nil, core.ErrNotRoomMember
 	}
 
-	events, err := r.core.GetThreadEvents(ctx, core.KindForSpace(msg.SpaceId), msg.RoomId, obj.Id)
+	events, err := r.core.GetThreadEvents(ctx, kind, msg.RoomId, obj.Id)
 	if err != nil {
 		return nil, err
 	}

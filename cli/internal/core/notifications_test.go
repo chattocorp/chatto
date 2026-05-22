@@ -58,7 +58,6 @@ func TestCreateNotification(t *testing.T) {
 		notif := &corev1.Notification{
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-123",
 					RoomId:  "room-456",
 					EventId: "event-789",
 				},
@@ -74,9 +73,6 @@ func TestCreateNotification(t *testing.T) {
 		if mentionNotif == nil {
 			t.Fatal("Expected mention notification payload")
 		}
-		if mentionNotif.SpaceId != "space-123" {
-			t.Errorf("Expected space ID space-123, got %s", mentionNotif.SpaceId)
-		}
 		if mentionNotif.RoomId != "room-456" {
 			t.Errorf("Expected room ID room-456, got %s", mentionNotif.RoomId)
 		}
@@ -89,7 +85,6 @@ func TestCreateNotification(t *testing.T) {
 		notif := &corev1.Notification{
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-123",
 					RoomId:      "room-456",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",

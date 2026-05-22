@@ -39,16 +39,13 @@ func TestChattoCore_PostMessage(t *testing.T) {
 		t.Fatal("Event should be a MessagePosted event")
 	}
 
-	// Verify space_id and room_id are in the concrete event
-	if messagePosted.SpaceId != ServerSpaceID {
-		t.Errorf("MessagePosted.SpaceId = %s, want %s", messagePosted.SpaceId, ServerSpaceID)
-	}
+	// Verify room_id is set on the concrete event.
 	if messagePosted.RoomId != room.Id {
 		t.Errorf("MessagePosted.RoomId = %s, want %s", messagePosted.RoomId, room.Id)
 	}
 
 	// Body is now lazy-loaded, fetch it separately using messageBodyId
-	fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(messagePosted.SpaceId), messagePosted.MessageBodyId)
+	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}
@@ -82,7 +79,7 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	}
 
 	// Verify the body can be fetched via GetMessageBody using messageBodyId
-	fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(messagePosted.SpaceId), messagePosted.MessageBodyId)
+	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}

@@ -268,8 +268,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
-				SpaceId: DMSpaceID,
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})

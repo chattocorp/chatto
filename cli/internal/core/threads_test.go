@@ -1144,9 +1144,6 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 			replyNotif := n.GetReply()
 			if replyNotif != nil {
 				found = true
-				if replyNotif.SpaceId != ServerSpaceID {
-					t.Errorf("ReplyNotification.SpaceId = %s, want %s", replyNotif.SpaceId, ServerSpaceID)
-				}
 				if replyNotif.RoomId != room.Id {
 					t.Errorf("ReplyNotification.RoomId = %s, want %s", replyNotif.RoomId, room.Id)
 				}

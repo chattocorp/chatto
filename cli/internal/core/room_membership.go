@@ -143,8 +143,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		event := newEvent(actorID, &corev1.Event{
 			Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  room_id,
+					RoomId: room_id,
 				},
 			},
 		})
@@ -191,8 +190,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		event := newEvent(actorID, &corev1.Event{
 			Event: &corev1.Event_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  room_id,
+					RoomId: room_id,
 				},
 			},
 		})
@@ -296,8 +294,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 		event := newEvent(user_id, &corev1.Event{
 			Event: &corev1.Event_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  entry.roomID,
+					RoomId: entry.roomID,
 				},
 			},
 		})

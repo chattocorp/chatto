@@ -283,9 +283,8 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 	event := newEvent("test-actor", &corev1.Event{
 		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
-				RoomId:  "test-room",
-				Name:    "Test Room",
-				SpaceId: "test-space",
+				RoomId: "test-room",
+				Name:   "Test Room",
 			},
 		},
 	})
@@ -309,9 +308,8 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 		Id: existingId,
 		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
-				RoomId:  "test-room",
-				Name:    "Test Room",
-				SpaceId: "test-space",
+				RoomId: "test-room",
+				Name:   "Test Room",
 			},
 		},
 	})

@@ -19,10 +19,10 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/internal/http_server"
-	"hmans.de/chatto/pkg/natsauth"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/push"
 	"hmans.de/chatto/internal/video"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
@@ -387,19 +387,18 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 // fetchPayloadContext builds the payload context with message preview and room name.
 // This is best-effort - if fetching fails, returns nil and the notification will have a generic body.
 func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notification *corev1.Notification, logger *log.Logger) *push.PayloadContext {
-	var spaceID, roomID, eventID string
+	var roomID, eventID string
+	var kind core.RoomKind
 
 	switch n := notification.Notification.(type) {
 	case *corev1.Notification_DmMessage:
-		spaceID = core.DMSpaceID
+		kind = core.KindDM
 		roomID = n.DmMessage.RoomId
 		eventID = n.DmMessage.EventId
 	case *corev1.Notification_Mention:
-		spaceID = n.Mention.SpaceId
 		roomID = n.Mention.RoomId
 		eventID = n.Mention.EventId
 	case *corev1.Notification_Reply:
-		spaceID = n.Reply.SpaceId
 		roomID = n.Reply.RoomId
 		eventID = n.Reply.EventId
 	default:
@@ -412,7 +411,17 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	payloadCtx := &push.PayloadContext{}
 
-	kind := core.KindForSpace(spaceID)
+	if kind == "" {
+		// Mention and reply notifications no longer carry a kind on the
+		// wire — recover from the room record (mostly channels in practice).
+		var err error
+		kind, err = chattoCore.FindRoomKind(ctx, roomID)
+		if err != nil {
+			logger.Debug("Failed to resolve room kind for push notification preview",
+				"room_id", roomID, "error", err)
+			return nil
+		}
+	}
 
 	// Fetch the message to get its body
 	event, err := chattoCore.GetRoomEventByEventID(ctx, kind, roomID, eventID)
@@ -453,4 +462,3 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	return payloadCtx
 }
-
