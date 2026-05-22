@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package chatto.atproto.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/atproto/v1;atprotov1";
+
+// ATProtoAuthRequest persists the state of an in-flight OAuth flow between
+// the initial PAR submission and the callback. Stored at
+// `atproto.auth_request.{state}` in the AUTH_TOKENS KV bucket with a short
+// per-key TTL — the consent screen is the only thing keeping these alive.
+//
+// Field names mirror the indigo `oauth.AuthRequestData` struct one-to-one so
+// the adapter conversion is mechanical.
+message ATProtoAuthRequest {
+  string state = 1;
+  string auth_server_url = 2;
+  // May be empty when the flow started from an auth server URL rather than
+  // an account identifier.
+  string account_did = 3;
+  repeated string scopes = 4;
+  string request_uri = 5;
+  string auth_server_token_endpoint = 6;
+  string auth_server_revocation_endpoint = 7;
+  string pkce_verifier = 8;
+  string dpop_auth_server_nonce = 9;
+  // P-256 private key in multibase encoding, generated per-session for DPoP.
+  // SECRET: see file-header comment on ATProtoSession.
+  string dpop_private_key_multibase = 10;
+}
+
+// ATProtoSession persists an authenticated OAuth session post-callback.
+// Stored at `atproto.session.{sha256(did + ":" + session_id)}` in the
+// AUTH_TOKENS KV bucket. In the current sign-in flow, sessions are revoked
+// (and the entry deleted) within milliseconds of being written; the KV
+// store exists primarily so the auth-request flow survives a server restart
+// or multi-replica callback. Any future feature that retains sessions
+// beyond identification should wrap the secret fields via the KMS service
+// (ADR-007 territory) rather than relying on plaintext KV.
+//
+// Field names mirror the indigo `oauth.ClientSessionData` struct one-to-one.
+message ATProtoSession {
+  string account_did = 1;
+  string session_id = 2;
+  string host_url = 3;
+  string auth_server_url = 4;
+  string auth_server_token_endpoint = 5;
+  string auth_server_revocation_endpoint = 6;
+  // Space-joined scopes, matching the OAuth wire format.
+  string scopes = 7;
+  // SECRET — access token for the resource server (PDS).
+  string access_token = 8;
+  // SECRET — refresh token for the authorization server.
+  string refresh_token = 9;
+  string dpop_auth_server_nonce = 10;
+  string dpop_host_nonce = 11;
+  // SECRET — P-256 private key in multibase encoding, used for DPoP signing.
+  string dpop_private_key_multibase = 12;
+}

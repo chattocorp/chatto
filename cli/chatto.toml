@@ -25,6 +25,9 @@ issuer_url = 'https://chatto.id/realms/chatto-hub'
 client_id = 'chatto-dev'
 client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 
+[auth.atproto]
+enabled = true
+
 [smtp]
 enabled = true
 host = 'mailpit.chatto-tools.orb.local'

@@ -22,6 +22,27 @@ FDRs sit alongside [ADRs](../adr/INDEX.md). The split:
 
 A single feature may cite several ADRs; a single ADR may underpin several FDRs. That's fine and expected.
 
+## Triage: is this an ADR or an FDR?
+
+Before writing a new record (or inserting a Design Decision into an existing FDR), check which side of the split it lives on. Common failure mode: writing an architectural principle inside a feature doc because the feature is what's currently on your screen.
+
+Heuristics, any one of which tips toward ADR:
+
+- Would this decision still apply if the feature being documented were removed tomorrow? → ADR
+- Is it a *principle* ("we never X", "we always Y", "any future X must Y") rather than a *behavior* ("when user does X, system does Y")? → ADR
+- Would a future feature with a similar shape inherit this decision automatically? → ADR
+- Is the decision cited by, or relevant to, more than one feature already? → ADR
+
+Tells that it's an FDR-level decision instead:
+
+- The decision is specific to one feature's user-facing shape
+- It describes how this feature *behaves* (a flow, a fallback, a UX choice)
+- Removing the feature would also remove the need for the decision
+
+**Smell test while drafting**: if a Design Decision body starts with "we don't…", "we always…", "any future…", or "for all external/internal X…", it is probably an architectural principle that belongs in an ADR. Lift it out, write the ADR, then have the FDR cite it.
+
+When in doubt, write the ADR first — feature docs cite ADRs cleanly, but ADR-level decisions buried in feature docs are hard to find and tempt others to write conflicting ones.
+
 ## What an FDR Is NOT
 
 - **NOT** a code walkthrough. No function signatures, no proto field tags, no GraphQL schema dumps, no KV key patterns, no NATS subject formats.

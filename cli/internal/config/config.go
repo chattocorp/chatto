@@ -188,10 +188,33 @@ func (c *OIDCConfig) IsConfigured() bool {
 	return c.Enabled && c.IssuerURL != "" && c.ClientID != ""
 }
 
+// ATProtoConfig contains settings for "Sign in with AT Protocol" (e.g. Bluesky).
+// Unlike OIDC, no per-deployment registration is required: each Chatto server
+// is its own OAuth client, and the client identifier is the URL of the
+// dynamically-served client metadata document.
+type ATProtoConfig struct {
+	Enabled bool   `toml:"enabled" env:"CHATTO_AUTH_ATPROTO_ENABLED" comment:"Enable 'Sign in with AT Protocol' (e.g. Bluesky). No per-deployment OAuth client registration is required — Chatto serves its own client metadata at /auth/atproto/client-metadata.json."`
+	Label   string `toml:"label,commented" env:"CHATTO_AUTH_ATPROTO_LABEL" comment:"Button label shown on the login page. Default: 'Sign in with AT Protocol'."`
+}
+
+// LabelOrDefault returns the configured label, or a sensible default.
+func (c *ATProtoConfig) LabelOrDefault() string {
+	if c.Label == "" {
+		return "Sign in with AT Protocol"
+	}
+	return c.Label
+}
+
+// IsConfigured returns true if ATProto sign-in is enabled.
+func (c *ATProtoConfig) IsConfigured() bool {
+	return c.Enabled
+}
+
 type AuthConfig struct {
-	DirectRegistration *bool      `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
-	TokenTTL           Duration   `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
-	OIDC               OIDCConfig `toml:"oidc,commented" comment:"OIDC provider configuration (e.g. Chatto Hub)."`
+	DirectRegistration *bool         `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	TokenTTL           Duration      `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	OIDC               OIDCConfig    `toml:"oidc,commented" comment:"OIDC provider configuration (e.g. Chatto Hub)."`
+	ATProto            ATProtoConfig `toml:"atproto,commented" comment:"AT Protocol (Bluesky) sign-in configuration."`
 }
 
 // TokenTTLOrDefault returns the configured bearer token TTL, or 90 days if not set.
@@ -215,6 +238,9 @@ func (c *AuthConfig) EnabledProviders() []string {
 	var providers []string
 	if c.OIDC.IsConfigured() {
 		providers = append(providers, "oidc")
+	}
+	if c.ATProto.IsConfigured() {
+		providers = append(providers, "atproto")
 	}
 	return providers
 }

@@ -13,13 +13,13 @@ Run pre-merge documentation checks to ensure FDRs and ADRs are current with the 
 
 Run `git diff main...HEAD --stat` and `git log main..HEAD --oneline` to understand the scope of changes on this branch.
 
-### Step 2: Run Documentation Checks in Parallel
+### Step 2: Run Documentation Checks in Order
 
-Invoke both skills using the Skill tool:
+Invoke the two skills sequentially via the Skill tool — **`/adr` first, then `/fdr`**. The order matters: architectural decisions inform feature documents, and running ADR triage first lets any new ADRs get extracted before the FDR pass starts citing them. Running in parallel produces FDR drafts containing principles that should have been ADRs (a real failure mode — see the triage section in [`fdr/SKILL.md`](../fdr/SKILL.md#triage-is-this-an-adr-or-an-fdr)).
 
-1. **`/fdr`** — Audit Feature Decision Records against the codebase. Focus on features touched by the branch's changes. Flag any discrepancies, stale design decisions, or new user-facing behavior that should be documented as a new FDR.
+1. **`/adr`** *(first)* — Review `docs/adr/INDEX.md` and check whether any architectural decisions were made on this branch that should be recorded. Look for: new patterns introduced, technology choices, significant design trade-offs, principles ("we never X", "we always Y") that apply beyond a single feature, or changes that supersede existing ADRs.
 
-2. **`/adr`** — Review `docs/adr/INDEX.md` and check whether any architectural decisions were made on this branch that should be recorded. Look for: new patterns introduced, technology choices, significant design trade-offs, or changes that supersede existing ADRs.
+2. **`/fdr`** *(after `/adr`)* — Audit Feature Decision Records against the codebase. Focus on features touched by the branch's changes. Flag discrepancies, stale design decisions, and user-facing behavior that should be documented as a new FDR. Cite any ADRs extracted in step 1 rather than re-stating their content.
 
 ### Step 3: Report
 

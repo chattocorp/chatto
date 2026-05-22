@@ -7,6 +7,39 @@ description: Keep track of architectural decisions in a structured format using 
 
 Manage architectural decisions as structured markdown documents in `docs/adr/`.
 
+## What an ADR Is
+
+An ADR records one architectural decision and why it was made. It answers:
+
+- **What** decision was made? (e.g. "use NATS JetStream as the message bus")
+- **Why** was it made? (the context, constraints, and alternatives considered)
+- **What does it cost?** (the consequences — what becomes easier or harder)
+
+ADRs sit alongside [FDRs](../fdr/INDEX.md). The split:
+
+- **ADRs** are about **architectural decisions** — cross-cutting choices that underpin multiple features, often immutable once decided.
+- **FDRs** are about **features** — what they do and the design decisions specific to that feature.
+
+A single ADR may underpin several FDRs; a single FDR may cite several ADRs. ADRs don't list back-references — citations flow FDR → ADR.
+
+## What an ADR Is NOT
+
+- **NOT** a description of a *fact*. "We use NATS" is not an ADR; "we chose NATS over Kafka because we wanted embeddable single-binary deployment" is.
+- **NOT** a feature design. If the decision is shaped by one feature's user-facing requirements and would go away if the feature did, it's an FDR.
+- **NOT** an implementation guide. ADRs explain *why*, not *how*.
+- **NOT** a living document. Once the decision is made, the ADR records the moment. Later changes either supersede the ADR (with a new ADR) or amend the *Consequences* section as reality clarifies. Don't rewrite the *Decision* to reflect a different choice — write a superseding ADR instead.
+
+## Triage: is this an ADR or an FDR?
+
+When in doubt about whether a decision belongs in an ADR or an FDR, check the heuristics in [`../fdr/SKILL.md`](../fdr/SKILL.md#triage-is-this-an-adr-or-an-fdr). Quick summary, any one tipping toward ADR:
+
+- Would the decision still apply if any single feature were removed?
+- Is it a *principle* ("we never X", "we always Y") rather than a *behavior* ("when user does X, system does Y")?
+- Would a future feature with a similar shape inherit it?
+- Is it already relevant to more than one feature?
+
+**Smell test while drafting**: if a sentence in your ADR is describing what *one specific feature* does to the user, you've drifted into FDR territory. Pull back to the architectural choice and let the FDR describe the feature.
+
 ## Directory Structure
 
 ```

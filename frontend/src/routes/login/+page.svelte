@@ -48,6 +48,17 @@
 
   let enabledProviders = $state<string[]>([]);
   let directRegistrationEnabled = $state(true);
+  let atprotoHandle = $state('');
+  let atprotoLoading = $state(false);
+
+  function handleATProtoSubmit(e: Event) {
+    e.preventDefault();
+    const handle = atprotoHandle.trim().replace(/^@/, '');
+    if (!handle) return;
+    atprotoLoading = true;
+    const params = new URLSearchParams({ handle, redirect: data.redirectUrl });
+    window.location.href = `/auth/atproto?${params.toString()}`;
+  }
 
   graphqlClientManager.originClient.client
     .query(LoginInfoQuery, {})
@@ -171,6 +182,34 @@
 
           <Divider label="or" />
         </div>
+      {/if}
+
+      {#if enabledProviders.includes('atproto')}
+        <form onsubmit={handleATProtoSubmit} class="mb-4 flex flex-col gap-3">
+          <TextInput
+            id="atproto-handle"
+            label="Sign in with AT Protocol"
+            bind:value={atprotoHandle}
+            placeholder="alice.bsky.social"
+            autocomplete="username"
+            disabled={atprotoLoading}
+            required
+          />
+          <Button
+            type="submit"
+            variant="secondary"
+            size="lg"
+            fullWidth
+            disabled={!atprotoHandle.trim()}
+            loading={atprotoLoading}
+            loadingText="Redirecting…"
+          >
+            <span class="iconify text-lg mdi--at"></span>
+            Continue
+          </Button>
+        </form>
+
+        <Divider label="or" />
       {/if}
 
       <form onsubmit={handleSubmit} class="flex flex-col gap-4">

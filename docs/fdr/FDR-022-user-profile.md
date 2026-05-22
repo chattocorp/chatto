@@ -15,6 +15,7 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
 - **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
+- **SSO seeding on first sign-in** — when a user first arrives via an external identity provider, the provider's public profile data is copied into the new Chatto profile (OIDC: `picture` claim → avatar; AT Protocol: `app.bsky.actor.profile` display name + avatar). Subsequent profile edits are local — Chatto doesn't re-sync from the provider.
 
 ## Design Decisions
 
@@ -68,5 +69,5 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-018 (Account Lifecycle)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-032 (external identity integration boundaries)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-018 (Account Lifecycle), FDR-027 (Sign in with AT Protocol)
