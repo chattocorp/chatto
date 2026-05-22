@@ -47,13 +47,18 @@ import (
 //
 // `serverKV` is the INSTANCE bucket (user data, auth tokens, etc.);
 // `serverConfigKV` is SERVER_CONFIG (rooms, room memberships,
-// notification levels, …).
-func RunAll(ctx context.Context, serverKV, serverConfigKV jetstream.KeyValue, logger *log.Logger) error {
+// notification levels, …); `serverBodiesKV` is SERVER_BODIES (message
+// content + standalone attachment metadata records); `serverRuntimeKV`
+// is SERVER_RUNTIME (sequences, sentinels, recomputable state).
+func RunAll(ctx context.Context, serverKV, serverConfigKV, serverBodiesKV, serverRuntimeKV jetstream.KeyValue, logger *log.Logger) error {
 	if err := MigrateVerifiedEmailsToProto(ctx, serverKV, logger); err != nil {
 		return fmt.Errorf("verified_emails: %w", err)
 	}
 	if err := BackfillRoomKind(ctx, serverConfigKV, logger); err != nil {
 		return fmt.Errorf("room_kind: %w", err)
+	}
+	if err := BackfillAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
+		return fmt.Errorf("attachment_records: %w", err)
 	}
 	return nil
 }

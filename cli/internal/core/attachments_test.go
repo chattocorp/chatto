@@ -970,3 +970,135 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 		t.Errorf("Should return 0 deleted on empty cache, got %d", deleted)
 	}
 }
+
+// ============================================================================
+// Attachment Record Tests (SERVER_BODIES)
+// ============================================================================
+
+// TestUploadAttachment_WritesRecord verifies that every new upload
+// produces a lookup-able Attachment record in SERVER_BODIES. The
+// asset HTTP handler authorizes off this record, so its presence after
+// upload is auth-critical.
+func TestUploadAttachment_WritesRecord(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello")))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+
+	got, err := core.GetAttachmentRecord(ctx, attachment.Id)
+	if err != nil {
+		t.Fatalf("GetAttachmentRecord error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Expected attachment record, got nil")
+	}
+	if got.Id != attachment.Id {
+		t.Errorf("Expected record id %q, got %q", attachment.Id, got.Id)
+	}
+	if got.RoomId != room.Id {
+		t.Errorf("Expected record room id %q, got %q", room.Id, got.RoomId)
+	}
+	if got.Filename != "test.txt" {
+		t.Errorf("Expected filename test.txt, got %q", got.Filename)
+	}
+}
+
+// TestGetAttachmentRecord_MissingReturnsNil makes sure that a request
+// for an unknown attachment yields (nil, nil) — the HTTP handler relies
+// on this to render a 404 (not a 500) for orphans.
+func TestGetAttachmentRecord_MissingReturnsNil(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	got, err := core.GetAttachmentRecord(ctx, "no-such-attachment")
+	if err != nil {
+		t.Fatalf("Expected nil error for missing record, got: %v", err)
+	}
+	if got != nil {
+		t.Errorf("Expected nil record for missing id, got %+v", got)
+	}
+}
+
+// TestListRoomAttachments_ReturnsAllAttachmentsInRoom drives the upcoming
+// per-room sidebar use case: uploads in two different rooms should list
+// independently and not bleed across rooms.
+func TestListRoomAttachments_ReturnsAllAttachmentsInRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	roomA, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-a", "Room A")
+	if err != nil {
+		t.Fatalf("Failed to create room A: %v", err)
+	}
+	roomB, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-b", "Room B")
+	if err != nil {
+		t.Fatalf("Failed to create room B: %v", err)
+	}
+
+	a1, _ := core.UploadAttachment(ctx, roomA.Id, "a1.txt", "text/plain", bytes.NewReader([]byte("a1")))
+	a2, _ := core.UploadAttachment(ctx, roomA.Id, "a2.txt", "text/plain", bytes.NewReader([]byte("a2")))
+	b1, _ := core.UploadAttachment(ctx, roomB.Id, "b1.txt", "text/plain", bytes.NewReader([]byte("b1")))
+
+	gotA, err := core.ListRoomAttachments(ctx, roomA.Id)
+	if err != nil {
+		t.Fatalf("ListRoomAttachments(roomA): %v", err)
+	}
+	if len(gotA) != 2 {
+		t.Errorf("Expected 2 attachments in room A, got %d", len(gotA))
+	}
+	gotIDs := map[string]bool{}
+	for _, att := range gotA {
+		gotIDs[att.Id] = true
+		if att.RoomId != roomA.Id {
+			t.Errorf("Attachment %s leaked from another room: roomId=%q", att.Id, att.RoomId)
+		}
+	}
+	if !gotIDs[a1.Id] || !gotIDs[a2.Id] {
+		t.Errorf("Expected a1 and a2 in room A list, got ids=%v", gotIDs)
+	}
+
+	gotB, err := core.ListRoomAttachments(ctx, roomB.Id)
+	if err != nil {
+		t.Fatalf("ListRoomAttachments(roomB): %v", err)
+	}
+	if len(gotB) != 1 || gotB[0].Id != b1.Id {
+		t.Errorf("Expected only b1 in room B, got %+v", gotB)
+	}
+}
+
+// TestDeleteAttachment_ForgetsRecord confirms that deletion drops the
+// canonical record so subsequent authz lookups fail cleanly (404).
+func TestDeleteAttachment_ForgetsRecord(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me")))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+
+	if err := core.DeleteAttachment(ctx, "", attachment.Id); err != nil {
+		t.Fatalf("DeleteAttachment failed: %v", err)
+	}
+
+	got, err := core.GetAttachmentRecord(ctx, attachment.Id)
+	if err != nil {
+		t.Fatalf("GetAttachmentRecord error: %v", err)
+	}
+	if got != nil {
+		t.Errorf("Expected nil record after delete, got %+v", got)
+	}
+}

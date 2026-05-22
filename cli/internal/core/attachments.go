@@ -135,6 +135,31 @@ func (c *ChattoCore) UploadAttachment(
 		}
 	}
 
+	attachment := &corev1.Attachment{
+		Id:          attachmentID,
+		RoomId:      roomID,
+		Filename:    filename,
+		ContentType: contentType,
+		Size:        size,
+		Width:       width,
+		Height:      height,
+		Storage:     storage,
+	}
+
+	// Write the canonical Attachment record. The asset HTTP handler
+	// authorizes downloads off this record, so a failure here would
+	// strand the uploaded binary unreachable behind a 404. Best-effort
+	// delete the just-uploaded binary before surfacing the error, so
+	// we don't leak orphans into storage.
+	if err := c.recordAttachment(ctx, attachment); err != nil {
+		if cleanupErr := c.deleteAttachmentBinary(ctx, attachmentID, storage); cleanupErr != nil {
+			c.logger.Warn("Failed to clean up attachment binary after metadata write failure",
+				"attachment_id", attachmentID,
+				"error", cleanupErr)
+		}
+		return nil, fmt.Errorf("failed to record attachment metadata: %w", err)
+	}
+
 	c.logger.Debug("Uploaded attachment",
 		"attachment_id", attachmentID,
 		"room_id", roomID,
@@ -144,16 +169,7 @@ func (c *ChattoCore) UploadAttachment(
 		"storage_backend", c.config.Assets.StorageBackend,
 	)
 
-	return &corev1.Attachment{
-		Id:          attachmentID,
-		RoomId:      roomID,
-		Filename:    filename,
-		ContentType: contentType,
-		Size:        size,
-		Width:       width,
-		Height:      height,
-		Storage:     storage,
-	}, nil
+	return attachment, nil
 }
 
 // AttachmentInfo contains metadata about an attachment.
@@ -190,6 +206,10 @@ func (c *ChattoCore) GetAttachment(ctx context.Context, attachmentID string) (io
 // GetS3Attachment retrieves an attachment from S3 by its key.
 // Returns a reader for the attachment content and metadata.
 // The caller is responsible for closing the reader.
+//
+// AttachmentInfo.RoomID is NOT populated here — S3 has no equivalent of
+// the NATS `Room-Id` header. Callers that need authorization should
+// instead look up the canonical Attachment record via GetAttachmentRecord.
 func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.ReadCloser, *AttachmentInfo, error) {
 	if c.s3Client == nil {
 		return nil, nil, fmt.Errorf("S3 client not configured")
@@ -277,7 +297,6 @@ func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, a
 			}
 			lastS3Err = s3Err
 		}
-		// Log the last S3 error but return the original NATS error
 		c.logger.Debug("Attachment not found in either backend",
 			"space_id", spaceID,
 			"attachment_id", attachmentID,
@@ -286,6 +305,156 @@ func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, a
 	}
 
 	return nil, nil, err
+}
+
+// ============================================================================
+// Attachment Records
+// ============================================================================
+//
+// Attachment metadata records live in SERVER_BODIES alongside the
+// message bodies that reference them. They share the bucket because:
+//
+//   - The lifecycle is the same: an attachment is born with the body
+//     that posts it and dies when that body is deleted (incl. GDPR).
+//   - The write profile is the same (per-message churn), so we don't
+//     have to provision another replicated stream for an essentially
+//     identical workload.
+//
+// Two key shapes coexist in this bucket — they don't overlap because
+// body keys have two tokens and attachment-record keys have three:
+//
+//   - {userId}.{bodyId}                       → marshaled MessageBody
+//   - attachment.{roomId}.{attachmentId}      → marshaled Attachment
+//
+// Room ID lives in the key so the per-room attachment sidebar can
+// prefix-filter (`attachment.{roomId}.*`); by-ID lookup uses a
+// server-side wildcard filter (`attachment.*.{attachmentId}`).
+//
+// TODO: rename SERVER_BODIES → SERVER_CONTENT now that it hosts more
+// than bodies. Pending a separate migration since renaming a bucket
+// requires copying every key.
+
+// attachmentRecordKey returns the SERVER_BODIES key for an attachment
+// metadata record. The "attachment." literal prefix keeps these keys
+// out of the way of body keys (`{userId}.{bodyId}`).
+func attachmentRecordKey(roomID, attachmentID string) string {
+	return "attachment." + roomID + "." + attachmentID
+}
+
+// recordAttachment stores the canonical Attachment metadata record.
+func (c *ChattoCore) recordAttachment(ctx context.Context, attachment *corev1.Attachment) error {
+	if attachment == nil || attachment.Id == "" || attachment.RoomId == "" {
+		return fmt.Errorf("recordAttachment: missing id or room id")
+	}
+	data, err := proto.Marshal(attachment)
+	if err != nil {
+		return fmt.Errorf("marshal attachment: %w", err)
+	}
+	if _, err := c.storage.serverBodiesKV.Put(ctx, attachmentRecordKey(attachment.RoomId, attachment.Id), data); err != nil {
+		return fmt.Errorf("write attachment record: %w", err)
+	}
+	return nil
+}
+
+// GetAttachmentRecord returns the canonical Attachment metadata for the
+// given ID, or (nil, nil) if no record exists. Uses a server-side
+// wildcard filter on the key (`attachment.*.{attachmentId}`).
+func (c *ChattoCore) GetAttachmentRecord(ctx context.Context, attachmentID string) (*corev1.Attachment, error) {
+	if attachmentID == "" {
+		return nil, nil
+	}
+	lister, err := c.storage.serverBodiesKV.ListKeysFiltered(ctx, "attachment.*."+attachmentID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("filter attachment keys: %w", err)
+	}
+	for key := range lister.Keys() {
+		entry, err := c.storage.serverBodiesKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return nil, fmt.Errorf("get attachment record: %w", err)
+		}
+		var att corev1.Attachment
+		if err := proto.Unmarshal(entry.Value(), &att); err != nil {
+			return nil, fmt.Errorf("unmarshal attachment record: %w", err)
+		}
+		return &att, nil
+	}
+	return nil, nil
+}
+
+// ListRoomAttachments returns every Attachment metadata record posted
+// to the given room. Used by the per-room attachment sidebar. Reads
+// every matching record into memory — adequate for the expected
+// sidebar size; rooms with huge attachment counts will eventually want
+// a pagination cursor.
+func (c *ChattoCore) ListRoomAttachments(ctx context.Context, roomID string) ([]*corev1.Attachment, error) {
+	if roomID == "" {
+		return nil, nil
+	}
+	lister, err := c.storage.serverBodiesKV.ListKeysFiltered(ctx, "attachment."+roomID+".*")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("list room attachments: %w", err)
+	}
+	var out []*corev1.Attachment
+	for key := range lister.Keys() {
+		entry, err := c.storage.serverBodiesKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return nil, fmt.Errorf("get attachment record: %w", err)
+		}
+		var att corev1.Attachment
+		if err := proto.Unmarshal(entry.Value(), &att); err != nil {
+			c.logger.Warn("Skipping unparseable attachment record", "key", key, "error", err)
+			continue
+		}
+		out = append(out, &att)
+	}
+	return out, nil
+}
+
+// deleteAttachmentBinary removes the storage object for a freshly
+// uploaded attachment. Used to clean up after a metadata-write failure
+// in UploadAttachment so we don't strand orphans in storage.
+func (c *ChattoCore) deleteAttachmentBinary(ctx context.Context, attachmentID string, storage *corev1.Asset) error {
+	if storage == nil {
+		return nil
+	}
+	switch asset := storage.Asset.(type) {
+	case *corev1.Asset_S3:
+		if c.s3Client == nil {
+			return nil
+		}
+		return c.s3Client.DeleteObject(ctx, asset.S3.Key)
+	case *corev1.Asset_Nats:
+		store, err := c.GetAttachmentsStore(ctx)
+		if err != nil {
+			return err
+		}
+		return store.Delete(ctx, attachmentID)
+	}
+	return nil
+}
+
+// forgetAttachmentRecord removes the attachment metadata record.
+// Missing entries are not an error.
+func (c *ChattoCore) forgetAttachmentRecord(ctx context.Context, roomID, attachmentID string) error {
+	if roomID == "" || attachmentID == "" {
+		return nil
+	}
+	if err := c.storage.serverBodiesKV.Delete(ctx, attachmentRecordKey(roomID, attachmentID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("delete attachment record: %w", err)
+	}
+	return nil
 }
 
 // DeleteAttachment deletes a NATS attachment and its cached resizes.
@@ -297,9 +466,24 @@ func (c *ChattoCore) DeleteAttachment(ctx context.Context, spaceID, attachmentID
 		return fmt.Errorf("failed to get attachments store: %w", err)
 	}
 
+	// Resolve the room ID via the canonical record before we delete the
+	// underlying object, so we can also drop the metadata entry. If no
+	// record exists (legacy orphan), we still proceed with the storage
+	// delete — the record cleanup is best-effort and silently no-ops.
+	var roomID string
+	if rec, recErr := c.GetAttachmentRecord(ctx, attachmentID); recErr == nil && rec != nil {
+		roomID = rec.RoomId
+	}
+
 	err = store.Delete(ctx, attachmentID)
 	if err != nil {
 		return fmt.Errorf("failed to delete attachment: %w", err)
+	}
+
+	if recErr := c.forgetAttachmentRecord(ctx, roomID, attachmentID); recErr != nil {
+		c.logger.Warn("Failed to forget attachment record",
+			"attachment_id", attachmentID,
+			"error", recErr)
 	}
 
 	// Delete any cached resizes for this attachment (best-effort, don't fail on error)
@@ -340,6 +524,11 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 		if err := c.s3Client.DeleteObjectFromBucket(ctx, storage.S3.GetBucket(), storage.S3.Key); err != nil {
 			return fmt.Errorf("failed to delete S3 attachment: %w", err)
 		}
+		if recErr := c.forgetAttachmentRecord(ctx, attachment.RoomId, attachment.Id); recErr != nil {
+			c.logger.Warn("Failed to forget attachment record",
+				"attachment_id", attachment.Id,
+				"error", recErr)
+		}
 		// Delete any cached resizes (S3 attachments use the S3 key as cache prefix)
 		deletedCount, cacheErr := c.DeleteCachedResizesForKey(ctx, "s3", storage.S3.Key)
 		if cacheErr != nil {
@@ -364,6 +553,9 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 // Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
 // the helper falls back to the legacy `spaces/{server|DM}/...` keys for
 // layout mismatches.
+//
+// Authorization is the caller's responsibility — the room ID comes from
+// the canonical Attachment record (see GetAttachmentRecord), not from S3.
 func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, spaceID, attachmentID string) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
@@ -695,8 +887,19 @@ func (c *ChattoCore) DeleteAttachmentFromStorageByID(ctx context.Context, spaceI
 
 	// Try S3 across known layouts.
 	if c.s3Client != nil {
+		// Resolve the room ID via the canonical record so we can clean
+		// up the metadata entry alongside the storage object.
+		var roomID string
+		if rec, recErr := c.GetAttachmentRecord(ctx, attachmentID); recErr == nil && rec != nil {
+			roomID = rec.RoomId
+		}
 		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
 			if s3Err := c.s3Client.DeleteObject(ctx, s3Key); s3Err == nil {
+				if recErr := c.forgetAttachmentRecord(ctx, roomID, attachmentID); recErr != nil {
+					c.logger.Warn("Failed to forget attachment record",
+						"attachment_id", attachmentID,
+						"error", recErr)
+				}
 				return nil
 			}
 		}

@@ -296,7 +296,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// Run boot-time data migrations. Idempotent and cheap on subsequent
 	// boots (each migration short-circuits when no legacy data remains).
 	// See cli/internal/migrations for what's currently registered.
-	if err := migrations.RunAll(ctx, storage.serverKV, storage.serverConfigKV, logger); err != nil {
+	if err := migrations.RunAll(ctx, storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, logger); err != nil {
 		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
 	}
 
@@ -411,10 +411,10 @@ type storage struct {
 	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
 	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
 	serverRBACEngine   *Engine               // Engine wrapping serverRBACKV
-	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies (#330 phase 4c)
+	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies + attachment metadata records (#330 phase 4c). TODO: rename → SERVER_CONTENT now that it hosts more than bodies.
 	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
 	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
-	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachments (#330 phase 4e)
+	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
 	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
 
 	presenceKV      jetstream.KeyValue    // Instance-level presence bucket

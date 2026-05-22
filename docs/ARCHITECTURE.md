@@ -263,7 +263,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
 | KV      | `SERVER_RBAC`                 | Roles, permissions, assignments (single flat tier — owner/admin/moderator/everyone) |
 | KV      | `SERVER_RUNTIME`              | Read status, mention tracking               |
-| KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant)             |
+| KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | KV      | `SERVER_REACTIONS`            | Emoji reactions                             |
 | KV      | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
 | Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
@@ -470,7 +470,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Roles, permissions, assignments (single flat tier) |
 | `SERVER_RUNTIME`              | File    | Yes      | Read state, mention tracking                    |
-| `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant)                 |
+| `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | `SERVER_REACTIONS`            | File    | Yes      | Emoji reactions on messages                     |
 | `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
 | `NOTIFICATIONS`               | File    | Yes      | User notifications (90-day TTL)                 |
@@ -571,6 +571,7 @@ Keys: `role.*`, `role_permission.*`, `role_assignment.*`, `user_permission.*`, `
 | `room_mention_status.{userId}.{roomId}`| Unread mention indicator (boolean — key presence means unread)    |
 | `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
 | `video.{attachmentId}`                 | Video processing state for an attachment                          |
+| `attachment_records.backfilled`        | Sentinel set after the `BackfillAttachmentRecords` boot migration completes; short-circuits the scan on subsequent boots. |
 
 These keys don't carry a kind segment — `roomId` is globally unique, so direct lookup works for DM and channel rooms alike.
 
@@ -606,6 +607,17 @@ Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Se
 
 Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 participant IDs. Used for thread previews in channel view.
 
+**SERVER\_BODIES** also hosts standalone attachment metadata records. The two record kinds share the bucket because they share a lifecycle (an attachment is born with the body that posts it and dies when that body is GDPR-deleted) and a churn profile. Their key shapes don't collide — body keys are two tokens, attachment-record keys are three:
+
+| Key                                          | Description                                                                              |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `{userId}.{bodyId}`                          | Marshaled `corev1.MessageBody` proto (encrypted text, attachments slice, link preview)   |
+| `attachment.{roomId}.{attachmentId}`         | Marshaled `corev1.Attachment` proto — standalone metadata used for authz + per-room listing |
+
+The asset HTTP handler authorizes by-ID via a server-side wildcard filter `attachment.*.{attachmentId}`. The per-room attachment sidebar reads via prefix filter `attachment.{roomId}.*`. Records are written by `UploadAttachment` at upload time and removed by the delete paths. Attachments uploaded before standalone records existed are populated by the `BackfillAttachmentRecords` boot migration, which scans the body keys in the same bucket.
+
+> **TODO**: rename `SERVER_BODIES` → `SERVER_CONTENT` to reflect the wider scope. Pending a separate migration since renaming a NATS KV bucket requires copying every key.
+
 ### Object Store Buckets
 
 | Bucket                      | Description                                       |
@@ -637,7 +649,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 | `{attachmentId}`      | Original attachment files (images, videos, etc.)|
 | `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
 
-Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in `SERVER_BODIES`.
+Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment **metadata** (room ID, filename, dimensions, storage pointer, …) lives in `SERVER_BODIES` keyed by `attachment.{roomId}.{attachmentId}` — that's the source of truth the asset HTTP handler uses for authorization, and the keyspace the upcoming per-room attachment sidebar will list from. Attachments are also embedded inside `MessageBody` protos in the same bucket (keyed by `{userId}.{bodyId}`) for compatibility with the existing message-fetch path.
 
 ### Dynamic Image Transformation
 

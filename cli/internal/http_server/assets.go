@@ -105,27 +105,40 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 
 // serveSpaceAttachment serves an attachment from a space's storage (NATS or S3).
 //
-// For S3-stored attachments: redirects to a presigned S3 URL. The browser talks
-// directly to S3, with full Range request support. Zero memory/CPU on the Go process.
-//
-// For NATS-stored attachments: streams directly from NATS ObjectStore without
-// buffering the entire file into memory. Progressive playback works (faststart),
-// but seeking to unbuffered positions requires waiting for the buffer to catch up.
+// Authorization runs off the canonical Attachment record in SERVER_BODIES:
+// we look up the record by ID, verify room membership, then redirect to a
+// presigned S3 URL (if applicable) or stream from NATS.
 func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 	spaceID := c.Param("spaceId")
 	attachmentID := c.Param("attachmentId")
 	ctx := c.Request.Context()
 
 	s.logger.Debug("Serving space attachment", "space_id", spaceID, "attachment_id", attachmentID)
+	s.serveAttachmentInner(c, spaceID, attachmentID, ctx)
+}
 
-	// Try S3 presigned redirect first (zero-copy, full Range support)
+// serveAttachment serves an attachment uploaded via the post-ADR-030-Phase-4
+// kind-less URL pattern (`/assets/attachments/{id}`). Mirrors
+// serveSpaceAttachment but passes an empty spaceID for the kind-less
+// S3 layout.
+func (s *HTTPServer) serveAttachment(c *gin.Context) {
+	attachmentID := c.Param("attachmentId")
+	ctx := c.Request.Context()
+
+	s.logger.Debug("Serving attachment", "attachment_id", attachmentID)
+	s.serveAttachmentInner(c, "", attachmentID, ctx)
+}
+
+// serveAttachmentInner is the shared implementation for both attachment
+// URL shapes. Resolves the room ID via the canonical Attachment record,
+// authorizes membership, then serves the binary.
+func (s *HTTPServer) serveAttachmentInner(c *gin.Context, spaceID, attachmentID string, ctx context.Context) {
+	if !s.requireAttachmentAccess(c, ctx, attachmentID) {
+		return
+	}
+
+	// Try S3 presigned redirect first (zero-copy, full Range support).
 	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, spaceID, attachmentID); err == nil {
-		// S3 attachments don't store roomID, so authorizeAttachmentAccess passes
-		// with empty roomID (same as the previous proxying behavior).
-		if !s.authorizeAttachmentAccess(c, "") {
-			return
-		}
-
 		// Cache the redirect itself — the attachment URL is immutable
 		c.Header("Cache-Control", "public, max-age=3600")
 		c.Redirect(http.StatusFound, presignedURL)
@@ -133,7 +146,7 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 	}
 
 	// Fall back to probing both NATS and S3 backends (handles transient S3 errors
-	// where the presigned URL fails but direct S3 fetch succeeds)
+	// where the presigned URL fails but direct S3 fetch succeeds).
 	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
 	if err != nil {
 		s.logger.Error("Failed to get attachment", "error", err, "space_id", spaceID, "attachment_id", attachmentID)
@@ -144,10 +157,6 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 		defer closer.Close()
 	}
 
-	if !s.authorizeAttachmentAccess(c, info.RoomID) {
-		return
-	}
-
 	contentType := info.ContentType
 	if contentType == "" {
 		contentType = "application/octet-stream"
@@ -155,92 +164,54 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 
 	// Immutable asset - cache forever
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s-%s\"", spaceID, attachmentID))
+	if spaceID != "" {
+		c.Header("ETag", fmt.Sprintf("\"%s-%s\"", spaceID, attachmentID))
+	} else {
+		c.Header("ETag", fmt.Sprintf("\"%s\"", attachmentID))
+	}
 	c.Header("Vary", "Accept-Encoding")
 
 	// Stream directly — no io.ReadAll, no memory buffering
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
-// serveAttachment serves an attachment uploaded via the post-ADR-030-Phase-4
-// kind-less URL pattern (`/assets/attachments/{id}`).
+// requireAttachmentAccess gates an attachment HTTP request. Looks up
+// the canonical Attachment record in SERVER_BODIES, then verifies
+// the caller is a member of that record's room. Returns true if the
+// request may proceed; writes the appropriate error response and
+// returns false otherwise.
 //
-// Mirrors serveSpaceAttachment but passes an empty spaceID to the core
-// helpers, which picks the new `attachments/{id}` S3 layout for S3-stored
-// attachments. NATS-stored attachments use the same attachment ID regardless
-// of upload era.
-func (s *HTTPServer) serveAttachment(c *gin.Context) {
-	attachmentID := c.Param("attachmentId")
-	ctx := c.Request.Context()
-
-	s.logger.Debug("Serving attachment", "attachment_id", attachmentID)
-
-	// Try S3 presigned redirect first (zero-copy, full Range support)
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, "", attachmentID); err == nil {
-		// S3 attachments don't store roomID, so authorizeAttachmentAccess passes
-		// with empty roomID (same as the legacy proxying behavior).
-		if !s.authorizeAttachmentAccess(c, "") {
-			return
-		}
-
-		// Cache the redirect itself — the attachment URL is immutable
-		c.Header("Cache-Control", "public, max-age=3600")
-		c.Redirect(http.StatusFound, presignedURL)
-		return
-	}
-
-	// Fall back to probing both NATS and S3 backends
-	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
-	if err != nil {
-		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", attachmentID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-		return
-	}
-	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
-	}
-
-	if !s.authorizeAttachmentAccess(c, info.RoomID) {
-		return
-	}
-
-	contentType := info.ContentType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
-	// Immutable asset - cache forever
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s\"", attachmentID))
-	c.Header("Vary", "Accept-Encoding")
-
-	// Stream directly — no io.ReadAll, no memory buffering
-	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
-}
-
-// authorizeAttachmentAccess checks if the current user can access an attachment.
-// Returns true if authorized, false if not (and sends appropriate error response).
-// An empty roomID is treated as public (matches legacy S3 attachment behavior,
-// where the room ID isn't recoverable from the storage backend).
-func (s *HTTPServer) authorizeAttachmentAccess(c *gin.Context, roomID string) bool {
-	if roomID == "" {
-		return true
-	}
-
+// A missing record (e.g. an orphan binary in S3 left over from a
+// pre-record-bucket upload that the boot migration hasn't touched
+// yet) is treated as not-found — we refuse to authorize a download
+// we can't attribute to a room.
+func (s *HTTPServer) requireAttachmentAccess(c *gin.Context, ctx context.Context, attachmentID string) bool {
 	userID := s.getUserIDFromSession(c)
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return false
 	}
 
-	kind, err := s.core.FindRoomKind(c.Request.Context(), roomID)
+	record, err := s.core.GetAttachmentRecord(ctx, attachmentID)
 	if err != nil {
-		s.logger.Error("Failed to resolve room kind for attachment auth", "error", err, "room_id", roomID)
+		s.logger.Error("Failed to look up attachment record", "attachment_id", attachmentID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
+		return false
+	}
+	if record == nil || record.RoomId == "" {
+		s.logger.Warn("Attachment access denied: no metadata record", "attachment_id", attachmentID, "user_id", userID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return false
+	}
+
+	kind, err := s.core.FindRoomKind(ctx, record.RoomId)
+	if err != nil {
+		s.logger.Error("Failed to resolve room kind for attachment auth", "error", err, "room_id", record.RoomId)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
 		return false
 	}
 
-	isMember, err := s.core.RoomMembershipExists(c.Request.Context(), kind, userID, roomID)
+	isMember, err := s.core.RoomMembershipExists(ctx, kind, userID, record.RoomId)
 	if err != nil {
 		s.logger.Error("Failed to check room membership", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
@@ -433,11 +404,6 @@ func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
 		"space_id", spaceID,
 		"attachment_id", attachmentID)
 
-	// We need to fetch the attachment info for authorization, and cache the room ID
-	// since we may need it both for the authorize callback and for FetchAsset
-	var cachedRoomID string
-	var roomIDFetched bool
-
 	s.serveTransformedAsset(c, transformRequest{
 		ResourceID1: spaceID,
 		ResourceID2: attachmentID,
@@ -445,29 +411,14 @@ func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
 		CachePrefix: spaceID,
 		AssetID:     attachmentID,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			// Probe both NATS and S3 backends
 			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
 			if err != nil {
 				return nil, "", err
 			}
-			// Cache the room ID for authorization
-			cachedRoomID = info.RoomID
-			roomIDFetched = true
 			return reader, info.ContentType, nil
 		},
 		Authorize: func(c *gin.Context) bool {
-			// If we haven't fetched the room ID yet, we need to fetch it for authorization
-			if !roomIDFetched {
-				_, info, err := s.core.GetAttachmentFromAnyBackend(c.Request.Context(), spaceID, attachmentID)
-				if err != nil {
-					s.logger.Error("Failed to get attachment for auth", "error", err)
-					c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-					return false
-				}
-				cachedRoomID = info.RoomID
-				roomIDFetched = true
-			}
-			return s.authorizeAttachmentAccess(c, cachedRoomID)
+			return s.requireAttachmentAccess(c, c.Request.Context(), attachmentID)
 		},
 	})
 }
@@ -483,9 +434,6 @@ func (s *HTTPServer) serveTransformedAttachmentByID(c *gin.Context) {
 
 	s.logger.Debug("Serving transformed attachment", "attachment_id", attachmentID)
 
-	var cachedRoomID string
-	var roomIDFetched bool
-
 	s.serveTransformedAsset(c, transformRequest{
 		ResourceID1: core.AttachmentSignResource,
 		ResourceID2: attachmentID,
@@ -497,22 +445,10 @@ func (s *HTTPServer) serveTransformedAttachmentByID(c *gin.Context) {
 			if err != nil {
 				return nil, "", err
 			}
-			cachedRoomID = info.RoomID
-			roomIDFetched = true
 			return reader, info.ContentType, nil
 		},
 		Authorize: func(c *gin.Context) bool {
-			if !roomIDFetched {
-				_, info, err := s.core.GetAttachmentFromAnyBackend(c.Request.Context(), "", attachmentID)
-				if err != nil {
-					s.logger.Error("Failed to get attachment for auth", "error", err)
-					c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-					return false
-				}
-				cachedRoomID = info.RoomID
-				roomIDFetched = true
-			}
-			return s.authorizeAttachmentAccess(c, cachedRoomID)
+			return s.requireAttachmentAccess(c, c.Request.Context(), attachmentID)
 		},
 	})
 }

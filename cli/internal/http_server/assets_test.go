@@ -21,6 +21,8 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
@@ -42,6 +44,18 @@ type assetTestEnv struct {
 
 // setupAssetTestServer creates a test server for asset testing with caching enabled.
 func setupAssetTestServer(t *testing.T) *assetTestEnv {
+	return setupAssetTestServerWithConfig(t, false)
+}
+
+// setupAssetTestServerWithS3 mirrors setupAssetTestServer but routes
+// attachments through an in-memory fake S3 server. Use this to test the
+// S3 presigned-redirect code path in the asset handlers (the path that
+// previously contained an authorization bypass on empty room ID).
+func setupAssetTestServerWithS3(t *testing.T) *assetTestEnv {
+	return setupAssetTestServerWithConfig(t, true)
+}
+
+func setupAssetTestServerWithConfig(t *testing.T, useS3 bool) *assetTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -72,16 +86,34 @@ func setupAssetTestServer(t *testing.T) *assetTestEnv {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
-	// Create ChattoCore with assets config and caching enabled
-	coreConfig := config.CoreConfig{
-		Assets: config.AssetsConfig{
-			SigningSecret: "test-signing-secret-32-bytes-!!",
-			MaxUploadSize: 10 * 1024 * 1024, // 10MB
-			Cache: config.AssetsCacheConfig{
-				Enabled: true,
-				TTL:     config.Duration(7 * 24 * time.Hour), // 7 days
-			},
+	assetsCfg := config.AssetsConfig{
+		SigningSecret: "test-signing-secret-32-bytes-!!",
+		MaxUploadSize: 10 * 1024 * 1024, // 10MB
+		Cache: config.AssetsCacheConfig{
+			Enabled: true,
+			TTL:     config.Duration(7 * 24 * time.Hour), // 7 days
 		},
+	}
+	if useS3 {
+		backend := s3mem.New()
+		faker := gofakes3.New(backend)
+		s3Server := httptest.NewServer(faker.Server())
+		t.Cleanup(s3Server.Close)
+
+		useSSL := false
+		pathStyle := true
+		assetsCfg.StorageBackend = config.StorageBackendS3
+		assetsCfg.S3 = config.S3Config{
+			Endpoint:        s3Server.URL[len("http://"):],
+			Bucket:          "test-bucket",
+			AccessKeyID:     "test-key",
+			SecretAccessKey: "test-secret",
+			UseSSL:          &useSSL,
+			PathStyle:       &pathStyle,
+		}
+	}
+	coreConfig := config.CoreConfig{
+		Assets: assetsCfg,
 	}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
@@ -763,5 +795,157 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 
 	if transformResp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("Expected 401 Unauthorized for unauthenticated transform access, got %d", transformResp.StatusCode)
+	}
+}
+
+// TestAsset_UnauthenticatedAccess_DeniedOnS3 exercises the S3 presigned
+// redirect path of /assets/attachments/{id}. Previously, this path used a
+// `roomID == "" → allow` shortcut because the room ID couldn't be
+// recovered from S3 metadata, which let unauthenticated browser tabs
+// download any attachment whose ID they knew. The fix stamps the room
+// ID onto the S3 object at upload time and pulls it back via Stat so the
+// regular auth path runs.
+func TestAsset_UnauthenticatedAccess_DeniedOnS3(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "s3authuser", "S3 Auth User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "s3testroom", "S3 Test Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+
+	env.login(t, "s3authuser", "password123")
+
+	imageData := createAssetTestPNG(t, 400, 300)
+	operations := fmt.Sprintf(`{
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
+		"variables": { "roomId": "%s", "body": "Test S3 message", "file": null }
+	}`, room.Id)
+
+	resp := env.doAssetMultipartUpload(t, operations, imageData, "s3-auth-test.png")
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Failed to post message: %v", resp.Errors)
+	}
+
+	var data struct {
+		PostMessage struct {
+			Event struct {
+				Attachments []struct {
+					URL          string `json:"url"`
+					ThumbnailURL string `json:"thumbnailUrl"`
+				} `json:"attachments"`
+			} `json:"event"`
+		} `json:"postMessage"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	if len(data.PostMessage.Event.Attachments) == 0 {
+		t.Fatal("Expected one attachment in S3-backed upload")
+	}
+	attachment := data.PostMessage.Event.Attachments[0]
+
+	// Anonymous client — the bug was that this would happily redirect to
+	// a presigned S3 URL despite no session.
+	unauthClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	originalResp, err := unauthClient.Get(env.server.URL + attachment.URL)
+	if err != nil {
+		t.Fatalf("Failed to make request: %v", err)
+	}
+	originalResp.Body.Close()
+	if originalResp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("S3 attachment URL: expected 401 for unauthenticated request, got %d", originalResp.StatusCode)
+	}
+
+	transformResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
+	if err != nil {
+		t.Fatalf("Failed to make request: %v", err)
+	}
+	transformResp.Body.Close()
+	if transformResp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("S3 transform URL: expected 401 for unauthenticated request, got %d", transformResp.StatusCode)
+	}
+}
+
+// TestAsset_NonMemberAccess_DeniedOnS3 verifies that the S3 presigned
+// path correctly resolves the attachment's room ID and rejects an
+// authenticated user who is not a member of the room.
+func TestAsset_NonMemberAccess_DeniedOnS3(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	owner, err := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create owner: %v", err)
+	}
+	if _, err := env.core.CreateUser(env.ctx, "system", "outsider", "Outsider", "password123"); err != nil {
+		t.Fatalf("Failed to create outsider: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.Id, "channel", "", "private-room", "Private Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, owner.Id, "channel", owner.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+
+	// Owner uploads.
+	env.login(t, "owner", "password123")
+	imageData := createAssetTestPNG(t, 400, 300)
+	operations := fmt.Sprintf(`{
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
+		"variables": { "roomId": "%s", "body": "private", "file": null }
+	}`, room.Id)
+	resp := env.doAssetMultipartUpload(t, operations, imageData, "private.png")
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Failed to post: %v", resp.Errors)
+	}
+	var data struct {
+		PostMessage struct {
+			Event struct {
+				Attachments []struct {
+					URL string `json:"url"`
+				} `json:"attachments"`
+			} `json:"event"`
+		} `json:"postMessage"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(data.PostMessage.Event.Attachments) == 0 {
+		t.Fatal("Expected one attachment")
+	}
+	attachmentURL := data.PostMessage.Event.Attachments[0].URL
+
+	// Log the owner out and have the outsider try to access.
+	outsiderJar, _ := cookiejar.New(nil)
+	outsiderClient := &http.Client{
+		Jar: outsiderJar,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	loginBody := `{"login":"outsider","password":"password123"}`
+	if _, err := outsiderClient.Post(env.server.URL+"/auth/login", "application/json", bytes.NewReader([]byte(loginBody))); err != nil {
+		t.Fatalf("outsider login: %v", err)
+	}
+
+	r, err := outsiderClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("outsider GET: %v", err)
+	}
+	r.Body.Close()
+	if r.StatusCode != http.StatusForbidden {
+		t.Errorf("expected 403 for outsider, got %d", r.StatusCode)
 	}
 }
