@@ -194,6 +194,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	room := &corev1.Room{
 		Id:          room_id,
 		SpaceId:     SpaceIDForKind(kind),
+		Kind:        ProtoKindForRoomKind(kind),
 		Name:        name,
 		Description: description,
 		GroupId:     groupID,
@@ -542,7 +543,7 @@ func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind
 	if err != nil {
 		return "", err
 	}
-	return KindForSpace(room.SpaceId), nil
+	return KindOfRoom(room), nil
 }
 
 // ListRooms retrieves all rooms of the given kind from the CONFIG bucket.

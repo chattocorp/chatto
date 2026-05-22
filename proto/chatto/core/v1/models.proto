@@ -6,10 +6,24 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
-// Room represents a chat room within a space.
+// RoomKind discriminates between channel rooms and direct-message rooms.
+// Determines KV partitioning (room.channel.* vs room.dm.*) and NATS
+// subject routing (server.room.channel.* vs server.room.dm.*).
+enum RoomKind {
+  // Default for legacy rooms written before the field existed. Treat as
+  // CHANNEL after boot-time backfill (see ADR-030).
+  ROOM_KIND_UNSPECIFIED = 0;
+  ROOM_KIND_CHANNEL = 1;
+  ROOM_KIND_DM = 2;
+}
+
+// Room represents a chat room on the server.
 // For channel rooms, group_id MUST point to a RoomGroup; DM rooms leave it empty.
 message Room {
   string id = 1;
+  // Legacy kind discriminator ("server"/"DM"); wire-frozen for KV-stored
+  // bytes. New code reads `kind` (field 8); writers populate both. See
+  // ADR-030.
   string space_id = 2;
   string name = 3;
   string description = 4;
@@ -22,6 +36,9 @@ message Room {
   // group_id is the RoomGroup this room belongs to. Required for channel
   // rooms, empty for DM rooms. See ADR-031.
   string group_id = 7;
+  // Canonical kind discriminator. Populated by all writers post-ADR-030;
+  // existing KV records are backfilled at boot from `space_id`.
+  RoomKind kind = 8;
 }
 
 // User represents a user account

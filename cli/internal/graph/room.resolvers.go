@@ -17,13 +17,11 @@ import (
 
 // Type is the resolver for the type field.
 //
-// Derived from `IsDMSpace(obj.SpaceId)` — the kind discriminator is the
-// room's space membership (DM rooms live in the DM system space), which
-// matches the kind segment the storage layer uses in `SERVER_CONFIG` keys
-// (`room.channel.{id}` vs `room.dm.{id}`). The Room proto doesn't carry a
-// kind field of its own; `SpaceId` is the canonical source.
+// Derived from `Room.kind` — the canonical kind discriminator since
+// ADR-030 Phase 2. Falls back to the legacy `space_id` via
+// `KindOfRoom` for pre-backfill records (single boot transient).
 func (r *roomResolver) Type(ctx context.Context, obj *corev1.Room) (model.RoomType, error) {
-	if core.IsDMSpace(obj.SpaceId) {
+	if core.KindOfRoom(obj) == core.KindDM {
 		return model.RoomTypeDm, nil
 	}
 	return model.RoomTypeChannel, nil
@@ -36,16 +34,16 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 		return nil, err
 	}
 
+	kind := core.KindOfRoom(obj)
+
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
 	if !isMember {
 		return nil, core.ErrNotRoomMember
 	}
-
-	kind := core.KindForSpace(obj.SpaceId)
 
 	// Membership is strictly explicit: a user is a member iff they have
 	// a `room_membership` record. Auto-join is gone, so there's no
@@ -76,7 +74,7 @@ func (r *roomResolver) HasUnread(ctx context.Context, obj *corev1.Room) (bool, e
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 	if err != nil {
 		return false, nil // Silently return false if we can't check
 	}
@@ -84,7 +82,7 @@ func (r *roomResolver) HasUnread(ctx context.Context, obj *corev1.Room) (bool, e
 		return false, nil
 	}
 
-	return r.core.HasUnread(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
+	return r.core.HasUnread(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 }
 
 // HasMention is the resolver for the hasMention field.
@@ -104,7 +102,7 @@ func (r *roomResolver) ViewerCanPostMessage(ctx context.Context, obj *corev1.Roo
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanPostMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanPostMessage(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanPostInThread is the resolver for the viewerCanPostInThread field.
@@ -113,7 +111,7 @@ func (r *roomResolver) ViewerCanPostInThread(ctx context.Context, obj *corev1.Ro
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanPostInThread(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanPostInThread(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanReact is the resolver for the viewerCanReact field.
@@ -122,7 +120,7 @@ func (r *roomResolver) ViewerCanReact(ctx context.Context, obj *corev1.Room) (bo
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanReactToMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanReactToMessage(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanManageOthersMessage is the resolver for the viewerCanManageOthersMessage field.
@@ -131,7 +129,7 @@ func (r *roomResolver) ViewerCanManageOthersMessage(ctx context.Context, obj *co
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanManageOthersMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanManageOthersMessage(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanListRoom is the resolver for the viewerCanListRoom field.
@@ -144,7 +142,7 @@ func (r *roomResolver) ViewerCanListRoom(ctx context.Context, obj *corev1.Room) 
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanSeeRoom(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanSeeRoom(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanJoinRoom is the resolver for the viewerCanJoinRoom field.
@@ -156,7 +154,7 @@ func (r *roomResolver) ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) 
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanJoinRoomAt(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanJoinRoomAt(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanEchoMessage is the resolver for the viewerCanEchoMessage field.
@@ -165,7 +163,7 @@ func (r *roomResolver) ViewerCanEchoMessage(ctx context.Context, obj *corev1.Roo
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanEchoMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanEchoMessage(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
 // ViewerCanManageRoom is the resolver for the viewerCanManageRoom field.
@@ -174,7 +172,7 @@ func (r *roomResolver) ViewerCanManageRoom(ctx context.Context, obj *corev1.Room
 	if user == nil {
 		return false, nil
 	}
-	return r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id, core.PermRoomManage)
+	return r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindOfRoom(obj), obj.Id, core.PermRoomManage)
 }
 
 // Events is the resolver for the events field.
@@ -184,7 +182,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +201,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		if err != nil {
 			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEventsAfter(ctx, core.KindForSpace(obj.SpaceId), obj.Id, afterSeq, int(fetchLimit))
+		result, err = r.core.GetRoomEventsAfter(ctx, core.KindOfRoom(obj), obj.Id, afterSeq, int(fetchLimit))
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +214,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 			}
 			beforeSeq = &seq
 		}
-		result, err = r.core.GetRoomEvents(ctx, core.KindForSpace(obj.SpaceId), obj.Id, int(fetchLimit), beforeSeq)
+		result, err = r.core.GetRoomEvents(ctx, core.KindOfRoom(obj), obj.Id, int(fetchLimit), beforeSeq)
 		if err != nil {
 			return nil, err
 		}
@@ -233,7 +231,7 @@ func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID stri
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +239,7 @@ func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID stri
 		return nil, core.ErrNotRoomMember
 	}
 
-	return r.core.GetRoomEventByEventID(ctx, core.KindForSpace(obj.SpaceId), obj.Id, eventID)
+	return r.core.GetRoomEventByEventID(ctx, core.KindOfRoom(obj), obj.Id, eventID)
 }
 
 // EventsAround is the resolver for the eventsAround field.
@@ -252,7 +250,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +263,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		fetchLimit = int(*limit)
 	}
 
-	result, err := r.core.GetRoomEventsAround(ctx, core.KindForSpace(obj.SpaceId), obj.Id, eventID, fetchLimit)
+	result, err := r.core.GetRoomEventsAround(ctx, core.KindOfRoom(obj), obj.Id, eventID, fetchLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +293,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 // Generates a LiveKit JWT for joining a voice call.
 // Returns null if LiveKit is not configured. Requires room membership.
 func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*core.VoiceCallToken, error) {
-	user, err := requireRoomMember(ctx, r.core, core.KindForSpace(obj.SpaceId), obj.Id)
+	user, err := requireRoomMember(ctx, r.core, core.KindOfRoom(obj), obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +326,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 // Returns participants currently in this room's voice call.
 // Returns empty list if no call is active or LiveKit is not configured. Requires room membership.
 func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) ([]*model.CallParticipant, error) {
-	if _, err := requireRoomMember(ctx, r.core, core.KindForSpace(obj.SpaceId), obj.Id); err != nil {
+	if _, err := requireRoomMember(ctx, r.core, core.KindOfRoom(obj), obj.Id); err != nil {
 		return nil, err
 	}
 

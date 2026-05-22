@@ -44,9 +44,16 @@ import (
 
 // RunAll runs every active migration in order, stopping at the first
 // error.
-func RunAll(ctx context.Context, kv jetstream.KeyValue, logger *log.Logger) error {
-	if err := MigrateVerifiedEmailsToProto(ctx, kv, logger); err != nil {
+//
+// `serverKV` is the INSTANCE bucket (user data, auth tokens, etc.);
+// `serverConfigKV` is SERVER_CONFIG (rooms, room memberships,
+// notification levels, …).
+func RunAll(ctx context.Context, serverKV, serverConfigKV jetstream.KeyValue, logger *log.Logger) error {
+	if err := MigrateVerifiedEmailsToProto(ctx, serverKV, logger); err != nil {
 		return fmt.Errorf("verified_emails: %w", err)
+	}
+	if err := BackfillRoomKind(ctx, serverConfigKV, logger); err != nil {
+		return fmt.Errorf("room_kind: %w", err)
 	}
 	return nil
 }

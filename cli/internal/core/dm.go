@@ -52,8 +52,12 @@ func IsDMSpace(spaceID string) bool {
 	return spaceID == DMSpaceID
 }
 
-// KindForSpace returns the room kind for a persisted SpaceId value:
-// KindDM for the DM system space, KindChannel for everything else.
+// KindForSpace returns the room kind for a legacy wire-frozen SpaceId
+// value ("server" or "DM"). Use this when reading from a persisted
+// shape that still carries `space_id` (e.g. MessagePostedEvent in the
+// JetStream backlog). For `*Room` records, prefer KindOfRoom — it
+// reads the new `kind` field first and only falls back here for
+// pre-backfill rooms. See ADR-030.
 func KindForSpace(spaceID string) RoomKind {
 	if IsDMSpace(spaceID) {
 		return KindDM
@@ -61,14 +65,38 @@ func KindForSpace(spaceID string) RoomKind {
 	return KindChannel
 }
 
-// SpaceIDForKind is the inverse of KindForSpace: returns DMSpaceID for
-// KindDM, ServerSpaceID otherwise. Used only at the proto boundary where
-// wire-format-frozen `space_id` fields still need a value written.
+// SpaceIDForKind is the inverse of KindForSpace: returns the legacy
+// SpaceId string for a kind. Used at the proto boundary where
+// wire-format-frozen `space_id` fields still need a value written
+// alongside the new `kind` field.
 func SpaceIDForKind(kind RoomKind) string {
 	if kind == KindDM {
 		return DMSpaceID
 	}
 	return ServerSpaceID
+}
+
+// ProtoKindForRoomKind maps the Go-side RoomKind string to the proto
+// enum stored on Room.kind. Writers populate both `space_id` (wire-frozen)
+// and `kind`; readers prefer `kind` (see RoomKind helper below).
+func ProtoKindForRoomKind(kind RoomKind) corev1.RoomKind {
+	if kind == KindDM {
+		return corev1.RoomKind_ROOM_KIND_DM
+	}
+	return corev1.RoomKind_ROOM_KIND_CHANNEL
+}
+
+// KindOfRoom returns the canonical RoomKind for a Room, preferring the
+// new `kind` field and falling back to `space_id` for legacy records that
+// predate the field (until the boot-time backfill rewrites them).
+func KindOfRoom(room *corev1.Room) RoomKind {
+	switch room.Kind {
+	case corev1.RoomKind_ROOM_KIND_DM:
+		return KindDM
+	case corev1.RoomKind_ROOM_KIND_CHANNEL:
+		return KindChannel
+	}
+	return KindForSpace(room.SpaceId)
 }
 
 // DMRoomID generates a deterministic room ID from participant IDs.
@@ -164,6 +192,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	room := &corev1.Room{
 		Id:      roomID,
 		SpaceId: DMSpaceID,
+		Kind:    corev1.RoomKind_ROOM_KIND_DM,
 		Name:    "", // DMs don't have names - derived from participants in UI
 	}
 
