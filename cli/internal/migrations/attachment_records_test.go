@@ -110,7 +110,7 @@ func TestBackfillAttachmentRecords_CopiesAttachmentsFromBodies(t *testing.T) {
 		}
 	}
 
-	if _, err := runtime.Get(ctx, "attachment_records.backfilled"); err != nil {
+	if _, err := runtime.Get(ctx, "attachment_records.backfilled.v2"); err != nil {
 		t.Errorf("expected backfill sentinel set: %v", err)
 	}
 }
@@ -154,7 +154,7 @@ func TestBackfillAttachmentRecords_EmptyBodiesSetsSentinel(t *testing.T) {
 		t.Fatalf("BackfillAttachmentRecords: %v", err)
 	}
 
-	if _, err := runtime.Get(ctx, "attachment_records.backfilled"); err != nil {
+	if _, err := runtime.Get(ctx, "attachment_records.backfilled.v2"); err != nil {
 		t.Errorf("expected backfill sentinel set on empty bucket: %v", err)
 	}
 }
@@ -220,5 +220,96 @@ func TestBackfillAttachmentRecords_IgnoresExistingAttachmentRecords(t *testing.T
 	}
 	if got.Filename != "p.png" {
 		t.Errorf("preexisting record clobbered: filename=%q", got.Filename)
+	}
+}
+
+// TestBackfillAttachmentRecords_IndexesVideoVariantsAndThumbnail covers
+// the regression that triggered v2: the video service uploads variants
+// and thumbnails as separate attachments referenced only via the
+// VideoProcessingState in SERVER_RUNTIME, never embedded in any
+// MessageBody. v1 missed them and they 404'd after upgrade.
+func TestBackfillAttachmentRecords_IndexesVideoVariantsAndThumbnail(t *testing.T) {
+	ctx, bodies, runtime := setupBodiesAndRuntime(t)
+
+	// Seed a body containing the original video attachment so the
+	// migration's pass 1 captures its room ID.
+	body := &corev1.MessageBody{
+		AuthorId: "user-1",
+		Attachments: []*corev1.Attachment{
+			{Id: "video-orig", RoomId: "room-x", Filename: "clip.mp4", ContentType: "video/mp4"},
+		},
+	}
+	bodyRaw, _ := proto.Marshal(body)
+	if _, err := bodies.Put(ctx, "user-1.body-1", bodyRaw); err != nil {
+		t.Fatalf("seed body: %v", err)
+	}
+
+	// Seed a VideoProcessingState pointing at thumbnail + variants.
+	state := &corev1.VideoProcessingState{
+		Status:                corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
+		ThumbnailAttachmentId: "video-thumb",
+		Variants: []*corev1.VideoVariant{
+			{AttachmentId: "video-360p", Quality: "360p"},
+			{AttachmentId: "video-720p", Quality: "720p"},
+		},
+	}
+	stateRaw, _ := proto.Marshal(state)
+	if _, err := runtime.Put(ctx, "video.video-orig", stateRaw); err != nil {
+		t.Fatalf("seed video state: %v", err)
+	}
+
+	if err := BackfillAttachmentRecords(ctx, bodies, runtime, log.New(nil)); err != nil {
+		t.Fatalf("BackfillAttachmentRecords: %v", err)
+	}
+
+	// All three output records exist under the original's room.
+	for _, id := range []string{"video-thumb", "video-360p", "video-720p"} {
+		entry, err := bodies.Get(ctx, "attachment.room-x."+id)
+		if err != nil {
+			t.Errorf("expected record for %s: %v", id, err)
+			continue
+		}
+		var att corev1.Attachment
+		if err := proto.Unmarshal(entry.Value(), &att); err != nil {
+			t.Errorf("unmarshal %s: %v", id, err)
+			continue
+		}
+		if att.Id != id {
+			t.Errorf("%s: record id=%q, want %q", id, att.Id, id)
+		}
+		if att.RoomId != "room-x" {
+			t.Errorf("%s: record roomId=%q, want room-x", id, att.RoomId)
+		}
+	}
+}
+
+// TestBackfillAttachmentRecords_SkipsVideoOutputsForOrphanedOriginal
+// guards against panics when the original video attachment is no
+// longer in any body (e.g. GDPR-deleted) while its processing state
+// still exists. The variants stay unindexed — acceptable given the
+// content driving access is also gone.
+func TestBackfillAttachmentRecords_SkipsVideoOutputsForOrphanedOriginal(t *testing.T) {
+	ctx, bodies, runtime := setupBodiesAndRuntime(t)
+
+	state := &corev1.VideoProcessingState{
+		Status:                corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
+		ThumbnailAttachmentId: "orphan-thumb",
+		Variants:              []*corev1.VideoVariant{{AttachmentId: "orphan-720p"}},
+	}
+	raw, _ := proto.Marshal(state)
+	if _, err := runtime.Put(ctx, "video.orphan-original", raw); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	if err := BackfillAttachmentRecords(ctx, bodies, runtime, log.New(nil)); err != nil {
+		t.Fatalf("BackfillAttachmentRecords: %v", err)
+	}
+
+	// No records written under any room for the orphan outputs.
+	lister, err := bodies.ListKeysFiltered(ctx, "attachment.*.orphan-thumb")
+	if err == nil {
+		for k := range lister.Keys() {
+			t.Errorf("unexpected record key %q for orphan-thumb", k)
+		}
 	}
 }
