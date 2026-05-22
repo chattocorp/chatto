@@ -6,6 +6,7 @@
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
   import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
+  import IdleTracker from '$lib/components/IdleTracker.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
@@ -135,6 +136,7 @@
 </style>
 
 <GlobalKeyboardShortcuts />
+<IdleTracker />
 <UpdateNotifier />
 <NotificationSync />
 
