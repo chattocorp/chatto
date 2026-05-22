@@ -733,7 +733,6 @@ func (e *Engine) GetRoleUsers(ctx context.Context, roleName string) ([]string, e
 	return users, nil
 }
 
-
 // ============================================================================
 // Permission Checking
 // ============================================================================

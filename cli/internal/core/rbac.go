@@ -1,7 +1,7 @@
 package core
 
-// go is the unified RBAC surface on ChattoCore. It used to live in
-// instance_go (server-tier) and space_go (space-tier); after Phase
+// rbac.go is the unified RBAC surface on ChattoCore. It used to live in
+// instance_rbac.go (server-tier) and space_rbac.go (space-tier); after Phase
 // 5 of #330 there is only one tier — every role and grant lives in
 // SERVER_RBAC — so the two files have been merged here.
 //
@@ -17,7 +17,6 @@ import (
 	"fmt"
 
 	"github.com/nats-io/nats.go/jetstream"
-
 )
 
 // SystemActorID is used for internal/bootstrap operations that bypass permission checks.

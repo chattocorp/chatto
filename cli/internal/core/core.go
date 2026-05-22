@@ -410,7 +410,7 @@ type storage struct {
 	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
 	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
 	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
-	serverRBACEngine   *Engine          // Engine wrapping serverRBACKV
+	serverRBACEngine   *Engine               // Engine wrapping serverRBACKV
 	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies (#330 phase 4c)
 	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
 	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
@@ -1283,7 +1283,6 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 	if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
 		return nil, false
 	}
-
 
 	return &event, true
 }

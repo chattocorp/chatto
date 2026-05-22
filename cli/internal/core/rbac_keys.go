@@ -244,14 +244,14 @@ const RoomDenyKeyPattern = "room_deny.>"
 // ============================================================================
 
 const (
-	RoleKeyPrefix      = "role."
-	MemberKeyPrefix    = "member."
-	AllowKeyPrefix     = "allow."
-	DenyKeyPrefix      = "deny."
-	GroupAllowKeyPrefix  = "group_allow."
-	GroupDenyKeyPrefix   = "group_deny."
-	RoomAllowKeyPrefix = "room_allow."
-	RoomDenyKeyPrefix  = "room_deny."
+	RoleKeyPrefix       = "role."
+	MemberKeyPrefix     = "member."
+	AllowKeyPrefix      = "allow."
+	DenyKeyPrefix       = "deny."
+	GroupAllowKeyPrefix = "group_allow."
+	GroupDenyKeyPrefix  = "group_deny."
+	RoomAllowKeyPrefix  = "room_allow."
+	RoomDenyKeyPrefix   = "room_deny."
 )
 
 // ============================================================================
