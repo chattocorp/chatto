@@ -53,7 +53,8 @@ All commands via mise task runner. Run from project root.
 | `mise codegen-frontend` | Generate frontend GraphQL types               |
 | `mise clean`            | Remove build artifacts                        |
 | `mise docs`             | Start pkgsite documentation server            |
-| `mise bump`             | Bump version (uses 'goversion' tool)          |
+
+Releases are driven by [release-please](https://github.com/googleapis/release-please) — see `.release-please-config.json`. Conventional-commit PRs on `main` accumulate in a rolling Release PR; merging it cuts the tag.
 
 ## Reference Links
 

@@ -4,7 +4,6 @@ go 1.26.0
 
 tool (
 	github.com/99designs/gqlgen
-	github.com/bcomnes/goversion/v2
 	github.com/gzuidhof/tygo
 	github.com/sanity-io/litter
 	google.golang.org/protobuf/cmd/protoc-gen-go
@@ -59,7 +58,6 @@ require (
 	github.com/antithesishq/antithesis-sdk-go v0.5.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/bcomnes/goversion/v2 v2.1.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect

@@ -35,31 +35,9 @@ archives:
         formats: [zip]
 
 changelog:
-  sort: asc
-  use: github
-  filters:
-    # Only include conventional commits (feat, fix, perf, refactor)
-    # This filters out non-conventional commits from merged branches
-    include:
-      - "^feat"
-      - "^fix"
-      - "^perf"
-      - "^refactor"
-  groups:
-    - title: "⚠️ Breaking Changes"
-      regexp: "!:"
-      order: 0
-    - title: Features
-      regexp: "^feat"
-      order: 1
-    - title: Bug Fixes
-      regexp: "^fix"
-      order: 2
-    - title: Performance
-      regexp: "^perf"
-      order: 3
-    - title: Other
-      order: 999
+  # release-please now owns the changelog (CHANGELOG.md + the GitHub
+  # Release body). Don't let GoReleaser generate or attach a second one.
+  disable: true
 
 dockers:
   - image_templates:
@@ -115,8 +93,7 @@ release:
   github:
     owner: chattocorp
     name: chatto
-  footer: >-
-
-    ---
-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+  # release-please creates the GitHub Release with its changelog body.
+  # GoReleaser must NOT overwrite it — `keep-existing` makes GoReleaser
+  # only attach artifacts to the existing release.
+  mode: keep-existing

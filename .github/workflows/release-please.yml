@@ -1,0 +1,35 @@
+name: release-please
+
+# Maintains a rolling Release PR. As conventional-commit PRs land on main,
+# release-please updates the PR with the aggregated changelog and bumped
+# versions (cli/version.go + frontend/package.json). Merging the Release
+# PR creates the `vX.Y.Z` tag + GitHub Release. The tag push then fires
+# ci.yml's `release` job (GoReleaser + frontend image push) as before.
+#
+# Replaces the old `mise bump` flow (goversion + manual tag + push).
+#
+# Requires `RELEASE_PLEASE_PAT`: a fine-grained PAT scoped to chattocorp/chatto
+# with repository permissions:
+#   - Contents:      Read and write
+#   - Pull requests: Read and write
+#   - Metadata:      Read-only (always required)
+# The default GITHUB_TOKEN can't be used because its tag pushes don't
+# trigger downstream workflows — ci.yml's `release` job listens on tag push.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json

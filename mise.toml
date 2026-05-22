@@ -248,8 +248,7 @@ pkgsite -http=localhost:6060 .
 # =============================================================================
 # Versioning
 # =============================================================================
-
-[tasks.bump]
-description = "Bump version (usage: mise bump patch|minor|major)"
-dir = "cli"
-run = "go tool github.com/bcomnes/goversion/v2 -bump-file ../frontend/package.json ${@}"
+# Versions are managed by release-please (.release-please-config.json).
+# Land a conventional-commit PR on main → release-please opens a rolling
+# Release PR → merge it to cut the tag, which triggers ci.yml's release
+# job. No `mise bump` needed.
