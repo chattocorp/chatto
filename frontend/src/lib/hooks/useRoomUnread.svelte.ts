@@ -57,22 +57,35 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
    * Advance the tracked read cursor without issuing a mutation. Used when
    * the read cursor moves server-side without a markRoomAsRead call from
    * this hook — notably when the user posts their own message, since
-   * PostMessage auto-marks the room read on the server. Keeps the
-   * presence-false anchor accurate so backgrounding the tab doesn't strand
-   * the user's own latest message below the "new messages" separator.
+   * PostMessage auto-marks the room read on the server.
+   *
+   * Also advances the open-upper-bound separator anchor (set on
+   * presence-false) past the new cursor whenever it lands beyond the
+   * anchor, regardless of presence. Two scenarios both need this:
+   *
+   * 1. Own message lands while away (e.g. posted from another device): the
+   *    presence-false anchor was set from a stale cursor; without this the
+   *    separator would render above the user's own latest message on
+   *    refocus.
+   * 2. Own message lands after a background → refocus → post sequence on
+   *    the same room: the presence-true effect deliberately doesn't
+   *    overwrite the separator on a same-room refocus, so without this the
+   *    separator stays stuck at the prior cursor and renders BETWEEN the
+   *    user's two own posts (one before bg, one after refocus).
+   *
+   * Gating on `unreadBeforeTime === null` keeps the closed (after, before]
+   * window from a fresh room entry intact — that window represents "this
+   * is what you missed last time", and the user posting doesn't change
+   * what they previously hadn't seen.
    */
   function noteReadCursor(timestamp: string) {
     const ts = new Date(timestamp).getTime();
     if (lastCursor && ts <= new Date(lastCursor).getTime()) return;
     lastCursor = timestamp;
 
-    // If this lands while the user is away — e.g. their own message's
-    // subscription event arrives just after they backgrounded the tab — the
-    // presence-false anchor was already set from a now-stale cursor. Advance
-    // it too, so their own message isn't stranded below the separator.
     if (
-      !appState.isPresent &&
       unreadAfterTime !== null &&
+      unreadBeforeTime === null &&
       ts > new Date(unreadAfterTime).getTime()
     ) {
       unreadAfterTime = timestamp;
