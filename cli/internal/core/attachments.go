@@ -35,10 +35,10 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // S3) is determined by configuration.
 //
 // New attachments use the kind-less `attachments/{id}` S3 key.
-// `Attachment.SpaceId` is left empty on the returned proto — it's
-// reserved for pre-ADR-030-Phase-4 records whose S3 objects still live
-// at `spaces/{server|DM}/attachments/{id}` and is consulted only by the
-// S3-key fallback probe (`attachmentS3KeyCandidates`).
+// `Attachment.SpaceId` is left empty on the returned proto — it's a
+// vestigial field reserved for pre-ADR-030-Phase-4 records and is no
+// longer consulted by anything; the canonical `Storage` field carries
+// the exact key for both new uploads and migrated legacy records.
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
 	roomID string,
@@ -227,75 +227,46 @@ func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.Read
 	}, nil
 }
 
-// attachmentS3Key returns the preferred S3 key for an attachment. New
-// attachments (with no SpaceId) use the kind-less layout; legacy
-// attachments stay at their pre-ADR-030-Phase-4 layout
-// (`spaces/{server|DM}/attachments/{id}`).
-func attachmentS3Key(spaceID, attachmentID string) string {
-	if spaceID == "" {
-		return S3KeyAttachment(attachmentID)
+// GetAttachmentFromAnyBackend retrieves an attachment's binary content
+// by looking up its canonical metadata record and reading from the exact
+// backend recorded on `Attachment.Storage`. Returns a reader for the
+// attachment content and metadata. The caller is responsible for closing
+// the reader if it implements io.Closer.
+//
+// Returns an error if no metadata record exists for the given ID — the
+// boot migration backfills records for every legacy attachment, so a
+// missing record at this point indicates either an orphaned binary
+// (uploaded outside a message body) or a corrupted state, neither of
+// which we serve.
+func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
+	record, err := c.GetAttachmentRecord(ctx, attachmentID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("look up attachment record: %w", err)
 	}
-	return S3KeySpaceAttachment(spaceID, attachmentID)
-}
+	if record == nil || record.Storage == nil {
+		return nil, nil, fmt.Errorf("attachment not found: %s", attachmentID)
+	}
 
-// attachmentS3KeyCandidates returns the S3 key to try first plus any
-// fallbacks. We probe across layouts so layout mismatches between caller
-// hint and actual storage (e.g. a legacy in-flight video processing
-// request handled by a Phase-4 binary, or a new variant attached to a
-// legacy parent video) resolve transparently.
-func attachmentS3KeyCandidates(spaceID, attachmentID string) []string {
-	if spaceID == "" {
-		// Prefer the new layout but fall back to known legacy spaceIDs.
-		return []string{
-			S3KeyAttachment(attachmentID),
-			S3KeySpaceAttachment(ServerSpaceID, attachmentID),
-			S3KeySpaceAttachment(DMSpaceID, attachmentID),
+	switch asset := record.Storage.Asset.(type) {
+	case *corev1.Asset_Nats:
+		reader, info, err := c.GetAttachment(ctx, asset.Nats.Key)
+		if err != nil {
+			return nil, nil, err
 		}
-	}
-	// Prefer the requested legacy layout, fall back to the new one.
-	return []string{
-		S3KeySpaceAttachment(spaceID, attachmentID),
-		S3KeyAttachment(attachmentID),
-	}
-}
-
-// GetAttachmentFromAnyBackend retrieves an attachment by probing both NATS and S3 backends.
-// It tries NATS first (for backwards compatibility with existing attachments), then S3.
-// An empty spaceID selects the kind-less S3 layout used for new uploads;
-// a non-empty spaceID selects the legacy `spaces/{spaceId}/...` layout.
-// Returns a reader for the attachment content and metadata.
-// The caller is responsible for closing the reader if it implements io.Closer.
-func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, attachmentID string) (io.Reader, *AttachmentInfo, error) {
-	// Try NATS first (backwards compatibility)
-	reader, info, err := c.GetAttachment(ctx, attachmentID)
-	if err == nil {
 		return reader, &AttachmentInfo{
 			Size:        int64(info.Size),
 			ContentType: info.Headers.Get("Content-Type"),
 			Filename:    info.Headers.Get("Filename"),
 			RoomID:      info.Headers.Get("Room-Id"),
 		}, nil
-	}
-
-	// If NATS failed and S3 is configured, try S3. Probe across layouts
-	// so legacy-vs-new mismatches in the caller's hint resolve cleanly.
-	if c.s3Client != nil {
-		var lastS3Err error
-		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
-			s3Reader, s3Info, s3Err := c.GetS3Attachment(ctx, s3Key)
-			if s3Err == nil {
-				return s3Reader, s3Info, nil
-			}
-			lastS3Err = s3Err
+	case *corev1.Asset_S3:
+		if c.s3Client == nil {
+			return nil, nil, fmt.Errorf("S3 client not configured")
 		}
-		c.logger.Debug("Attachment not found in either backend",
-			"space_id", spaceID,
-			"attachment_id", attachmentID,
-			"nats_error", err,
-			"s3_error", lastS3Err)
+		return c.GetS3Attachment(ctx, asset.S3.Key)
+	default:
+		return nil, nil, fmt.Errorf("unknown storage backend for attachment %s", attachmentID)
 	}
-
-	return nil, nil, err
 }
 
 // ============================================================================
@@ -448,126 +419,107 @@ func (c *ChattoCore) forgetAttachmentRecord(ctx context.Context, roomID, attachm
 	return nil
 }
 
-// DeleteAttachment deletes a NATS attachment and its cached resizes.
-// This is the legacy path for attachments stored in NATS ObjectStore.
-// Use DeleteAttachmentFromStorage for attachments with known storage type.
-func (c *ChattoCore) DeleteAttachment(ctx context.Context, spaceID, attachmentID string) error {
-	store, err := c.GetAttachmentsStore(ctx)
+// DeleteAttachment removes an attachment's binary, metadata record, and
+// cached resizes by ID. Looks up the canonical record to find the
+// storage backend, then dispatches to DeleteAttachmentFromStorage.
+//
+// If no record exists, falls back to a best-effort cache cleanup and
+// returns nil — the binary is presumed already gone (or never existed)
+// and there's nothing left to do.
+func (c *ChattoCore) DeleteAttachment(ctx context.Context, attachmentID string) error {
+	record, err := c.GetAttachmentRecord(ctx, attachmentID)
 	if err != nil {
-		return fmt.Errorf("failed to get attachments store: %w", err)
+		return fmt.Errorf("look up attachment record: %w", err)
 	}
-
-	// Resolve the room ID via the canonical record before we delete the
-	// underlying object, so we can also drop the metadata entry. If no
-	// record exists (legacy orphan), we still proceed with the storage
-	// delete — the record cleanup is best-effort and silently no-ops.
-	var roomID string
-	if rec, recErr := c.GetAttachmentRecord(ctx, attachmentID); recErr == nil && rec != nil {
-		roomID = rec.RoomId
+	if record == nil {
+		// Best-effort cache cleanup for any orphaned resize entries.
+		_, _ = c.DeleteCachedResizesForAttachment(ctx, attachmentID)
+		return nil
 	}
-
-	err = store.Delete(ctx, attachmentID)
-	if err != nil {
-		return fmt.Errorf("failed to delete attachment: %w", err)
-	}
-
-	if recErr := c.forgetAttachmentRecord(ctx, roomID, attachmentID); recErr != nil {
-		c.logger.Warn("Failed to forget attachment record",
-			"attachment_id", attachmentID,
-			"error", recErr)
-	}
-
-	// Delete any cached resizes for this attachment (best-effort, don't fail on error)
-	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
-	if cacheErr != nil {
-		c.logger.Warn("Failed to delete cached resizes for attachment",
-			"attachment_id", attachmentID,
-			"error", cacheErr)
-	} else if deletedCount > 0 {
-		c.logger.Debug("Deleted cached resizes for attachment",
-			"attachment_id", attachmentID,
-			"space_id", spaceID,
-			"deleted_count", deletedCount)
-	}
-
-	c.logger.Debug("Deleted attachment", "attachment_id", attachmentID, "space_id", spaceID)
-
-	return nil
+	return c.DeleteAttachmentFromStorage(ctx, record)
 }
 
-// DeleteAttachmentFromStorage deletes an attachment based on its storage type.
-// Handles both NATS ObjectStore and S3 storage.
+// DeleteAttachmentFromStorage deletes an attachment's binary (from the
+// backend recorded on `Storage`), its metadata record, and its cached
+// resizes. Errors out if the attachment record has no Storage info —
+// every record persisted post-Phase-4 (incl. backfilled legacy records)
+// should have it populated.
 func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
-	// Check storage type - if nil or NATS, use legacy deletion
 	if attachment.Storage == nil {
-		return c.DeleteAttachment(ctx, attachment.SpaceId, attachment.Id)
+		return fmt.Errorf("attachment %s has no storage info", attachment.Id)
 	}
 
 	switch storage := attachment.Storage.Asset.(type) {
 	case *corev1.Asset_Nats:
-		return c.DeleteAttachment(ctx, attachment.SpaceId, attachment.Id)
+		store, err := c.GetAttachmentsStore(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get attachments store: %w", err)
+		}
+		if err := store.Delete(ctx, storage.Nats.Key); err != nil {
+			return fmt.Errorf("failed to delete attachment from NATS: %w", err)
+		}
+		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachment.Id, "key", storage.Nats.Key)
 	case *corev1.Asset_S3:
-		// Delete from S3
 		if c.s3Client == nil {
 			return fmt.Errorf("S3 client not configured")
 		}
 		if err := c.s3Client.DeleteObjectFromBucket(ctx, storage.S3.GetBucket(), storage.S3.Key); err != nil {
 			return fmt.Errorf("failed to delete S3 attachment: %w", err)
 		}
-		if recErr := c.forgetAttachmentRecord(ctx, attachment.RoomId, attachment.Id); recErr != nil {
-			c.logger.Warn("Failed to forget attachment record",
-				"attachment_id", attachment.Id,
-				"error", recErr)
-		}
-		// Delete any cached resizes (S3 attachments use the S3 key as cache prefix)
-		deletedCount, cacheErr := c.DeleteCachedResizesForKey(ctx, "s3", storage.S3.Key)
-		if cacheErr != nil {
-			c.logger.Warn("Failed to delete cached resizes for S3 attachment",
-				"s3_key", storage.S3.Key,
-				"error", cacheErr)
-		} else if deletedCount > 0 {
-			c.logger.Debug("Deleted cached resizes for S3 attachment",
-				"s3_key", storage.S3.Key,
-				"deleted_count", deletedCount)
-		}
-		c.logger.Debug("Deleted S3 attachment", "s3_key", storage.S3.Key)
-		return nil
+		c.logger.Debug("Deleted S3 attachment", "attachment_id", attachment.Id, "s3_key", storage.S3.Key)
 	default:
-		return c.DeleteAttachment(ctx, attachment.SpaceId, attachment.Id)
+		return fmt.Errorf("attachment %s has unknown storage backend", attachment.Id)
 	}
+
+	if recErr := c.forgetAttachmentRecord(ctx, attachment.RoomId, attachment.Id); recErr != nil {
+		c.logger.Warn("Failed to forget attachment record",
+			"attachment_id", attachment.Id,
+			"error", recErr)
+	}
+
+	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachment.Id)
+	if cacheErr != nil {
+		c.logger.Warn("Failed to delete cached resizes for attachment",
+			"attachment_id", attachment.Id,
+			"error", cacheErr)
+	} else if deletedCount > 0 {
+		c.logger.Debug("Deleted cached resizes for attachment",
+			"attachment_id", attachment.Id,
+			"deleted_count", deletedCount)
+	}
+
+	return nil
 }
 
 // TryPresignedAttachmentURL attempts to generate a presigned S3 URL for an
 // attachment. Returns the URL string if the attachment exists in S3, or an
-// error if S3 is not configured or the attachment is not found in S3.
-// Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
-// the helper falls back to the legacy `spaces/{server|DM}/...` keys for
-// layout mismatches.
+// error if the record is missing, the backend is NATS, or S3 isn't
+// configured.
 //
 // Authorization is the caller's responsibility — the room ID comes from
 // the canonical Attachment record (see GetAttachmentRecord), not from S3.
-func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, spaceID, attachmentID string) (string, error) {
+func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
 
-	var lastErr error
-	for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
-		// Stat to verify the object exists (presigned URLs don't check existence)
-		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
-			lastErr = err
-			continue
-		}
-		presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, time.Hour)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate presigned URL: %w", err)
-		}
-		return presignedURL.String(), nil
+	record, err := c.GetAttachmentRecord(ctx, attachmentID)
+	if err != nil {
+		return "", fmt.Errorf("look up attachment record: %w", err)
 	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("attachment not found")
+	if record == nil || record.Storage == nil {
+		return "", fmt.Errorf("attachment not found: %s", attachmentID)
 	}
-	return "", lastErr
+	s3, ok := record.Storage.Asset.(*corev1.Asset_S3)
+	if !ok {
+		return "", fmt.Errorf("attachment %s is not stored in S3", attachmentID)
+	}
+
+	presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3.S3.Key, time.Hour)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+	return presignedURL.String(), nil
 }
 
 // AttachmentSignResource is the first resource component fed to the
@@ -841,38 +793,3 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind R
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
-// DeleteAttachmentFromStorageByID deletes an attachment from storage by
-// space ID and attachment ID. This probes both NATS and S3 backends. Used
-// by the video service to delete the original after successful transcoding.
-// Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
-// the helper probes all known S3 layouts so layout mismatches resolve
-// transparently.
-func (c *ChattoCore) DeleteAttachmentFromStorageByID(ctx context.Context, spaceID, attachmentID string) error {
-	// Try NATS first
-	err := c.DeleteAttachment(ctx, spaceID, attachmentID)
-	if err == nil {
-		return nil
-	}
-
-	// Try S3 across known layouts.
-	if c.s3Client != nil {
-		// Resolve the room ID via the canonical record so we can clean
-		// up the metadata entry alongside the storage object.
-		var roomID string
-		if rec, recErr := c.GetAttachmentRecord(ctx, attachmentID); recErr == nil && rec != nil {
-			roomID = rec.RoomId
-		}
-		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
-			if s3Err := c.s3Client.DeleteObject(ctx, s3Key); s3Err == nil {
-				if recErr := c.forgetAttachmentRecord(ctx, roomID, attachmentID); recErr != nil {
-					c.logger.Warn("Failed to forget attachment record",
-						"attachment_id", attachmentID,
-						"error", recErr)
-				}
-				return nil
-			}
-		}
-	}
-
-	return err
-}

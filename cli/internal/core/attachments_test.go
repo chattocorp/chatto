@@ -236,7 +236,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		}
 
 		// Delete it
-		err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
+		err = core.DeleteAttachment(ctx, attachment.Id)
 		if err != nil {
 			t.Fatalf("Failed to delete attachment: %v", err)
 		}
@@ -249,7 +249,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	})
 
 	t.Run("delete non-existent attachment", func(t *testing.T) {
-		err := core.DeleteAttachment(ctx, ServerSpaceID, "nonexistent-attachment-id")
+		err := core.DeleteAttachment(ctx, "nonexistent-attachment-id")
 		// Deletion of non-existent item may or may not error depending on implementation
 		// This test documents the current behavior
 		if err != nil {
@@ -538,7 +538,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 4. Delete
-	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
+	err = core.DeleteAttachment(ctx, attachment.Id)
 	if err != nil {
 		t.Fatalf("Deletion failed: %v", err)
 	}
@@ -888,7 +888,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Delete the attachment (should also clean up cache)
-	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
+	err = core.DeleteAttachment(ctx, attachment.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete attachment: %v", err)
 	}
@@ -926,7 +926,7 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	core.StoreCachedResize(ctx, key2, fakeWebP)
 
 	// Delete attachment1
-	err := core.DeleteAttachment(ctx, ServerSpaceID, attachment1.Id)
+	err := core.DeleteAttachment(ctx, attachment1.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete attachment1: %v", err)
 	}
@@ -1092,7 +1092,7 @@ func TestDeleteAttachment_ForgetsRecord(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	if err := core.DeleteAttachment(ctx, "", attachment.Id); err != nil {
+	if err := core.DeleteAttachment(ctx, attachment.Id); err != nil {
 		t.Fatalf("DeleteAttachment failed: %v", err)
 	}
 

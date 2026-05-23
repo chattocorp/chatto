@@ -105,9 +105,9 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 // serveAttachment serves an attachment by ID. Authorization runs off
 // the canonical Attachment record in SERVER_BODIES: we look up the
 // record by ID, verify room membership, then redirect to a presigned
-// S3 URL (if applicable) or stream from NATS. The storage layer probes
-// both the post-ADR-030-Phase-4 kind-less S3 layout and the legacy
-// `spaces/{server|DM}/attachments/{id}` layout transparently.
+// S3 URL (if applicable) or stream the binary directly. The exact
+// storage location comes from `Attachment.Storage` on the canonical
+// record — no key probing needed.
 func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	attachmentID := c.Param("attachmentId")
 	ctx := c.Request.Context()
@@ -119,16 +119,16 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	}
 
 	// Try S3 presigned redirect first (zero-copy, full Range support).
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, "", attachmentID); err == nil {
+	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachmentID); err == nil {
 		// Cache the redirect itself — the attachment URL is immutable
 		c.Header("Cache-Control", "public, max-age=3600")
 		c.Redirect(http.StatusFound, presignedURL)
 		return
 	}
 
-	// Fall back to probing both NATS and S3 backends (handles transient S3 errors
-	// where the presigned URL fails but direct S3 fetch succeeds).
-	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+	// Stream from the recorded backend (handles NATS-stored attachments,
+	// and S3 fallback for transient presigning failures).
+	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, attachmentID)
 	if err != nil {
 		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", attachmentID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
@@ -371,7 +371,7 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 // serveTransformedAttachment serves a dynamically transformed version of an attachment.
 // URL format: /assets/attachments/{attachmentId}/t/{signedPath}
 // where signedPath is {base64params}.{signature}
-// Probes both NATS and S3 backends for the attachment.
+// Reads the binary from the backend recorded on the Attachment metadata.
 func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
 	attachmentID := c.Param("attachmentId")
 	signedPath := c.Param("signedPath")
@@ -385,7 +385,7 @@ func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
 		CachePrefix: core.AttachmentSignResource,
 		AssetID:     attachmentID,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, attachmentID)
 			if err != nil {
 				return nil, "", err
 			}

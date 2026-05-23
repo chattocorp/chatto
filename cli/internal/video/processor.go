@@ -335,9 +335,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 
 	// Delete the original attachment (save storage — variants replace it).
-	// Post-ADR-030-Phase-4 originals live at the kind-less S3 key
-	// (`attachments/{id}`); passing an empty spaceID picks that layout.
-	if err := s.core.DeleteAttachmentFromStorageByID(ctx, "", req.AttachmentID); err != nil {
+	if err := s.core.DeleteAttachment(ctx, req.AttachmentID); err != nil {
 		s.logger.Warn("Failed to delete original after transcoding", "error", err)
 		// Non-fatal — the variants are already uploaded
 	}
@@ -384,8 +382,7 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 
 // downloadAttachment downloads an attachment from the asset store to a local file.
 func (s *Service) downloadAttachment(ctx context.Context, attachmentID, destPath string) error {
-	// New uploads use the kind-less S3 layout (empty spaceID).
-	reader, _, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+	reader, _, err := s.core.GetAttachmentFromAnyBackend(ctx, attachmentID)
 	if err != nil {
 		return err
 	}
