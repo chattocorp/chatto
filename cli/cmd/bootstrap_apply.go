@@ -5,7 +5,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/charmbracelet/log"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -178,21 +177,18 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 		}
 	}
 
-	// Seed default rooms (idempotent — CreateRoom fails with
-	// ErrRoomNameExists if the room name is already claimed). The bootstrap
-	// owner auto-joins each room afterwards so the dev/e2e admin lands in
-	// the same state a real operator would expect after creating their own
-	// room (and so e2e tests that count members of `general` see the admin).
-	wanted := buildBootstrapRoomList(inst.Rooms)
-	wantedNames := make(map[string]struct{}, len(wanted))
-	for _, r := range wanted {
-		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", r.Name, r.Description); err != nil {
+	// Create operator-specified extra rooms (if any). The default rooms
+	// (`announcements`, `general`) are seeded by `SeedDefaultRooms` during
+	// startup — bootstrap no longer duplicates that. Owner auto-joins
+	// every existing channel room so the dev/e2e admin lands ready to use
+	// the server (and so e2e tests that count members of `general` see
+	// the admin).
+	for _, name := range inst.Rooms {
+		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", name, ""); err != nil {
 			if !errors.Is(err, core.ErrRoomNameExists) {
-				logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
-				continue
+				logger.Warn("Failed to create [bootstrap] room", "room", name, "error", err)
 			}
 		}
-		wantedNames[strings.ToLower(strings.TrimSpace(r.Name))] = struct{}{}
 	}
 
 	existing, err := c.ListRooms(ctx, core.KindChannel)
@@ -200,9 +196,6 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 		logger.Warn("Failed to list rooms for bootstrap owner auto-join", "error", err)
 	}
 	for _, room := range existing {
-		if _, want := wantedNames[strings.ToLower(strings.TrimSpace(room.Name))]; !want {
-			continue
-		}
 		if _, err := c.JoinRoom(ctx, ownerID, core.KindChannel, ownerID, room.Id); err != nil {
 			logger.Warn("Failed to auto-join bootstrap owner to room",
 				"room", room.Name, "error", err)
@@ -220,18 +213,4 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	return true
 }
 
-// buildBootstrapRoomList returns the rooms to create in a bootstrap space. If
-// the operator specified an explicit list, those are used as-is (with empty
-// descriptions). Otherwise we fall back to the same default rooms a fresh
-// user-created space gets.
-func buildBootstrapRoomList(specified []string) []core.DefaultGlobalRoom {
-	if len(specified) == 0 {
-		return core.DefaultGlobalRooms
-	}
-	out := make([]core.DefaultGlobalRoom, 0, len(specified))
-	for _, name := range specified {
-		out = append(out, core.DefaultGlobalRoom{Name: name})
-	}
-	return out
-}
 

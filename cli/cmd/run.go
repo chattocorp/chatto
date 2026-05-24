@@ -105,6 +105,12 @@ func runServer(configPath string) {
 		log.Fatal("Failed to create Chatto core", "error", err)
 	}
 
+	// Seed `announcements` + `general` on first boot of a fresh server.
+	// Idempotent — no-op once any channel room exists.
+	if err := chattoCore.SeedDefaultRooms(ctx); err != nil {
+		log.Fatal("Failed to seed default rooms", "error", err)
+	}
+
 	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
 	if cfg.Webserver.URL != "" {
 		if parsed, err := url.Parse(cfg.Webserver.URL); err == nil {

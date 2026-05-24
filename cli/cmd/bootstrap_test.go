@@ -47,6 +47,12 @@ func setupCore(t *testing.T) *core.ChattoCore {
 		t.Fatalf("new core: %v", err)
 	}
 
+	// Production `run.go` calls SeedDefaultRooms after NewChattoCore; mirror
+	// that here so bootstrap tests see the same starting state.
+	if err := c.SeedDefaultRooms(ctx); err != nil {
+		t.Fatalf("seed default rooms: %v", err)
+	}
+
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go c.PresenceHub.Run(hubCtx)
 	t.Cleanup(hubCancel)

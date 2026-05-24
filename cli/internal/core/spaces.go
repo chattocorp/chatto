@@ -14,18 +14,50 @@ import (
 )
 
 // DefaultGlobalRoom describes a channel that ships with a fresh
-// deployment. The bootstrap owner is auto-joined; other users join
-// explicitly via `joinRoom` (or the room directory's "Join all").
+// deployment. Users join explicitly via `joinRoom` (or the room
+// directory's "Join all").
 type DefaultGlobalRoom struct {
 	Name        string
 	Description string
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Lobby" group.
+// deployment. Each lands in the seed "Lobby" group. The "announcements"
+// room has `message.post` denied for `everyone` via
+// `SetupAnnouncementsRoomPermissions` (auto-applied by `CreateRoom`).
 var DefaultGlobalRooms = []DefaultGlobalRoom{
-	{Name: "announcements", Description: "Announcements and News"},
+	{Name: AnnouncementsRoomName, Description: "Announcements and news"},
 	{Name: "general", Description: "General discussion"},
+}
+
+// SeedDefaultRooms creates the default channel rooms
+// (`announcements`, `general`) on a fresh server. Idempotent — returns
+// nil without creating anything once any channel room exists, so an
+// operator can delete the defaults without seeing them reappear on the
+// next boot (as long as at least one channel room remains).
+//
+// Relies on `ensureChannelRoomsAreInAGroup` having run first so the
+// seed "Lobby" group is already in the layout; `CreateRoom` with an
+// empty groupID then auto-routes each new room into it.
+func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
+	existing, err := c.ListRooms(ctx, KindChannel)
+	if err != nil {
+		return fmt.Errorf("list channel rooms: %w", err)
+	}
+	if len(existing) > 0 {
+		return nil
+	}
+
+	for _, r := range DefaultGlobalRooms {
+		if _, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", r.Name, r.Description); err != nil {
+			if errors.Is(err, ErrRoomNameExists) {
+				continue
+			}
+			return fmt.Errorf("create default room %q: %w", r.Name, err)
+		}
+		c.logger.Info("Seeded default channel room", "name", r.Name)
+	}
+	return nil
 }
 
 // ============================================================================
