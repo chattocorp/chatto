@@ -18,3 +18,6 @@
 !cli/
 cli/data/
 cli/bin/
+
+# Entrypoint for the release image (Dockerfile.goreleaser).
+!docker-entrypoint.sh
