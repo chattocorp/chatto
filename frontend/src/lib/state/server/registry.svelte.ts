@@ -218,7 +218,7 @@ class ServerRegistry {
 		// starts the bus once `isAuthenticated` flips true.
 		if (store.isAuthenticated) {
 			const gqlClient = graphqlClientManager.getClient(server.id);
-			eventBusManager.startBus(server.id, gqlClient.client);
+			eventBusManager.startBus(server.id, gqlClient);
 		}
 	}
 

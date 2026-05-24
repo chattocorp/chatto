@@ -64,7 +64,7 @@
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
     const originClient = graphqlClientManager.originClient;
-    eventBusManager.startBus(originServerId, originClient.client);
+    eventBusManager.startBus(originServerId, originClient);
     provideEventBus(() => originServerId);
 
     // Subscribe to profile update events and populate the cache

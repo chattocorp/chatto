@@ -65,7 +65,7 @@
     if (store?.isAuthenticated) {
       eventBusManager.startBus(
         server.id,
-        graphqlClientManager.getClient(server.id).client
+        graphqlClientManager.getClient(server.id)
       );
     }
   }
@@ -76,7 +76,7 @@
         // startBus is idempotent — no-op if already started above.
         eventBusManager.startBus(
           server.id,
-          graphqlClientManager.getClient(server.id).client
+          graphqlClientManager.getClient(server.id)
         );
       }
     }
