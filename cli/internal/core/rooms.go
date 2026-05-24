@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -366,7 +367,10 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		return err
 	}
 
-	// Create and publish audit event to space stream BEFORE deletion (best-effort)
+	// Create and publish audit event before deletion. Dual-write
+	// (ADR-035 phase 4): SERVER_EVT publish drives the membership
+	// projection's per-room dropRoom; legacy publish keeps the frontend's
+	// live myEvents subscription working.
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomDeleted{
 			RoomDeleted: &corev1.RoomDeletedEvent{
@@ -374,9 +378,15 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			},
 		},
 	})
+
+	seq, evtErr := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), event)
+	if evtErr != nil {
+		c.logger.Error("failed to publish RoomDeletedEvent to SERVER_EVT", "error", evtErr, "room_id", room_id)
+	}
+
 	subject := subjects.RoomMeta(string(kind), room_id)
 	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room deleted event", "error", err, "room_id", room_id)
+		c.logger.Error("failed to publish room deleted event (legacy)", "error", err, "room_id", room_id)
 	}
 
 	// Delete from KV store (source of truth)
@@ -404,6 +414,16 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 
 	if kind == KindChannel {
 		c.notifyRoomLayoutChanged(ctx, actorID, "delete_room")
+	}
+
+	// Read-your-writes: ensure the membership projection has applied the
+	// RoomDeleted event before returning. Only wait if the SERVER_EVT
+	// publish actually succeeded above — otherwise there's nothing to
+	// wait for.
+	if seq > 0 {
+		if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
+			return fmt.Errorf("wait for projection: %w", err)
+		}
 	}
 
 	return nil

@@ -71,12 +71,23 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyEvents)
-	hubCtx, hubCancel := context.WithCancel(context.Background())
-	go core.PresenceHub.Run(hubCtx)
-	t.Cleanup(hubCancel)
+	startCoreServices(t, core)
 
 	return core, nc
+}
+
+// startCoreServices runs ChattoCore's background services (PresenceHub +
+// projectors) for the duration of a test. Required because membership
+// mutations call WaitForSeq, and StreamMyEvents depends on PresenceHub —
+// neither works without the corresponding loop running.
+//
+// Once `core.Run` owns the lifecycle of every background service, new
+// projectors (ADR-035) get picked up here automatically.
+func startCoreServices(t *testing.T, core *ChattoCore) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = core.Run(ctx) }()
+	t.Cleanup(cancel)
 }
 
 // ============================================================================

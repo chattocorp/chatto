@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -252,8 +253,23 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		return fmt.Errorf("failed to marshal DM membership: %w", err)
 	}
 
-	_, err = bucket.Put(ctx, roomMembershipKey(KindDM, roomID, userID), data)
-	if err != nil {
+	// Build the join event once and emit it on both pipes (dual-write per
+	// ADR-035 phase 4). Same envelope so the durable + live events share
+	// an ID and timestamp.
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_UserJoinedRoom{
+			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+				RoomId: roomID,
+			},
+		},
+	})
+
+	seq, evtErr := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), event)
+	if evtErr != nil {
+		return fmt.Errorf("publish DM UserJoinedRoomEvent: %w", evtErr)
+	}
+
+	if _, err := bucket.Put(ctx, roomMembershipKey(KindDM, roomID, userID), data); err != nil {
 		return fmt.Errorf("failed to create DM membership: %w", err)
 	}
 
@@ -263,18 +279,19 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", userID, "room_id", roomID)
 	}
 
-	// Publish UserJoinedRoomEvent to seed the room's event stream.
-	// This event is filtered out in the frontend for DM rooms.
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
-				RoomId: roomID,
-			},
-		},
-	})
-	subject := subjects.RoomMeta(string(KindDM), roomID)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish UserJoinedRoomEvent for DM", "error", err, "user_id", userID, "room_id", roomID)
+	// Legacy publish — feeds live.server.> so frontend's myEvents
+	// subscription sees the join even though it's filtered out for DMs
+	// in the UI (RoomEvent.svelte).
+	legacySubject := subjects.RoomMeta(string(KindDM), roomID)
+	if err := c.publishServerEvent(ctx, legacySubject, event); err != nil {
+		c.logger.Error("failed to publish UserJoinedRoomEvent for DM (legacy)", "error", err, "user_id", userID, "room_id", roomID)
+	}
+
+	// Read-your-writes: ensure the projection has applied this join
+	// before returning, so the FindOrCreateDM caller's next
+	// RoomMembershipExists / IsMember check is consistent.
+	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for projection: %w", err)
 	}
 
 	return nil

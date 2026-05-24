@@ -53,6 +53,7 @@ func setupOAuthServer(t *testing.T) *HTTPServer {
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	// Create router with session middleware (required for OAuth authorize flow)
 	router := gin.New()

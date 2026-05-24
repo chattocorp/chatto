@@ -82,6 +82,7 @@ func setupUploadTestServer(t *testing.T) *uploadTestEnv {
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	// Create router with session middleware
 	router := gin.New()

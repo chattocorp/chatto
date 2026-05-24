@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/assets"
@@ -21,6 +22,7 @@ import (
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/migrations"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -67,8 +69,63 @@ type ChattoCore struct {
 	AssetBaseURL string
 
 	// PresenceHub runs a single KV watcher on presence.> per process and fans
-	// out updates to all space subscriptions. Must be started via Run() in an errgroup.
+	// out updates to all space subscriptions. Started by (*ChattoCore).Run.
 	PresenceHub *PresenceHub
+
+	// EventPublisher writes to the SERVER_EVT event-sourcing stream
+	// (ADR-033/034). Exposed for use by the migrate subcommand and
+	// future aggregate cutovers; domain code accesses it through
+	// higher-level helpers as aggregates migrate.
+	EventPublisher *events.Publisher
+
+	// RoomMembership is the first event-sourced projection (ADR-033 POC).
+	// Populated by RoomMembershipProjector; not yet read by any
+	// user-facing resolver. Inspectable via an admin endpoint.
+	RoomMembership *RoomMembershipProjection
+
+	// RoomMembershipProjector runs the consumer + apply loop that keeps
+	// RoomMembership current. Started by (*ChattoCore).Run; exposed here
+	// so writers can call WaitForSeq for read-your-writes.
+	RoomMembershipProjector *events.Projector
+
+	// projectors is the set of all event-sourcing projectors owned by
+	// this core. Each new aggregate migration (ADR-035) appends here
+	// during NewChattoCore; Run iterates the slice. Adding a projector
+	// is one line at construction and zero changes at call sites — see
+	// (*ChattoCore).Run.
+	projectors []*events.Projector
+}
+
+// Run starts every background service owned by the core — currently
+// PresenceHub and every registered projector — and blocks until ctx is
+// cancelled or any service returns an error. Returns the first error
+// observed (or ctx.Err on shutdown).
+//
+// Call this once per process from an errgroup goroutine; tests typically
+// launch it in a bare goroutine with a per-test context that cleanup
+// cancels. Background services are not designed to be restarted.
+//
+// New projectors should be appended to c.projectors during NewChattoCore;
+// they are then started automatically here without any additional wiring.
+func (c *ChattoCore) Run(ctx context.Context) error {
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error { return c.PresenceHub.Run(gctx) })
+
+	for _, p := range c.projectors {
+		p := p
+		g.Go(func() error { return p.Run(gctx) })
+	}
+
+	return g.Wait()
+}
+
+// EventStreamForDebug returns the SERVER_EVT stream. Intended for the
+// `chatto evt list` command and similar low-level operator tooling that
+// reads raw stream messages. Domain code goes through EventPublisher /
+// Projector instead.
+func (c *ChattoCore) EventStreamForDebug(_ context.Context) (jetstream.Stream, error) {
+	return c.storage.serverEvtStream, nil
 }
 
 // assetURL prepends AssetBaseURL to an asset path.
@@ -342,15 +399,36 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		}
 	}
 
+	roomMembership := NewRoomMembershipProjection()
+	roomMembershipProjector := events.NewProjector(
+		js, storage.serverEvtStream, roomMembership,
+		logger.WithPrefix("core.RoomMembershipProjector"),
+	)
+
 	core := &ChattoCore{
-		nc:            nc,
-		js:            js,
-		logger:        logger,
-		storage:       storage,
-		config:        cfg,
-		encryption:    encMgr,
-		configManager: configMgr,
-		s3Client:      s3Client,
+		nc:                      nc,
+		js:                      js,
+		logger:                  logger,
+		storage:                 storage,
+		config:                  cfg,
+		encryption:              encMgr,
+		configManager:           configMgr,
+		s3Client:                s3Client,
+		EventPublisher:          events.NewPublisher(js, storage.serverEvtStream, logger),
+		RoomMembership:          roomMembership,
+		RoomMembershipProjector: roomMembershipProjector,
+		projectors:              []*events.Projector{roomMembershipProjector},
+	}
+
+	// Run the event-sourcing migrations (ADR-035). Idempotent and cheap
+	// on subsequent boots — already-migrated subjects no-op via OCC. We
+	// can't run these as a separate CLI process the way restore.go does,
+	// because in the typical embedded-NATS deployment the NATS server
+	// has no TCP listener; a second process would have to take a temp
+	// file lock on the data dir, requiring `chatto run` to be stopped.
+	// Running them at boot here keeps them automatic and reachable.
+	if _, err := core.MigrateRoomMembership(ctx); err != nil {
+		return nil, fmt.Errorf("failed to run room-membership ES migration: %w", err)
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)
@@ -376,8 +454,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to seed default room group: %w", err)
 	}
 
-	// Initialize presence hub (single KV watcher per process).
-	// Caller must start core.PresenceHub.Run(ctx) in an errgroup.
+	// Initialize presence hub (single KV watcher per process). Started
+	// by core.Run alongside the projectors.
 	core.PresenceHub = NewPresenceHub(storage.presenceKV, logger)
 
 	return core, nil
@@ -416,6 +494,7 @@ type storage struct {
 	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
 	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
+	serverEvtStream    jetstream.Stream      // SERVER_EVT       - event-sourcing log (ADR-033/034). Coexists with SERVER_EVENTS during migration.
 
 	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
@@ -636,6 +715,34 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_EVENTS stream: %w", err)
 	}
 
+	// SERVER_EVT — the event-sourcing log (ADR-033/034). Coexists with
+	// SERVER_EVENTS during the per-aggregate migration (ADR-035).
+	// Subjects are evt.{aggregateType}.{aggregateId}; live.evt.> is
+	// the republish target so projections and live subscribers consume
+	// from a single NATS Core path.
+	//
+	// We deliberately do NOT nest under server.> here — the legacy
+	// SERVER_EVENTS stream claims server.> as its subject root, and NATS
+	// won't allow two streams to share an overlapping subject space.
+	// During the migration window we keep them in separate top-level
+	// roots; once SERVER_EVENTS is decommissioned we can revisit the
+	// naming if we want to consolidate.
+	serverEvtStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:        "SERVER_EVT",
+		Description: "Event-sourcing log (ADR-033)",
+		Subjects:    []string{"evt.>"},
+		Storage:     jetstream.FileStorage,
+		Compression: jetstream.S2Compression,
+		Replicas:    cfg.Replicas,
+		RePublish: &jetstream.RePublish{
+			Source:      "evt.>",
+			Destination: "live.evt.>",
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_EVT stream: %w", err)
+	}
+
 	// Initialize auth tokens KV bucket with configurable TTL
 	// Stores opaque bearer tokens for cross-origin API authentication.
 	// NATS TTL handles automatic token expiry.
@@ -669,6 +776,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverThreadsKV:    serverThreadsKV,
 		serverAttachments:  serverAttachments,
 		serverEventsStream: serverEventsStream,
+		serverEvtStream:    serverEvtStream,
 		// serverRBACEngine is constructed below (after the storage value
 		// exists) and assigned in NewChattoCore.
 		presenceKV:      presenceKV,

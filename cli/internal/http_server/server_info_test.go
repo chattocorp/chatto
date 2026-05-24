@@ -72,6 +72,7 @@ func setupServerInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPServ
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	router := gin.New()
 	s := &HTTPServer{

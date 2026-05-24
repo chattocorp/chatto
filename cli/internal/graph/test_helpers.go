@@ -65,12 +65,14 @@ func setupTestResolver(t *testing.T) *testEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyEvents)
-	hubCtx, hubCancel := context.WithCancel(context.Background())
-	go chattoCore.PresenceHub.Run(hubCtx)
+	// Run core's background services (PresenceHub + projectors) for the
+	// lifetime of the test. StreamMyEvents needs PresenceHub; membership
+	// mutations need the projector loops to advance so WaitForSeq returns.
+	servicesCtx, servicesCancel := context.WithCancel(context.Background())
+	go func() { _ = chattoCore.Run(servicesCtx) }()
 
 	t.Cleanup(func() {
-		hubCancel()
+		servicesCancel()
 		nc.Close()
 		ns.Shutdown()
 		ns.WaitForShutdown()
@@ -205,12 +207,14 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyEvents)
-	hubCtx, hubCancel := context.WithCancel(context.Background())
-	go chattoCore.PresenceHub.Run(hubCtx)
+	// Run core's background services (PresenceHub + projectors) for the
+	// lifetime of the test. StreamMyEvents needs PresenceHub; membership
+	// mutations need the projector loops to advance so WaitForSeq returns.
+	servicesCtx, servicesCancel := context.WithCancel(context.Background())
+	go func() { _ = chattoCore.Run(servicesCtx) }()
 
 	t.Cleanup(func() {
-		hubCancel()
+		servicesCancel()
 		nc.Close()
 		ns.Shutdown()
 		ns.WaitForShutdown()

@@ -126,13 +126,16 @@ func runServer(configPath string) {
 	// Set up push notification callback if push is enabled
 	setupPushNotifications(chattoCore, cfg)
 
+	// Start core's background services (PresenceHub + projectors) BEFORE
+	// bootstrap. Bootstrap triggers JoinRoom, which calls WaitForSeq on
+	// the room-membership projector — if it's not running yet, the wait
+	// blocks until the bootstrap context cancels.
+	g.Go(func() error {
+		return chattoCore.Run(ctx)
+	})
+
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
-
-	// Start presence hub (single KV watcher per process for presence fan-out)
-	g.Go(func() error {
-		return chattoCore.PresenceHub.Run(ctx)
-	})
 
 	// Create and run HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Webserver.EffectivePort())

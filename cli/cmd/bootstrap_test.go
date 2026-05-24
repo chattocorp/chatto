@@ -53,9 +53,12 @@ func setupCore(t *testing.T) *core.ChattoCore {
 		t.Fatalf("seed default rooms: %v", err)
 	}
 
-	hubCtx, hubCancel := context.WithCancel(context.Background())
-	go c.PresenceHub.Run(hubCtx)
-	t.Cleanup(hubCancel)
+	// Start core's background services (PresenceHub + projectors) — the
+	// same set cmd/run.go boots via c.Run. Membership mutations need the
+	// projector loops to advance so WaitForSeq returns.
+	servicesCtx, servicesCancel := context.WithCancel(context.Background())
+	go func() { _ = c.Run(servicesCtx) }()
+	t.Cleanup(servicesCancel)
 
 	return c
 }

@@ -133,6 +133,7 @@ func setupTestHTTPServer(t *testing.T) (*httptest.Server, *http.Client, *core.Ch
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	// Create router with session middleware
 	router := gin.New()
@@ -219,6 +220,7 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	// Create router with session middleware
 	router := gin.New()
@@ -954,6 +956,7 @@ func setupTestHTTPServerWithRegistrationDisabled(t *testing.T) (*httptest.Server
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	router := gin.New()
 	router.Use(gin.Recovery())

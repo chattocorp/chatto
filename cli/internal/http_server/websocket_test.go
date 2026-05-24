@@ -84,6 +84,12 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 	go chattoCore.PresenceHub.Run(hubCtx)
 	t.Cleanup(hubCancel)
 
+	// Start the room-membership projector so membership mutations
+	// don't block on WaitForSeq.
+	projCtx, projCancel := context.WithCancel(context.Background())
+	go func() { _ = chattoCore.RoomMembershipProjector.Run(projCtx) }()
+	t.Cleanup(projCancel)
+
 	// Create router with session middleware
 	router := gin.New()
 	router.Use(gin.Recovery())

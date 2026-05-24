@@ -51,6 +51,8 @@ func setupTestCoreWithEncryption(t *testing.T) *ChattoCore {
 	core, err := NewChattoCore(ctx, nc, cfg)
 	require.NoError(t, err)
 
+	startCoreServices(t, core)
+
 	return core
 }
 

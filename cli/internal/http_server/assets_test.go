@@ -119,6 +119,7 @@ func setupAssetTestServerWithConfig(t *testing.T, useS3 bool) *assetTestEnv {
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+	startCoreServices(t, chattoCore)
 
 	// Create router with session middleware
 	router := gin.New()
