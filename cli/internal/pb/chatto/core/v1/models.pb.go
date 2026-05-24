@@ -890,11 +890,6 @@ type Attachment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this attachment (NanoID)
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Vestigial "server"/"DM" discriminator from the pre-ADR-030-Phase-4
-	// S3 key layout. Wire-frozen but no longer read by any code: the
-	// canonical S3 key for every attachment (new or legacy-migrated) now
-	// lives on the `storage` field below. New uploads leave this empty.
-	SpaceId string `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID where this attachment was posted (for authorization)
 	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Original filename
@@ -955,13 +950,6 @@ func (*Attachment) Descriptor() ([]byte, []int) {
 func (x *Attachment) GetId() string {
 	if x != nil {
 		return x.Id
-	}
-	return ""
-}
-
-func (x *Attachment) GetSpaceId() string {
-	if x != nil {
-		return x.SpaceId
 	}
 	return ""
 }
@@ -1472,7 +1460,7 @@ func (x *RoomGroup) GetDescription() string {
 }
 
 // VideoProcessingState tracks the async processing state of a video attachment.
-// Stored in SPACE_{spaceId}_RUNTIME KV bucket at key "video.{attachmentId}".
+// Stored in the SERVER_RUNTIME KV bucket at key "video.{attachmentId}".
 // Kept separate from MessageBody (which is encrypted per-user) so the video
 // service can update processing state without touching encryption.
 type VideoProcessingState struct {
@@ -1728,11 +1716,10 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12'\n" +
-	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xaa\x02\n" +
+	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\x9f\x02\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
-	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12\x1a\n" +
 	"\bfilename\x18\x04 \x01(\tR\bfilename\x12!\n" +
 	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12\x12\n" +
@@ -1741,7 +1728,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06height\x18\b \x01(\x05R\x06height\x12/\n" +
 	"\astorage\x18\t \x01(\v2\x15.chatto.core.v1.AssetR\astorage\x12&\n" +
 	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyId\"\xf0\x02\n" +
+	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\xf0\x02\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +

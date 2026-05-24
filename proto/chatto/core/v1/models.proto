@@ -137,11 +137,12 @@ message Attachment {
   // Unique identifier for this attachment (NanoID)
   string id = 1;
 
-  // Vestigial "server"/"DM" discriminator from the pre-ADR-030-Phase-4
-  // S3 key layout. Wire-frozen but no longer read by any code: the
-  // canonical S3 key for every attachment (new or legacy-migrated) now
-  // lives on the `storage` field below. New uploads leave this empty.
-  string space_id = 2;
+  // Field 2 (`space_id`) was the pre-ADR-030-Phase-4 "server"/"DM"
+  // discriminator embedded in legacy S3 keys. Retired in 2026-05;
+  // canonical storage location lives on the `storage` field instead.
+  // Reserved so the field number can't be reused.
+  reserved 2;
+  reserved "space_id";
 
   // Room ID where this attachment was posted (for authorization)
   string room_id = 3;
@@ -288,7 +289,7 @@ message RoomGroup {
 // ============================================================================
 
 // VideoProcessingState tracks the async processing state of a video attachment.
-// Stored in SPACE_{spaceId}_RUNTIME KV bucket at key "video.{attachmentId}".
+// Stored in the SERVER_RUNTIME KV bucket at key "video.{attachmentId}".
 // Kept separate from MessageBody (which is encrypted per-user) so the video
 // service can update processing state without touching encryption.
 message VideoProcessingState {

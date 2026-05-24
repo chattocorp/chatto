@@ -607,12 +607,15 @@ Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Se
 
 Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 participant IDs. Used for thread previews in channel view.
 
-**SERVER\_BODIES** also still holds the standalone `attachment.{roomId}.{attachmentId}` records written by the original `BackfillAttachmentRecords` migration. They are no longer read or written by the asset code path — attachment URLs now carry a self-describing signed locator (see "Dynamic Image Transformation" below) — and a future cleanup PR will sweep them. The records remain in place for now as a fallback data source the `BackfillAttachmentLocatorData` migration uses to populate `VideoProcessingState.ThumbnailAttachment` / `Variants[i].Attachment` on existing instances.
-
 | Key                                          | Description                                                                              |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `{userId}.{bodyId}`                          | Marshaled `corev1.MessageBody` proto (encrypted text, attachments slice, link preview)   |
-| `attachment.{roomId}.{attachmentId}`         | Marshaled `corev1.Attachment` proto — vestigial; left in place pending a sweep PR        |
+
+A transitional `attachment.{roomId}.{attachmentId}` key shape existed
+in this bucket between #575 and #581 as a per-attachment authz index;
+it was retired by the signed-locator URL scheme (ADR-032) and any
+leftover entries are swept at boot by the `DropLegacyAttachmentRecords`
+migration. New code should not write to `attachment.*` keys here.
 
 ### Object Store Buckets
 

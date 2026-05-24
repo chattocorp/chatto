@@ -13,32 +13,28 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// BackfillAttachmentLocatorData populates the fields the
-// signed-attachment-locator URL scheme depends on for instances that
-// were running before the locator change landed:
-//
-//  1. `MessageBody.Attachments[i].MessageBodyId` — the body's KV key,
-//     stamped onto each embedded attachment so the GraphQL URL resolver
-//     can build a locator without parent-context plumbing. Bodies are
-//     unmarshaled, scanned, and re-marshaled only when at least one
-//     attachment is missing the field.
-//
-//  2. `VideoProcessingState.ThumbnailAttachment` and `Variants[i].Attachment` —
-//     full Attachment protos embedded into the VPS so it becomes the
-//     self-contained source of truth for variant/thumbnail metadata.
-//     The full protos are pulled from the pre-existing standalone
-//     `attachment.{roomId}.{attachmentId}` records in SERVER_BODIES
-//     (populated by `BackfillAttachmentRecords` in a prior release).
+// BackfillAttachmentLocatorData embeds full `Attachment` protos into
+// `VideoProcessingState.ThumbnailAttachment` and `Variants[i].Attachment`
+// on instances that were running before the signed-attachment-locator
+// URL scheme landed.
 //
 // # Why
 //
-// The signed-attachment-locator scheme replaces the per-attachment
-// SERVER_BODIES index with a URL-encoded payload. The HTTP handler
-// no longer scans a record bucket; it decodes the locator, authorizes
-// against the room ID in the payload, then fetches the source proto
-// from MessageBody (for body attachments) or VideoProcessingState (for
-// variants/thumbnails). That requires both source-of-truth records to
-// carry enough data — hence the backfill.
+// The locator URL handler dispatches variant/thumbnail lookups to
+// `VideoProcessingState`, which on pre-locator instances only carried
+// string attachment IDs (no `Storage` info, no filename, no dimensions).
+// This migration copies the full `Attachment` protos in from the
+// pre-existing standalone `attachment.{roomId}.{attachmentId}` records
+// in SERVER_BODIES (originally written by the `BackfillAttachmentRecords`
+// migration in a prior release; the migration itself has been deleted,
+// but the records it produced are still on disk and serve as the data
+// source for this pass). After it runs, VPS is self-contained and the
+// standalone records are no longer load-bearing — `DropLegacyAttachmentRecords`
+// then sweeps them.
+//
+// Body attachments do not need a migration: the URL resolver patches
+// `MessageBody.Attachments[i].MessageBodyId` on read for legacy bodies
+// that predate the field, and `PostMessage` stamps it for new ones.
 //
 // # Idempotency
 //
@@ -65,85 +61,12 @@ func BackfillAttachmentLocatorData(
 		return fmt.Errorf("get backfill flag: %w", err)
 	}
 
-	if err := backfillBodyAttachmentBodyIDs(ctx, bodiesKV, logger); err != nil {
-		return fmt.Errorf("body attachments: %w", err)
-	}
 	if err := backfillVideoProcessingAttachments(ctx, bodiesKV, runtimeKV, logger); err != nil {
 		return fmt.Errorf("video processing state: %w", err)
 	}
 
 	if _, err := runtimeKV.Put(ctx, flagKey, []byte("1")); err != nil {
 		return fmt.Errorf("set backfill flag: %w", err)
-	}
-	return nil
-}
-
-// backfillBodyAttachmentBodyIDs walks every MessageBody and stamps each
-// embedded attachment's `message_body_id` field with the body's KV key
-// where it isn't already set. Skips bodies that already have all
-// attachments stamped (zero rewrites in steady state).
-func backfillBodyAttachmentBodyIDs(ctx context.Context, bodiesKV jetstream.KeyValue, logger *log.Logger) error {
-	lister, err := bodiesKV.ListKeys(ctx)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil
-		}
-		return fmt.Errorf("list keys: %w", err)
-	}
-
-	var bodyKeys []string
-	for key := range lister.Keys() {
-		// Skip the legacy attachment.* index keys; we only want MessageBody entries.
-		if strings.HasPrefix(key, "attachment.") {
-			continue
-		}
-		bodyKeys = append(bodyKeys, key)
-	}
-
-	stamped := 0
-	for _, key := range bodyKeys {
-		entry, err := bodiesKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return fmt.Errorf("get message body %s: %w", key, err)
-		}
-
-		var body corev1.MessageBody
-		if err := proto.Unmarshal(entry.Value(), &body); err != nil {
-			logger.Warn("attachment_locator_data: skipping unparseable message body",
-				"key", key, "error", err)
-			continue
-		}
-
-		needsRewrite := false
-		for _, att := range body.Attachments {
-			if att != nil && att.MessageBodyId == "" {
-				att.MessageBodyId = key
-				needsRewrite = true
-			}
-		}
-		if !needsRewrite {
-			continue
-		}
-
-		newData, err := proto.Marshal(&body)
-		if err != nil {
-			return fmt.Errorf("marshal updated body %s: %w", key, err)
-		}
-		if _, err := bodiesKV.Update(ctx, key, newData, entry.Revision()); err != nil {
-			// On concurrent write we just skip — next boot's run will pick it up if still needed.
-			logger.Warn("attachment_locator_data: skipping body that changed under us",
-				"key", key, "error", err)
-			continue
-		}
-		stamped++
-	}
-
-	if stamped > 0 {
-		logger.Info("attachment_locator_data: stamped message_body_id on body attachments",
-			"bodies_rewritten", stamped)
 	}
 	return nil
 }

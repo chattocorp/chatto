@@ -79,11 +79,6 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 			t.Errorf("Expected content type 'image/png', got '%s'", attachment.ContentType)
 		}
 
-		// New uploads no longer carry a space_id (ADR-030 Phase 4).
-		if attachment.SpaceId != "" {
-			t.Errorf("Expected empty space_id on new upload, got '%s'", attachment.SpaceId)
-		}
-
 		if attachment.RoomId != room.Id {
 			t.Errorf("Expected room ID '%s', got '%s'", room.Id, attachment.RoomId)
 		}

@@ -57,11 +57,11 @@ func RunAll(ctx context.Context, serverKV, serverConfigKV, serverBodiesKV, serve
 	if err := BackfillRoomKind(ctx, serverConfigKV, logger); err != nil {
 		return fmt.Errorf("room_kind: %w", err)
 	}
-	if err := BackfillAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
-		return fmt.Errorf("attachment_records: %w", err)
-	}
 	if err := BackfillAttachmentLocatorData(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
 		return fmt.Errorf("attachment_locator_data: %w", err)
+	}
+	if err := DropLegacyAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
+		return fmt.Errorf("legacy_attachment_records: %w", err)
 	}
 	return nil
 }

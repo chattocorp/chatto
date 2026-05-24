@@ -34,10 +34,8 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // are generated on-the-fly via transforms. The storage backend (NATS or
 // S3) is determined by configuration.
 //
-// New attachments use the kind-less `attachments/{id}` S3 key.
-// `Attachment.SpaceId` is left empty (it's a vestigial field).
-// `Attachment.MessageBodyId` is also left empty here — the body key is
-// set later in PostMessage when the owning MessageBody is written.
+// `Attachment.MessageBodyId` is left empty here — the body key is set
+// later in PostMessage when the owning MessageBody is written.
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
 	roomID string,
