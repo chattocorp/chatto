@@ -39,3 +39,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-029](ADR-029-instance-to-server-rename.md) | Rename `Instance` → `Server` Across the Codebase | 2026-05-11 |
 | [ADR-030](ADR-030-space-tier-retirement.md) | Retire the Space tier | 2026-05-11 |
 | [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | 2026-05-13 |
+| [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | 2026-05-23 |

@@ -18,14 +18,15 @@ The options are:
 Support two storage backends with NATS ObjectStore as the default:
 
 - **NATS ObjectStore** (default): Assets stored in JetStream-backed object store buckets. Works out of the box with zero configuration.
-- **S3-compatible storage** (optional): When configured, new uploads go to S3. Existing NATS-stored assets continue to be served from NATS (dual-read, single-write-new).
+- **S3-compatible storage** (optional): When configured, new uploads go to S3. Existing NATS-stored assets continue to be served from NATS.
 
-Asset retrieval tries NATS first, then S3. This means switching to S3 doesn't require migrating existing assets — they remain accessible from NATS until the operator chooses to migrate them.
+Each `Attachment` proto carries a `Storage` field — a oneof selecting either a `NATSAsset{key}` or an `S3Asset{key, bucket}` — populated at upload time. Retrieval reads `Storage` off the proto and goes directly to the indicated backend. The backend choice is per-attachment, not per-deployment, so a host that switches from NATS to S3 can serve both eras side by side without any migration step.
 
 ## Consequences
 
 - **Zero-dependency default**: Small instances run entirely on embedded NATS. No S3 bucket to provision, no IAM credentials to configure.
 - **Gradual migration path**: Operators can enable S3 at any time. New uploads go to S3; old assets remain in NATS. No downtime, no bulk migration required.
-- **Dual-read overhead**: Asset retrieval may check two backends. In practice, after the transition period, most assets will be in S3 and the NATS lookup is a fast miss.
-- **Deletion must handle both backends**: When deleting an asset, both NATS and S3 are checked independently. The code must tolerate "not found" from either backend.
+- **No backend probing on retrieval**: Each `Attachment` records its backend on `Storage` at upload time. The HTTP handler reads it directly and goes to the right place, no NATS-then-S3 fallthrough. Switching backends doesn't trigger any extra lookups.
+- **Deletion follows `Storage`**: `DeleteAttachmentFromStorage(*Attachment)` branches on the Storage type and deletes from exactly one backend. The proto knows where its bytes live.
 - **NATS storage limits matter for NATS-only deployments**: Large instances using NATS-only storage will eventually hit practical limits (disk space, stream size). The S3 option is the escape hatch for this.
+- **Pre-ADR-030-Phase-4 S3 keys live at `spaces/{server|DM}/attachments/{id}`** instead of the current `attachments/{id}` layout. Their full key is preserved on `Attachment.Storage.S3.Key`, so we read them at exactly that path — no kind-segment probing needed.

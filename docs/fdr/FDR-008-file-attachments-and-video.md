@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-23
 
 ## Overview
 
@@ -46,15 +46,15 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 5. Originals are replaced by variants after transcoding
 
-**Decision:** After transcoding succeeds, the original upload is deleted and only the encoded variants are kept.
-**Why:** Originals are uncompressed-ish source files that nobody needs to download. Keeping them around would double or triple storage cost for no benefit.
+**Decision:** After transcoding succeeds, the original upload is deleted and only the encoded variants are kept. Variants and the generated thumbnail are full `Attachment` protos, embedded directly into the message's `VideoProcessingState` proto (`VideoProcessingState.thumbnail_attachment` and `VideoVariant.attachment`).
+**Why:** Originals are uncompressed-ish source files that nobody needs to download. Keeping them around would double or triple storage cost for no benefit. Embedding the variant Attachment protos into the VPS makes the VPS the self-contained source of truth for variant metadata — the URL handler can read storage location, content-type, and dimensions from there directly without a separate index lookup.
 **Tradeoff:** Lossy. If we ever wanted to re-transcode with new settings, we couldn't recover the original. Considered acceptable given the cost ratio.
 
-### 6. Image transform URLs are HMAC-signed
+### 6. Attachment URLs encode authorization claims into the URL itself
 
-**Decision:** Resize requests (`?w=...&h=...`) on image URLs include an HMAC signature; unsigned or tampered requests are rejected.
-**Why:** Without signing, anyone could trigger arbitrarily many resize operations on attached images — a cheap denial-of-service vector. Signing means only URLs the server itself generated work. See ADR-023.
-**Tradeoff:** URLs are longer. Sharing a raw image URL outside the app means losing the resize capability — but this is what we want.
+**Decision:** Every attachment URL is a signed locator — `/assets/attachments/{base64payload}.{hexHMAC}`. The payload encodes the room ID, the source-of-truth pointer (the owning `MessageBody`'s KV key for body attachments, or the parent video's attachment ID for variants/thumbnails), and the attachment ID. Transform URLs append the existing signed transform-path component on top.
+**Why:** A self-describing URL lets the HTTP handler authorize and serve without a second KV namespace for attachment metadata. The body (or VPS) stays the only copy of the `Attachment` proto, the HMAC prevents URL forgery, and the per-request auth chain (session + room membership) is still what actually grants access. See ADR-032 for the full rationale.
+**Tradeoff:** URLs are longer (~150 chars vs ~30) and individually irrevocable — rotating `[core.assets].signing_secret` invalidates *every* URL at once. Per-request auth makes URL leaks non-load-bearing; rotation impact is bounded because URLs are regenerated on every GraphQL response.
 
 ## Permissions
 
@@ -62,5 +62,5 @@ No separate upload permission. Posting an attachment requires room membership an
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs)
+- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion)

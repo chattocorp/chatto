@@ -334,3 +334,32 @@ walk (owner is rank 0). They have access to:
 - Everything else (the owner role's grants cover all permissions)
 
 See `admin.md` for the role / config-owner narrative.
+
+## Attachment URL Authorization
+
+Asset binaries are served by the HTTP handler at `/assets/attachments/{signedLocator}` (and `/assets/attachments/{signedLocator}/t/{transformPath}` for image transforms). The locator is a signed payload that carries everything the handler needs to authorize and serve — there is no separate metadata bucket to look up.
+
+See [ADR-032](../../docs/adr/ADR-032-signed-attachment-locator-urls.md) for the full design.
+
+**Per-request flow** (`resolveLocatorAttachment` in `cli/internal/http_server/assets.go`):
+
+1. **Signature check** — `signedurl.ParseSignedAttachmentLocator` verifies the locator's HMAC against `[core.assets].signing_secret`. Invalid → 403. Forgery prevention only; not the access control.
+2. **Authentication** — read the session cookie. No session → 401.
+3. **Room authorization** — `RoomMembershipExists(kind, userID, loc.RoomID)` against the room ID *carried in the locator payload*. Not a member → 403.
+4. **Attachment lookup** — `LookupAttachment(loc)` dispatches on the locator's source field:
+   - `b` (body key) → `FindBodyAttachment(b, a)` reads the `MessageBody` and returns the matching attachment proto.
+   - `v` (video-origin attachment ID) → `FindVideoOriginAttachment(v, a)` reads the `VideoProcessingState` and returns the variant or thumbnail attachment proto.
+   Missing → 404.
+5. Serve the binary from the proto's `Storage` field (presigned S3 redirect or NATS stream).
+
+**The authorization model in one line:** *anyone who is a member of the room declared in the URL can fetch any attachment in that room*. Same as before this PR; we don't have per-attachment ACLs.
+
+**Properties worth knowing:**
+
+- **The HMAC isn't the access control** — it only prevents URL forgery (so attackers can't probe attachment IDs by crafting URLs). Per-request session + membership is what actually grants access.
+- **Auto-revocation works.** Kicking a user invalidates their old URLs immediately (membership check fails). Deleting an attachment makes its URL 404 (lookup returns nil).
+- **No per-URL expiration today.** A leaked URL stays valid as long as the secret stays the same — but per-request auth means a leak doesn't grant standalone access. If we ever want share-link semantics with TTLs, extend the locator payload with an `exp` claim.
+- **Secret rotation invalidates every URL at once.** No key versioning today. Currently-loaded pages would 404 their attachment requests after rotation until the user re-renders; URLs are emitted on every GraphQL response, so the impact is bounded to "until next page transition." Mention in the runbook for any future rotation event.
+- **Asset access bypasses the GraphQL audit layer.** No per-fetch audit log today. Pre-existing gap, not introduced by this design.
+
+**When extending attachment auth** (e.g., adding per-attachment ACLs, share links, view-once semantics): the natural extension points are (a) adding fields to the locator payload, or (b) adding checks between step 3 and step 5 of the flow above. Don't reintroduce a per-attachment metadata bucket — the URL is meant to carry the policy claims.
