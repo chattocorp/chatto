@@ -17,8 +17,14 @@ const (
 
 // Aggregate type segments. Stable identifiers; once written, never renamed.
 const (
-	AggregateRoom = "room"
+	AggregateRoom   = "room"
+	AggregateConfig = "config"
 )
+
+// ConfigSingletonID is the sentinel aggregate ID for server-wide config
+// (ADR-034 singleton convention: server-scoped aggregates use a stable
+// sentinel rather than introducing a different subject shape).
+const ConfigSingletonID = "server"
 
 // Aggregate identifies one event-sourced aggregate by type and ID. Every
 // event for an aggregate lives on the single subject Subject() returns —
@@ -55,6 +61,20 @@ func RoomAggregate(roomID string) Aggregate {
 // Pattern: evt.room.>
 func RoomSubjectFilter() string {
 	return SubjectRoot + AggregateRoom + ".>"
+}
+
+// ConfigAggregate is the typed constructor for the singleton server-
+// config aggregate. All server-config lifecycle events publish to
+// ConfigAggregate().Subject() — pattern evt.config.server.
+func ConfigAggregate() Aggregate {
+	return Aggregate{Type: AggregateConfig, ID: ConfigSingletonID}
+}
+
+// ConfigSubjectFilter returns the wildcard subject filter for config
+// aggregate events. Used by the ServerConfig projection.
+// Pattern: evt.config.>
+func ConfigSubjectFilter() string {
+	return SubjectRoot + AggregateConfig + ".>"
 }
 
 // ParseRoomSubject extracts the roomID from a room aggregate subject.

@@ -1,0 +1,177 @@
+package core
+
+import (
+	"strings"
+	"sync"
+
+	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/events"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+// ServerConfigProjection is the second event-sourced projection
+// (ADR-033, ADR-035 phase 5 for the config aggregate). It consumes
+// ServerConfigChangedEvent on evt.config.> and maintains the
+// current server-config snapshot in memory.
+//
+// "Effective" accessor methods mirror the legacy ConfigManager's
+// fallback semantics so resolver/handler call sites swap their reads
+// without changing behaviour. The single source of truth is the held
+// snapshot — there is no per-field state, only the most recent
+// ServerConfig proto.
+type ServerConfigProjection struct {
+	mu   sync.RWMutex
+	cfg  *configv1.ServerConfig
+	seen bool // true once at least one ServerConfigChangedEvent has applied
+}
+
+// NewServerConfigProjection returns an empty projection. Call Run on a
+// Projector wrapping it to populate from the stream.
+func NewServerConfigProjection() *ServerConfigProjection {
+	return &ServerConfigProjection{}
+}
+
+// Subjects implements events.Projection.
+func (p *ServerConfigProjection) Subjects() []string {
+	return []string{events.ConfigSubjectFilter()}
+}
+
+// Apply implements events.Projection.
+//
+// ServerConfigChangedEvent replaces the held snapshot atomically and
+// flips seen to true.
+//
+// ServerConfigClearedEvent returns the projection to its cold state:
+// no held snapshot, seen=false. The semantic match for an operator
+// pressing "Reset to defaults" — effective accessors fall back to the
+// same defaults that apply on a fresh deployment.
+//
+// Other event types under evt.config.> are ignored
+// (forward-compatibility — future granular events can land on the
+// same subject namespace without breaking older projections).
+func (p *ServerConfigProjection) Apply(event *corev1.Event, _ uint64) error {
+	if event == nil {
+		return nil
+	}
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_ServerConfigChanged:
+		incoming := e.ServerConfigChanged.GetConfig()
+		// Clone the incoming proto so callers reading via accessors
+		// can't observe state changing under them mid-read.
+		var snapshot *configv1.ServerConfig
+		if incoming != nil {
+			snapshot = proto.Clone(incoming).(*configv1.ServerConfig)
+		}
+		p.mu.Lock()
+		p.cfg = snapshot
+		p.seen = true
+		p.mu.Unlock()
+	case *corev1.Event_ServerConfigCleared:
+		p.mu.Lock()
+		p.cfg = nil
+		p.seen = false
+		p.mu.Unlock()
+	}
+	return nil
+}
+
+// Snapshot implements events.Projection. No snapshot support yet
+// (ADR-033 defers snapshot orchestration).
+func (p *ServerConfigProjection) Snapshot() ([]byte, error) { return nil, nil }
+
+// Restore implements events.Projection. No-op until snapshot
+// orchestration lands.
+func (p *ServerConfigProjection) Restore(_ []byte) error { return nil }
+
+// Get returns the current server config snapshot and a bool indicating
+// whether the projection has ever applied a ServerConfigChangedEvent.
+// The returned proto is a clone — callers may inspect freely without
+// affecting projection state.
+//
+// isConfigured == false means no config event has been observed yet
+// (fresh deployment, projection cold-started before any write); the
+// returned *ServerConfig is nil in that case.
+func (p *ServerConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if !p.seen || p.cfg == nil {
+		return nil, p.seen
+	}
+	return proto.Clone(p.cfg).(*configv1.ServerConfig), true
+}
+
+// EffectiveServerName returns the configured server name or the default
+// fallback ("Chatto") if no name has been set. Matches the legacy
+// ConfigManager.GetEffectiveServerName semantics.
+func (p *ServerConfigProjection) EffectiveServerName() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.cfg != nil && p.cfg.ServerName != "" {
+		return p.cfg.ServerName
+	}
+	return "Chatto"
+}
+
+// EffectiveWelcomeMessage returns the configured welcome message or "".
+func (p *ServerConfigProjection) EffectiveWelcomeMessage() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.cfg != nil {
+		return p.cfg.WelcomeMessage
+	}
+	return ""
+}
+
+// EffectiveMOTD returns the configured MOTD or "".
+func (p *ServerConfigProjection) EffectiveMOTD() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.cfg != nil {
+		return p.cfg.Motd
+	}
+	return ""
+}
+
+// EffectiveDescription returns the configured server description or the
+// default fallback (DefaultDescription) if unset.
+func (p *ServerConfigProjection) EffectiveDescription() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.cfg != nil && p.cfg.Description != "" {
+		return p.cfg.Description
+	}
+	return DefaultDescription
+}
+
+// EffectiveBlockedUsernames returns the configured blocked-usernames
+// list, or DefaultBlockedUsernames if no config has ever been written.
+// Returns the empty string when the operator has explicitly cleared the
+// list (config exists, field is empty) — matching legacy semantics.
+func (p *ServerConfigProjection) EffectiveBlockedUsernames() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if !p.seen || p.cfg == nil {
+		return DefaultBlockedUsernames
+	}
+	return p.cfg.BlockedUsernames
+}
+
+// BlockedUsernamesList returns the blocked usernames as a slice of
+// lowercase strings, matching ConfigManager.GetBlockedUsernamesList.
+func (p *ServerConfigProjection) BlockedUsernamesList() []string {
+	return parseBlockedUsernames(p.EffectiveBlockedUsernames())
+}
+
+// IsUsernameBlocked reports whether `login` is in the blocked list
+// (case-insensitive).
+func (p *ServerConfigProjection) IsUsernameBlocked(login string) bool {
+	loginLower := strings.ToLower(login)
+	for _, blocked := range p.BlockedUsernamesList() {
+		if blocked == loginLower {
+			return true
+		}
+	}
+	return false
+}

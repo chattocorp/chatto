@@ -88,6 +88,18 @@ type ChattoCore struct {
 	// so writers can call WaitForSeq for read-your-writes.
 	RoomMembershipProjector *events.Projector
 
+	// ServerConfig is the projection holding the current server-config
+	// snapshot (ADR-035 phase 5 cutover for the config aggregate).
+	// Reads of "what's the server's MOTD / welcome message / blocked
+	// usernames" go through this projection rather than the legacy
+	// INSTANCE_CONFIG KV.
+	ServerConfig *ServerConfigProjection
+
+	// ServerConfigProjector runs the consumer + apply loop that keeps
+	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
+	// so writers (ConfigManager mutations) can call WaitForSeq.
+	ServerConfigProjector *events.Projector
+
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
 	// during NewChattoCore; Run iterates the slice. Adding a projector
@@ -379,9 +391,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		Logger: slog.Default().With("component", "server-rbac"),
 	})
 
-	// Initialize config manager for runtime configuration
-	configMgr := NewConfigManager(storage.runtimeConfigKV)
-
 	// Initialize S3 client if S3 storage is configured
 	var s3Client *S3Client
 	if cfg.Assets.StorageBackend == config.StorageBackendS3 {
@@ -399,11 +408,28 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		}
 	}
 
+	// Build the event-sourcing primitives before any aggregate-specific
+	// wiring so projections and managers that need them can be passed the
+	// concrete deps at construction. Order: publisher → projections →
+	// projectors → managers that depend on them.
+	eventPublisher := events.NewPublisher(js, storage.serverEvtStream, logger)
+
 	roomMembership := NewRoomMembershipProjection()
 	roomMembershipProjector := events.NewProjector(
 		js, storage.serverEvtStream, roomMembership,
 		logger.WithPrefix("core.RoomMembershipProjector"),
 	)
+
+	serverConfigProjection := NewServerConfigProjection()
+	serverConfigProjector := events.NewProjector(
+		js, storage.serverEvtStream, serverConfigProjection,
+		logger.WithPrefix("core.ServerConfigProjector"),
+	)
+
+	// ConfigManager owns server-config dual-writes; it needs the
+	// publisher (for ServerConfigChangedEvent), the projector
+	// (WaitForSeq for read-your-writes), and the projection (for reads).
+	configMgr := NewConfigManager(storage.runtimeConfigKV, eventPublisher, serverConfigProjector, serverConfigProjection)
 
 	core := &ChattoCore{
 		nc:                      nc,
@@ -414,14 +440,16 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		encryption:              encMgr,
 		configManager:           configMgr,
 		s3Client:                s3Client,
-		EventPublisher:          events.NewPublisher(js, storage.serverEvtStream, logger),
+		EventPublisher:          eventPublisher,
 		RoomMembership:          roomMembership,
 		RoomMembershipProjector: roomMembershipProjector,
-		projectors:              []*events.Projector{roomMembershipProjector},
+		ServerConfig:            serverConfigProjection,
+		ServerConfigProjector:   serverConfigProjector,
+		projectors:              []*events.Projector{roomMembershipProjector, serverConfigProjector},
 	}
 
 	// Run the event-sourcing migrations (ADR-035). Idempotent and cheap
-	// on subsequent boots — already-migrated subjects no-op via OCC. We
+	// on subsequent boots — already-migrated aggregates no-op via OCC. We
 	// can't run these as a separate CLI process the way restore.go does,
 	// because in the typical embedded-NATS deployment the NATS server
 	// has no TCP listener; a second process would have to take a temp
@@ -429,6 +457,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// Running them at boot here keeps them automatic and reachable.
 	if _, err := core.MigrateRoomMembership(ctx); err != nil {
 		return nil, fmt.Errorf("failed to run room-membership ES migration: %w", err)
+	}
+	if _, err := core.MigrateServerConfig(ctx); err != nil {
+		return nil, fmt.Errorf("failed to run server-config ES migration: %w", err)
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)

@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/config/v1/config.proto";
 import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -75,6 +76,14 @@ message Event {
     // ----- Messages (400-409) -----
     MessagePostedEvent message_posted = 400;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
+
+    // ----- Server config (500-509, durable) -----
+    // Distinct from ServerConfigUpdatedEvent at 1000, which is the
+    // legacy live-only broadcast on the SERVER_EVENTS path. The
+    // durable variants below live on the SERVER_EVT stream (subject
+    // evt.config.server) per ADRs 033/034/035.
+    ServerConfigChangedEvent server_config_changed = 500;
+    ServerConfigClearedEvent server_config_cleared = 501;
 
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
@@ -279,6 +288,26 @@ message MessagePostedEvent {
 
   reserved 1000; // was sequence_id (dead field, never read)
 }
+
+// Durable server-config event for the SERVER_EVT log. Carries the
+// complete ServerConfig snapshot after the change so projections and
+// the audit log can reconstruct state without reaching back to KV.
+// Distinct from the live-only ServerConfigUpdatedEvent at field 1000,
+// which still rides the legacy live broadcast path during the
+// migration window.
+message ServerConfigChangedEvent {
+  // The complete server config after the change.
+  chatto.config.v1.ServerConfig config = 1;
+}
+
+// Recorded when an operator resets the server config back to system
+// defaults. Distinct from a ServerConfigChangedEvent with an empty
+// payload — that would mean "operator explicitly cleared every field",
+// which (for fields like blocked_usernames) opens registration to
+// names that the default list blocks. ServerConfigClearedEvent
+// returns the projection to a "no operator-configured value" state,
+// so the same default fallbacks apply as on a fresh deployment.
+message ServerConfigClearedEvent {}
 
 // ============================================================================
 // LIVE-ONLY EVENT MESSAGE DEFINITIONS

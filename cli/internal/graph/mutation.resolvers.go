@@ -404,7 +404,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 	// what the resolver reads on reload. The chrome header listens for
 	// ServerUpdatedEvent (published below) to refresh name/logo/banner.
 	if cm := r.core.ConfigManager(); cm != nil {
-		updated, err := cm.UpdateServerConfigFunc(ctx, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+		updated, err := cm.UpdateServerConfigFunc(ctx, user.Id, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if cfg == nil {
 				cfg = &configv1.ServerConfig{}
 			}

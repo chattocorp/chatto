@@ -164,7 +164,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// name field is unset, so an admin-edited server name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
-		if _, err := cm.UpdateServerConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+		if _, err := cm.UpdateServerConfigFunc(ctx, "system:bootstrap", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if current == nil {
 				return &configv1.ServerConfig{ServerName: inst.Name}, nil
 			}
