@@ -457,15 +457,32 @@ func (c *ChattoCore) probePresignedAttachmentURL(ctx context.Context, attachment
 // Stable so existing signatures continue to verify across deployments.
 const AttachmentSignResource = "attachment"
 
-// GetAttachmentURL returns the URL for accessing the binary identified
-// by the locator. The URL embeds the locator as a signed payload, so
-// the HTTP handler can authorize and serve without a separate index
-// lookup.
+// AttachmentURLTTL is how long an attachment URL stays valid after it's
+// signed. Short on purpose: the signed locator is a standalone capability
+// (no session/bearer check at the asset endpoint — see ADR-032 and
+// authorization.md), so a leaked URL grants access for the full TTL. We
+// keep it just long enough for an in-flight render to complete; the
+// frontend regenerates URLs by re-resolving GraphQL when needed.
 //
-// Returns an empty string if the locator is invalid (which would
-// indicate a programmer error — locators come from trusted resolver
-// code, not user input).
-func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator) string {
+// We treat this as a stopgap for cross-origin remote-server <img>
+// loading rather than a real cross-origin auth design. See the
+// "Attachment URL Authorization" section of authorization.md for the
+// trade-off in detail.
+const AttachmentURLTTL = 5 * time.Minute
+
+// GetAttachmentURL returns the URL for accessing the binary identified
+// by the locator, signed for `userID` with a `AttachmentURLTTL`-bounded
+// expiry. The URL itself is the capability: the handler trusts the
+// signed claims (signature + expiry + room-membership check) and does
+// not require a session cookie or bearer header. This is what lets
+// cross-origin <img> tags work for remote-server attachments.
+//
+// Returns an empty string if `userID` is empty or the locator is
+// otherwise invalid (a programmer error — locators come from trusted
+// resolver code, not user input).
+func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
+	loc.UserID = userID
+	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
 	signed, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
 	if err != nil {
 		c.logger.Warn("Failed to sign attachment locator", "error", err, "locator", loc)
@@ -482,7 +499,12 @@ func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator) string {
 //	/assets/attachments/{signed-locator}/t/{params}.{signature}
 //
 // {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}.
-func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, width, height int, fit string) string {
+//
+// `userID` and `AttachmentURLTTL`-bounded expiry are baked into the
+// signed locator — see GetAttachmentURL.
+func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
+	loc.UserID = userID
+	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
 	signedLoc, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
 	if err != nil {
 		c.logger.Warn("Failed to sign attachment locator", "error", err, "locator", loc)
@@ -494,7 +516,8 @@ func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator
 
 // LocatorForBodyAttachment builds the URL locator for an attachment
 // embedded in a MessageBody. `bodyKey` defaults to attachment.MessageBodyId
-// when empty.
+// when empty. UserID + ExpiresAt are filled in by GetAttachmentURL /
+// GetTransformedAttachmentURL at signing time.
 func LocatorForBodyAttachment(attachment *corev1.Attachment, bodyKey string) signedurl.AttachmentLocator {
 	if bodyKey == "" {
 		bodyKey = attachment.MessageBodyId
@@ -508,7 +531,8 @@ func LocatorForBodyAttachment(attachment *corev1.Attachment, bodyKey string) sig
 
 // LocatorForVideoOriginAttachment builds the URL locator for a video
 // variant or thumbnail attachment owned by a VideoProcessingState
-// keyed by `videoOriginID` (the original video's attachment ID).
+// keyed by `videoOriginID` (the original video's attachment ID). UserID
+// + ExpiresAt are filled in at signing time — see LocatorForBodyAttachment.
 func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string) signedurl.AttachmentLocator {
 	return signedurl.AttachmentLocator{
 		RoomID:       roomID,

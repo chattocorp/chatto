@@ -2,6 +2,30 @@
 
 **Date:** 2026-05-23
 
+**Update (2026-05-24):** The locator payload is now extended with the
+calling user's ID (`u`) and a Unix-second expiry (`e`), both signed.
+The HTTP handler no longer reads the session cookie — the signed
+claims *are* the authorization (verified signature + non-expired +
+signed user is still a room member). This unblocks cross-origin `<img>`
+loads from remote-server SPAs, where neither cookies nor bearer
+headers reach the asset endpoint. The "HMAC isn't the access control"
+property called out in the original write-up is reversed by this
+update; the signed locator is the capability now.
+
+This is a known stopgap rather than a clean cross-origin auth design:
+a leaked URL grants access for the full TTL, so `AttachmentURLTTL` is
+kept at **5 minutes** — short enough that URLs effectively only work
+while a page is being rendered. Considered and rejected for now:
+two scoped session cookies (third-party-cookie blocking risk), a
+service worker that proxies remote-server fetches with the bearer
+token (more upfront work but ages best — likely the long-term
+direction), and a same-origin asset proxy (incompatible with the
+"standalone frontend with no backing server" deployment shape, and
+poor fit for GDPR data-residency expectations).
+
+See `.claude/rules/authorization.md` → "Attachment URL Authorization"
+for the current flow and trade-offs.
+
 ## Context
 
 Attachment metadata (room ID, storage location, filename, dimensions) for a posted file lives embedded inside its owning `MessageBody` proto in `SERVER_BODIES`. The asset HTTP handler at `/assets/attachments/...` needs three things on every request:

@@ -341,25 +341,28 @@ Asset binaries are served by the HTTP handler at `/assets/attachments/{signedLoc
 
 See [ADR-032](../../docs/adr/ADR-032-signed-attachment-locator-urls.md) for the full design.
 
+**The locator IS the capability.** The signed payload carries the calling user's ID (`u`) and a Unix-second expiry (`e`) alongside the room/attachment fields. The handler trusts those claims and does not consult the session cookie or `Authorization` header. This is what lets cross-origin `<img>` tags work for remote-server attachments — neither cookies nor bearer headers reach the asset endpoint in that flow.
+
 **Per-request flow** (`resolveLocatorAttachment` in `cli/internal/http_server/assets.go`):
 
-1. **Signature check** — `signedurl.ParseSignedAttachmentLocator` verifies the locator's HMAC against `[core.assets].signing_secret`. Invalid → 403. Forgery prevention only; not the access control.
-2. **Authentication** — read the session cookie. No session → 401.
-3. **Room authorization** — `RoomMembershipExists(kind, userID, loc.RoomID)` against the room ID *carried in the locator payload*. Not a member → 403.
+1. **Signature check** — `signedurl.ParseSignedAttachmentLocator` verifies the locator's HMAC against `[core.assets].signing_secret`. Invalid → 403. Also catches forged/tampered URLs.
+2. **Expiry check** — `loc.Expired(time.Now().Unix())` rejects URLs past their `ExpiresAt`. Expired → 403. Bounds the leak window.
+3. **Room membership** — `RoomMembershipExists(kind, loc.UserID, loc.RoomID)` checks that the *signed user* is still a member of the room. Not a member → 403. This is what auto-revokes URLs on kick/leave.
 4. **Attachment lookup** — `LookupAttachment(loc)` dispatches on the locator's source field:
    - `b` (body key) → `FindBodyAttachment(b, a)` reads the `MessageBody` and returns the matching attachment proto.
    - `v` (video-origin attachment ID) → `FindVideoOriginAttachment(v, a)` reads the `VideoProcessingState` and returns the variant or thumbnail attachment proto.
    Missing → 404.
 5. Serve the binary from the proto's `Storage` field (presigned S3 redirect or NATS stream).
 
-**The authorization model in one line:** *anyone who is a member of the room declared in the URL can fetch any attachment in that room*. Same as before this PR; we don't have per-attachment ACLs.
+**The authorization model in one line:** *holding a non-expired signed URL for user X authorizes the attachment fetch as long as X is still a member of the room declared in the URL.* No per-attachment ACLs.
+
+**URLs are per-user.** `attachmentResolver.URL` / `ThumbnailURL` (in `events.resolvers.go`) bake `auth.ForContext(ctx).Id` and `time.Now() + core.AttachmentURLTTL` into the locator at GraphQL resolve time. Two users querying the same attachment get two distinct signed URLs. We intentionally do **not** want shared/CDN-cached attachment URLs — attachments are private content.
 
 **Properties worth knowing:**
 
-- **The HMAC isn't the access control** — it only prevents URL forgery (so attackers can't probe attachment IDs by crafting URLs). Per-request session + membership is what actually grants access.
-- **Auto-revocation works.** Kicking a user invalidates their old URLs immediately (membership check fails). Deleting an attachment makes its URL 404 (lookup returns nil).
-- **No per-URL expiration today.** A leaked URL stays valid as long as the secret stays the same — but per-request auth means a leak doesn't grant standalone access. If we ever want share-link semantics with TTLs, extend the locator payload with an `exp` claim.
-- **Secret rotation invalidates every URL at once.** No key versioning today. Currently-loaded pages would 404 their attachment requests after rotation until the user re-renders; URLs are emitted on every GraphQL response, so the impact is bounded to "until next page transition." Mention in the runbook for any future rotation event.
+- **The signed URL grants access standalone.** A leaked URL is usable by anyone who has it until the deadline passes *or* the signed user loses room membership, whichever comes first. We treat this as a stopgap, not a real cross-origin auth design — `AttachmentURLTTL` is deliberately short (currently **5 minutes**) so URLs really only work while a page is being rendered. A cleaner solution (service worker proxying remote-server requests with the bearer token, most likely) is a follow-up.
+- **Auto-revocation still works.** Kicking a user invalidates their outstanding URLs at the next fetch (membership check fails). Deleting an attachment 404s its URLs (lookup returns nil).
+- **Secret rotation invalidates every URL at once.** No key versioning today. Currently-loaded pages would 403 their attachment requests after rotation until the user re-renders; URLs are emitted on every GraphQL response, so the impact is bounded to "until next page transition." Mention in the runbook for any future rotation event.
 - **Asset access bypasses the GraphQL audit layer.** No per-fetch audit log today. Pre-existing gap, not introduced by this design.
 
-**When extending attachment auth** (e.g., adding per-attachment ACLs, share links, view-once semantics): the natural extension points are (a) adding fields to the locator payload, or (b) adding checks between step 3 and step 5 of the flow above. Don't reintroduce a per-attachment metadata bucket — the URL is meant to carry the policy claims.
+**When extending attachment auth** (e.g., per-attachment ACLs, share links, view-once semantics): the natural extension points are (a) adding fields to the locator payload, or (b) adding checks between step 3 and step 5 of the flow above. Don't reintroduce a per-attachment metadata bucket — the URL is meant to carry the policy claims.
