@@ -40,17 +40,33 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/events"
 )
 
 // RunAll runs every active migration in order, stopping at the first
 // error.
 //
-// `serverKV` is the INSTANCE bucket (user data, auth tokens, etc.);
-// `serverConfigKV` is SERVER_CONFIG (rooms, room memberships,
-// notification levels, …); `serverBodiesKV` is SERVER_BODIES (message
-// content + standalone attachment metadata records); `serverRuntimeKV`
-// is SERVER_RUNTIME (sequences, sentinels, recomputable state).
-func RunAll(ctx context.Context, serverKV, serverConfigKV, serverBodiesKV, serverRuntimeKV jetstream.KeyValue, logger *log.Logger) error {
+// KV buckets:
+//   - `serverKV`: INSTANCE bucket (user data, auth tokens, etc.).
+//   - `serverConfigKV`: SERVER_CONFIG (rooms, room memberships,
+//     notification levels, …).
+//   - `serverBodiesKV`: SERVER_BODIES (message content + standalone
+//     attachment metadata records).
+//   - `serverRuntimeKV`: SERVER_RUNTIME (sequences, sentinels,
+//     recomputable state).
+//   - `runtimeConfigKV`: INSTANCE_CONFIG (operator-editable server
+//     settings — name, MOTD, blocked usernames, etc.).
+//
+// `publisher` writes to the SERVER_EVT event-sourcing stream and is
+// used by the ES migrations (ADR-035 phase 3 per aggregate) that seed
+// the stream from pre-ES KV state on first boot.
+func RunAll(
+	ctx context.Context,
+	serverKV, serverConfigKV, serverBodiesKV, serverRuntimeKV, runtimeConfigKV jetstream.KeyValue,
+	publisher *events.Publisher,
+	logger *log.Logger,
+) error {
 	if err := MigrateVerifiedEmailsToProto(ctx, serverKV, logger); err != nil {
 		return fmt.Errorf("verified_emails: %w", err)
 	}
@@ -62,6 +78,12 @@ func RunAll(ctx context.Context, serverKV, serverConfigKV, serverBodiesKV, serve
 	}
 	if err := DropLegacyAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
 		return fmt.Errorf("legacy_attachment_records: %w", err)
+	}
+	if err := MigrateRoomMembershipToES(ctx, serverConfigKV, publisher, logger); err != nil {
+		return fmt.Errorf("room_membership_es: %w", err)
+	}
+	if err := MigrateServerConfigToES(ctx, runtimeConfigKV, publisher, logger); err != nil {
+		return fmt.Errorf("server_config_es: %w", err)
 	}
 	return nil
 }

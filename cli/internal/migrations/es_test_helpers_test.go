@@ -1,0 +1,92 @@
+package migrations
+
+import (
+	"context"
+	"io"
+	"testing"
+	"time"
+
+	"github.com/charmbracelet/log"
+	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/events"
+)
+
+// setupTestES stands up an embedded NATS server with JetStream and
+// returns the bits ES-migration tests need: a context, a KV bucket
+// for "legacy" pre-ES state, the SERVER_EVT stream, and a Publisher
+// that writes to it.
+//
+// Mirrors setupTestKV's posture: minimal, self-contained, no
+// ChattoCore. The migration functions are package-level functions
+// taking explicit deps, so they can be exercised in isolation.
+func setupTestES(t *testing.T) (
+	ctx context.Context,
+	kv jetstream.KeyValue,
+	stream jetstream.Stream,
+	publisher *events.Publisher,
+) {
+	t.Helper()
+
+	ns, err := server.NewServer(&server.Options{
+		JetStream: true,
+		Port:      -1,
+		StoreDir:  t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("create NATS server: %v", err)
+	}
+	go ns.Start()
+	if !ns.ReadyForConnections(5 * time.Second) {
+		t.Fatal("NATS server not ready")
+	}
+
+	nc, err := nats.Connect(ns.ClientURL())
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(func() {
+		nc.Close()
+		ns.Shutdown()
+		ns.WaitForShutdown()
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+
+	kv, err = js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  "TEST_CONFIG",
+		Storage: jetstream.MemoryStorage,
+	})
+	if err != nil {
+		t.Fatalf("create KV: %v", err)
+	}
+
+	stream, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     "SERVER_EVT_TEST",
+		Subjects: []string{events.SubjectRoot + ">"},
+		Storage:  jetstream.MemoryStorage,
+	})
+	if err != nil {
+		t.Fatalf("create SERVER_EVT stream: %v", err)
+	}
+
+	logger := log.New(io.Discard)
+	publisher = events.NewPublisher(js, stream, logger)
+
+	return ctx, kv, stream, publisher
+}
+
+// testLogger returns a logger that discards output. Migration tests
+// don't assert on log content; production migrations log via the
+// caller-supplied logger.
+func testLogger() *log.Logger {
+	return log.New(io.Discard)
+}

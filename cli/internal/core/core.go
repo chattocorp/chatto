@@ -362,13 +362,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
 	}
 
-	// Run boot-time data migrations. Idempotent and cheap on subsequent
-	// boots (each migration short-circuits when no legacy data remains).
-	// See cli/internal/migrations for what's currently registered.
-	if err := migrations.RunAll(ctx, storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, logger); err != nil {
-		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
-	}
-
 	// Initialize encryption manager
 	encMgr := &encryptionManager{
 		keyManager: encryption.NewKeyManager(storage.encryptionKV),
@@ -448,18 +441,22 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		projectors:              []*events.Projector{roomMembershipProjector, serverConfigProjector},
 	}
 
-	// Run the event-sourcing migrations (ADR-035). Idempotent and cheap
-	// on subsequent boots — already-migrated aggregates no-op via OCC. We
-	// can't run these as a separate CLI process the way restore.go does,
-	// because in the typical embedded-NATS deployment the NATS server
-	// has no TCP listener; a second process would have to take a temp
-	// file lock on the data dir, requiring `chatto run` to be stopped.
-	// Running them at boot here keeps them automatic and reachable.
-	if _, err := core.MigrateRoomMembership(ctx); err != nil {
-		return nil, fmt.Errorf("failed to run room-membership ES migration: %w", err)
-	}
-	if _, err := core.MigrateServerConfig(ctx); err != nil {
-		return nil, fmt.Errorf("failed to run server-config ES migration: %w", err)
+	// Run boot-time data migrations. Idempotent and cheap on subsequent
+	// boots (each migration short-circuits when no legacy data remains).
+	// See cli/internal/migrations for the registry, including the
+	// ADR-035 ES seed migrations that need the event publisher we just
+	// constructed.
+	//
+	// In the typical embedded-NATS deployment the NATS server has no
+	// TCP listener, so we can't run migrations from a second process —
+	// the boot path is the only safe place for them.
+	if err := migrations.RunAll(
+		ctx,
+		storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, storage.runtimeConfigKV,
+		eventPublisher,
+		logger,
+	); err != nil {
+		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)
