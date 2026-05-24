@@ -5,8 +5,8 @@
 set -eu
 
 if [ -n "${CHATTO_NATS_CLIENT_URL:-}" ]; then
-    ctx_dir="${HOME:-/home/chatto}/.config/nats/context"
-    mkdir -p "$ctx_dir"
+    nats_dir="${HOME:-/home/chatto}/.config/nats"
+    mkdir -p "$nats_dir/context"
 
     # jq isn't in the image; build the JSON by hand. Values come from
     # operator-controlled env vars and Chatto's own config validation
@@ -19,7 +19,12 @@ if [ -n "${CHATTO_NATS_CLIENT_URL:-}" ]; then
             printf ',\n  "creds": "%s"' "$CHATTO_NATS_CLIENT_CREDENTIALS_FILE"
         fi
         printf '\n}\n'
-    } > "$ctx_dir/chatto.json"
+    } > "$nats_dir/context/chatto.json"
+
+    # Mark chatto as the default context so `nats <cmd>` works without
+    # also needing $NATS_CONTEXT (e.g. `nats context info`, which is a
+    # context-management command and ignores the env var).
+    printf 'chatto\n' > "$nats_dir/context.txt"
 fi
 
 exec chatto "$@"
