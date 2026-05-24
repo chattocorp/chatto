@@ -19,6 +19,7 @@ const (
 const (
 	AggregateRoom   = "room"
 	AggregateConfig = "config"
+	AggregateGroup  = "group"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -75,6 +76,38 @@ func ConfigAggregate() Aggregate {
 // Pattern: evt.config.>
 func ConfigSubjectFilter() string {
 	return SubjectRoot + AggregateConfig + ".>"
+}
+
+// GroupAggregate is the typed constructor for a room-group aggregate
+// handle. All group lifecycle events (created, renamed, deleted) and
+// group room-membership events (room added/removed/reordered within
+// the group) publish to GroupAggregate(groupID).Subject().
+func GroupAggregate(groupID string) Aggregate {
+	return Aggregate{Type: AggregateGroup, ID: groupID}
+}
+
+// GroupSubjectFilter returns the wildcard subject filter for every
+// group aggregate's events. Used by the RoomGroup projection.
+// Pattern: evt.group.>
+func GroupSubjectFilter() string {
+	return SubjectRoot + AggregateGroup + ".>"
+}
+
+// ParseGroupSubject extracts the groupID from a group aggregate
+// subject. Accepts both the durable shape (evt.group.{groupID}) and
+// the republished live shape (live.evt.group.{groupID}). Returns
+// ok=false if the subject doesn't match.
+func ParseGroupSubject(subject string) (groupID string, ok bool) {
+	s := stripLivePrefix(subject)
+	prefix := SubjectRoot + AggregateGroup + "."
+	if !strings.HasPrefix(s, prefix) {
+		return "", false
+	}
+	rest := s[len(prefix):]
+	if rest == "" || strings.Contains(rest, ".") {
+		return "", false
+	}
+	return rest, true
 }
 
 // ParseRoomSubject extracts the roomID from a room aggregate subject.

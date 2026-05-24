@@ -82,6 +82,19 @@ func RunAll(
 	if err := MigrateRoomMembershipToES(ctx, serverConfigKV, publisher, logger); err != nil {
 		return fmt.Errorf("room_membership_es: %w", err)
 	}
+	// Room-metadata MUST run after room-membership: the membership
+	// migration may have placed UserJoinedRoom events on
+	// evt.room.{R}, which makes the room aggregate non-empty for
+	// OCC purposes. RoomMetadataToES does AppendAt(seq=0) per room
+	// and treats the resulting conflict as "skip"; that's correct,
+	// because in practice the membership migration only fires on
+	// fresh-to-ES deployments and reorders against itself anyway.
+	if err := MigrateRoomMetadataToES(ctx, serverConfigKV, publisher, logger); err != nil {
+		return fmt.Errorf("room_metadata_es: %w", err)
+	}
+	if err := MigrateRoomGroupsToES(ctx, serverConfigKV, publisher, logger); err != nil {
+		return fmt.Errorf("room_groups_es: %w", err)
+	}
 	if err := MigrateServerConfigToES(ctx, runtimeConfigKV, publisher, logger); err != nil {
 		return fmt.Errorf("server_config_es: %w", err)
 	}

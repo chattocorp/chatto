@@ -100,6 +100,23 @@ type ChattoCore struct {
 	// so writers (ConfigManager mutations) can call WaitForSeq.
 	ServerConfigProjector *events.Projector
 
+	// RoomCatalog is the projection holding per-room metadata
+	// (id/name/description/kind/archived) derived from evt.room.>.
+	// Coexists with RoomMembership on the same subject family.
+	RoomCatalog *RoomCatalogProjection
+
+	// RoomCatalogProjector runs the consumer for RoomCatalog. Exposed
+	// for WaitForSeq from room-metadata writers.
+	RoomCatalogProjector *events.Projector
+
+	// RoomGroups is the projection holding per-group metadata and
+	// ordered room membership, derived from evt.group.>.
+	RoomGroups *RoomGroupProjection
+
+	// RoomGroupsProjector runs the consumer for RoomGroups. Exposed
+	// for WaitForSeq from group writers.
+	RoomGroupsProjector *events.Projector
+
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
 	// during NewChattoCore; Run iterates the slice. Adding a projector
@@ -419,6 +436,18 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		logger.WithPrefix("core.ServerConfigProjector"),
 	)
 
+	roomCatalog := NewRoomCatalogProjection()
+	roomCatalogProjector := events.NewProjector(
+		js, storage.serverEvtStream, roomCatalog,
+		logger.WithPrefix("core.RoomCatalogProjector"),
+	)
+
+	roomGroups := NewRoomGroupProjection()
+	roomGroupsProjector := events.NewProjector(
+		js, storage.serverEvtStream, roomGroups,
+		logger.WithPrefix("core.RoomGroupsProjector"),
+	)
+
 	// ConfigManager owns server-config dual-writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
@@ -438,7 +467,16 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomMembershipProjector: roomMembershipProjector,
 		ServerConfig:            serverConfigProjection,
 		ServerConfigProjector:   serverConfigProjector,
-		projectors:              []*events.Projector{roomMembershipProjector, serverConfigProjector},
+		RoomCatalog:             roomCatalog,
+		RoomCatalogProjector:    roomCatalogProjector,
+		RoomGroups:              roomGroups,
+		RoomGroupsProjector:     roomGroupsProjector,
+		projectors: []*events.Projector{
+			roomMembershipProjector,
+			serverConfigProjector,
+			roomCatalogProjector,
+			roomGroupsProjector,
+		},
 	}
 
 	// Run boot-time data migrations. Idempotent and cheap on subsequent
