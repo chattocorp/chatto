@@ -16,14 +16,14 @@ import (
 
 // ErrConfigConflict is returned when a config update fails due to
 // concurrent modification. With ADR-035 dual-write the OCC scope is the
-// SERVER_EVT event publish; ErrConfigConflict surfaces when retries on
+// EVT event publish; ErrConfigConflict surfaces when retries on
 // the publish path exhaust without success. Callers can retry the whole
 // UpdateServerConfigFunc call.
 var ErrConfigConflict = errors.New("config was modified by another request")
 
 // ConfigManager handles runtime server configuration.
 //
-// ADR-035 phase 4/5: writes are dual-write (SERVER_EVT event publish +
+// ADR-035 phase 4/5: writes are dual-write (EVT event publish +
 // legacy INSTANCE_CONFIG KV write + WaitForSeq for read-your-writes);
 // reads come from the in-memory ServerConfigProjection. The legacy KV
 // is still kept current so backups stay coherent and so any caller that

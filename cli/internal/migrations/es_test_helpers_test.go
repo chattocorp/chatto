@@ -16,7 +16,7 @@ import (
 
 // setupTestES stands up an embedded NATS server with JetStream and
 // returns the bits ES-migration tests need: a context, a KV bucket
-// for "legacy" pre-ES state, the SERVER_EVT stream, and a Publisher
+// for "legacy" pre-ES state, the EVT stream, and a Publisher
 // that writes to it.
 //
 // Mirrors setupTestKV's posture: minimal, self-contained, no
@@ -70,12 +70,12 @@ func setupTestES(t *testing.T) (
 	}
 
 	stream, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:     "SERVER_EVT_TEST",
+		Name:     "EVT_TEST",
 		Subjects: []string{events.SubjectRoot + ">"},
 		Storage:  jetstream.MemoryStorage,
 	})
 	if err != nil {
-		t.Fatalf("create SERVER_EVT stream: %v", err)
+		t.Fatalf("create EVT stream: %v", err)
 	}
 
 	logger := log.New(io.Discard)

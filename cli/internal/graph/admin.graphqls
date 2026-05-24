@@ -105,10 +105,10 @@ extend type AdminQueries {
 }
 
 # =============================================================================
-# Event Log (SERVER_EVT inspection)
+# Event Log (EVT inspection)
 # =============================================================================
 
-"One entry in the event-sourcing log (SERVER_EVT). Each entry corresponds to one durable domain event under ADR-033."
+"One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033."
 type EventLogEntry {
   "Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int."
   sequence: String!
@@ -138,12 +138,12 @@ type EventLogConnection {
   hasOlder: Boolean!
   "Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries."
   endCursor: String
-  "Total messages currently in SERVER_EVT — an operational metric, not bounded by `limit`."
+  "Total messages currently in EVT — an operational metric, not bounded by `limit`."
   totalCount: Int!
 }
 
 extend type AdminQueries {
-  "Browse the event-sourcing log (SERVER_EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before."
+  "Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before."
   eventLog(limit: Int, before: String): EventLogConnection! @goField(forceResolver: true)
   "Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist."
   eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)

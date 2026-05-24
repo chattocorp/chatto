@@ -72,7 +72,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 // Authorization: Caller must verify CanJoinRoom before calling.
 //
 // Dual-write (ADR-035 phase 4): when this is a new membership, a
-// UserJoinedRoomEvent is appended to SERVER_EVT *before* the KV write,
+// UserJoinedRoomEvent is appended to EVT *before* the KV write,
 // then a legacy event is published to the room's meta subject (still
 // the source of live updates for the frontend's myEvents subscription).
 // Reads have been cut over to the projection (phase 5) — the isNew
@@ -117,7 +117,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		}
 	}
 
-	// KV write stays in place during dual-write. SERVER_EVT is the source
+	// KV write stays in place during dual-write. EVT is the source
 	// of truth for reads (projection-backed); KV is kept up to date so
 	// backups and any unmigrated read paths remain coherent.
 	kv := c.storage.serverConfigKV
@@ -172,7 +172,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 //     cannot be left (users can mute them via notification preferences).
 //
 // Dual-write (ADR-035 phase 4) — same shape as JoinRoom: publish to
-// SERVER_EVT first, then KV delete, then legacy publish, then
+// EVT first, then KV delete, then legacy publish, then
 // WaitForSeq. Idempotent on the no-op path (user wasn't a member).
 func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
 	// DM conversations are permanent - users cannot leave them
@@ -300,7 +300,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 		}
 	}
 
-	// 4 dual-write: SERVER_EVT publish first, then KV delete, then the
+	// 4 dual-write: EVT publish first, then KV delete, then the
 	// legacy publish for live myEvents delivery.
 	for _, entry := range entries {
 		event := newEvent(user_id, &corev1.Event{
@@ -312,7 +312,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 		})
 
 		if _, err := c.EventPublisher.Append(ctx, events.RoomAggregate(entry.roomID).Subject(), event); err != nil {
-			c.logger.Warn("Failed to publish UserLeftRoomEvent to SERVER_EVT", "room_id", entry.roomID, "error", err)
+			c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT", "room_id", entry.roomID, "error", err)
 		}
 
 		if err := kv.Delete(ctx, entry.key); err != nil {

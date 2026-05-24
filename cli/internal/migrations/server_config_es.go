@@ -15,7 +15,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// MigrateServerConfigToES seeds the SERVER_EVT stream from the
+// MigrateServerConfigToES seeds the EVT stream from the
 // existing config.instance entry in INSTANCE_CONFIG (ADR-035 phase 3
 // for the server-config aggregate).
 //
@@ -76,7 +76,7 @@ func MigrateServerConfigToES(
 		return nil
 	}
 	if errors.Is(err, events.ErrConflict) {
-		// SERVER_EVT already has events on this aggregate — a previous
+		// EVT already has events on this aggregate — a previous
 		// migration run (or a runtime publish) populated it. Skip.
 		return nil
 	}

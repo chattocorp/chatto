@@ -80,7 +80,7 @@ message Event {
     // ----- Server config (500-509, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
     // legacy live-only broadcast on the SERVER_EVENTS path. The
-    // durable variant below lives on the SERVER_EVT stream (subject
+    // durable variant below lives on the EVT stream (subject
     // evt.config.server) per ADRs 033/034/035.
     ServerConfigChangedEvent server_config_changed = 500;
 
@@ -288,7 +288,7 @@ message MessagePostedEvent {
   reserved 1000; // was sequence_id (dead field, never read)
 }
 
-// Durable server-config event for the SERVER_EVT log. Carries the
+// Durable server-config event for the EVT log. Carries the
 // complete ServerConfig snapshot after the change so projections and
 // the audit log can reconstruct state without reaching back to KV.
 // Distinct from the live-only ServerConfigUpdatedEvent at field 1000,

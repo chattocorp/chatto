@@ -33,7 +33,7 @@ func testLogger() Logger {
 }
 
 // setupTestStream spins up an embedded NATS server with JetStream, creates
-// a stream with the SERVER_EVT shape (subjects "server.evt.>"), and returns
+// a stream with the EVT shape (subjects "server.evt.>"), and returns
 // the wired-up bits plus a cleanup-registered teardown.
 func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 	t.Helper()
@@ -69,7 +69,7 @@ func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 
 	ctx := testContext(t)
 	stream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:     "SERVER_EVT_TEST",
+		Name:     "EVT_TEST",
 		Subjects: []string{SubjectRoot + ">"},
 		Storage:  jetstream.FileStorage,
 	})

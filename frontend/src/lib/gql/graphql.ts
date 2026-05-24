@@ -85,7 +85,7 @@ export type AdminMutationsUpdateUserArgs = {
 /** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueries = {
   __typename?: 'AdminQueries';
-  /** Browse the event-sourcing log (SERVER_EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before. */
+  /** Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before. */
   eventLog: EventLogConnection;
   /** Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist. */
   eventLogEntry?: Maybe<EventLogEntry>;
@@ -460,11 +460,11 @@ export type EventLogConnection = {
   entries: Array<EventLogEntry>;
   /** True if older entries exist beyond this page. */
   hasOlder: Scalars['Boolean']['output'];
-  /** Total messages currently in SERVER_EVT — an operational metric, not bounded by `limit`. */
+  /** Total messages currently in EVT — an operational metric, not bounded by `limit`. */
   totalCount: Scalars['Int']['output'];
 };
 
-/** One entry in the event-sourcing log (SERVER_EVT). Each entry corresponds to one durable domain event under ADR-033. */
+/** One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033. */
 export type EventLogEntry = {
   __typename?: 'EventLogEntry';
   /** ID of the actor who triggered the event. May also be a synthetic actor like 'system:migration' or 'system:bootstrap'. */

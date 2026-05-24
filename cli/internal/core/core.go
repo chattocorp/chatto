@@ -72,7 +72,7 @@ type ChattoCore struct {
 	// out updates to all space subscriptions. Started by (*ChattoCore).Run.
 	PresenceHub *PresenceHub
 
-	// EventPublisher writes to the SERVER_EVT event-sourcing stream
+	// EventPublisher writes to the EVT event-sourcing stream
 	// (ADR-033/034). Exposed for use by the migrate subcommand and
 	// future aggregate cutovers; domain code accesses it through
 	// higher-level helpers as aggregates migrate.
@@ -132,7 +132,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-// EventStreamForDebug returns the SERVER_EVT stream. Intended for the
+// EventStreamForDebug returns the EVT stream. Intended for the
 // `chatto evt list` command and similar low-level operator tooling that
 // reads raw stream messages. Domain code goes through EventPublisher /
 // Projector instead.
@@ -522,7 +522,7 @@ type storage struct {
 	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
 	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
-	serverEvtStream    jetstream.Stream      // SERVER_EVT       - event-sourcing log (ADR-033/034). Coexists with SERVER_EVENTS during migration.
+	serverEvtStream    jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034). Coexists with SERVER_EVENTS during migration.
 
 	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
@@ -743,7 +743,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_EVENTS stream: %w", err)
 	}
 
-	// SERVER_EVT — the event-sourcing log (ADR-033/034). Coexists with
+	// EVT — the event-sourcing log (ADR-033/034). Coexists with
 	// SERVER_EVENTS during the per-aggregate migration (ADR-035).
 	// Subjects are evt.{aggregateType}.{aggregateId}; live.evt.> is
 	// the republish target so projections and live subscribers consume
@@ -756,7 +756,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// roots; once SERVER_EVENTS is decommissioned we can revisit the
 	// naming if we want to consolidate.
 	serverEvtStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:        "SERVER_EVT",
+		Name:        "EVT",
 		Description: "Event-sourcing log (ADR-033)",
 		Subjects:    []string{"evt.>"},
 		Storage:     jetstream.FileStorage,
@@ -768,7 +768,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_EVT stream: %w", err)
+		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
 	}
 
 	// Initialize auth tokens KV bucket with configurable TTL

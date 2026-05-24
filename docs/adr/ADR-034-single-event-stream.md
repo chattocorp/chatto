@@ -17,7 +17,7 @@ Cross-aggregate ordering — "did the user join the room before or after sending
 
 ## Decision
 
-Use a single JetStream stream named `SERVER_EVT` for all event-sourced domain state.
+Use a single JetStream stream named `EVT` for all event-sourced domain state.
 
 ### Subject layout
 
@@ -28,7 +28,7 @@ Use a single JetStream stream named `SERVER_EVT` for all event-sourced domain st
 - **Per-aggregate ordering** uses NATS's per-subject sequence. Every publish is an OCC append against the current per-subject head — `WithExpectLastSequencePerSubject(seq)` against the literal aggregate subject.
 - **Singleton aggregates** (server-wide config and similar) use a stable sentinel id like `server` rather than introducing a different subject shape. Keeps the parser, the OCC formula, and the framework code uniform.
 
-We deliberately do **not** nest the new event log under `server.>`. The legacy `SERVER_EVENTS` stream already claims `server.>` as its subject root, and NATS won't allow two streams to share an overlapping subject space. The stream *name* still carries the `SERVER_` prefix for consistency with the rest of the inventory — the mismatch with the subject root only exists during the migration window and can be revisited if/when we consolidate post-decommission.
+We deliberately do **not** nest the new event log under `server.>`. The legacy `SERVER_EVENTS` stream already claims `server.>` as its subject root, and NATS won't allow two streams to share an overlapping subject space. The new stream is named simply `EVT`: the word "server" already has a specific product meaning in Chatto (the user-facing concept), and reusing it as a NATS-level prefix on the event log conflated infrastructure naming with domain naming. `EVT` is short, unambiguous, and parallels the `evt.>` subject root.
 
 ### Event type lives in the payload, not the subject
 
@@ -85,7 +85,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream conti
 - **Single point of contention for hot streams.** Writes across all aggregates serialize through one stream leader. For Chatto's scale (one server per deployment, not a multi-tenant SaaS) this is acceptable. If we ever need to scale past a single stream's write throughput, [ADR-013](ADR-013-per-space-stream-sharding.md) shows the codebase can carry a sharding abstraction — that's a future option, not a current need.
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}`. The framework wraps consumer creation around the projection's declared subjects.
 - **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
-- **Two streams during migration.** `SERVER_EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
+- **Two streams during migration.** `EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
 
 ## Out of scope for this ADR
 

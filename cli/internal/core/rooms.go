@@ -368,7 +368,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 
 	// Create and publish audit event before deletion. Dual-write
-	// (ADR-035 phase 4): SERVER_EVT publish drives the membership
+	// (ADR-035 phase 4): EVT publish drives the membership
 	// projection's per-room dropRoom; legacy publish keeps the frontend's
 	// live myEvents subscription working.
 	event := newEvent(actorID, &corev1.Event{
@@ -381,7 +381,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 
 	seq, evtErr := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), event)
 	if evtErr != nil {
-		c.logger.Error("failed to publish RoomDeletedEvent to SERVER_EVT", "error", evtErr, "room_id", room_id)
+		c.logger.Error("failed to publish RoomDeletedEvent to EVT", "error", evtErr, "room_id", room_id)
 	}
 
 	subject := subjects.RoomMeta(string(kind), room_id)
@@ -417,7 +417,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 
 	// Read-your-writes: ensure the membership projection has applied the
-	// RoomDeleted event before returning. Only wait if the SERVER_EVT
+	// RoomDeleted event before returning. Only wait if the EVT
 	// publish actually succeeded above — otherwise there's nothing to
 	// wait for.
 	if seq > 0 {

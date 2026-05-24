@@ -1,6 +1,6 @@
 // Package events is the internal event-sourcing framework for Chatto.
 //
-// It wraps the SERVER_EVT JetStream stream into a discipline:
+// It wraps the EVT JetStream stream into a discipline:
 //   - Every publish is OCC. There is no non-OCC publish primitive.
 //   - Reads come from projections — in-memory Go structs that consume
 //     events and update their state.
@@ -42,7 +42,7 @@ var ErrConflict = errors.New("expected-last-subject-sequence mismatch")
 var ErrInvalidEvent = errors.New("invalid event")
 
 // Publisher writes events to a JetStream stream with optimistic concurrency
-// control. The stream is expected to be the SERVER_EVT stream; the Publisher
+// control. The stream is expected to be the EVT stream; the Publisher
 // itself doesn't enforce that — it operates on whatever stream is passed in,
 // so the same primitive is reusable in tests against ad-hoc streams.
 type Publisher struct {

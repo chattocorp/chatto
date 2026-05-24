@@ -20,7 +20,7 @@ Migrate one aggregate at a time. Each aggregate moves through the same seven-pha
 
 1. **Define event types.** Add or reuse protobuf event types in `proto/`. Existing types (`UserJoinedRoom`, `UserLeftRoom`, etc. defined for the live-event system) are reused where they cover the aggregate's lifecycle; new types are added only where current types do not. This is a per-aggregate call; the introducing PR enumerates additions.
 2. **Build the projection.** Implements the framework's `Projection` interface (`Apply`, `Snapshot`, `Restore`). Tested in isolation by feeding it events. Not yet wired to any read path.
-3. **Register the migration to run at boot.** A new function (e.g. `MigrateRoomMembership`) is added that reads the aggregate's current KV state and emits real events into the `SERVER_EVT` stream with original metadata preserved (timestamps, actor IDs where known). It's wired into `NewChattoCore` alongside the existing `migrations.RunAll` call, so it runs on every boot. Replayable (see below) — already-migrated subjects no-op via OCC, so the steady-state cost is just listing keys + one OCC check per subject.
+3. **Register the migration to run at boot.** A new function (e.g. `MigrateRoomMembership`) is added that reads the aggregate's current KV state and emits real events into the `EVT` stream with original metadata preserved (timestamps, actor IDs where known). It's wired into `NewChattoCore` alongside the existing `migrations.RunAll` call, so it runs on every boot. Replayable (see below) — already-migrated subjects no-op via OCC, so the steady-state cost is just listing keys + one OCC check per subject.
 4. **Enable dual-write.** Every mutation that touched the aggregate's KV bucket now publishes the event first, then writes KV. Publish-event-first ensures the worst-case partial failure (event without KV mirror) matches the post-migration steady state.
 5. **Cut over reads.** Read paths (GraphQL resolvers, internal authz helpers, etc.) switch from KV to the projection. Writes still dual-write.
 6. **Stop writing KV.** The mutation becomes event-only. KV is effectively dead but not yet removed.
@@ -84,7 +84,7 @@ If we hit a migration where this turns out to be the wrong call, we add the shad
 ## Consequences
 
 - **Per-aggregate cadence.** Each migration is roughly seven PRs. Many can land in parallel across aggregates once the framework stabilises.
-- **Two systems coexist for the duration.** The old `SERVER_EVENTS` stream, KV-as-source-of-truth code, and the new `SERVER_EVT` stream all run side by side until the last aggregate is migrated. Test coverage spans both.
+- **Two systems coexist for the duration.** The old `SERVER_EVENTS` stream, KV-as-source-of-truth code, and the new `EVT` stream all run side by side until the last aggregate is migrated. Test coverage spans both.
 - **No big-bang failure mode.** Each aggregate's cutover (phase 5) is independently revertable while the migration is in flight. After phase 6, revert requires a recovery path — but by that point the aggregate has burned in.
 - **Migration functions accumulate temporary surface.** Each aggregate's boot-migration call lives in `NewChattoCore` until phase 7. Removed in lockstep with each aggregate's decommission.
 - **No divergence safety net at cutover.** Cutover relies on test coverage and (for high-risk aggregates) opt-in shadow reads. A latent projection bug could cause user-visible incorrectness. We accept this for migration velocity in alpha and revisit if any migration burns us.
@@ -101,5 +101,5 @@ If we hit a migration where this turns out to be the wrong call, we add the shad
 ## Related
 
 - [ADR-033](ADR-033-event-sourced-state-with-projections.md) — the umbrella decision this ADR operationalises.
-- [ADR-034](ADR-034-single-event-stream.md) — the shape of the new `SERVER_EVT` stream.
+- [ADR-034](ADR-034-single-event-stream.md) — the shape of the new `EVT` stream.
 - [ADR-006](ADR-006-kv-source-of-truth-streams-audit-log.md) — superseded by ADR-033. Each phase-7 decommission is a step toward fully retiring ADR-006's pattern.

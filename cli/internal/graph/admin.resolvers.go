@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
@@ -172,7 +171,7 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 
 	stream, err := r.core.EventStreamForDebug(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get SERVER_EVT stream: %w", err)
+		return nil, fmt.Errorf("get EVT stream: %w", err)
 	}
 	info, err := stream.Info(ctx)
 	if err != nil {
@@ -248,7 +247,7 @@ func (r *adminQueriesResolver) EventLogEntry(ctx context.Context, obj *model.Adm
 	}
 	stream, err := r.core.EventStreamForDebug(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get SERVER_EVT stream: %w", err)
+		return nil, fmt.Errorf("get EVT stream: %w", err)
 	}
 	msg, err := stream.GetMsg(ctx, seq)
 	if err != nil {

@@ -553,7 +553,7 @@ type Event_ServerConfigChanged struct {
 	// ----- Server config (500-509, durable) -----
 	// Distinct from ServerConfigUpdatedEvent at 1000, which is the
 	// legacy live-only broadcast on the SERVER_EVENTS path. The
-	// durable variant below lives on the SERVER_EVT stream (subject
+	// durable variant below lives on the EVT stream (subject
 	// evt.config.server) per ADRs 033/034/035.
 	ServerConfigChanged *ServerConfigChangedEvent `protobuf:"bytes,500,opt,name=server_config_changed,json=serverConfigChanged,proto3,oneof"`
 }
@@ -1312,7 +1312,7 @@ func (x *MessagePostedEvent) GetEventId() string {
 	return ""
 }
 
-// Durable server-config event for the SERVER_EVT log. Carries the
+// Durable server-config event for the EVT log. Carries the
 // complete ServerConfig snapshot after the change so projections and
 // the audit log can reconstruct state without reaching back to KV.
 // Distinct from the live-only ServerConfigUpdatedEvent at field 1000,

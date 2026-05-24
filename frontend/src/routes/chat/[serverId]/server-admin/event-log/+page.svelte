@@ -112,7 +112,7 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
     title="Event Log"
-    subtitle="Browse the durable event-sourcing stream (SERVER_EVT). Read-only — useful for debugging and as a starting point for the audit log."
+    subtitle="Browse the durable event-sourcing stream (EVT). Read-only — useful for debugging and as a starting point for the audit log."
     showMobileNav
   />
 

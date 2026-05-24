@@ -11,7 +11,7 @@ import (
 )
 
 // TestEventLog_BrowseNewestFirst exercises the EventLog resolver
-// against a populated SERVER_EVT stream. Joining a couple of rooms
+// against a populated EVT stream. Joining a couple of rooms
 // produces both a UserJoinedRoom event (from the membership migration
 // happening during test setup as the bootstrap user lands in
 // `general`/`announcements`) and additional joins as we go, so the
@@ -82,7 +82,7 @@ func TestEventLogEntry_LookupBySequence(t *testing.T) {
 	adminQ := env.resolver.AdminQueries()
 	conn, err := adminQ.EventLog(ctx, nil, nil, nil)
 	require.NoError(t, err)
-	require.NotEmpty(t, conn.Entries, "expected at least one event on SERVER_EVT for this test")
+	require.NotEmpty(t, conn.Entries, "expected at least one event on EVT for this test")
 
 	// Look up the first entry by its sequence.
 	target := conn.Entries[0]

@@ -58,7 +58,7 @@ import (
 //   - `runtimeConfigKV`: INSTANCE_CONFIG (operator-editable server
 //     settings — name, MOTD, blocked usernames, etc.).
 //
-// `publisher` writes to the SERVER_EVT event-sourcing stream and is
+// `publisher` writes to the EVT event-sourcing stream and is
 // used by the ES migrations (ADR-035 phase 3 per aggregate) that seed
 // the stream from pre-ES KV state on first boot.
 func RunAll(

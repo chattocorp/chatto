@@ -17,7 +17,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// MigrateRoomMembershipToES seeds the SERVER_EVT stream from the
+// MigrateRoomMembershipToES seeds the EVT stream from the
 // existing room_membership.{kind}.{roomID}.{userID} keys in
 // SERVER_CONFIG (ADR-035 phase 3 for the room-membership aggregate).
 //
@@ -29,7 +29,7 @@ import (
 //
 // # Idempotency
 //
-// Re-running this on a populated SERVER_EVT is a no-op: the first
+// Re-running this on a populated EVT is a no-op: the first
 // AppendAt(seq=0) on each subject hits events.ErrConflict, the rest
 // of that subject is skipped, and the function moves on. A crash
 // midway through a subject is the only path that returns an error

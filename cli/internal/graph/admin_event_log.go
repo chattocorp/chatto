@@ -17,7 +17,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// eventLogPaginationLimits caps how many SERVER_EVT entries one request
+// eventLogPaginationLimits caps how many EVT entries one request
 // can pull back. Walking the stream backwards is one NATS GetMsg per
 // entry, so the cap keeps a worst-case admin browse cheap.
 const (
@@ -25,7 +25,7 @@ const (
 	maxEventLogPageSize     = 200
 )
 
-// fetchEventLogPage walks SERVER_EVT backwards from startSeq (inclusive)
+// fetchEventLogPage walks EVT backwards from startSeq (inclusive)
 // and returns up to `limit` entries newest-first. Stops early at the
 // stream's first sequence. Skips holes (deleted messages) and only
 // surfaces an error if a NATS call fails for a non-NotFound reason.
@@ -46,7 +46,7 @@ func (r *Resolver) fetchEventLogPage(
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
 				// A hole in the sequence — shouldn't happen on
-				// SERVER_EVT in practice, but tolerated.
+				// EVT in practice, but tolerated.
 				if seq == 0 {
 					break
 				}

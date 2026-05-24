@@ -10,7 +10,7 @@ import (
 
 // RoomMembershipProjection is the first event-sourced projection (ADR-033).
 // It consumes UserJoinedRoomEvent / UserLeftRoomEvent / RoomDeletedEvent
-// from the SERVER_EVT stream and maintains the current set of room
+// from the EVT stream and maintains the current set of room
 // memberships in memory.
 //
 // Two indices are kept so both "who's in this room?" and "what rooms is
