@@ -215,11 +215,16 @@ func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.Read
 // metadata. The caller is responsible for closing the reader if it
 // implements io.Closer.
 //
-// Returns an error if `attachment.Storage` is unset or points at an
-// unknown backend kind.
+// When `Storage` is nil, falls back to probing known backend layouts
+// for the binary by attachment ID — this handles pre-locator video
+// variants and thumbnails whose backfilled Attachment protos came from
+// minimal standalone records that lacked a `Storage` field.
 func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
-	if attachment == nil || attachment.Storage == nil {
-		return nil, nil, fmt.Errorf("attachment has no storage info")
+	if attachment == nil {
+		return nil, nil, fmt.Errorf("attachment is nil")
+	}
+	if attachment.Storage == nil {
+		return c.probeAttachmentReaderByID(ctx, attachment.Id)
 	}
 	switch asset := attachment.Storage.Asset.(type) {
 	case *corev1.Asset_Nats:
@@ -240,6 +245,50 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 		return c.GetS3Attachment(ctx, asset.S3.Key)
 	default:
 		return nil, nil, fmt.Errorf("attachment %s has unknown storage backend", attachment.Id)
+	}
+}
+
+// probeAttachmentReaderByID is the fallback when an Attachment's
+// `Storage` field isn't populated. Tries NATS ObjectStore first (where
+// pre-S3 uploads landed), then S3 across the post-Phase-4 kind-less
+// key and the pre-Phase-4 server/DM-prefixed legacy keys. Whichever
+// backend has the binary wins.
+//
+// This is load-bearing for pre-locator video variants and thumbnails:
+// `BackfillAttachmentRecords` (long-since deleted) wrote minimal
+// `Attachment{Id, RoomId}` records for those, and
+// `BackfillAttachmentLocatorData` copied those minimal records into
+// `VideoProcessingState.{ThumbnailAttachment, Variants[i].Attachment}`.
+// They have no Storage, so we probe.
+func (c *ChattoCore) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
+	reader, natsInfo, err := c.GetAttachment(ctx, attachmentID)
+	if err == nil {
+		return reader, &AttachmentInfo{
+			Size:        int64(natsInfo.Size),
+			ContentType: natsInfo.Headers.Get("Content-Type"),
+			Filename:    natsInfo.Headers.Get("Filename"),
+			RoomID:      natsInfo.Headers.Get("Room-Id"),
+		}, nil
+	}
+	if c.s3Client != nil {
+		for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
+			s3Reader, s3Info, s3Err := c.GetS3Attachment(ctx, s3Key)
+			if s3Err == nil {
+				return s3Reader, s3Info, nil
+			}
+		}
+	}
+	return nil, nil, fmt.Errorf("attachment not found: %s", attachmentID)
+}
+
+// legacyAttachmentS3KeyCandidates returns the S3 keys to try when we
+// don't know an attachment's storage layout: post-Phase-4 first, then
+// the wire-frozen pre-Phase-4 server/DM prefixes.
+func legacyAttachmentS3KeyCandidates(attachmentID string) []string {
+	return []string{
+		S3KeyAttachment(attachmentID),
+		"spaces/server/attachments/" + attachmentID,
+		"spaces/DM/attachments/" + attachmentID,
 	}
 }
 
@@ -357,17 +406,23 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 }
 
 // TryPresignedAttachmentURL generates a presigned S3 URL for an
-// attachment. Returns an error if S3 is not configured or the attachment
-// is not stored in S3 (e.g. it's a NATS-stored legacy attachment, in
-// which case the caller should fall back to GetAttachmentReader).
+// attachment. Returns an error if S3 isn't configured, the attachment
+// isn't stored in S3 (e.g. NATS), or no S3 key can be found (in any of
+// which cases the caller should fall back to GetAttachmentReader).
+//
+// When `Storage` is nil, falls back to stat-probing known S3 key
+// layouts. See `GetAttachmentReader` for why this exists.
 //
 // Authorization is the caller's responsibility.
 func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
-	if attachment == nil || attachment.Storage == nil {
-		return "", fmt.Errorf("attachment has no storage info")
+	if attachment == nil {
+		return "", fmt.Errorf("attachment is nil")
+	}
+	if attachment.Storage == nil {
+		return c.probePresignedAttachmentURL(ctx, attachment.Id)
 	}
 	s3, ok := attachment.Storage.Asset.(*corev1.Asset_S3)
 	if !ok {
@@ -378,6 +433,23 @@ func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 	return presignedURL.String(), nil
+}
+
+// probePresignedAttachmentURL is the fallback when an Attachment's
+// `Storage` field isn't populated and the binary might live in S3.
+// Stats the known key layouts; presigns the first hit.
+func (c *ChattoCore) probePresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
+	for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
+		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
+			continue
+		}
+		presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, time.Hour)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+		}
+		return presignedURL.String(), nil
+	}
+	return "", fmt.Errorf("attachment %s not found in S3", attachmentID)
 }
 
 // AttachmentSignResource is the first resource component fed to the

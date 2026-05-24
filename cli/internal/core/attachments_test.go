@@ -341,6 +341,75 @@ func bodyLocator(t *testing.T) signedurl.AttachmentLocator {
 	}
 }
 
+// TestGetAttachmentReader_ProbesWhenStorageMissing covers the
+// fallback path GetAttachmentReader takes when handed an Attachment
+// whose `Storage` field is nil — the situation produced by
+// BackfillAttachmentLocatorData copying minimal pre-locator standalone
+// records into VideoProcessingState entries.
+func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
+	t.Run("falls back to NATS by attachment ID", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
+		attachment, err := core.UploadAttachment(ctx, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("nats-binary")))
+		if err != nil {
+			t.Fatalf("UploadAttachment: %v", err)
+		}
+
+		// Pre-locator migration would have produced this shape:
+		// Id + RoomId but no Storage. Verify GetAttachmentReader
+		// can still find the binary by probing.
+		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+		reader, info, err := core.GetAttachmentReader(ctx, minimal)
+		if err != nil {
+			t.Fatalf("GetAttachmentReader with Storage-less attachment: %v", err)
+		}
+		data, _ := io.ReadAll(reader)
+		if string(data) != "nats-binary" {
+			t.Errorf("expected 'nats-binary', got %q", data)
+		}
+		if info.ContentType != "text/plain" {
+			t.Errorf("expected content type 'text/plain', got %q", info.ContentType)
+		}
+	})
+
+	t.Run("falls back to S3 across known layouts", func(t *testing.T) {
+		core, _, _ := setupTestCoreWithS3(t)
+		ctx := testContext(t)
+
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
+		attachment, err := core.UploadAttachment(ctx, room.Id, "y.txt", "text/plain", bytes.NewReader([]byte("s3-binary")))
+		if err != nil {
+			t.Fatalf("UploadAttachment: %v", err)
+		}
+
+		// Same shape as above but the binary now lives in S3.
+		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+		reader, _, err := core.GetAttachmentReader(ctx, minimal)
+		if err != nil {
+			t.Fatalf("GetAttachmentReader with Storage-less S3 attachment: %v", err)
+		}
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+		data, _ := io.ReadAll(reader)
+		if string(data) != "s3-binary" {
+			t.Errorf("expected 's3-binary', got %q", data)
+		}
+	})
+
+	t.Run("returns error when binary is nowhere", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		minimal := &corev1.Attachment{Id: "Aghost", RoomId: "Rghost"}
+		if _, _, err := core.GetAttachmentReader(ctx, minimal); err == nil {
+			t.Error("expected error for missing binary, got nil")
+		}
+	})
+}
+
 func TestChattoCore_GetAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
