@@ -95,7 +95,6 @@ type ComplexityRoot struct {
 
 	AdminMutations struct {
 		ClearUsernameCooldown func(childComplexity int, input model.ClearUsernameCooldownInput) int
-		ResetServerConfig     func(childComplexity int) int
 		UpdateServerConfig    func(childComplexity int, input model.UpdateServerConfigInput) int
 		UpdateUser            func(childComplexity int, input model.AdminUpdateUserInput) int
 	}
@@ -815,7 +814,6 @@ type ComplexityRoot struct {
 
 type AdminMutationsResolver interface {
 	UpdateServerConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateServerConfigInput) (*model.AdminServerConfig, error)
-	ResetServerConfig(ctx context.Context, obj *model.AdminMutations) (bool, error)
 	UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error)
 	ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, input model.ClearUsernameCooldownInput) (bool, error)
 }
@@ -1190,12 +1188,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminMutations.ClearUsernameCooldown(childComplexity, args["input"].(model.ClearUsernameCooldownInput)), true
-	case "AdminMutations.resetServerConfig":
-		if e.complexity.AdminMutations.ResetServerConfig == nil {
-			break
-		}
-
-		return e.complexity.AdminMutations.ResetServerConfig(childComplexity), true
 	case "AdminMutations.updateServerConfig":
 		if e.complexity.AdminMutations.UpdateServerConfig == nil {
 			break
@@ -6188,35 +6180,6 @@ func (ec *executionContext) fieldContext_AdminMutations_updateServerConfig(ctx c
 	if fc.Args, err = ec.field_AdminMutations_updateServerConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminMutations_resetServerConfig(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminMutations_resetServerConfig,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.AdminMutations().ResetServerConfig(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminMutations_resetServerConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminMutations",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
 	}
 	return fc, nil
 }
@@ -11342,8 +11305,6 @@ func (ec *executionContext) fieldContext_Mutation_admin(_ context.Context, field
 			switch field.Name {
 			case "updateServerConfig":
 				return ec.fieldContext_AdminMutations_updateServerConfig(ctx, field)
-			case "resetServerConfig":
-				return ec.fieldContext_AdminMutations_resetServerConfig(ctx, field)
 			case "updateUser":
 				return ec.fieldContext_AdminMutations_updateUser(ctx, field)
 			case "clearUsernameCooldown":
@@ -27583,42 +27544,6 @@ func (ec *executionContext) _AdminMutations(ctx context.Context, sel ast.Selecti
 					}
 				}()
 				res = ec._AdminMutations_updateServerConfig(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "resetServerConfig":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminMutations_resetServerConfig(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

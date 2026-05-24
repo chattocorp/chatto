@@ -521,19 +521,9 @@ test.describe('Role Assignment', () => {
 // Deny-role behaviour is exercised by the other admin permission tests.
 
 test.describe('Instance Settings', () => {
-  // Reset instance config after each test to prevent test pollution
-  test.afterEach(async ({ page }) => {
-    try {
-      await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation { admin { resetServerConfig } }`
-        }
-      });
-    } catch {
-      // Ignore errors - may not be logged in or admin
-    }
-  });
+  // No per-test cleanup needed: every e2e test spawns its own isolated
+  // chatto instance (see frontend/e2e/fixtures/server.ts), so state
+  // never leaks between tests.
 
   test('admin can access instance settings page', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
@@ -610,11 +600,6 @@ test.describe('Instance Settings', () => {
     // The markdown should render **Chatto** as bold
     await expect(page.getByTestId('motd-content').locator('strong')).toHaveText('Chatto');
   });
-
-  // The "reset to defaults" UI was removed from /server-admin/general; the
-  // admin.resetServerConfig mutation still exists for API callers but isn't
-  // surfaced in the admin panel. Restore an end-to-end test here only if/when
-  // the UI is brought back.
 
   test('instance config changes update other connected clients in real-time', async ({
     page,

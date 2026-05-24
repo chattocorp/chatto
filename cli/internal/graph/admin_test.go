@@ -159,65 +159,6 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// ResetServerConfig Defense-in-Depth Tests
-// ============================================================================
-
-func TestResetServerConfig_Authorization(t *testing.T) {
-	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
-
-	t.Run("admin can reset server config", func(t *testing.T) {
-		// First set some config
-		adminMutations, err := env.resolver.Mutation().Admin(env.authContext())
-		if err != nil {
-			t.Fatalf("failed to get admin mutations: %v", err)
-		}
-		adminMutResolver := env.resolver.AdminMutations()
-		welcomeMsg := "Custom welcome"
-		_, err = adminMutResolver.UpdateServerConfig(env.authContext(), adminMutations, model.UpdateServerConfigInput{
-			WelcomeMessage: &welcomeMsg,
-		})
-		if err != nil {
-			t.Fatalf("failed to set config: %v", err)
-		}
-
-		// Now reset it
-		success, err := adminMutResolver.ResetServerConfig(env.authContext(), adminMutations)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if !success {
-			t.Error("expected success=true")
-		}
-	})
-
-	t.Run("non-admin calling ResetServerConfig directly gets permission denied", func(t *testing.T) {
-		// Create a non-admin user
-		regularUser := env.createVerifiedUser(t, "regular-reset", "Regular User", "password123")
-
-		// Try to call ResetServerConfig directly (bypassing parent resolver)
-		adminMutResolver := env.resolver.AdminMutations()
-		_, err := adminMutResolver.ResetServerConfig(
-			env.authContextForUser(regularUser),
-			&model.AdminMutations{},
-		)
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied, got %v", err)
-		}
-	})
-
-	t.Run("unauthenticated user calling ResetServerConfig gets not authenticated", func(t *testing.T) {
-		adminMutResolver := env.resolver.AdminMutations()
-		_, err := adminMutResolver.ResetServerConfig(
-			env.unauthContext(),
-			&model.AdminMutations{},
-		)
-		if !errors.Is(err, core.ErrNotAuthenticated) {
-			t.Errorf("expected ErrNotAuthenticated, got %v", err)
-		}
-	})
-}
-
-// ============================================================================
 // AdminMutations.UpdateUser / ClearUsernameCooldown Tests
 // ============================================================================
 

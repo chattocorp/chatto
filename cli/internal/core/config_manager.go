@@ -119,37 +119,6 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 	return updated, nil
 }
 
-// ResetServerConfig clears the server configuration back to system
-// defaults. Publishes a ServerConfigClearedEvent (NOT a
-// ServerConfigChangedEvent with an empty payload — see the proto
-// comment on ServerConfigClearedEvent for why those are semantically
-// different) and deletes the legacy KV entry.
-func (cm *ConfigManager) ResetServerConfig(ctx context.Context, actorID string) error {
-	if cm.publisher == nil || cm.projector == nil {
-		return fmt.Errorf("config manager: event publisher/projector not configured")
-	}
-
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_ServerConfigCleared{
-			ServerConfigCleared: &corev1.ServerConfigClearedEvent{},
-		},
-	})
-
-	seq, err := cm.publisher.Append(ctx, events.ConfigAggregate().Subject(), event)
-	if err != nil {
-		return fmt.Errorf("publish ServerConfigClearedEvent: %w", err)
-	}
-
-	if err := cm.kv.Delete(ctx, configKeyInstance); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to reset legacy server config KV: %w", err)
-	}
-
-	if err := cm.projector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for projection: %w", err)
-	}
-	return nil
-}
-
 // publishAndMirror is the shared dual-write core. Publishes a
 // ServerConfigChangedEvent (Append handles OCC + retries), mirrors to
 // INSTANCE_CONFIG KV, then WaitForSeq so the caller's next projection

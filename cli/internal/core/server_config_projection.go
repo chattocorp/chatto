@@ -38,42 +38,30 @@ func (p *ServerConfigProjection) Subjects() []string {
 	return []string{events.ConfigSubjectFilter()}
 }
 
-// Apply implements events.Projection.
-//
-// ServerConfigChangedEvent replaces the held snapshot atomically and
-// flips seen to true.
-//
-// ServerConfigClearedEvent returns the projection to its cold state:
-// no held snapshot, seen=false. The semantic match for an operator
-// pressing "Reset to defaults" — effective accessors fall back to the
-// same defaults that apply on a fresh deployment.
-//
-// Other event types under evt.config.> are ignored
-// (forward-compatibility — future granular events can land on the
-// same subject namespace without breaking older projections).
+// Apply implements events.Projection. ServerConfigChangedEvent replaces
+// the held snapshot atomically and flips seen to true. Other event
+// types under evt.config.> are ignored (forward-compatibility — future
+// granular events can land on the same subject namespace without
+// breaking older projections).
 func (p *ServerConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
-	switch e := event.GetEvent().(type) {
-	case *corev1.Event_ServerConfigChanged:
-		incoming := e.ServerConfigChanged.GetConfig()
-		// Clone the incoming proto so callers reading via accessors
-		// can't observe state changing under them mid-read.
-		var snapshot *configv1.ServerConfig
-		if incoming != nil {
-			snapshot = proto.Clone(incoming).(*configv1.ServerConfig)
-		}
-		p.mu.Lock()
-		p.cfg = snapshot
-		p.seen = true
-		p.mu.Unlock()
-	case *corev1.Event_ServerConfigCleared:
-		p.mu.Lock()
-		p.cfg = nil
-		p.seen = false
-		p.mu.Unlock()
+	change, ok := event.GetEvent().(*corev1.Event_ServerConfigChanged)
+	if !ok {
+		return nil
 	}
+	incoming := change.ServerConfigChanged.GetConfig()
+	// Clone the incoming proto so callers reading via accessors can't
+	// observe state changing under them mid-read.
+	var snapshot *configv1.ServerConfig
+	if incoming != nil {
+		snapshot = proto.Clone(incoming).(*configv1.ServerConfig)
+	}
+	p.mu.Lock()
+	p.cfg = snapshot
+	p.seen = true
+	p.mu.Unlock()
 	return nil
 }
 

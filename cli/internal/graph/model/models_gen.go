@@ -64,8 +64,6 @@ type AddReactionInput struct {
 type AdminMutations struct {
 	// Update server configuration. Returns the updated config section.
 	UpdateServerConfig *AdminServerConfig `json:"updateServerConfig"`
-	// Reset server configuration to defaults. Returns true on success.
-	ResetServerConfig bool `json:"resetServerConfig"`
 	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
 	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.

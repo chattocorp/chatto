@@ -86,39 +86,6 @@ func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *mo
 	return serverConfigToModel(cfg, true), nil
 }
 
-// ResetServerConfig is the resolver for the resetServerConfig field.
-func (r *adminMutationsResolver) ResetServerConfig(ctx context.Context, obj *model.AdminMutations) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, core.ErrNotAuthenticated
-	}
-
-	// Reset wipes the same state UpdateServerConfig writes — gate it on
-	// the same permission, `server.manage`. See UpdateServerConfig for
-	// the rationale.
-	canManage, err := r.core.CanManageServer(ctx, user.Id)
-	if err != nil {
-		return false, fmt.Errorf("failed to check server.manage permission: %w", err)
-	}
-	if !canManage {
-		return false, core.ErrPermissionDenied
-	}
-
-	configMgr := r.core.ConfigManager()
-
-	if err := configMgr.ResetServerConfig(ctx, user.Id); err != nil {
-		return false, fmt.Errorf("failed to reset server config: %w", err)
-	}
-
-	// Publish live event with default values to notify all connected clients
-	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, "Chatto", "", "", core.DefaultBlockedUsernames); err != nil {
-		// Log the error but don't fail the mutation - config was reset successfully
-		r.logger.Warn("Failed to publish server config reset event", "error", err)
-	}
-
-	return true, nil
-}
-
 // UpdateUser is the resolver for the updateUser field.
 func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error) {
 	user := auth.ForContext(ctx)
