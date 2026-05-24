@@ -365,8 +365,9 @@ The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events; republishes onto `live.server.>` |
-| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` (NATS Core) — also the unified subscription root for republished stream events |
+| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events for the legacy CRUD+log pattern; republishes onto `live.server.>` |
+| `SERVER_EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}`; republishes onto `live.evt.>`. Currently fed by per-aggregate migrations ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); the room-membership aggregate is the first migrated. |
+| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` (NATS Core, fed by `SERVER_EVENTS` republish + direct publishes) and `live.evt.>` (fed by `SERVER_EVT` republish). The two roots coexist during the migration window. |
 
 **SERVER\_EVENTS subjects:**
 
