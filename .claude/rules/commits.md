@@ -2,6 +2,7 @@
 
 - Use conventional commits with a clear, descriptive message.
 - Use the commit description for a bullet list of changes made.
+- **Avoid `parens(in)` inside backtick code spans** in commit bodies (and squash-merge PR descriptions, which become the body). release-please's conventional-commits parser is markdown-unaware: a `` `func(...)` `` or `` `foo(bar)` `` inside a code span trips its state machine and the whole commit is silently dropped from version-bump consideration *and* the changelog (real example: PR #582 was missed because its body had `` `time.AfterFunc(5*time.Second, func() { ... })` ``). Rephrase to use a quoted string, a fenced code block, or natural prose without nested parens — anything that doesn't put `(` … `)` between backticks.
 
 # Creating Pull Requests
 
