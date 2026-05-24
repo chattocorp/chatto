@@ -12,10 +12,12 @@ builds:
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
     ldflags:
       - -s -w
 
@@ -29,10 +31,6 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        formats: [zip]
 
 changelog:
   # release-please now owns the changelog (CHANGELOG.md + the GitHub
