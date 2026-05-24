@@ -341,6 +341,10 @@ func bodyLocator(t *testing.T) signedurl.AttachmentLocator {
 	}
 }
 
+// testUserID is the caller's user ID baked into URL signatures by
+// GetAttachmentURL / GetTransformedAttachmentURL.
+const testUserID = "Uviewer"
+
 // TestGetAttachmentReader_ProbesWhenStorageMissing covers the
 // fallback path GetAttachmentReader takes when handed an Attachment
 // whose `Storage` field is nil — the situation produced by
@@ -414,7 +418,7 @@ func TestChattoCore_GetAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	t.Run("generate basic attachment URL", func(t *testing.T) {
-		url := core.GetAttachmentURL(bodyLocator(t))
+		url := core.GetAttachmentURL(bodyLocator(t), testUserID)
 		if !bytes.HasPrefix([]byte(url), []byte("/assets/attachments/")) {
 			t.Errorf("Expected URL prefix '/assets/attachments/', got '%s'", url)
 		}
@@ -425,21 +429,19 @@ func TestChattoCore_GetAttachmentURL(t *testing.T) {
 		}
 	})
 
-	t.Run("URL embeds the locator deterministically", func(t *testing.T) {
-		loc := bodyLocator(t)
-		url1 := core.GetAttachmentURL(loc)
-		url2 := core.GetAttachmentURL(loc)
-		if url1 != url2 {
-			t.Errorf("URL generation is not deterministic: %s vs %s", url1, url2)
-		}
-	})
-
 	t.Run("different attachments produce different URLs", func(t *testing.T) {
 		a := bodyLocator(t)
 		b := a
 		b.AttachmentID = "different-attachment"
-		if core.GetAttachmentURL(a) == core.GetAttachmentURL(b) {
+		if core.GetAttachmentURL(a, testUserID) == core.GetAttachmentURL(b, testUserID) {
 			t.Error("Different attachment IDs should produce different URLs")
+		}
+	})
+
+	t.Run("different users produce different URLs", func(t *testing.T) {
+		loc := bodyLocator(t)
+		if core.GetAttachmentURL(loc, "UviewerA") == core.GetAttachmentURL(loc, "UviewerB") {
+			t.Error("Different users should produce different signed URLs")
 		}
 	})
 }
@@ -448,7 +450,7 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	t.Run("generate transform URL with dimensions", func(t *testing.T) {
-		url := core.GetTransformedAttachmentURL(bodyLocator(t), 200, 150, "contain")
+		url := core.GetTransformedAttachmentURL(bodyLocator(t), testUserID, 200, 150, "contain")
 		if !bytes.Contains([]byte(url), []byte("/t/")) {
 			t.Errorf("URL missing transform path component: %s", url)
 		}
@@ -456,8 +458,8 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 
 	t.Run("different dimensions produce different URLs", func(t *testing.T) {
 		loc := bodyLocator(t)
-		url1 := core.GetTransformedAttachmentURL(loc, 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL(loc, 400, 300, "contain")
+		url1 := core.GetTransformedAttachmentURL(loc, testUserID, 200, 150, "contain")
+		url2 := core.GetTransformedAttachmentURL(loc, testUserID, 400, 300, "contain")
 		if url1 == url2 {
 			t.Error("Different dimensions should produce different URLs")
 		}
@@ -465,8 +467,8 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 
 	t.Run("different fit modes produce different URLs", func(t *testing.T) {
 		loc := bodyLocator(t)
-		url1 := core.GetTransformedAttachmentURL(loc, 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL(loc, 200, 150, "cover")
+		url1 := core.GetTransformedAttachmentURL(loc, testUserID, 200, 150, "contain")
+		url2 := core.GetTransformedAttachmentURL(loc, testUserID, 200, 150, "cover")
 		if url1 == url2 {
 			t.Error("Different fit modes should produce different URLs")
 		}
@@ -482,7 +484,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 	t.Run("GetAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url := core.GetAttachmentURL(bodyLocator(t))
+		url := core.GetAttachmentURL(bodyLocator(t), testUserID)
 		if !bytes.HasPrefix([]byte(url), []byte("/assets/attachments/")) {
 			t.Errorf("Expected relative URL, got '%s'", url)
 		}
@@ -492,7 +494,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetAttachmentURL(bodyLocator(t))
+		url := core.GetAttachmentURL(bodyLocator(t), testUserID)
 
 		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
@@ -503,7 +505,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetTransformedAttachmentURL(bodyLocator(t), 200, 150, "contain")
+		url := core.GetTransformedAttachmentURL(bodyLocator(t), testUserID, 200, 150, "contain")
 
 		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
@@ -591,7 +593,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 		RoomID:       attachment.RoomId,
 		BodyKey:      "U.E", // placeholder; URL signing doesn't validate body existence
 		AttachmentID: attachment.Id,
-	})
+	}, testUserID)
 	if url == "" {
 		t.Error("URL generation failed")
 	}
@@ -1130,6 +1132,8 @@ func TestLookupAttachment_BodyDispatch(t *testing.T) {
 		RoomID:       room.Id,
 		BodyKey:      event.GetMessagePosted().MessageBodyId,
 		AttachmentID: attachment.Id,
+		UserID:       user.Id,
+		ExpiresAt:    1,
 	}
 	got, err := core.LookupAttachment(ctx, loc)
 	if err != nil {

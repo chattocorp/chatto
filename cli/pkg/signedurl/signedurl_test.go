@@ -2,6 +2,7 @@ package signedurl_test
 
 import (
 	"testing"
+	"time"
 
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -178,6 +179,7 @@ func TestParseSignedTransformPath_ValidBoundaries(t *testing.T) {
 
 func TestSignedAttachmentLocator_RoundTrip(t *testing.T) {
 	secret := "test-secret-key-1234567890"
+	exp := time.Now().Add(time.Hour).Unix()
 
 	tests := []struct {
 		name string
@@ -187,12 +189,14 @@ func TestSignedAttachmentLocator_RoundTrip(t *testing.T) {
 			name: "body attachment",
 			loc: signedurl.AttachmentLocator{
 				RoomID: "Rabc", BodyKey: "Uxyz.E123", AttachmentID: "Aqwe",
+				UserID: "Uviewer", ExpiresAt: exp,
 			},
 		},
 		{
 			name: "video variant",
 			loc: signedurl.AttachmentLocator{
 				RoomID: "Rabc", VideoOrigin: "Aorigvid", AttachmentID: "Avariant",
+				UserID: "Uviewer", ExpiresAt: exp,
 			},
 		},
 	}
@@ -216,15 +220,18 @@ func TestSignedAttachmentLocator_RoundTrip(t *testing.T) {
 
 func TestSignedAttachmentLocator_InvalidLocator(t *testing.T) {
 	secret := "test-secret"
+	exp := time.Now().Add(time.Hour).Unix()
 
 	tests := []struct {
 		name string
 		loc  signedurl.AttachmentLocator
 	}{
-		{"missing room", signedurl.AttachmentLocator{BodyKey: "U.E", AttachmentID: "A"}},
-		{"missing attachment", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E"}},
-		{"missing source", signedurl.AttachmentLocator{RoomID: "R", AttachmentID: "A"}},
-		{"both sources", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", VideoOrigin: "Av", AttachmentID: "A"}},
+		{"missing room", signedurl.AttachmentLocator{BodyKey: "U.E", AttachmentID: "A", UserID: "U", ExpiresAt: exp}},
+		{"missing attachment", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", UserID: "U", ExpiresAt: exp}},
+		{"missing source", signedurl.AttachmentLocator{RoomID: "R", AttachmentID: "A", UserID: "U", ExpiresAt: exp}},
+		{"both sources", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", VideoOrigin: "Av", AttachmentID: "A", UserID: "U", ExpiresAt: exp}},
+		{"missing user", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A", ExpiresAt: exp}},
+		{"missing expiry", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A", UserID: "U"}},
 	}
 
 	for _, tt := range tests {
@@ -238,7 +245,7 @@ func TestSignedAttachmentLocator_InvalidLocator(t *testing.T) {
 
 func TestParseSignedAttachmentLocator_InvalidSignature(t *testing.T) {
 	secret := "test-secret"
-	loc := signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A"}
+	loc := signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A", UserID: "U", ExpiresAt: time.Now().Add(time.Hour).Unix()}
 
 	signed, err := signedurl.SignedAttachmentLocator(secret, loc)
 	if err != nil {
@@ -259,6 +266,19 @@ func TestParseSignedAttachmentLocator_InvalidSignature(t *testing.T) {
 	tampered2 := "QQ" + signed[2:]
 	if _, err := signedurl.ParseSignedAttachmentLocator(secret, tampered2); err == nil {
 		t.Error("expected error with tampered payload")
+	}
+}
+
+func TestAttachmentLocator_Expired(t *testing.T) {
+	loc := signedurl.AttachmentLocator{ExpiresAt: 1000}
+	if loc.Expired(999) {
+		t.Error("expected not expired one second before deadline")
+	}
+	if !loc.Expired(1000) {
+		t.Error("expected expired at deadline")
+	}
+	if !loc.Expired(1001) {
+		t.Error("expected expired after deadline")
 	}
 }
 

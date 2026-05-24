@@ -27,13 +27,15 @@ func (r *attachmentResolver) Size(ctx context.Context, obj *corev1.Attachment) (
 // Emits a signed locator URL the HTTP handler can verify and serve from
 // directly. The attachment's `MessageBodyId` is required (populated
 // either at PostMessage time or on-read by messagePostedEventResolver).
+// The URL is signed for the calling user — see core.GetAttachmentURL.
 func (r *attachmentResolver) URL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (string, error) {
+	userID := callerID(ctx)
 	loc := core.LocatorForBodyAttachment(obj, "")
 	if width != nil && height != nil && fit != nil {
 		fitLower := strings.ToLower(string(*fit))
-		return r.core.GetTransformedAttachmentURL(loc, int(*width), int(*height), fitLower), nil
+		return r.core.GetTransformedAttachmentURL(loc, userID, int(*width), int(*height), fitLower), nil
 	}
-	return r.core.GetAttachmentURL(loc), nil
+	return r.core.GetAttachmentURL(loc, userID), nil
 }
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
@@ -43,10 +45,20 @@ func (r *attachmentResolver) ThumbnailURL(ctx context.Context, obj *corev1.Attac
 	if width != nil && height != nil && fit != nil {
 		fitLower := strings.ToLower(string(*fit))
 		loc := core.LocatorForBodyAttachment(obj, "")
-		url := r.core.GetTransformedAttachmentURL(loc, int(*width), int(*height), fitLower)
+		url := r.core.GetTransformedAttachmentURL(loc, callerID(ctx), int(*width), int(*height), fitLower)
 		return &url, nil
 	}
 	return nil, nil
+}
+
+// callerID returns the authenticated user's ID from the GraphQL
+// context, or "" if no user is attached. Used by attachment URL
+// resolvers to bake the caller's identity into the signed URL.
+func callerID(ctx context.Context) string {
+	if u := auth.ForContext(ctx); u != nil {
+		return u.Id
+	}
+	return ""
 }
 
 // VideoProcessing is the resolver for the videoProcessing field.
@@ -544,7 +556,7 @@ func (r *videoProcessingResolver) ThumbnailURL(ctx context.Context, obj *model.V
 		return nil, nil
 	}
 	loc := core.LocatorForVideoOriginAttachment(obj.RoomID, obj.OriginAttachmentID, obj.ThumbnailAttachmentID)
-	url := r.core.GetAttachmentURL(loc)
+	url := r.core.GetAttachmentURL(loc, callerID(ctx))
 	return &url, nil
 }
 
@@ -561,7 +573,7 @@ func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Conte
 // URL is the resolver for the url field.
 func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant) (string, error) {
 	loc := core.LocatorForVideoOriginAttachment(obj.RoomID, obj.OriginAttachmentID, obj.AttachmentID)
-	return r.core.GetAttachmentURL(loc), nil
+	return r.core.GetAttachmentURL(loc, callerID(ctx)), nil
 }
 
 // Attachment returns AttachmentResolver implementation.

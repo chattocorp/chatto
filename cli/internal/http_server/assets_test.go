@@ -14,6 +14,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/textproto"
+	"strings"
 	"testing"
 	"time"
 
@@ -718,17 +719,19 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	}
 }
 
-func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
+// TestAsset_SignedURLIsCapability documents the post-cross-origin-fix
+// behavior: the signed locator URL is the capability. A client that
+// holds the URL (regardless of cookies/headers) can fetch the
+// attachment as long as the signed user is still a member of the room
+// and the deadline hasn't passed. This is what lets <img> tags on a
+// remote-server SPA load attachments cross-origin — neither cookies
+// nor Authorization headers reach the asset endpoint in that flow.
+func TestAsset_SignedURLIsCapability(t *testing.T) {
 	env := setupAssetTestServer(t)
 
-	// Create user and space with room
 	user, err := env.core.CreateUser(env.ctx, "system", "authuser", "Auth User", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
-	}
-
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
 	}
 
 	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "testroom", "Test Room")
@@ -736,15 +739,12 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	// Join room
 	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
-	// Login to upload
 	env.login(t, "authuser", "password123")
 
-	// Upload an attachment
 	imageData := createAssetTestPNG(t, 400, 300)
 	operations := fmt.Sprintf(`{
 		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
@@ -772,40 +772,46 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 
 	attachment := data.PostMessage.Event.Attachments[0]
 
-	// Create a new client without cookies (unauthenticated)
+	// A no-cookie / no-header client holding the signed URL should be able
+	// to fetch the binary — this is the cross-origin <img> case.
 	unauthClient := &http.Client{}
 
-	// Try to access original attachment - should be denied
 	originalResp, err := unauthClient.Get(env.server.URL + attachment.URL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	originalResp.Body.Close()
-
-	if originalResp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("Expected 401 Unauthorized for unauthenticated access, got %d", originalResp.StatusCode)
+	if originalResp.StatusCode != http.StatusOK {
+		t.Errorf("Signed URL should authorize itself; got status %d", originalResp.StatusCode)
 	}
 
-	// Try to access transformed attachment - should also be denied
 	transformResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	transformResp.Body.Close()
+	if transformResp.StatusCode != http.StatusOK {
+		t.Errorf("Signed transform URL should authorize itself; got status %d", transformResp.StatusCode)
+	}
 
-	if transformResp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("Expected 401 Unauthorized for unauthenticated transform access, got %d", transformResp.StatusCode)
+	// A tampered locator must still fail.
+	tampered := strings.TrimSuffix(attachment.URL, "X") + "z"
+	tamperedResp, err := unauthClient.Get(env.server.URL + tampered)
+	if err != nil {
+		t.Fatalf("Failed to make request: %v", err)
+	}
+	tamperedResp.Body.Close()
+	if tamperedResp.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected 403 for tampered locator, got %d", tamperedResp.StatusCode)
 	}
 }
 
-// TestAsset_UnauthenticatedAccess_DeniedOnS3 exercises the S3 presigned
-// redirect path of /assets/attachments/{id}. Previously, this path used a
-// `roomID == "" → allow` shortcut because the room ID couldn't be
-// recovered from S3 metadata, which let unauthenticated browser tabs
-// download any attachment whose ID they knew. The fix stamps the room
-// ID onto the S3 object at upload time and pulls it back via Stat so the
-// regular auth path runs.
-func TestAsset_UnauthenticatedAccess_DeniedOnS3(t *testing.T) {
+// TestAsset_SignedURLOnS3IsCapability is the S3-backend counterpart to
+// TestAsset_SignedURLIsCapability — verifies the signed URL is the
+// capability for S3-stored attachments too. The handler redirects to a
+// presigned S3 URL once the signed locator's claims (signature + expiry
+// + current membership) pass.
+func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 	env := setupAssetTestServerWithS3(t)
 
 	user, err := env.core.CreateUser(env.ctx, "system", "s3authuser", "S3 Auth User", "password123")
@@ -851,8 +857,7 @@ func TestAsset_UnauthenticatedAccess_DeniedOnS3(t *testing.T) {
 	}
 	attachment := data.PostMessage.Event.Attachments[0]
 
-	// Anonymous client — the bug was that this would happily redirect to
-	// a presigned S3 URL despite no session.
+	// Anonymous client — the signed URL alone should be enough to fetch.
 	unauthClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -864,8 +869,10 @@ func TestAsset_UnauthenticatedAccess_DeniedOnS3(t *testing.T) {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	originalResp.Body.Close()
-	if originalResp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("S3 attachment URL: expected 401 for unauthenticated request, got %d", originalResp.StatusCode)
+	// Either a direct 200 (NATS) or a 302 redirect to presigned S3 — both prove
+	// the signed locator was accepted.
+	if originalResp.StatusCode != http.StatusOK && originalResp.StatusCode != http.StatusFound {
+		t.Errorf("S3 attachment URL: expected 200 or 302 with signed URL, got %d", originalResp.StatusCode)
 	}
 
 	transformResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
@@ -873,23 +880,22 @@ func TestAsset_UnauthenticatedAccess_DeniedOnS3(t *testing.T) {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	transformResp.Body.Close()
-	if transformResp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("S3 transform URL: expected 401 for unauthenticated request, got %d", transformResp.StatusCode)
+	if transformResp.StatusCode != http.StatusOK {
+		t.Errorf("S3 transform URL: expected 200 with signed URL, got %d", transformResp.StatusCode)
 	}
 }
 
-// TestAsset_NonMemberAccess_DeniedOnS3 verifies that the S3 presigned
-// path correctly resolves the attachment's room ID and rejects an
-// authenticated user who is not a member of the room.
-func TestAsset_NonMemberAccess_DeniedOnS3(t *testing.T) {
+// TestAsset_RevokedMembership_RevokesSignedURL covers the "kick / leave"
+// path under the per-user signed URL model. The URL is signed for user
+// X; once X is removed from the room (or leaves), the handler's
+// membership re-check fails and the URL stops working — even though
+// the signature itself is still valid.
+func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 	env := setupAssetTestServerWithS3(t)
 
 	owner, err := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)
-	}
-	if _, err := env.core.CreateUser(env.ctx, "system", "outsider", "Outsider", "password123"); err != nil {
-		t.Fatalf("Failed to create outsider: %v", err)
 	}
 	room, err := env.core.CreateRoom(env.ctx, owner.Id, "channel", "", "private-room", "Private Room")
 	if err != nil {
@@ -899,7 +905,6 @@ func TestAsset_NonMemberAccess_DeniedOnS3(t *testing.T) {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
-	// Owner uploads.
 	env.login(t, "owner", "password123")
 	imageData := createAssetTestPNG(t, 400, 300)
 	operations := fmt.Sprintf(`{
@@ -927,25 +932,33 @@ func TestAsset_NonMemberAccess_DeniedOnS3(t *testing.T) {
 	}
 	attachmentURL := data.PostMessage.Event.Attachments[0].URL
 
-	// Log the owner out and have the outsider try to access.
-	outsiderJar, _ := cookiejar.New(nil)
-	outsiderClient := &http.Client{
-		Jar: outsiderJar,
+	// Sanity check: owner can fetch their own URL (cookie not required —
+	// the signed URL is the capability).
+	plainClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	loginBody := `{"login":"outsider","password":"password123"}`
-	if _, err := outsiderClient.Post(env.server.URL+"/auth/login", "application/json", bytes.NewReader([]byte(loginBody))); err != nil {
-		t.Fatalf("outsider login: %v", err)
-	}
-
-	r, err := outsiderClient.Get(env.server.URL + attachmentURL)
+	r, err := plainClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
-		t.Fatalf("outsider GET: %v", err)
+		t.Fatalf("pre-leave GET: %v", err)
 	}
 	r.Body.Close()
-	if r.StatusCode != http.StatusForbidden {
-		t.Errorf("expected 403 for outsider, got %d", r.StatusCode)
+	if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusFound {
+		t.Fatalf("expected signed URL to work pre-leave, got %d", r.StatusCode)
+	}
+
+	// Owner leaves the room → their signed URL should stop working.
+	if err := env.core.LeaveRoom(env.ctx, owner.Id, "channel", owner.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+
+	r2, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("post-leave GET: %v", err)
+	}
+	r2.Body.Close()
+	if r2.StatusCode != http.StatusForbidden {
+		t.Errorf("expected 403 after signed user left the room, got %d", r2.StatusCode)
 	}
 }
