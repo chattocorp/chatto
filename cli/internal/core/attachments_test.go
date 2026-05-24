@@ -15,6 +15,8 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 // createTestPNG creates a simple PNG image for testing
@@ -236,8 +238,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		}
 
 		// Delete it
-		err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
-		if err != nil {
+		if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 			t.Fatalf("Failed to delete attachment: %v", err)
 		}
 
@@ -249,10 +250,15 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	})
 
 	t.Run("delete non-existent attachment", func(t *testing.T) {
-		err := core.DeleteAttachment(ctx, ServerSpaceID, "nonexistent-attachment-id")
+		ghost := &corev1.Attachment{
+			Id:     "nonexistent-attachment-id",
+			RoomId: room.Id,
+			Storage: &corev1.Asset{
+				Asset: &corev1.Asset_Nats{Nats: &corev1.NATSAsset{Key: "nonexistent-attachment-id"}},
+			},
+		}
 		// Deletion of non-existent item may or may not error depending on implementation
-		// This test documents the current behavior
-		if err != nil {
+		if err := core.DeleteAttachmentFromStorage(ctx, ghost); err != nil {
 			t.Logf("Delete non-existent returned error (acceptable): %v", err)
 		}
 	})
@@ -331,15 +337,45 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 // Attachment URL Generation Tests
 // ============================================================================
 
+func bodyLocator(t *testing.T) signedurl.AttachmentLocator {
+	t.Helper()
+	return signedurl.AttachmentLocator{
+		RoomID:       "Rabc",
+		BodyKey:      "Uauthor.E1234",
+		AttachmentID: "attachment456",
+	}
+}
+
 func TestChattoCore_GetAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	t.Run("generate basic attachment URL", func(t *testing.T) {
-		url := core.GetAttachmentURL("attachment456")
+		url := core.GetAttachmentURL(bodyLocator(t))
+		if !bytes.HasPrefix([]byte(url), []byte("/assets/attachments/")) {
+			t.Errorf("Expected URL prefix '/assets/attachments/', got '%s'", url)
+		}
+		// Locator is a base64-encoded JSON blob plus a dot-separated
+		// signature — at minimum a few dozen characters.
+		if len(url) < len("/assets/attachments/")+20 {
+			t.Errorf("URL suspiciously short, missing signed locator: %s", url)
+		}
+	})
 
-		expected := "/assets/attachments/attachment456"
-		if url != expected {
-			t.Errorf("Expected URL '%s', got '%s'", expected, url)
+	t.Run("URL embeds the locator deterministically", func(t *testing.T) {
+		loc := bodyLocator(t)
+		url1 := core.GetAttachmentURL(loc)
+		url2 := core.GetAttachmentURL(loc)
+		if url1 != url2 {
+			t.Errorf("URL generation is not deterministic: %s vs %s", url1, url2)
+		}
+	})
+
+	t.Run("different attachments produce different URLs", func(t *testing.T) {
+		a := bodyLocator(t)
+		b := a
+		b.AttachmentID = "different-attachment"
+		if core.GetAttachmentURL(a) == core.GetAttachmentURL(b) {
+			t.Error("Different attachment IDs should produce different URLs")
 		}
 	})
 }
@@ -348,32 +384,25 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	t.Run("generate transform URL with dimensions", func(t *testing.T) {
-		url := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
-
-		// URL should contain the base path
-		if !bytes.Contains([]byte(url), []byte("/assets/attachments/attachment456/t/")) {
-			t.Errorf("URL doesn't contain expected base path: %s", url)
-		}
-
-		// URL should have a signed path component (non-empty after /t/)
-		if len(url) <= len("/assets/attachments/attachment456/t/") {
-			t.Error("URL missing signed path component")
+		url := core.GetTransformedAttachmentURL(bodyLocator(t), 200, 150, "contain")
+		if !bytes.Contains([]byte(url), []byte("/t/")) {
+			t.Errorf("URL missing transform path component: %s", url)
 		}
 	})
 
 	t.Run("different dimensions produce different URLs", func(t *testing.T) {
-		url1 := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL("attachment456", 400, 300, "contain")
-
+		loc := bodyLocator(t)
+		url1 := core.GetTransformedAttachmentURL(loc, 200, 150, "contain")
+		url2 := core.GetTransformedAttachmentURL(loc, 400, 300, "contain")
 		if url1 == url2 {
 			t.Error("Different dimensions should produce different URLs")
 		}
 	})
 
 	t.Run("different fit modes produce different URLs", func(t *testing.T) {
-		url1 := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL("attachment456", 200, 150, "cover")
-
+		loc := bodyLocator(t)
+		url1 := core.GetTransformedAttachmentURL(loc, 200, 150, "contain")
+		url2 := core.GetTransformedAttachmentURL(loc, 200, 150, "cover")
 		if url1 == url2 {
 			t.Error("Different fit modes should produce different URLs")
 		}
@@ -389,11 +418,9 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 	t.Run("GetAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url := core.GetAttachmentURL("attachment456")
-
-		expected := "/assets/attachments/attachment456"
-		if url != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, url)
+		url := core.GetAttachmentURL(bodyLocator(t))
+		if !bytes.HasPrefix([]byte(url), []byte("/assets/attachments/")) {
+			t.Errorf("Expected relative URL, got '%s'", url)
 		}
 	})
 
@@ -401,11 +428,10 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetAttachmentURL("attachment456")
+		url := core.GetAttachmentURL(bodyLocator(t))
 
-		expected := "https://chat.example.com/assets/attachments/attachment456"
-		if url != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, url)
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
+			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})
 
@@ -413,7 +439,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetTransformedAttachmentURL("attachment456", 200, 150, "contain")
+		url := core.GetTransformedAttachmentURL(bodyLocator(t), 200, 150, "contain")
 
 		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
@@ -428,30 +454,6 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
-		}
-	})
-
-	t.Run("GetAttachmentURLFromStorage delegates correctly with AssetBaseURL", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		ctx := testContext(t)
-
-		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "test")
-		if err != nil {
-			t.Fatalf("Failed to create room: %v", err)
-		}
-
-		imageData := createTestPNG(50, 50)
-		attachment, err := core.UploadAttachment(ctx, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
-		if err != nil {
-			t.Fatalf("Failed to upload: %v", err)
-		}
-
-		url := core.GetAttachmentURLFromStorage(attachment)
-		// New uploads emit the kind-less `/assets/attachments/{id}` path.
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
-			t.Errorf("Expected absolute URL with /assets/attachments/ prefix, got '%s'", url)
 		}
 	})
 }
@@ -521,7 +523,11 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 2. Verify URL generation
-	url := core.GetAttachmentURL(attachment.Id)
+	url := core.GetAttachmentURL(signedurl.AttachmentLocator{
+		RoomID:       attachment.RoomId,
+		BodyKey:      "U.E", // placeholder; URL signing doesn't validate body existence
+		AttachmentID: attachment.Id,
+	})
 	if url == "" {
 		t.Error("URL generation failed")
 	}
@@ -538,8 +544,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 4. Delete
-	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
-	if err != nil {
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		t.Fatalf("Deletion failed: %v", err)
 	}
 
@@ -888,8 +893,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Delete the attachment (should also clean up cache)
-	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
-	if err != nil {
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		t.Fatalf("Failed to delete attachment: %v", err)
 	}
 
@@ -926,8 +930,7 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	core.StoreCachedResize(ctx, key2, fakeWebP)
 
 	// Delete attachment1
-	err := core.DeleteAttachment(ctx, ServerSpaceID, attachment1.Id)
-	if err != nil {
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment1); err != nil {
 		t.Fatalf("Failed to delete attachment1: %v", err)
 	}
 
@@ -974,18 +977,20 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 }
 
 // ============================================================================
-// Attachment Record Tests (SERVER_BODIES)
+// Attachment Lookup Tests
 // ============================================================================
 
-// TestUploadAttachment_WritesRecord verifies that every new upload
-// produces a lookup-able Attachment record in SERVER_BODIES. The
-// asset HTTP handler authorizes off this record, so its presence after
-// upload is auth-critical.
-func TestUploadAttachment_WritesRecord(t *testing.T) {
+// TestFindBodyAttachment_RoundTrip posts a message with an attachment
+// and verifies FindBodyAttachment returns the same proto from the body.
+func TestFindBodyAttachment_RoundTrip(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	user, err := core.CreateUser(ctx, "system", "alice", "Alice", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -995,112 +1000,78 @@ func TestUploadAttachment_WritesRecord(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	got, err := core.GetAttachmentRecord(ctx, attachment.Id)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []*corev1.Attachment{attachment}, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("GetAttachmentRecord error: %v", err)
+		t.Fatalf("PostMessage failed: %v", err)
+	}
+	bodyKey := event.GetMessagePosted().MessageBodyId
+
+	got, err := core.FindBodyAttachment(ctx, bodyKey, attachment.Id)
+	if err != nil {
+		t.Fatalf("FindBodyAttachment error: %v", err)
 	}
 	if got == nil {
-		t.Fatal("Expected attachment record, got nil")
+		t.Fatal("Expected attachment, got nil")
 	}
 	if got.Id != attachment.Id {
-		t.Errorf("Expected record id %q, got %q", attachment.Id, got.Id)
+		t.Errorf("Expected attachment id %q, got %q", attachment.Id, got.Id)
 	}
-	if got.RoomId != room.Id {
-		t.Errorf("Expected record room id %q, got %q", room.Id, got.RoomId)
+	if got.MessageBodyId != bodyKey {
+		t.Errorf("Expected message_body_id %q, got %q", bodyKey, got.MessageBodyId)
 	}
 	if got.Filename != "test.txt" {
 		t.Errorf("Expected filename test.txt, got %q", got.Filename)
 	}
 }
 
-// TestGetAttachmentRecord_MissingReturnsNil makes sure that a request
-// for an unknown attachment yields (nil, nil) — the HTTP handler relies
-// on this to render a 404 (not a 500) for orphans.
-func TestGetAttachmentRecord_MissingReturnsNil(t *testing.T) {
+// TestFindBodyAttachment_MissingReturnsNil verifies (nil, nil) for
+// unknown body keys and unknown attachment IDs.
+func TestFindBodyAttachment_MissingReturnsNil(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	got, err := core.GetAttachmentRecord(ctx, "no-such-attachment")
+	got, err := core.FindBodyAttachment(ctx, "Uphantom.Ephantom", "ghost")
 	if err != nil {
-		t.Fatalf("Expected nil error for missing record, got: %v", err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 	if got != nil {
-		t.Errorf("Expected nil record for missing id, got %+v", got)
+		t.Errorf("Expected nil for missing body, got %+v", got)
 	}
 }
 
-// TestListRoomAttachments_ReturnsAllAttachmentsInRoom drives the upcoming
-// per-room sidebar use case: uploads in two different rooms should list
-// independently and not bleed across rooms.
-func TestListRoomAttachments_ReturnsAllAttachmentsInRoom(t *testing.T) {
+// TestLookupAttachment_BodyDispatch covers the body branch of the
+// locator dispatcher.
+func TestLookupAttachment_BodyDispatch(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	roomA, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-a", "Room A")
+	user, err := core.CreateUser(ctx, "system", "alice", "Alice", "password123")
 	if err != nil {
-		t.Fatalf("Failed to create room A: %v", err)
+		t.Fatalf("CreateUser: %v", err)
 	}
-	roomB, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-b", "Room B")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 	if err != nil {
-		t.Fatalf("Failed to create room B: %v", err)
+		t.Fatalf("CreateRoom: %v", err)
 	}
-
-	a1, _ := core.UploadAttachment(ctx, roomA.Id, "a1.txt", "text/plain", bytes.NewReader([]byte("a1")))
-	a2, _ := core.UploadAttachment(ctx, roomA.Id, "a2.txt", "text/plain", bytes.NewReader([]byte("a2")))
-	b1, _ := core.UploadAttachment(ctx, roomB.Id, "b1.txt", "text/plain", bytes.NewReader([]byte("b1")))
-
-	gotA, err := core.ListRoomAttachments(ctx, roomA.Id)
+	attachment, err := core.UploadAttachment(ctx, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("x")))
 	if err != nil {
-		t.Fatalf("ListRoomAttachments(roomA): %v", err)
+		t.Fatalf("UploadAttachment: %v", err)
 	}
-	if len(gotA) != 2 {
-		t.Errorf("Expected 2 attachments in room A, got %d", len(gotA))
-	}
-	gotIDs := map[string]bool{}
-	for _, att := range gotA {
-		gotIDs[att.Id] = true
-		if att.RoomId != roomA.Id {
-			t.Errorf("Attachment %s leaked from another room: roomId=%q", att.Id, att.RoomId)
-		}
-	}
-	if !gotIDs[a1.Id] || !gotIDs[a2.Id] {
-		t.Errorf("Expected a1 and a2 in room A list, got ids=%v", gotIDs)
-	}
-
-	gotB, err := core.ListRoomAttachments(ctx, roomB.Id)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []*corev1.Attachment{attachment}, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("ListRoomAttachments(roomB): %v", err)
+		t.Fatalf("PostMessage failed: %v", err)
 	}
-	if len(gotB) != 1 || gotB[0].Id != b1.Id {
-		t.Errorf("Expected only b1 in room B, got %+v", gotB)
+
+	loc := signedurl.AttachmentLocator{
+		RoomID:       room.Id,
+		BodyKey:      event.GetMessagePosted().MessageBodyId,
+		AttachmentID: attachment.Id,
 	}
-}
-
-// TestDeleteAttachment_ForgetsRecord confirms that deletion drops the
-// canonical record so subsequent authz lookups fail cleanly (404).
-func TestDeleteAttachment_ForgetsRecord(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	got, err := core.LookupAttachment(ctx, loc)
 	if err != nil {
-		t.Fatalf("Failed to create room: %v", err)
+		t.Fatalf("LookupAttachment error: %v", err)
 	}
-
-	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me")))
-	if err != nil {
-		t.Fatalf("Failed to upload attachment: %v", err)
-	}
-
-	if err := core.DeleteAttachment(ctx, "", attachment.Id); err != nil {
-		t.Fatalf("DeleteAttachment failed: %v", err)
-	}
-
-	got, err := core.GetAttachmentRecord(ctx, attachment.Id)
-	if err != nil {
-		t.Fatalf("GetAttachmentRecord error: %v", err)
-	}
-	if got != nil {
-		t.Errorf("Expected nil record after delete, got %+v", got)
+	if got == nil || got.Id != attachment.Id {
+		t.Errorf("Expected attachment %q, got %+v", attachment.Id, got)
 	}
 }

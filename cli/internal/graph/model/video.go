@@ -1,8 +1,8 @@
 package model
 
 // VideoProcessing represents the processing state of a video attachment.
-// ThumbnailAttachmentID is an internal field used by the thumbnailUrl
-// resolver.
+// RoomID, OriginAttachmentID, and ThumbnailAttachmentID are internal
+// fields used by the thumbnailUrl resolver to build a signed locator URL.
 type VideoProcessing struct {
 	Status                VideoProcessingStatus
 	DurationMs            *int64
@@ -10,15 +10,20 @@ type VideoProcessing struct {
 	Height                *int32
 	ErrorMessage          *string
 	Variants              []*VideoVariant
+	RoomID                string // internal: for locator
+	OriginAttachmentID    string // internal: parent video's attachment id (locator's VideoOrigin)
 	ThumbnailAttachmentID string // internal: for thumbnailUrl resolver
 }
 
 // VideoVariant represents a transcoded quality variant of a video.
-// AttachmentID is an internal field used by the url resolver.
+// RoomID, OriginAttachmentID, and AttachmentID are internal fields used
+// by the url resolver to build a signed locator URL.
 type VideoVariant struct {
-	Quality      string
-	Width        int32
-	Height       int32
-	Size         int64
-	AttachmentID string // internal: for building URL
+	Quality            string
+	Width              int32
+	Height             int32
+	Size               int64
+	RoomID             string // internal: for locator
+	OriginAttachmentID string // internal: parent video's attachment id (locator's VideoOrigin)
+	AttachmentID       string // internal: this variant's attachment id
 }

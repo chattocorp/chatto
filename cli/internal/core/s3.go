@@ -189,24 +189,13 @@ func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.
 
 // S3 key helpers for organizing assets in S3.
 
-// S3KeyAttachment returns the S3 key for an attachment.
-// Format: attachments/{attachmentId}
-// This is the canonical post-ADR-030 layout — no kind segment. New uploads
-// use this key; existing attachments stay at their pre-existing
-// `spaces/{spaceId}/attachments/{id}` paths (see S3KeySpaceAttachment).
+// S3KeyAttachment returns the S3 key for an attachment uploaded after
+// ADR-030 Phase 4. Format: attachments/{attachmentId}. Pre-Phase-4
+// attachments live at `spaces/{server|DM}/attachments/{id}`; that key
+// shape is no longer constructed by Go code — the canonical key for
+// every attachment comes from `Attachment.Storage.S3.Key` on the proto.
 func S3KeyAttachment(attachmentID string) string {
 	return fmt.Sprintf("attachments/%s", attachmentID)
-}
-
-// S3KeySpaceAttachment returns the legacy S3 key for an attachment uploaded
-// before ADR-030 Phase 4. Wire-frozen because changing it would require
-// copying every existing S3 object. New uploads use S3KeyAttachment;
-// `spaceId` here is always the literal "server" or "DM" recorded on the
-// attachment's `space_id` field.
-//
-// Format: spaces/{spaceId}/attachments/{attachmentId}
-func S3KeySpaceAttachment(spaceID, attachmentID string) string {
-	return fmt.Sprintf("spaces/%s/attachments/%s", spaceID, attachmentID)
 }
 
 // S3KeyServerAsset returns the S3 key for an server asset (avatar, logo, banner).

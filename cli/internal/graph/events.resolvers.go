@@ -24,33 +24,28 @@ func (r *attachmentResolver) Size(ctx context.Context, obj *corev1.Attachment) (
 }
 
 // URL is the resolver for the url field.
-// The URL is determined by the attachment's storage type (NATS or S3).
+// Emits a signed locator URL the HTTP handler can verify and serve from
+// directly. The attachment's `MessageBodyId` is required (populated
+// either at PostMessage time or on-read by messagePostedEventResolver).
 func (r *attachmentResolver) URL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (string, error) {
-	// If transform parameters are provided, return a signed transform URL
+	loc := core.LocatorForBodyAttachment(obj, "")
 	if width != nil && height != nil && fit != nil {
-		// Convert fit mode to lowercase for URL (GraphQL enum is uppercase)
 		fitLower := strings.ToLower(string(*fit))
-		return r.core.GetTransformedAttachmentURLFromStorage(obj, int(*width), int(*height), fitLower), nil
+		return r.core.GetTransformedAttachmentURL(loc, int(*width), int(*height), fitLower), nil
 	}
-
-	// Otherwise return the original URL based on storage type
-	return r.core.GetAttachmentURLFromStorage(obj), nil
+	return r.core.GetAttachmentURL(loc), nil
 }
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
 // Returns a signed transform URL when width, height, and fit are provided.
 // Returns nil when no transform parameters are provided (caller must specify dimensions).
-// The URL is determined by the attachment's storage type (NATS or S3).
 func (r *attachmentResolver) ThumbnailURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*string, error) {
-	// Only return a thumbnail URL if transform parameters are provided
 	if width != nil && height != nil && fit != nil {
-		// Convert fit mode to lowercase for URL (GraphQL enum is uppercase)
 		fitLower := strings.ToLower(string(*fit))
-		url := r.core.GetTransformedAttachmentURLFromStorage(obj, int(*width), int(*height), fitLower)
+		loc := core.LocatorForBodyAttachment(obj, "")
+		url := r.core.GetTransformedAttachmentURL(loc, int(*width), int(*height), fitLower)
 		return &url, nil
 	}
-
-	// No transform parameters - return nil (caller should specify dimensions)
 	return nil, nil
 }
 
@@ -82,9 +77,18 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		status = model.VideoProcessingStatusFailed
 	}
 
+	// Prefer the embedded thumbnail attachment proto (post-migration);
+	// fall back to the legacy string id while old entries are around.
+	thumbnailID := state.ThumbnailAttachmentId
+	if state.ThumbnailAttachment != nil {
+		thumbnailID = state.ThumbnailAttachment.Id
+	}
+
 	result := &model.VideoProcessing{
 		Status:                status,
-		ThumbnailAttachmentID: state.ThumbnailAttachmentId,
+		RoomID:                obj.RoomId,
+		OriginAttachmentID:    obj.Id,
+		ThumbnailAttachmentID: thumbnailID,
 	}
 
 	if state.DurationMs > 0 {
@@ -102,12 +106,18 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	}
 
 	for _, v := range state.Variants {
+		variantID := v.AttachmentId
+		if v.Attachment != nil {
+			variantID = v.Attachment.Id
+		}
 		result.Variants = append(result.Variants, &model.VideoVariant{
-			Quality:      v.Quality,
-			Width:        v.Width,
-			Height:       v.Height,
-			Size:         v.Size,
-			AttachmentID: v.AttachmentId,
+			Quality:            v.Quality,
+			Width:              v.Width,
+			Height:             v.Height,
+			Size:               v.Size,
+			RoomID:             obj.RoomId,
+			OriginAttachmentID: obj.Id,
+			AttachmentID:       variantID,
 		})
 	}
 
@@ -171,6 +181,15 @@ func (r *messagePostedEventResolver) Attachments(ctx context.Context, obj *corev
 	}
 	if messageBody == nil {
 		return []*corev1.Attachment{}, nil // Return empty slice for deleted messages
+	}
+	// Populate MessageBodyId on each attachment so downstream URL
+	// resolvers can build signed locators. Persisted bodies written
+	// after the message_body_id proto field landed already have this
+	// set; older bodies are patched here at read time.
+	for _, att := range messageBody.Attachments {
+		if att != nil && att.MessageBodyId == "" {
+			att.MessageBodyId = obj.MessageBodyId
+		}
 	}
 	return messageBody.Attachments, nil
 }
@@ -524,7 +543,8 @@ func (r *videoProcessingResolver) ThumbnailURL(ctx context.Context, obj *model.V
 	if obj.ThumbnailAttachmentID == "" {
 		return nil, nil
 	}
-	url := r.core.GetAttachmentURL(obj.ThumbnailAttachmentID)
+	loc := core.LocatorForVideoOriginAttachment(obj.RoomID, obj.OriginAttachmentID, obj.ThumbnailAttachmentID)
+	url := r.core.GetAttachmentURL(loc)
 	return &url, nil
 }
 
@@ -540,7 +560,8 @@ func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Conte
 
 // URL is the resolver for the url field.
 func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant) (string, error) {
-	return r.core.GetAttachmentURL(obj.AttachmentID), nil
+	loc := core.LocatorForVideoOriginAttachment(obj.RoomID, obj.OriginAttachmentID, obj.AttachmentID)
+	return r.core.GetAttachmentURL(loc), nil
 }
 
 // Attachment returns AttachmentResolver implementation.

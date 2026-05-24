@@ -181,13 +181,6 @@ func TestS3KeyHelpers(t *testing.T) {
 			expected: "attachments/attach456",
 		},
 		{
-			name: "SpaceAttachment",
-			function: func() string {
-				return core.S3KeySpaceAttachment("space123", "attach456")
-			},
-			expected: "spaces/space123/attachments/attach456",
-		},
-		{
 			name: "ServerAsset",
 			function: func() string {
 				return core.S3KeyServerAsset("asset789")
@@ -237,14 +230,6 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		// The URL format is /assets/attachments/{attachmentId}
 		expectedURLPath := fmt.Sprintf("/assets/attachments/%s", attachmentID)
 		require.Equal(t, "/assets/attachments/attach789", expectedURLPath)
-	})
-
-	t.Run("legacy S3 key layout remains accessible via S3KeySpaceAttachment", func(t *testing.T) {
-		// Pre-ADR-030-Phase-4 attachments still live at
-		// spaces/{server|DM}/attachments/{id}. The legacy key constructor
-		// is retained so the S3-key fallback probe can find them.
-		s3Key := core.S3KeySpaceAttachment("server", "legacyAttach")
-		require.Equal(t, "spaces/server/attachments/legacyAttach", s3Key)
 	})
 
 	t.Run("S3Asset.Key stores only the asset ID for server assets", func(t *testing.T) {

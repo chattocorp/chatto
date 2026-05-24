@@ -176,6 +176,107 @@ func TestParseSignedTransformPath_ValidBoundaries(t *testing.T) {
 	}
 }
 
+func TestSignedAttachmentLocator_RoundTrip(t *testing.T) {
+	secret := "test-secret-key-1234567890"
+
+	tests := []struct {
+		name string
+		loc  signedurl.AttachmentLocator
+	}{
+		{
+			name: "body attachment",
+			loc: signedurl.AttachmentLocator{
+				RoomID: "Rabc", BodyKey: "Uxyz.E123", AttachmentID: "Aqwe",
+			},
+		},
+		{
+			name: "video variant",
+			loc: signedurl.AttachmentLocator{
+				RoomID: "Rabc", VideoOrigin: "Aorigvid", AttachmentID: "Avariant",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			signed, err := signedurl.SignedAttachmentLocator(secret, tt.loc)
+			if err != nil {
+				t.Fatalf("SignedAttachmentLocator: %v", err)
+			}
+			got, err := signedurl.ParseSignedAttachmentLocator(secret, signed)
+			if err != nil {
+				t.Fatalf("ParseSignedAttachmentLocator: %v", err)
+			}
+			if *got != tt.loc {
+				t.Errorf("round-trip mismatch: got %+v, want %+v", *got, tt.loc)
+			}
+		})
+	}
+}
+
+func TestSignedAttachmentLocator_InvalidLocator(t *testing.T) {
+	secret := "test-secret"
+
+	tests := []struct {
+		name string
+		loc  signedurl.AttachmentLocator
+	}{
+		{"missing room", signedurl.AttachmentLocator{BodyKey: "U.E", AttachmentID: "A"}},
+		{"missing attachment", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E"}},
+		{"missing source", signedurl.AttachmentLocator{RoomID: "R", AttachmentID: "A"}},
+		{"both sources", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", VideoOrigin: "Av", AttachmentID: "A"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := signedurl.SignedAttachmentLocator(secret, tt.loc); err == nil {
+				t.Error("expected error from SignedAttachmentLocator")
+			}
+		})
+	}
+}
+
+func TestParseSignedAttachmentLocator_InvalidSignature(t *testing.T) {
+	secret := "test-secret"
+	loc := signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A"}
+
+	signed, err := signedurl.SignedAttachmentLocator(secret, loc)
+	if err != nil {
+		t.Fatalf("SignedAttachmentLocator: %v", err)
+	}
+
+	if _, err := signedurl.ParseSignedAttachmentLocator("wrong-secret", signed); err == nil {
+		t.Error("expected error with wrong secret")
+	}
+
+	// Tamper with the signature
+	tampered := signed[:len(signed)-2] + "00"
+	if _, err := signedurl.ParseSignedAttachmentLocator(secret, tampered); err == nil {
+		t.Error("expected error with tampered signature")
+	}
+
+	// Tamper with the payload (sig no longer matches)
+	tampered2 := "QQ" + signed[2:]
+	if _, err := signedurl.ParseSignedAttachmentLocator(secret, tampered2); err == nil {
+		t.Error("expected error with tampered payload")
+	}
+}
+
+func TestParseSignedAttachmentLocator_InvalidFormat(t *testing.T) {
+	secret := "test-secret"
+
+	cases := []string{
+		"",
+		"nodothere",
+		"!!!.abc",
+	}
+	for _, c := range cases {
+		if _, err := signedurl.ParseSignedAttachmentLocator(secret, c); err == nil {
+			t.Errorf("expected error parsing %q", c)
+		}
+	}
+}
+
 func TestSignedTransformPath_AllFitModes(t *testing.T) {
 	secret := "test-secret"
 	spaceID := "sp"

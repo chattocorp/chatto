@@ -137,13 +137,10 @@ message Attachment {
   // Unique identifier for this attachment (NanoID)
   string id = 1;
 
-  // Legacy "server"/"DM" discriminator; wire-frozen because it's
-  // embedded in the S3 key path (`spaces/{spaceId}/attachments/{id}`)
-  // of existing attachments and consulted only by the S3-key fallback
-  // probe (`attachmentS3KeyCandidates`). New uploads leave this empty
-  // and store binaries under `attachments/{id}` instead. The URL
-  // namespace no longer carries this discriminator — all attachments
-  // are served from `/assets/attachments/{id}`. See ADR-030.
+  // Vestigial "server"/"DM" discriminator from the pre-ADR-030-Phase-4
+  // S3 key layout. Wire-frozen but no longer read by any code: the
+  // canonical S3 key for every attachment (new or legacy-migrated) now
+  // lives on the `storage` field below. New uploads leave this empty.
   string space_id = 2;
 
   // Room ID where this attachment was posted (for authorization)
@@ -165,6 +162,16 @@ message Attachment {
   // Storage location for the attachment binary data.
   // If not set (nil), defaults to NATS ObjectStore for backwards compatibility.
   Asset storage = 9;
+
+  // Compound key (`{userId}.{bodyId}`) of the MessageBody that owns this
+  // attachment. Set when the body is written in PostMessage; also
+  // populated on read in the GraphQL resolver for legacy bodies that
+  // predate this field. Used to construct signed attachment URLs that
+  // the HTTP handler can verify and route without a separate index
+  // lookup. Empty for attachments that don't belong to a body (e.g.
+  // video variants and thumbnails, which carry their parent video's
+  // attachment ID in their URL locator instead).
+  string message_body_id = 10;
 }
 
 // MessageBody stores the actual content of a message.
@@ -303,6 +310,12 @@ message VideoProcessingState {
 
   // Processed video variants (different quality levels)
   repeated VideoVariant variants = 7;
+
+  // Full Attachment proto for the generated thumbnail image. Source of
+  // truth for the thumbnail's storage location, filename, dimensions,
+  // etc. The `thumbnail_attachment_id` field above mirrors
+  // `thumbnail_attachment.id` and is kept around for back-compat reads.
+  Attachment thumbnail_attachment = 8;
 }
 
 enum VideoStatus {
@@ -313,7 +326,8 @@ enum VideoStatus {
 }
 
 message VideoVariant {
-  // Attachment ID of this variant (stored as regular attachment in same space)
+  // Attachment ID of this variant. Mirrors `attachment.id` and is kept
+  // for back-compat reads.
   string attachment_id = 1;
 
   // Quality label (e.g., "720p", "480p")
@@ -325,4 +339,9 @@ message VideoVariant {
 
   // File size in bytes
   int64 size = 5;
+
+  // Full Attachment proto for this variant. Source of truth for the
+  // variant's storage location and metadata. The HTTP handler reads
+  // `storage` from here when serving the variant binary.
+  Attachment attachment = 6;
 }

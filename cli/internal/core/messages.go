@@ -117,6 +117,14 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	messageBodyKey := messageBodyKey(user_id, event.Id)
 	event.GetMessagePosted().MessageBodyId = messageBodyKey
 
+	// Stamp the body key onto each attachment so signed attachment URLs
+	// can carry it without a separate index lookup at request time.
+	for _, att := range attachments {
+		if att != nil {
+			att.MessageBodyId = messageBodyKey
+		}
+	}
+
 	// STEP 2: Store message body in BODIES bucket BEFORE publishing event
 	// This eliminates the race condition where subscribers receive event before body exists
 	// Note: UpdatedAt is intentionally nil for new messages - only set when message is edited

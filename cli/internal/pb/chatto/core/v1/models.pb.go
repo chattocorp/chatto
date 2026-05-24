@@ -890,13 +890,10 @@ type Attachment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this attachment (NanoID)
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Legacy "server"/"DM" discriminator; wire-frozen because it's
-	// embedded in the S3 key path (`spaces/{spaceId}/attachments/{id}`)
-	// of existing attachments and consulted only by the S3-key fallback
-	// probe (`attachmentS3KeyCandidates`). New uploads leave this empty
-	// and store binaries under `attachments/{id}` instead. The URL
-	// namespace no longer carries this discriminator — all attachments
-	// are served from `/assets/attachments/{id}`. See ADR-030.
+	// Vestigial "server"/"DM" discriminator from the pre-ADR-030-Phase-4
+	// S3 key layout. Wire-frozen but no longer read by any code: the
+	// canonical S3 key for every attachment (new or legacy-migrated) now
+	// lives on the `storage` field below. New uploads leave this empty.
 	SpaceId string `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Room ID where this attachment was posted (for authorization)
 	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -911,7 +908,16 @@ type Attachment struct {
 	Height int32 `protobuf:"varint,8,opt,name=height,proto3" json:"height,omitempty"`
 	// Storage location for the attachment binary data.
 	// If not set (nil), defaults to NATS ObjectStore for backwards compatibility.
-	Storage       *Asset `protobuf:"bytes,9,opt,name=storage,proto3" json:"storage,omitempty"`
+	Storage *Asset `protobuf:"bytes,9,opt,name=storage,proto3" json:"storage,omitempty"`
+	// Compound key (`{userId}.{bodyId}`) of the MessageBody that owns this
+	// attachment. Set when the body is written in PostMessage; also
+	// populated on read in the GraphQL resolver for legacy bodies that
+	// predate this field. Used to construct signed attachment URLs that
+	// the HTTP handler can verify and route without a separate index
+	// lookup. Empty for attachments that don't belong to a body (e.g.
+	// video variants and thumbnails, which carry their parent video's
+	// attachment ID in their URL locator instead).
+	MessageBodyId string `protobuf:"bytes,10,opt,name=message_body_id,json=messageBodyId,proto3" json:"message_body_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1007,6 +1013,13 @@ func (x *Attachment) GetStorage() *Asset {
 		return x.Storage
 	}
 	return nil
+}
+
+func (x *Attachment) GetMessageBodyId() string {
+	if x != nil {
+		return x.MessageBodyId
+	}
+	return ""
 }
 
 // MessageBody stores the actual content of a message.
@@ -1476,9 +1489,14 @@ type VideoProcessingState struct {
 	// Error message if processing failed
 	ErrorMessage string `protobuf:"bytes,6,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	// Processed video variants (different quality levels)
-	Variants      []*VideoVariant `protobuf:"bytes,7,rep,name=variants,proto3" json:"variants,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Variants []*VideoVariant `protobuf:"bytes,7,rep,name=variants,proto3" json:"variants,omitempty"`
+	// Full Attachment proto for the generated thumbnail image. Source of
+	// truth for the thumbnail's storage location, filename, dimensions,
+	// etc. The `thumbnail_attachment_id` field above mirrors
+	// `thumbnail_attachment.id` and is kept around for back-compat reads.
+	ThumbnailAttachment *Attachment `protobuf:"bytes,8,opt,name=thumbnail_attachment,json=thumbnailAttachment,proto3" json:"thumbnail_attachment,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *VideoProcessingState) Reset() {
@@ -1560,9 +1578,17 @@ func (x *VideoProcessingState) GetVariants() []*VideoVariant {
 	return nil
 }
 
+func (x *VideoProcessingState) GetThumbnailAttachment() *Attachment {
+	if x != nil {
+		return x.ThumbnailAttachment
+	}
+	return nil
+}
+
 type VideoVariant struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Attachment ID of this variant (stored as regular attachment in same space)
+	// Attachment ID of this variant. Mirrors `attachment.id` and is kept
+	// for back-compat reads.
 	AttachmentId string `protobuf:"bytes,1,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
 	// Quality label (e.g., "720p", "480p")
 	Quality string `protobuf:"bytes,2,opt,name=quality,proto3" json:"quality,omitempty"`
@@ -1570,7 +1596,11 @@ type VideoVariant struct {
 	Width  int32 `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
 	Height int32 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
 	// File size in bytes
-	Size          int64 `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty"`
+	Size int64 `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty"`
+	// Full Attachment proto for this variant. Source of truth for the
+	// variant's storage location and metadata. The HTTP handler reads
+	// `storage` from here when serving the variant binary.
+	Attachment    *Attachment `protobuf:"bytes,6,opt,name=attachment,proto3" json:"attachment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1640,6 +1670,13 @@ func (x *VideoVariant) GetSize() int64 {
 	return 0
 }
 
+func (x *VideoVariant) GetAttachment() *Attachment {
+	if x != nil {
+		return x.Attachment
+	}
+	return nil
+}
+
 var File_chatto_core_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_models_proto_rawDesc = "" +
@@ -1691,7 +1728,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12'\n" +
-	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\x82\x02\n" +
+	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xaa\x02\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
@@ -1702,7 +1739,9 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x14\n" +
 	"\x05width\x18\a \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\b \x01(\x05R\x06height\x12/\n" +
-	"\astorage\x18\t \x01(\v2\x15.chatto.core.v1.AssetR\astorage\"\xf0\x02\n" +
+	"\astorage\x18\t \x01(\v2\x15.chatto.core.v1.AssetR\astorage\x12&\n" +
+	"\x0fmessage_body_id\x18\n" +
+	" \x01(\tR\rmessageBodyId\"\xf0\x02\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +
@@ -1739,7 +1778,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
 	"\broom_ids\x18\x03 \x03(\tR\aroomIds\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\"\xb1\x02\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\"\x80\x03\n" +
 	"\x14VideoProcessingState\x123\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1b.chatto.core.v1.VideoStatusR\x06status\x126\n" +
 	"\x17thumbnail_attachment_id\x18\x02 \x01(\tR\x15thumbnailAttachmentId\x12\x1f\n" +
@@ -1748,13 +1787,17 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12#\n" +
 	"\rerror_message\x18\x06 \x01(\tR\ferrorMessage\x128\n" +
-	"\bvariants\x18\a \x03(\v2\x1c.chatto.core.v1.VideoVariantR\bvariants\"\x8f\x01\n" +
+	"\bvariants\x18\a \x03(\v2\x1c.chatto.core.v1.VideoVariantR\bvariants\x12M\n" +
+	"\x14thumbnail_attachment\x18\b \x01(\v2\x1a.chatto.core.v1.AttachmentR\x13thumbnailAttachment\"\xcb\x01\n" +
 	"\fVideoVariant\x12#\n" +
 	"\rattachment_id\x18\x01 \x01(\tR\fattachmentId\x12\x18\n" +
 	"\aquality\x18\x02 \x01(\tR\aquality\x12\x14\n" +
 	"\x05width\x18\x03 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x04 \x01(\x05R\x06height\x12\x12\n" +
-	"\x04size\x18\x05 \x01(\x03R\x04size*N\n" +
+	"\x04size\x18\x05 \x01(\x03R\x04size\x12:\n" +
+	"\n" +
+	"attachment\x18\x06 \x01(\v2\x1a.chatto.core.v1.AttachmentR\n" +
+	"attachment*N\n" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +
@@ -1826,11 +1869,13 @@ var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	19, // 13: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
 	2,  // 14: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
 	21, // 15: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	14, // 16: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
+	14, // 17: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_models_proto_init() }

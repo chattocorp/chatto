@@ -216,7 +216,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 
 	// Download original from asset store
 	inputPath := filepath.Join(tmpDir, "input")
-	if err := s.downloadAttachment(ctx, req.AttachmentID, inputPath); err != nil {
+	if err := s.downloadAttachment(ctx, req.MessageBodyID, req.AttachmentID, inputPath); err != nil {
 		return s.failProcessing(ctx, req, fmt.Errorf("failed to download original: %w", err))
 	}
 
@@ -258,13 +258,13 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 
 	// Upload thumbnail as attachment
-	var thumbnailAttachmentID string
+	var thumbnailAttachment *corev1.Attachment
 	if thumbPath != "" {
-		thumbID, err := s.uploadFile(ctx, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
+		thumb, err := s.uploadFile(ctx, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
-			thumbnailAttachmentID = thumbID
+			thumbnailAttachment = thumb
 		}
 	}
 
@@ -295,7 +295,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
 		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AttachmentID, filepath.Ext(req.AttachmentID)), quality)
-		variantID, err := s.uploadFile(ctx, req.RoomID, filename, "video/mp4", outputPath)
+		variant, err := s.uploadFile(ctx, req.RoomID, filename, "video/mp4", outputPath)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
 			continue
@@ -309,11 +309,12 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		}
 
 		variants = append(variants, &corev1.VideoVariant{
-			AttachmentId: variantID,
+			AttachmentId: variant.Id,
 			Quality:      quality,
 			Width:        variantWidth,
 			Height:       int32(h),
 			Size:         info.Size(),
+			Attachment:   variant,
 		})
 	}
 
@@ -323,23 +324,30 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 
 	// Update state to COMPLETED
 	state := &corev1.VideoProcessingState{
-		Status:                corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
-		ThumbnailAttachmentId: thumbnailAttachmentID,
-		DurationMs:            probeResult.DurationMs,
-		Width:                 probeResult.Width,
-		Height:                probeResult.Height,
-		Variants:              variants,
+		Status:              corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
+		ThumbnailAttachment: thumbnailAttachment,
+		DurationMs:          probeResult.DurationMs,
+		Width:               probeResult.Width,
+		Height:              probeResult.Height,
+		Variants:            variants,
+	}
+	if thumbnailAttachment != nil {
+		state.ThumbnailAttachmentId = thumbnailAttachment.Id
 	}
 	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
 		return fmt.Errorf("failed to set completed state: %w", err)
 	}
 
-	// Delete the original attachment (save storage — variants replace it).
-	// Post-ADR-030-Phase-4 originals live at the kind-less S3 key
-	// (`attachments/{id}`); passing an empty spaceID picks that layout.
-	if err := s.core.DeleteAttachmentFromStorageByID(ctx, "", req.AttachmentID); err != nil {
-		s.logger.Warn("Failed to delete original after transcoding", "error", err)
-		// Non-fatal — the variants are already uploaded
+	// Delete the original attachment binary (save storage — variants
+	// replace it). The Attachment proto stays on the body so its URL
+	// still resolves (to a 404), and the frontend uses the variants.
+	if origAttachment, err := s.core.FindBodyAttachment(ctx, req.MessageBodyID, req.AttachmentID); err != nil {
+		s.logger.Warn("Failed to look up original for deletion", "error", err)
+	} else if origAttachment != nil {
+		if err := s.core.DeleteAttachmentFromStorage(ctx, origAttachment); err != nil {
+			s.logger.Warn("Failed to delete original after transcoding", "error", err)
+			// Non-fatal — the variants are already uploaded
+		}
 	}
 
 	// Publish live event
@@ -383,9 +391,15 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 }
 
 // downloadAttachment downloads an attachment from the asset store to a local file.
-func (s *Service) downloadAttachment(ctx context.Context, attachmentID, destPath string) error {
-	// New uploads use the kind-less S3 layout (empty spaceID).
-	reader, _, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+func (s *Service) downloadAttachment(ctx context.Context, bodyKey, attachmentID, destPath string) error {
+	attachment, err := s.core.FindBodyAttachment(ctx, bodyKey, attachmentID)
+	if err != nil {
+		return fmt.Errorf("look up attachment: %w", err)
+	}
+	if attachment == nil {
+		return fmt.Errorf("attachment %s not found in body %s", attachmentID, bodyKey)
+	}
+	reader, _, err := s.core.GetAttachmentReader(ctx, attachment)
 	if err != nil {
 		return err
 	}
@@ -406,18 +420,15 @@ func (s *Service) downloadAttachment(ctx context.Context, attachmentID, destPath
 	return nil
 }
 
-// uploadFile uploads a local file as an attachment and returns the new attachment ID.
-func (s *Service) uploadFile(ctx context.Context, roomID, filename, contentType, srcPath string) (string, error) {
+// uploadFile uploads a local file as an attachment and returns the
+// resulting Attachment proto. The proto carries the storage info needed
+// to embed it directly in VideoProcessingState.
+func (s *Service) uploadFile(ctx context.Context, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer f.Close()
 
-	att, err := s.core.UploadAttachment(ctx, roomID, filename, contentType, f)
-	if err != nil {
-		return "", err
-	}
-
-	return att.Id, nil
+	return s.core.UploadAttachment(ctx, roomID, filename, contentType, f)
 }

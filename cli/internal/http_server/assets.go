@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
 
@@ -20,12 +21,12 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
-	// Attachment routes are kind-less. Both new uploads and legacy
-	// attachments (whose S3 objects still live at
-	// `spaces/{server|DM}/attachments/{id}`) are served through these
-	// routes; the storage layer probes both layouts transparently.
-	s.router.GET("/assets/attachments/:attachmentId", s.serveAttachment)
-	s.router.GET("/assets/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
+	// Attachment routes carry a signed locator (`{base64payload}.{hexHMAC}`)
+	// as the path segment. The payload encodes roomId + (bodyKey | videoOrigin)
+	// + attachmentId — everything the handler needs to authorize and serve
+	// the binary without a separate index lookup.
+	s.router.GET("/assets/attachments/:locator", s.serveAttachment)
+	s.router.GET("/assets/attachments/:locator/t/:signedPath", s.serveTransformedAttachment)
 }
 
 // transformRequest holds the parameters for a transformed asset request.
@@ -102,35 +103,32 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	)
 }
 
-// serveAttachment serves an attachment by ID. Authorization runs off
-// the canonical Attachment record in SERVER_BODIES: we look up the
-// record by ID, verify room membership, then redirect to a presigned
-// S3 URL (if applicable) or stream from NATS. The storage layer probes
-// both the post-ADR-030-Phase-4 kind-less S3 layout and the legacy
-// `spaces/{server|DM}/attachments/{id}` layout transparently.
+// serveAttachment serves an attachment whose location is encoded in
+// the signed locator path segment. Verifying the locator gives us the
+// roomId (for authz) and the source pointer (body key or video-origin
+// id) plus the attachment id, with no index lookup needed.
 func (s *HTTPServer) serveAttachment(c *gin.Context) {
-	attachmentID := c.Param("attachmentId")
 	ctx := c.Request.Context()
 
-	s.logger.Debug("Serving attachment", "attachment_id", attachmentID)
-
-	if !s.requireAttachmentAccess(c, ctx, attachmentID) {
+	loc, attachment, ok := s.resolveLocatorAttachment(c, ctx, c.Param("locator"))
+	if !ok {
 		return
 	}
 
+	s.logger.Debug("Serving attachment", "attachment_id", loc.AttachmentID)
+
 	// Try S3 presigned redirect first (zero-copy, full Range support).
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, "", attachmentID); err == nil {
+	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
 		// Cache the redirect itself — the attachment URL is immutable
 		c.Header("Cache-Control", "public, max-age=3600")
 		c.Redirect(http.StatusFound, presignedURL)
 		return
 	}
 
-	// Fall back to probing both NATS and S3 backends (handles transient S3 errors
-	// where the presigned URL fails but direct S3 fetch succeeds).
-	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+	// Otherwise stream from the recorded backend.
+	reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
 	if err != nil {
-		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", attachmentID)
+		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", loc.AttachmentID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return
 	}
@@ -145,62 +143,59 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 
 	// Immutable asset - cache forever
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s\"", attachmentID))
+	c.Header("ETag", fmt.Sprintf("\"%s\"", loc.AttachmentID))
 	c.Header("Vary", "Accept-Encoding")
 
 	// Stream directly — no io.ReadAll, no memory buffering
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
-// requireAttachmentAccess gates an attachment HTTP request. Looks up
-// the canonical Attachment record in SERVER_BODIES, then verifies
-// the caller is a member of that record's room. Returns true if the
-// request may proceed; writes the appropriate error response and
-// returns false otherwise.
-//
-// A missing record (e.g. an orphan binary in S3 left over from a
-// pre-record-bucket upload that the boot migration hasn't touched
-// yet) is treated as not-found — we refuse to authorize a download
-// we can't attribute to a room.
-func (s *HTTPServer) requireAttachmentAccess(c *gin.Context, ctx context.Context, attachmentID string) bool {
+// resolveLocatorAttachment parses the signed locator, verifies room
+// membership, and looks up the source Attachment proto. On success
+// returns the locator, the attachment, and true. On any failure, writes
+// the appropriate HTTP response and returns ok=false.
+func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Context, signedLocator string) (*signedurl.AttachmentLocator, *corev1.Attachment, bool) {
+	loc, err := signedurl.ParseSignedAttachmentLocator(s.config.Core.Assets.SigningSecret, signedLocator)
+	if err != nil {
+		s.logger.Warn("Invalid attachment locator", "error", err)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid attachment URL"})
+		return nil, nil, false
+	}
+
 	userID := s.getUserIDFromSession(c)
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return false
+		return nil, nil, false
 	}
 
-	record, err := s.core.GetAttachmentRecord(ctx, attachmentID)
+	kind, err := s.core.FindRoomKind(ctx, loc.RoomID)
 	if err != nil {
-		s.logger.Error("Failed to look up attachment record", "attachment_id", attachmentID, "error", err)
+		s.logger.Error("Failed to resolve room kind for attachment auth", "error", err, "room_id", loc.RoomID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
-		return false
+		return nil, nil, false
 	}
-	if record == nil || record.RoomId == "" {
-		s.logger.Warn("Attachment access denied: no metadata record", "attachment_id", attachmentID, "user_id", userID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-		return false
-	}
-
-	kind, err := s.core.FindRoomKind(ctx, record.RoomId)
-	if err != nil {
-		s.logger.Error("Failed to resolve room kind for attachment auth", "error", err, "room_id", record.RoomId)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
-		return false
-	}
-
-	isMember, err := s.core.RoomMembershipExists(ctx, kind, userID, record.RoomId)
+	isMember, err := s.core.RoomMembershipExists(ctx, kind, userID, loc.RoomID)
 	if err != nil {
 		s.logger.Error("Failed to check room membership", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
-		return false
+		return nil, nil, false
 	}
-
 	if !isMember {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: not a member of the room"})
-		return false
+		return nil, nil, false
 	}
 
-	return true
+	attachment, err := s.core.LookupAttachment(ctx, *loc)
+	if err != nil {
+		s.logger.Error("Failed to look up attachment", "error", err, "attachment_id", loc.AttachmentID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve attachment"})
+		return nil, nil, false
+	}
+	if attachment == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, nil, false
+	}
+	return loc, attachment, true
 }
 
 // getUserIDFromSession extracts the user ID from the Gin session.
@@ -368,32 +363,39 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 	})
 }
 
-// serveTransformedAttachment serves a dynamically transformed version of an attachment.
-// URL format: /assets/attachments/{attachmentId}/t/{signedPath}
-// where signedPath is {base64params}.{signature}
-// Probes both NATS and S3 backends for the attachment.
+// serveTransformedAttachment serves a dynamically transformed version
+// of an attachment identified by the locator path segment.
+// URL format: /assets/attachments/{locator}/t/{signedPath}
+// The locator is verified, then the transform path is verified against
+// it; both signatures must be valid.
 func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
-	attachmentID := c.Param("attachmentId")
+	signedLocator := c.Param("locator")
 	signedPath := c.Param("signedPath")
+	ctx := c.Request.Context()
 
-	s.logger.Debug("Serving transformed attachment", "attachment_id", attachmentID)
+	loc, attachment, ok := s.resolveLocatorAttachment(c, ctx, signedLocator)
+	if !ok {
+		return
+	}
 
+	s.logger.Debug("Serving transformed attachment", "attachment_id", loc.AttachmentID)
+
+	// resolveLocatorAttachment already authorized; the inner helper
+	// runs the transform-path signature check too.
 	s.serveTransformedAsset(c, transformRequest{
 		ResourceID1: core.AttachmentSignResource,
-		ResourceID2: attachmentID,
+		ResourceID2: signedLocator,
 		SignedPath:  signedPath,
 		CachePrefix: core.AttachmentSignResource,
-		AssetID:     attachmentID,
+		AssetID:     loc.AttachmentID,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, "", attachmentID)
+			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
 			if err != nil {
 				return nil, "", err
 			}
 			return reader, info.ContentType, nil
 		},
-		Authorize: func(c *gin.Context) bool {
-			return s.requireAttachmentAccess(c, c.Request.Context(), attachmentID)
-		},
+		Authorize: nil, // Already authorized above.
 	})
 }
 

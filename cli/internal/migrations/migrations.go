@@ -60,5 +60,8 @@ func RunAll(ctx context.Context, serverKV, serverConfigKV, serverBodiesKV, serve
 	if err := BackfillAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
 		return fmt.Errorf("attachment_records: %w", err)
 	}
+	if err := BackfillAttachmentLocatorData(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
+		return fmt.Errorf("attachment_locator_data: %w", err)
+	}
 	return nil
 }

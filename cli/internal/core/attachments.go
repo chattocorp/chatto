@@ -35,10 +35,9 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // S3) is determined by configuration.
 //
 // New attachments use the kind-less `attachments/{id}` S3 key.
-// `Attachment.SpaceId` is left empty on the returned proto — it's
-// reserved for pre-ADR-030-Phase-4 records whose S3 objects still live
-// at `spaces/{server|DM}/attachments/{id}` and is consulted only by the
-// S3-key fallback probe (`attachmentS3KeyCandidates`).
+// `Attachment.SpaceId` is left empty (it's a vestigial field).
+// `Attachment.MessageBodyId` is also left empty here — the body key is
+// set later in PostMessage when the owning MessageBody is written.
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
 	roomID string,
@@ -147,20 +146,6 @@ func (c *ChattoCore) UploadAttachment(
 		Storage:     storage,
 	}
 
-	// Write the canonical Attachment record. The asset HTTP handler
-	// authorizes downloads off this record, so a failure here would
-	// strand the uploaded binary unreachable behind a 404. Best-effort
-	// delete the just-uploaded binary before surfacing the error, so
-	// we don't leak orphans into storage.
-	if err := c.recordAttachment(ctx, attachment); err != nil {
-		if cleanupErr := c.deleteAttachmentBinary(ctx, attachmentID, storage); cleanupErr != nil {
-			c.logger.Warn("Failed to clean up attachment binary after metadata write failure",
-				"attachment_id", attachmentID,
-				"error", cleanupErr)
-		}
-		return nil, fmt.Errorf("failed to record attachment metadata: %w", err)
-	}
-
 	c.logger.Debug("Uploaded attachment",
 		"attachment_id", attachmentID,
 		"room_id", roomID,
@@ -227,386 +212,239 @@ func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.Read
 	}, nil
 }
 
-// attachmentS3Key returns the preferred S3 key for an attachment. New
-// attachments (with no SpaceId) use the kind-less layout; legacy
-// attachments stay at their pre-ADR-030-Phase-4 layout
-// (`spaces/{server|DM}/attachments/{id}`).
-func attachmentS3Key(spaceID, attachmentID string) string {
-	if spaceID == "" {
-		return S3KeyAttachment(attachmentID)
+// GetAttachmentReader reads an attachment's binary from whichever
+// storage backend its `Storage` field points at. Returns a reader and
+// metadata. The caller is responsible for closing the reader if it
+// implements io.Closer.
+//
+// Returns an error if `attachment.Storage` is unset or points at an
+// unknown backend kind.
+func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
+	if attachment == nil || attachment.Storage == nil {
+		return nil, nil, fmt.Errorf("attachment has no storage info")
 	}
-	return S3KeySpaceAttachment(spaceID, attachmentID)
-}
-
-// attachmentS3KeyCandidates returns the S3 key to try first plus any
-// fallbacks. We probe across layouts so layout mismatches between caller
-// hint and actual storage (e.g. a legacy in-flight video processing
-// request handled by a Phase-4 binary, or a new variant attached to a
-// legacy parent video) resolve transparently.
-func attachmentS3KeyCandidates(spaceID, attachmentID string) []string {
-	if spaceID == "" {
-		// Prefer the new layout but fall back to known legacy spaceIDs.
-		return []string{
-			S3KeyAttachment(attachmentID),
-			S3KeySpaceAttachment(ServerSpaceID, attachmentID),
-			S3KeySpaceAttachment(DMSpaceID, attachmentID),
+	switch asset := attachment.Storage.Asset.(type) {
+	case *corev1.Asset_Nats:
+		reader, info, err := c.GetAttachment(ctx, asset.Nats.Key)
+		if err != nil {
+			return nil, nil, err
 		}
-	}
-	// Prefer the requested legacy layout, fall back to the new one.
-	return []string{
-		S3KeySpaceAttachment(spaceID, attachmentID),
-		S3KeyAttachment(attachmentID),
-	}
-}
-
-// GetAttachmentFromAnyBackend retrieves an attachment by probing both NATS and S3 backends.
-// It tries NATS first (for backwards compatibility with existing attachments), then S3.
-// An empty spaceID selects the kind-less S3 layout used for new uploads;
-// a non-empty spaceID selects the legacy `spaces/{spaceId}/...` layout.
-// Returns a reader for the attachment content and metadata.
-// The caller is responsible for closing the reader if it implements io.Closer.
-func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, attachmentID string) (io.Reader, *AttachmentInfo, error) {
-	// Try NATS first (backwards compatibility)
-	reader, info, err := c.GetAttachment(ctx, attachmentID)
-	if err == nil {
 		return reader, &AttachmentInfo{
 			Size:        int64(info.Size),
 			ContentType: info.Headers.Get("Content-Type"),
 			Filename:    info.Headers.Get("Filename"),
 			RoomID:      info.Headers.Get("Room-Id"),
 		}, nil
-	}
-
-	// If NATS failed and S3 is configured, try S3. Probe across layouts
-	// so legacy-vs-new mismatches in the caller's hint resolve cleanly.
-	if c.s3Client != nil {
-		var lastS3Err error
-		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
-			s3Reader, s3Info, s3Err := c.GetS3Attachment(ctx, s3Key)
-			if s3Err == nil {
-				return s3Reader, s3Info, nil
-			}
-			lastS3Err = s3Err
+	case *corev1.Asset_S3:
+		if c.s3Client == nil {
+			return nil, nil, fmt.Errorf("S3 client not configured")
 		}
-		c.logger.Debug("Attachment not found in either backend",
-			"space_id", spaceID,
-			"attachment_id", attachmentID,
-			"nats_error", err,
-			"s3_error", lastS3Err)
+		return c.GetS3Attachment(ctx, asset.S3.Key)
+	default:
+		return nil, nil, fmt.Errorf("attachment %s has unknown storage backend", attachment.Id)
 	}
-
-	return nil, nil, err
 }
 
-// ============================================================================
-// Attachment Records
-// ============================================================================
-//
-// Attachment metadata records live in SERVER_BODIES alongside the
-// message bodies that reference them. They share the bucket because:
-//
-//   - The lifecycle is the same: an attachment is born with the body
-//     that posts it and dies when that body is deleted (incl. GDPR).
-//   - The write profile is the same (per-message churn), so we don't
-//     have to provision another replicated stream for an essentially
-//     identical workload.
-//
-// Two key shapes coexist in this bucket — they don't overlap because
-// body keys have two tokens and attachment-record keys have three:
-//
-//   - {userId}.{bodyId}                       → marshaled MessageBody
-//   - attachment.{roomId}.{attachmentId}      → marshaled Attachment
-//
-// Room ID lives in the key so the per-room attachment sidebar can
-// prefix-filter (`attachment.{roomId}.*`); by-ID lookup uses a
-// server-side wildcard filter (`attachment.*.{attachmentId}`).
-//
-// TODO: rename SERVER_BODIES → SERVER_CONTENT now that it hosts more
-// than bodies. Pending a separate migration since renaming a bucket
-// requires copying every key.
-
-// attachmentRecordKey returns the SERVER_BODIES key for an attachment
-// metadata record. The "attachment." literal prefix keeps these keys
-// out of the way of body keys (`{userId}.{bodyId}`).
-func attachmentRecordKey(roomID, attachmentID string) string {
-	return "attachment." + roomID + "." + attachmentID
-}
-
-// recordAttachment stores the canonical Attachment metadata record.
-func (c *ChattoCore) recordAttachment(ctx context.Context, attachment *corev1.Attachment) error {
-	if attachment == nil || attachment.Id == "" || attachment.RoomId == "" {
-		return fmt.Errorf("recordAttachment: missing id or room id")
-	}
-	data, err := proto.Marshal(attachment)
-	if err != nil {
-		return fmt.Errorf("marshal attachment: %w", err)
-	}
-	if _, err := c.storage.serverBodiesKV.Put(ctx, attachmentRecordKey(attachment.RoomId, attachment.Id), data); err != nil {
-		return fmt.Errorf("write attachment record: %w", err)
-	}
-	return nil
-}
-
-// GetAttachmentRecord returns the canonical Attachment metadata for the
-// given ID, or (nil, nil) if no record exists. Uses a server-side
-// wildcard filter on the key (`attachment.*.{attachmentId}`).
-func (c *ChattoCore) GetAttachmentRecord(ctx context.Context, attachmentID string) (*corev1.Attachment, error) {
-	if attachmentID == "" {
+// FindBodyAttachment fetches the named MessageBody and returns the
+// embedded Attachment with the given ID, or (nil, nil) if either is
+// missing. The returned Attachment is the in-memory copy from the body
+// proto with `MessageBodyId` populated, so callers can use it to
+// construct signed URLs directly.
+func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
+	if bodyKey == "" || attachmentID == "" {
 		return nil, nil
 	}
-	lister, err := c.storage.serverBodiesKV.ListKeysFiltered(ctx, "attachment.*."+attachmentID)
+	entry, err := c.storage.serverBodiesKV.Get(ctx, bodyKey)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("filter attachment keys: %w", err)
+		return nil, fmt.Errorf("get message body: %w", err)
 	}
-	for key := range lister.Keys() {
-		entry, err := c.storage.serverBodiesKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
+	var body corev1.MessageBody
+	if err := proto.Unmarshal(entry.Value(), &body); err != nil {
+		return nil, fmt.Errorf("unmarshal message body: %w", err)
+	}
+	for _, att := range body.Attachments {
+		if att.Id == attachmentID {
+			if att.MessageBodyId == "" {
+				att.MessageBodyId = bodyKey
 			}
-			return nil, fmt.Errorf("get attachment record: %w", err)
+			return att, nil
 		}
-		var att corev1.Attachment
-		if err := proto.Unmarshal(entry.Value(), &att); err != nil {
-			return nil, fmt.Errorf("unmarshal attachment record: %w", err)
-		}
-		return &att, nil
 	}
 	return nil, nil
 }
 
-// ListRoomAttachments returns every Attachment metadata record posted
-// to the given room. Used by the per-room attachment sidebar. Reads
-// every matching record into memory — adequate for the expected
-// sidebar size; rooms with huge attachment counts will eventually want
-// a pagination cursor.
-func (c *ChattoCore) ListRoomAttachments(ctx context.Context, roomID string) ([]*corev1.Attachment, error) {
-	if roomID == "" {
+// FindVideoOriginAttachment looks up a variant or thumbnail Attachment
+// from the `VideoProcessingState` keyed by the original video's
+// attachment ID. Returns (nil, nil) if the state is missing or doesn't
+// contain an attachment with the given ID.
+func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
+	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
-	lister, err := c.storage.serverBodiesKV.ListKeysFiltered(ctx, "attachment."+roomID+".*")
+	state, err := c.GetVideoProcessingState(ctx, videoOriginID)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("list room attachments: %w", err)
+		return nil, fmt.Errorf("get video processing state: %w", err)
 	}
-	var out []*corev1.Attachment
-	for key := range lister.Keys() {
-		entry, err := c.storage.serverBodiesKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return nil, fmt.Errorf("get attachment record: %w", err)
-		}
-		var att corev1.Attachment
-		if err := proto.Unmarshal(entry.Value(), &att); err != nil {
-			c.logger.Warn("Skipping unparseable attachment record", "key", key, "error", err)
-			continue
-		}
-		out = append(out, &att)
+	if state == nil {
+		return nil, nil
 	}
-	return out, nil
+	if state.ThumbnailAttachment != nil && state.ThumbnailAttachment.Id == attachmentID {
+		return state.ThumbnailAttachment, nil
+	}
+	for _, v := range state.Variants {
+		if v.Attachment != nil && v.Attachment.Id == attachmentID {
+			return v.Attachment, nil
+		}
+	}
+	return nil, nil
 }
 
-// deleteAttachmentBinary removes the storage object for a freshly
-// uploaded attachment. Used to clean up after a metadata-write failure
-// in UploadAttachment so we don't strand orphans in storage.
-func (c *ChattoCore) deleteAttachmentBinary(ctx context.Context, attachmentID string, storage *corev1.Asset) error {
-	if storage == nil {
-		return nil
+// LookupAttachment resolves any attachment by its URL locator, choosing
+// the right source of truth (`MessageBody.Attachments` for body
+// attachments, `VideoProcessingState` for variants/thumbnails).
+func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
+	if err := loc.Validate(); err != nil {
+		return nil, err
 	}
-	switch asset := storage.Asset.(type) {
-	case *corev1.Asset_S3:
-		if c.s3Client == nil {
-			return nil
-		}
-		return c.s3Client.DeleteObject(ctx, asset.S3.Key)
-	case *corev1.Asset_Nats:
-		store, err := c.GetAttachmentsStore(ctx)
-		if err != nil {
-			return err
-		}
-		return store.Delete(ctx, attachmentID)
+	if loc.BodyKey != "" {
+		return c.FindBodyAttachment(ctx, loc.BodyKey, loc.AttachmentID)
 	}
-	return nil
+	return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
 }
 
-// forgetAttachmentRecord removes the attachment metadata record.
-// Missing entries are not an error.
-func (c *ChattoCore) forgetAttachmentRecord(ctx context.Context, roomID, attachmentID string) error {
-	if roomID == "" || attachmentID == "" {
-		return nil
-	}
-	if err := c.storage.serverBodiesKV.Delete(ctx, attachmentRecordKey(roomID, attachmentID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("delete attachment record: %w", err)
-	}
-	return nil
-}
-
-// DeleteAttachment deletes a NATS attachment and its cached resizes.
-// This is the legacy path for attachments stored in NATS ObjectStore.
-// Use DeleteAttachmentFromStorage for attachments with known storage type.
-func (c *ChattoCore) DeleteAttachment(ctx context.Context, spaceID, attachmentID string) error {
-	store, err := c.GetAttachmentsStore(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get attachments store: %w", err)
-	}
-
-	// Resolve the room ID via the canonical record before we delete the
-	// underlying object, so we can also drop the metadata entry. If no
-	// record exists (legacy orphan), we still proceed with the storage
-	// delete — the record cleanup is best-effort and silently no-ops.
-	var roomID string
-	if rec, recErr := c.GetAttachmentRecord(ctx, attachmentID); recErr == nil && rec != nil {
-		roomID = rec.RoomId
-	}
-
-	err = store.Delete(ctx, attachmentID)
-	if err != nil {
-		return fmt.Errorf("failed to delete attachment: %w", err)
-	}
-
-	if recErr := c.forgetAttachmentRecord(ctx, roomID, attachmentID); recErr != nil {
-		c.logger.Warn("Failed to forget attachment record",
-			"attachment_id", attachmentID,
-			"error", recErr)
-	}
-
-	// Delete any cached resizes for this attachment (best-effort, don't fail on error)
-	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
-	if cacheErr != nil {
-		c.logger.Warn("Failed to delete cached resizes for attachment",
-			"attachment_id", attachmentID,
-			"error", cacheErr)
-	} else if deletedCount > 0 {
-		c.logger.Debug("Deleted cached resizes for attachment",
-			"attachment_id", attachmentID,
-			"space_id", spaceID,
-			"deleted_count", deletedCount)
-	}
-
-	c.logger.Debug("Deleted attachment", "attachment_id", attachmentID, "space_id", spaceID)
-
-	return nil
-}
-
-// DeleteAttachmentFromStorage deletes an attachment based on its storage type.
-// Handles both NATS ObjectStore and S3 storage.
+// DeleteAttachmentFromStorage deletes an attachment's binary and its
+// cached resizes. Requires `Storage` to be populated.
 func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
-	// Check storage type - if nil or NATS, use legacy deletion
-	if attachment.Storage == nil {
-		return c.DeleteAttachment(ctx, attachment.SpaceId, attachment.Id)
+	if attachment == nil || attachment.Storage == nil {
+		return fmt.Errorf("attachment has no storage info")
 	}
 
 	switch storage := attachment.Storage.Asset.(type) {
 	case *corev1.Asset_Nats:
-		return c.DeleteAttachment(ctx, attachment.SpaceId, attachment.Id)
+		store, err := c.GetAttachmentsStore(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get attachments store: %w", err)
+		}
+		if err := store.Delete(ctx, storage.Nats.Key); err != nil {
+			return fmt.Errorf("failed to delete attachment from NATS: %w", err)
+		}
+		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachment.Id, "key", storage.Nats.Key)
 	case *corev1.Asset_S3:
-		// Delete from S3
 		if c.s3Client == nil {
 			return fmt.Errorf("S3 client not configured")
 		}
 		if err := c.s3Client.DeleteObjectFromBucket(ctx, storage.S3.GetBucket(), storage.S3.Key); err != nil {
 			return fmt.Errorf("failed to delete S3 attachment: %w", err)
 		}
-		if recErr := c.forgetAttachmentRecord(ctx, attachment.RoomId, attachment.Id); recErr != nil {
-			c.logger.Warn("Failed to forget attachment record",
-				"attachment_id", attachment.Id,
-				"error", recErr)
-		}
-		// Delete any cached resizes (S3 attachments use the S3 key as cache prefix)
-		deletedCount, cacheErr := c.DeleteCachedResizesForKey(ctx, "s3", storage.S3.Key)
-		if cacheErr != nil {
-			c.logger.Warn("Failed to delete cached resizes for S3 attachment",
-				"s3_key", storage.S3.Key,
-				"error", cacheErr)
-		} else if deletedCount > 0 {
-			c.logger.Debug("Deleted cached resizes for S3 attachment",
-				"s3_key", storage.S3.Key,
-				"deleted_count", deletedCount)
-		}
-		c.logger.Debug("Deleted S3 attachment", "s3_key", storage.S3.Key)
-		return nil
+		c.logger.Debug("Deleted S3 attachment", "attachment_id", attachment.Id, "s3_key", storage.S3.Key)
 	default:
-		return c.DeleteAttachment(ctx, attachment.SpaceId, attachment.Id)
+		return fmt.Errorf("attachment %s has unknown storage backend", attachment.Id)
 	}
+
+	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachment.Id)
+	if cacheErr != nil {
+		c.logger.Warn("Failed to delete cached resizes for attachment",
+			"attachment_id", attachment.Id,
+			"error", cacheErr)
+	} else if deletedCount > 0 {
+		c.logger.Debug("Deleted cached resizes for attachment",
+			"attachment_id", attachment.Id,
+			"deleted_count", deletedCount)
+	}
+
+	return nil
 }
 
-// TryPresignedAttachmentURL attempts to generate a presigned S3 URL for an
-// attachment. Returns the URL string if the attachment exists in S3, or an
-// error if S3 is not configured or the attachment is not found in S3.
-// Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
-// the helper falls back to the legacy `spaces/{server|DM}/...` keys for
-// layout mismatches.
+// TryPresignedAttachmentURL generates a presigned S3 URL for an
+// attachment. Returns an error if S3 is not configured or the attachment
+// is not stored in S3 (e.g. it's a NATS-stored legacy attachment, in
+// which case the caller should fall back to GetAttachmentReader).
 //
-// Authorization is the caller's responsibility — the room ID comes from
-// the canonical Attachment record (see GetAttachmentRecord), not from S3.
-func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, spaceID, attachmentID string) (string, error) {
+// Authorization is the caller's responsibility.
+func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
-
-	var lastErr error
-	for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
-		// Stat to verify the object exists (presigned URLs don't check existence)
-		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
-			lastErr = err
-			continue
-		}
-		presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, time.Hour)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate presigned URL: %w", err)
-		}
-		return presignedURL.String(), nil
+	if attachment == nil || attachment.Storage == nil {
+		return "", fmt.Errorf("attachment has no storage info")
 	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("attachment not found")
+	s3, ok := attachment.Storage.Asset.(*corev1.Asset_S3)
+	if !ok {
+		return "", fmt.Errorf("attachment %s is not stored in S3", attachment.Id)
 	}
-	return "", lastErr
+	presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3.S3.Key, time.Hour)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+	return presignedURL.String(), nil
 }
 
 // AttachmentSignResource is the first resource component fed to the
-// signed-URL signer for attachment transform URLs. Stable so existing
-// signatures continue to verify across deployments.
+// signed-URL signer for attachment transform URLs (after the locator).
+// Stable so existing signatures continue to verify across deployments.
 const AttachmentSignResource = "attachment"
 
-// GetAttachmentURL returns the URL for accessing an attachment. All
-// attachments — including those whose S3 objects still live at the
-// pre-ADR-030-Phase-4 `spaces/{server|DM}/attachments/{id}` layout —
-// are served through the kind-less `/assets/attachments/{id}` URL.
-// The HTTP handler probes both storage layouts to resolve the binary.
-func (c *ChattoCore) GetAttachmentURL(attachmentID string) string {
-	return c.assetURL(fmt.Sprintf("/assets/attachments/%s", attachmentID))
-}
-
-// GetAttachmentURLFromStorage returns the URL for accessing an attachment.
-// Storage backend is an internal implementation detail that does not leak
-// into URLs.
-func (c *ChattoCore) GetAttachmentURLFromStorage(attachment *corev1.Attachment) string {
-	return c.GetAttachmentURL(attachment.Id)
-}
-
-// GetTransformedAttachmentURL returns the URL for accessing a transformed
-// version of an attachment. The URL includes an HMAC signature to prevent
-// parameter tampering.
+// GetAttachmentURL returns the URL for accessing the binary identified
+// by the locator. The URL embeds the locator as a signed payload, so
+// the HTTP handler can authorize and serve without a separate index
+// lookup.
 //
-//	/assets/attachments/{attachmentId}/t/{params}.{signature}
+// Returns an empty string if the locator is invalid (which would
+// indicate a programmer error — locators come from trusted resolver
+// code, not user input).
+func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator) string {
+	signed, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
+	if err != nil {
+		c.logger.Warn("Failed to sign attachment locator", "error", err, "locator", loc)
+		return ""
+	}
+	return c.assetURL(fmt.Sprintf("/assets/attachments/%s", signed))
+}
+
+// GetTransformedAttachmentURL returns the URL for a transformed version
+// of the attachment identified by the locator. The transform parameters
+// are signed separately so the same locator can drive multiple
+// transforms without re-signing.
+//
+//	/assets/attachments/{signed-locator}/t/{params}.{signature}
 //
 // {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}.
-func (c *ChattoCore) GetTransformedAttachmentURL(attachmentID string, width, height int, fit string) string {
-	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, attachmentID, width, height, fit)
-	return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", attachmentID, signedPath))
+func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, width, height int, fit string) string {
+	signedLoc, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
+	if err != nil {
+		c.logger.Warn("Failed to sign attachment locator", "error", err, "locator", loc)
+		return ""
+	}
+	signedTransform := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, signedLoc, width, height, fit)
+	return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", signedLoc, signedTransform))
 }
 
-// GetTransformedAttachmentURLFromStorage returns a transform URL for an
-// attachment record.
-func (c *ChattoCore) GetTransformedAttachmentURLFromStorage(attachment *corev1.Attachment, width, height int, fit string) string {
-	return c.GetTransformedAttachmentURL(attachment.Id, width, height, fit)
+// LocatorForBodyAttachment builds the URL locator for an attachment
+// embedded in a MessageBody. `bodyKey` defaults to attachment.MessageBodyId
+// when empty.
+func LocatorForBodyAttachment(attachment *corev1.Attachment, bodyKey string) signedurl.AttachmentLocator {
+	if bodyKey == "" {
+		bodyKey = attachment.MessageBodyId
+	}
+	return signedurl.AttachmentLocator{
+		RoomID:       attachment.RoomId,
+		BodyKey:      bodyKey,
+		AttachmentID: attachment.Id,
+	}
+}
+
+// LocatorForVideoOriginAttachment builds the URL locator for a video
+// variant or thumbnail attachment owned by a VideoProcessingState
+// keyed by `videoOriginID` (the original video's attachment ID).
+func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string) signedurl.AttachmentLocator {
+	return signedurl.AttachmentLocator{
+		RoomID:       roomID,
+		VideoOrigin:  videoOriginID,
+		AttachmentID: attachmentID,
+	}
 }
 
 // GetTransformedServerAssetURL returns the URL for accessing a transformed version of an server asset.
@@ -841,38 +679,3 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind R
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
-// DeleteAttachmentFromStorageByID deletes an attachment from storage by
-// space ID and attachment ID. This probes both NATS and S3 backends. Used
-// by the video service to delete the original after successful transcoding.
-// Pass an empty spaceID to prefer the post-ADR-030-Phase-4 kind-less layout;
-// the helper probes all known S3 layouts so layout mismatches resolve
-// transparently.
-func (c *ChattoCore) DeleteAttachmentFromStorageByID(ctx context.Context, spaceID, attachmentID string) error {
-	// Try NATS first
-	err := c.DeleteAttachment(ctx, spaceID, attachmentID)
-	if err == nil {
-		return nil
-	}
-
-	// Try S3 across known layouts.
-	if c.s3Client != nil {
-		// Resolve the room ID via the canonical record so we can clean
-		// up the metadata entry alongside the storage object.
-		var roomID string
-		if rec, recErr := c.GetAttachmentRecord(ctx, attachmentID); recErr == nil && rec != nil {
-			roomID = rec.RoomId
-		}
-		for _, s3Key := range attachmentS3KeyCandidates(spaceID, attachmentID) {
-			if s3Err := c.s3Client.DeleteObject(ctx, s3Key); s3Err == nil {
-				if recErr := c.forgetAttachmentRecord(ctx, roomID, attachmentID); recErr != nil {
-					c.logger.Warn("Failed to forget attachment record",
-						"attachment_id", attachmentID,
-						"error", recErr)
-				}
-				return nil
-			}
-		}
-	}
-
-	return err
-}
