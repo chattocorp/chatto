@@ -6,6 +6,12 @@ name: release-please
 # PR creates the `vX.Y.Z` tag + GitHub Release. The tag push then fires
 # ci.yml's `release` job (GoReleaser + frontend image push) as before.
 #
+# Also runs on `release-*` maintenance branches (e.g. `release-0.0.x`) to
+# support backport patches against older versions. release-please keeps a
+# separate Release PR per target branch, and the per-branch manifest tracks
+# its own latest version, so a backport on `release-0.0.x` bumps from the
+# tag reachable on that branch without jumping to main's version.
+#
 # Replaces the old `mise bump` flow (goversion + manual tag + push).
 #
 # Requires `RELEASE_PLEASE_PAT`: a fine-grained PAT scoped to chattocorp/chatto
@@ -18,7 +24,9 @@ name: release-please
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'release-*'
 
 permissions:
   contents: write
@@ -27,9 +35,15 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    env:
+      # Push event's ref_name is the branch (main or release-*). Used as the
+      # target-branch input below. Captured into env per workflow-injection
+      # best practice, even though it's an action input rather than a shell arg.
+      TARGET_BRANCH: ${{ github.ref_name }}
     steps:
       - uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.RELEASE_PLEASE_PAT }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
+          target-branch: ${{ env.TARGET_BRANCH }}
