@@ -118,6 +118,13 @@ mise x -- pnpm exec playwright test e2e/dm.test.ts -g "post a"   # one test
 mise x -- pnpm exec playwright test e2e/dm.test.ts --retries=0   # no retries (faster signal while iterating)
 ```
 
+**Always start with the e2e tests most likely to exercise what you changed; only run the full suite once those pass.** The full suite takes minutes and retries failures three times — a broken fixture or core regression compounds that delay. Pick the related spec(s) first, get them green, *then* run `mise test-e2e`. The right shape is:
+
+1. Identify the e2e files that exercise the area you touched (`e2e/dm.test.ts` for DM changes, `e2e/room-membership*.test.ts` for membership, etc.).
+2. Run those with `--retries=0` to get a fast signal.
+3. Fix anything that breaks. Re-run the targeted spec(s) until clean.
+4. Only then `mise test-e2e` for the full sweep — usually catches unrelated breakage you wouldn't have suspected.
+
 If a test hangs or times out without a clear assertion failure, look at `frontend/test-results/<test-name>/error-context.md` — it includes the page snapshot and the failing line, which usually pinpoints the problem faster than the console output. When the snapshot belongs to the wrong `Page` (e.g. you have `page` + `regularPage`), the captured page is the test's primary one; add a temporary `console.log` against the other page or capture a screenshot to see its state.
 
 ## E2E gotchas worth remembering
