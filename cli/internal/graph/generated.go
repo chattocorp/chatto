@@ -100,6 +100,8 @@ type ComplexityRoot struct {
 	}
 
 	AdminQueries struct {
+		EventLog             func(childComplexity int, limit *int32, before *string) int
+		EventLogEntry        func(childComplexity int, sequence string) int
 		GroupRolePermissions func(childComplexity int, groupID string, roleName string) int
 		GroupUserPermissions func(childComplexity int, groupID string, userID string) int
 		ServerConfig         func(childComplexity int) int
@@ -160,6 +162,25 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		Room      func(childComplexity int) int
 		Summary   func(childComplexity int) int
+	}
+
+	EventLogConnection struct {
+		EndCursor  func(childComplexity int) int
+		Entries    func(childComplexity int) int
+		HasOlder   func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	EventLogEntry struct {
+		ActorID       func(childComplexity int) int
+		AggregateID   func(childComplexity int) int
+		AggregateType func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		EventID       func(childComplexity int) int
+		EventType     func(childComplexity int) int
+		PayloadJSON   func(childComplexity int) int
+		Sequence      func(childComplexity int) int
+		Subject       func(childComplexity int) int
 	}
 
 	FollowedThread struct {
@@ -819,6 +840,8 @@ type AdminMutationsResolver interface {
 }
 type AdminQueriesResolver interface {
 	ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error)
+	EventLog(ctx context.Context, obj *model.AdminQueries, limit *int32, before *string) (*model.EventLogConnection, error)
+	EventLogEntry(ctx context.Context, obj *model.AdminQueries, sequence string) (*model.EventLogEntry, error)
 	GroupRolePermissions(ctx context.Context, obj *model.AdminQueries, groupID string, roleName string) (*model.RoomGroupRolePermissions, error)
 	GroupUserPermissions(ctx context.Context, obj *model.AdminQueries, groupID string, userID string) (*model.RoomGroupUserPermissions, error)
 }
@@ -1211,6 +1234,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AdminMutations.UpdateUser(childComplexity, args["input"].(model.AdminUpdateUserInput)), true
 
+	case "AdminQueries.eventLog":
+		if e.complexity.AdminQueries.EventLog == nil {
+			break
+		}
+
+		args, err := ec.field_AdminQueries_eventLog_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.AdminQueries.EventLog(childComplexity, args["limit"].(*int32), args["before"].(*string)), true
+	case "AdminQueries.eventLogEntry":
+		if e.complexity.AdminQueries.EventLogEntry == nil {
+			break
+		}
+
+		args, err := ec.field_AdminQueries_eventLogEntry_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.AdminQueries.EventLogEntry(childComplexity, args["sequence"].(string)), true
 	case "AdminQueries.groupRolePermissions":
 		if e.complexity.AdminQueries.GroupRolePermissions == nil {
 			break
@@ -1472,6 +1517,86 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DMMessageNotificationItem.Summary(childComplexity), true
+
+	case "EventLogConnection.endCursor":
+		if e.complexity.EventLogConnection.EndCursor == nil {
+			break
+		}
+
+		return e.complexity.EventLogConnection.EndCursor(childComplexity), true
+	case "EventLogConnection.entries":
+		if e.complexity.EventLogConnection.Entries == nil {
+			break
+		}
+
+		return e.complexity.EventLogConnection.Entries(childComplexity), true
+	case "EventLogConnection.hasOlder":
+		if e.complexity.EventLogConnection.HasOlder == nil {
+			break
+		}
+
+		return e.complexity.EventLogConnection.HasOlder(childComplexity), true
+	case "EventLogConnection.totalCount":
+		if e.complexity.EventLogConnection.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.EventLogConnection.TotalCount(childComplexity), true
+
+	case "EventLogEntry.actorId":
+		if e.complexity.EventLogEntry.ActorID == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.ActorID(childComplexity), true
+	case "EventLogEntry.aggregateId":
+		if e.complexity.EventLogEntry.AggregateID == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.AggregateID(childComplexity), true
+	case "EventLogEntry.aggregateType":
+		if e.complexity.EventLogEntry.AggregateType == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.AggregateType(childComplexity), true
+	case "EventLogEntry.createdAt":
+		if e.complexity.EventLogEntry.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.CreatedAt(childComplexity), true
+	case "EventLogEntry.eventId":
+		if e.complexity.EventLogEntry.EventID == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.EventID(childComplexity), true
+	case "EventLogEntry.eventType":
+		if e.complexity.EventLogEntry.EventType == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.EventType(childComplexity), true
+	case "EventLogEntry.payloadJson":
+		if e.complexity.EventLogEntry.PayloadJSON == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.PayloadJSON(childComplexity), true
+	case "EventLogEntry.sequence":
+		if e.complexity.EventLogEntry.Sequence == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.Sequence(childComplexity), true
+	case "EventLogEntry.subject":
+		if e.complexity.EventLogEntry.Subject == nil {
+			break
+		}
+
+		return e.complexity.EventLogEntry.Subject(childComplexity), true
 
 	case "FollowedThread.hasUnread":
 		if e.complexity.FollowedThread.HasUnread == nil {
@@ -4749,6 +4874,33 @@ func (ec *executionContext) field_AdminMutations_updateUser_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_AdminQueries_eventLogEntry_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sequence", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sequence"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_AdminQueries_eventLog_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_AdminQueries_groupRolePermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6376,6 +6528,118 @@ func (ec *executionContext) fieldContext_AdminQueries_serverConfig(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _AdminQueries_eventLog(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AdminQueries_eventLog,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.AdminQueries().EventLog(ctx, obj, fc.Args["limit"].(*int32), fc.Args["before"].(*string))
+		},
+		nil,
+		ec.marshalNEventLogConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogConnection,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AdminQueries_eventLog(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdminQueries",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "entries":
+				return ec.fieldContext_EventLogConnection_entries(ctx, field)
+			case "hasOlder":
+				return ec.fieldContext_EventLogConnection_hasOlder(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_EventLogConnection_endCursor(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_EventLogConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EventLogConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_AdminQueries_eventLog_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdminQueries_eventLogEntry(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AdminQueries_eventLogEntry,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.AdminQueries().EventLogEntry(ctx, obj, fc.Args["sequence"].(string))
+		},
+		nil,
+		ec.marshalOEventLogEntry2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntry,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AdminQueries_eventLogEntry(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdminQueries",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sequence":
+				return ec.fieldContext_EventLogEntry_sequence(ctx, field)
+			case "subject":
+				return ec.fieldContext_EventLogEntry_subject(ctx, field)
+			case "aggregateType":
+				return ec.fieldContext_EventLogEntry_aggregateType(ctx, field)
+			case "aggregateId":
+				return ec.fieldContext_EventLogEntry_aggregateId(ctx, field)
+			case "eventType":
+				return ec.fieldContext_EventLogEntry_eventType(ctx, field)
+			case "eventId":
+				return ec.fieldContext_EventLogEntry_eventId(ctx, field)
+			case "actorId":
+				return ec.fieldContext_EventLogEntry_actorId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_EventLogEntry_createdAt(ctx, field)
+			case "payloadJson":
+				return ec.fieldContext_EventLogEntry_payloadJson(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EventLogEntry", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_AdminQueries_eventLogEntry_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AdminQueries_groupRolePermissions(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7610,6 +7874,403 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogConnection_entries(ctx context.Context, field graphql.CollectedField, obj *model.EventLogConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogConnection_entries,
+		func(ctx context.Context) (any, error) {
+			return obj.Entries, nil
+		},
+		nil,
+		ec.marshalNEventLogEntry2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogConnection_entries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sequence":
+				return ec.fieldContext_EventLogEntry_sequence(ctx, field)
+			case "subject":
+				return ec.fieldContext_EventLogEntry_subject(ctx, field)
+			case "aggregateType":
+				return ec.fieldContext_EventLogEntry_aggregateType(ctx, field)
+			case "aggregateId":
+				return ec.fieldContext_EventLogEntry_aggregateId(ctx, field)
+			case "eventType":
+				return ec.fieldContext_EventLogEntry_eventType(ctx, field)
+			case "eventId":
+				return ec.fieldContext_EventLogEntry_eventId(ctx, field)
+			case "actorId":
+				return ec.fieldContext_EventLogEntry_actorId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_EventLogEntry_createdAt(ctx, field)
+			case "payloadJson":
+				return ec.fieldContext_EventLogEntry_payloadJson(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EventLogEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogConnection_hasOlder(ctx context.Context, field graphql.CollectedField, obj *model.EventLogConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogConnection_hasOlder,
+		func(ctx context.Context) (any, error) {
+			return obj.HasOlder, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogConnection_hasOlder(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogConnection_endCursor(ctx context.Context, field graphql.CollectedField, obj *model.EventLogConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogConnection_endCursor,
+		func(ctx context.Context) (any, error) {
+			return obj.EndCursor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogConnection_endCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.EventLogConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogConnection_totalCount,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCount, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_sequence(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_sequence,
+		func(ctx context.Context) (any, error) {
+			return obj.Sequence, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_sequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_subject(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_subject,
+		func(ctx context.Context) (any, error) {
+			return obj.Subject, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_aggregateType(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_aggregateType,
+		func(ctx context.Context) (any, error) {
+			return obj.AggregateType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_aggregateType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_aggregateId(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_aggregateId,
+		func(ctx context.Context) (any, error) {
+			return obj.AggregateID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_aggregateId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_eventType(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_eventType,
+		func(ctx context.Context) (any, error) {
+			return obj.EventType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_eventType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_eventId(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_eventId,
+		func(ctx context.Context) (any, error) {
+			return obj.EventID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_eventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_actorId(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_actorId,
+		func(ctx context.Context) (any, error) {
+			return obj.ActorID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_actorId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EventLogEntry_payloadJson(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EventLogEntry_payloadJson,
+		func(ctx context.Context) (any, error) {
+			return obj.PayloadJSON, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EventLogEntry_payloadJson(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EventLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -13879,6 +14540,10 @@ func (ec *executionContext) fieldContext_Query_admin(_ context.Context, field gr
 				return ec.fieldContext_AdminQueries_systemInfo(ctx, field)
 			case "serverConfig":
 				return ec.fieldContext_AdminQueries_serverConfig(ctx, field)
+			case "eventLog":
+				return ec.fieldContext_AdminQueries_eventLog(ctx, field)
+			case "eventLogEntry":
+				return ec.fieldContext_AdminQueries_eventLogEntry(ctx, field)
 			case "groupRolePermissions":
 				return ec.fieldContext_AdminQueries_groupRolePermissions(ctx, field)
 			case "groupUserPermissions":
@@ -27717,6 +28382,75 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "eventLog":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AdminQueries_eventLog(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "eventLogEntry":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AdminQueries_eventLogEntry(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "groupRolePermissions":
 			field := field
 
@@ -28398,6 +29132,136 @@ func (ec *executionContext) _DMMessageNotificationItem(ctx context.Context, sel 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var eventLogConnectionImplementors = []string{"EventLogConnection"}
+
+func (ec *executionContext) _EventLogConnection(ctx context.Context, sel ast.SelectionSet, obj *model.EventLogConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, eventLogConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EventLogConnection")
+		case "entries":
+			out.Values[i] = ec._EventLogConnection_entries(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasOlder":
+			out.Values[i] = ec._EventLogConnection_hasOlder(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endCursor":
+			out.Values[i] = ec._EventLogConnection_endCursor(ctx, field, obj)
+		case "totalCount":
+			out.Values[i] = ec._EventLogConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var eventLogEntryImplementors = []string{"EventLogEntry"}
+
+func (ec *executionContext) _EventLogEntry(ctx context.Context, sel ast.SelectionSet, obj *model.EventLogEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, eventLogEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EventLogEntry")
+		case "sequence":
+			out.Values[i] = ec._EventLogEntry_sequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subject":
+			out.Values[i] = ec._EventLogEntry_subject(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "aggregateType":
+			out.Values[i] = ec._EventLogEntry_aggregateType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "aggregateId":
+			out.Values[i] = ec._EventLogEntry_aggregateId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "eventType":
+			out.Values[i] = ec._EventLogEntry_eventType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "eventId":
+			out.Values[i] = ec._EventLogEntry_eventId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "actorId":
+			out.Values[i] = ec._EventLogEntry_actorId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._EventLogEntry_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "payloadJson":
+			out.Values[i] = ec._EventLogEntry_payloadJson(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -37942,6 +38806,74 @@ func (ec *executionContext) unmarshalNDismissNotificationInput2hmansᚗdeᚋchat
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNEventLogConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogConnection(ctx context.Context, sel ast.SelectionSet, v model.EventLogConnection) graphql.Marshaler {
+	return ec._EventLogConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNEventLogConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogConnection(ctx context.Context, sel ast.SelectionSet, v *model.EventLogConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EventLogConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNEventLogEntry2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EventLogEntry) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNEventLogEntry2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntry(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNEventLogEntry2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntry(ctx context.Context, sel ast.SelectionSet, v *model.EventLogEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EventLogEntry(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNFollowThreadInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowThreadInput(ctx context.Context, v any) (model.FollowThreadInput, error) {
 	res, err := ec.unmarshalInputFollowThreadInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -39819,6 +40751,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOEventLogEntry2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntry(ctx context.Context, sel ast.SelectionSet, v *model.EventLogEntry) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EventLogEntry(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode(ctx context.Context, v any) (*model.FitMode, error) {

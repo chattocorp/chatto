@@ -58,8 +58,6 @@ export type AdminMutations = {
   __typename?: 'AdminMutations';
   /** Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent. */
   clearUsernameCooldown: Scalars['Boolean']['output'];
-  /** Reset server configuration to defaults. Returns true on success. */
-  resetServerConfig: Scalars['Boolean']['output'];
   /** Update server configuration. Returns the updated config section. */
   updateServerConfig: AdminServerConfig;
   /** Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile. */
@@ -87,6 +85,10 @@ export type AdminMutationsUpdateUserArgs = {
 /** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueries = {
   __typename?: 'AdminQueries';
+  /** Browse the event-sourcing log (SERVER_EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before. */
+  eventLog: EventLogConnection;
+  /** Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist. */
+  eventLogEntry?: Maybe<EventLogEntry>;
   /**
    * Resolve the explicit grants and denials configured for a role on a
    * specific set. Returns empty arrays if neither side has any keys.
@@ -103,6 +105,19 @@ export type AdminQueries = {
   serverPermissions: Array<Scalars['String']['output']>;
   /** Get aggregate operational metrics (NATS/JetStream connection + account-level usage). */
   systemInfo: SystemInfo;
+};
+
+
+/** Admin-only queries. Returns null if the user is not an server admin. */
+export type AdminQueriesEventLogArgs = {
+  before?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Admin-only queries. Returns null if the user is not an server admin. */
+export type AdminQueriesEventLogEntryArgs = {
+  sequence: Scalars['String']['input'];
 };
 
 
@@ -434,6 +449,42 @@ export type DenyUserPermissionInput = {
 export type DismissNotificationInput = {
   /** The ID of the notification to dismiss. */
   notificationId: Scalars['ID']['input'];
+};
+
+/** A page of EventLogEntries, newest first. */
+export type EventLogConnection = {
+  __typename?: 'EventLogConnection';
+  /** Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries. */
+  endCursor?: Maybe<Scalars['String']['output']>;
+  /** Entries on this page, ordered newest → oldest. */
+  entries: Array<EventLogEntry>;
+  /** True if older entries exist beyond this page. */
+  hasOlder: Scalars['Boolean']['output'];
+  /** Total messages currently in SERVER_EVT — an operational metric, not bounded by `limit`. */
+  totalCount: Scalars['Int']['output'];
+};
+
+/** One entry in the event-sourcing log (SERVER_EVT). Each entry corresponds to one durable domain event under ADR-033. */
+export type EventLogEntry = {
+  __typename?: 'EventLogEntry';
+  /** ID of the actor who triggered the event. May also be a synthetic actor like 'system:migration' or 'system:bootstrap'. */
+  actorId: Scalars['String']['output'];
+  /** Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons). */
+  aggregateId: Scalars['String']['output'];
+  /** Aggregate type parsed from the subject (e.g. 'room', 'config'). */
+  aggregateType: Scalars['String']['output'];
+  /** When the event was created (per the event payload, not the stream). */
+  createdAt: Scalars['Time']['output'];
+  /** Per-event unique identifier from event.id. */
+  eventId: Scalars['String']['output'];
+  /** Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant. */
+  eventType: Scalars['String']['output'];
+  /** Protobuf payload encoded as JSON for human inspection. */
+  payloadJson: Scalars['String']['output'];
+  /** Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int. */
+  sequence: Scalars['String']['output'];
+  /** NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server'). */
+  subject: Scalars['String']['output'];
 };
 
 /** Fit mode for image transformations. */
@@ -4100,6 +4151,21 @@ export type AdminDashboardStatsQueryVariables = Exact<{ [key: string]: never; }>
 
 export type AdminDashboardStatsQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', systemInfo: { __typename?: 'SystemInfo', stats: { __typename?: 'ServerStats', userCount: number, channelRoomCount: number, dmRoomCount: number } } } | null };
 
+export type AdminEventLogQueryVariables = Exact<{
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type AdminEventLogQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', eventLog: { __typename?: 'EventLogConnection', hasOlder: boolean, endCursor?: string | null, totalCount: number, entries: Array<{ __typename?: 'EventLogEntry', sequence: string, subject: string, aggregateType: string, aggregateId: string, eventType: string, eventId: string, actorId: string, createdAt: any }> } } | null };
+
+export type AdminEventLogEntryQueryVariables = Exact<{
+  sequence: Scalars['String']['input'];
+}>;
+
+
+export type AdminEventLogEntryQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', eventLogEntry?: { __typename?: 'EventLogEntry', sequence: string, subject: string, aggregateType: string, aggregateId: string, eventType: string, eventId: string, actorId: string, createdAt: any, payloadJson: string } | null } | null };
+
 export type SpaceMembersQueryVariables = Exact<{
   search?: InputMaybe<Scalars['String']['input']>;
 }>;
@@ -4431,6 +4497,8 @@ export const GetSpaceNotificationPreferencesDocument = {"kind":"Document","defin
 export const SetServerNotificationLevelDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetServerNotificationLevel"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SetServerNotificationLevelInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setServerNotificationLevel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveLevel"}}]}}]}}]} as unknown as DocumentNode<SetServerNotificationLevelMutation, SetServerNotificationLevelMutationVariables>;
 export const SetRoomNotificationLevelDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetRoomNotificationLevel"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SetRoomNotificationLevelInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setRoomNotificationLevel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveLevel"}}]}}]}}]} as unknown as DocumentNode<SetRoomNotificationLevelMutation, SetRoomNotificationLevelMutationVariables>;
 export const AdminDashboardStatsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminDashboardStats"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"systemInfo"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"stats"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userCount"}},{"kind":"Field","name":{"kind":"Name","value":"channelRoomCount"}},{"kind":"Field","name":{"kind":"Name","value":"dmRoomCount"}}]}}]}}]}}]}}]} as unknown as DocumentNode<AdminDashboardStatsQuery, AdminDashboardStatsQueryVariables>;
+export const AdminEventLogDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminEventLog"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"before"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"eventLog"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"before"},"value":{"kind":"Variable","name":{"kind":"Name","value":"before"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"entries"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequence"}},{"kind":"Field","name":{"kind":"Name","value":"subject"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateType"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateId"}},{"kind":"Field","name":{"kind":"Name","value":"eventType"}},{"kind":"Field","name":{"kind":"Name","value":"eventId"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"hasOlder"}},{"kind":"Field","name":{"kind":"Name","value":"endCursor"}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}}]}}]}}]}}]} as unknown as DocumentNode<AdminEventLogQuery, AdminEventLogQueryVariables>;
+export const AdminEventLogEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminEventLogEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sequence"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"eventLogEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"sequence"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sequence"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequence"}},{"kind":"Field","name":{"kind":"Name","value":"subject"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateType"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateId"}},{"kind":"Field","name":{"kind":"Name","value":"eventType"}},{"kind":"Field","name":{"kind":"Name","value":"eventId"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"payloadJson"}}]}}]}}]}}]} as unknown as DocumentNode<AdminEventLogEntryQuery, AdminEventLogEntryQueryVariables>;
 export const SpaceMembersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceMembers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"members"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"20"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"users"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}}]}}]}}]}}]} as unknown as DocumentNode<SpaceMembersQuery, SpaceMembersQueryVariables>;
 export const SpaceMemberDetailsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceMemberDetails"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"user"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"lastLoginChange"}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"availablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"member"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}}]}}]}}]} as unknown as DocumentNode<SpaceMemberDetailsQuery, SpaceMemberDetailsQueryVariables>;
 export const AdminUpdateUserDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateUser"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AdminUpdateUserInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateUser"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}}]}}]} as unknown as DocumentNode<AdminUpdateUserMutation, AdminUpdateUserMutationVariables>;

@@ -7,7 +7,11 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+
+	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -146,6 +150,114 @@ func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.Admi
 	}
 
 	return serverConfigToModel(cfg, isConfigured), nil
+}
+
+// EventLog is the resolver for the eventLog field. The parent
+// `admin.*` resolver gates on admin.access; this resolver additionally
+// requires admin.view-audit so the event-log inspection view is
+// available to auditors specifically rather than every admin-panel
+// viewer.
+func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQueries, limit *int32, before *string) (*model.EventLogConnection, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canView, err := r.core.CanAdminAuditView(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("check admin.view-audit: %w", err)
+	}
+	if !canView {
+		return nil, core.ErrPermissionDenied
+	}
+
+	stream, err := r.core.EventStreamForDebug(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get SERVER_EVT stream: %w", err)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("stream info: %w", err)
+	}
+
+	pageSize := defaultEventLogPageSize
+	if limit != nil {
+		pageSize = int(*limit)
+		if pageSize < 1 {
+			pageSize = 1
+		}
+		if pageSize > maxEventLogPageSize {
+			pageSize = maxEventLogPageSize
+		}
+	}
+
+	// startSeq is the highest sequence to include on this page.
+	startSeq := info.State.LastSeq
+	if before != nil && *before != "" {
+		parsed, parseErr := strconv.ParseUint(*before, 10, 64)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid before cursor %q: %w", *before, parseErr)
+		}
+		if parsed == 0 {
+			return &model.EventLogConnection{
+				Entries:    []*model.EventLogEntry{},
+				HasOlder:   false,
+				EndCursor:  nil,
+				TotalCount: int32(info.State.Msgs),
+			}, nil
+		}
+		startSeq = parsed - 1
+	}
+
+	entries, err := r.fetchEventLogPage(ctx, stream, startSeq, info.State.FirstSeq, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := &model.EventLogConnection{
+		Entries:    entries,
+		TotalCount: int32(info.State.Msgs),
+	}
+	if len(entries) > 0 {
+		oldestSeq := entries[len(entries)-1].Sequence
+		conn.EndCursor = &oldestSeq
+		oldest, _ := strconv.ParseUint(oldestSeq, 10, 64)
+		conn.HasOlder = oldest > info.State.FirstSeq
+	}
+	return conn, nil
+}
+
+// EventLogEntry is the resolver for the eventLogEntry field. Returns
+// nil if the sequence doesn't exist (or is outside the stream's range).
+// Same admin.view-audit gate as EventLog.
+func (r *adminQueriesResolver) EventLogEntry(ctx context.Context, obj *model.AdminQueries, sequence string) (*model.EventLogEntry, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canView, err := r.core.CanAdminAuditView(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("check admin.view-audit: %w", err)
+	}
+	if !canView {
+		return nil, core.ErrPermissionDenied
+	}
+
+	seq, err := strconv.ParseUint(sequence, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid sequence %q: %w", sequence, err)
+	}
+	stream, err := r.core.EventStreamForDebug(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get SERVER_EVT stream: %w", err)
+	}
+	msg, err := stream.GetMsg(ctx, seq)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrMsgNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get msg %d: %w", seq, err)
+	}
+	return streamMsgToEventLogEntry(msg)
 }
 
 // Admin is the resolver for the admin field.

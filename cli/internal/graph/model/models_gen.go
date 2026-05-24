@@ -76,6 +76,10 @@ type AdminQueries struct {
 	SystemInfo *SystemInfo `json:"systemInfo"`
 	// Get server configuration.
 	ServerConfig *AdminServerConfig `json:"serverConfig"`
+	// Browse the event-sourcing log (SERVER_EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before.
+	EventLog *EventLogConnection `json:"eventLog"`
+	// Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist.
+	EventLogEntry *EventLogEntry `json:"eventLogEntry,omitempty"`
 	// Resolve the explicit grants and denials configured for a role on a
 	// specific set. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
@@ -311,6 +315,40 @@ type DenyUserPermissionInput struct {
 type DismissNotificationInput struct {
 	// The ID of the notification to dismiss.
 	NotificationID string `json:"notificationId"`
+}
+
+// A page of EventLogEntries, newest first.
+type EventLogConnection struct {
+	// Entries on this page, ordered newest → oldest.
+	Entries []*EventLogEntry `json:"entries"`
+	// True if older entries exist beyond this page.
+	HasOlder bool `json:"hasOlder"`
+	// Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries.
+	EndCursor *string `json:"endCursor,omitempty"`
+	// Total messages currently in SERVER_EVT — an operational metric, not bounded by `limit`.
+	TotalCount int32 `json:"totalCount"`
+}
+
+// One entry in the event-sourcing log (SERVER_EVT). Each entry corresponds to one durable domain event under ADR-033.
+type EventLogEntry struct {
+	// Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int.
+	Sequence string `json:"sequence"`
+	// NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server').
+	Subject string `json:"subject"`
+	// Aggregate type parsed from the subject (e.g. 'room', 'config').
+	AggregateType string `json:"aggregateType"`
+	// Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons).
+	AggregateID string `json:"aggregateId"`
+	// Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant.
+	EventType string `json:"eventType"`
+	// Per-event unique identifier from event.id.
+	EventID string `json:"eventId"`
+	// ID of the actor who triggered the event. May also be a synthetic actor like 'system:migration' or 'system:bootstrap'.
+	ActorID string `json:"actorId"`
+	// When the event was created (per the event payload, not the stream).
+	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
+	// Protobuf payload encoded as JSON for human inspection.
+	PayloadJSON string `json:"payloadJson"`
 }
 
 // Input for following a thread.

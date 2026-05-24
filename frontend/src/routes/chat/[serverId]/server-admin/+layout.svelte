@@ -31,6 +31,7 @@
     const rolesBase = adminBase + '/roles';
     const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
+    const eventLogBase = adminBase + '/event-log';
 
     // General settings page requires space.manage permission
     if (pathname.startsWith(generalBase)) {
@@ -66,6 +67,11 @@
     // System info (NATS/JetStream stats) — admin.view-system
     if (pathname.startsWith(systemBase)) {
       return () => serverPerms.current.canAdminViewSystem;
+    }
+
+    // Event log inspection — admin.view-audit
+    if (pathname.startsWith(eventLogBase)) {
+      return () => serverPerms.current.canAdminViewAudit;
     }
 
     // Admin home page is accessible to anyone with ANY admin permission

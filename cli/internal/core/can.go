@@ -49,6 +49,14 @@ func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (boo
 	return c.HasServerPermission(ctx, userID, PermAdminSystemView)
 }
 
+// CanAdminAuditView checks if a user can view the audit log (event log)
+// page in admin. The event-log inspection view in /server-admin/event-log
+// is the first concrete use; future log exports / search endpoints gate
+// on the same permission.
+func (c *ChattoCore) CanAdminAuditView(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermAdminAuditView)
+}
+
 // CanDMView checks if a user can access the DM space and read DMs.
 // Verified users have this permission by default.
 func (c *ChattoCore) CanDMView(ctx context.Context, userID string) (bool, error) {

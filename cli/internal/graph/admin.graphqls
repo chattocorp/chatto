@@ -104,6 +104,51 @@ extend type AdminQueries {
   serverConfig: AdminServerConfig! @goField(forceResolver: true)
 }
 
+# =============================================================================
+# Event Log (SERVER_EVT inspection)
+# =============================================================================
+
+"One entry in the event-sourcing log (SERVER_EVT). Each entry corresponds to one durable domain event under ADR-033."
+type EventLogEntry {
+  "Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int."
+  sequence: String!
+  "NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server')."
+  subject: String!
+  "Aggregate type parsed from the subject (e.g. 'room', 'config')."
+  aggregateType: String!
+  "Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons)."
+  aggregateId: String!
+  "Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant."
+  eventType: String!
+  "Per-event unique identifier from event.id."
+  eventId: String!
+  "ID of the actor who triggered the event. May also be a synthetic actor like 'system:migration' or 'system:bootstrap'."
+  actorId: String!
+  "When the event was created (per the event payload, not the stream)."
+  createdAt: Time!
+  "Protobuf payload encoded as JSON for human inspection."
+  payloadJson: String!
+}
+
+"A page of EventLogEntries, newest first."
+type EventLogConnection {
+  "Entries on this page, ordered newest → oldest."
+  entries: [EventLogEntry!]!
+  "True if older entries exist beyond this page."
+  hasOlder: Boolean!
+  "Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries."
+  endCursor: String
+  "Total messages currently in SERVER_EVT — an operational metric, not bounded by `limit`."
+  totalCount: Int!
+}
+
+extend type AdminQueries {
+  "Browse the event-sourcing log (SERVER_EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before."
+  eventLog(limit: Int, before: String): EventLogConnection! @goField(forceResolver: true)
+  "Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist."
+  eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)
+}
+
 "Admin mutations for configuration management."
 type AdminMutations {
   "Update server configuration. Returns the updated config section."

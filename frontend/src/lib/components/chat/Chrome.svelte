@@ -308,6 +308,14 @@
       });
     }
 
+    if (serverPerms.current.canAdminViewAudit) {
+      items.push({
+        href: resolve('/chat/[serverId]/server-admin/event-log', { serverId: serverSegment }),
+        label: 'Event Log',
+        icon: 'iconify uil--history'
+      });
+    }
+
     return items;
   });
 
