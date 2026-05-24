@@ -1,10 +1,34 @@
 FROM alpine:latest
+
+ARG NATS_CLI_VERSION=0.4.0
+ARG TARGETARCH
+
 RUN apk add --no-cache ca-certificates tzdata ffmpeg \
+ && apk add --no-cache --virtual .build-deps curl unzip \
+ && case "$TARGETARCH" in \
+      amd64) arch=amd64 ;; \
+      arm64) arch=arm64 ;; \
+      *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL -o /tmp/nats.zip \
+      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/nats-${NATS_CLI_VERSION}-linux-${arch}.zip" \
+ && unzip -j /tmp/nats.zip "*/nats" -d /usr/local/bin/ \
+ && chmod +x /usr/local/bin/nats \
+ && rm /tmp/nats.zip \
+ && apk del .build-deps \
  && addgroup -g 10001 chatto \
  && adduser -D -u 10001 -G chatto -h /home/chatto -s /sbin/nologin chatto
+
 COPY chatto /usr/local/bin/chatto
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Tell the nats CLI which context to use by default. The file itself is
+# written at container start by docker-entrypoint.sh.
+ENV NATS_CONTEXT=chatto
+
 WORKDIR /home/chatto
 USER chatto:chatto
 EXPOSE 4000
-ENTRYPOINT ["chatto"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["start"]
