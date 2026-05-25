@@ -1,0 +1,54 @@
+name: lint-pr-body
+
+# Runs release-please's conventional-commits parser against the commit body
+# GitHub will produce when this PR is squash-merged ("<title> (#<num>)\n\n<body>").
+# Fails the check if the parser can't read it.
+#
+# Without this check, release-please silently drops un-parseable commits
+# from version inference AND the changelog — no warning, no error, the
+# alpha just never cuts. Real example: PR #595 (see follow-up commit).
+#
+# See .claude/rules/commits.md and .github/scripts/lint-pr-body.mjs.
+
+on:
+  pull_request:
+    # Run on every change that affects the title or body, plus the synchronize
+    # event so the check moves out of "expected" once the PR is opened.
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      # Branches release-please publishes from. PRs targeting anything else
+      # don't drive releases, so the check is unnecessary noise there.
+      - main
+      - next
+      - 'release-*'
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install parser
+        # @conventional-commits/parser is the same library release-please
+        # uses (verified against the v17 action). Pinning to a range that
+        # tracks release-please's own pin avoids drift.
+        run: npm install --no-save --no-package-lock @conventional-commits/[email protected]
+
+      - name: Validate PR title + body parse cleanly
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/lint-pr-body.mjs
