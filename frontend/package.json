@@ -1,7 +1,7 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.0.189",
+  "version": "0.0.190",
   "type": "module",
   "packageManager": "pnpm@10.19.0",
   "scripts": {
