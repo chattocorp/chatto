@@ -51,16 +51,6 @@ func (r *attachmentResolver) ThumbnailURL(ctx context.Context, obj *corev1.Attac
 	return nil, nil
 }
 
-// callerID returns the authenticated user's ID from the GraphQL
-// context, or "" if no user is attached. Used by attachment URL
-// resolvers to bake the caller's identity into the signed URL.
-func callerID(ctx context.Context) string {
-	if u := auth.ForContext(ctx); u != nil {
-		return u.Id
-	}
-	return ""
-}
-
 // VideoProcessing is the resolver for the videoProcessing field.
 // Returns nil for non-video attachments. Reads state from RUNTIME KV.
 func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.Attachment) (*model.VideoProcessing, error) {

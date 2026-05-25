@@ -6,8 +6,19 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/auth"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+// callerID returns the authenticated user's ID from the GraphQL
+// context, or "" if no user is attached. Used by attachment URL
+// resolvers to bake the caller's identity into the signed URL.
+func callerID(ctx context.Context) string {
+	if u := auth.ForContext(ctx); u != nil {
+		return u.Id
+	}
+	return ""
+}
 
 // unwrapEvent extracts the concrete event payload from the proto
 // Event oneof wrapper. Returns nil for an empty envelope or an
