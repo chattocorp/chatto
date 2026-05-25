@@ -8,6 +8,21 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// equalStrings is a small test helper shared across room-layout and
+// room-groups tests. Used to live in room_layout_migration_test.go
+// before phase 6 retired the legacy-shape migration tests.
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // writeRawLayoutOrder writes a `group_ids`-only layout to the KV,
 // overriding whatever the seed wrote. Used to exercise stale /
 // orphan / duplicate reconciliation paths without going through the

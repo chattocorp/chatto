@@ -95,6 +95,9 @@ func RunAll(
 	if err := MigrateRoomGroupsToES(ctx, serverConfigKV, publisher, logger); err != nil {
 		return fmt.Errorf("room_groups_es: %w", err)
 	}
+	if err := MigrateRoomLayoutToES(ctx, serverConfigKV, publisher, logger); err != nil {
+		return fmt.Errorf("room_layout_es: %w", err)
+	}
 	if err := MigrateServerConfigToES(ctx, runtimeConfigKV, publisher, logger); err != nil {
 		return fmt.Errorf("server_config_es: %w", err)
 	}

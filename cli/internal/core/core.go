@@ -115,6 +115,14 @@ type ChattoCore struct {
 	// for WaitForSeq from group writers.
 	RoomGroupsProjector *events.Projector
 
+	// RoomLayout holds the operator-defined inter-group ordering for
+	// the sidebar, derived from evt.layout.> events.
+	RoomLayout *RoomLayoutProjection
+
+	// RoomLayoutProjector runs the consumer for RoomLayout. Exposed
+	// for WaitForSeq from layout writers.
+	RoomLayoutProjector *events.Projector
+
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
 	// during NewChattoCore; Run iterates the slice. Adding a projector
@@ -525,6 +533,12 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		logger.WithPrefix("core.RoomGroupsProjector"),
 	)
 
+	roomLayout := NewRoomLayoutProjection()
+	roomLayoutProjector := events.NewProjector(
+		js, storage.serverEvtStream, roomLayout,
+		logger.WithPrefix("core.RoomLayoutProjector"),
+	)
+
 	// ConfigManager owns server-config dual-writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
@@ -548,11 +562,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomCatalogProjector:    roomCatalogProjector,
 		RoomGroups:              roomGroups,
 		RoomGroupsProjector:     roomGroupsProjector,
+		RoomLayout:              roomLayout,
+		RoomLayoutProjector:     roomLayoutProjector,
 		projectors: []*events.Projector{
 			roomMembershipProjector,
 			serverConfigProjector,
 			roomCatalogProjector,
 			roomGroupsProjector,
+			roomLayoutProjector,
 		},
 		bootDone: make(chan struct{}),
 	}

@@ -20,12 +20,17 @@ const (
 	AggregateRoom   = "room"
 	AggregateConfig = "config"
 	AggregateGroup  = "group"
+	AggregateLayout = "layout"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
 // (ADR-034 singleton convention: server-scoped aggregates use a stable
 // sentinel rather than introducing a different subject shape).
 const ConfigSingletonID = "server"
+
+// LayoutSingletonID is the sentinel aggregate ID for the singleton
+// sidebar layout. Same convention as ConfigSingletonID.
+const LayoutSingletonID = "default"
 
 // Aggregate identifies one event-sourced aggregate by type and ID. Every
 // event for an aggregate lives on the single subject Subject() returns —
@@ -125,6 +130,21 @@ func ParseRoomSubject(subject string) (roomID string, ok bool) {
 		return "", false
 	}
 	return rest, true
+}
+
+// LayoutAggregate is the typed constructor for the singleton sidebar
+// layout aggregate. Pattern: evt.layout.default. Owns inter-group
+// ordering for the sidebar; the room-group set itself is owned by
+// the group aggregate.
+func LayoutAggregate() Aggregate {
+	return Aggregate{Type: AggregateLayout, ID: LayoutSingletonID}
+}
+
+// LayoutSubjectFilter returns the wildcard subject filter for the
+// layout aggregate. Used by the RoomLayout projection.
+// Pattern: evt.layout.>
+func LayoutSubjectFilter() string {
+	return SubjectRoot + AggregateLayout + ".>"
 }
 
 // stripLivePrefix returns the subject with the "live." prefix removed if

@@ -96,6 +96,15 @@ message Event {
     RoomRemovedFromGroupEvent room_removed_from_group = 604;
     RoomsInGroupReorderedEvent rooms_in_group_reordered = 605;
 
+    // ----- Room layout (650-659, durable, evt.layout.{singleton}) -----
+    // The layout aggregate is a singleton; the singletonID is a stable
+    // constant ("default"). It owns the operator-defined inter-group
+    // ordering for the sidebar. New groups appear at the end of the
+    // sidebar implicitly via the RoomGroup projection's All() + the
+    // reconciler in ListRoomGroupsOrdered; the layout aggregate only
+    // tracks explicit reorders.
+    RoomGroupsReorderedEvent room_groups_reordered = 650;
+
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
     // These ride NATS Core only; field numbers can be renumbered
@@ -368,6 +377,16 @@ message RoomRemovedFromGroupEvent {
 message RoomsInGroupReorderedEvent {
   string group_id = 1;
   repeated string room_ids = 2;
+}
+
+// RoomGroupsReorderedEvent is the inter-group ordering update. The
+// layout aggregate is a singleton — there's only one sidebar layout
+// per server — so the event carries no aggregate ID; the publish
+// subject (evt.layout.default) identifies the singleton. The
+// `group_ids` field is the full, operator-validated permutation of
+// existing groups.
+message RoomGroupsReorderedEvent {
+  repeated string group_ids = 1;
 }
 
 // ============================================================================

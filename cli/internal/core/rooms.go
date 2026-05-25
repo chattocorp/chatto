@@ -422,8 +422,10 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		c.logger.Error("failed to purge room events", "error", err, "kind", kind, "room_id", room_id)
 	}
 
-	// Best-effort: remove room from any legacy room_layout reference.
-	c.removeRoomFromLayout(ctx, kind, room_id)
+	// (Phase-6 note: pre-phase-6 we had to walk room_group docs to
+	// drop the deleted room from group.room_ids. The cascade
+	// RoomRemovedFromGroupEvent above handles that automatically
+	// via the RoomGroups projection now.)
 
 	c.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
 
