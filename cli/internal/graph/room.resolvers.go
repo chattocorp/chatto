@@ -305,7 +305,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 	avatarSize := 96
 	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize)
 
-	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, obj.SpaceId, obj.Id)
+	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, core.SpaceIDForKind(core.KindOfRoom(obj)), obj.Id)
 	token, err := core.GenerateVoiceCallToken(
 		r.livekitConfig.APIKey,
 		r.livekitConfig.APISecret,
@@ -334,7 +334,7 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 		return []*model.CallParticipant{}, nil
 	}
 
-	participants, err := r.core.GetCallParticipants(ctx, obj.SpaceId, obj.Id)
+	participants, err := r.core.GetCallParticipants(ctx, core.SpaceIDForKind(core.KindOfRoom(obj)), obj.Id)
 	if err != nil {
 		return nil, err
 	}

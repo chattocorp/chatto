@@ -21,8 +21,8 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 	if room.Id == "" {
 		t.Error("Room ID should not be empty")
 	}
-	if room.SpaceId != ServerSpaceID {
-		t.Errorf("Room SpaceId = %s, want %s", room.SpaceId, ServerSpaceID)
+	if KindOfRoom(room) != KindChannel {
+		t.Errorf("Room kind = %s, want %s", KindOfRoom(room), KindChannel)
 	}
 	if room.Name != "General" {
 		t.Errorf("Room Name = %s, want General", room.Name)

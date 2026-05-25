@@ -223,8 +223,8 @@ func TestFindOrCreateDM(t *testing.T) {
 		if room == nil {
 			t.Fatal("Expected room to be non-nil")
 		}
-		if room.SpaceId != DMSpaceID {
-			t.Errorf("Expected space_id %s, got %s", DMSpaceID, room.SpaceId)
+		if KindOfRoom(room) != KindDM {
+			t.Errorf("Expected kind DM, got %s", KindOfRoom(room))
 		}
 
 		// Verify both users are members
@@ -301,8 +301,8 @@ func TestFindOrCreateDM(t *testing.T) {
 		if room == nil {
 			t.Fatal("Expected room to be non-nil")
 		}
-		if room.SpaceId != DMSpaceID {
-			t.Errorf("Expected space_id %s, got %s", DMSpaceID, room.SpaceId)
+		if KindOfRoom(room) != KindDM {
+			t.Errorf("Expected kind DM, got %s", KindOfRoom(room))
 		}
 
 		// Verify user is a member

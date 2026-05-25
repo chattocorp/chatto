@@ -27,9 +27,9 @@ func getRoom(t *testing.T, ctx context.Context, kv jetstream.KeyValue, key strin
 func TestBackfillRoomKind_BackfillsLegacyRoomsFromKeyPrefix(t *testing.T) {
 	ctx, kv := setupTestKV(t)
 
-	// Legacy channel room: Kind is UNSPECIFIED (zero), SpaceId carries
-	// the discriminator from before the field existed.
-	channel := &corev1.Room{Id: "Rchan", SpaceId: "server", Name: "general"}
+	// Legacy channel room: Kind is UNSPECIFIED (zero). The migration
+	// recovers the kind from the key prefix ("room.channel.*").
+	channel := &corev1.Room{Id: "Rchan", Name: "general"}
 	channelData, err := proto.Marshal(channel)
 	if err != nil {
 		t.Fatalf("marshal channel: %v", err)
@@ -39,7 +39,7 @@ func TestBackfillRoomKind_BackfillsLegacyRoomsFromKeyPrefix(t *testing.T) {
 	}
 
 	// Legacy DM room.
-	dm := &corev1.Room{Id: "Rdm", SpaceId: "DM"}
+	dm := &corev1.Room{Id: "Rdm"}
 	dmData, err := proto.Marshal(dm)
 	if err != nil {
 		t.Fatalf("marshal dm: %v", err)
@@ -50,7 +50,7 @@ func TestBackfillRoomKind_BackfillsLegacyRoomsFromKeyPrefix(t *testing.T) {
 
 	// Already-migrated channel room: Kind is set; migration must not
 	// touch it.
-	migrated := &corev1.Room{Id: "Rmig", SpaceId: "server", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}
+	migrated := &corev1.Room{Id: "Rmig", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}
 	migratedData, err := proto.Marshal(migrated)
 	if err != nil {
 		t.Fatalf("marshal migrated: %v", err)
@@ -88,7 +88,7 @@ func TestBackfillRoomKind_BackfillsLegacyRoomsFromKeyPrefix(t *testing.T) {
 func TestBackfillRoomKind_IsIdempotent(t *testing.T) {
 	ctx, kv := setupTestKV(t)
 
-	room := &corev1.Room{Id: "Rchan", SpaceId: "server"}
+	room := &corev1.Room{Id: "Rchan"}
 	data, err := proto.Marshal(room)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)

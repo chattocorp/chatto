@@ -179,7 +179,6 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 
 	room := &corev1.Room{
 		Id:          room_id,
-		SpaceId:     SpaceIDForKind(kind),
 		Kind:        ProtoKindForRoomKind(kind),
 		Name:        name,
 		Description: description,
@@ -531,38 +530,34 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 
 // GetRoom retrieves a room by id.
 //
-// ADR-035 phase 5 (rooms aggregate): reads come from RoomCatalog
-// composed with RoomGroups for the group_id field. The space_id
-// legacy field is computed from kind via SpaceIDForKind. Returns
-// ErrNotFound (wrapped) if the room isn't projected OR if its kind
-// doesn't match the requested kind — keeping the legacy "the wrong
-// kind is not found" semantic so callers don't accidentally read a
-// DM via a channel-kind probe.
+// Reads come from RoomCatalog composed with RoomGroups for the
+// group_id field. Returns ErrNotFound (wrapped) if the room isn't
+// projected OR if its kind doesn't match the requested kind —
+// keeping the "the wrong kind is not found" semantic so callers
+// don't accidentally read a DM via a channel-kind probe.
 func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*corev1.Room, error) {
 	room, ok := c.RoomCatalog.Get(room_id)
 	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
 		return nil, fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
 	}
-	room.SpaceId = SpaceIDForKind(kind)
 	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
 		room.GroupId = gid
 	}
 	return room, nil
 }
 
-// FindRoomByID resolves a room from its ID alone by probing the channel
-// bucket first, then DMs. Returns ErrNotFound if neither has the room.
+// FindRoomByID resolves a room from its ID alone (no kind probe).
+// Returns ErrNotFound if the room isn't in the catalog.
 //
-// Live events carry only a room ID (no kind discriminator on the wire),
-// so resolvers and consumers downstream of those events use this to
-// recover both the room and the kind context the core API still needs
-// for KV partitioning.
+// Live events carry only a room ID (no kind discriminator on the
+// wire), so resolvers and consumers downstream of those events use
+// this to recover both the room and the kind context (via
+// KindOfRoom on the result).
 func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*corev1.Room, error) {
 	room, ok := c.RoomCatalog.Get(room_id)
 	if !ok {
 		return nil, ErrNotFound
 	}
-	room.SpaceId = SpaceIDForKind(KindOfRoom(room))
 	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
 		room.GroupId = gid
 	}
@@ -580,16 +575,12 @@ func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind
 	return KindOfRoom(room), nil
 }
 
-// ListRooms retrieves all rooms of the given kind from the CONFIG bucket.
-//
-// Post-#330 phase 4b: channels and DM rooms share SERVER_CONFIG, with the
-// kind encoded in the key prefix (`room.channel.{X}` vs `room.dm.{X}`).
-// The prefix scan returns only the matching kind, so no in-memory filter
-// is needed.
+// ListRooms retrieves all rooms of the given kind from the
+// RoomCatalog projection, composed with RoomGroups for the group_id
+// field.
 func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Room, error) {
 	rooms := c.RoomCatalog.AllByKind(ProtoKindForRoomKind(kind))
 	for _, r := range rooms {
-		r.SpaceId = SpaceIDForKind(kind)
 		if gid := c.RoomGroups.GroupForRoom(r.Id); gid != "" {
 			r.GroupId = gid
 		}

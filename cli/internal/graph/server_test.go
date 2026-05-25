@@ -63,7 +63,7 @@ func TestServerResolver_Rooms(t *testing.T) {
 			if r.Id == env.testRoom.Id {
 				sawChannel = true
 			}
-			if r.Id == dm.Id && r.SpaceId == core.DMSpaceID {
+			if r.Id == dm.Id && core.KindOfRoom(r) == core.KindDM {
 				sawDM = true
 			}
 		}
@@ -91,7 +91,7 @@ func TestServerResolver_Rooms(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		for _, r := range rooms {
-			if r.SpaceId == core.DMSpaceID {
+			if core.KindOfRoom(r) == core.KindDM {
 				t.Errorf("type:CHANNEL should exclude DM rooms, got %+v", r)
 			}
 		}
@@ -122,7 +122,7 @@ func TestServerResolver_Rooms(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		for _, r := range rooms {
-			if r.SpaceId != core.DMSpaceID {
+			if core.KindOfRoom(r) != core.KindDM {
 				t.Errorf("type:DM should exclude channel rooms, got %+v", r)
 			}
 		}
