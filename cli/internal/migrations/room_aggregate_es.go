@@ -71,7 +71,7 @@ func MigrateRoomAggregateToES(
 			continue
 		}
 
-		subject := events.RoomSubject(room.GetId())
+		agg := events.RoomAggregate(room.GetId())
 		roomCreatedAt := timestamppb.New(entry.Created())
 
 		// systemEvent stamps Id/ActorId/CreatedAt onto a caller-built
@@ -82,34 +82,44 @@ func MigrateRoomAggregateToES(
 			return stamp(body, "system:migration", roomCreatedAt)
 		}
 
+		// First batch entry uses wildcard OCC on the aggregate's full
+		// filter — "the aggregate must be empty," not just "no prior
+		// RoomCreated event." Preserves the per-aggregate uniqueness
+		// guarantee under the per-(agg, event-type) subject shape and
+		// keeps replay idempotency intact (any prior event on the
+		// aggregate → ErrConflict → skip).
+		createdEvent := systemEvent(&corev1.Event{Event: &corev1.Event_RoomCreated{
+			RoomCreated: &corev1.RoomCreatedEvent{
+				RoomId:      room.GetId(),
+				Name:        room.GetName(),
+				Description: room.GetDescription(),
+				Kind:        room.GetKind(),
+			},
+		}})
 		batch := []events.BatchEntry{{
-			Subject: subject,
-			Event: systemEvent(&corev1.Event{Event: &corev1.Event_RoomCreated{
-				RoomCreated: &corev1.RoomCreatedEvent{
-					RoomId:      room.GetId(),
-					Name:        room.GetName(),
-					Description: room.GetDescription(),
-					Kind:        room.GetKind(),
-				},
-			}}),
-			HasOCC: true, // ExpectedSeq=0 — "subject must be fresh"
+			Subject:       agg.SubjectFor(createdEvent),
+			Event:         createdEvent,
+			HasOCC:        true,
+			FilterSubject: agg.AllEventsFilter(),
 		}}
 
 		if room.GetArchived() {
+			archivedEvent := systemEvent(&corev1.Event{Event: &corev1.Event_RoomArchived{
+				RoomArchived: &corev1.RoomArchivedEvent{RoomId: room.GetId()},
+			}})
 			batch = append(batch, events.BatchEntry{
-				Subject: subject,
-				Event: systemEvent(&corev1.Event{Event: &corev1.Event_RoomArchived{
-					RoomArchived: &corev1.RoomArchivedEvent{RoomId: room.GetId()},
-				}}),
+				Subject: agg.SubjectFor(archivedEvent),
+				Event:   archivedEvent,
 			})
 		}
 
 		for _, m := range memberships[room.GetId()] {
+			joinedEvent := stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.GetId()},
+			}}, m.userID, timestamppb.New(m.createdAt))
 			batch = append(batch, events.BatchEntry{
-				Subject: subject,
-				Event: stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
-					UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.GetId()},
-				}}, m.userID, timestamppb.New(m.createdAt)),
+				Subject: agg.SubjectFor(joinedEvent),
+				Event:   joinedEvent,
 			})
 		}
 

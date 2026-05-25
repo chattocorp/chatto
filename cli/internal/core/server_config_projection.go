@@ -32,9 +32,10 @@ func NewServerConfigProjection() *ServerConfigProjection {
 	return &ServerConfigProjection{}
 }
 
-// Subjects implements events.Projection.
+// Subjects implements events.Projection. Singleton aggregate with one
+// event type — the per-(agg, event-type) subject is exact.
 func (p *ServerConfigProjection) Subjects() []string {
-	return []string{events.ConfigSubjectFilter()}
+	return []string{events.ConfigAggregate().Subject(events.EventServerConfigChanged)}
 }
 
 // Apply implements events.Projection. ServerConfigChangedEvent replaces

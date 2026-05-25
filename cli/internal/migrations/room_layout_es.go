@@ -80,8 +80,11 @@ func MigrateRoomLayoutToES(
 		},
 	}
 
-	subject := events.LayoutSubject()
-	if _, err := publisher.AppendAt(ctx, subject, event, 0); err != nil {
+	// Wildcard OCC against the aggregate's full filter — "aggregate
+	// must be empty" (idempotent replay: any prior layout event →
+	// ErrConflict → no-op).
+	agg := events.LayoutAggregate()
+	if _, err := publisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), 0); err != nil {
 		if errors.Is(err, events.ErrConflict) {
 			return nil
 		}

@@ -212,7 +212,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		Name: "", // DMs don't have names - derived from participants in UI
 	}
 
-	subject := events.RoomSubject(roomID)
+	agg := events.RoomAggregate(roomID)
 
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
@@ -228,12 +228,17 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		},
 	})
 
+	// First entry uses wildcard OCC against the aggregate's full
+	// filter — "the entire room aggregate must be empty," not just
+	// "no prior RoomCreated event." Preserves the per-aggregate
+	// uniqueness guarantee under the per-(agg, event-type) subject
+	// shape.
 	entries := []events.BatchEntry{
 		{
-			Subject: subject,
-			Event:   createdEvent,
-			HasOCC:  true,
-			// ExpectedSeq is 0 (zero value) — "must not exist."
+			Subject:       agg.SubjectFor(createdEvent),
+			Event:         createdEvent,
+			HasOCC:        true,
+			FilterSubject: agg.AllEventsFilter(),
 		},
 	}
 	joinEvents := make(map[string]*corev1.Event, len(participantIDs))
@@ -245,7 +250,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		})
 		joinEvents[pid] = joinEvent
 		entries = append(entries, events.BatchEntry{
-			Subject: subject,
+			Subject: agg.SubjectFor(joinEvent),
 			Event:   joinEvent,
 		})
 	}
@@ -257,13 +262,16 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		return nil, err
 	}
 
-	// Wait for both projections to apply the batch's final seq —
-	// stream order guarantees that catches up every prior entry too.
-	finalSeq := seqs[len(seqs)-1]
-	if err := c.RoomCatalogProjector.WaitForSeq(ctx, finalSeq); err != nil {
+	// Wait per-projector for the seq of the last event each
+	// actually consumes. Projectors subscribe to narrow event-type
+	// filters now — waiting on a seq that doesn't match the filter
+	// blocks forever (the LastSeq only advances on filter-matching
+	// events). seqs[0] is the RoomCreated (catalog); seqs[len-1] is
+	// the last UserJoinedRoom (membership).
+	if err := c.RoomCatalogProjector.WaitForSeq(ctx, seqs[0]); err != nil {
 		c.logger.Warn("DM room catalog projection wait failed", "error", err, "room_id", roomID)
 	}
-	if err := c.RoomMembershipProjector.WaitForSeq(ctx, finalSeq); err != nil {
+	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
 		c.logger.Warn("DM membership projection wait failed", "error", err, "room_id", roomID)
 	}
 

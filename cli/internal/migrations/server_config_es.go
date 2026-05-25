@@ -69,8 +69,12 @@ func MigrateServerConfigToES(
 		},
 	}
 
-	subject := events.ConfigSubject()
-	_, err = publisher.AppendAt(ctx, subject, event, 0)
+	// Wildcard OCC against the aggregate's full filter — "aggregate
+	// must be empty" (idempotent replay: any prior config event →
+	// ErrConflict → no-op).
+	agg := events.ConfigAggregate()
+	subject := agg.SubjectFor(event)
+	_, err = publisher.AppendAtFilter(ctx, subject, event, agg.AllEventsFilter(), 0)
 	if err == nil {
 		logger.Info("server_config ES migration: seeded event from legacy KV", "subject", subject)
 		return nil

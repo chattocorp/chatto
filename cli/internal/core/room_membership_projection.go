@@ -40,9 +40,17 @@ func NewRoomMembershipProjection() *RoomMembershipProjection {
 	}
 }
 
-// Subjects implements events.Projection.
+// Subjects implements events.Projection. Narrow filters — this
+// projection only cares about three event types, so subscribing to
+// just those subjects keeps the per-projection consumer's delivery
+// volume proportional to membership churn rather than total room
+// activity.
 func (p *RoomMembershipProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{
+		events.RoomEventTypeFilter(events.EventUserJoinedRoom),
+		events.RoomEventTypeFilter(events.EventUserLeftRoom),
+		events.RoomEventTypeFilter(events.EventRoomDeleted),
+	}
 }
 
 // Apply implements events.Projection. Apply runs from a single

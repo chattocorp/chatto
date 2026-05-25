@@ -40,8 +40,8 @@ func TestMigrateServerConfigToES_SeedsAndReplays(t *testing.T) {
 	// First run: one event lands on evt.config.server.
 	require.NoError(t, MigrateServerConfigToES(ctx, kv, publisher, testLogger()))
 
-	subject := events.ConfigAggregate().Subject()
-	require.Equal(t, "evt.config.server", subject)
+	subject := events.ConfigAggregate().Subject(events.EventServerConfigChanged)
+	require.Equal(t, "evt.config.server.config_changed", subject)
 	msg, err := stream.GetLastMsgForSubject(ctx, subject)
 	require.NoError(t, err)
 	require.NotZero(t, msg.Sequence)

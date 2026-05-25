@@ -21,26 +21,31 @@ Use a single JetStream stream named `EVT` for all event-sourced domain state.
 
 ### Subject layout
 
-`evt.{aggregateType}.{aggregateId}`
+`evt.{aggregateType}.{aggregateId}.{eventType}`
 
 - **Aggregate types** are stable identifiers like `room`, `user`, `rbac`, `config`. The list grows as ADR-035 migrates aggregates over.
 - **Aggregate IDs** are the existing NanoIDs from [ADR-022](ADR-022-nanoid-with-entity-prefixes.md). No renaming required.
-- **Per-aggregate ordering** uses NATS's per-subject sequence. Every publish is an OCC append against the current per-subject head — `WithExpectLastSequencePerSubject(seq)` against the literal aggregate subject.
+- **Event types** are snake_case tokens derived from the protobuf oneof variant on `corev1.Event` (`user_joined`, `room_created`, `config_changed`). The canonical mapping lives in `events.EventTypeOf(*corev1.Event)` — the payload is the single source of truth, the subject token is computed from it, never authored independently.
 - **Singleton aggregates** (server-wide config and similar) use a stable sentinel id like `server` rather than introducing a different subject shape. Keeps the parser, the OCC formula, and the framework code uniform.
 
 We deliberately do **not** nest the new event log under `server.>`. The legacy `SERVER_EVENTS` stream already claims `server.>` as its subject root, and NATS won't allow two streams to share an overlapping subject space. The new stream is named simply `EVT`: the word "server" already has a specific product meaning in Chatto (the user-facing concept), and reusing it as a NATS-level prefix on the event log conflated infrastructure naming with domain naming. `EVT` is short, unambiguous, and parallels the `evt.>` subject root.
 
-### Event type lives in the payload, not the subject
+### Event type in the subject — the rationale
 
-The subject identifies **the aggregate**, not **what happened**. `evt.room.{R}` is the home of every lifecycle event for room R — joins, leaves, deletions, renames, future additions — and the specific event type lives entirely in the protobuf oneof on `corev1.Event`. Projections switch on the oneof in `Apply`; nothing reads "what kind of event is this?" from the subject.
+The subject identifies both **the aggregate** and **what happened**. An earlier draft of this ADR put event type in the payload only and treated `evt.room.{R}` as the single subject for every room event. We moved off that shape because the projection-side cost was too high: a projection that only cared about, say, joins and leaves had to receive every `MessagePosted` event for every room and discard it in a Go switch. That ratio gets pathological once messages migrate.
 
-This is deliberate. Earlier drafts of the framework put the event type in a trailing subject segment (`evt.room.{R}.{eventType}`) for cheap wildcard-by-type filters. We rejected that:
+The original three objections to event-type-in-subject and why they don't hold up:
 
-- **Single source of truth.** With event type in the subject *and* in the payload, the two must agree by convention. With event type only in the payload, the protobuf oneof is the only place to define and parse it.
-- **OCC scope was wrong.** Per-subject sequence on a per-event-type subject gave per-(aggregate, event-type) OCC, not per-aggregate OCC. Two different event types could race on the same aggregate. Recovering the per-aggregate scope required a wildcard-filter OCC trick (`WithExpectLastSequenceForSubject(seq, "evt.{type}.{id}.>")`) — possible, but extra plumbing for a property we get for free with the simpler subject shape.
-- **Smell.** Once `eventType` is a subject slot, the slot pulls more tokens into it over time ("just one more, for filtering"). Keeping the subject minimal — aggregate type + aggregate id, no more — closes that door.
+- **"Single source of truth"** — The protobuf oneof is still the only place event type is *defined*. The subject token is *derived* from it via `EventTypeOf`. There is no convention to keep in sync; the framework computes the subject from the payload.
+- **"OCC scope is wrong"** — Per-(aggregate, event-type) OCC is the new default. Two different event types on the same aggregate are no longer mutually serialised, which is usually what you want (a message post shouldn't contend with a member join). Cross-event-type invariants — "no joins after delete" and similar — use wildcard-filter OCC via `Aggregate.AllEventsFilter()` (the `Nats-Expected-Last-Subject-Sequence-Subject` JetStream header). The framework exposes both forms; callers pick the OCC scope they need.
+- **"Slot creep"** — `{aggregateType}.{aggregateId}.{eventType}` is the cap. Adding more tokens is a deliberate ADR-level decision, not a casual subject change.
 
-Adding a new event type to an aggregate is now a zero-subject-change operation: add the oneof variant in `proto/`, add a `case` to the projection's `Apply`. Subscriptions and OCC are untouched.
+Concretely, the gains are:
+
+- **Narrow projection filters.** A `RoomMembership` projection subscribes to `evt.room.*.user_joined` + `evt.room.*.user_left` + `evt.room.*.room_deleted` — server-side filtering, no `MessagePosted` events delivered. Cold-start replay only loads relevant events.
+- **Easier ops.** `nats stream view -s 'evt.room.R1.user_joined'` shows only joins for room R1; no in-process tooling needed.
+
+Adding a new event type to an aggregate is still nearly zero-change: add the oneof variant in `proto/`, add a `case` to `EventTypeOf`, add a constant for the token, add a `case` to the relevant projection's `Apply`. Subscriptions filter against constants by name; the framework derives subjects from events. Nothing in the code authors a raw subject string.
 
 ### Cascading writes: emit per-aggregate events, don't double-write
 

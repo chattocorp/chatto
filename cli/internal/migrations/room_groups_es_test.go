@@ -45,8 +45,10 @@ func TestMigrateRoomGroupsToES_SeedsAndIsReplayable(t *testing.T) {
 	}
 	totalMsgs := 0
 	for _, tc := range cases {
-		subject := events.GroupAggregate(tc.groupID).Subject()
-		msg, err := stream.GetLastMsgForSubject(ctx, subject)
+		// AllEventsFilter is a wildcard pattern — matches the last
+		// message under any per-(agg, event-type) subject for this group.
+		filter := events.GroupAggregate(tc.groupID).AllEventsFilter()
+		msg, err := stream.GetLastMsgForSubject(ctx, filter)
 		require.NoError(t, err)
 		require.NotZero(t, msg.Sequence)
 		totalMsgs += tc.expectedMsg
@@ -58,7 +60,7 @@ func TestMigrateRoomGroupsToES_SeedsAndIsReplayable(t *testing.T) {
 
 	// Spot-check the last event on G1 — should be the last
 	// RoomAddedToGroup (R2, since R1 was added first).
-	msgG1, err := stream.GetLastMsgForSubject(ctx, events.GroupAggregate("G1").Subject())
+	msgG1, err := stream.GetLastMsgForSubject(ctx, events.GroupAggregate("G1").AllEventsFilter())
 	require.NoError(t, err)
 	var ev corev1.Event
 	require.NoError(t, proto.Unmarshal(msgG1.Data, &ev))

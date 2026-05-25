@@ -127,7 +127,7 @@ func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *confi
 		},
 	})
 
-	if _, err := cm.projector.AppendAndWait(ctx, cm.publisher, events.ConfigSubject(), event); err != nil {
+	if _, err := cm.projector.AppendAndWait(ctx, cm.publisher, events.ConfigAggregate(), event); err != nil {
 		return fmt.Errorf("publish ServerConfigChangedEvent: %w", err)
 	}
 	return nil

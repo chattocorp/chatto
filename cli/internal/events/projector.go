@@ -120,19 +120,22 @@ func (p *Projector) Started() bool {
 	return p.started
 }
 
-// AppendAndWait publishes an event via pub and blocks until this
-// projection has applied it. This is the canonical "publish-then
-// read-your-writes" primitive — every caller that needs to read its
-// own write through the projection should use this rather than
-// hand-rolling Append + WaitForSeq.
+// AppendAndWait publishes an event for an aggregate and blocks until
+// this projection has applied it. The subject is derived from
+// `agg.SubjectFor(event)`, so the caller cannot accidentally publish an
+// event onto the wrong subject for its payload.
+//
+// This is the canonical "publish-then read-your-writes" primitive —
+// every caller that needs to read its own write through the projection
+// should use this rather than hand-rolling Append + WaitForSeq.
 //
 // Returns the stream sequence the publish landed at, plus any error.
 // On a publish failure the sequence is 0; on a wait failure (most
 // commonly ctx cancellation) the sequence is non-zero and the event
 // has already been durably published — only the local projection
 // hasn't caught up.
-func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, subject string, event *corev1.Event) (uint64, error) {
-	seq, err := pub.Append(ctx, subject, event)
+func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
+	seq, err := pub.Append(ctx, agg.SubjectFor(event), event)
 	if err != nil {
 		return 0, err
 	}

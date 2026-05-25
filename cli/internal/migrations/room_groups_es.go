@@ -72,9 +72,13 @@ func MigrateRoomGroupsToES(
 			continue
 		}
 
-		subject := events.GroupSubject(group.GetId())
+		agg := events.GroupAggregate(group.GetId())
 		createdAt := timestamppb.New(entry.Created())
 
+		// Atomic batch: RoomGroupCreated first (wildcard OCC ensures
+		// the aggregate is empty — preserves the per-aggregate
+		// uniqueness guarantee under the per-(agg, event-type) subject
+		// shape), then one RoomAddedToGroupEvent per room.
 		created := &corev1.Event{
 			Id:        newMigrationEventID(),
 			ActorId:   "system:migration",
@@ -87,20 +91,12 @@ func MigrateRoomGroupsToES(
 				},
 			},
 		}
-
-		_, err = publisher.AppendAt(ctx, subject, created, 0)
-		if err != nil {
-			if errors.Is(err, events.ErrConflict) {
-				skipped++
-				continue
-			}
-			return fmt.Errorf("seed RoomGroupCreatedEvent for %s: %w", group.GetId(), err)
-		}
-		migrated++
-
-		// Follow up with one RoomAddedToGroupEvent per room, in the
-		// stored order. Each emits on the same aggregate subject;
-		// Append handles per-aggregate expected-seq automatically.
+		batch := []events.BatchEntry{{
+			Subject:       agg.SubjectFor(created),
+			Event:         created,
+			HasOCC:        true,
+			FilterSubject: agg.AllEventsFilter(),
+		}}
 		for _, roomID := range group.GetRoomIds() {
 			add := &corev1.Event{
 				Id:        newMigrationEventID(),
@@ -113,11 +109,21 @@ func MigrateRoomGroupsToES(
 					},
 				},
 			}
-			if _, err := publisher.Append(ctx, subject, add); err != nil {
-				return fmt.Errorf("seed RoomAddedToGroupEvent (%s → %s): %w", roomID, group.GetId(), err)
-			}
-			memberEvents++
+			batch = append(batch, events.BatchEntry{
+				Subject: agg.SubjectFor(add),
+				Event:   add,
+			})
 		}
+
+		if _, err := publisher.AppendBatch(ctx, batch); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				skipped++
+				continue
+			}
+			return fmt.Errorf("seed room group %s: %w", group.GetId(), err)
+		}
+		migrated++
+		memberEvents += len(group.GetRoomIds())
 	}
 
 	if migrated > 0 || memberEvents > 0 {

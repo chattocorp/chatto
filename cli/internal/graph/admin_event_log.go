@@ -114,17 +114,18 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*model.EventLogEntry
 }
 
 // parseAggregateSubject splits an event subject into (aggregateType,
-// aggregateId) for "evt.{type}.{id}" shapes. Subjects outside that
-// shape (legacy, malformed, future) come back empty so the resolver
-// still has something to display.
+// aggregateId) for the canonical "evt.{type}.{id}.{eventType}" shape.
+// The trailing event-type segment is intentionally dropped — it's
+// rendered separately in the admin UI from the protobuf oneof name.
+// Subjects outside the canonical shape (legacy, malformed) come back
+// empty so the resolver still has something to display.
 func parseAggregateSubject(subject string) (aggregateType, aggregateID string) {
-	const prefix = events.SubjectRoot
-	if !strings.HasPrefix(subject, prefix) {
+	rest, ok := strings.CutPrefix(subject, events.SubjectRoot)
+	if !ok {
 		return "", ""
 	}
-	rest := strings.TrimPrefix(subject, prefix)
-	parts := strings.SplitN(rest, ".", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	parts := strings.SplitN(rest, ".", 3)
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
 		return "", ""
 	}
 	return parts[0], parts[1]

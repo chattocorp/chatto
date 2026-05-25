@@ -41,9 +41,17 @@ func NewRoomCatalogProjection() *RoomCatalogProjection {
 	}
 }
 
-// Subjects implements events.Projection.
+// Subjects implements events.Projection. Narrow filters — only the
+// event types this projection actually handles. Membership events on
+// evt.room.> never reach this consumer.
 func (p *RoomCatalogProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{
+		events.RoomEventTypeFilter(events.EventRoomCreated),
+		events.RoomEventTypeFilter(events.EventRoomUpdated),
+		events.RoomEventTypeFilter(events.EventRoomArchived),
+		events.RoomEventTypeFilter(events.EventRoomUnarchived),
+		events.RoomEventTypeFilter(events.EventRoomDeleted),
+	}
 }
 
 // Apply implements events.Projection.

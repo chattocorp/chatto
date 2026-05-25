@@ -31,9 +31,10 @@ func NewRoomLayoutProjection() *RoomLayoutProjection {
 	return &RoomLayoutProjection{}
 }
 
-// Subjects implements events.Projection.
+// Subjects implements events.Projection. Singleton aggregate with one
+// event type — the per-(agg, event-type) subject is exact.
 func (p *RoomLayoutProjection) Subjects() []string {
-	return []string{events.LayoutSubjectFilter()}
+	return []string{events.LayoutAggregate().Subject(events.EventRoomGroupsReordered)}
 }
 
 // Apply implements events.Projection. Recognised events:

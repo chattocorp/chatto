@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,26 +73,27 @@ func TestMigrateRoomAggregateToES_SeedsRoomThenMembers(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 7, info.State.Msgs)
 
-	// First event on each subject must be RoomCreated.
+	// First event on each room aggregate must be RoomCreated.
 	for _, roomID := range []string{"R1", "DM1", "R2"} {
-		subject := events.RoomSubject(roomID)
-		seq := firstSubjectSeq(t, ctx, stream, subject)
+		agg := events.RoomAggregate(roomID)
+		seq := firstAggregateSeq(t, ctx, stream, agg)
 		msg, err := stream.GetMsg(ctx, seq)
 		require.NoError(t, err)
 
 		var ev corev1.Event
 		require.NoError(t, proto.Unmarshal(msg.Data, &ev))
 		_, ok := ev.GetEvent().(*corev1.Event_RoomCreated)
-		require.True(t, ok, "expected first event on %s to be RoomCreated, got %T", subject, ev.GetEvent())
+		require.True(t, ok, "expected first event on %s to be RoomCreated, got %T", agg.AllEventsFilter(), ev.GetEvent())
 	}
 
-	// R2 archived: last event on its subject must be RoomArchived.
-	lastMsgR2, err := stream.GetLastMsgForSubject(ctx, events.RoomSubject("R2"))
+	// R2 archived: the RoomArchived event must be on its own per-(agg, type) subject.
+	archivedSubject := events.RoomAggregate("R2").Subject(events.EventRoomArchived)
+	lastMsgR2, err := stream.GetLastMsgForSubject(ctx, archivedSubject)
 	require.NoError(t, err)
 	var archivedEv corev1.Event
 	require.NoError(t, proto.Unmarshal(lastMsgR2.Data, &archivedEv))
 	_, isArchive := archivedEv.GetEvent().(*corev1.Event_RoomArchived)
-	require.True(t, isArchive, "expected last event on R2 to be RoomArchived")
+	require.True(t, isArchive, "expected last event on R2.room_archived to be RoomArchived")
 }
 
 func TestMigrateRoomAggregateToES_Replay(t *testing.T) {
@@ -132,8 +134,8 @@ func TestMigrateRoomAggregateToES_ChronologicalMembershipOrder(t *testing.T) {
 
 	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger()))
 
-	subject := events.RoomSubject("R1")
-	firstSeq := firstSubjectSeq(t, ctx, stream, subject)
+	agg := events.RoomAggregate("R1")
+	firstSeq := firstAggregateSeq(t, ctx, stream, agg)
 
 	// Events at firstSeq+1 and firstSeq+2 must be the joins in
 	// chronological order.
@@ -146,22 +148,24 @@ func TestMigrateRoomAggregateToES_ChronologicalMembershipOrder(t *testing.T) {
 	}
 }
 
-// firstSubjectSeq returns the lowest stream sequence carrying a
-// message for the given subject. The test stream is small, so a
-// linear walk is fine.
-func firstSubjectSeq(t *testing.T, ctx context.Context, stream jetstream.Stream, subject string) uint64 {
+// firstAggregateSeq returns the lowest stream sequence carrying a
+// message for any subject under the aggregate's full filter (i.e.
+// any event on the aggregate, regardless of event type). Linear
+// walk; fine for small test streams.
+func firstAggregateSeq(t *testing.T, ctx context.Context, stream jetstream.Stream, agg events.Aggregate) uint64 {
 	t.Helper()
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
+	prefix := events.SubjectRoot + agg.Type + "." + agg.ID + "."
 	for seq := info.State.FirstSeq; seq <= info.State.LastSeq; seq++ {
 		msg, err := stream.GetMsg(ctx, seq)
 		if err != nil {
 			continue
 		}
-		if msg.Subject == subject {
+		if strings.HasPrefix(msg.Subject, prefix) {
 			return seq
 		}
 	}
-	t.Fatalf("no message found on subject %s", subject)
+	t.Fatalf("no message found under aggregate filter %s", agg.AllEventsFilter())
 	return 0
 }

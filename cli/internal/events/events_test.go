@@ -105,7 +105,7 @@ func TestPublisher_Append_HappyPath(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 
-	subject := RoomAggregate("R1").Subject()
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 
 	seq1, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
@@ -138,7 +138,7 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := pub.Append(ctx, RoomAggregate("R1").Subject(), tc.event)
+			_, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), tc.event)
 			if !errors.Is(err, ErrInvalidEvent) {
 				t.Errorf("want ErrInvalidEvent, got %v", err)
 			}
@@ -154,7 +154,7 @@ func TestPublisher_Append_ConcurrentWrites(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 
-	subject := RoomAggregate("R1").Subject()
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 	const writers = 10
 
 	var wg sync.WaitGroup
@@ -191,7 +191,7 @@ func TestPublisher_AppendAt_ConflictReturnsTypedError(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 
-	subject := RoomAggregate("R1").Subject()
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 
 	// Place one event so the subject's current last seq is non-zero.
 	if _, err := pub.Append(ctx, subject, makeEvent("R1", "U1")); err != nil {
@@ -212,7 +212,7 @@ func TestPublisher_AppendAt_DeterministicSequence(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 
-	subject := RoomAggregate("R1").Subject()
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
 	const count = 5
 
 	var expectedSeq uint64 // 0 = no prior message
@@ -250,14 +250,14 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 	ctx := testContext(t)
 
 	// Seed an unrelated subject so the batch lands at a non-trivial offset.
-	if _, err := pub.Append(ctx, RoomAggregate("WARMUP").Subject(), makeEvent("WARMUP", "U")); err != nil {
+	if _, err := pub.Append(ctx, RoomAggregate("WARMUP").Subject(EventUserJoinedRoom), makeEvent("WARMUP", "U")); err != nil {
 		t.Fatalf("warmup: %v", err)
 	}
 
 	entries := []BatchEntry{
-		{Subject: GroupAggregate("GA").Subject(), Event: makeEvent("RA", "U1")},
-		{Subject: GroupAggregate("GB").Subject(), Event: makeEvent("RB", "U2")},
-		{Subject: GroupAggregate("GC").Subject(), Event: makeEvent("RC", "U3")},
+		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U1")},
+		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U2")},
+		{Subject: GroupAggregate("GC").Subject(EventUserJoinedRoom), Event: makeEvent("RC", "U3")},
 	}
 
 	seqs, err := pub.AppendBatch(ctx, entries)
@@ -292,16 +292,16 @@ func TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch(t *testing.T) {
 	ctx := testContext(t)
 
 	// Make subject GA non-empty so an "expect seq 0" OCC must fail.
-	seqA, err := pub.Append(ctx, GroupAggregate("GA").Subject(), makeEvent("RA", "Useed"))
+	seqA, err := pub.Append(ctx, GroupAggregate("GA").Subject(EventUserJoinedRoom), makeEvent("RA", "Useed"))
 	if err != nil {
 		t.Fatalf("seed GA: %v", err)
 	}
 
 	entries := []BatchEntry{
 		// GB has no events yet — expect seq 0 passes.
-		{Subject: GroupAggregate("GB").Subject(), Event: makeEvent("RB", "U"), HasOCC: true, ExpectedSeq: 0},
+		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U"), HasOCC: true, ExpectedSeq: 0},
 		// GA already has seqA — expecting 0 must fail.
-		{Subject: GroupAggregate("GA").Subject(), Event: makeEvent("RA", "U"), HasOCC: true, ExpectedSeq: 0},
+		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U"), HasOCC: true, ExpectedSeq: 0},
 	}
 
 	_, err = pub.AppendBatch(ctx, entries)
@@ -310,11 +310,11 @@ func TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch(t *testing.T) {
 	}
 
 	// Neither subject should have advanced past its pre-batch state.
-	gotA, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GA").Subject())
+	gotA, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GA").Subject(EventUserJoinedRoom))
 	if gotA != seqA {
 		t.Errorf("GA last seq = %d, want %d (unchanged)", gotA, seqA)
 	}
-	gotB, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GB").Subject())
+	gotB, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GB").Subject(EventUserJoinedRoom))
 	if gotB != 0 {
 		t.Errorf("GB last seq = %d, want 0 (no events)", gotB)
 	}
@@ -379,7 +379,7 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	// Seed three events before the projector starts.
 	ctx := testContext(t)
 	for i := 0; i < 3; i++ {
-		if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(), makeEvent("R1", "U"+itoa(i))); err != nil {
+		if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i))); err != nil {
 			t.Fatalf("seed Append: %v", err)
 		}
 	}
@@ -395,7 +395,7 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	waitFor(t, 2*time.Second, func() bool { return proj.Count() == 3 })
 
 	// LastSeq should equal the stream's last sequence for our subject.
-	msg, err := stream.GetLastMsgForSubject(ctx, RoomAggregate("R1").Subject())
+	msg, err := stream.GetLastMsgForSubject(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom))
 	if err != nil {
 		t.Fatalf("GetLastMsgForSubject: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestProjector_WaitForSeq_AlreadyReached(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 
-	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(), makeEvent("R1", "U1")); err != nil {
+	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
@@ -443,7 +443,7 @@ func TestProjector_WaitForSeq_UnblocksOnApply(t *testing.T) {
 
 	// Publish, capture seq, then WaitForSeq must return without timing out.
 	ctx := testContext(t)
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(), makeEvent("R1", "U1"))
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
@@ -473,7 +473,7 @@ func TestProjector_WaitForSeq_HonoursContextCancel(t *testing.T) {
 	go func() { _ = projector.Run(runCtx) }()
 
 	pubCtx := testContext(t)
-	seq, err := pub.Append(pubCtx, RoomAggregate("R1").Subject(), makeEvent("R1", "U1"))
+	seq, err := pub.Append(pubCtx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("seed Append: %v", err)
 	}
@@ -495,10 +495,27 @@ func TestProjector_WaitForSeq_HonoursContextCancel(t *testing.T) {
 
 func TestSubjectHelpers(t *testing.T) {
 	t.Run("RoomAggregate Subject", func(t *testing.T) {
-		got := RoomAggregate("ROOM123").Subject()
-		want := "evt.room.ROOM123"
+		got := RoomAggregate("ROOM123").Subject(EventUserJoinedRoom)
+		want := "evt.room.ROOM123.user_joined"
 		if got != want {
 			t.Errorf("RoomAggregate.Subject: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("AllEventsFilter", func(t *testing.T) {
+		got := RoomAggregate("ROOM123").AllEventsFilter()
+		want := "evt.room.ROOM123.>"
+		if got != want {
+			t.Errorf("AllEventsFilter: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("SubjectFor derives event type", func(t *testing.T) {
+		event := makeEvent("ROOM123", "U1")
+		got := RoomAggregate("ROOM123").SubjectFor(event)
+		want := "evt.room.ROOM123.user_joined"
+		if got != want {
+			t.Errorf("SubjectFor: got %q, want %q", got, want)
 		}
 	})
 
@@ -510,17 +527,25 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("RoomEventTypeFilter", func(t *testing.T) {
+		got := RoomEventTypeFilter(EventUserJoinedRoom)
+		want := "evt.room.*.user_joined"
+		if got != want {
+			t.Errorf("RoomEventTypeFilter: got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("ParseRoomSubject", func(t *testing.T) {
 		cases := []struct {
 			subject string
 			wantID  string
 			wantOK  bool
 		}{
-			{"evt.room.ROOM123", "ROOM123", true},
-			{"live.evt.room.ROOM123", "ROOM123", true},
-			{"evt.user.U1", "", false},
+			{"evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"live.evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"evt.user.U1.user_deleted", "", false},
 			{"evt.room.", "", false},
-			{"evt.room.ROOM.extra", "", false},
+			{"evt.room.ROOM123", "", false}, // missing event-type segment
 			{"unrelated.subject", "", false},
 			{"", "", false},
 		}

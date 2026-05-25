@@ -77,7 +77,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		},
 	})
 
-	if _, err := c.RoomMembershipProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomSubject(room_id), event); err != nil {
+	if _, err := c.RoomMembershipProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event); err != nil {
 		return nil, fmt.Errorf("publish UserJoinedRoomEvent: %w", err)
 	}
 
@@ -137,7 +137,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	if _, err := c.RoomMembershipProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomSubject(room_id), event); err != nil {
+	if _, err := c.RoomMembershipProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event); err != nil {
 		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
 	}
 
@@ -233,7 +233,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 			},
 		})
 
-		seq, err := c.EventPublisher.Append(ctx, events.RoomSubject(entry.roomID), event)
+		seq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(entry.roomID).SubjectFor(event), event)
 		if err != nil {
 			c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT", "room_id", entry.roomID, "error", err)
 			continue

@@ -268,15 +268,16 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 
 		// Determine publish subject from the event payload. Room
 		// events all target the per-room aggregate subject.
-		var publishSubject string
+		var roomID string
 		switch e := event.GetEvent().(type) {
 		case *corev1.Event_RoomCreated:
-			publishSubject = events.RoomSubject(e.RoomCreated.GetRoomId())
+			roomID = e.RoomCreated.GetRoomId()
 		case *corev1.Event_RoomUpdated:
-			publishSubject = events.RoomSubject(e.RoomUpdated.GetRoomId())
+			roomID = e.RoomUpdated.GetRoomId()
 		default:
 			return 0, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
 		}
+		publishSubject := events.RoomAggregate(roomID).SubjectFor(event)
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, events.RoomSubjectFilter(), filterSeq)
 		if err == nil {
@@ -346,7 +347,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 			return nil, err
 		}
 	} else {
-		updatedSeq, err = c.EventPublisher.Append(ctx, events.RoomSubject(room_id), updatedEvent)
+		updatedSeq, err = c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).SubjectFor(updatedEvent), updatedEvent)
 		if err != nil {
 			return nil, fmt.Errorf("publish RoomUpdatedEvent: %w", err)
 		}
@@ -386,7 +387,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			},
 		},
 	})
-	seq, err := c.EventPublisher.Append(ctx, events.RoomSubject(room_id), event)
+	seq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).SubjectFor(event), event)
 	if err != nil {
 		return fmt.Errorf("publish RoomDeletedEvent: %w", err)
 	}
@@ -404,7 +405,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 				},
 			},
 		})
-		groupRemovedSeq, err = c.EventPublisher.Append(ctx, events.GroupSubject(room.GetGroupId()), removed)
+		groupRemovedSeq, err = c.EventPublisher.Append(ctx, events.GroupAggregate(room.GetGroupId()).SubjectFor(removed), removed)
 		if err != nil {
 			c.logger.Error("failed to publish RoomRemovedFromGroupEvent for delete cascade", "error", err, "room_id", room_id, "group_id", room.GetGroupId())
 		}
@@ -467,7 +468,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 			},
 		},
 	})
-	if _, err := c.RoomCatalogProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomSubject(roomID), archivedEvent); err != nil {
+	if _, err := c.RoomCatalogProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
 	}
 
@@ -502,7 +503,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 			},
 		},
 	})
-	if _, err := c.RoomCatalogProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomSubject(roomID), unarchivedEvent); err != nil {
+	if _, err := c.RoomCatalogProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
 	}
 

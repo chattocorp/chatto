@@ -1,6 +1,10 @@
 package events
 
-import "strings"
+import (
+	"strings"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
 
 // Subject roots for the event log. The durable stream stores events on
 // SubjectRoot; the stream's RePublish config forwards them onto
@@ -32,132 +36,215 @@ const ConfigSingletonID = "server"
 // sidebar layout. Same convention as ConfigSingletonID.
 const LayoutSingletonID = "default"
 
-// Aggregate identifies one event-sourced aggregate by type and ID. Every
-// event for an aggregate lives on the single subject Subject() returns —
-// per-subject sequence therefore equals per-aggregate sequence, and OCC
-// against `Nats-Expected-Last-Subject-Sequence` serialises every write
-// to one aggregate against every other.
+// Event-type tokens. NATS-idiomatic snake_case; the trailing segment of
+// every event subject. Stable identifiers — once written, never renamed.
 //
-// The event type intentionally does NOT appear in the subject. Event
-// type is a property of the payload (the protobuf oneof variant on
-// corev1.Event), not of the routing key. Keeping it out of the subject
-// preserves single-source-of-truth for "what kind of event is this?"
-// and makes adding new event types a zero-subject-change operation
-// (one new oneof case + one new projection switch arm).
+// The canonical mapping lives in EventTypeOf below; constants here are
+// just symbolic names for the same strings so call sites don't repeat
+// string literals.
+const (
+	// Room aggregate
+	EventRoomCreated    = "room_created"
+	EventRoomUpdated    = "room_updated"
+	EventRoomArchived   = "room_archived"
+	EventRoomUnarchived = "room_unarchived"
+	EventRoomDeleted    = "room_deleted"
+	EventUserJoinedRoom = "user_joined"
+	EventUserLeftRoom   = "user_left"
+
+	// Group aggregate
+	EventRoomGroupCreated      = "group_created"
+	EventRoomGroupUpdated      = "group_updated"
+	EventRoomGroupDeleted      = "group_deleted"
+	EventRoomAddedToGroup      = "room_added"
+	EventRoomRemovedFromGroup  = "room_removed"
+	EventRoomsInGroupReordered = "rooms_reordered"
+
+	// Layout aggregate (singleton)
+	EventRoomGroupsReordered = "groups_reordered"
+
+	// Config aggregate (singleton)
+	EventServerConfigChanged = "config_changed"
+)
+
+// EventTypeOf returns the canonical NATS subject token for an event's
+// oneof variant. Returns "" if the event is nil or its oneof is unset.
+//
+// This is the single source of truth: the protobuf oneof drives the
+// subject token, so the subject can't disagree with the payload by
+// convention. New event types add a case here and nothing else changes.
+func EventTypeOf(e *corev1.Event) string {
+	if e == nil {
+		return ""
+	}
+	switch e.GetEvent().(type) {
+	case *corev1.Event_RoomCreated:
+		return EventRoomCreated
+	case *corev1.Event_RoomUpdated:
+		return EventRoomUpdated
+	case *corev1.Event_RoomArchived:
+		return EventRoomArchived
+	case *corev1.Event_RoomUnarchived:
+		return EventRoomUnarchived
+	case *corev1.Event_RoomDeleted:
+		return EventRoomDeleted
+	case *corev1.Event_UserJoinedRoom:
+		return EventUserJoinedRoom
+	case *corev1.Event_UserLeftRoom:
+		return EventUserLeftRoom
+
+	case *corev1.Event_RoomGroupCreated:
+		return EventRoomGroupCreated
+	case *corev1.Event_RoomGroupUpdated:
+		return EventRoomGroupUpdated
+	case *corev1.Event_RoomGroupDeleted:
+		return EventRoomGroupDeleted
+	case *corev1.Event_RoomAddedToGroup:
+		return EventRoomAddedToGroup
+	case *corev1.Event_RoomRemovedFromGroup:
+		return EventRoomRemovedFromGroup
+	case *corev1.Event_RoomsInGroupReordered:
+		return EventRoomsInGroupReordered
+
+	case *corev1.Event_RoomGroupsReordered:
+		return EventRoomGroupsReordered
+
+	case *corev1.Event_ServerConfigChanged:
+		return EventServerConfigChanged
+	}
+	return ""
+}
+
+// Aggregate identifies one event-sourced aggregate by type and ID. Every
+// event for the aggregate lives under the prefix Subject("") returns;
+// per-event subjects add an event-type trailing segment.
+//
+// Per-subject OCC against `Nats-Expected-Last-Subject-Sequence` operates
+// at the (aggregate, event-type) granularity. Cross-event-type invariants
+// use wildcard OCC against AllEventsFilter() via the
+// `Nats-Expected-Last-Subject-Sequence-Subject` header (see
+// Publisher.AppendAtFilter).
 type Aggregate struct {
 	Type string
 	ID   string
 }
 
-// Subject returns the per-aggregate subject under SubjectRoot.
-// Pattern: evt.{type}.{id}.
-func (a Aggregate) Subject() string {
-	return SubjectRoot + a.Type + "." + a.ID
+// Subject returns the per-(aggregate, event-type) subject.
+// Pattern: evt.{aggType}.{aggID}.{eventType}.
+func (a Aggregate) Subject(eventType string) string {
+	return SubjectRoot + a.Type + "." + a.ID + "." + eventType
+}
+
+// SubjectFor is like Subject but derives the event-type token from the
+// event payload's oneof variant. Convenient when the caller already has
+// the event built — pairs naturally with publisher helpers that take an
+// Aggregate + Event rather than a raw subject.
+func (a Aggregate) SubjectFor(e *corev1.Event) string {
+	return a.Subject(EventTypeOf(e))
+}
+
+// AllEventsFilter returns the wildcard filter matching every event for
+// THIS aggregate instance, across every event type. Used as the filter
+// token for cross-event-type wildcard OCC (the "did anything else land
+// on this aggregate?" guard) and as a wait-target for "any event on
+// this aggregate."
+// Pattern: evt.{aggType}.{aggID}.>
+func (a Aggregate) AllEventsFilter() string {
+	return SubjectRoot + a.Type + "." + a.ID + ".>"
 }
 
 // RoomAggregate is the typed constructor for a room-aggregate handle.
-// All room lifecycle events (joins, leaves, deletes, future renames,
-// permission overrides, etc.) publish to RoomAggregate(roomID).Subject().
+// All room lifecycle events (joins, leaves, deletes, renames, future
+// additions) publish under RoomAggregate(roomID).
 func RoomAggregate(roomID string) Aggregate {
 	return Aggregate{Type: AggregateRoom, ID: roomID}
 }
 
-// RoomSubject is shorthand for RoomAggregate(roomID).Subject(). Use
-// at publish sites where the Aggregate handle isn't otherwise needed.
-func RoomSubject(roomID string) string { return RoomAggregate(roomID).Subject() }
-
-// GroupSubject is shorthand for GroupAggregate(groupID).Subject().
-func GroupSubject(groupID string) string { return GroupAggregate(groupID).Subject() }
-
-// LayoutSubject is shorthand for LayoutAggregate().Subject().
-func LayoutSubject() string { return LayoutAggregate().Subject() }
-
-// ConfigSubject is shorthand for ConfigAggregate().Subject().
-func ConfigSubject() string { return ConfigAggregate().Subject() }
-
-// RoomSubjectFilter returns the wildcard subject filter for every room
-// aggregate's events. Used by projections that consume across all rooms.
-// Pattern: evt.room.>
-func RoomSubjectFilter() string {
-	return SubjectRoot + AggregateRoom + ".>"
-}
-
-// ConfigAggregate is the typed constructor for the singleton server-
-// config aggregate. All server-config lifecycle events publish to
-// ConfigAggregate().Subject() — pattern evt.config.server.
-func ConfigAggregate() Aggregate {
-	return Aggregate{Type: AggregateConfig, ID: ConfigSingletonID}
-}
-
-// ConfigSubjectFilter returns the wildcard subject filter for config
-// aggregate events. Used by the ServerConfig projection.
-// Pattern: evt.config.>
-func ConfigSubjectFilter() string {
-	return SubjectRoot + AggregateConfig + ".>"
-}
-
 // GroupAggregate is the typed constructor for a room-group aggregate
-// handle. All group lifecycle events (created, renamed, deleted) and
-// group room-membership events (room added/removed/reordered within
-// the group) publish to GroupAggregate(groupID).Subject().
+// handle. All group lifecycle events and group room-membership events
+// publish under GroupAggregate(groupID).
 func GroupAggregate(groupID string) Aggregate {
 	return Aggregate{Type: AggregateGroup, ID: groupID}
 }
 
-// GroupSubjectFilter returns the wildcard subject filter for every
-// group aggregate's events. Used by the RoomGroup projection.
-// Pattern: evt.group.>
-func GroupSubjectFilter() string {
-	return SubjectRoot + AggregateGroup + ".>"
-}
-
-// ParseGroupSubject extracts the groupID from a group aggregate
-// subject. Accepts both the durable shape (evt.group.{groupID}) and
-// the republished live shape (live.evt.group.{groupID}). Returns
-// ok=false if the subject doesn't match.
-func ParseGroupSubject(subject string) (groupID string, ok bool) {
-	s := stripLivePrefix(subject)
-	prefix := SubjectRoot + AggregateGroup + "."
-	if !strings.HasPrefix(s, prefix) {
-		return "", false
-	}
-	rest := s[len(prefix):]
-	if rest == "" || strings.Contains(rest, ".") {
-		return "", false
-	}
-	return rest, true
-}
-
-// ParseRoomSubject extracts the roomID from a room aggregate subject.
-// Accepts both the durable shape (evt.room.{roomID}) and the
-// republished live shape (live.evt.room.{roomID}). Returns ok=false if
-// the subject doesn't match either form.
-func ParseRoomSubject(subject string) (roomID string, ok bool) {
-	s := stripLivePrefix(subject)
-	prefix := SubjectRoot + AggregateRoom + "."
-	if !strings.HasPrefix(s, prefix) {
-		return "", false
-	}
-	rest := s[len(prefix):]
-	if rest == "" || strings.Contains(rest, ".") {
-		return "", false
-	}
-	return rest, true
-}
-
 // LayoutAggregate is the typed constructor for the singleton sidebar
-// layout aggregate. Pattern: evt.layout.default. Owns inter-group
-// ordering for the sidebar; the room-group set itself is owned by
-// the group aggregate.
+// layout aggregate. Owns inter-group ordering for the sidebar; the
+// room-group set itself is owned by the group aggregate.
 func LayoutAggregate() Aggregate {
 	return Aggregate{Type: AggregateLayout, ID: LayoutSingletonID}
 }
 
-// LayoutSubjectFilter returns the wildcard subject filter for the
-// layout aggregate. Used by the RoomLayout projection.
+// ConfigAggregate is the typed constructor for the singleton server-
+// config aggregate.
+func ConfigAggregate() Aggregate {
+	return Aggregate{Type: AggregateConfig, ID: ConfigSingletonID}
+}
+
+// RoomSubjectFilter returns the wildcard filter matching every event of
+// every room aggregate, across all event types.
+// Pattern: evt.room.>
+func RoomSubjectFilter() string { return SubjectRoot + AggregateRoom + ".>" }
+
+// GroupSubjectFilter returns the wildcard filter matching every event of
+// every room-group aggregate.
+// Pattern: evt.group.>
+func GroupSubjectFilter() string { return SubjectRoot + AggregateGroup + ".>" }
+
+// LayoutSubjectFilter returns the wildcard filter matching every event
+// of the singleton layout aggregate.
 // Pattern: evt.layout.>
-func LayoutSubjectFilter() string {
-	return SubjectRoot + AggregateLayout + ".>"
+func LayoutSubjectFilter() string { return SubjectRoot + AggregateLayout + ".>" }
+
+// ConfigSubjectFilter returns the wildcard filter matching every event
+// of the singleton config aggregate.
+// Pattern: evt.config.>
+func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" }
+
+// RoomEventTypeFilter returns a cross-aggregate, event-type-narrow
+// filter — every event of the given type across every room. Used by
+// projections that only care about a subset of event types and don't
+// want to receive the full evt.room.> firehose.
+// Pattern: evt.room.*.{eventType}
+func RoomEventTypeFilter(eventType string) string {
+	return SubjectRoot + AggregateRoom + ".*." + eventType
+}
+
+// GroupEventTypeFilter is the group analogue of RoomEventTypeFilter.
+// Pattern: evt.group.*.{eventType}
+func GroupEventTypeFilter(eventType string) string {
+	return SubjectRoot + AggregateGroup + ".*." + eventType
+}
+
+// ParseRoomSubject extracts the roomID from a room-aggregate event
+// subject. Accepts both the durable form (evt.room.{R}.{type}) and the
+// republished live form (live.evt.room.{R}.{type}). Returns ok=false if
+// the subject doesn't match either shape.
+func ParseRoomSubject(subject string) (roomID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateRoom)
+}
+
+// ParseGroupSubject extracts the groupID from a group-aggregate event
+// subject. Accepts durable and republished live forms.
+func ParseGroupSubject(subject string) (groupID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateGroup)
+}
+
+// parseAggregateSubject extracts the aggregate ID from a subject of the
+// form evt.{aggType}.{id}.{eventType} (or its live.evt.* republished
+// form). The trailing event-type segment is discarded.
+func parseAggregateSubject(subject, aggType string) (string, bool) {
+	s := stripLivePrefix(subject)
+	prefix := SubjectRoot + aggType + "."
+	if !strings.HasPrefix(s, prefix) {
+		return "", false
+	}
+	rest := s[len(prefix):]
+	dot := strings.Index(rest, ".")
+	if dot < 1 || dot == len(rest)-1 {
+		return "", false
+	}
+	// rest = {id}.{eventType}[.{anything else — shouldn't happen}]
+	return rest[:dot], true
 }
 
 // stripLivePrefix returns the subject with the "live." prefix removed if
