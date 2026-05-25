@@ -12,6 +12,13 @@ name: release-please
 # its own latest version, so a backport on `release-0.0.x` bumps from the
 # tag reachable on that branch without jumping to main's version.
 #
+# The `next` branch is a long-lived prerelease line. Commits there bump
+# the version as `0.1.0-alpha.N` (rather than `0.0.x`), using a separate
+# config + manifest pair so the prerelease setting doesn't leak into
+# main's stable releases. GoReleaser is wired up so prerelease tags get
+# their own floating `:next` Docker tag and do NOT update `:latest` or
+# `:Major.Minor`.
+#
 # Replaces the old `mise bump` flow (goversion + manual tag + push).
 #
 # Requires `RELEASE_PLEASE_PAT`: a fine-grained PAT scoped to chattocorp/chatto
@@ -27,6 +34,7 @@ on:
     branches:
       - main
       - 'release-*'
+      - next
 
 permissions:
   contents: write
@@ -36,14 +44,20 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     env:
-      # Push event's ref_name is the branch (main or release-*). Used as the
-      # target-branch input below. Captured into env per workflow-injection
-      # best practice, even though it's an action input rather than a shell arg.
+      # Push event's ref_name is the branch (main / release-* / next).
+      # Captured into env per workflow-injection best practice, even
+      # though it's only used as an action input here (never in `run:`).
       TARGET_BRANCH: ${{ github.ref_name }}
+      # The `next` prerelease branch uses a separate config + manifest
+      # pair so its prerelease semantics don't bleed into main's stable
+      # release stream. Backport branches (release-*) share main's
+      # config — they cut stable patch releases of older lines.
+      CONFIG_FILE: ${{ github.ref_name == 'next' && '.release-please-config-prerelease.json' || '.release-please-config.json' }}
+      MANIFEST_FILE: ${{ github.ref_name == 'next' && '.release-please-manifest-prerelease.json' || '.release-please-manifest.json' }}
     steps:
       - uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.RELEASE_PLEASE_PAT }}
-          config-file: .release-please-config.json
-          manifest-file: .release-please-manifest.json
+          config-file: ${{ env.CONFIG_FILE }}
+          manifest-file: ${{ env.MANIFEST_FILE }}
           target-branch: ${{ env.TARGET_BRANCH }}
