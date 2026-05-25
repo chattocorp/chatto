@@ -2,10 +2,10 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, next]
     tags: ["*"]
   pull_request:
-    branches: [main]
+    branches: [main, next]
 
 permissions:
   contents: write
