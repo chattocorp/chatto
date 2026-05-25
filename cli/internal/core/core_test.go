@@ -88,6 +88,17 @@ func startCoreServices(t *testing.T, core *ChattoCore) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { _ = core.Run(ctx) }()
 	t.Cleanup(cancel)
+	// Block until Run's boot phase is complete — projectors started
+	// AND ensureChannelRoomsAreInAGroup has run. Without this the
+	// test thread races ahead and issues reads against an empty
+	// projection (RoomCatalog returns "not found" for rooms whose
+	// RoomCreated hasn't been applied yet), and SeedDefaultRooms
+	// calls would seed rooms without a group assignment.
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := core.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
 }
 
 // ============================================================================

@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/core"
 )
@@ -11,14 +12,18 @@ import (
 // projectors) for the duration of a test. Mirrors core.startCoreServices,
 // which we can't reach across the package boundary.
 //
-// The HTTP-layer tests need this because the dual-write JoinRoom/LeaveRoom
-// paths call WaitForSeq on the membership projector, which blocks
-// indefinitely without a running consumer. As new projectors come online
-// (ADR-035), they're picked up automatically by core.Run with no change
-// here.
+// Blocks until Run's boot phase is complete (projectors started AND
+// ensureChannelRoomsAreInAGroup done), so test code can issue reads
+// against the projections immediately after this returns without
+// racing the background goroutines.
 func startCoreServices(t *testing.T, c *core.ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { _ = c.Run(ctx) }()
 	t.Cleanup(cancel)
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := c.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
 }

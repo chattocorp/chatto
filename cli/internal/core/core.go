@@ -123,6 +123,13 @@ type ChattoCore struct {
 	// is one line at construction and zero changes at call sites — see
 	// (*ChattoCore).Run.
 	projectors []*events.Projector
+
+	// bootDone is closed by Run once all projectors are started AND
+	// boot-time mutations (ensureChannelRoomsAreInAGroup) have
+	// completed. Callers that need to issue projection-backed reads
+	// during startup — most notably SeedDefaultRooms in cmd/run.go —
+	// block on this via WaitForBoot.
+	bootDone chan struct{}
 }
 
 // Run starts every background service owned by the core — currently
@@ -139,14 +146,86 @@ type ChattoCore struct {
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	g.Go(func() error { return c.PresenceHub.Run(gctx) })
-
 	for _, p := range c.projectors {
 		p := p
 		g.Go(func() error { return p.Run(gctx) })
 	}
 
+	// Block until every projector has entered Run before issuing
+	// projection-backed mutations during boot. Without this,
+	// ensureChannelRoomsAreInAGroup's reads against an empty
+	// projection would silently skip the WaitForSeq path and leave
+	// orphan rooms (rooms created without a group assignment).
+	g.Go(func() error {
+		if err := c.waitForProjectorsStarted(gctx, 5*time.Second); err != nil {
+			return fmt.Errorf("wait for projectors: %w", err)
+		}
+		// Seed the default room group and ensure every existing
+		// channel room belongs to a set (ADR-031). Idempotent —
+		// runs on every boot. Has to happen AFTER projectors are
+		// running because it both reads the RoomGroups projection
+		// and depends on WaitForSeq actually waiting.
+		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
+			return fmt.Errorf("ensure channel rooms in a group: %w", err)
+		}
+		close(c.bootDone)
+		return nil
+	})
+
+	g.Go(func() error { return c.PresenceHub.Run(gctx) })
+
 	return g.Wait()
+}
+
+// AllProjectorsStarted reports whether every registered projector
+// has entered its Run body. Test helpers (and any sequenced startup
+// code) use this to wait for projector consumers to come online
+// before issuing reads that depend on a populated projection — the
+// background goroutines launched by Run aren't guaranteed to have
+// been scheduled the instant `go core.Run(ctx)` returns.
+func (c *ChattoCore) AllProjectorsStarted() bool {
+	for _, p := range c.projectors {
+		if !p.Started() {
+			return false
+		}
+	}
+	return true
+}
+
+// WaitForBoot blocks until Run has finished boot-time setup
+// (projectors running + ensureChannelRoomsAreInAGroup done) or ctx
+// is cancelled. Callers that issue projection-backed mutations during
+// startup — e.g. SeedDefaultRooms in cmd/run.go — must wait here
+// first; mutating before boot completes leaves orphan rooms because
+// CreateRoom's default-group lookup reads the (still-empty)
+// projection.
+func (c *ChattoCore) WaitForBoot(ctx context.Context) error {
+	select {
+	case <-c.bootDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// waitForProjectorsStarted polls AllProjectorsStarted with a short
+// interval until every projector has entered its Run body or the
+// deadline / context elapses. The polling shape mirrors the test
+// helper; this version lives in Run so production has the same
+// guarantee without test-only code on the path.
+func (c *ChattoCore) waitForProjectorsStarted(ctx context.Context, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for !c.AllProjectorsStarted() {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("projectors did not start within %s", timeout)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Millisecond):
+		}
+	}
+	return nil
 }
 
 // EventStreamForDebug returns the EVT stream. Intended for the
@@ -477,6 +556,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			roomCatalogProjector,
 			roomGroupsProjector,
 		},
+		bootDone: make(chan struct{}),
 	}
 
 	// Run boot-time data migrations. Idempotent and cheap on subsequent
@@ -514,11 +594,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to initialize server RBAC: %w", err)
 	}
 
-	// Seed the default room group and ensure every existing channel room
-	// belongs to a set (ADR-031). Idempotent — runs on every boot.
-	if err := core.ensureChannelRoomsAreInAGroup(ctx); err != nil {
-		return nil, fmt.Errorf("failed to seed default room group: %w", err)
-	}
+	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
+	// needs the projectors to be live so its CreateRoomGroup /
+	// MoveRoomToGroup calls can actually WaitForSeq. Doing it here
+	// (when projectors haven't been started yet) would leave orphan
+	// rooms in any subsequent SeedDefaultRooms call.
 
 	// Initialize presence hub (single KV watcher per process). Started
 	// by core.Run alongside the projectors.

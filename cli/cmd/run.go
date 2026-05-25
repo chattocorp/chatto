@@ -105,12 +105,6 @@ func runServer(configPath string) {
 		log.Fatal("Failed to create Chatto core", "error", err)
 	}
 
-	// Seed `announcements` + `general` on first boot of a fresh server.
-	// Idempotent — no-op once any channel room exists.
-	if err := chattoCore.SeedDefaultRooms(ctx); err != nil {
-		log.Fatal("Failed to seed default rooms", "error", err)
-	}
-
 	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
 	if cfg.Webserver.URL != "" {
 		if parsed, err := url.Parse(cfg.Webserver.URL); err == nil {
@@ -133,6 +127,21 @@ func runServer(configPath string) {
 	g.Go(func() error {
 		return chattoCore.Run(ctx)
 	})
+
+	// Block until core.Run has finished its boot phase (projectors
+	// started + ensureChannelRoomsAreInAGroup done). SeedDefaultRooms
+	// issues CreateRoom calls whose default-group lookup hits the
+	// RoomGroups projection — without this wait, the projection is
+	// still empty and the seeded rooms land without a group.
+	if err := chattoCore.WaitForBoot(ctx); err != nil {
+		log.Fatal("Core boot never completed", "error", err)
+	}
+
+	// Seed `announcements` + `general` on first boot of a fresh server.
+	// Idempotent — no-op once any channel room exists.
+	if err := chattoCore.SeedDefaultRooms(ctx); err != nil {
+		log.Fatal("Failed to seed default rooms", "error", err)
+	}
 
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)

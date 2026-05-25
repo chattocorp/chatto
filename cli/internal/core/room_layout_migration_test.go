@@ -1,10 +1,12 @@
 package core
 
 import (
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -12,20 +14,47 @@ import (
 // (legacy_sections + legacy_unsorted_room_ids) AND wipes any existing
 // per-key group documents, so the test exercises the migration as if
 // the server were starting up against pre-split storage.
+//
+// Because setupTestCore boots Chatto fresh — which seeds a Lobby group
+// AND publishes its RoomGroupCreated to the EVT stream — we also have
+// to publish RoomGroupDeleted events for any pre-existing groups so the
+// RoomGroups projection stays in sync with the wiped KV.
 func writeLegacyLayout(t *testing.T, core *ChattoCore, legacy *corev1.RoomLayout) {
 	t.Helper()
 	ctx := testContext(t)
 
 	// Remove boot-seeded group docs so the migrator only sees what the
-	// legacy layout says exists.
+	// legacy layout says exists. Mirror the wipe into the EVT stream
+	// via RoomGroupDeleted so the projection drops them too.
 	bucket := core.storage.serverConfigKV
 	keyLister, err := bucket.ListKeysFiltered(ctx, roomGroupKeyPrefix+"*")
 	if err != nil {
 		t.Fatalf("list room_group keys: %v", err)
 	}
+	var lastDeleteSeq uint64
 	for k := range keyLister.Keys() {
+		groupID := strings.TrimPrefix(k, roomGroupKeyPrefix)
 		if err := bucket.Delete(ctx, k); err != nil {
 			t.Fatalf("delete %s: %v", k, err)
+		}
+		deletedEvent := newEvent(SystemActorID, &corev1.Event{
+			Event: &corev1.Event_RoomGroupDeleted{
+				RoomGroupDeleted: &corev1.RoomGroupDeletedEvent{
+					GroupId: groupID,
+				},
+			},
+		})
+		seq, err := core.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), deletedEvent)
+		if err != nil {
+			t.Fatalf("publish RoomGroupDeleted for %s: %v", groupID, err)
+		}
+		if seq > lastDeleteSeq {
+			lastDeleteSeq = seq
+		}
+	}
+	if lastDeleteSeq > 0 {
+		if err := core.RoomGroupsProjector.WaitForSeq(ctx, lastDeleteSeq); err != nil {
+			t.Fatalf("wait for RoomGroups projection to drain deletes: %v", err)
 		}
 	}
 

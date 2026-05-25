@@ -10,6 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -65,6 +66,23 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 		Name:        name,
 		Description: description,
 	}
+
+	// Dual-write (ADR-035 phase 4): publish RoomGroupCreated to EVT
+	// before the KV write.
+	createdEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupCreated{
+			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{
+				GroupId:     group.Id,
+				Name:        group.Name,
+				Description: group.Description,
+			},
+		},
+	})
+	createdSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(group.Id).Subject(), createdEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomGroupCreatedEvent: %w", err)
+	}
+
 	if err := c.writeRoomGroup(ctx, group, 0); err != nil {
 		return nil, fmt.Errorf("write group doc: %w", err)
 	}
@@ -88,6 +106,10 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 
 	c.logger.Info("Created room group", "group_id", group.Id, "name", name, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "create_group")
+
+	if err := c.RoomGroupsProjector.WaitForSeq(ctx, createdSeq); err != nil {
+		return nil, fmt.Errorf("wait for groups projection: %w", err)
+	}
 	return group, nil
 }
 
@@ -97,6 +119,22 @@ func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ErrRoomGroupNameEmpty
+	}
+
+	// Dual-write (ADR-035 phase 4): publish RoomGroupUpdated to EVT
+	// before mutating the KV doc.
+	updatedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupUpdated{
+			RoomGroupUpdated: &corev1.RoomGroupUpdatedEvent{
+				GroupId:     groupID,
+				Name:        name,
+				Description: description,
+			},
+		},
+	})
+	updatedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), updatedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomGroupUpdatedEvent: %w", err)
 	}
 
 	var updated *corev1.RoomGroup
@@ -111,17 +149,23 @@ func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name
 
 	c.logger.Info("Updated room group", "group_id", groupID, "name", name, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "update_group")
+
+	if err := c.RoomGroupsProjector.WaitForSeq(ctx, updatedSeq); err != nil {
+		return nil, fmt.Errorf("wait for groups projection: %w", err)
+	}
 	return updated, nil
 }
 
-// GetRoomGroup reads a single group document, or ErrRoomGroupNotFound if
-// the doc doesn't exist. Does NOT consult the layout — a group can exist
-// as a doc without being in the layout's order (the reconciler will pick
-// it up as an orphan on the next list call).
-func (c *ChattoCore) GetRoomGroup(ctx context.Context, groupID string) (*corev1.RoomGroup, error) {
-	g, err := c.loadRoomGroup(ctx, groupID)
-	if err != nil {
-		return nil, err
+// GetRoomGroup reads a single group from the RoomGroups projection.
+// Returns ErrRoomGroupNotFound if the group isn't projected (i.e. has
+// no RoomGroupCreatedEvent on evt.group.{G}).
+//
+// ADR-035 phase 5 (groups aggregate): the legacy KV doc is still
+// written during dual-write but no longer read by user-facing paths.
+func (c *ChattoCore) GetRoomGroup(_ context.Context, groupID string) (*corev1.RoomGroup, error) {
+	g, ok := c.RoomGroups.Get(groupID)
+	if !ok {
+		return nil, ErrRoomGroupNotFound
 	}
 	return g, nil
 }
@@ -138,6 +182,20 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 		return ErrRoomGroupHasRooms
 	}
 
+	// Dual-write (ADR-035 phase 4): publish RoomGroupDeleted before
+	// touching KV. Layout/doc cleanup happens after.
+	deletedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupDeleted{
+			RoomGroupDeleted: &corev1.RoomGroupDeletedEvent{
+				GroupId: groupID,
+			},
+		},
+	})
+	deletedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), deletedEvent)
+	if err != nil {
+		return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
+	}
+
 	if err := c.mutateRoomLayoutOrder(ctx, func(order []string) ([]string, error) {
 		return slices.DeleteFunc(order, func(id string) bool { return id == groupID }), nil
 	}); err != nil {
@@ -149,6 +207,10 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 
 	c.logger.Info("Deleted room group", "group_id", groupID, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "delete_group")
+
+	if err := c.RoomGroupsProjector.WaitForSeq(ctx, deletedSeq); err != nil {
+		return fmt.Errorf("wait for groups projection: %w", err)
+	}
 	return nil
 }
 
@@ -178,13 +240,46 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 		return nil
 	}
 
+	// Dual-write (ADR-035 phase 4 + ADR-034 Approach A): move-room is
+	// two events, one per affected group aggregate. Source event
+	// first, then target — projection sees them in this order and the
+	// "room belongs to exactly one group" invariant holds at every
+	// intermediate stream sequence.
+	var sourceRemovedSeq uint64
 	if sourceGroupID != "" {
+		removed := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomRemovedFromGroup{
+				RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
+					GroupId: sourceGroupID,
+					RoomId:  roomID,
+				},
+			},
+		})
+		var err error
+		sourceRemovedSeq, err = c.EventPublisher.Append(ctx, events.GroupAggregate(sourceGroupID).Subject(), removed)
+		if err != nil {
+			return fmt.Errorf("publish RoomRemovedFromGroupEvent on source: %w", err)
+		}
+
 		if err := c.mutateRoomGroup(ctx, sourceGroupID, func(g *corev1.RoomGroup) error {
 			g.RoomIds = slices.DeleteFunc(g.RoomIds, func(id string) bool { return id == roomID })
 			return nil
 		}); err != nil {
 			return fmt.Errorf("remove from source group %s: %w", sourceGroupID, err)
 		}
+	}
+
+	addedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomAddedToGroup{
+			RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
+				GroupId: targetGroupID,
+				RoomId:  roomID,
+			},
+		},
+	})
+	targetAddedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(targetGroupID).Subject(), addedEvent)
+	if err != nil {
+		return fmt.Errorf("publish RoomAddedToGroupEvent on target: %w", err)
 	}
 
 	if err := c.mutateRoomGroup(ctx, targetGroupID, func(g *corev1.RoomGroup) error {
@@ -199,6 +294,17 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 
 	c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
+
+	// Wait for the highest seq we touched on either aggregate — that
+	// guarantees both per-aggregate Applies have landed (they're
+	// applied in stream-global order by the single projector).
+	waitSeq := targetAddedSeq
+	if sourceRemovedSeq > waitSeq {
+		waitSeq = sourceRemovedSeq
+	}
+	if err := c.RoomGroupsProjector.WaitForSeq(ctx, waitSeq); err != nil {
+		return fmt.Errorf("wait for groups projection: %w", err)
+	}
 	return nil
 }
 
@@ -246,6 +352,9 @@ func (c *ChattoCore) ReorderRoomGroups(ctx context.Context, actorID string, orde
 // Cross-group moves go through MoveRoomToGroup; this method exists for
 // intra-group drag-reorder where the membership set doesn't change.
 func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID string, orderedRoomIDs []string) error {
+	// Validate the permutation against current KV state before
+	// publishing — we don't want to record an invalid reorder in the
+	// event log and then bail on KV.
 	if err := c.mutateRoomGroup(ctx, groupID, func(g *corev1.RoomGroup) error {
 		if len(orderedRoomIDs) != len(g.RoomIds) {
 			return ErrRoomGroupOrderMismatch
@@ -270,8 +379,30 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 		return err
 	}
 
+	// KV write already happened above via mutateRoomGroup. Publish
+	// the durable event last — the reorder is best-effort-replayed
+	// from KV if the publish fails (an admin re-drag re-emits).
+	reorderedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomsInGroupReordered{
+			RoomsInGroupReordered: &corev1.RoomsInGroupReorderedEvent{
+				GroupId: groupID,
+				RoomIds: slices.Clone(orderedRoomIDs),
+			},
+		},
+	})
+	reorderedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), reorderedEvent)
+	if err != nil {
+		c.logger.Error("failed to publish RoomsInGroupReorderedEvent", "error", err, "group_id", groupID)
+	}
+
 	c.logger.Info("Reordered rooms in group", "group_id", groupID, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "reorder_rooms_in_group")
+
+	if reorderedSeq > 0 {
+		if err := c.RoomGroupsProjector.WaitForSeq(ctx, reorderedSeq); err != nil {
+			return fmt.Errorf("wait for groups projection: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -288,21 +419,26 @@ func (c *ChattoCore) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) (
 		return nil, nil
 	}
 
-	// Trigger migration before reading docs — the migrator writes
-	// per-key group docs from legacy_sections, so we need it to run
-	// first or the docs map will miss freshly-migrated groups.
+	// Layout ordering still lives in KV (ADR-035 deferred for this
+	// PR — `RoomLayout` ordering is one of the few things that didn't
+	// migrate to events). Calling GetRoomLayoutOrder also triggers
+	// the legacy-shape migrator on first call after an upgrade.
 	order, err := c.GetRoomLayoutOrder(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	docs, err := c.listAllRoomGroupDocs(ctx)
-	if err != nil {
-		return nil, err
+	// Group docs come from the RoomGroups projection (ADR-035 phase 5
+	// for the group aggregate). Build a lookup keyed by ID.
+	all := c.RoomGroups.All()
+	docs := make(map[string]*corev1.RoomGroup, len(all))
+	for _, g := range all {
+		docs[g.Id] = g
 	}
 
-	// Reconcile: walk the layout's order, picking up docs that exist;
-	// then append any docs missing from the order (orphan recovery).
+	// Reconcile: walk the layout's order, picking up groups that
+	// still exist in the projection; then append any groups missing
+	// from the order (orphan recovery).
 	out := make([]*corev1.RoomGroup, 0, len(docs))
 	used := make(map[string]struct{}, len(order))
 	for _, id := range order {
@@ -311,13 +447,12 @@ func (c *ChattoCore) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) (
 		}
 		g, ok := docs[id]
 		if !ok {
-			continue // stale reference — drop
+			continue // stale layout reference — drop
 		}
 		out = append(out, g)
 		used[id] = struct{}{}
 	}
 
-	// Orphans, sorted by ID for determinism.
 	var orphans []string
 	for id := range docs {
 		if _, ok := used[id]; !ok {
@@ -555,6 +690,13 @@ func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
 			return nil // already migrated, or never had legacy fields
 		}
 
+		var highSeq uint64
+		bumpSeq := func(s uint64) {
+			if s > highSeq {
+				highSeq = s
+			}
+		}
+
 		// Build the new state.
 		newOrder := make([]string, 0, len(layout.LegacySections))
 		for _, sec := range layout.LegacySections {
@@ -576,6 +718,13 @@ func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
 				if err := c.writeRoomGroup(ctx, g, 0); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
 					return fmt.Errorf("write migrated group %s: %w", sec.Id, err)
 				}
+				// Also publish to the EVT stream so the RoomGroup
+				// projection sees this group (this migrator predates
+				// the projection and writes only to KV). Best-effort
+				// — a failed publish leaves a KV-visible group that
+				// the projection can't read until the next admin
+				// touch; acceptable for this one-shot legacy path.
+				bumpSeq(c.publishLegacyMigratedGroup(ctx, g))
 			}
 			newOrder = append(newOrder, sec.Id)
 		}
@@ -593,18 +742,43 @@ func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
 				if err := c.writeRoomGroup(ctx, seed, 0); err != nil {
 					return fmt.Errorf("seed group for unsorted rooms: %w", err)
 				}
+				// Publish RoomGroupCreated so the projection sees
+				// the seed group. RoomAddedToGroup events follow
+				// below as we absorb the unsorted rooms.
+				bumpSeq(c.publishLegacyMigratedGroup(ctx, seed))
 				targetGroupID = seed.Id
 				newOrder = append(newOrder, seed.Id)
 			}
+			var absorbed []string
 			if err := c.mutateRoomGroup(ctx, targetGroupID, func(g *corev1.RoomGroup) error {
 				for _, rid := range layout.LegacyUnsortedRoomIds {
 					if !slices.Contains(g.RoomIds, rid) {
 						g.RoomIds = append(g.RoomIds, rid)
+						absorbed = append(absorbed, rid)
 					}
 				}
 				return nil
 			}); err != nil {
 				return fmt.Errorf("absorb unsorted rooms into %s: %w", targetGroupID, err)
+			}
+			// Publish RoomAddedToGroup for each newly absorbed room
+			// so the projection's GroupForRoom reflects the move.
+			for _, rid := range absorbed {
+				addedEvent := newEvent(SystemActorID, &corev1.Event{
+					Event: &corev1.Event_RoomAddedToGroup{
+						RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
+							GroupId: targetGroupID,
+							RoomId:  rid,
+						},
+					},
+				})
+				seq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(targetGroupID).Subject(), addedEvent)
+				if err != nil {
+					c.logger.Warn("legacy migration: failed to publish RoomAddedToGroupEvent for unsorted room",
+						"group_id", targetGroupID, "room_id", rid, "error", err)
+					continue
+				}
+				bumpSeq(seq)
 			}
 		}
 
@@ -626,6 +800,17 @@ func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
 				"unsorted", len(layout.LegacyUnsortedRoomIds),
 				"groups", len(newOrder),
 			)
+			// Block until the RoomGroups projection has caught
+			// up to the events we just published. Without this,
+			// the very next read (which triggered the migration)
+			// would see an empty projection and return zero
+			// groups — the events are durable on disk but the
+			// projector hasn't applied them yet.
+			if highSeq > 0 {
+				if err := c.RoomGroupsProjector.WaitForSeq(ctx, highSeq); err != nil {
+					return fmt.Errorf("wait for groups projection after legacy migration: %w", err)
+				}
+			}
 			return nil
 		}
 		if errors.Is(writeErr, jetstream.ErrKeyExists) {
@@ -634,6 +819,54 @@ func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
 		return fmt.Errorf("write migrated layout: %w", writeErr)
 	}
 	return ErrConfigConflict
+}
+
+// publishLegacyMigratedGroup emits the events that bring a freshly
+// drained legacy section into the RoomGroups projection: one
+// RoomGroupCreated for the group itself, then one RoomAddedToGroup per
+// room it already owned. Returns the highest published stream sequence
+// (0 if nothing was published). Best-effort — failures are logged but
+// don't abort the legacy migration.
+func (c *ChattoCore) publishLegacyMigratedGroup(ctx context.Context, g *corev1.RoomGroup) uint64 {
+	var highSeq uint64
+	createdEvent := newEvent(SystemActorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupCreated{
+			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{
+				GroupId:     g.Id,
+				Name:        g.Name,
+				Description: g.Description,
+			},
+		},
+	})
+	seq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(g.Id).Subject(), createdEvent)
+	if err != nil {
+		c.logger.Warn("legacy migration: failed to publish RoomGroupCreatedEvent",
+			"group_id", g.Id, "error", err)
+		return 0
+	}
+	if seq > highSeq {
+		highSeq = seq
+	}
+	for _, rid := range g.RoomIds {
+		addedEvent := newEvent(SystemActorID, &corev1.Event{
+			Event: &corev1.Event_RoomAddedToGroup{
+				RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
+					GroupId: g.Id,
+					RoomId:  rid,
+				},
+			},
+		})
+		seq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(g.Id).Subject(), addedEvent)
+		if err != nil {
+			c.logger.Warn("legacy migration: failed to publish RoomAddedToGroupEvent",
+				"group_id", g.Id, "room_id", rid, "error", err)
+			continue
+		}
+		if seq > highSeq {
+			highSeq = seq
+		}
+	}
+	return highSeq
 }
 
 // notifyRoomLayoutChanged is the central place every room-layout mutator

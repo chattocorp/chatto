@@ -56,6 +56,12 @@ type Projector struct {
 	mu      sync.Mutex
 	lastSeq uint64
 	waiters []seqWaiter
+	// started flips true the first time Run is invoked and stays true
+	// for the projector's lifetime. WaitForSeq uses this to short-
+	// circuit during boot-time mutations that happen before
+	// ChattoCore.Run gets a chance to start the consumer (see the
+	// WaitForSeq doc for why).
+	started bool
 }
 
 type seqWaiter struct {
@@ -82,6 +88,16 @@ func (p *Projector) LastSeq() uint64 {
 	return p.lastSeq
 }
 
+// Started reports whether Run has entered its body — i.e. whether
+// the projector's consumer is being set up / has been set up. Used by
+// test helpers (and lifecycle code) that need to wait for projectors
+// to come online before issuing reads against the projection.
+func (p *Projector) Started() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.started
+}
+
 // WaitForSeq blocks until LastSeq() >= seq or ctx is done.
 //
 // Used by writers that need read-your-writes consistency: capture the seq
@@ -89,6 +105,15 @@ func (p *Projector) LastSeq() uint64 {
 //
 // If LastSeq() is already >= seq when called, returns immediately with no
 // error. Otherwise registers a waiter and blocks.
+//
+// Precondition: the projector's Run loop is expected to be active by
+// the time any code reaches WaitForSeq. Callers that mutate during
+// boot (ensureChannelRoomsAreInAGroup, SeedDefaultRooms) are
+// orchestrated by core.Run / core.WaitForBoot to make this true.
+// Calling before Run started would block forever waiting for a
+// sequence that never advances — that's the symptom we want, since
+// the alternative (silently skipping the wait) leaves the projection
+// out of sync with the KV write and produces orphan-room bugs.
 func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 	p.mu.Lock()
 	if p.lastSeq >= seq {
@@ -151,6 +176,10 @@ func (p *Projector) advance(seq uint64) {
 // Snapshot orchestration is deferred (ADR-033). For now, Restore is always
 // called with nil and the loop replays from the beginning of the stream.
 func (p *Projector) Run(ctx context.Context) error {
+	p.mu.Lock()
+	p.started = true
+	p.mu.Unlock()
+
 	if err := p.proj.Restore(nil); err != nil {
 		return fmt.Errorf("restore projection: %w", err)
 	}

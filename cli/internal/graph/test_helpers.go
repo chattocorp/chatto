@@ -78,6 +78,15 @@ func setupTestResolver(t *testing.T) *testEnv {
 		ns.WaitForShutdown()
 	})
 
+	// Wait for Run's boot phase before letting the test issue reads
+	// against the projections.
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := chattoCore.WaitForBoot(bootCtx); err != nil {
+		bootCancel()
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+	bootCancel()
+
 	// Create resolver with empty owners/auth/push config for tests
 	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
@@ -219,6 +228,15 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 		ns.Shutdown()
 		ns.WaitForShutdown()
 	})
+
+	// Wait for Run's boot phase before letting the test issue reads
+	// against the projections.
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := chattoCore.WaitForBoot(bootCtx); err != nil {
+		bootCancel()
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+	bootCancel()
 
 	// Create resolver with provided owners config
 	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")

@@ -359,15 +359,31 @@ func TestProjector_WaitForSeq_UnblocksOnApply(t *testing.T) {
 
 func TestProjector_WaitForSeq_HonoursContextCancel(t *testing.T) {
 	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
 	proj := newTrackingProjection(RoomSubjectFilter())
 	projector := NewProjector(js, stream, proj, testLogger())
 
-	// Projector is not running, so LastSeq stays at 0 — WaitForSeq blocks.
+	// Start the projector and confirm it's processed at least one
+	// event before exercising the ctx-cancel path below. WaitForSeq's
+	// contract assumes Run is active (see its doc) — we make that
+	// concretely true here.
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	t.Cleanup(cancelRun)
+	go func() { _ = projector.Run(runCtx) }()
+
+	pubCtx := testContext(t)
+	seq, err := pub.Append(pubCtx, RoomAggregate("R1").Subject(), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("seed Append: %v", err)
+	}
+	if err := projector.WaitForSeq(pubCtx, seq); err != nil {
+		t.Fatalf("warm WaitForSeq: %v", err)
+	}
+
+	// Now ask for a seq we'll never reach with a tight deadline.
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-
-	err := projector.WaitForSeq(ctx, 999)
-	if !errors.Is(err, context.DeadlineExceeded) {
+	if err := projector.WaitForSeq(ctx, 9999); !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("want DeadlineExceeded, got %v", err)
 	}
 }

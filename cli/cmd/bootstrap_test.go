@@ -47,18 +47,24 @@ func setupCore(t *testing.T) *core.ChattoCore {
 		t.Fatalf("new core: %v", err)
 	}
 
-	// Production `run.go` calls SeedDefaultRooms after NewChattoCore; mirror
-	// that here so bootstrap tests see the same starting state.
-	if err := c.SeedDefaultRooms(ctx); err != nil {
-		t.Fatalf("seed default rooms: %v", err)
-	}
-
 	// Start core's background services (PresenceHub + projectors) — the
 	// same set cmd/run.go boots via c.Run. Membership mutations need the
 	// projector loops to advance so WaitForSeq returns.
 	servicesCtx, servicesCancel := context.WithCancel(context.Background())
 	go func() { _ = c.Run(servicesCtx) }()
 	t.Cleanup(servicesCancel)
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := c.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+
+	// Production `run.go` calls SeedDefaultRooms after WaitForBoot;
+	// mirror that here so bootstrap tests see the same starting
+	// state and the seeded rooms land in the Lobby group.
+	if err := c.SeedDefaultRooms(ctx); err != nil {
+		t.Fatalf("seed default rooms: %v", err)
+	}
 
 	return c
 }

@@ -207,6 +207,26 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
 		return nil, fmt.Errorf("failed to marshal room: %w", err)
 	}
+	// Dual-write (ADR-035 phase 4): publish RoomCreated to EVT
+	// before the KV write so the audit log is correct even if the KV
+	// write fails. Subject is the room aggregate; we wait for the
+	// RoomCatalog projector at the bottom of this function.
+	createdEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomCreated{
+			RoomCreated: &corev1.RoomCreatedEvent{
+				RoomId:      room_id,
+				Name:        name,
+				Description: description,
+				Kind:        ProtoKindForRoomKind(kind),
+			},
+		},
+	})
+	createdSeq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), createdEvent)
+	if err != nil {
+		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
+		return nil, fmt.Errorf("publish RoomCreatedEvent: %w", err)
+	}
+
 	if _, err := bucket.Put(ctx, roomKey(kind, room.Id), roomData); err != nil {
 		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
 		return nil, fmt.Errorf("failed to store room: %w", err)
@@ -223,22 +243,12 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	// Create and publish audit event to space stream
-	// Room events are stored in the unified space stream
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
-				RoomId:      room_id,
-				Name:        name,
-				Description: description,
-			},
-		},
-	})
+	// Legacy live broadcast on the SERVER_EVENTS path — keeps the
+	// frontend's myEvents subscription working during the dual-write
+	// window.
 	subject := subjects.RoomMeta(string(kind), room_id)
-	_, err = c.publishServerEventWithAck(ctx, subject, event)
-	if err != nil {
-		// Room was created in KV but event failed - log but don't fail
-		c.logger.Error("failed to publish room created event", "error", err, "room_id", room_id)
+	if _, err := c.publishServerEventWithAck(ctx, subject, createdEvent); err != nil {
+		c.logger.Error("failed to publish room created event (legacy)", "error", err, "room_id", room_id)
 	}
 
 	// Set up special permissions for announcements rooms
@@ -258,6 +268,12 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	// here as a fallback for the (rare) groupless channel-room case.
 	if kind == KindChannel && groupID == "" {
 		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
+	}
+
+	// Read-your-writes: ensure the catalog projection has applied the
+	// RoomCreated event before the caller's next GetRoom.
+	if err := c.RoomCatalogProjector.WaitForSeq(ctx, createdSeq); err != nil {
+		return nil, fmt.Errorf("wait for catalog projection: %w", err)
 	}
 
 	return room, nil
@@ -314,7 +330,26 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 	room.Name = name
 	room.Description = description
 
-	// Write to KV store (source of truth)
+	// Dual-write (ADR-035 phase 4): publish RoomUpdated to EVT
+	// before the KV write.
+	updatedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{
+				RoomId:      room_id,
+				Name:        name,
+				Description: description,
+			},
+		},
+	})
+	updatedSeq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), updatedEvent)
+	if err != nil {
+		if renamed {
+			c.bestEffortReleaseRoomNameClaim(ctx, bucket, newIndexKey, room_id)
+		}
+		return nil, fmt.Errorf("publish RoomUpdatedEvent: %w", err)
+	}
+
+	// Write to KV store (kept current during dual-write).
 	roomData, err := proto.Marshal(room)
 	if err != nil {
 		if renamed {
@@ -337,22 +372,17 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 		c.bestEffortReleaseRoomNameClaim(ctx, bucket, oldIndexKey, room_id)
 	}
 
-	// Create and publish audit event to space stream (best-effort)
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomUpdated{
-			RoomUpdated: &corev1.RoomUpdatedEvent{
-				RoomId:      room_id,
-				Name:        name,
-				Description: description,
-			},
-		},
-	})
+	// Legacy live broadcast (best-effort).
 	subject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room updated event", "error", err, "room_id", room_id)
+	if err := c.publishServerEvent(ctx, subject, updatedEvent); err != nil {
+		c.logger.Error("failed to publish room updated event (legacy)", "error", err, "room_id", room_id)
 	}
 
 	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
+
+	if err := c.RoomCatalogProjector.WaitForSeq(ctx, updatedSeq); err != nil {
+		return nil, fmt.Errorf("wait for catalog projection: %w", err)
+	}
 
 	return room, nil
 }
@@ -367,10 +397,9 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		return err
 	}
 
-	// Create and publish audit event before deletion. Dual-write
-	// (ADR-035 phase 4): EVT publish drives the membership
-	// projection's per-room dropRoom; legacy publish keeps the frontend's
-	// live myEvents subscription working.
+	// Dual-write (ADR-035 phase 4): publish RoomDeleted on the room
+	// aggregate. Same event drives the membership-projection drop and
+	// the catalog-projection drop.
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomDeleted{
 			RoomDeleted: &corev1.RoomDeletedEvent{
@@ -378,10 +407,28 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			},
 		},
 	})
-
 	seq, evtErr := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), event)
 	if evtErr != nil {
 		c.logger.Error("failed to publish RoomDeletedEvent to EVT", "error", evtErr, "room_id", room_id)
+	}
+
+	// Cascade (ADR-034 Approach A): a channel room that lives in a
+	// group also produces a per-group event so the group projection
+	// drops the room from its room_ids. DMs don't belong to groups.
+	var groupRemovedSeq uint64
+	if kind == KindChannel && room.GetGroupId() != "" {
+		removed := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomRemovedFromGroup{
+				RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
+					GroupId: room.GetGroupId(),
+					RoomId:  room_id,
+				},
+			},
+		})
+		groupRemovedSeq, err = c.EventPublisher.Append(ctx, events.GroupAggregate(room.GetGroupId()).Subject(), removed)
+		if err != nil {
+			c.logger.Error("failed to publish RoomRemovedFromGroupEvent for delete cascade", "error", err, "room_id", room_id, "group_id", room.GetGroupId())
+		}
 	}
 
 	subject := subjects.RoomMeta(string(kind), room_id)
@@ -416,13 +463,19 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		c.notifyRoomLayoutChanged(ctx, actorID, "delete_room")
 	}
 
-	// Read-your-writes: ensure the membership projection has applied the
-	// RoomDeleted event before returning. Only wait if the EVT
-	// publish actually succeeded above — otherwise there's nothing to
-	// wait for.
+	// Read-your-writes: ensure every projection that needs to drop
+	// state has applied its event before returning.
 	if seq > 0 {
 		if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-			return fmt.Errorf("wait for projection: %w", err)
+			return fmt.Errorf("wait for membership projection: %w", err)
+		}
+		if err := c.RoomCatalogProjector.WaitForSeq(ctx, seq); err != nil {
+			return fmt.Errorf("wait for catalog projection: %w", err)
+		}
+	}
+	if groupRemovedSeq > 0 {
+		if err := c.RoomGroupsProjector.WaitForSeq(ctx, groupRemovedSeq); err != nil {
+			return fmt.Errorf("wait for groups projection: %w", err)
 		}
 	}
 
@@ -440,35 +493,43 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 
 	room.Archived = true
 
-	bucket := c.storage.serverConfigKV
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to archive room: %w", err)
-	}
-
-	// Publish persisted event to space stream (best-effort)
-	event := newEvent(actorID, &corev1.Event{
+	// Dual-write (ADR-035 phase 4): publish RoomArchived to EVT
+	// before the KV write.
+	archivedEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomArchived{
 			RoomArchived: &corev1.RoomArchivedEvent{
 				RoomId: roomID,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room archived event", "error", err, "room_id", roomID)
+	archivedSeq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), archivedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
 	}
 
-	// Publish live event for real-time sync (sidebar/layout updates)
+	bucket := c.storage.serverConfigKV
+	roomData, err := proto.Marshal(room)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal room: %w", err)
+	}
+	if _, err := bucket.Put(ctx, roomKey(kind, room.Id), roomData); err != nil {
+		return nil, fmt.Errorf("failed to archive room: %w", err)
+	}
+
+	// Legacy live broadcast (best-effort).
+	subject := subjects.RoomMeta(string(kind), roomID)
+	if err := c.publishServerEvent(ctx, subject, archivedEvent); err != nil {
+		c.logger.Error("failed to publish room archived event (legacy)", "error", err, "room_id", roomID)
+	}
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
 
 	c.logger.Info("Room archived", "kind", kind, "room_id", roomID)
+
+	if err := c.RoomCatalogProjector.WaitForSeq(ctx, archivedSeq); err != nil {
+		return nil, fmt.Errorf("wait for catalog projection: %w", err)
+	}
 	return room, nil
 }
 
@@ -484,52 +545,61 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 
 	room.Archived = false
 
-	bucket := c.storage.serverConfigKV
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unarchive room: %w", err)
-	}
-
-	// Publish persisted event to space stream (best-effort)
-	event := newEvent(actorID, &corev1.Event{
+	unarchivedEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomUnarchived{
 			RoomUnarchived: &corev1.RoomUnarchivedEvent{
 				RoomId: roomID,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room unarchived event", "error", err, "room_id", roomID)
+	unarchivedSeq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), unarchivedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
 	}
 
-	// Publish live event for real-time sync (sidebar/layout updates)
+	bucket := c.storage.serverConfigKV
+	roomData, err := proto.Marshal(room)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal room: %w", err)
+	}
+	if _, err := bucket.Put(ctx, roomKey(kind, room.Id), roomData); err != nil {
+		return nil, fmt.Errorf("failed to unarchive room: %w", err)
+	}
+
+	subject := subjects.RoomMeta(string(kind), roomID)
+	if err := c.publishServerEvent(ctx, subject, unarchivedEvent); err != nil {
+		c.logger.Error("failed to publish room unarchived event (legacy)", "error", err, "room_id", roomID)
+	}
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}
 
 	c.logger.Info("Room unarchived", "kind", kind, "room_id", roomID)
+
+	if err := c.RoomCatalogProjector.WaitForSeq(ctx, unarchivedSeq); err != nil {
+		return nil, fmt.Errorf("wait for catalog projection: %w", err)
+	}
 	return room, nil
 }
 
-// GetRoom retrieves a room from the space-specific CONFIG bucket.
+// GetRoom retrieves a room by id.
+//
+// ADR-035 phase 5 (rooms aggregate): reads come from RoomCatalog
+// composed with RoomGroups for the group_id field. The space_id
+// legacy field is computed from kind via SpaceIDForKind. Returns
+// ErrNotFound (wrapped) if the room isn't projected OR if its kind
+// doesn't match the requested kind — keeping the legacy "the wrong
+// kind is not found" semantic so callers don't accidentally read a
+// DM via a channel-kind probe.
 func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*corev1.Room, error) {
-	bucket := c.storage.serverConfigKV
-
-	entry, err := bucket.Get(ctx, roomKey(kind, room_id))
-	if err != nil {
-		return nil, fmt.Errorf("room not found: %w", err)
+	room, ok := c.RoomCatalog.Get(room_id)
+	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
+		return nil, fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
 	}
-
-	room := &corev1.Room{}
-	if err := proto.Unmarshal(entry.Value(), room); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal room: %w", err)
+	room.SpaceId = SpaceIDForKind(kind)
+	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
+		room.GroupId = gid
 	}
-
 	return room, nil
 }
 
@@ -541,13 +611,15 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string)
 // recover both the room and the kind context the core API still needs
 // for KV partitioning.
 func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*corev1.Room, error) {
-	if room, err := c.GetRoom(ctx, KindChannel, room_id); err == nil {
-		return room, nil
+	room, ok := c.RoomCatalog.Get(room_id)
+	if !ok {
+		return nil, ErrNotFound
 	}
-	if room, err := c.GetRoom(ctx, KindDM, room_id); err == nil {
-		return room, nil
+	room.SpaceId = SpaceIDForKind(KindOfRoom(room))
+	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
+		room.GroupId = gid
 	}
-	return nil, ErrNotFound
+	return room, nil
 }
 
 // FindRoomKind is a thin wrapper around FindRoomByID for callers that
@@ -568,34 +640,13 @@ func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind
 // The prefix scan returns only the matching kind, so no in-memory filter
 // is needed.
 func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Room, error) {
-	bucket := c.storage.serverConfigKV
-
-	prefix := roomKeyPrefix(kind)
-	keyLister, err := bucket.ListKeysFiltered(ctx, prefix)
-	if err != nil {
-		if err == jetstream.ErrNoKeysFound {
-			return []*corev1.Room{}, nil
+	rooms := c.RoomCatalog.AllByKind(ProtoKindForRoomKind(kind))
+	for _, r := range rooms {
+		r.SpaceId = SpaceIDForKind(kind)
+		if gid := c.RoomGroups.GroupForRoom(r.Id); gid != "" {
+			r.GroupId = gid
 		}
-		return nil, fmt.Errorf("failed to list room keys: %w", err)
 	}
-
-	var rooms []*corev1.Room
-	for key := range keyLister.Keys() {
-		entry, err := bucket.Get(ctx, key)
-		if err != nil {
-			c.logger.Warn("Failed to get room", "key", key, "error", err)
-			continue
-		}
-
-		room := &corev1.Room{}
-		if err := proto.Unmarshal(entry.Value(), room); err != nil {
-			c.logger.Warn("Failed to unmarshal room", "key", key, "error", err)
-			continue
-		}
-
-		rooms = append(rooms, room)
-	}
-
 	return rooms, nil
 }
 

@@ -211,6 +211,32 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		return nil, err // Let caller handle ErrKeyExists for race condition
 	}
 
+	// Dual-write (ADR-035 phase 4): publish RoomCreated on the room
+	// aggregate so the RoomCatalog projection knows about the DM. The
+	// "system" actor reflects that the conversation is created by the
+	// platform on the first participant's behalf rather than as a
+	// targeted admin action — DMs have no operator-driven creation
+	// flow.
+	createdEvent := newEvent("system", &corev1.Event{
+		Event: &corev1.Event_RoomCreated{
+			RoomCreated: &corev1.RoomCreatedEvent{
+				RoomId:      roomID,
+				Name:        "",
+				Description: "",
+				Kind:        corev1.RoomKind_ROOM_KIND_DM,
+			},
+		},
+	})
+	createdSeq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), createdEvent)
+	if err != nil {
+		c.logger.Error("failed to publish DM RoomCreatedEvent", "error", err, "room_id", roomID)
+	}
+	if createdSeq > 0 {
+		if err := c.RoomCatalogProjector.WaitForSeq(ctx, createdSeq); err != nil {
+			c.logger.Warn("DM room catalog projection wait failed", "error", err, "room_id", roomID)
+		}
+	}
+
 	// Join all participants - rollback room on failure
 	var joinedParticipants []string
 	for _, participantID := range participantIDs {
