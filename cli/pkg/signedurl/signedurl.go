@@ -18,12 +18,18 @@ import (
 // carries everything the HTTP handler needs to authorize and serve the
 // attachment without any standalone-index lookup:
 //
-//   - RoomID is checked against the requester's room membership.
+//   - RoomID is checked against the signed user's current room membership.
 //   - Exactly one of BodyKey or VideoOrigin identifies where the source
 //     of truth lives: a `MessageBody` keyed by BodyKey (for body-embedded
 //     attachments), or a `VideoProcessingState` keyed by VideoOrigin
 //     (for variants and thumbnails generated from a parent video).
 //   - AttachmentID identifies the specific attachment within that source.
+//   - UserID is the user the URL was issued for. The HTTP handler trusts
+//     this claim (it's covered by the HMAC) and checks current room
+//     membership for that user — no session or bearer token required.
+//   - ExpiresAt is the Unix-second deadline after which the URL stops
+//     working. Lets URLs be safely exposed to clients that can't carry
+//     a session cookie (cross-origin <img>, mobile share sheets, etc.).
 //
 // JSON keys are single letters to keep URLs short.
 type AttachmentLocator struct {
@@ -31,6 +37,8 @@ type AttachmentLocator struct {
 	BodyKey      string `json:"b,omitempty"`
 	VideoOrigin  string `json:"v,omitempty"`
 	AttachmentID string `json:"a"`
+	UserID       string `json:"u"`
+	ExpiresAt    int64  `json:"e"`
 }
 
 // Validate returns an error if the locator is missing required fields
@@ -43,12 +51,25 @@ func (l AttachmentLocator) Validate() error {
 	if l.AttachmentID == "" {
 		return errors.New("locator: missing attachment id")
 	}
+	if l.UserID == "" {
+		return errors.New("locator: missing user id")
+	}
+	if l.ExpiresAt == 0 {
+		return errors.New("locator: missing expiry")
+	}
 	hasBody := l.BodyKey != ""
 	hasVideo := l.VideoOrigin != ""
 	if hasBody == hasVideo {
 		return errors.New("locator: must specify exactly one of body_key or video_origin")
 	}
 	return nil
+}
+
+// Expired reports whether the locator's deadline has passed relative to
+// `now`. Callers pass `time.Now().Unix()` in production code and a
+// fixed value in tests.
+func (l AttachmentLocator) Expired(now int64) bool {
+	return l.ExpiresAt <= now
 }
 
 // SignedAttachmentLocator encodes a locator as `{base64payload}.{hexHMAC}`.

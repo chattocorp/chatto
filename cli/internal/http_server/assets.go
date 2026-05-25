@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
@@ -150,10 +150,17 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
-// resolveLocatorAttachment parses the signed locator, verifies room
-// membership, and looks up the source Attachment proto. On success
-// returns the locator, the attachment, and true. On any failure, writes
-// the appropriate HTTP response and returns ok=false.
+// resolveLocatorAttachment parses the signed locator, validates its
+// expiry, verifies the signed user is still a member of the room, and
+// looks up the source Attachment proto. On success returns the locator,
+// the attachment, and true. On any failure, writes the appropriate HTTP
+// response and returns ok=false.
+//
+// The signed locator is the capability — no session cookie or bearer
+// token is consulted. This is what lets cross-origin <img> tags work
+// for remote-server attachments, which can't carry either credential.
+// Auto-revocation on kick/leave still works because we re-check
+// membership for the signed user on every request.
 func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Context, signedLocator string) (*signedurl.AttachmentLocator, *corev1.Attachment, bool) {
 	loc, err := signedurl.ParseSignedAttachmentLocator(s.config.Core.Assets.SigningSecret, signedLocator)
 	if err != nil {
@@ -162,9 +169,8 @@ func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Contex
 		return nil, nil, false
 	}
 
-	userID := s.getUserIDFromSession(c)
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+	if loc.Expired(time.Now().Unix()) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Attachment URL expired"})
 		return nil, nil, false
 	}
 
@@ -174,7 +180,7 @@ func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Contex
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
 		return nil, nil, false
 	}
-	isMember, err := s.core.RoomMembershipExists(ctx, kind, userID, loc.RoomID)
+	isMember, err := s.core.RoomMembershipExists(ctx, kind, loc.UserID, loc.RoomID)
 	if err != nil {
 		s.logger.Error("Failed to check room membership", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
@@ -196,27 +202,6 @@ func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Contex
 		return nil, nil, false
 	}
 	return loc, attachment, true
-}
-
-// getUserIDFromSession extracts the user ID from the Gin session.
-// Returns empty string if not authenticated.
-func (s *HTTPServer) getUserIDFromSession(c *gin.Context) string {
-	session := sessions.Default(c)
-	if session == nil {
-		return ""
-	}
-
-	userIDRaw := session.Get("user_id")
-	if userIDRaw == nil {
-		return ""
-	}
-
-	userID, ok := userIDRaw.(string)
-	if !ok {
-		return ""
-	}
-
-	return userID
 }
 
 // serveTransformedAsset handles the common logic for serving transformed images.
