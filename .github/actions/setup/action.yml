@@ -27,8 +27,16 @@ runs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: go-${{ runner.os }}-${{ hashFiles('cli/go.sum') }}
+        # Rolling key (includes run_id) so every run is a primary-key
+        # miss and therefore saves a fresh cache at end of job. Without
+        # this, actions/cache skips saving on primary hit and the
+        # go-build cache freezes at whatever state existed when go.sum
+        # last changed — meaning `go test` never sees cache hits across
+        # runs. Restore-keys fall back to the most recent prior cache so
+        # restores stay warm.
+        key: go-${{ runner.os }}-${{ hashFiles('cli/go.sum') }}-${{ github.run_id }}
         restore-keys: |
+          go-${{ runner.os }}-${{ hashFiles('cli/go.sum') }}-
           go-${{ runner.os }}-
 
     - name: Install ffmpeg (required for video processing e2e tests)
