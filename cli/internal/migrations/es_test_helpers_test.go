@@ -73,6 +73,9 @@ func setupTestES(t *testing.T) (
 		Name:     "EVT_TEST",
 		Subjects: []string{events.SubjectRoot + ">"},
 		Storage:  jetstream.MemoryStorage,
+		// AppendBatch (used by MigrateRoomAggregateToES) requires
+		// the stream to opt into the Nats-Batch-* protocol.
+		AllowAtomicPublish: true,
 	})
 	if err != nil {
 		t.Fatalf("create EVT stream: %v", err)
