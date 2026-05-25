@@ -13,81 +13,91 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// DecryptedMessageBody represents a message body with decrypted content.
-// Used as the return type for GetFullMessageBody since the proto no longer has a plaintext field.
+// DecryptedMessageBody is the public view of a message body with
+// plaintext content. The body's encryption envelope is unwrapped by
+// the resolver layer's decryptMessageBody helper.
 type DecryptedMessageBody struct {
 	AuthorId    string
-	Body        string // Decrypted message text
+	Body        string
 	Attachments []*corev1.Attachment
 	LinkPreview *corev1.LinkPreview
 	CreatedAt   time.Time
-	UpdatedAt   *time.Time // nil if never edited
+	UpdatedAt   *time.Time
 }
 
-// GetFullMessageBody retrieves the complete message body from the BODIES bucket.
-// Used by GraphQL resolvers for lazy-loading message content and attachments.
-// The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
-// Returns nil if the body doesn't exist (e.g., deleted for GDPR).
-// If the encryption key is missing (crypto-shredded), returns nil (same as deleted)
-// which triggers "[Message unavailable]" display in UI.
+// GetFullMessageBody returns the decrypted message body for a message.
+//
+// `messageBodyKey` is the legacy compound key `{userId}.{eventId}`
+// retained for API compatibility with the pre-ES resolver layer. We
+// extract the eventId from the second segment, look the message up in
+// the RoomTimelineProjection, and fold any subsequent edit / retract
+// events to produce the current body. The userId prefix on the key is
+// not consulted — the projection knows the author from the event
+// envelope.
+//
+// Returns nil if the message has been retracted or doesn't exist, or
+// if the author's encryption key has been crypto-shredded.
 func (c *ChattoCore) GetFullMessageBody(ctx context.Context, kind RoomKind, messageBodyKey string) (*DecryptedMessageBody, error) {
-	bucket := c.storage.serverBodiesKV
+	eventID := eventIDFromBodyKey(messageBodyKey)
+	if eventID == "" {
+		return nil, nil
+	}
+	return c.GetFullMessageBodyByEventID(ctx, eventID)
+}
 
-	entry, err := bucket.Get(ctx, messageBodyKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, nil // Return nil for missing bodies (deleted for GDPR)
-		}
-		return nil, fmt.Errorf("failed to fetch message body: %w", err)
+// GetFullMessageBodyByEventID is the canonical post-cutover body
+// accessor — look the message up directly by its envelope event id
+// without the legacy compound key indirection.
+func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID string) (*DecryptedMessageBody, error) {
+	if eventID == "" {
+		return nil, nil
 	}
 
-	var messageBody corev1.MessageBody
-	if err := proto.Unmarshal(entry.Value(), &messageBody); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal message body: %w", err)
+	entry, ok := c.RoomTimeline.Get(eventID)
+	if !ok {
+		return nil, nil
+	}
+	posted := entry.Event.GetMessagePosted()
+	if posted == nil {
+		return nil, nil
 	}
 
-	// Decrypt the message body
-	decrypted, err := c.decryptMessageBody(ctx, &messageBody)
+	body, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	if retracted || body == nil {
+		// Retracted message: same shape as a legacy GDPR delete —
+		// resolver renders "[Message unavailable]".
+		return nil, nil
+	}
+
+	plaintext, err := c.decryptMessageBody(ctx, body)
 	if err != nil {
-		// Key not found = crypto-shredded, treat as unavailable (same as deleted)
 		if errors.Is(err, encryption.ErrKeyNotFound) {
-			return nil, nil
+			return nil, nil // crypto-shredded
 		}
 		return nil, fmt.Errorf("failed to decrypt message body: %w", err)
 	}
 
 	result := &DecryptedMessageBody{
-		AuthorId:    messageBody.AuthorId,
-		Body:        string(decrypted),
-		Attachments: messageBody.Attachments,
-		LinkPreview: messageBody.LinkPreview,
-		CreatedAt:   messageBody.CreatedAt.AsTime(),
+		AuthorId:    body.GetAuthorId(),
+		Body:        string(plaintext),
+		Attachments: body.GetAttachments(),
+		LinkPreview: body.GetLinkPreview(),
+		CreatedAt:   entry.Event.GetCreatedAt().AsTime(),
 	}
-	if messageBody.UpdatedAt != nil {
-		t := messageBody.UpdatedAt.AsTime()
+	// UpdatedAt: if LatestBody returned a body different from the
+	// original post's body, the message has been edited. The body
+	// proto carries its own UpdatedAt; surface that if set, otherwise
+	// derive from the most recent edit's envelope time.
+	if upd := body.GetUpdatedAt(); upd != nil {
+		t := upd.AsTime()
 		result.UpdatedAt = &t
 	}
 	return result, nil
 }
 
-// decryptMessageBody decrypts an encrypted message body using the author's key.
-func (c *ChattoCore) decryptMessageBody(ctx context.Context, msg *corev1.MessageBody) ([]byte, error) {
-	key, err := c.encryption.keyManager.GetUserKey(ctx, msg.AuthorId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get encryption key: %w", err)
-	}
-	if key == nil {
-		return nil, encryption.ErrKeyNotFound
-	}
-
-	return encryption.Decrypt(key, msg.EncryptedBody, msg.EncryptionNonce)
-}
-
-// GetMessageBody retrieves a message body text from the bodies KV bucket.
-// The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
-// Returns empty string if the body has been deleted (GDPR), doesn't exist,
-// or if the encryption key has been deleted (crypto-shredded).
-// Prefer GetFullMessageBody when you need attachments or other metadata.
+// GetMessageBody is a thin wrapper returning just the plaintext body
+// text. Same semantics as GetFullMessageBody — retracted / crypto-
+// shredded messages return empty string.
 func (c *ChattoCore) GetMessageBody(ctx context.Context, kind RoomKind, messageBodyKey string) (string, error) {
 	body, err := c.GetFullMessageBody(ctx, kind, messageBodyKey)
 	if err != nil {
@@ -99,42 +109,61 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, kind RoomKind, messageB
 	return body.Body, nil
 }
 
-// GetMessageAuthorID retrieves the author ID for a message body.
-// Returns empty string if the message doesn't exist (already deleted).
-// Used by GraphQL layer to check ownership before calling DeleteMessage.
+// GetMessageAuthorID returns the author of a message by its compound
+// body key. Used by the GraphQL layer to check ownership before
+// edit / delete.
 func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, messageBodyID string) (string, error) {
-	messageBody, err := c.GetFullMessageBody(ctx, kind, messageBodyID)
-	if err != nil {
-		return "", err
+	eventID := eventIDFromBodyKey(messageBodyID)
+	if eventID == "" {
+		return "", nil
 	}
-	if messageBody == nil {
-		return "", nil // Message already deleted
+	entry, ok := c.RoomTimeline.Get(eventID)
+	if !ok {
+		return "", nil
 	}
-	return messageBody.AuthorId, nil
+	return entry.Event.GetActorId(), nil
 }
 
-// deleteUserMessageBodiesInSpace deletes all message bodies authored by a user in a specific space.
-// This is used during account deletion to remove the user's message content entirely.
-// Returns the number of message bodies deleted.
-// Note: This only removes bodies from spaces the user was a member of. Bodies in spaces they
-// left before deletion will still be crypto-shredded when the encryption key is deleted.
+// decryptMessageBody decrypts an encrypted message body using the
+// author's per-user encryption key.
+func (c *ChattoCore) decryptMessageBody(ctx context.Context, msg *corev1.MessageBody) ([]byte, error) {
+	key, err := c.encryption.keyManager.GetUserKey(ctx, msg.GetAuthorId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get encryption key: %w", err)
+	}
+	if key == nil {
+		return nil, encryption.ErrKeyNotFound
+	}
+	return encryption.Decrypt(key, msg.GetEncryptedBody(), msg.GetEncryptionNonce())
+}
+
+// (eventIDFromBodyKey is defined in core.go and shared with the
+// publish path. Body keys have the legacy format {userId}.{eventId};
+// the projection-backed body readers in this file consult it to
+// extract the event-id portion.)
+
+// deleteUserMessageBodiesInSpace deletes all message bodies authored
+// by a user in a specific space's legacy SERVER_BODIES bucket.
 //
-// The key format is {userId}.{bodyId}, so we can efficiently filter by userId prefix
-// to find only this user's message bodies without scanning the entire bucket.
+// This is retained for GDPR / account-deletion cleanup of the legacy
+// bucket during the migration window. Once ADR-035 phase 7
+// decommissions SERVER_BODIES, this becomes a no-op and can be
+// removed alongside the bucket. New posts (post-cutover) don't write
+// to SERVER_BODIES at all, so this function only touches data
+// imported from before the cutover.
+//
+// Returns the number of legacy body entries deleted.
 func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID string, kind RoomKind) (int, error) {
 	bucket := c.storage.serverBodiesKV
 
-	// Use prefix filter to find only this user's message bodies
-	// Key format: {userId}.{bodyId} - filter by userID prefix
 	lister, err := bucket.ListKeysFiltered(ctx, userID+".")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return 0, nil // No bodies for this user in this space
+			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to list message body keys: %w", err)
 	}
 
-	// Collect all keys first (iterator becomes invalid after first pass)
 	var keys []string
 	for key := range lister.Keys() {
 		keys = append(keys, key)
@@ -142,7 +171,6 @@ func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID 
 
 	deleted := 0
 	for _, key := range keys {
-		// Get the message body to find attachments to delete
 		entry, err := bucket.Get(ctx, key)
 		if err != nil {
 			c.logger.Debug("Failed to get message body during deletion", "key", key, "error", err)
@@ -155,25 +183,20 @@ func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID 
 			continue
 		}
 
-		// Delete all attachments from storage (supports both NATS and S3)
-		for _, attachment := range messageBody.Attachments {
+		for _, attachment := range messageBody.GetAttachments() {
 			if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 				c.logger.Warn("Failed to delete attachment during user deletion",
 					"attachment_id", attachment.Id,
 					"message_body_key", key,
 					"error", err)
-				// Continue deleting other attachments
 			}
 		}
 
-		// Delete the message body
 		if err := bucket.Delete(ctx, key); err != nil {
 			c.logger.Warn("Failed to delete message body during user deletion", "key", key, "error", err)
 			continue
 		}
-
 		deleted++
 	}
-
 	return deleted, nil
 }

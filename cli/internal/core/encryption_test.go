@@ -8,9 +8,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // setupTestCoreWithEncryption creates a ChattoCore for encryption tests.
@@ -74,18 +72,11 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, event)
 
-	// Verify message is encrypted in storage (read raw from bucket)
-	bucket := core.storage.serverBodiesKV
-
-	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	entry, err := bucket.Get(ctx, event.GetMessagePosted().MessageBodyId)
-	require.NoError(t, err)
-
-	var stored corev1.MessageBody
-	err = proto.Unmarshal(entry.Value(), &stored)
-	require.NoError(t, err)
-
-	// Verify encrypted body is non-empty
+	// Post-#597 cutover: the body is embedded in the MessagePostedEvent
+	// payload, not stored separately in SERVER_BODIES. Inspect the
+	// embedded MessageBody directly.
+	stored := event.GetMessagePosted().GetBody()
+	require.NotNil(t, stored, "expected embedded body on the published event")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
 
@@ -154,17 +145,12 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	err = core.EditMessage(ctx, user.Id, KindChannel, room.Id, messageBodyID, "Edited content")
 	require.NoError(t, err)
 
-	// Verify the edited message is still encrypted in storage
-	bucket := core.storage.serverBodiesKV
-
-	// messageBodyID is the full compound key ({userId}.{bodyId})
-	entry, err := bucket.Get(ctx, messageBodyID)
-	require.NoError(t, err)
-
-	var stored corev1.MessageBody
-	err = proto.Unmarshal(entry.Value(), &stored)
-	require.NoError(t, err)
-
+	// Post-#597 cutover: the edited body rides on a MessageEditedEvent
+	// in the EVT stream, surfaced via the projection's LatestBody.
+	stored, retracted, ok := core.RoomTimeline.LatestBody(event.Id)
+	require.True(t, ok, "expected the edited message to still be projected")
+	require.False(t, retracted, "message should not be retracted by an edit")
+	require.NotNil(t, stored, "expected a body after edit")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty after edit")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty after edit")
 

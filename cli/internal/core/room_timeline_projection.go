@@ -133,6 +133,56 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	return e, ok
 }
 
+// LatestBody returns the current body for a message, folding any
+// subsequent MessageEditedEvent / MessageRetractedEvent entries
+// targeting the message's event_id onto its original
+// MessagePostedEvent.body. Returns (nil, true, true) if the
+// message has been retracted; (nil, false, false) if the event_id
+// doesn't refer to a known posted message; (body, false, true) for
+// a live message (possibly edited).
+//
+// O(room timeline length) per call — fine for v1 with small dev
+// data, gets a derived-cache treatment when read patterns warrant
+// it.
+func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.MessageBody, retracted bool, ok bool) {
+	p.RLock()
+	defer p.RUnlock()
+
+	origEntry, exists := p.byEventID[eventID]
+	if !exists {
+		return nil, false, false
+	}
+	origPost := origEntry.Event.GetMessagePosted()
+	if origPost == nil {
+		// Looked-up envelope is something other than a post (e.g. a
+		// MessageEdited envelope id passed in by mistake). Not a
+		// valid "message" target.
+		return nil, false, false
+	}
+
+	roomID := origPost.GetRoomId()
+	current := origPost.GetBody()
+
+	for _, e := range p.byRoom[roomID] {
+		if e.StreamSeq <= origEntry.StreamSeq {
+			continue
+		}
+		switch ev := e.Event.GetEvent().(type) {
+		case *corev1.Event_MessageEdited:
+			if ev.MessageEdited.GetEventId() == eventID {
+				current = ev.MessageEdited.GetBody()
+				retracted = false
+			}
+		case *corev1.Event_MessageRetracted:
+			if ev.MessageRetracted.GetEventId() == eventID {
+				current = nil
+				retracted = true
+			}
+		}
+	}
+	return current, retracted, true
+}
+
 // roomIDOfEvent extracts the room_id from any room-scoped event
 // variant. Returns "" for non-room events.
 //

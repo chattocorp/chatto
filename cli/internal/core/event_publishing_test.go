@@ -8,7 +8,6 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -109,7 +108,9 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_deleted")
+	// Post-#597 cutover: retractions publish MessageRetractedEvent on
+	// live.evt.room.{R}.message_retracted (republished from EVT).
+	subject := "live.evt.room." + room.Id + ".message_retracted"
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -133,21 +134,21 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		deleted := got.GetMessageDeleted()
-		if deleted == nil {
-			t.Fatalf("expected MessageDeletedEvent, got %T", got.Event)
+		retracted := got.GetMessageRetracted()
+		if retracted == nil {
+			t.Fatalf("expected MessageRetractedEvent, got %T", got.Event)
 		}
-		if deleted.RoomId != room.Id {
-			t.Errorf("RoomId = %q, want %q", deleted.RoomId, room.Id)
+		if retracted.RoomId != room.Id {
+			t.Errorf("RoomId = %q, want %q", retracted.RoomId, room.Id)
 		}
-		if deleted.MessageEventId != event.Id {
-			t.Errorf("MessageEventId = %q, want %q", deleted.MessageEventId, event.Id)
+		if retracted.EventId != event.Id {
+			t.Errorf("EventId = %q, want %q", retracted.EventId, event.Id)
 		}
 		if got.ActorId != user.Id {
 			t.Errorf("ActorId = %q, want %q", got.ActorId, user.Id)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for MessageDeletedEvent on live subject")
+		t.Fatal("timed out waiting for MessageRetractedEvent on live subject")
 	}
 }
 
@@ -164,7 +165,9 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_updated")
+	// Post-#597 cutover: edits publish MessageEditedEvent on
+	// live.evt.room.{R}.message_edited (republished from EVT).
+	subject := "live.evt.room." + room.Id + ".message_edited"
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -188,18 +191,18 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		updated := got.GetMessageUpdated()
-		if updated == nil {
-			t.Fatalf("expected MessageUpdatedEvent, got %T", got.Event)
+		edited := got.GetMessageEdited()
+		if edited == nil {
+			t.Fatalf("expected MessageEditedEvent, got %T", got.Event)
 		}
-		if updated.RoomId != room.Id {
-			t.Errorf("RoomId = %q, want %q", updated.RoomId, room.Id)
+		if edited.RoomId != room.Id {
+			t.Errorf("RoomId = %q, want %q", edited.RoomId, room.Id)
 		}
-		if updated.MessageEventId != event.Id {
-			t.Errorf("MessageEventId = %q, want %q", updated.MessageEventId, event.Id)
+		if edited.EventId != event.Id {
+			t.Errorf("EventId = %q, want %q", edited.EventId, event.Id)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for MessageUpdatedEvent on live subject")
+		t.Fatal("timed out waiting for MessageEditedEvent on live subject")
 	}
 }
 
@@ -257,23 +260,27 @@ func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 
+	// Post-#597 cutover: deletions emit MessageRetractedEvent on
+	// live.evt.room.{R}.message_retracted. StreamMyEvents subscribes
+	// to live.evt.> in addition to live.server.>, and filterLiveEvent
+	// parses both subject shapes.
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case ev := <-eventChan:
-			deleted := ev.GetMessageDeleted()
-			if deleted == nil {
+			retracted := ev.GetMessageRetracted()
+			if retracted == nil {
 				continue
 			}
-			if deleted.RoomId != room.Id {
-				t.Errorf("RoomId = %q, want %q", deleted.RoomId, room.Id)
+			if retracted.RoomId != room.Id {
+				t.Errorf("RoomId = %q, want %q", retracted.RoomId, room.Id)
 			}
-			if deleted.MessageEventId != posted.Id {
-				t.Errorf("MessageEventId = %q, want %q", deleted.MessageEventId, posted.Id)
+			if retracted.EventId != posted.Id {
+				t.Errorf("EventId = %q, want %q", retracted.EventId, posted.Id)
 			}
 			return
 		case <-timeout:
-			t.Fatal("viewer never received MessageDeletedEvent — room-id extraction switch likely dropped it")
+			t.Fatal("viewer never received MessageRetractedEvent — live.evt.> subscription / filter regressed")
 		}
 	}
 }

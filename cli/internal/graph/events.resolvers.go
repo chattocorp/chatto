@@ -160,7 +160,7 @@ func (r *messagePostedEventResolver) Body(ctx context.Context, obj *corev1.Messa
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
 	}
-	messageBody, err := r.getMessageBody(ctx, kind, obj.MessageBodyId)
+	messageBody, err := r.getMessageBody(ctx, kind, bodyKeyForLookup(obj))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}
@@ -177,7 +177,7 @@ func (r *messagePostedEventResolver) Attachments(ctx context.Context, obj *corev
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
 	}
-	messageBody, err := r.getMessageBody(ctx, kind, obj.MessageBodyId)
+	messageBody, err := r.getMessageBody(ctx, kind, bodyKeyForLookup(obj))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}
@@ -190,7 +190,7 @@ func (r *messagePostedEventResolver) Attachments(ctx context.Context, obj *corev
 	// set; older bodies are patched here at read time.
 	for _, att := range messageBody.Attachments {
 		if att != nil && att.MessageBodyId == "" {
-			att.MessageBodyId = obj.MessageBodyId
+			att.MessageBodyId = bodyKeyForLookup(obj)
 		}
 	}
 	return messageBody.Attachments, nil
@@ -232,7 +232,7 @@ func (r *messagePostedEventResolver) UpdatedAt(ctx context.Context, obj *corev1.
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
 	}
-	messageBody, err := r.getMessageBody(ctx, kind, obj.MessageBodyId)
+	messageBody, err := r.getMessageBody(ctx, kind, bodyKeyForLookup(obj))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}

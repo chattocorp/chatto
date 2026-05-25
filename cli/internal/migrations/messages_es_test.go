@@ -438,8 +438,8 @@ func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor
 	if posted.GetEventId() != wantEventID {
 		t.Errorf("posted event_id = %q, want %q", posted.GetEventId(), wantEventID)
 	}
-	if posted.GetMessageBodyId() != "" {
-		t.Errorf("posted message_body_id should be empty after import, got %q", posted.GetMessageBodyId())
+	if posted.GetMessageBodyId() != wantEventID {
+		t.Errorf("posted message_body_id should alias event_id post-cutover, got %q want %q", posted.GetMessageBodyId(), wantEventID)
 	}
 	body := posted.GetBody()
 	if body == nil {

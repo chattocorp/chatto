@@ -31,39 +31,48 @@ func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind RoomKind, room
 	return msg, nil
 }
 
-// getRoomLastRootMessage fetches the last root message (excluding thread replies) in a room.
-// Returns nil if no root messages exist for this room yet.
-// Used for unread tracking where thread replies should not affect room-level unread state.
-func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, kind RoomKind, roomID string) (*jetstream.RawStreamMsg, error) {
-	stream := c.storage.serverEventsStream
-
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomRootMessages(string(kind), roomID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return nil, nil // No root messages yet
+// getRoomLastRootEvent returns the most recent root MessagePostedEvent
+// (excluding thread replies) in a room, or nil if none have been
+// projected yet. Reads from RoomTimelineProjection.
+func (c *ChattoCore) getRoomLastRootEvent(roomID string) *corev1.Event {
+	for _, entry := range c.RoomTimeline.RoomEvents(roomID, 1<<31-1, 0) {
+		msg := entry.Event.GetMessagePosted()
+		if msg == nil {
+			continue
 		}
-		return nil, fmt.Errorf("failed to get last root message for room: %w", err)
+		if msg.GetInThread() != "" {
+			continue
+		}
+		return entry.Event
 	}
-	return msg, nil
+	return nil
 }
 
-// GetRoomLastMessageAt returns the timestamp of the last message in a room.
-// Derived directly from JetStream — no KV cache needed.
-// Returns zero time if no messages exist for this room yet.
-//
-// The timestamp comes from the proto's `created_at` field rather than
-// JetStream's stored time. The two are nearly identical for messages
-// published after #354 phase 4d, but messages migrated by phase 4d have
-// a fresh JetStream stamp; the proto time stays correct in both cases.
-func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
-	msg, err := c.getRoomLastMessage(ctx, kind, roomID)
-	if err != nil {
-		return time.Time{}, err
+// getRoomLastEvent returns the most recent MessagePostedEvent of any
+// kind (root or thread reply) in a room, or nil if none have been
+// projected yet. Reads from RoomTimelineProjection.
+func (c *ChattoCore) getRoomLastMessageEvent(roomID string) *corev1.Event {
+	for _, entry := range c.RoomTimeline.RoomEvents(roomID, 1<<31-1, 0) {
+		if entry.Event.GetMessagePosted() == nil {
+			continue
+		}
+		return entry.Event
 	}
-	if msg == nil {
+	return nil
+}
+
+// GetRoomLastMessageAt returns the timestamp of the last message in a
+// room, including thread replies. Reads from the in-memory room
+// timeline projection.
+func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
+	ev := c.getRoomLastMessageEvent(roomID)
+	if ev == nil {
 		return time.Time{}, nil
 	}
-	return rawMsgEventCreatedAt(msg)
+	if ev.GetCreatedAt() == nil {
+		return time.Time{}, nil
+	}
+	return ev.GetCreatedAt().AsTime(), nil
 }
 
 // rawMsgEventCreatedAt unmarshals a JetStream message as a SpaceEvent and

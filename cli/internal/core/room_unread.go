@@ -62,18 +62,15 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 // value stays correct after #354 phase 4d (which re-publishes messages
 // with fresh JetStream timestamps but leaves the proto payloads intact).
 func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID string) (eventID string, ts time.Time, exists bool, err error) {
-	msg, err := c.getRoomLastRootMessage(ctx, kind, roomID)
-	if err != nil {
-		return "", time.Time{}, false, err
-	}
-	if msg == nil {
+	ev := c.getRoomLastRootEvent(roomID)
+	if ev == nil {
 		return "", time.Time{}, false, nil
 	}
-	createdAt, err := rawMsgEventCreatedAt(msg)
-	if err != nil {
-		return "", time.Time{}, false, err
+	var createdAt time.Time
+	if ts := ev.GetCreatedAt(); ts != nil {
+		createdAt = ts.AsTime()
 	}
-	return subjects.ParseEventIDFromSubject(msg.Subject), createdAt, true, nil
+	return ev.GetId(), createdAt, true, nil
 }
 
 // roomReadEventKey returns the KV key for tracking the user's last-read root

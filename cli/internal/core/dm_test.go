@@ -827,8 +827,11 @@ func TestDMThreadReplyEcho(t *testing.T) {
 		for _, e := range roomEvents {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
 				foundEcho = true
-				if msg.MessageBodyId != reply.MessageBodyId {
-					t.Errorf("DM echo should share messageBodyId: echo=%q, reply=%q", msg.MessageBodyId, reply.MessageBodyId)
+				// Post-#597 cutover: echo carries its own embedded
+				// body, no longer shares MessageBodyId with the
+				// original reply. Resolvers fold the body inline.
+				if msg.MessageBodyId == "" {
+					t.Errorf("DM echo should have its own MessageBodyId set")
 				}
 				if msg.EchoFromThreadRootEventId != rootEvent.Id {
 					t.Errorf("DM echo ThreadRootEventId should be %q, got %q", rootEvent.Id, msg.EchoFromThreadRootEventId)

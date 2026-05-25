@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -22,12 +22,12 @@ import (
 // retry with backoff. Terminal errors (connection closed, consumer deleted) close the channel.
 // Clients should handle channel closure by resubscribing if they want to continue receiving events.
 func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, room_id string) (<-chan *corev1.Event, error) {
-	// Get the space stream (room events are stored in the unified space stream)
-	stream := c.storage.serverEventsStream
-
-	// Create an ordered consumer for live events only, filtered to this room
-	// InactiveThreshold ensures the consumer is cleaned up if the client disconnects
-	filterSubject := subjects.RoomAllEvents(string(kind), room_id)
+	// Post-#597 cutover: room events live on the EVT stream under
+	// evt.room.{R}.>. We consume from there with DeliverNewPolicy so
+	// only events arriving after subscription are surfaced; the
+	// initial-load path is GetRoomEvents (projection-backed).
+	stream := c.storage.serverEvtStream
+	filterSubject := events.RoomAggregate(room_id).AllEventsFilter()
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    []string{filterSubject},
 		DeliverPolicy:     jetstream.DeliverNewPolicy,

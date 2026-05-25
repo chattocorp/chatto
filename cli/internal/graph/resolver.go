@@ -102,6 +102,21 @@ func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*mod
 	return reactions, nil
 }
 
+// bodyKeyForLookup picks the right key for looking up the body of a
+// MessagePostedEvent. Post-#597 cutover, bodies are embedded in the
+// event and identified by event_id; the legacy MessageBodyId compound
+// key is no longer populated on new posts. We coalesce so any in-
+// flight pre-cutover objects still resolve.
+func bodyKeyForLookup(obj *corev1.MessagePostedEvent) string {
+	if obj == nil {
+		return ""
+	}
+	if k := obj.GetMessageBodyId(); k != "" {
+		return k
+	}
+	return obj.GetEventId()
+}
+
 // getMessageBody loads a message body, using per-request caching if available.
 // This prevents redundant KV lookups when Body, Attachments, and UpdatedAt
 // resolvers all need the same MessageBody for a single message.

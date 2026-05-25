@@ -2,31 +2,35 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const defaultHistoricalMessageLimit = 50
 
-// PostMessage posts a message to a room.
-// The flow is: store body in BODIES bucket first (using NanoID), then publish event.
-// This eliminates race conditions where subscribers receive the event before body is stored.
-// Attachments should already be uploaded to ObjectStore; pass their metadata here.
-// inThread is the event ID of the thread root message for thread replies, or empty string for top-level messages.
-// If inThread is empty but inReplyTo points at a message that is itself in a thread, inThread is
-// derived from the target's own inThread so the new message correctly joins that thread.
-// inReplyTo is the event ID of the message this responds to (attribution only), or empty string.
-// alsoSendToChannel publishes a MessagePostedEvent echo to the root subject for channel visibility.
-// Authorization: Caller must verify room membership and CanPostMessage/CanPostInThread before calling, and CanEchoMessage (if alsoSendToChannel).
+// PostMessage posts a message to a room. Publishes a
+// MessagePostedEvent on evt.room.{R}.message_posted with the
+// encrypted body embedded — no separate SERVER_BODIES write.
+//
+// Threading: inThread is the event ID of the thread root for replies,
+// empty for root posts. If inThread is empty but inReplyTo points at
+// a message that is itself a thread reply, inThread is derived from
+// the target's own inThread so the new message joins that thread.
+// inReplyTo is the event ID of the message being responded to
+// (attribution only). alsoSendToChannel publishes an echo
+// MessagePostedEvent on the same subject with echo_of_event_id set,
+// making the reply visible in the channel timeline.
+//
+// Authorization: Caller must verify room membership and
+// CanPostMessage / CanPostInThread before calling, and CanEchoMessage
+// (if alsoSendToChannel).
 func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool) (*corev1.Event, error) {
 	// Validate message body length to prevent DoS via oversized messages
 	if len(body) > MaxMessageBodyLength {
@@ -99,8 +103,31 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// STEP 1: Create event first to get the event ID for body storage
-	// The compound key format is {userId}.{eventId} to enable efficient user-based filtering
+	// Encrypt the body with the author's per-user key. Same envelope
+	// shape as before the ES cutover (MessageBody.EncryptedBody +
+	// EncryptionNonce); only the storage location has changed —
+	// embedded in the event instead of stored in SERVER_BODIES.
+	key, err := c.encryption.keyManager.GetUserKey(ctx, user_id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get encryption key: %w", err)
+	}
+	if key == nil {
+		return nil, fmt.Errorf("encryption key not found for user %s", user_id)
+	}
+	encrypted, err := encryption.Encrypt(key, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt message body: %w", err)
+	}
+
+	messageBody := &corev1.MessageBody{
+		CreatedAt:       timestamppb.New(now),
+		Attachments:     attachments,
+		AuthorId:        user_id,
+		LinkPreview:     linkPreview,
+		EncryptedBody:   encrypted.Ciphertext,
+		EncryptionNonce: encrypted.Nonce,
+	}
+
 	event := newEvent(user_id, &corev1.Event{
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
@@ -109,79 +136,50 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				InReplyTo:        inReplyTo,
 				InThread:         inThread,
 				MentionedUserIds: mentionedUserIDs,
+				Body:             messageBody,
 			},
 		},
 	})
+	// Set EventId AND MessageBodyId both to the envelope id. Post-#597
+	// cutover, MessageBodyId is no longer a {userId}.{bodyId} compound
+	// key — it's just an alias for event_id, kept on the proto so
+	// legacy code paths that pass MessageBodyId around (resolvers,
+	// attachment signed URLs) keep working without changes.
+	// eventIDFromBodyKey treats no-dot keys as event_ids, so the
+	// projection lookup picks the right entry.
+	event.GetMessagePosted().EventId = event.Id
+	event.GetMessagePosted().MessageBodyId = event.Id
 
-	// Use event ID for body storage key
-	messageBodyKey := messageBodyKey(user_id, event.Id)
-	event.GetMessagePosted().MessageBodyId = messageBodyKey
-
-	// Stamp the body key onto each attachment so signed attachment URLs
-	// can carry it without a separate index lookup at request time.
+	// Stamp the event_id onto each attachment so signed attachment
+	// URLs can carry it without a separate index lookup at request
+	// time.
 	for _, att := range attachments {
 		if att != nil {
-			att.MessageBodyId = messageBodyKey
+			att.MessageBodyId = event.Id
 		}
 	}
 
-	// STEP 2: Store message body in BODIES bucket BEFORE publishing event
-	// This eliminates the race condition where subscribers receive event before body exists
-	// Note: UpdatedAt is intentionally nil for new messages - only set when message is edited
-	messageBody := &corev1.MessageBody{
-		CreatedAt:   timestamppb.New(now),
-		Attachments: attachments,
-		AuthorId:    user_id,
-		LinkPreview: linkPreview,
-	}
-
-	// Encrypt message body
-	key, err := c.encryption.keyManager.GetUserKey(ctx, user_id)
+	// Publish to EVT. Pure append per #597's design ("message_posted
+	// is a pure append — no expected-last-seq needed"). AppendAndWait
+	// blocks until the RoomTimelineProjection has caught up, giving
+	// read-your-writes for subsequent reads from this request.
+	agg := events.RoomAggregate(room_id)
+	sequenceID, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get encryption key: %w", err)
-	}
-	if key == nil {
-		return nil, fmt.Errorf("encryption key not found for user %s", user_id)
-	}
-
-	encrypted, err := encryption.Encrypt(key, []byte(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt message body: %w", err)
-	}
-
-	messageBody.EncryptedBody = encrypted.Ciphertext
-	messageBody.EncryptionNonce = encrypted.Nonce
-
-	bucket := c.storage.serverBodiesKV
-
-	bodyData, err := proto.Marshal(messageBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal message body: %w", err)
-	}
-
-	_, err = bucket.Put(ctx, messageBodyKey, bodyData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store message body: %w", err)
-	}
-
-	// STEP 3: Publish event
-	// Choose subject based on whether this is a root message or thread reply
-	// Event ID is included in the subject for O(1) lookup via GetLastMsgForSubject
-	var subject string
-	if inThread == "" {
-		subject = subjects.RoomMessage(string(kind), room_id, event.Id)
-	} else {
-		subject = subjects.RoomThread(string(kind), room_id, inThread, event.Id)
-	}
-
-	// Publish with OCC for reliable delivery with retry on concurrent publishes
-	sequenceID, err := c.publishServerEventWithOCC(ctx, subject, event)
-	if err != nil {
-		// Body was stored but event failed to publish - clean up body
-		_ = bucket.Delete(ctx, messageBodyKey)
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
 	}
+	// Also wait for ThreadProjection if this is a thread reply, so a
+	// subsequent thread-pane fetch from the same request sees it.
+	if inThread != "" {
+		if err := c.ThreadsProjector.WaitForSeq(ctx, sequenceID); err != nil {
+			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
+		}
+	}
 
+	// messageBodyKey retained as a label for log lines and downstream
+	// notifications that historically logged the compound key — the
+	// projection-keyed event_id is the new canonical identifier.
+	messageBodyKey := event.Id
 	c.logger.Info("Message posted", "kind", kind, "room_id", room_id, "message_body_key", messageBodyKey, "sequence_id", sequenceID, "user_id", user_id)
 
 	// Mark the room as read for the poster. For root posts, the just-
@@ -200,9 +198,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Update thread metadata if this is a thread reply
+	// Update thread metadata if this is a thread reply.
+	// Reply count / participants / lastReplyAt are derived live from
+	// ThreadProjection now, so no KV write — but we still need the
+	// root author for the auto-follow logic below.
 	if inThread != "" {
-		// Get the thread root event to find the original author
 		rootEvent, err := c.GetRoomEventByEventID(ctx, kind, room_id, inThread)
 		if err != nil {
 			c.logger.Warn("Failed to get thread root event",
@@ -213,11 +213,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		var rootAuthorID string
 		if rootEvent != nil {
 			rootAuthorID = rootEvent.ActorId
-		}
-
-		if err := c.updateThreadMetadata(ctx, kind, room_id, inThread, rootAuthorID, user_id, now); err != nil {
-			c.logger.Warn("Failed to update thread metadata", "error", err, "thread_root_event_id", inThread)
-			// Continue anyway - thread metadata is best-effort
 		}
 
 		// Update the poster's "last opened" timestamp for this thread.
@@ -302,25 +297,28 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	// Publish echo event to root subject if "also send to channel" was requested.
-	// This creates a separate event visible in GetRoomEvents (main channel timeline).
-	// The echo shares the same messageBodyId, so edits/deletes propagate to both.
+	// The echo references the original event_id, so resolvers can fold
+	// it back to the underlying body. We re-use the encrypted body
+	// envelope from the original (same ciphertext + nonce) so the
+	// echo is a self-contained renderable message.
 	if inThread != "" && alsoSendToChannel {
 		echoEvent := newEvent(user_id, &corev1.Event{
 			CreatedAt: event.CreatedAt,
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
 					RoomId:                    room_id,
-					MessageBodyId:             messageBodyKey,
 					InReplyTo:                 inReplyTo,
 					MentionedUserIds:          mentionedUserIDs,
 					EchoOfEventId:             event.Id,
 					EchoFromThreadRootEventId: inThread,
+					Body:                      messageBody,
 				},
 			},
 		})
+		echoEvent.GetMessagePosted().EventId = echoEvent.Id
+		echoEvent.GetMessagePosted().MessageBodyId = echoEvent.Id
 
-		echoSubject := subjects.RoomMessage(string(kind), room_id, echoEvent.Id)
-		echoSequenceID, err := c.publishServerEventWithOCC(ctx, echoSubject, echoEvent)
+		echoSequenceID, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, echoEvent)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else {
@@ -403,63 +401,59 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
 // Authorization: Caller must verify the actor is the message author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
 func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
-	// Get the full message body first to find any attachments
-	messageBody, err := c.GetFullMessageBody(ctx, kind, messageBodyKey)
-	if err != nil {
-		return fmt.Errorf("failed to get message body: %w", err)
+	eventID := eventIDFromBodyKey(messageBodyKey)
+	if eventID == "" {
+		return ErrMessageNotFound
 	}
-	if messageBody == nil {
-		// Already deleted, nothing to do
-		c.logger.Debug("Message body already deleted", "message_body_key", messageBodyKey)
+
+	// Snapshot the projection state for attachment cleanup before
+	// emitting the retract event. After retract, LatestBody returns
+	// nil (the message is tombstoned), so we need a copy first.
+	originalEntry, ok := c.RoomTimeline.Get(eventID)
+	if !ok {
+		c.logger.Debug("Delete on unknown message — no-op", "event_id", eventID)
+		return nil
+	}
+	body, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	if retracted {
+		// Already tombstoned.
 		return nil
 	}
 
-	// Delete all attachments from the ObjectStore (supports both NATS and S3)
-	for _, attachment := range messageBody.Attachments {
-		if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
-			c.logger.Warn("Failed to delete attachment during message deletion",
-				"attachment_id", attachment.Id,
-				"message_body_key", messageBodyKey,
-				"error", err)
-			// Continue deleting other attachments even if one fails
-		}
-	}
-
-	// Delete the message body from KV
-	bucket := c.storage.serverBodiesKV
-
-	err = bucket.Delete(ctx, messageBodyKey)
-	if err != nil {
-		return fmt.Errorf("failed to delete message body: %w", err)
-	}
-
-	c.logger.Info("Message body deleted", "kind", kind, "room_id", roomID, "message_body_key", messageBodyKey, "actor_id", actorID, "attachments_deleted", len(messageBody.Attachments))
-
-	// Publish live event to notify connected clients
-	c.publishMessageDeletedEvent(ctx, kind, roomID, messageBodyKey, actorID)
-
-	return nil
-}
-
-// publishMessageDeletedEvent publishes a MessageDeletedEvent directly to the live subject space.
-// This notifies connected clients that a message has been deleted so they can update their UI.
-func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind RoomKind, roomID, messageBodyID, userID string) {
-	messageEventID := eventIDFromBodyKey(messageBodyID)
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_MessageDeleted{
-			MessageDeleted: &corev1.MessageDeletedEvent{
-				RoomId:         roomID,
-				MessageBodyId:  messageBodyID,
-				MessageEventId: messageEventID,
+	// Emit MessageRetractedEvent on evt.room.{R}.message_retracted.
+	// Pure append for the v1 model — last-writer-wins on the per-room
+	// retract subject. The projection ignores duplicates by event_id,
+	// so retrying after a network glitch is safe.
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageRetracted{
+			MessageRetracted: &corev1.MessageRetractedEvent{
+				RoomId:  roomID,
+				EventId: eventID,
 			},
 		},
 	})
-
-	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(string(kind), roomID, "message_deleted")
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish message deleted event", "error", err)
+	agg := events.RoomAggregate(roomID)
+	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
+
+	// Attachments are referenced by the (now-tombstoned) message but
+	// the binary blobs in the asset store don't get cleaned up by the
+	// event log. Same posture as the legacy DeleteMessage path —
+	// best-effort, log warnings, keep going.
+	if body != nil {
+		for _, att := range body.GetAttachments() {
+			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
+				c.logger.Warn("Failed to delete attachment during message deletion",
+					"attachment_id", att.GetId(),
+					"event_id", eventID,
+					"error", err)
+			}
+		}
+	}
+
+	c.logger.Info("Message retracted", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
+	return nil
 }
 
 // EditMessage edits a message body. Updates the body content and sets updated_at.
@@ -480,141 +474,162 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return ErrRoomArchived
 	}
 
-	bucket := c.storage.serverBodiesKV
+	eventID := eventIDFromBodyKey(messageBodyKey)
+	if eventID == "" {
+		return ErrMessageNotFound
+	}
+	originalEntry, ok := c.RoomTimeline.Get(eventID)
+	if !ok {
+		return ErrMessageNotFound
+	}
+	origPost := originalEntry.Event.GetMessagePosted()
+	if origPost == nil {
+		return ErrMessageNotFound
+	}
 
-	// Get message with revision for optimistic locking
-	entry, err := bucket.Get(ctx, messageBodyKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return ErrMessageNotFound
+	// Author / edit-window check. Edit window only applies to the
+	// original author; moderators bypass it (their authorization is
+	// gated upstream at the resolver).
+	authorID := originalEntry.Event.GetActorId()
+	if authorID == actorID {
+		if time.Since(originalEntry.Event.GetCreatedAt().AsTime()) > MessageEditWindow {
+			return ErrEditWindowExpired
 		}
-		return fmt.Errorf("failed to get message body: %w", err)
 	}
 
-	// Unmarshal the message body
-	messageBody := &corev1.MessageBody{}
-	if err := proto.Unmarshal(entry.Value(), messageBody); err != nil {
-		return fmt.Errorf("failed to unmarshal message body: %w", err)
+	// Fold in current body so attachments/link preview/timestamps
+	// survive the edit. We then overwrite ciphertext + nonce with the
+	// new content.
+	current, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	if retracted {
+		return ErrMessageNotFound
+	}
+	if current == nil {
+		// Imported legacy event with no body — nothing to edit.
+		return ErrMessageNotFound
 	}
 
-	// Business rule: authors can only edit within the edit window
-	// Non-authors (moderators) can edit at any time
-	isAuthorEdit := messageBody.AuthorId == actorID
-	if isAuthorEdit && time.Since(messageBody.CreatedAt.AsTime()) > MessageEditWindow {
-		return ErrEditWindowExpired
-	}
-
-	// Update the message body with new encrypted content
-	messageBody.UpdatedAt = timestamppb.Now()
-
-	// Encrypt with the author's key and a new nonce
-	key, err := c.encryption.keyManager.GetUserKey(ctx, messageBody.AuthorId)
+	key, err := c.encryption.keyManager.GetUserKey(ctx, authorID)
 	if err != nil {
 		return fmt.Errorf("failed to get encryption key: %w", err)
 	}
 	if key == nil {
 		return fmt.Errorf("cannot edit: encryption key not found (message was crypto-shredded)")
 	}
-
 	encrypted, err := encryption.Encrypt(key, []byte(newBody))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt message body: %w", err)
 	}
 
-	messageBody.EncryptedBody = encrypted.Ciphertext
-	messageBody.EncryptionNonce = encrypted.Nonce
+	updated := proto.Clone(current).(*corev1.MessageBody)
+	updated.EncryptedBody = encrypted.Ciphertext
+	updated.EncryptionNonce = encrypted.Nonce
+	updated.UpdatedAt = timestamppb.Now()
 
-	// Marshal and store with optimistic locking
-	data, err := proto.Marshal(messageBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message body: %w", err)
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageEdited{
+			MessageEdited: &corev1.MessageEditedEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+				Body:    updated,
+			},
+		},
+	})
+	agg := events.RoomAggregate(roomID)
+	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+		return fmt.Errorf("publish MessageEditedEvent: %w", err)
 	}
 
-	_, err = bucket.Update(ctx, messageBodyKey, data, entry.Revision())
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			// Concurrent modification - could retry, but for now just fail
-			return fmt.Errorf("message was modified concurrently")
-		}
-		return fmt.Errorf("failed to update message body: %w", err)
-	}
-
-	c.logger.Info("Message body edited", "kind", kind, "room_id", roomID, "message_body_key", messageBodyKey, "actor_id", actorID)
-
-	// Publish live event to notify connected clients
-	c.publishMessageUpdatedEvent(ctx, kind, roomID, messageBodyKey, actorID)
-
+	c.logger.Info("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
 	return nil
 }
 
-// DeleteAttachmentFromMessage deletes a single attachment from a message.
-// Only the message author can delete their attachments.
-// Removes the attachment from the MessageBody and deletes the file from ObjectStore.
-// Publishes a MessageUpdatedEvent to notify connected clients in real-time.
-// The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
-func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, attachmentID string) error {
-	bucket := c.storage.serverBodiesKV
-
-	// Get message with revision for optimistic locking
-	entry, err := bucket.Get(ctx, messageBodyKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return ErrMessageNotFound
-		}
-		return fmt.Errorf("failed to get message body: %w", err)
+// editEmbeddedBody is the shared engine behind partial-edit
+// operations (DeleteAttachmentFromMessage, DeleteLinkPreviewFromMessage).
+// Reads the current body from the projection, applies `mutate` to a
+// clone, encrypts no further (the body's ciphertext is unchanged —
+// only metadata moves), and emits a MessageEditedEvent.
+//
+// `actorID` is the user performing the edit; ownership is checked
+// against the body's author.
+func (c *ChattoCore) editEmbeddedBody(
+	ctx context.Context,
+	actorID string,
+	roomID, messageBodyKey string,
+	mutate func(*corev1.MessageBody) error,
+) error {
+	eventID := eventIDFromBodyKey(messageBodyKey)
+	if eventID == "" {
+		return ErrMessageNotFound
 	}
-
-	// Unmarshal the message body
-	messageBody := &corev1.MessageBody{}
-	if err := proto.Unmarshal(entry.Value(), messageBody); err != nil {
-		return fmt.Errorf("failed to unmarshal message body: %w", err)
+	entry, ok := c.RoomTimeline.Get(eventID)
+	if !ok {
+		return ErrMessageNotFound
 	}
-
-	// Check ownership - only the author can delete their attachments
-	if messageBody.AuthorId != actorID {
+	if entry.Event.GetMessagePosted() == nil {
+		return ErrMessageNotFound
+	}
+	current, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	if retracted || current == nil {
+		return ErrMessageNotFound
+	}
+	if current.GetAuthorId() != actorID {
 		return ErrNotMessageAuthor
 	}
+	updated := proto.Clone(current).(*corev1.MessageBody)
+	if err := mutate(updated); err != nil {
+		return err
+	}
+	updated.UpdatedAt = timestamppb.Now()
 
-	// Find and remove the attachment from the slice
-	attachmentIndex := -1
-	for i, att := range messageBody.Attachments {
-		if att.Id == attachmentID {
-			attachmentIndex = i
-			break
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageEdited{
+			MessageEdited: &corev1.MessageEditedEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+				Body:    updated,
+			},
+		},
+	})
+	agg := events.RoomAggregate(roomID)
+	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+		return fmt.Errorf("publish MessageEditedEvent: %w", err)
+	}
+	return nil
+}
+
+// DeleteAttachmentFromMessage deletes a single attachment from a
+// message. Only the message author can delete their attachments.
+// Emits a MessageEditedEvent with the attachment removed; also
+// deletes the file from the asset store best-effort.
+func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, attachmentID string) error {
+	var removed *corev1.Attachment
+	err := c.editEmbeddedBody(ctx, actorID, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
+		idx := -1
+		for i, att := range body.GetAttachments() {
+			if att.GetId() == attachmentID {
+				idx = i
+				break
+			}
 		}
-	}
-	if attachmentIndex == -1 {
-		return fmt.Errorf("attachment not found in message")
-	}
-
-	// Save reference before removing from slice (needed for storage-aware deletion)
-	removedAttachment := messageBody.Attachments[attachmentIndex]
-
-	// Remove the attachment from the slice
-	messageBody.Attachments = append(messageBody.Attachments[:attachmentIndex], messageBody.Attachments[attachmentIndex+1:]...)
-	messageBody.UpdatedAt = timestamppb.Now()
-
-	// Marshal and store with optimistic locking
-	data, err := proto.Marshal(messageBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message body: %w", err)
-	}
-
-	_, err = bucket.Update(ctx, messageBodyKey, data, entry.Revision())
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			return fmt.Errorf("message was modified concurrently")
+		if idx == -1 {
+			return fmt.Errorf("attachment not found in message")
 		}
-		return fmt.Errorf("failed to update message body: %w", err)
+		removed = body.Attachments[idx]
+		body.Attachments = append(body.Attachments[:idx], body.Attachments[idx+1:]...)
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
-	// Delete the attachment file from storage (supports both NATS and S3)
-	if err := c.DeleteAttachmentFromStorage(ctx, removedAttachment); err != nil {
-		c.logger.Warn("Failed to delete attachment file after removing from message",
-			"attachment_id", attachmentID,
-			"message_body_key", messageBodyKey,
-			"error", err)
-		// Don't fail the operation - the attachment reference is already removed
+	if removed != nil {
+		if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
+			c.logger.Warn("Failed to delete attachment file after removing from message",
+				"attachment_id", attachmentID,
+				"message_body_key", messageBodyKey,
+				"error", delErr)
+		}
 	}
 
 	c.logger.Info("Attachment deleted from message",
@@ -623,92 +638,28 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 		"message_body_key", messageBodyKey,
 		"attachment_id", attachmentID,
 		"actor_id", actorID)
-
-	// Publish live event to notify connected clients
-	c.publishMessageUpdatedEvent(ctx, kind, roomID, messageBodyKey, actorID)
-
 	return nil
 }
 
 // DeleteLinkPreviewFromMessage removes a link preview from a message.
-// Only the message author can delete link previews from their messages.
-// Authorization: Caller must verify room membership before calling.
+// Only the message author can delete link previews from their
+// messages.
 func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, previewURL string) error {
-	bucket := c.storage.serverBodiesKV
-
-	// Get message with revision for optimistic locking
-	entry, err := bucket.Get(ctx, messageBodyKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return ErrMessageNotFound
+	err := c.editEmbeddedBody(ctx, actorID, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
+		if body.GetLinkPreview() == nil || body.GetLinkPreview().GetUrl() != previewURL {
+			return fmt.Errorf("link preview not found in message")
 		}
-		return fmt.Errorf("failed to get message body: %w", err)
-	}
-
-	// Unmarshal the message body
-	messageBody := &corev1.MessageBody{}
-	if err := proto.Unmarshal(entry.Value(), messageBody); err != nil {
-		return fmt.Errorf("failed to unmarshal message body: %w", err)
-	}
-
-	// Check ownership - only the author can delete their link preview
-	if messageBody.AuthorId != actorID {
-		return ErrNotMessageAuthor
-	}
-
-	// Verify the preview exists and matches the requested URL
-	if messageBody.LinkPreview == nil || messageBody.LinkPreview.Url != previewURL {
-		return fmt.Errorf("link preview not found in message")
-	}
-
-	// Remove the link preview
-	messageBody.LinkPreview = nil
-	messageBody.UpdatedAt = timestamppb.Now()
-
-	// Marshal and store with optimistic locking
-	data, err := proto.Marshal(messageBody)
+		body.LinkPreview = nil
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to marshal message body: %w", err)
+		return err
 	}
-
-	_, err = bucket.Update(ctx, messageBodyKey, data, entry.Revision())
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			return fmt.Errorf("message was modified concurrently, please retry")
-		}
-		return fmt.Errorf("failed to update message body: %w", err)
-	}
-
 	c.logger.Info("Link preview deleted from message",
 		"kind", kind,
 		"room_id", roomID,
 		"message_body_key", messageBodyKey,
 		"preview_url", previewURL,
 		"actor_id", actorID)
-
-	// Publish live event to notify connected clients
-	c.publishMessageUpdatedEvent(ctx, kind, roomID, messageBodyKey, actorID)
-
 	return nil
-}
-
-// publishMessageUpdatedEvent publishes a MessageUpdatedEvent directly to the live subject space.
-// This notifies connected clients that a message has been edited so they can update their UI.
-func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, kind RoomKind, roomID, messageBodyID, userID string) {
-	messageEventID := eventIDFromBodyKey(messageBodyID)
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_MessageUpdated{
-			MessageUpdated: &corev1.MessageUpdatedEvent{
-				RoomId:         roomID,
-				MessageBodyId:  messageBodyID,
-				MessageEventId: messageEventID,
-			},
-		},
-	})
-
-	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(string(kind), roomID, "message_updated")
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish message updated event", "error", err)
-	}
 }

@@ -301,16 +301,13 @@ func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachment
 	if bodyKey == "" || attachmentID == "" {
 		return nil, nil
 	}
-	entry, err := c.storage.serverBodiesKV.Get(ctx, bodyKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get message body: %w", err)
-	}
-	var body corev1.MessageBody
-	if err := proto.Unmarshal(entry.Value(), &body); err != nil {
-		return nil, fmt.Errorf("unmarshal message body: %w", err)
+	// Post-#597, the body lives embedded on the event. bodyKey is now
+	// the message's event_id (or the legacy {userId}.{eventId} compound
+	// key — eventIDFromBodyKey normalizes both).
+	eventID := eventIDFromBodyKey(bodyKey)
+	body, retracted, ok := c.RoomTimeline.LatestBody(eventID)
+	if !ok || retracted || body == nil {
+		return nil, nil
 	}
 	for _, att := range body.Attachments {
 		if att.Id == attachmentID {

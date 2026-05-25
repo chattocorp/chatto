@@ -38,95 +38,37 @@ type FollowedThread struct {
 // maxThreadParticipants is the maximum number of participant IDs tracked per thread.
 const maxThreadParticipants = 50
 
-// GetThreadEvents fetches all events for a specific thread.
-// Returns the root message followed by all replies in chronological order.
-// Authorization: Caller must verify room membership before calling.
+// GetThreadEvents returns the root message followed by every reply
+// (in stream-arrival order) for the given thread root.
+//
+// Source: RoomTimelineProjection for the root, ThreadProjection for
+// the replies. The ThreadProjection holds replies plus edit/retract
+// events targeting them — currently we surface only MessagePostedEvent
+// replies here so legacy callers see the same shape as the
+// SERVER_EVENTS-backed implementation. Edits / retracts are folded
+// onto the original via LatestBody at body-resolve time.
+//
+// Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
-	stream := c.storage.serverEventsStream
-
-	// 1. First, fetch the root message by event ID
-	rootEvent, err := c.GetRoomEventByEventID(ctx, kind, room_id, threadRootEventId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get root message: %w", err)
-	}
-	if rootEvent == nil {
+	rootEntry, ok := c.RoomTimeline.Get(threadRootEventId)
+	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventId)
 	}
-
-	// Verify it's actually a message (not some other event type)
-	if rootEvent.GetMessagePosted() == nil {
+	if rootEntry.Event.GetMessagePosted() == nil {
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventId)
 	}
 
-	// 2. Fetch all thread replies using subject filter
-	// Thread replies are published to: space.{s}.room.{r}.msg.{rootEventId}.replies.{eventId}
-	threadFilterSubject := subjects.RoomThreadFilter(string(kind), room_id, threadRootEventId)
-
-	// Create ephemeral consumer to fetch all thread replies
-	consumer, err := stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
-		FilterSubject:     threadFilterSubject,
-		DeliverPolicy:     jetstream.DeliverAllPolicy,
-		AckPolicy:         jetstream.AckExplicitPolicy,
-		MemoryStorage:     true,
-		InactiveThreshold: 10 * time.Second,
-	})
-	if err != nil {
-		// If consumer creation fails, still return the root message
-		c.logger.Warn("Failed to create thread consumer", "error", err)
-		return []*corev1.Event{rootEvent}, nil
+	replies := c.Threads.ThreadEvents(threadRootEventId)
+	events := make([]*corev1.Event, 0, 1+len(replies))
+	events = append(events, rootEntry.Event)
+	for _, r := range replies {
+		// Skip edit/retract entries — the body resolver folds them via
+		// LatestBody. The thread pane only wants the post events.
+		if r.Event.GetMessagePosted() == nil {
+			continue
+		}
+		events = append(events, r.Event)
 	}
-
-	// Ensure consumer is deleted when we're done
-	consumerName := consumer.CachedInfo().Name
-	defer func() {
-		if err := stream.DeleteConsumer(ctx, consumerName); err != nil {
-			c.logger.Debug("Failed to delete thread consumer", "consumer", consumerName, "error", err)
-		}
-	}()
-
-	// Collect all thread replies by fetching in batches until exhausted
-	events := []*corev1.Event{rootEvent}
-	const batchSize = 500
-
-	for {
-		msgs, err := consumer.Fetch(batchSize, jetstream.FetchMaxWait(100*time.Millisecond))
-		if err != nil && !errors.Is(err, jetstream.ErrNoMessages) {
-			c.logger.Warn("Failed to fetch thread replies", "error", err)
-			break
-		}
-
-		if msgs == nil {
-			break
-		}
-
-		fetchedCount := 0
-		for msg := range msgs.Messages() {
-			fetchedCount++
-
-			var event corev1.Event
-			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
-				msg.Ack()
-				continue
-			}
-
-			// Skip events with unknown/removed inner types (e.g., old ThreadReplyEchoEvent)
-			if event.Event == nil {
-				msg.Ack()
-				continue
-			}
-
-			events = append(events, &event)
-			msg.Ack()
-		}
-
-		// If we got fewer messages than batch size, we've exhausted the stream
-		if fetchedCount < batchSize {
-			break
-		}
-	}
-
-	c.logger.Debug("Fetched thread events", "kind", kind, "room_id", room_id, "thread_root_event_id", threadRootEventId, "count", len(events))
-
 	return events, nil
 }
 
@@ -401,37 +343,42 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 	return originalAuthorID
 }
 
-// GetThreadMetadata returns the reply count, last reply timestamp, and participants for a thread root message.
-// Returns zero values if the message has no replies.
-// Reads from the THREADS KV bucket which is updated on each reply.
+// GetThreadMetadata returns reply count, last reply timestamp, and
+// participants for a thread root message. Returns zero values if the
+// thread has no replies. Derived live from the ThreadProjection.
 func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string) (*ThreadMetadata, error) {
-	bucket := c.storage.serverThreadsKV
+	replies := c.Threads.ThreadEvents(rootEventId)
 
-	entry, err := bucket.Get(ctx, threadMetadataKey(roomID, rootEventId))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			// No thread metadata = no replies
-			return &ThreadMetadata{ReplyCount: 0}, nil
+	metadata := &ThreadMetadata{}
+	participants := make(map[string]struct{})
+	var latestReplyAt *time.Time
+	for _, r := range replies {
+		// Only MessagePostedEvent entries count as replies — edit /
+		// retract entries land in the thread's bucket but mustn't
+		// inflate the metadata.
+		if r.Event.GetMessagePosted() == nil {
+			continue
 		}
-		return nil, fmt.Errorf("failed to get thread metadata: %w", err)
+		metadata.ReplyCount++
+		if actor := r.Event.GetActorId(); actor != "" {
+			if len(participants) < maxThreadParticipants {
+				participants[actor] = struct{}{}
+			}
+		}
+		if t := r.Event.GetCreatedAt(); t != nil {
+			ts := t.AsTime()
+			if latestReplyAt == nil || ts.After(*latestReplyAt) {
+				latestReplyAt = &ts
+			}
+		}
 	}
-
-	var pbMetadata corev1.ThreadMetadata
-	if err := proto.Unmarshal(entry.Value(), &pbMetadata); err != nil {
-		c.logger.Warn("Failed to unmarshal thread metadata", "error", err)
-		return &ThreadMetadata{ReplyCount: 0}, nil
+	if len(participants) > 0 {
+		metadata.ParticipantIDs = make([]string, 0, len(participants))
+		for id := range participants {
+			metadata.ParticipantIDs = append(metadata.ParticipantIDs, id)
+		}
 	}
-
-	metadata := &ThreadMetadata{
-		ReplyCount:     int(pbMetadata.ReplyCount),
-		ParticipantIDs: pbMetadata.ParticipantIds,
-	}
-
-	if pbMetadata.LastReplyAt != nil {
-		t := pbMetadata.LastReplyAt.AsTime()
-		metadata.LastReplyAt = &t
-	}
-
+	metadata.LastReplyAt = latestReplyAt
 	return metadata, nil
 }
 

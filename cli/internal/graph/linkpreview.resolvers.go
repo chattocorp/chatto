@@ -39,7 +39,7 @@ func (r *messagePostedEventResolver) LinkPreview(ctx context.Context, obj *corev
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
 	}
-	messageBody, err := r.core.GetFullMessageBody(ctx, kind, obj.MessageBodyId)
+	messageBody, err := r.core.GetFullMessageBody(ctx, kind, bodyKeyForLookup(obj))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load message body: %w", err)
 	}

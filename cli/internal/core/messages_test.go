@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -87,19 +86,14 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
 
-	// Verify the body is stored in the BODIES bucket
-	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	bucket := core.storage.serverBodiesKV
-
-	entry, err := bucket.Get(ctx, messagePosted.MessageBodyId)
-	if err != nil {
-		t.Fatalf("Failed to get message body from KV: %v", err)
-	}
-
-	// Unmarshal and verify
-	var storedBody corev1.MessageBody
-	if err := proto.Unmarshal(entry.Value(), &storedBody); err != nil {
-		t.Fatalf("Failed to unmarshal message body: %v", err)
+	// Post-#597 cutover: the body lives embedded in the event payload
+	// on the EVT stream, not in a separate SERVER_BODIES KV entry.
+	// Recover it through the projection-backed GetFullMessageBody and
+	// then verify the encryption envelope by peeking at the body
+	// embedded on the MessagePostedEvent we just received back.
+	storedBody := roomEvent.GetMessagePosted().GetBody()
+	if storedBody == nil {
+		t.Fatal("Expected message body to be embedded on the published event")
 	}
 
 	// Messages are always encrypted - verify encrypted fields are set
@@ -303,28 +297,32 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 		t.Fatal("Event should be a MessagePosted event")
 	}
 
-	// Verify the body is in BODIES bucket
-	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	bucket := core.storage.serverBodiesKV
-
-	_, err = bucket.Get(ctx, messagePosted.MessageBodyId)
+	// Pre-deletion: GetMessageBody returns the plaintext.
+	bodyText, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
 	if err != nil {
-		t.Fatalf("Message body should exist in KV before deletion: %v", err)
+		t.Fatalf("Failed to fetch message body before deletion: %v", err)
+	}
+	if bodyText == "" {
+		t.Fatal("Message body should be non-empty before deletion")
 	}
 
-	// Delete the message using the full compound key (author can delete own messages)
+	// Delete the message (author can delete own messages).
 	err = core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, messagePosted.MessageBodyId)
 	if err != nil {
 		t.Fatalf("Failed to delete message: %v", err)
 	}
 
-	// Verify the body is no longer in KV
-	_, err = bucket.Get(ctx, messagePosted.MessageBodyId)
-	if err == nil {
-		t.Error("Message body should not exist in KV after deletion")
+	// Post-deletion: projection tombstones the message, body
+	// disappears from GetMessageBody.
+	bodyText, err = core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
+	if err != nil {
+		t.Fatalf("GetMessageBody on retracted message returned error: %v", err)
+	}
+	if bodyText != "" {
+		t.Errorf("Retracted message body should be empty, got %q", bodyText)
 	}
 
-	// Verify we can delete again without error (idempotent)
+	// Idempotent: deleting again is a no-op.
 	err = core.DeleteMessage(ctx, "test-user", KindChannel, room.Id, messagePosted.MessageBodyId)
 	if err != nil {
 		t.Errorf("Deleting already deleted message should not error: %v", err)

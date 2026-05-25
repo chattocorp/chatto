@@ -195,8 +195,11 @@ func MigrateMessagesToES(
 		// Build the migrated event. Preserve the original envelope
 		// metadata (id, actor, created_at) so the timeline order and
 		// audit trail are preserved. Body is embedded; message_body_id
-		// is intentionally NOT carried forward — embedded body is the
-		// new single source of truth.
+		// is repurposed post-cutover as an alias for event_id (same
+		// value as the EventId field), so legacy resolver code paths
+		// that pass MessageBodyId around continue to resolve through
+		// eventIDFromBodyKey.
+		eventID := posted.GetEventId()
 		newEvent := &corev1.Event{
 			Id:        legacyEvent.GetId(),
 			ActorId:   legacyEvent.GetActorId(),
@@ -204,7 +207,8 @@ func MigrateMessagesToES(
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
 					RoomId:                    roomID,
-					EventId:                   posted.GetEventId(),
+					EventId:                   eventID,
+					MessageBodyId:             eventID,
 					InReplyTo:                 posted.GetInReplyTo(),
 					InThread:                  posted.GetInThread(),
 					MentionedUserIds:          posted.GetMentionedUserIds(),

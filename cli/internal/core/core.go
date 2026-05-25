@@ -1344,22 +1344,42 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		return nil, err
 	}
 
-	// Single live-subject subscription. The 256-message buffer absorbs
-	// reaction/typing bursts; on overflow NATS Core drops messages and
-	// transitions the subscription to SlowConsumer state — slowConsumerCh
-	// below catches that and tears the resolver down so the client can
-	// re-subscribe (and pick up missed history via the GraphQL catch-up
-	// path) rather than silently miss events.
+	// Two live-subject subscriptions feeding the same channel:
+	//
+	//   - live.server.>  : legacy stream republish + ephemeral live
+	//     events (reactions, typing, edits, deletes, user / config /
+	//     member notifications).
+	//   - live.evt.>     : EVT stream republish (room messages,
+	//     thread replies, room/group/layout/config aggregates).
+	//
+	// Both deliver wire-identical *corev1.Event protos; the subject
+	// prefix is what disambiguates them downstream in filterLiveEvent.
+	// We need both during the messages-migration window — phase 5
+	// flipped message writes to EVT, but reactions / typing / etc. still
+	// publish on live.server.>.
+	//
+	// The 256-message buffer absorbs reaction/typing bursts; on overflow
+	// NATS Core drops messages and transitions the subscription to
+	// SlowConsumer state — slowConsumerCh below catches that and tears
+	// the resolver down so the client can re-subscribe (and pick up
+	// missed history via the GraphQL catch-up path) rather than
+	// silently miss events.
 	msgChan := make(chan *nats.Msg, 256)
 	liveSub, err := c.nc.ChanSubscribe(subjects.LiveAllEvents(), msgChan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to live events: %w", err)
 	}
 	slowConsumerCh := liveSub.StatusChanged(nats.SubscriptionSlowConsumer)
+	evtSub, err := c.nc.ChanSubscribe(events.LiveSubjectRoot+">", msgChan)
+	if err != nil {
+		liveSub.Unsubscribe()
+		return nil, fmt.Errorf("failed to subscribe to EVT live events: %w", err)
+	}
 
 	presenceSub, err := c.PresenceHub.Subscribe(ctx)
 	if err != nil {
 		liveSub.Unsubscribe()
+		evtSub.Unsubscribe()
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
@@ -1387,6 +1407,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		defer func() {
 			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSub.Unsubscribe()
+			evtSub.Unsubscribe()
 			c.PresenceHub.Unsubscribe(presenceSub)
 			close(eventChan)
 		}()
@@ -1528,16 +1549,48 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return nil, false
 	}
 
-	// Path 1: room-scoped events. Both JetStream republishes (msg, meta)
-	// and direct live publishes (reactions, typing, edits) share the
-	// `live.server.room.{kind}.{roomId}.…` shape, so a single membership
-	// check covers both.
+	// Path 1: room-scoped events. Three shapes share this branch:
+	//
+	//   - live.server.room.{kind}.{roomId}.… (legacy republish + live)
+	//   - live.evt.room.{R}.{eventType}      (EVT republish; #597 cutover)
+	//
+	// Membership gate covers both. For DM-permission checks we need the
+	// room's kind; the legacy subjects carry it inline, the new ones
+	// don't, so we look it up from RoomCatalog when consuming from EVT.
+	var roomKind string
+	var roomID string
 	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
-		if !canDM && kind == string(KindDM) {
-			return nil, false
+		roomKind = kind
+		roomID = subjects.ParseRoomIDFromSubject(msg.Subject)
+	} else if evtRoomID, ok := events.ParseRoomSubject(msg.Subject); ok {
+		roomID = evtRoomID
+		// Best-effort kind lookup. If the catalog projection hasn't
+		// caught up yet (a brand-new room's RoomCreatedEvent races
+		// the live republish of subsequent events in the same room),
+		// the lookup misses. That's fine — we fall through with
+		// roomKind = "". The actual security boundary for DM rooms is
+		// the membership cache: populateMemberRoomsCache only seeds
+		// DM rooms when the user has dm.view, and the membership gate
+		// below filters out non-members regardless of kind. The kind
+		// check is belt-and-suspenders to avoid attempting the
+		// (already-redundant) !canDM short-circuit when we don't know
+		// the kind.
+		if room, exists := c.RoomCatalog.Get(roomID); exists {
+			switch room.GetKind() {
+			case corev1.RoomKind_ROOM_KIND_DM:
+				roomKind = string(KindDM)
+			default:
+				roomKind = string(KindChannel)
+			}
 		}
-		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
-		if roomID == "" {
+	}
+	if roomID != "" {
+		// kind-aware short-circuit. When roomKind is unknown (EVT
+		// republish raced the catalog projection), skip this check —
+		// the membership cache below is the authoritative gate, and
+		// it's already kind-aware (populateMemberRoomsCache excludes
+		// DM rooms when !canDM).
+		if roomKind != "" && !canDM && roomKind == string(KindDM) {
 			return nil, false
 		}
 
