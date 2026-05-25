@@ -33,32 +33,29 @@ func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind RoomKind, room
 
 // getRoomLastRootEvent returns the most recent root MessagePostedEvent
 // (excluding thread replies) in a room, or nil if none have been
-// projected yet. Reads from RoomTimelineProjection.
+// projected yet. Bounded O(walk-until-found) via the projection's
+// LastVisibleRoomEntry helper.
 func (c *ChattoCore) getRoomLastRootEvent(roomID string) *corev1.Event {
-	for _, entry := range c.RoomTimeline.RoomEvents(roomID, 1<<31-1, 0) {
-		msg := entry.Event.GetMessagePosted()
-		if msg == nil {
-			continue
-		}
-		if msg.GetInThread() != "" {
-			continue
-		}
-		return entry.Event
+	entry, ok := c.RoomTimeline.LastVisibleRoomEntry(roomID, func(e *corev1.Event) bool {
+		msg := e.GetMessagePosted()
+		return msg != nil && msg.GetInThread() == ""
+	})
+	if !ok {
+		return nil
 	}
-	return nil
+	return entry.Event
 }
 
-// getRoomLastEvent returns the most recent MessagePostedEvent of any
-// kind (root or thread reply) in a room, or nil if none have been
-// projected yet. Reads from RoomTimelineProjection.
+// getRoomLastMessageEvent returns the most recent MessagePostedEvent
+// of any kind (root or thread reply) in a room, or nil.
 func (c *ChattoCore) getRoomLastMessageEvent(roomID string) *corev1.Event {
-	for _, entry := range c.RoomTimeline.RoomEvents(roomID, 1<<31-1, 0) {
-		if entry.Event.GetMessagePosted() == nil {
-			continue
-		}
-		return entry.Event
+	entry, ok := c.RoomTimeline.LastVisibleRoomEntry(roomID, func(e *corev1.Event) bool {
+		return e.GetMessagePosted() != nil
+	})
+	if !ok {
+		return nil
 	}
-	return nil
+	return entry.Event
 }
 
 // GetRoomLastMessageAt returns the timestamp of the last message in a

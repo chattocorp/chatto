@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1547,6 +1548,28 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		c.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
 		return nil, false
+	}
+
+	// EVT republish race: when an event hits live.evt.> via the EVT
+	// stream's RePublish, downstream resolvers (Body, Attachments,
+	// ...) consult the in-memory projection. The projector goroutine
+	// applies the event independently — the live publish can race
+	// ahead, causing the resolver to see "not in projection yet" and
+	// render "[Message deleted]". The RePublish includes the source
+	// stream sequence as a header; wait for the projector to catch
+	// up before forwarding the event downstream. Short bounded wait;
+	// if the projector falls way behind we'd rather drop than block
+	// the whole subscriber.
+	if strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) && c.RoomTimelineProjector != nil {
+		if seqStr := msg.Header.Get("Nats-Sequence"); seqStr != "" {
+			if seq, err := strconv.ParseUint(seqStr, 10, 64); err == nil {
+				waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				if werr := c.RoomTimelineProjector.WaitForSeq(waitCtx, seq); werr != nil {
+					c.logger.Debug("projection wait timed out for live event", "subject", msg.Subject, "seq", seq, "error", werr)
+				}
+				cancel()
+			}
+		}
 	}
 
 	// Path 1: room-scoped events. Three shapes share this branch:

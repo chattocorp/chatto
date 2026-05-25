@@ -62,31 +62,20 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 		before = *beforeSeq
 	}
 
-	// Pull a newest-first window from the projection. We over-fetch
-	// visible entries by walking until we have limit+1 (to detect
-	// HasOlder) — RoomTimeline.RoomEvents respects limit before
-	// filtering, so we need to fetch generously and then filter.
-	// Simple approach: pull the whole window, filter, take the last
-	// `limit` (the newest-first chunk).
-	raw := c.RoomTimeline.RoomEvents(room_id, 1<<31-1, before)
-	visible := make([]*RoomEvent, 0, len(raw))
-	for _, e := range raw {
-		if !isVisibleRoomTimelineEntry(e.Event) {
-			continue
-		}
-		visible = append(visible, &RoomEvent{Event: e.Event, Sequence: e.StreamSeq})
-	}
-
-	// `visible` is newest-first. Take the newest `limit` and detect
-	// HasOlder (there were more entries strictly older than the
-	// oldest we kept).
-	hasOlder := len(visible) > limit
+	// Bounded newest-first walk via VisibleRoomTimeline. Fetch
+	// limit+1 to detect HasOlder without a second call.
+	raw := c.RoomTimeline.VisibleRoomTimeline(room_id, limit+1, before, isVisibleRoomTimelineEntry)
+	hasOlder := len(raw) > limit
 	if hasOlder {
-		visible = visible[:limit]
+		raw = raw[:limit]
+	}
+	visible := make([]*RoomEvent, len(raw))
+	for i, e := range raw {
+		visible[i] = &RoomEvent{Event: e.Event, Sequence: e.StreamSeq}
 	}
 
-	// Reverse to oldest-first to match legacy callers + frontend
-	// expectations.
+	// Reverse newest-first → oldest-first to match legacy callers +
+	// frontend expectations.
 	for i, j := 0, len(visible)-1; i < j; i, j = i+1, j-1 {
 		visible[i], visible[j] = visible[j], visible[i]
 	}
@@ -147,16 +136,13 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 		return nil, ErrMessageNotFound
 	}
 
-	// Pull the full visible timeline (newest-first), then locate the
-	// target. For v1 we walk the whole room once — fine on dev data;
-	// gets a derived index when needed.
-	all := c.RoomTimeline.RoomEvents(roomID, 1<<31-1, 0)
-	visible := make([]*RoomEvent, 0, len(all))
-	for _, e := range all {
-		if !isVisibleRoomTimelineEntry(e.Event) {
-			continue
-		}
-		visible = append(visible, &RoomEvent{Event: e.Event, Sequence: e.StreamSeq})
+	// Walk the room's visible timeline newest-first. RoomEventCount
+	// gives an upper bound so we don't ask for an unbounded slice.
+	roomLen := c.RoomTimeline.RoomEventCount(roomID)
+	raw := c.RoomTimeline.VisibleRoomTimeline(roomID, roomLen, 0, isVisibleRoomTimelineEntry)
+	visible := make([]*RoomEvent, len(raw))
+	for i, e := range raw {
+		visible[i] = &RoomEvent{Event: e.Event, Sequence: e.StreamSeq}
 	}
 
 	targetIdx := -1
@@ -204,17 +190,16 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 		limit = defaultHistoricalMessageLimit
 	}
 
-	// Pull all entries newer than afterSeq from the projection, then
-	// truncate to limit + reverse to oldest-first.
-	all := c.RoomTimeline.RoomEvents(roomID, 1<<31-1, 0)
-	// all is newest-first; collect those with seq > afterSeq.
-	newer := make([]*RoomEvent, 0)
-	for _, e := range all {
+	// Walk visible entries newest-first until we hit afterSeq or
+	// gather limit+1 (to detect HasNewer). VisibleRoomTimeline
+	// short-circuits at the limit, so we cap at limit+1 here.
+	raw := c.RoomTimeline.VisibleRoomTimeline(roomID, limit+1, 0, func(e *corev1.Event) bool {
+		return isVisibleRoomTimelineEntry(e)
+	})
+	newer := make([]*RoomEvent, 0, len(raw))
+	for _, e := range raw {
 		if e.StreamSeq <= afterSeq {
-			break // newest-first: subsequent entries are even older
-		}
-		if !isVisibleRoomTimelineEntry(e.Event) {
-			continue
+			break
 		}
 		newer = append(newer, &RoomEvent{Event: e.Event, Sequence: e.StreamSeq})
 	}

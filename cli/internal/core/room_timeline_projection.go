@@ -25,6 +25,13 @@ type RoomTimelineProjection struct {
 	events.MemoryProjection
 	byRoom    map[string][]*TimelineEntry
 	byEventID map[string]*TimelineEntry
+	// latestBody is the derived current-body index. Updated as
+	// MessageEdited / MessageRetracted entries are applied so that
+	// LatestBody resolves in O(1) instead of an O(room size) walk
+	// of byRoom. A nil entry means "retracted"; absent means "no
+	// embedded body / not yet projected".
+	latestBody     map[string]*corev1.MessageBody
+	retractedFlags map[string]struct{}
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
@@ -39,8 +46,10 @@ type TimelineEntry struct {
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
-		byRoom:    make(map[string][]*TimelineEntry),
-		byEventID: make(map[string]*TimelineEntry),
+		byRoom:         make(map[string][]*TimelineEntry),
+		byEventID:      make(map[string]*TimelineEntry),
+		latestBody:     make(map[string]*corev1.MessageBody),
+		retractedFlags: make(map[string]struct{}),
 	}
 }
 
@@ -82,6 +91,32 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.byRoom[roomID] = append(p.byRoom[roomID], entry)
 	if eid := event.GetId(); eid != "" {
 		p.byEventID[eid] = entry
+	}
+
+	// Maintain the latest-body / retracted-flag derived index so
+	// LatestBody is O(1) instead of an O(room) walk per lookup.
+	switch ev := event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted:
+		targetID := ev.MessagePosted.GetEventId()
+		if targetID == "" {
+			targetID = event.GetId()
+		}
+		if targetID != "" {
+			p.latestBody[targetID] = ev.MessagePosted.GetBody()
+			delete(p.retractedFlags, targetID)
+		}
+	case *corev1.Event_MessageEdited:
+		targetID := ev.MessageEdited.GetEventId()
+		if targetID != "" {
+			p.latestBody[targetID] = ev.MessageEdited.GetBody()
+			delete(p.retractedFlags, targetID)
+		}
+	case *corev1.Event_MessageRetracted:
+		targetID := ev.MessageRetracted.GetEventId()
+		if targetID != "" {
+			delete(p.latestBody, targetID)
+			p.retractedFlags[targetID] = struct{}{}
+		}
 	}
 	return nil
 }
@@ -133,54 +168,93 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	return e, ok
 }
 
-// LatestBody returns the current body for a message, folding any
-// subsequent MessageEditedEvent / MessageRetractedEvent entries
-// targeting the message's event_id onto its original
-// MessagePostedEvent.body. Returns (nil, true, true) if the
-// message has been retracted; (nil, false, false) if the event_id
-// doesn't refer to a known posted message; (body, false, true) for
-// a live message (possibly edited).
+// LatestBody returns the current body for a message — the original
+// MessagePostedEvent.body overlaid with any subsequent
+// MessageEditedEvent's body, or nil + retracted=true if a
+// MessageRetractedEvent has landed.
 //
-// O(room timeline length) per call — fine for v1 with small dev
-// data, gets a derived-cache treatment when read patterns warrant
-// it.
+// Returns (nil, false, false) if the event_id isn't known to the
+// projection (caller can treat as "not found yet").
+//
+// O(1): consults the derived latestBody / retractedFlags indexes
+// that Apply keeps in lockstep with byRoom.
 func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.MessageBody, retracted bool, ok bool) {
 	p.RLock()
 	defer p.RUnlock()
-
-	origEntry, exists := p.byEventID[eventID]
-	if !exists {
+	if eventID == "" {
 		return nil, false, false
 	}
-	origPost := origEntry.Event.GetMessagePosted()
-	if origPost == nil {
-		// Looked-up envelope is something other than a post (e.g. a
-		// MessageEdited envelope id passed in by mistake). Not a
-		// valid "message" target.
+	if _, exists := p.byEventID[eventID]; !exists {
 		return nil, false, false
 	}
+	if _, isRetracted := p.retractedFlags[eventID]; isRetracted {
+		return nil, true, true
+	}
+	if b, has := p.latestBody[eventID]; has {
+		return b, false, true
+	}
+	return nil, false, true
+}
 
-	roomID := origPost.GetRoomId()
-	current := origPost.GetBody()
-
-	for _, e := range p.byRoom[roomID] {
-		if e.StreamSeq <= origEntry.StreamSeq {
+// LastVisibleRoomEntry walks the room's timeline newest-first and
+// returns the first entry that passes `visible`. Useful for
+// "last root message", "last activity", and similar single-entry
+// lookups that don't need to materialise a full slice. Returns
+// (nil, false) if no entry matches.
+func (p *RoomTimelineProjection) LastVisibleRoomEntry(
+	roomID string,
+	visible func(*corev1.Event) bool,
+) (*TimelineEntry, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	entries := p.byRoom[roomID]
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
+		if visible != nil && !visible(e.Event) {
 			continue
 		}
-		switch ev := e.Event.GetEvent().(type) {
-		case *corev1.Event_MessageEdited:
-			if ev.MessageEdited.GetEventId() == eventID {
-				current = ev.MessageEdited.GetBody()
-				retracted = false
-			}
-		case *corev1.Event_MessageRetracted:
-			if ev.MessageRetracted.GetEventId() == eventID {
-				current = nil
-				retracted = true
-			}
-		}
+		return e, true
 	}
-	return current, retracted, true
+	return nil, false
+}
+
+// VisibleRoomTimeline walks the room's timeline newest-first,
+// applying `visible` as a per-entry filter, and returns up to
+// `limit` matching entries. `beforeStreamSeq > 0` excludes entries
+// with stream seq >= that value (exclusive upper bound for
+// pagination).
+//
+// Stops as soon as `limit` visible entries are accumulated — no
+// full-slice materialisation. Caller may inspect more than `limit`
+// raw entries when the visibility filter rejects some of them
+// (e.g. when filtering thread replies out of a channel timeline).
+//
+// Returns entries in newest-first order. Caller reverses to
+// oldest-first if needed.
+func (p *RoomTimelineProjection) VisibleRoomTimeline(
+	roomID string,
+	limit int,
+	beforeStreamSeq uint64,
+	visible func(*corev1.Event) bool,
+) []*TimelineEntry {
+	if limit <= 0 {
+		return nil
+	}
+	p.RLock()
+	defer p.RUnlock()
+	entries := p.byRoom[roomID]
+	out := make([]*TimelineEntry, 0, limit)
+	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
+		e := entries[i]
+		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
+			continue
+		}
+		if visible != nil && !visible(e.Event) {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // roomIDOfEvent extracts the room_id from any room-scoped event
