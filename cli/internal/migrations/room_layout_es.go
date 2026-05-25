@@ -80,7 +80,7 @@ func MigrateRoomLayoutToES(
 		},
 	}
 
-	subject := events.LayoutAggregate().Subject()
+	subject := events.LayoutSubject()
 	if _, err := publisher.AppendAt(ctx, subject, event, 0); err != nil {
 		if errors.Is(err, events.ErrConflict) {
 			return nil

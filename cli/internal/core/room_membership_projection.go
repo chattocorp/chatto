@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"sync"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -24,7 +23,7 @@ import (
 // Room KV during the transition; a follow-up can either add a small
 // RoomKind projection or fold the lookup into the resolver layer.
 type RoomMembershipProjection struct {
-	mu sync.RWMutex
+	events.MemoryProjection
 	// byRoom: room ID → set of user IDs in that room.
 	byRoom map[string]map[string]struct{}
 	// byUser: user ID → set of room IDs that user is in. Mirror of
@@ -46,14 +45,15 @@ func (p *RoomMembershipProjection) Subjects() []string {
 	return []string{events.RoomSubjectFilter()}
 }
 
-// Apply implements events.Projection. Apply is called from a single
-// goroutine owned by the Projector, so the write path doesn't need to
-// take the lock for ordering — but reads are concurrent, so writes
-// still take the write lock to publish updated state.
+// Apply implements events.Projection. Apply runs from a single
+// goroutine in stream order, so the write path locks only to publish
+// state to concurrent readers.
 func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
+	p.Lock()
+	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserJoinedRoom:
 		roomID := e.UserJoinedRoom.GetRoomId()
@@ -61,20 +61,20 @@ func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("UserJoinedRoom missing roomID or actorID")
 		}
-		p.add(roomID, userID)
+		p.addLocked(roomID, userID)
 	case *corev1.Event_UserLeftRoom:
 		roomID := e.UserLeftRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("UserLeftRoom missing roomID or actorID")
 		}
-		p.remove(roomID, userID)
+		p.removeLocked(roomID, userID)
 	case *corev1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
 		if roomID == "" {
 			return fmt.Errorf("RoomDeleted missing roomID")
 		}
-		p.dropRoom(roomID)
+		p.dropRoomLocked(roomID)
 	default:
 		// Other event types may share the room aggregate subject in the
 		// future; skipping them silently is the correct projection
@@ -83,21 +83,9 @@ func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
 	return nil
 }
 
-// Snapshot implements events.Projection. No snapshot support yet (ADR-033
-// defers snapshot orchestration). Returning (nil, nil) tells the Projector
-// to skip snapshot persistence.
-func (p *RoomMembershipProjection) Snapshot() ([]byte, error) { return nil, nil }
-
-// Restore implements events.Projection. No snapshot support yet, so this
-// is a no-op. When snapshot orchestration lands this will deserialize the
-// indices from `data`.
-func (p *RoomMembershipProjection) Restore(_ []byte) error { return nil }
-
-// add inserts a (room, user) membership. Idempotent.
-func (p *RoomMembershipProjection) add(roomID, userID string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+// addLocked inserts a (room, user) membership. Caller holds p.Lock.
+// Idempotent.
+func (p *RoomMembershipProjection) addLocked(roomID, userID string) {
 	users, ok := p.byRoom[roomID]
 	if !ok {
 		users = make(map[string]struct{})
@@ -113,13 +101,11 @@ func (p *RoomMembershipProjection) add(roomID, userID string) {
 	rooms[roomID] = struct{}{}
 }
 
-// dropRoom removes a room entirely from the projection — used when a
-// RoomDeleted event arrives. All members of the room have their entry
-// for this room cleared from byUser. Idempotent.
-func (p *RoomMembershipProjection) dropRoom(roomID string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+// dropRoomLocked removes a room entirely from the projection — used
+// when a RoomDeleted event arrives. All members of the room have
+// their entry for this room cleared from byUser. Caller holds
+// p.Lock. Idempotent.
+func (p *RoomMembershipProjection) dropRoomLocked(roomID string) {
 	users := p.byRoom[roomID]
 	if users == nil {
 		return
@@ -135,11 +121,9 @@ func (p *RoomMembershipProjection) dropRoom(roomID string) {
 	delete(p.byRoom, roomID)
 }
 
-// remove deletes a (room, user) membership. Idempotent.
-func (p *RoomMembershipProjection) remove(roomID, userID string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+// removeLocked deletes a (room, user) membership. Caller holds
+// p.Lock. Idempotent.
+func (p *RoomMembershipProjection) removeLocked(roomID, userID string) {
 	if users, ok := p.byRoom[roomID]; ok {
 		delete(users, userID)
 		if len(users) == 0 {
@@ -156,8 +140,8 @@ func (p *RoomMembershipProjection) remove(roomID, userID string) {
 
 // IsMember reports whether the user is a member of the room.
 func (p *RoomMembershipProjection) IsMember(roomID, userID string) bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	users, ok := p.byRoom[roomID]
 	if !ok {
 		return false
@@ -169,8 +153,8 @@ func (p *RoomMembershipProjection) IsMember(roomID, userID string) bool {
 // Members returns the user IDs of the room's current members. The returned
 // slice is a copy; the caller may mutate it freely. Order is unspecified.
 func (p *RoomMembershipProjection) Members(roomID string) []string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	users := p.byRoom[roomID]
 	out := make([]string, 0, len(users))
 	for u := range users {
@@ -182,8 +166,8 @@ func (p *RoomMembershipProjection) Members(roomID string) []string {
 // Rooms returns the room IDs the user is currently a member of, across
 // every kind. The returned slice is a copy; order is unspecified.
 func (p *RoomMembershipProjection) Rooms(userID string) []string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	rooms := p.byUser[userID]
 	out := make([]string, 0, len(rooms))
 	for r := range rooms {
@@ -195,8 +179,8 @@ func (p *RoomMembershipProjection) Rooms(userID string) []string {
 // Stats returns counts useful for diagnostics. Intended for admin/dev
 // endpoints rather than hot paths.
 func (p *RoomMembershipProjection) Stats() (rooms int, memberships int) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	rooms = len(p.byRoom)
 	for _, users := range p.byRoom {
 		memberships += len(users)

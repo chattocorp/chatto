@@ -509,35 +509,31 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// projectors → managers that depend on them.
 	eventPublisher := events.NewPublisher(js, storage.serverEvtStream, logger)
 
+	// newProjector wraps the (projection, logger-prefix) → Projector
+	// construction so the per-aggregate wiring below stays one line per
+	// projection. Each projector also gets appended to the slice that
+	// (*ChattoCore).Run iterates.
+	var projectors []*events.Projector
+	newProjector := func(p events.Projection, name string) *events.Projector {
+		pr := events.NewProjector(js, storage.serverEvtStream, p, logger.WithPrefix("core."+name))
+		projectors = append(projectors, pr)
+		return pr
+	}
+
 	roomMembership := NewRoomMembershipProjection()
-	roomMembershipProjector := events.NewProjector(
-		js, storage.serverEvtStream, roomMembership,
-		logger.WithPrefix("core.RoomMembershipProjector"),
-	)
+	roomMembershipProjector := newProjector(roomMembership, "RoomMembershipProjector")
 
 	serverConfigProjection := NewServerConfigProjection()
-	serverConfigProjector := events.NewProjector(
-		js, storage.serverEvtStream, serverConfigProjection,
-		logger.WithPrefix("core.ServerConfigProjector"),
-	)
+	serverConfigProjector := newProjector(serverConfigProjection, "ServerConfigProjector")
 
 	roomCatalog := NewRoomCatalogProjection()
-	roomCatalogProjector := events.NewProjector(
-		js, storage.serverEvtStream, roomCatalog,
-		logger.WithPrefix("core.RoomCatalogProjector"),
-	)
+	roomCatalogProjector := newProjector(roomCatalog, "RoomCatalogProjector")
 
 	roomGroups := NewRoomGroupProjection()
-	roomGroupsProjector := events.NewProjector(
-		js, storage.serverEvtStream, roomGroups,
-		logger.WithPrefix("core.RoomGroupsProjector"),
-	)
+	roomGroupsProjector := newProjector(roomGroups, "RoomGroupsProjector")
 
 	roomLayout := NewRoomLayoutProjection()
-	roomLayoutProjector := events.NewProjector(
-		js, storage.serverEvtStream, roomLayout,
-		logger.WithPrefix("core.RoomLayoutProjector"),
-	)
+	roomLayoutProjector := newProjector(roomLayout, "RoomLayoutProjector")
 
 	// ConfigManager owns server-config dual-writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
@@ -564,14 +560,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomGroupsProjector:     roomGroupsProjector,
 		RoomLayout:              roomLayout,
 		RoomLayoutProjector:     roomLayoutProjector,
-		projectors: []*events.Projector{
-			roomMembershipProjector,
-			serverConfigProjector,
-			roomCatalogProjector,
-			roomGroupsProjector,
-			roomLayoutProjector,
-		},
-		bootDone: make(chan struct{}),
+		projectors:              projectors,
+		bootDone:                make(chan struct{}),
 	}
 
 	// Run boot-time data migrations. Idempotent and cheap on subsequent

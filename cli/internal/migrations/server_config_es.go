@@ -69,7 +69,7 @@ func MigrateServerConfigToES(
 		},
 	}
 
-	subject := events.ConfigAggregate().Subject()
+	subject := events.ConfigSubject()
 	_, err = publisher.AppendAt(ctx, subject, event, 0)
 	if err == nil {
 		logger.Info("server_config ES migration: seeded event from legacy KV", "subject", subject)

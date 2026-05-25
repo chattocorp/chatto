@@ -212,7 +212,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		Name: "", // DMs don't have names - derived from participants in UI
 	}
 
-	subject := events.RoomAggregate(roomID).Subject()
+	subject := events.RoomSubject(roomID)
 
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
@@ -283,49 +283,6 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	}
 
 	return room, nil
-}
-
-// joinDMRoom is the per-participant join path used outside DM
-// creation (e.g. when a DM membership is restored on account
-// reactivation). It publishes UserJoinedRoomEvent, initialises the
-// read marker, and mirrors to the legacy live subject.
-//
-// ADR-035 phase 6: event-only. The legacy room_membership KV is not
-// written from here anymore.
-func (c *ChattoCore) joinDMRoom(ctx context.Context, userID, roomID string) error {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
-				RoomId: roomID,
-			},
-		},
-	})
-
-	seq, evtErr := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), event)
-	if evtErr != nil {
-		return fmt.Errorf("publish DM UserJoinedRoomEvent: %w", evtErr)
-	}
-
-	if err := c.SetLastReadEventID(ctx, KindDM, userID, roomID, ""); err != nil {
-		c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", userID, "room_id", roomID)
-	}
-
-	// Legacy publish — feeds live.server.> so frontend's myEvents
-	// subscription sees the join even though it's filtered out for DMs
-	// in the UI (RoomEvent.svelte).
-	legacySubject := subjects.RoomMeta(string(KindDM), roomID)
-	if err := c.publishServerEvent(ctx, legacySubject, event); err != nil {
-		c.logger.Error("failed to publish UserJoinedRoomEvent for DM (legacy)", "error", err, "user_id", userID, "room_id", roomID)
-	}
-
-	// Read-your-writes: ensure the projection has applied this join
-	// before returning, so the FindOrCreateDM caller's next
-	// RoomMembershipExists / IsMember check is consistent.
-	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for projection: %w", err)
-	}
-
-	return nil
 }
 
 // ListDMConversations returns DM rooms the user is a member of that have at least

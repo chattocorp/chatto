@@ -2,7 +2,6 @@ package core
 
 import (
 	"slices"
-	"sync"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -18,7 +17,7 @@ import (
 // Move-room operations land as two events (one per affected group),
 // matching the per-aggregate cascade rule from ADR-034 Approach A.
 type RoomGroupProjection struct {
-	mu     sync.RWMutex
+	events.MemoryProjection
 	groups map[string]*roomGroupEntry
 }
 
@@ -48,10 +47,11 @@ func (p *RoomGroupProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
+	p.Lock()
+	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RoomGroupCreated:
 		c := e.RoomGroupCreated
-		p.mu.Lock()
 		// Idempotent: re-creating an existing group overwrites
 		// metadata but preserves room membership. In practice the
 		// Append OCC scope prevents re-creation; this is defensive.
@@ -62,65 +62,48 @@ func (p *RoomGroupProjection) Apply(event *corev1.Event, _ uint64) error {
 		}
 		entry.name = c.GetName()
 		entry.description = c.GetDescription()
-		p.mu.Unlock()
 
 	case *corev1.Event_RoomGroupUpdated:
 		u := e.RoomGroupUpdated
-		p.mu.Lock()
 		if entry := p.groups[u.GetGroupId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
 		}
-		p.mu.Unlock()
 
 	case *corev1.Event_RoomGroupDeleted:
-		p.mu.Lock()
 		delete(p.groups, e.RoomGroupDeleted.GetGroupId())
-		p.mu.Unlock()
 
 	case *corev1.Event_RoomAddedToGroup:
 		a := e.RoomAddedToGroup
-		p.mu.Lock()
 		if entry := p.groups[a.GetGroupId()]; entry != nil {
 			if !slices.Contains(entry.roomIDs, a.GetRoomId()) {
 				entry.roomIDs = append(entry.roomIDs, a.GetRoomId())
 			}
 		}
-		p.mu.Unlock()
 
 	case *corev1.Event_RoomRemovedFromGroup:
 		r := e.RoomRemovedFromGroup
-		p.mu.Lock()
 		if entry := p.groups[r.GetGroupId()]; entry != nil {
 			entry.roomIDs = slices.DeleteFunc(entry.roomIDs, func(id string) bool {
 				return id == r.GetRoomId()
 			})
 		}
-		p.mu.Unlock()
 
 	case *corev1.Event_RoomsInGroupReordered:
 		r := e.RoomsInGroupReordered
-		p.mu.Lock()
 		if entry := p.groups[r.GetGroupId()]; entry != nil {
 			entry.roomIDs = slices.Clone(r.GetRoomIds())
 		}
-		p.mu.Unlock()
 	}
 	return nil
 }
-
-// Snapshot implements events.Projection (deferred per ADR-033).
-func (p *RoomGroupProjection) Snapshot() ([]byte, error) { return nil, nil }
-
-// Restore implements events.Projection (deferred per ADR-033).
-func (p *RoomGroupProjection) Restore(_ []byte) error { return nil }
 
 // Get returns the group's data, or (nil, false) if no such group has
 // been projected. The returned proto is a fresh value — including a
 // cloned room_ids slice — so callers may mutate freely.
 func (p *RoomGroupProjection) Get(groupID string) (*corev1.RoomGroup, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	entry, ok := p.groups[groupID]
 	if !ok {
 		return nil, false
@@ -130,8 +113,8 @@ func (p *RoomGroupProjection) Get(groupID string) (*corev1.RoomGroup, bool) {
 
 // Exists reports whether the group is in the projection.
 func (p *RoomGroupProjection) Exists(groupID string) bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	_, ok := p.groups[groupID]
 	return ok
 }
@@ -140,8 +123,8 @@ func (p *RoomGroupProjection) Exists(groupID string) bool {
 // the layout aggregate (KV-backed for now) provides the operator-
 // preferred sort. Returned protos are fresh values.
 func (p *RoomGroupProjection) All() []*corev1.RoomGroup {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	out := make([]*corev1.RoomGroup, 0, len(p.groups))
 	for id, entry := range p.groups {
 		out = append(out, entryToGroup(id, entry))
@@ -153,8 +136,8 @@ func (p *RoomGroupProjection) All() []*corev1.RoomGroup {
 // given room, or "" if the room isn't in any group. Linear scan;
 // fine for the small group counts we expect on a server.
 func (p *RoomGroupProjection) GroupForRoom(roomID string) string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	for groupID, entry := range p.groups {
 		if slices.Contains(entry.roomIDs, roomID) {
 			return groupID
@@ -166,8 +149,8 @@ func (p *RoomGroupProjection) GroupForRoom(roomID string) string {
 // Count returns the number of groups projected. Useful for
 // admin/diagnostic surfaces.
 func (p *RoomGroupProjection) Count() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	return len(p.groups)
 }
 

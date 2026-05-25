@@ -62,6 +62,19 @@ func RoomAggregate(roomID string) Aggregate {
 	return Aggregate{Type: AggregateRoom, ID: roomID}
 }
 
+// RoomSubject is shorthand for RoomAggregate(roomID).Subject(). Use
+// at publish sites where the Aggregate handle isn't otherwise needed.
+func RoomSubject(roomID string) string { return RoomAggregate(roomID).Subject() }
+
+// GroupSubject is shorthand for GroupAggregate(groupID).Subject().
+func GroupSubject(groupID string) string { return GroupAggregate(groupID).Subject() }
+
+// LayoutSubject is shorthand for LayoutAggregate().Subject().
+func LayoutSubject() string { return LayoutAggregate().Subject() }
+
+// ConfigSubject is shorthand for ConfigAggregate().Subject().
+func ConfigSubject() string { return ConfigAggregate().Subject() }
+
 // RoomSubjectFilter returns the wildcard subject filter for every room
 // aggregate's events. Used by projections that consume across all rooms.
 // Pattern: evt.room.>

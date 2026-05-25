@@ -77,8 +77,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		},
 	})
 
-	seq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), event)
-	if err != nil {
+	if _, err := c.RoomMembershipProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomSubject(room_id), event); err != nil {
 		return nil, fmt.Errorf("publish UserJoinedRoomEvent: %w", err)
 	}
 
@@ -106,13 +105,6 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	}
 	if err := c.SetLastReadEventID(ctx, kind, user_id, room_id, initEventID); err != nil {
 		c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", room_id)
-	}
-
-	// Read-your-writes: ensure the projection has applied our event
-	// before returning so the caller's next IsMember/Members read is
-	// consistent.
-	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-		return nil, fmt.Errorf("wait for projection: %w", err)
 	}
 
 	return membership, nil
@@ -145,8 +137,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	seq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).Subject(), event)
-	if err != nil {
+	if _, err := c.RoomMembershipProjector.AppendAndWait(ctx, c.EventPublisher, events.RoomSubject(room_id), event); err != nil {
 		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
 	}
 
@@ -156,11 +147,6 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 	}
 
 	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
-
-	// Read-your-writes: projection must reflect our event before we return.
-	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for projection: %w", err)
-	}
 	return nil
 }
 
@@ -247,7 +233,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 			},
 		})
 
-		seq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(entry.roomID).Subject(), event)
+		seq, err := c.EventPublisher.Append(ctx, events.RoomSubject(entry.roomID), event)
 		if err != nil {
 			c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT", "room_id", entry.roomID, "error", err)
 			continue

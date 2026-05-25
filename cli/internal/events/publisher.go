@@ -61,10 +61,7 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger Logger
 	return &Publisher{js: js, stream: stream, logger: logger}
 }
 
-const (
-	maxAppendRetries = 5
-	flushTimeout     = 2 * time.Second
-)
+const maxAppendRetries = 5
 
 // Append publishes an event to a subject, automatically computing the
 // expected last subject sequence from the stream and retrying on conflict.

@@ -2,7 +2,6 @@ package core
 
 import (
 	"strings"
-	"sync"
 
 	"google.golang.org/protobuf/proto"
 
@@ -22,7 +21,7 @@ import (
 // snapshot — there is no per-field state, only the most recent
 // ServerConfig proto.
 type ServerConfigProjection struct {
-	mu   sync.RWMutex
+	events.MemoryProjection
 	cfg  *configv1.ServerConfig
 	seen bool // true once at least one ServerConfigChangedEvent has applied
 }
@@ -58,20 +57,12 @@ func (p *ServerConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	if incoming != nil {
 		snapshot = proto.Clone(incoming).(*configv1.ServerConfig)
 	}
-	p.mu.Lock()
+	p.Lock()
 	p.cfg = snapshot
 	p.seen = true
-	p.mu.Unlock()
+	p.Unlock()
 	return nil
 }
-
-// Snapshot implements events.Projection. No snapshot support yet
-// (ADR-033 defers snapshot orchestration).
-func (p *ServerConfigProjection) Snapshot() ([]byte, error) { return nil, nil }
-
-// Restore implements events.Projection. No-op until snapshot
-// orchestration lands.
-func (p *ServerConfigProjection) Restore(_ []byte) error { return nil }
 
 // Get returns the current server config snapshot and a bool indicating
 // whether the projection has ever applied a ServerConfigChangedEvent.
@@ -82,8 +73,8 @@ func (p *ServerConfigProjection) Restore(_ []byte) error { return nil }
 // (fresh deployment, projection cold-started before any write); the
 // returned *ServerConfig is nil in that case.
 func (p *ServerConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	if !p.seen || p.cfg == nil {
 		return nil, p.seen
 	}
@@ -94,8 +85,8 @@ func (p *ServerConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured
 // fallback ("Chatto") if no name has been set. Matches the legacy
 // ConfigManager.GetEffectiveServerName semantics.
 func (p *ServerConfigProjection) EffectiveServerName() string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	if p.cfg != nil && p.cfg.ServerName != "" {
 		return p.cfg.ServerName
 	}
@@ -104,8 +95,8 @@ func (p *ServerConfigProjection) EffectiveServerName() string {
 
 // EffectiveWelcomeMessage returns the configured welcome message or "".
 func (p *ServerConfigProjection) EffectiveWelcomeMessage() string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	if p.cfg != nil {
 		return p.cfg.WelcomeMessage
 	}
@@ -114,8 +105,8 @@ func (p *ServerConfigProjection) EffectiveWelcomeMessage() string {
 
 // EffectiveMOTD returns the configured MOTD or "".
 func (p *ServerConfigProjection) EffectiveMOTD() string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	if p.cfg != nil {
 		return p.cfg.Motd
 	}
@@ -125,8 +116,8 @@ func (p *ServerConfigProjection) EffectiveMOTD() string {
 // EffectiveDescription returns the configured server description or the
 // default fallback (DefaultDescription) if unset.
 func (p *ServerConfigProjection) EffectiveDescription() string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	if p.cfg != nil && p.cfg.Description != "" {
 		return p.cfg.Description
 	}
@@ -138,8 +129,8 @@ func (p *ServerConfigProjection) EffectiveDescription() string {
 // Returns the empty string when the operator has explicitly cleared the
 // list (config exists, field is empty) — matching legacy semantics.
 func (p *ServerConfigProjection) EffectiveBlockedUsernames() string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	if !p.seen || p.cfg == nil {
 		return DefaultBlockedUsernames
 	}

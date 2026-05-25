@@ -2,7 +2,6 @@ package core
 
 import (
 	"strings"
-	"sync"
 
 	"google.golang.org/protobuf/proto"
 
@@ -21,7 +20,7 @@ import (
 // first concrete pair of projections on a shared filter — see the
 // "single consumer per filter" out-of-scope note in ADR-033.
 type RoomCatalogProjection struct {
-	mu    sync.RWMutex
+	events.MemoryProjection
 	rooms map[string]*roomCatalogEntry
 }
 
@@ -47,9 +46,7 @@ func (p *RoomCatalogProjection) Subjects() []string {
 	return []string{events.RoomSubjectFilter()}
 }
 
-// Apply implements events.Projection. Apply runs from a single
-// goroutine in stream order, so the write path doesn't lock for
-// ordering — it locks to publish to concurrent readers.
+// Apply implements events.Projection.
 //
 // Recognised events: RoomCreated, RoomUpdated (rename + description),
 // RoomArchived, RoomUnarchived, RoomDeleted. Membership events
@@ -59,60 +56,42 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
+	p.Lock()
+	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RoomCreated:
 		c := e.RoomCreated
-		p.mu.Lock()
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
 			name:        c.GetName(),
 			description: c.GetDescription(),
 			kind:        c.GetKind(),
 		}
-		p.mu.Unlock()
-
 	case *corev1.Event_RoomUpdated:
 		u := e.RoomUpdated
-		p.mu.Lock()
 		if entry := p.rooms[u.GetRoomId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
 		}
-		p.mu.Unlock()
-
 	case *corev1.Event_RoomArchived:
-		p.mu.Lock()
 		if entry := p.rooms[e.RoomArchived.GetRoomId()]; entry != nil {
 			entry.archived = true
 		}
-		p.mu.Unlock()
-
 	case *corev1.Event_RoomUnarchived:
-		p.mu.Lock()
 		if entry := p.rooms[e.RoomUnarchived.GetRoomId()]; entry != nil {
 			entry.archived = false
 		}
-		p.mu.Unlock()
-
 	case *corev1.Event_RoomDeleted:
-		p.mu.Lock()
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
-		p.mu.Unlock()
 	}
 	return nil
 }
-
-// Snapshot implements events.Projection (deferred per ADR-033).
-func (p *RoomCatalogProjection) Snapshot() ([]byte, error) { return nil, nil }
-
-// Restore implements events.Projection (deferred per ADR-033).
-func (p *RoomCatalogProjection) Restore(_ []byte) error { return nil }
 
 // Get returns the room's metadata, or (nil, false) if no such room
 // has been projected. The returned proto is a fresh value; callers
 // may mutate it freely.
 func (p *RoomCatalogProjection) Get(roomID string) (*corev1.Room, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	entry, ok := p.rooms[roomID]
 	if !ok {
 		return nil, false
@@ -122,8 +101,8 @@ func (p *RoomCatalogProjection) Get(roomID string) (*corev1.Room, bool) {
 
 // Exists reports whether the room is present in the catalog.
 func (p *RoomCatalogProjection) Exists(roomID string) bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	_, ok := p.rooms[roomID]
 	return ok
 }
@@ -132,8 +111,8 @@ func (p *RoomCatalogProjection) Exists(roomID string) bool {
 // unspecified; the caller sorts / joins with grouping info as needed.
 // The returned protos are fresh values.
 func (p *RoomCatalogProjection) AllByKind(kind corev1.RoomKind) []*corev1.Room {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	out := make([]*corev1.Room, 0)
 	for id, entry := range p.rooms {
 		if entry.kind == kind {
@@ -146,8 +125,8 @@ func (p *RoomCatalogProjection) AllByKind(kind corev1.RoomKind) []*corev1.Room {
 // Count returns the number of rooms in the catalog. Useful for
 // admin/diagnostic surfaces.
 func (p *RoomCatalogProjection) Count() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	return len(p.rooms)
 }
 
@@ -164,8 +143,8 @@ func (p *RoomCatalogProjection) FindByName(name string) string {
 	if target == "" {
 		return ""
 	}
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	for id, entry := range p.rooms {
 		if entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
 			continue

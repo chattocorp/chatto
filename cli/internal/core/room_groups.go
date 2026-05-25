@@ -67,12 +67,8 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 			},
 		},
 	})
-	createdSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(group.Id).Subject(), createdEvent)
-	if err != nil {
+	if _, err := c.RoomGroupsProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupSubject(group.Id), createdEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomGroupCreatedEvent: %w", err)
-	}
-	if err := c.RoomGroupsProjector.WaitForSeq(ctx, createdSeq); err != nil {
-		return nil, fmt.Errorf("wait for groups projection: %w", err)
 	}
 
 	// Append the new group to the layout ordering. Best-effort: if
@@ -109,12 +105,8 @@ func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name
 			},
 		},
 	})
-	updatedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), updatedEvent)
-	if err != nil {
+	if _, err := c.RoomGroupsProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupSubject(groupID), updatedEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomGroupUpdatedEvent: %w", err)
-	}
-	if err := c.RoomGroupsProjector.WaitForSeq(ctx, updatedSeq); err != nil {
-		return nil, fmt.Errorf("wait for groups projection: %w", err)
 	}
 
 	c.logger.Info("Updated room group", "group_id", groupID, "name", name, "actor_id", actorID)
@@ -155,12 +147,8 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 			},
 		},
 	})
-	deletedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), deletedEvent)
-	if err != nil {
+	if _, err := c.RoomGroupsProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupSubject(groupID), deletedEvent); err != nil {
 		return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
-	}
-	if err := c.RoomGroupsProjector.WaitForSeq(ctx, deletedSeq); err != nil {
-		return fmt.Errorf("wait for groups projection: %w", err)
 	}
 
 	if err := c.removeGroupFromLayout(ctx, actorID, groupID); err != nil {
@@ -219,12 +207,12 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 			},
 		})
 		entries = append(entries, events.BatchEntry{
-			Subject: events.GroupAggregate(sourceGroupID).Subject(),
+			Subject: events.GroupSubject(sourceGroupID),
 			Event:   removed,
 		})
 	}
 	entries = append(entries, events.BatchEntry{
-		Subject: events.GroupAggregate(targetGroupID).Subject(),
+		Subject: events.GroupSubject(targetGroupID),
 		Event:   added,
 	})
 
@@ -318,12 +306,8 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 			},
 		},
 	})
-	reorderedSeq, err := c.EventPublisher.Append(ctx, events.GroupAggregate(groupID).Subject(), reorderedEvent)
-	if err != nil {
+	if _, err := c.RoomGroupsProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupSubject(groupID), reorderedEvent); err != nil {
 		return fmt.Errorf("publish RoomsInGroupReorderedEvent: %w", err)
-	}
-	if err := c.RoomGroupsProjector.WaitForSeq(ctx, reorderedSeq); err != nil {
-		return fmt.Errorf("wait for groups projection: %w", err)
 	}
 
 	c.logger.Info("Reordered rooms in group", "group_id", groupID, "actor_id", actorID)
@@ -398,12 +382,8 @@ func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, 
 			},
 		},
 	})
-	seq, err := c.EventPublisher.Append(ctx, events.LayoutAggregate().Subject(), event)
-	if err != nil {
+	if _, err := c.RoomLayoutProjector.AppendAndWait(ctx, c.EventPublisher, events.LayoutSubject(), event); err != nil {
 		return fmt.Errorf("publish RoomGroupsReorderedEvent: %w", err)
-	}
-	if err := c.RoomLayoutProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for layout projection: %w", err)
 	}
 	return nil
 }

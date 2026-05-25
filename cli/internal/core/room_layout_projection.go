@@ -2,7 +2,6 @@ package core
 
 import (
 	"slices"
-	"sync"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -21,7 +20,7 @@ import (
 // why this projection doesn't need to observe group create/delete
 // events; it only cares about explicit reorders.
 type RoomLayoutProjection struct {
-	mu       sync.RWMutex
+	events.MemoryProjection
 	groupIDs []string
 }
 
@@ -45,25 +44,19 @@ func (p *RoomLayoutProjection) Apply(event *corev1.Event, _ uint64) error {
 		return nil
 	}
 	if e, ok := event.GetEvent().(*corev1.Event_RoomGroupsReordered); ok {
-		p.mu.Lock()
+		p.Lock()
 		p.groupIDs = slices.Clone(e.RoomGroupsReordered.GetGroupIds())
-		p.mu.Unlock()
+		p.Unlock()
 	}
 	return nil
 }
-
-// Snapshot implements events.Projection (deferred per ADR-033).
-func (p *RoomLayoutProjection) Snapshot() ([]byte, error) { return nil, nil }
-
-// Restore implements events.Projection (deferred per ADR-033).
-func (p *RoomLayoutProjection) Restore(_ []byte) error { return nil }
 
 // Order returns the current explicit ordering of group IDs. May
 // reference IDs of groups that have since been deleted; the
 // reconciler in ListRoomGroupsOrdered drops those before returning
 // to callers.
 func (p *RoomLayoutProjection) Order() []string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.RLock()
+	defer p.RUnlock()
 	return slices.Clone(p.groupIDs)
 }

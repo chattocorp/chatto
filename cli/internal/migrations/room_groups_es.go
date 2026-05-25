@@ -72,7 +72,7 @@ func MigrateRoomGroupsToES(
 			continue
 		}
 
-		subject := events.GroupAggregate(group.GetId()).Subject()
+		subject := events.GroupSubject(group.GetId())
 		createdAt := timestamppb.New(entry.Created())
 
 		created := &corev1.Event{

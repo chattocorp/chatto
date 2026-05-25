@@ -127,13 +127,8 @@ func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *confi
 		},
 	})
 
-	seq, err := cm.publisher.Append(ctx, events.ConfigAggregate().Subject(), event)
-	if err != nil {
+	if _, err := cm.projector.AppendAndWait(ctx, cm.publisher, events.ConfigSubject(), event); err != nil {
 		return fmt.Errorf("publish ServerConfigChangedEvent: %w", err)
-	}
-
-	if err := cm.projector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for projection: %w", err)
 	}
 	return nil
 }

@@ -13,6 +13,28 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// MemoryProjection is an embeddable base for projections whose state
+// lives entirely in process memory. It contributes a sync.RWMutex that
+// subclasses use for read/write coordination, plus no-op
+// Snapshot/Restore methods that satisfy the Projection interface until
+// snapshot orchestration (ADR-033) ships.
+//
+// Embed by value — the zero mutex is ready to use. Subclasses still
+// implement Subjects() and Apply(). Future non-memory projection types
+// (KV-backed, file-backed) would have their own embed-friendly base.
+type MemoryProjection struct {
+	sync.RWMutex
+}
+
+// Snapshot implements Projection (no-op until ADR-033 snapshot
+// orchestration ships; the Projector treats (nil, nil) as "skip
+// snapshot persistence").
+func (*MemoryProjection) Snapshot() ([]byte, error) { return nil, nil }
+
+// Restore implements Projection. Called once before Run with
+// nil/empty until snapshot orchestration ships.
+func (*MemoryProjection) Restore(_ []byte) error { return nil }
+
 // Projection is the read side. Implementations are in-memory Go data
 // structures that consume events from a subject filter and serve reads.
 //
@@ -96,6 +118,28 @@ func (p *Projector) Started() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.started
+}
+
+// AppendAndWait publishes an event via pub and blocks until this
+// projection has applied it. This is the canonical "publish-then
+// read-your-writes" primitive — every caller that needs to read its
+// own write through the projection should use this rather than
+// hand-rolling Append + WaitForSeq.
+//
+// Returns the stream sequence the publish landed at, plus any error.
+// On a publish failure the sequence is 0; on a wait failure (most
+// commonly ctx cancellation) the sequence is non-zero and the event
+// has already been durably published — only the local projection
+// hasn't caught up.
+func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, subject string, event *corev1.Event) (uint64, error) {
+	seq, err := pub.Append(ctx, subject, event)
+	if err != nil {
+		return 0, err
+	}
+	if err := p.WaitForSeq(ctx, seq); err != nil {
+		return seq, err
+	}
+	return seq, nil
 }
 
 // WaitForSeq blocks until LastSeq() >= seq or ctx is done.
