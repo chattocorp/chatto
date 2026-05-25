@@ -1,5 +1,7 @@
 [tools]
+buf = "latest"
 go = "1.26.2"
+"go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.11"
 node = "22"
 watchexec = "latest"
 

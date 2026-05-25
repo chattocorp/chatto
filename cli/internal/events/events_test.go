@@ -12,6 +12,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -557,6 +558,94 @@ func TestSubjectHelpers(t *testing.T) {
 			}
 		}
 	})
+}
+
+// ============================================================================
+// Message events (issue #597 phase 1 — wire format lockdown)
+// ============================================================================
+
+// TestEventTypeOf_MessageEvents locks in the subject-token mapping for the
+// three message-related event variants. These tokens become part of NATS
+// subjects (evt.room.{R}.message_*) and persist on disk — once shipped,
+// renaming requires a stream migration.
+func TestEventTypeOf_MessageEvents(t *testing.T) {
+	cases := []struct {
+		name  string
+		event *corev1.Event
+		want  string
+	}{
+		{
+			name: "MessagePosted",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessagePosted{
+					MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+				},
+			},
+			want: EventMessagePosted,
+		},
+		{
+			name: "MessageEdited",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessageEdited{
+					MessageEdited: &corev1.MessageEditedEvent{RoomId: "R1", EventId: "M1"},
+				},
+			},
+			want: EventMessageEdited,
+		},
+		{
+			name: "MessageRetracted",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessageRetracted{
+					MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"},
+				},
+			},
+			want: EventMessageRetracted,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := EventTypeOf(c.event); got != c.want {
+				t.Errorf("EventTypeOf = %q, want %q", got, c.want)
+			}
+			subject := RoomAggregate("ROOM123").SubjectFor(c.event)
+			wantSubject := "evt.room.ROOM123." + c.want
+			if subject != wantSubject {
+				t.Errorf("SubjectFor = %q, want %q", subject, wantSubject)
+			}
+		})
+	}
+}
+
+// TestMessagePostedEvent_BodyBackwardCompat verifies that a MessagePostedEvent
+// marshaled before the `body` field existed (i.e. only `message_body_id`
+// populated) still round-trips cleanly under the new schema. Proto3 makes
+// this automatic — the test exists to make the intent explicit and to fail
+// loudly if anyone reuses field number 9 or makes `body` required.
+func TestMessagePostedEvent_BodyBackwardCompat(t *testing.T) {
+	// Construct an event as the legacy publisher would: message_body_id
+	// set, body unset.
+	legacy := &corev1.MessagePostedEvent{
+		RoomId:        "R1",
+		MessageBodyId: "U1.M1",
+		EventId:       "M1",
+	}
+
+	bytes, err := proto.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal legacy: %v", err)
+	}
+
+	var decoded corev1.MessagePostedEvent
+	if err := proto.Unmarshal(bytes, &decoded); err != nil {
+		t.Fatalf("unmarshal legacy under new schema: %v", err)
+	}
+
+	if decoded.GetMessageBodyId() != "U1.M1" {
+		t.Errorf("MessageBodyId roundtrip mismatch: got %q", decoded.GetMessageBodyId())
+	}
+	if decoded.GetBody() != nil {
+		t.Errorf("expected Body to be nil for legacy payload, got %+v", decoded.GetBody())
+	}
 }
 
 // ============================================================================

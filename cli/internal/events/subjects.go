@@ -52,6 +52,17 @@ const (
 	EventUserJoinedRoom = "user_joined"
 	EventUserLeftRoom   = "user_left"
 
+	// Messages (also under the room aggregate — every message event for
+	// a room lives under evt.room.{R}.message_*, so a subscriber on
+	// evt.room.{R}.> still receives the complete per-room timeline).
+	// See issue #597. The "edited" and "retracted" tokens match the
+	// MessageEditedEvent / MessageRetractedEvent proto names; if those
+	// proto names are renamed in a future cleanup, subject tokens can
+	// stay as-is (subjects are stable once written).
+	EventMessagePosted    = "message_posted"
+	EventMessageEdited    = "message_edited"
+	EventMessageRetracted = "message_retracted"
+
 	// Group aggregate
 	EventRoomGroupCreated      = "group_created"
 	EventRoomGroupUpdated      = "group_updated"
@@ -92,6 +103,13 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserJoinedRoom
 	case *corev1.Event_UserLeftRoom:
 		return EventUserLeftRoom
+
+	case *corev1.Event_MessagePosted:
+		return EventMessagePosted
+	case *corev1.Event_MessageEdited:
+		return EventMessageEdited
+	case *corev1.Event_MessageRetracted:
+		return EventMessageRetracted
 
 	case *corev1.Event_RoomGroupCreated:
 		return EventRoomGroupCreated
