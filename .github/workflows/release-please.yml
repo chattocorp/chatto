@@ -26,7 +26,13 @@ on:
   push:
     branches:
       - main
-      - 'release-*'
+      # Maintenance branches like `release-0.0.x`. The leading digit class is
+      # important: a bare `release-*` glob also matches release-please's own
+      # PR branches (`release-please--branches--...`), which causes a runaway
+      # loop — each push to a PR branch re-triggers the workflow with that
+      # branch as `target-branch`, spawning a new nested PR. See incident on
+      # 2026-05-25 (PRs #618–#621).
+      - 'release-[0-9]*'
 
 permissions:
   contents: write
