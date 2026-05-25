@@ -367,8 +367,23 @@ func newBatchID() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-// lastSubjectSeq returns the current last sequence for a subject, or 0 if
-// no messages exist for it.
+// LastSubjectSeq returns the stream's current last sequence for a
+// subject (or wildcard subject filter), or 0 if no matching messages
+// exist. Use this to source the expected-seq for wildcard-filter OCC
+// (`Nats-Expected-Last-Subject-Sequence-Subject`) — reading directly
+// from the stream avoids the trap of relying on a projector's LastSeq
+// whose filter scope is narrower than the OCC filter (the projector
+// wouldn't advance on events outside its filter, so its LastSeq would
+// fall permanently behind the stream's actual filter-tail seq, and
+// every OCC retry would conflict on the same stale value).
+//
+// Backed by `GetLastMsgForSubject`, which accepts NATS wildcards.
+func (p *Publisher) LastSubjectSeq(ctx context.Context, subjectOrFilter string) (uint64, error) {
+	return p.lastSubjectSeq(ctx, subjectOrFilter)
+}
+
+// lastSubjectSeq returns the current last sequence for a subject (or
+// wildcard subject filter), or 0 if no matching messages exist.
 func (p *Publisher) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {
 	msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
 	if err == nil {

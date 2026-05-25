@@ -243,43 +243,47 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 // enforced via JetStream wildcard OCC against `evt.room.>`.
 //
 // The flow per attempt:
-//  1. Read the room-catalog projector's LastSeq — this is the
-//     OCC token.
-//  2. Check the catalog for the desired `name`; if any other room
+//  1. Check the catalog for the desired `name`; if any other room
 //     holds it, return ErrRoomNameExists immediately.
-//  3. Publish the event with the OCC token. JetStream rejects if any
-//     evt.room.* message has advanced past the token (i.e. some other
-//     room event landed in the window between read and publish).
-//  4. On ErrConflict, backoff briefly to let the local projector
-//     consume the foreign event, then retry from step 1. Eventually
-//     either the projection shows the name as taken (→ ErrRoomNameExists)
-//     or our publish lands.
+//  2. Read the stream's actual last seq for the OCC filter directly
+//     (NOT from the catalog projector — that subscribes to a narrower
+//     set of subjects than `evt.room.>` and its LastSeq would fall
+//     permanently behind, deterministically failing every retry on a
+//     server that's had any joins/leaves since the last catalog write).
+//  3. Publish the event with the freshly-read filter seq. JetStream
+//     rejects with ErrConflict if any evt.room.> message landed in the
+//     read-publish window — backoff briefly and retry.
 //
 // excludeRoomID is the ID to exclude from the uniqueness check —
 // used by UpdateRoom so a room can keep a name it already holds
 // (e.g. case-only changes, or no-op renames).
 func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name string, event *corev1.Event, excludeRoomID string) (uint64, error) {
-	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
-		filterSeq := c.RoomCatalogProjector.LastSeq()
+	// Determine publish subject from the event payload. Room events
+	// all target the per-room aggregate subject; this doesn't change
+	// across retries.
+	var roomID string
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_RoomCreated:
+		roomID = e.RoomCreated.GetRoomId()
+	case *corev1.Event_RoomUpdated:
+		roomID = e.RoomUpdated.GetRoomId()
+	default:
+		return 0, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
+	}
+	publishSubject := events.RoomAggregate(roomID).SubjectFor(event)
+	occFilter := events.RoomSubjectFilter()
 
+	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
 		if owner := c.RoomCatalog.FindByName(name); owner != "" && owner != excludeRoomID {
 			return 0, ErrRoomNameExists
 		}
 
-		// Determine publish subject from the event payload. Room
-		// events all target the per-room aggregate subject.
-		var roomID string
-		switch e := event.GetEvent().(type) {
-		case *corev1.Event_RoomCreated:
-			roomID = e.RoomCreated.GetRoomId()
-		case *corev1.Event_RoomUpdated:
-			roomID = e.RoomUpdated.GetRoomId()
-		default:
-			return 0, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, occFilter)
+		if err != nil {
+			return 0, fmt.Errorf("read OCC filter seq: %w", err)
 		}
-		publishSubject := events.RoomAggregate(roomID).SubjectFor(event)
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, events.RoomSubjectFilter(), filterSeq)
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, filterSeq)
 		if err == nil {
 			return seq, nil
 		}
@@ -287,9 +291,9 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 			return 0, err
 		}
 
-		// Filter advanced under us. Backoff a few ms — the local
-		// projector consumer will apply the foreign event in that
-		// window — then retry the whole read-check-publish dance.
+		// Filter advanced under us between LastSubjectSeq and the
+		// publish. Backoff briefly and retry — the next attempt's
+		// fresh LastSubjectSeq read will see the landed event.
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
