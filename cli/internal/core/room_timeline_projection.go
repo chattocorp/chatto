@@ -32,6 +32,15 @@ type RoomTimelineProjection struct {
 	// embedded body / not yet projected".
 	latestBody     map[string]*corev1.MessageBody
 	retractedFlags map[string]struct{}
+	// echoLinks maps an original message's event_id to the event_ids
+	// of any echoes pointing at it. Maintained as MessagePostedEvents
+	// with EchoOfEventId arrive. Used by EditMessage / DeleteMessage
+	// to fan mutations across linked messages — pre-cutover the
+	// echo + original shared a messageBodyId, so an edit on either
+	// updated both via the shared SERVER_BODIES entry; post-cutover
+	// each has its own embedded body and we need explicit
+	// propagation.
+	echoLinks map[string][]string
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
@@ -50,6 +59,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byEventID:      make(map[string]*TimelineEntry),
 		latestBody:     make(map[string]*corev1.MessageBody),
 		retractedFlags: make(map[string]struct{}),
+		echoLinks:      make(map[string][]string),
 	}
 }
 
@@ -104,6 +114,11 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		if targetID != "" {
 			p.latestBody[targetID] = ev.MessagePosted.GetBody()
 			delete(p.retractedFlags, targetID)
+		}
+		// Track echo links so edits / retracts on either side can fan
+		// out to the other.
+		if origID := ev.MessagePosted.GetEchoOfEventId(); origID != "" && targetID != "" {
+			p.echoLinks[origID] = append(p.echoLinks[origID], targetID)
 		}
 	case *corev1.Event_MessageEdited:
 		targetID := ev.MessageEdited.GetEventId()
@@ -194,6 +209,49 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 		return b, false, true
 	}
 	return nil, false, true
+}
+
+// LinkedEventIDs returns the set of event_ids that an edit / retract
+// targeting `eventID` should also be applied to: any echoes pointing
+// at `eventID`, plus the original message that `eventID` is an echo
+// of (if any). Does NOT include `eventID` itself — the caller emits
+// the mutation for the target separately.
+//
+// Used by EditMessage / DeleteMessage to preserve the legacy "edit
+// the echo, the original updates too (and vice versa)" semantic
+// after the shared-messageBodyId mechanism was retired in #614.
+func (p *RoomTimelineProjection) LinkedEventIDs(eventID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	if eventID == "" {
+		return nil
+	}
+	linked := make([]string, 0, 2)
+
+	// Forward: echoes pointing at this event.
+	for _, echoID := range p.echoLinks[eventID] {
+		if echoID != eventID {
+			linked = append(linked, echoID)
+		}
+	}
+
+	// Backward: if this event IS an echo, include the original.
+	if entry, ok := p.byEventID[eventID]; ok {
+		if posted := entry.Event.GetMessagePosted(); posted != nil {
+			if origID := posted.GetEchoOfEventId(); origID != "" && origID != eventID {
+				linked = append(linked, origID)
+				// Also include any sibling echoes of the same original
+				// (rare, but possible if "also send to channel" was
+				// invoked twice — keep semantics consistent).
+				for _, siblingID := range p.echoLinks[origID] {
+					if siblingID != eventID && siblingID != origID {
+						linked = append(linked, siblingID)
+					}
+				}
+			}
+		}
+	}
+	return linked
 }
 
 // LastVisibleRoomEntry walks the room's timeline newest-first and

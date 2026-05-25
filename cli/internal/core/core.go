@@ -1563,7 +1563,16 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 	if strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) && c.RoomTimelineProjector != nil {
 		if seqStr := msg.Header.Get("Nats-Sequence"); seqStr != "" {
 			if seq, err := strconv.ParseUint(seqStr, 10, 64); err == nil {
-				waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				// Bounded wait: the projector usually catches up in
+				// microseconds. A long timeout here serialises the
+				// subscriber's message loop and starves downstream
+				// events, which under suite-load + multi-client tests
+				// shows up as flake. 250ms is plenty of slack for
+				// normal operation; if the projector is more than
+				// 250ms behind, ship the event anyway and accept the
+				// brief "Message deleted" flash over jamming the live
+				// channel.
+				waitCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 				if werr := c.RoomTimelineProjector.WaitForSeq(waitCtx, seq); werr != nil {
 					c.logger.Debug("projection wait timed out for live event", "subject", msg.Subject, "seq", seq, "error", werr)
 				}

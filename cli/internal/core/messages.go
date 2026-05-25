@@ -424,17 +424,17 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// Pure append for the v1 model — last-writer-wins on the per-room
 	// retract subject. The projection ignores duplicates by event_id,
 	// so retrying after a network glitch is safe.
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageRetracted{
-			MessageRetracted: &corev1.MessageRetractedEvent{
-				RoomId:  roomID,
-				EventId: eventID,
-			},
-		},
-	})
 	agg := events.RoomAggregate(roomID)
-	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
-		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
+	if err := c.publishMessageRetract(ctx, actorID, agg, roomID, eventID); err != nil {
+		return err
+	}
+	// Fan out the retract to echoes / original (legacy "delete one,
+	// both go" semantic).
+	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
+		if err := c.publishMessageRetract(ctx, actorID, agg, roomID, linkedID); err != nil {
+			c.logger.Warn("Failed to propagate retract to linked message",
+				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
+		}
 	}
 
 	// Attachments are referenced by the (now-tombstoned) message but
@@ -526,21 +526,57 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	updated.EncryptionNonce = encrypted.Nonce
 	updated.UpdatedAt = timestamppb.Now()
 
+	agg := events.RoomAggregate(roomID)
+	if err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, updated); err != nil {
+		return err
+	}
+	// Fan out to echoes (and to the original if this IS an echo) so
+	// the legacy "edit one, both update" semantic is preserved.
+	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
+		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
+		if err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, linkedBody); err != nil {
+			c.logger.Warn("Failed to propagate edit to linked message",
+				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
+		}
+	}
+
+	c.logger.Info("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
+	return nil
+}
+
+// publishMessageRetract emits a single MessageRetractedEvent.
+// Factored out so DeleteMessage can fan to linked messages.
+func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, agg events.Aggregate, roomID, eventID string) error {
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageRetracted{
+			MessageRetracted: &corev1.MessageRetractedEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+			},
+		},
+	})
+	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
+	}
+	return nil
+}
+
+// publishMessageEdit emits a single MessageEditedEvent. Factored
+// out so EditMessage / editEmbeddedBody can fan the same payload to
+// linked messages without duplicating the publish boilerplate.
+func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageEdited{
 			MessageEdited: &corev1.MessageEditedEvent{
 				RoomId:  roomID,
 				EventId: eventID,
-				Body:    updated,
+				Body:    body,
 			},
 		},
 	})
-	agg := events.RoomAggregate(roomID)
 	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageEditedEvent: %w", err)
 	}
-
-	c.logger.Info("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
 	return nil
 }
 
@@ -582,18 +618,16 @@ func (c *ChattoCore) editEmbeddedBody(
 	}
 	updated.UpdatedAt = timestamppb.Now()
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageEdited{
-			MessageEdited: &corev1.MessageEditedEvent{
-				RoomId:  roomID,
-				EventId: eventID,
-				Body:    updated,
-			},
-		},
-	})
 	agg := events.RoomAggregate(roomID)
-	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
-		return fmt.Errorf("publish MessageEditedEvent: %w", err)
+	if err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, updated); err != nil {
+		return err
+	}
+	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
+		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
+		if err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, linkedBody); err != nil {
+			c.logger.Warn("Failed to propagate partial edit to linked message",
+				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
+		}
 	}
 	return nil
 }
