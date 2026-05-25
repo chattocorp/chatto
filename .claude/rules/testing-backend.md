@@ -10,6 +10,22 @@ Patterns and gotchas for Go tests in `cli/`. See `testing-frontend.md` for Vites
 
 Always use `mise test-cli`, **not** `go test` directly. The `http_server` package requires `-tags test_endpoints` to enable mock email endpoints used by tests. Running without this tag causes test failures with 404 errors on test endpoints like `/auth/test/last-email`.
 
+## Iterate with targeted runs; reserve `mise test-cli` for checkpoints
+
+The full suite takes 90–180s (tracked in #625). While iterating on a change, **don't run the whole suite as your feedback loop** — it wastes wall-clock time and buries real signal in noise. Instead:
+
+- Drill into the specific package and test you care about:
+  ```
+  mise x -- go test ./internal/<pkg> -run TestX -timeout 30s
+  ```
+  Multiple tests via regex: `-run "TestX|TestY"`.
+- **Always set `-timeout`.** A hung test will otherwise peg the session for the Go default of 10 minutes. 30s for unit-ish tests, 60s for ones that exercise live-event delivery.
+- On a suspected flake, retry with `-count=3 -timeout 60s` to confirm flake-vs-bug before reading the failure as definitive.
+- Reserve `mise test-cli` for "I think I'm done with this chunk" checkpoints, not feedback-loop iteration.
+- Inside `cli/`, you can call `mise x -- go test …` directly; outside, prefix with `cd cli && …` or use absolute paths.
+
+The same goes for cross-package work: prefer `mise x -- go test ./internal/core/ ./internal/graph/ -run TestX -timeout 60s` over the whole suite when you're chasing a specific change's blast radius.
+
 ## Use Table-Driven Tests Where Possible
 
 Idiomatic Go: a `struct { name string; in X; want Y }` slice with a single `t.Run(tc.name, ...)` loop. Easier to read, easier to extend.
