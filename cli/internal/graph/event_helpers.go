@@ -53,6 +53,25 @@ func unwrapEvent(event *corev1.Event) any {
 	case *corev1.Event_MessageDeleted:
 		return e.MessageDeleted
 
+	// New EVT-stream message-mutation events from #597 phase 5+.
+	// During the migration we surface them through the existing
+	// MessageUpdatedEvent / MessageDeletedEvent GraphQL types so
+	// frontend handlers (which only care about "this messageEventId
+	// changed, go refetch it") keep working without a schema bump.
+	// Both legacy types carry just roomId + messageEventId, which
+	// we have on the new payloads.
+	case *corev1.Event_MessageEdited:
+		return &corev1.MessageUpdatedEvent{
+			RoomId:         e.MessageEdited.GetRoomId(),
+			MessageEventId: e.MessageEdited.GetEventId(),
+			EventId:        event.Id,
+		}
+	case *corev1.Event_MessageRetracted:
+		return &corev1.MessageDeletedEvent{
+			RoomId:         e.MessageRetracted.GetRoomId(),
+			MessageEventId: e.MessageRetracted.GetEventId(),
+		}
+
 	// ---- Reactions ----
 	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded
