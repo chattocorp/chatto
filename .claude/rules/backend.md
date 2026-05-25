@@ -4,6 +4,19 @@ paths: ["cli/**"]
 
 # Backend Development
 
+## ⚠️ DEPLOYMENT TOPOLOGY — READ THIS BEFORE DESIGNING ANY MUTATION ⚠️
+
+**Chatto is designed to run as multiple processes in parallel.** It can also run as a single process (embedded NATS, dev mode), but multi-process is the deployment model that constraints must satisfy. Implications you MUST internalise:
+
+- **Never rely on process-local serialization for correctness.** In-process mutexes, single-goroutine writers, or "the manager owns this" patterns are NOT sufficient to enforce cross-cluster invariants. Two replicas can both pass any in-process check.
+- **Atomicity and uniqueness MUST come from NATS primitives.** Use JetStream OCC (`Nats-Expected-Last-Sequence`, `Nats-Expected-Last-Subject-Sequence`, optionally with `Nats-Expected-Last-Subject-Sequence-Subject` for wildcard filters via `WithExpectLastSequenceForSubject(seq, "subject.filter.>")`) or KV's atomic `Create` / revision-based `Update`. These are cluster-global.
+- **Any read can race with a concurrent write from another process.** A projection read followed by a publish is a TOCTOU window; close it with OCC, not with a lock.
+- **No "single-writer" assumptions.** Every aggregate may have N concurrent writers across replicas. Design for that.
+
+## ⚠️ NATS IS THE PRIMARY DATA STORE — NOT A MESSAGE BUS ⚠️
+
+NATS JetStream KV buckets and event streams hold the source-of-truth state for Chatto. NATS is not "just" a pubsub layer, and it is not an "eventually-consistent cache in front of a real database." There is no other database. Treat NATS reads/writes with the same care you would treat a Postgres transaction.
+
 ## Architecture
 
 - `ChattoCore` handles all domain operations (spaces, users, rooms, messages)

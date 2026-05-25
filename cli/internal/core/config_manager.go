@@ -6,55 +6,47 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-
 	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ErrConfigConflict is returned when a config update fails due to
-// concurrent modification. With ADR-035 dual-write the OCC scope is the
-// EVT event publish; ErrConfigConflict surfaces when retries on
-// the publish path exhaust without success. Callers can retry the whole
-// UpdateServerConfigFunc call.
+// concurrent modification. The OCC scope is the EVT event publish;
+// ErrConfigConflict surfaces when retries on the publish path exhaust
+// without success. Callers can retry the whole UpdateServerConfigFunc
+// call.
 var ErrConfigConflict = errors.New("config was modified by another request")
 
 // ConfigManager handles runtime server configuration.
 //
-// ADR-035 phase 4/5: writes are dual-write (EVT event publish +
-// legacy INSTANCE_CONFIG KV write + WaitForSeq for read-your-writes);
-// reads come from the in-memory ServerConfigProjection. The legacy KV
-// is still kept current so backups stay coherent and so any caller that
-// hasn't migrated yet can still read it directly.
+// ADR-035 phase 6: writes are event-only (publish to EVT +
+// WaitForSeq for read-your-writes). Reads come from the in-memory
+// ServerConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
+// kept populated from prior dual-write history and the boot-time
+// MigrateServerConfigToES backfill, but is not written by this code
+// anymore. It exists solely to allow a rollback to a pre-phase-6
+// binary to boot against existing data.
 type ConfigManager struct {
-	kv         jetstream.KeyValue
 	publisher  *events.Publisher
 	projector  *events.Projector
 	projection *ServerConfigProjection
 }
 
 // NewConfigManager creates a new ConfigManager. publisher / projector /
-// projection are required for dual-write and projection-backed reads.
+// projection are required for event-only writes and projection-backed
+// reads.
 func NewConfigManager(
-	kv jetstream.KeyValue,
 	publisher *events.Publisher,
 	projector *events.Projector,
 	projection *ServerConfigProjection,
 ) *ConfigManager {
 	return &ConfigManager{
-		kv:         kv,
 		publisher:  publisher,
 		projector:  projector,
 		projection: projection,
 	}
 }
-
-// KV key constants for config sections
-const (
-	configKeyInstance = "config.instance"
-)
 
 // =============================================================================
 // Instance Config
@@ -74,15 +66,14 @@ func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerCon
 	return cfg, isConfigured, nil
 }
 
-// SetServerConfig stores the server configuration via dual-write: emit
-// a ServerConfigChangedEvent first, then mirror to INSTANCE_CONFIG KV,
-// then wait for the projection to apply.
+// SetServerConfig stores the server configuration by publishing a
+// ServerConfigChangedEvent and waiting for the projection to apply.
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
 // migration code and tests that bypass the compose step.
 func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
-	return cm.publishAndMirror(ctx, actorID, cfg)
+	return cm.publish(ctx, actorID, cfg)
 }
 
 // UpdateServerConfigFunc atomically updates the server config using
@@ -110,7 +101,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 		return nil, fmt.Errorf("update function returned nil config")
 	}
 
-	if err := cm.publishAndMirror(ctx, actorID, updated); err != nil {
+	if err := cm.publish(ctx, actorID, updated); err != nil {
 		if errors.Is(err, events.ErrConflict) {
 			return nil, ErrConfigConflict
 		}
@@ -119,11 +110,11 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 	return updated, nil
 }
 
-// publishAndMirror is the shared dual-write core. Publishes a
-// ServerConfigChangedEvent (Append handles OCC + retries), mirrors to
-// INSTANCE_CONFIG KV, then WaitForSeq so the caller's next projection
-// read reflects the write.
-func (cm *ConfigManager) publishAndMirror(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
+// publish writes the server config by emitting a
+// ServerConfigChangedEvent on the config aggregate and waiting for the
+// projection to apply, giving the caller read-your-writes. OCC + retry
+// live inside publisher.Append.
+func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
 	if cm.publisher == nil || cm.projector == nil {
 		return fmt.Errorf("config manager: event publisher/projector not configured")
 	}
@@ -139,14 +130,6 @@ func (cm *ConfigManager) publishAndMirror(ctx context.Context, actorID string, c
 	seq, err := cm.publisher.Append(ctx, events.ConfigAggregate().Subject(), event)
 	if err != nil {
 		return fmt.Errorf("publish ServerConfigChangedEvent: %w", err)
-	}
-
-	data, err := proto.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("marshal server config for KV mirror: %w", err)
-	}
-	if _, err := cm.kv.Put(ctx, configKeyInstance, data); err != nil {
-		return fmt.Errorf("mirror server config to KV: %w", err)
 	}
 
 	if err := cm.projector.WaitForSeq(ctx, seq); err != nil {

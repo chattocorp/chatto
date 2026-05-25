@@ -24,9 +24,21 @@ Migrate one aggregate at a time. Each aggregate moves through the same seven-pha
 4. **Enable dual-write.** Every mutation that touched the aggregate's KV bucket now publishes the event first, then writes KV. Publish-event-first ensures the worst-case partial failure (event without KV mirror) matches the post-migration steady state.
 5. **Cut over reads.** Read paths (GraphQL resolvers, internal authz helpers, etc.) switch from KV to the projection. Writes still dual-write.
 6. **Stop writing KV.** The mutation becomes event-only. KV is effectively dead but not yet removed.
-7. **Decommission.** Delete the KV keys, the dual-write code, and the migration command for this aggregate.
+7. **Decommission.** Delete the KV keys, the dual-write code, and the migration command for this aggregate. **DEFERRED — see "Phase 7 on hold" below.**
 
 Each phase is one or a small number of PRs. Phases 1–3 can land independently of any user-visible change. Phases 4 and 6 are the two real gates (entering dual-write; entering event-only). Phase 5 is the cutover and is the place to revert from if anything's wrong.
+
+### Phase 7 on hold (until full ES shape lands)
+
+Phase 7 is **deferred for every aggregate** until the full set of aggregates has been migrated through phase 6 and the new ES system's shape has settled. Current end-state per aggregate is phase 6: event-only writes, KV bucket kept populated and quiescent.
+
+Rationale:
+
+- **Rollback safety.** Keeping the legacy KV bucket populated (but not written to) means a rollback to a pre-phase-6 binary boots cleanly against the existing data — no recovery dance.
+- **Migrations stay live.** The boot-time migrators are what would let a fresh phase-5-or-earlier deployment ingest an ES-only state (or vice versa). Removing them in lockstep with KV deletion would block any future rollback.
+- **Interface review window.** Holding off on irreversible deletion lets us shape the new event/projection/manager APIs across all aggregates before committing to them. Once we've seen every aggregate land, we can revisit phase 7 as a single coordinated sweep.
+
+Phase 7 unblocks once: (a) every aggregate has reached phase 6, (b) the new system has burned in across at least one production cycle, and (c) we've agreed the projection and mutator APIs are stable.
 
 ### Why migrations run at boot, not as a CLI subcommand
 
@@ -86,7 +98,7 @@ If we hit a migration where this turns out to be the wrong call, we add the shad
 - **Per-aggregate cadence.** Each migration is roughly seven PRs. Many can land in parallel across aggregates once the framework stabilises.
 - **Two systems coexist for the duration.** The old `SERVER_EVENTS` stream, KV-as-source-of-truth code, and the new `EVT` stream all run side by side until the last aggregate is migrated. Test coverage spans both.
 - **No big-bang failure mode.** Each aggregate's cutover (phase 5) is independently revertable while the migration is in flight. After phase 6, revert requires a recovery path — but by that point the aggregate has burned in.
-- **Migration functions accumulate temporary surface.** Each aggregate's boot-migration call lives in `NewChattoCore` until phase 7. Removed in lockstep with each aggregate's decommission.
+- **Migration functions accumulate temporary surface.** Each aggregate's boot-migration call lives in `NewChattoCore` until phase 7. With phase 7 deferred indefinitely (see "Phase 7 on hold"), expect to carry the migration surface for the foreseeable future as the rollback-compatibility insurance policy.
 - **No divergence safety net at cutover.** Cutover relies on test coverage and (for high-risk aggregates) opt-in shadow reads. A latent projection bug could cause user-visible incorrectness. We accept this for migration velocity in alpha and revisit if any migration burns us.
 - **The framework matures through use.** Room membership shakes out the first version of the internal events package. Aggregates two through five will refine it; the remainder should be mechanical.
 - **Messages migrate last.** Highest volume, largest blast radius, and the aggregate that ADR-033's RAM win actually unlocks. Migrating it after the framework has been validated against five smaller aggregates is the intended discipline.

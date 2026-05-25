@@ -530,7 +530,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// ConfigManager owns server-config dual-writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
-	configMgr := NewConfigManager(storage.runtimeConfigKV, eventPublisher, serverConfigProjector, serverConfigProjection)
+	configMgr := NewConfigManager(eventPublisher, serverConfigProjector, serverConfigProjection)
 
 	core := &ChattoCore{
 		nc:                      nc,
