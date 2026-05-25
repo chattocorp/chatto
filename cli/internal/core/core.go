@@ -123,6 +123,24 @@ type ChattoCore struct {
 	// for WaitForSeq from layout writers.
 	RoomLayoutProjector *events.Projector
 
+	// RoomTimeline holds an append-only event log per room, derived
+	// from the full evt.room.> firehose (#597 phase 2). Source of
+	// truth for room timeline reads post-cutover.
+	RoomTimeline *RoomTimelineProjection
+
+	// RoomTimelineProjector runs the consumer for RoomTimeline.
+	// Exposed for WaitForSeq from message writers.
+	RoomTimelineProjector *events.Projector
+
+	// Threads holds an append-only event log per thread root,
+	// derived from the same evt.room.> firehose. Source of truth
+	// for thread-pane reads post-cutover.
+	Threads *ThreadProjection
+
+	// ThreadsProjector runs the consumer for Threads. Exposed for
+	// WaitForSeq from message writers that touch threads.
+	ThreadsProjector *events.Projector
+
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
 	// during NewChattoCore; Run iterates the slice. Adding a projector
@@ -535,6 +553,16 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomLayout := NewRoomLayoutProjection()
 	roomLayoutProjector := newProjector(roomLayout, "RoomLayoutProjector")
 
+	// Per-room event-log + per-thread event-log projections (#597
+	// phase 2). Both consume the full evt.room.> firehose; resolvers
+	// do all filtering and rendering at query time. v1 shape — we
+	// iterate significantly on this once we observe read patterns.
+	roomTimeline := NewRoomTimelineProjection()
+	roomTimelineProjector := newProjector(roomTimeline, "RoomTimelineProjector")
+
+	threads := NewThreadProjection()
+	threadsProjector := newProjector(threads, "ThreadsProjector")
+
 	// ConfigManager owns server-config dual-writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
@@ -560,6 +588,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomGroupsProjector:     roomGroupsProjector,
 		RoomLayout:              roomLayout,
 		RoomLayoutProjector:     roomLayoutProjector,
+		RoomTimeline:            roomTimeline,
+		RoomTimelineProjector:   roomTimelineProjector,
+		Threads:                 threads,
+		ThreadsProjector:        threadsProjector,
 		projectors:              projectors,
 		bootDone:                make(chan struct{}),
 	}
@@ -576,6 +608,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err := migrations.RunAll(
 		ctx,
 		storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, storage.runtimeConfigKV,
+		storage.serverEventsStream,
 		eventPublisher,
 		logger,
 	); err != nil {
