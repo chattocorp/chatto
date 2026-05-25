@@ -240,17 +240,29 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// Join all participants - rollback room on failure
 	var joinedParticipants []string
 	for _, participantID := range participantIDs {
-		if err := c.joinDMRoom(ctx, bucket, participantID, roomID); err != nil {
+		if err := c.joinDMRoom(ctx, participantID, roomID); err != nil {
 			c.logger.Error("Failed to join participant to DM, rolling back", "participant", participantID, "room_id", roomID, "error", err)
 
-			// Rollback: delete memberships we already created
+			// Rollback: emit UserLeftRoomEvent for already-joined
+			// participants. Membership is event-sourced (phase 6),
+			// so the cleanup is publishing the inverse events;
+			// there's no KV state to delete.
 			for _, joinedID := range joinedParticipants {
-				if delErr := bucket.Delete(ctx, roomMembershipKey(KindDM, roomID, joinedID)); delErr != nil {
-					c.logger.Error("Failed to rollback DM membership", "participant", joinedID, "room_id", roomID, "error", delErr)
+				leaveEvent := newEvent(joinedID, &corev1.Event{
+					Event: &corev1.Event_UserLeftRoom{
+						UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: roomID},
+					},
+				})
+				if _, pubErr := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), leaveEvent); pubErr != nil {
+					c.logger.Error("Failed to rollback DM membership via event", "participant", joinedID, "room_id", roomID, "error", pubErr)
 				}
 			}
 
-			// Rollback: delete the room
+			// Rollback: delete the room KV. Room metadata is still
+			// dual-write today (phase 5), so the legacy bucket
+			// still mirrors the room — drop the orphan record.
+			// Phase 6 for room metadata will replace this with
+			// a RoomDeletedEvent publish.
 			if delErr := bucket.Delete(ctx, roomKey(KindDM, roomID)); delErr != nil {
 				c.logger.Error("Failed to rollback DM room", "room_id", roomID, "error", delErr)
 			}
@@ -268,20 +280,12 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 // required for JetStream consumers to work properly. The frontend filters out these
 // join events in DM rooms since they're not useful for 1:1 conversations (see
 // RoomEvent.svelte).
-func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, userID, roomID string) error {
-	membership := &corev1.RoomMembership{
-		UserId: userID,
-		RoomId: roomID,
-	}
-
-	data, err := proto.Marshal(membership)
-	if err != nil {
-		return fmt.Errorf("failed to marshal DM membership: %w", err)
-	}
-
-	// Build the join event once and emit it on both pipes (dual-write per
-	// ADR-035 phase 4). Same envelope so the durable + live events share
-	// an ID and timestamp.
+//
+// ADR-035 phase 6: event-only. The legacy room_membership KV is not
+// written from here anymore.
+func (c *ChattoCore) joinDMRoom(ctx context.Context, userID, roomID string) error {
+	// Build the join event once and emit it on both pipes. Same envelope
+	// so the durable + live events share an ID and timestamp.
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
@@ -293,10 +297,6 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 	seq, evtErr := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), event)
 	if evtErr != nil {
 		return fmt.Errorf("publish DM UserJoinedRoomEvent: %w", evtErr)
-	}
-
-	if _, err := bucket.Put(ctx, roomMembershipKey(KindDM, roomID, userID), data); err != nil {
-		return fmt.Errorf("failed to create DM membership: %w", err)
 	}
 
 	// Initialize an empty read marker so HasUnread distinguishes a fresh DM
