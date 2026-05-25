@@ -1,0 +1,177 @@
+package core
+
+import (
+	"testing"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+// =============================================================================
+// ThreadProjection
+// =============================================================================
+
+func TestThreadProjection_Empty(t *testing.T) {
+	p := NewThreadProjection()
+	if got := p.ThreadEvents("ROOT"); got != nil {
+		t.Errorf("ThreadEvents on empty = %v, want nil", got)
+	}
+	if got := p.ReplyCount("ROOT"); got != 0 {
+		t.Errorf("ReplyCount on empty = %d, want 0", got)
+	}
+	if got := p.ThreadCount(); got != 0 {
+		t.Errorf("ThreadCount on empty = %d, want 0", got)
+	}
+}
+
+func TestThreadProjection_RootMessageNotStored(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+	})
+
+	if got := p.ThreadCount(); got != 0 {
+		t.Errorf("Root message should not create a thread, got ThreadCount=%d", got)
+	}
+	if got := p.ThreadEvents("ROOT"); got != nil {
+		t.Errorf("ThreadEvents(ROOT) should be empty for a thread with no replies, got %d entries", len(got))
+	}
+}
+
+func TestThreadProjection_RepliesAppended(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", body: "first", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U3", inThread: "ROOT", inReplyTo: "REPLY1", body: "second", at: 3}),
+	})
+
+	entries := p.ThreadEvents("ROOT")
+	if len(entries) != 2 {
+		t.Fatalf("ThreadEvents(ROOT) len = %d, want 2", len(entries))
+	}
+	if entries[0].Event.GetId() != "ENV-R1" || entries[1].Event.GetId() != "ENV-R2" {
+		t.Errorf("ThreadEvents order = %v, want [ENV-R1, ENV-R2]", eventIDs(entries))
+	}
+	if got := p.ReplyCount("ROOT"); got != 2 {
+		t.Errorf("ReplyCount = %d, want 2", got)
+	}
+}
+
+func TestThreadProjection_EditOfReplyAppendedToThread(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", body: "original", at: 2}),
+		editedEvent("ENV-EDIT-R1", "REPLY1", "R1", "U2", "edited", 3),
+	})
+
+	entries := p.ThreadEvents("ROOT")
+	if len(entries) != 2 {
+		t.Fatalf("expected post + edit, got %d entries", len(entries))
+	}
+	if entries[1].Event.GetMessageEdited() == nil {
+		t.Error("expected entries[1] to be a MessageEditedEvent")
+	}
+	// Reply count counts MessagePostedEvent only.
+	if got := p.ReplyCount("ROOT"); got != 1 {
+		t.Errorf("ReplyCount after edit = %d, want 1 (edits don't bump)", got)
+	}
+}
+
+func TestThreadProjection_RetractOfReplyAppendedToThread(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
+		retractedEvent("ENV-RETRACT-R1", "REPLY1", "R1", "MOD", "spam", 3),
+	})
+
+	entries := p.ThreadEvents("ROOT")
+	if len(entries) != 2 {
+		t.Fatalf("expected post + retract, got %d entries", len(entries))
+	}
+	if entries[1].Event.GetMessageRetracted() == nil {
+		t.Error("expected entries[1] to be a MessageRetractedEvent")
+	}
+	if got := p.ReplyCount("ROOT"); got != 1 {
+		t.Errorf("ReplyCount after retract = %d, want 1 (retracts don't decrement)", got)
+	}
+}
+
+func TestThreadProjection_EditOfRootMessageNotInThreadBucket(t *testing.T) {
+	// Root message edits/retracts are room-timeline concerns, not
+	// thread-projection ones. Confirm they don't leak into the thread.
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
+		editedEvent("ENV-EDIT-ROOT", "ROOT", "R1", "U1", "edited root", 3), // targets ROOT, not REPLY1
+	})
+
+	entries := p.ThreadEvents("ROOT")
+	if len(entries) != 1 {
+		t.Fatalf("expected only the reply, got %d entries", len(entries))
+	}
+	if entries[0].Event.GetId() != "ENV-R1" {
+		t.Errorf("entry = %q, want ENV-R1", entries[0].Event.GetId())
+	}
+}
+
+func TestThreadProjection_OutOfOrderEditDropped(t *testing.T) {
+	// Edit arrives before the reply post. Without messageToThread
+	// mapping, the edit doesn't know which thread it belongs to and is
+	// silently dropped.
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		editedEvent("ENV-EDIT", "REPLY1", "R1", "U2", "edited", 1),
+	})
+	if got := p.ThreadCount(); got != 0 {
+		t.Errorf("Out-of-order edit shouldn't create a thread, got ThreadCount=%d", got)
+	}
+}
+
+func TestThreadProjection_MultipleThreadsIsolated(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-T1A", eventID: "T1A", roomID: "R1", actorID: "U1", inThread: "T1", inReplyTo: "T1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-T2A", eventID: "T2A", roomID: "R1", actorID: "U1", inThread: "T2", inReplyTo: "T2", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ENV-T1B", eventID: "T1B", roomID: "R1", actorID: "U2", inThread: "T1", inReplyTo: "T1A", at: 3}),
+	})
+
+	if got := p.ReplyCount("T1"); got != 2 {
+		t.Errorf("T1 reply count = %d, want 2", got)
+	}
+	if got := p.ReplyCount("T2"); got != 1 {
+		t.Errorf("T2 reply count = %d, want 1", got)
+	}
+	if got := p.ThreadCount(); got != 2 {
+		t.Errorf("ThreadCount = %d, want 2", got)
+	}
+}
+
+func TestThreadProjection_Idempotency(t *testing.T) {
+	p := NewThreadProjection()
+	reply := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 1})
+	if err := p.Apply(reply, 1); err != nil {
+		t.Fatalf("first Apply: %v", err)
+	}
+	if err := p.Apply(reply, 1); err != nil {
+		t.Fatalf("second Apply: %v", err)
+	}
+	if got := p.ReplyCount("ROOT"); got != 1 {
+		t.Errorf("duplicate Apply doubled ReplyCount: %d, want 1", got)
+	}
+	if got := len(p.ThreadEvents("ROOT")); got != 1 {
+		t.Errorf("duplicate Apply doubled ThreadEvents: %d, want 1", got)
+	}
+}
+
+func TestThreadProjection_SubjectFilter(t *testing.T) {
+	subjects := NewThreadProjection().Subjects()
+	if len(subjects) != 1 {
+		t.Fatalf("expected 1 subject filter, got %d", len(subjects))
+	}
+	if subjects[0] != "evt.room.>" {
+		t.Errorf("subject filter = %q, want evt.room.>", subjects[0])
+	}
+}
