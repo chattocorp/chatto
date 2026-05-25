@@ -69,9 +69,10 @@ func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 
 	ctx := testContext(t)
 	stream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:     "EVT_TEST",
-		Subjects: []string{SubjectRoot + ">"},
-		Storage:  jetstream.FileStorage,
+		Name:               "EVT_TEST",
+		Subjects:           []string{SubjectRoot + ">"},
+		Storage:            jetstream.FileStorage,
+		AllowAtomicPublish: true, // exercise AppendBatch in tests
 	})
 	if err != nil {
 		t.Fatalf("create test stream: %v", err)
@@ -232,6 +233,106 @@ func TestPublisher_AppendAt_DeterministicSequence(t *testing.T) {
 	_, err := pub.AppendAt(ctx, subject, makeEvent("R1", "Ureplay"), 0)
 	if !errors.Is(err, ErrConflict) {
 		t.Errorf("want ErrConflict on replay, got %v", err)
+	}
+}
+
+// ============================================================================
+// AppendBatch (atomic multi-aggregate publishes)
+// ============================================================================
+
+// TestPublisher_AppendBatch_LandsContiguouslyAtomic verifies the
+// happy path: N entries get N contiguous stream sequences, and the
+// returned slice reflects publication order (commit ack's seq is
+// the LAST entry's seq).
+func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	// Seed an unrelated subject so the batch lands at a non-trivial offset.
+	if _, err := pub.Append(ctx, RoomAggregate("WARMUP").Subject(), makeEvent("WARMUP", "U")); err != nil {
+		t.Fatalf("warmup: %v", err)
+	}
+
+	entries := []BatchEntry{
+		{Subject: GroupAggregate("GA").Subject(), Event: makeEvent("RA", "U1")},
+		{Subject: GroupAggregate("GB").Subject(), Event: makeEvent("RB", "U2")},
+		{Subject: GroupAggregate("GC").Subject(), Event: makeEvent("RC", "U3")},
+	}
+
+	seqs, err := pub.AppendBatch(ctx, entries)
+	if err != nil {
+		t.Fatalf("AppendBatch: %v", err)
+	}
+	if len(seqs) != 3 {
+		t.Fatalf("len(seqs) = %d, want 3", len(seqs))
+	}
+	if seqs[1] != seqs[0]+1 || seqs[2] != seqs[1]+1 {
+		t.Errorf("seqs not contiguous: %v", seqs)
+	}
+
+	// Each subject's last seq must match what we published.
+	for i, e := range entries {
+		got, err := pub.lastSubjectSeq(ctx, e.Subject)
+		if err != nil {
+			t.Fatalf("lastSubjectSeq(%s): %v", e.Subject, err)
+		}
+		if got != seqs[i] {
+			t.Errorf("subject %s last seq = %d, want %d", e.Subject, got, seqs[i])
+		}
+	}
+}
+
+// TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch verifies
+// that a per-entry OCC mismatch causes the batch to be rejected and
+// no entries land on the stream.
+func TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	// Make subject GA non-empty so an "expect seq 0" OCC must fail.
+	seqA, err := pub.Append(ctx, GroupAggregate("GA").Subject(), makeEvent("RA", "Useed"))
+	if err != nil {
+		t.Fatalf("seed GA: %v", err)
+	}
+
+	entries := []BatchEntry{
+		// GB has no events yet — expect seq 0 passes.
+		{Subject: GroupAggregate("GB").Subject(), Event: makeEvent("RB", "U"), HasOCC: true, ExpectedSeq: 0},
+		// GA already has seqA — expecting 0 must fail.
+		{Subject: GroupAggregate("GA").Subject(), Event: makeEvent("RA", "U"), HasOCC: true, ExpectedSeq: 0},
+	}
+
+	_, err = pub.AppendBatch(ctx, entries)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("want ErrConflict on OCC mismatch, got %v", err)
+	}
+
+	// Neither subject should have advanced past its pre-batch state.
+	gotA, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GA").Subject())
+	if gotA != seqA {
+		t.Errorf("GA last seq = %d, want %d (unchanged)", gotA, seqA)
+	}
+	gotB, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GB").Subject())
+	if gotB != 0 {
+		t.Errorf("GB last seq = %d, want 0 (no events)", gotB)
+	}
+}
+
+// TestPublisher_AppendBatch_EmptyIsNoOp verifies the degenerate
+// case — callers shouldn't need to guard against passing an empty
+// slice.
+func TestPublisher_AppendBatch_EmptyIsNoOp(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+
+	seqs, err := pub.AppendBatch(testContext(t), nil)
+	if err != nil {
+		t.Errorf("AppendBatch(nil): %v", err)
+	}
+	if len(seqs) != 0 {
+		t.Errorf("seqs = %v, want empty", seqs)
 	}
 }
 

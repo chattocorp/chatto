@@ -11,11 +11,16 @@ package events
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
+	mrand "math/rand"
+	"strconv"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
@@ -104,7 +109,7 @@ func (p *Publisher) Append(ctx context.Context, subject string, event *corev1.Ev
 
 		// Exponential backoff with jitter (1, 2, 4, 8, 16 ms + 0-5ms).
 		baseDelay := time.Duration(1<<(attempt-1)) * time.Millisecond
-		jitter := time.Duration(rand.Int63n(int64(5 * time.Millisecond)))
+		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
@@ -197,6 +202,172 @@ func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, 
 		return 0, fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)
 	}
 	return 0, fmt.Errorf("publish: %w", err)
+}
+
+// BatchEntry is one event in an atomic publish batch (AppendBatch).
+// Each entry can carry its own optional OCC token — either a
+// per-subject expected-last-sequence (set ExpectedSeq, leave
+// FilterSubject empty) or a wildcard-filter expected-last-sequence
+// (set both). Setting neither skips OCC for this entry.
+//
+// Within a batch, OCC is evaluated per-entry against the stream's
+// committed state at batch-acceptance time; the server doesn't
+// extrapolate "what the prior entries in this batch would commit
+// to" when checking the next entry's OCC. Avoid same-subject
+// dependent OCC within a single batch.
+type BatchEntry struct {
+	Subject       string
+	Event         *corev1.Event
+	ExpectedSeq   uint64 // 0 = no OCC (or "must be empty subject" when FilterSubject is set)
+	FilterSubject string // when non-empty, ExpectedSeq is evaluated against this wildcard filter
+	HasOCC        bool   // set true when ExpectedSeq is meaningful (distinguishes "no OCC" from "expect seq 0")
+}
+
+// AppendBatch publishes a sequence of events atomically: either all
+// land adjacently in stream order or none do. The stream's
+// AllowAtomicPublish must be enabled (see EVT stream config).
+//
+// Use this for multi-aggregate cascades where projections must
+// never observe an intermediate state that breaks a cross-aggregate
+// invariant — most notably MoveRoomToGroup, where the source's
+// RoomRemovedFromGroup and the target's RoomAddedToGroup land
+// together so the "every room belongs to exactly one group"
+// invariant is preserved at every observable sequence.
+//
+// On success returns the stream sequences of each entry in
+// publication order (contiguous; the last entry's seq is the commit
+// ack's sequence). On per-entry OCC failure or any commit-time
+// error, returns the wrapped error and zero entries land. Caller
+// drives any retry — same shape as AppendAt / AppendAtFilter.
+//
+// Empty `entries` is a no-op returning a nil slice.
+func (p *Publisher) AppendBatch(ctx context.Context, entries []BatchEntry) ([]uint64, error) {
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	for i, e := range entries {
+		if err := validateEvent(e.Event); err != nil {
+			return nil, fmt.Errorf("batch entry %d: %w", i, err)
+		}
+	}
+
+	batchID, err := newBatchID()
+	if err != nil {
+		return nil, fmt.Errorf("generate batch id: %w", err)
+	}
+
+	for i, e := range entries[:len(entries)-1] {
+		if _, err := p.publishBatchEntry(ctx, e, batchID, uint64(i+1), false); err != nil {
+			return nil, fmt.Errorf("batch entry %d: %w", i, err)
+		}
+	}
+
+	// Final entry carries the commit marker; its ack is the batch ack.
+	final := entries[len(entries)-1]
+	commitSeq, err := p.publishBatchEntry(ctx, final, batchID, uint64(len(entries)), true)
+	if err != nil {
+		return nil, fmt.Errorf("batch commit: %w", err)
+	}
+
+	// Batch entries land contiguously in stream order, so we can
+	// derive every entry's seq from the commit ack's seq.
+	seqs := make([]uint64, len(entries))
+	for i := range entries {
+		seqs[i] = commitSeq - uint64(len(entries)-1-i)
+	}
+	return seqs, nil
+}
+
+// publishBatchEntry publishes a batch member via raw NATS request-
+// reply and returns the server's stream sequence (0 for non-commit
+// entries — the server doesn't include it in the empty intermediate
+// ack). The high-level jetstream.PublishMsg wrapper can't be used
+// because it rejects the empty-bodied intermediate acks as invalid;
+// OCC failures still surface through the JSON error envelope.
+func (p *Publisher) publishBatchEntry(ctx context.Context, e BatchEntry, batchID string, batchSeq uint64, commit bool) (uint64, error) {
+	msg, err := p.buildBatchMsg(e, batchID, batchSeq, commit)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := p.js.Conn().RequestMsgWithContext(ctx, msg)
+	if err != nil {
+		return 0, fmt.Errorf("publish: %w", err)
+	}
+	return decodeBatchAck(resp, e)
+}
+
+// pubAckEnvelope is the minimal shape of the JetStream JSON
+// publish-ack response. Either an Error is set or the (Stream, Sequence)
+// pair is populated. Matches the server's JSPubAckResponse struct.
+type pubAckEnvelope struct {
+	Error *struct {
+		Code        int    `json:"code"`
+		ErrCode     uint16 `json:"err_code"`
+		Description string `json:"description"`
+	} `json:"error,omitempty"`
+	Stream    string `json:"stream,omitempty"`
+	Sequence  uint64 `json:"seq,omitempty"`
+	Duplicate bool   `json:"duplicate,omitempty"`
+}
+
+// decodeBatchAck distinguishes the three response shapes from the
+// server: (a) empty body — success on a non-commit entry, returns
+// (0, nil); (b) JSON error — OCC or other server-side rejection,
+// returns (0, ErrConflict|wrapped); (c) JSON pub-ack — success on
+// the commit entry, returns (seq, nil).
+func decodeBatchAck(resp *nats.Msg, e BatchEntry) (uint64, error) {
+	if len(resp.Data) == 0 {
+		return 0, nil
+	}
+	var env pubAckEnvelope
+	if err := json.Unmarshal(resp.Data, &env); err != nil {
+		return 0, fmt.Errorf("decode ack: %w", err)
+	}
+	if env.Error != nil {
+		if env.Error.ErrCode == uint16(jetstream.JSErrCodeStreamWrongLastSequence) {
+			target := e.Subject
+			if e.FilterSubject != "" {
+				target = "filter " + e.FilterSubject
+			}
+			return 0, fmt.Errorf("%s at expected seq %d: %w", target, e.ExpectedSeq, ErrConflict)
+		}
+		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)
+	}
+	return env.Sequence, nil
+}
+
+// buildBatchMsg assembles a *nats.Msg with the batch headers
+// (Nats-Batch-Id / Nats-Batch-Sequence / optional Nats-Batch-Commit)
+// and the per-entry OCC headers (Nats-Expected-Last-Subject-Sequence
+// and optionally Nats-Expected-Last-Subject-Sequence-Subject).
+func (p *Publisher) buildBatchMsg(e BatchEntry, batchID string, batchSeq uint64, commit bool) (*nats.Msg, error) {
+	data, err := proto.Marshal(e.Event)
+	if err != nil {
+		return nil, fmt.Errorf("marshal event: %w", err)
+	}
+	hdr := nats.Header{}
+	hdr.Set("Nats-Batch-Id", batchID)
+	hdr.Set("Nats-Batch-Sequence", strconv.FormatUint(batchSeq, 10))
+	if commit {
+		hdr.Set("Nats-Batch-Commit", "1")
+	}
+	if e.HasOCC {
+		hdr.Set("Nats-Expected-Last-Subject-Sequence", strconv.FormatUint(e.ExpectedSeq, 10))
+		if e.FilterSubject != "" {
+			hdr.Set("Nats-Expected-Last-Subject-Sequence-Subject", e.FilterSubject)
+		}
+	}
+	return &nats.Msg{Subject: e.Subject, Header: hdr, Data: data}, nil
+}
+
+// newBatchID returns a fresh batch identifier — 16 hex chars of
+// crypto/rand. Used to group an atomic batch's publishes server-side.
+func newBatchID() (string, error) {
+	buf := make([]byte, 8)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 // lastSubjectSeq returns the current last sequence for a subject, or 0 if

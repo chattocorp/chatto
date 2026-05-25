@@ -895,6 +895,12 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		Storage:     jetstream.FileStorage,
 		Compression: jetstream.S2Compression,
 		Replicas:    cfg.Replicas,
+		// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
+		// protocol on this stream. Used by Publisher.AppendBatch to
+		// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
+		// adjacently in stream order so projections never observe an
+		// intermediate state that breaks an invariant.
+		AllowAtomicPublish: true,
 		RePublish: &jetstream.RePublish{
 			Source:      "evt.>",
 			Destination: "live.evt.>",
