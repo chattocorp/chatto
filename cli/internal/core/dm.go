@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -171,8 +170,11 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 	// Create new DM room
 	room, err = c.createDMRoom(ctx, roomID, allParticipants)
 	if err != nil {
-		// Handle race condition - another request may have created it
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		// Handle race condition: another request published the
+		// RoomCreated first. JetStream's per-subject OCC (expected
+		// seq 0) is what arbitrates — the loser sees ErrConflict
+		// and looks up the now-existing room.
+		if errors.Is(err, events.ErrConflict) {
 			room, err = c.GetRoom(ctx, KindDM, roomID)
 			if err != nil {
 				return nil, false, fmt.Errorf("failed to get DM after race: %w", err)
@@ -186,9 +188,19 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 	return room, true, nil
 }
 
-// createDMRoom creates a new DM room and joins all participants atomically.
-// If any participant fails to join, the room is deleted and an error is returned.
-// This is an internal function - use FindOrCreateDM for the public API.
+// createDMRoom creates a new DM room and joins all participants.
+// Internal helper — use FindOrCreateDM for the public API.
+//
+// ADR-035 phase 6: event-only. Concurrency safety comes from
+// per-subject OCC: AppendAt with expected seq 0 publishes the
+// RoomCreatedEvent on `evt.room.{roomID}`; if some other replica
+// already created this DM (same hashed roomID for the same
+// participant set), the publish returns ErrConflict and the caller
+// (FindOrCreateDM) re-fetches the existing room.
+//
+// Rollback semantics on join failure: emit UserLeftRoomEvent for
+// already-joined participants and RoomDeletedEvent for the room
+// itself. There's no KV state to clean up.
 func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*corev1.Room, error) {
 	room := &corev1.Room{
 		Id:      roomID,
@@ -197,22 +209,6 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		Name:    "", // DMs don't have names - derived from participants in UI
 	}
 
-	// Get config bucket for room storage
-	bucket := c.storage.serverConfigKV
-
-	// Store room (atomic create to handle race conditions)
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal DM room: %w", err)
-	}
-
-	_, err = bucket.Create(ctx, roomKey(KindDM, roomID), roomData)
-	if err != nil {
-		return nil, err // Let caller handle ErrKeyExists for race condition
-	}
-
-	// Dual-write (ADR-035 phase 4): publish RoomCreated on the room
-	// aggregate so the RoomCatalog projection knows about the DM. The
 	// "system" actor reflects that the conversation is created by the
 	// platform on the first participant's behalf rather than as a
 	// targeted admin action — DMs have no operator-driven creation
@@ -227,26 +223,22 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 			},
 		},
 	})
-	createdSeq, err := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), createdEvent)
+	createdSeq, err := c.EventPublisher.AppendAt(ctx, events.RoomAggregate(roomID).Subject(), createdEvent, 0)
 	if err != nil {
-		c.logger.Error("failed to publish DM RoomCreatedEvent", "error", err, "room_id", roomID)
+		// Race: another replica beat us. Bubble up so FindOrCreateDM
+		// can re-fetch and return the existing room.
+		return nil, err
 	}
-	if createdSeq > 0 {
-		if err := c.RoomCatalogProjector.WaitForSeq(ctx, createdSeq); err != nil {
-			c.logger.Warn("DM room catalog projection wait failed", "error", err, "room_id", roomID)
-		}
+	if err := c.RoomCatalogProjector.WaitForSeq(ctx, createdSeq); err != nil {
+		c.logger.Warn("DM room catalog projection wait failed", "error", err, "room_id", roomID)
 	}
 
-	// Join all participants - rollback room on failure
+	// Join all participants. On failure, undo via inverse events.
 	var joinedParticipants []string
 	for _, participantID := range participantIDs {
 		if err := c.joinDMRoom(ctx, participantID, roomID); err != nil {
 			c.logger.Error("Failed to join participant to DM, rolling back", "participant", participantID, "room_id", roomID, "error", err)
 
-			// Rollback: emit UserLeftRoomEvent for already-joined
-			// participants. Membership is event-sourced (phase 6),
-			// so the cleanup is publishing the inverse events;
-			// there's no KV state to delete.
 			for _, joinedID := range joinedParticipants {
 				leaveEvent := newEvent(joinedID, &corev1.Event{
 					Event: &corev1.Event_UserLeftRoom{
@@ -258,13 +250,13 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 				}
 			}
 
-			// Rollback: delete the room KV. Room metadata is still
-			// dual-write today (phase 5), so the legacy bucket
-			// still mirrors the room — drop the orphan record.
-			// Phase 6 for room metadata will replace this with
-			// a RoomDeletedEvent publish.
-			if delErr := bucket.Delete(ctx, roomKey(KindDM, roomID)); delErr != nil {
-				c.logger.Error("Failed to rollback DM room", "room_id", roomID, "error", delErr)
+			deleteEvent := newEvent("system", &corev1.Event{
+				Event: &corev1.Event_RoomDeleted{
+					RoomDeleted: &corev1.RoomDeletedEvent{RoomId: roomID},
+				},
+			})
+			if _, pubErr := c.EventPublisher.Append(ctx, events.RoomAggregate(roomID).Subject(), deleteEvent); pubErr != nil {
+				c.logger.Error("Failed to rollback DM room via event", "room_id", roomID, "error", pubErr)
 			}
 
 			return nil, fmt.Errorf("failed to add participant %s to DM: %w", participantID, err)

@@ -86,7 +86,7 @@ func (p *Publisher) Append(ctx context.Context, subject string, event *corev1.Ev
 			return 0, err
 		}
 
-		seq, err := p.publishAt(ctx, subject, data, expectedSeq)
+		seq, err := p.publishAt(ctx, subject, data, expectedSeq, "")
 		if err == nil {
 			return seq, nil
 		}
@@ -138,22 +138,63 @@ func (p *Publisher) AppendAt(ctx context.Context, subject string, event *corev1.
 		return 0, fmt.Errorf("marshal event: %w", err)
 	}
 
-	return p.publishAt(ctx, subject, data, expectedSeq)
+	return p.publishAt(ctx, subject, data, expectedSeq, "")
 }
 
-// publishAt is the shared publish-with-expected-seq core used by both
-// Append (which retries with re-read) and AppendAt (single shot).
-// Translates the NATS sequence-mismatch error to ErrConflict.
-func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, expectedSeq uint64) (uint64, error) {
-	ack, err := p.js.Publish(ctx, subject, data,
-		jetstream.WithExpectLastSequencePerSubject(expectedSeq))
+// AppendAtFilter publishes with OCC against a wildcard subject filter.
+// The publish lands on `subject`; the OCC check is "the last stream
+// message matching `filter` is at sequence `expectedFilterSeq`."
+//
+// Use this when an invariant spans multiple per-aggregate subjects —
+// e.g. unique room names across every evt.room.{R} subject, where the
+// per-subject OCC of the target subject can't detect another aggregate
+// claiming the same name. The cluster-global filter check, backed by
+// JetStream's filtered-state lookup, gives multi-process safety.
+//
+// Single-shot: returns ErrConflict on mismatch. The caller drives the
+// retry loop because the pre-publish projection check (e.g. "is this
+// name available?") must be re-evaluated on each attempt. Typical
+// `expectedFilterSeq` source is the corresponding projector's
+// LastSeq(); on conflict, backoff briefly and retry — the local
+// projector consumer will catch up to the foreign publish within a few
+// milliseconds.
+func (p *Publisher) AppendAtFilter(ctx context.Context, subject string, event *corev1.Event, filter string, expectedFilterSeq uint64) (uint64, error) {
+	if err := validateEvent(event); err != nil {
+		return 0, err
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		return 0, fmt.Errorf("marshal event: %w", err)
+	}
+	return p.publishAt(ctx, subject, data, expectedFilterSeq, filter)
+}
+
+// publishAt is the shared publish-with-expected-seq core used by
+// Append, AppendAt, and AppendAtFilter. When filter is empty, the
+// expected-seq check applies to `subject` itself; when filter is set
+// (typically a wildcard like "evt.room.>"), the check applies to the
+// last stream message matching the filter — see
+// `Nats-Expected-Last-Subject-Sequence-Subject` in the JetStream
+// protocol. Translates the NATS sequence-mismatch error to ErrConflict.
+func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, expectedSeq uint64, filter string) (uint64, error) {
+	var opt jetstream.PublishOpt
+	if filter == "" {
+		opt = jetstream.WithExpectLastSequencePerSubject(expectedSeq)
+	} else {
+		opt = jetstream.WithExpectLastSequenceForSubject(expectedSeq, filter)
+	}
+	ack, err := p.js.Publish(ctx, subject, data, opt)
 	if err == nil {
 		return ack.Sequence, nil
 	}
 
 	var apiErr *jetstream.APIError
 	if errors.As(err, &apiErr) && apiErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
-		return 0, fmt.Errorf("subject %q at expected seq %d: %w", subject, expectedSeq, ErrConflict)
+		target := subject
+		if filter != "" {
+			target = "filter " + filter
+		}
+		return 0, fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)
 	}
 	return 0, fmt.Errorf("publish: %w", err)
 }

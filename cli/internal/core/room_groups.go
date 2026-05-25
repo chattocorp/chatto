@@ -957,22 +957,10 @@ func (c *ChattoCore) ensureChannelRoomsAreInAGroup(ctx context.Context) error {
 		}
 	}
 
-	// Stamp Room.GroupId for rooms whose proto field doesn't match.
-	for _, r := range rooms {
-		want := roomToGroup[r.Id]
-		if r.GroupId == want {
-			continue
-		}
-		r.GroupId = want
-		data, err := proto.Marshal(r)
-		if err != nil {
-			return fmt.Errorf("marshal room %s: %w", r.Id, err)
-		}
-		if _, err := c.storage.serverConfigKV.Put(ctx, roomKey(KindChannel, r.Id), data); err != nil {
-			return fmt.Errorf("stamp group_id on room %s: %w", r.Id, err)
-		}
-		c.logger.Debug("Stamped room.group_id", "room_id", r.Id, "group_id", want)
-	}
+	// Note: pre-phase-6 this loop stamped Room.GroupId into the
+	// room KV record. Phase 6 derives Room.GroupId at read time from
+	// the RoomGroups projection (GetRoom composes it via
+	// GroupForRoom), so the stamp is no longer needed.
 
 	return nil
 }

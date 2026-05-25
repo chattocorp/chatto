@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -42,7 +41,6 @@ type ChattoCore struct {
 	config                  config.CoreConfig
 	encryption              *encryptionManager
 	configManager           *ConfigManager
-	roomNameIndexBackfilled sync.Map             // tracks which spaces have had their room-name index backfilled
 	s3Client                *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver      *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache        *linkpreview.Cache   // Cache for link preview metadata

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"sync"
 
 	"google.golang.org/protobuf/proto"
@@ -148,6 +149,32 @@ func (p *RoomCatalogProjection) Count() int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return len(p.rooms)
+}
+
+// FindByName returns the ID of the channel room currently holding
+// the given name (case-insensitive, ignoring leading/trailing
+// whitespace), or "" if no such room exists. Used by CreateRoom /
+// UpdateRoom for the pre-publish uniqueness check.
+//
+// Channel-room only: DM rooms have empty names by convention.
+// Includes archived rooms — operators must rename them before
+// reclaiming the slot, matching the previous KV-index semantics.
+func (p *RoomCatalogProjection) FindByName(name string) string {
+	target := strings.ToLower(strings.TrimSpace(name))
+	if target == "" {
+		return ""
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	for id, entry := range p.rooms {
+		if entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
+			continue
+		}
+		if strings.ToLower(entry.name) == target {
+			return id
+		}
+	}
+	return ""
 }
 
 // entryToRoom converts a private catalog entry into the public

@@ -586,39 +586,10 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 	}
 }
 
-// TestChattoCore_RoomName_BackfillFromBareRoom simulates a room created before atomic
-// name claiming existed: the room record is in the bucket but the index entry is not.
-// The next CreateRoom for that same name must still detect the collision via backfill.
-func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-
-	// Simulate the pre-migration state: index entry is missing, room record is present.
-	bucket := core.storage.serverConfigKV
-	if err := bucket.Delete(ctx, roomNameIndexKey(room.Name)); err != nil {
-		t.Fatalf("delete index entry: %v", err)
-	}
-	core.roomNameIndexBackfilled.Delete(KindChannel) // force backfill on next call
-
-	// A duplicate must still be rejected — backfill should re-claim the name from the room record.
-	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", ""); !errors.Is(err, ErrRoomNameExists) {
-		t.Errorf("expected ErrRoomNameExists after backfill, got: %v", err)
-	}
-
-	// Existence query should agree.
-	exists, err := core.RoomNameExists(ctx, KindChannel, "general")
-	if err != nil {
-		t.Fatalf("RoomNameExists: %v", err)
-	}
-	if !exists {
-		t.Error("expected room name to exist after backfill")
-	}
-}
+// (TestChattoCore_RoomName_BackfillFromBareRoom removed in ADR-035
+// phase 6 — the KV name index has been retired in favor of the
+// RoomCatalog projection's FindByName; there's no backfill path left
+// to exercise.)
 
 func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	core, _ := setupTestCore(t)
