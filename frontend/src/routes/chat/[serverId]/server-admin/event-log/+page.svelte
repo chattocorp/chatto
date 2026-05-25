@@ -90,11 +90,16 @@
     return formatDateTimeUtil(iso, userSettings);
   }
 
-  function loadMore() {
-    if (!hasOlder) return;
+  async function loadMore() {
+    if (loading || !hasOlder) return;
     const last = accumulated[accumulated.length - 1];
     if (!last) return;
     beforeCursor = last.sequence;
+    // Belt-and-suspenders refetch — the variables-function reactive tracking
+    // inside useQuery is supposed to trigger this automatically when
+    // beforeCursor changes, but force it here so the user click never
+    // gets stuck on a subtle reactivity miss.
+    await eventsQuery.refetch();
   }
 
   function openEntry(entry: Entry) {
@@ -116,7 +121,8 @@
     showMobileNav
   />
 
-  <div class="flex flex-col gap-4 overflow-y-auto p-6">
+  <div class="min-h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col gap-4 p-6">
     {#if error}
       <Hint tone="danger">{error}</Hint>
     {/if}
@@ -169,5 +175,6 @@
         </button>
       </div>
     {/if}
+    </div>
   </div>
 </div>
