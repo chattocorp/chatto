@@ -146,15 +146,18 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	if eventID == "" {
 		return time.Time{}, nil
 	}
-	stream := c.storage.serverEventsStream
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomMessage(string(kind), roomID, eventID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return time.Time{}, nil
-		}
-		return time.Time{}, fmt.Errorf("failed to get event: %w", err)
+	entry, ok := c.RoomTimeline.Get(eventID)
+	if !ok {
+		return time.Time{}, nil
 	}
-	return rawMsgEventCreatedAt(msg)
+	// Honour roomID scope — same as GetRoomEventByEventID.
+	if roomIDOfEvent(entry.Event) != roomID {
+		return time.Time{}, nil
+	}
+	if ts := entry.Event.GetCreatedAt(); ts != nil {
+		return ts.AsTime(), nil
+	}
+	return time.Time{}, nil
 }
 
 // HasUnread reports whether a room has unread messages for a user. Returns

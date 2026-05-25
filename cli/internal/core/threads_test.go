@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -958,8 +959,12 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		for _, e := range roomEvents {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
 				foundEcho = true
-				if msg.MessageBodyId != reply.MessageBodyId {
-					t.Errorf("Echo should share messageBodyId with reply: got echo=%q, reply=%q", msg.MessageBodyId, reply.MessageBodyId)
+				// Post-#597 cutover: echo carries its own embedded body
+				// and its own MessageBodyId (== its own envelope id).
+				// EchoOfEventId / EchoFromThreadRootEventId are the
+				// shared identifiers, not MessageBodyId.
+				if msg.MessageBodyId == "" {
+					t.Errorf("Echo should have its own MessageBodyId set")
 				}
 				if msg.EchoOfEventId != replyEvent.Id {
 					t.Errorf("Echo.EchoOfEventId should be %q, got %q", replyEvent.Id, msg.EchoOfEventId)
@@ -1021,32 +1026,41 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		}
 	})
 
-	t.Run("shared message body between echo and reply", func(t *testing.T) {
-		// Post root and reply with echo
+	t.Run("echo carries the same body content as the reply", func(t *testing.T) {
+		// Post root and reply with echo.
 		rootEvent, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root for body test", nil, "", "", nil, false)
 		replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Shared body content", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
+		// Post-#597 cutover: echo and reply each have their own
+		// envelope id (and thus their own MessageBodyId). What they
+		// share is the ENCRYPTED BODY CONTENT — the echo clones the
+		// reply's MessageBody verbatim, so the ciphertext and nonce
+		// are byte-identical.
 		reply := replyEvent.GetMessagePosted()
+		replyBody := reply.GetBody()
+		if replyBody == nil {
+			t.Fatal("reply has no embedded body")
+		}
 
-		// Find the echo in room events
 		roomEventsResult, _ := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
-		roomEvents := roomEventsResult.Events
-		var echoBodyID string
-		for _, e := range roomEvents {
+		var echoBody *corev1.MessageBody
+		for _, e := range roomEventsResult.Events {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
-				echoBodyID = msg.MessageBodyId
+				echoBody = msg.GetBody()
 				break
 			}
 		}
-
-		if echoBodyID == "" {
-			t.Fatal("Echo not found in room events")
+		if echoBody == nil {
+			t.Fatal("Echo not found in room events (or has no embedded body)")
 		}
-		if echoBodyID != reply.MessageBodyId {
-			t.Errorf("Echo and reply should share messageBodyId: echo=%q, reply=%q", echoBodyID, reply.MessageBodyId)
+		if !bytes.Equal(echoBody.EncryptedBody, replyBody.EncryptedBody) {
+			t.Errorf("Echo body ciphertext differs from reply's")
+		}
+		if !bytes.Equal(echoBody.EncryptionNonce, replyBody.EncryptionNonce) {
+			t.Errorf("Echo body nonce differs from reply's")
 		}
 	})
 }
