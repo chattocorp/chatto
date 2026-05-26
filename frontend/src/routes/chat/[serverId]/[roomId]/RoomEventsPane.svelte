@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useEvent, useReconnectTrigger } from '$lib/hooks';
+  import { useEvent, useReconnectTrigger, useTabResumeAfterGapTrigger } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -67,14 +67,20 @@
   });
 
   const reconnect = useReconnectTrigger();
+  // Belt-and-suspenders gap-fill: catch up missed messages whenever the tab
+  // becomes visible after a meaningful gap, even if the WebSocket signal
+  // didn't fire (e.g., laptop sleep with tab visible where the connection
+  // outlived the suspend, or any future reconnect-detection regression).
+  const tabResume = useTabResumeAfterGapTrigger();
 
   // Track previous values to distinguish room changes from reconnects
   let prevRoomId: string | undefined;
   let prevRefetchTrigger: number | undefined;
 
-  // Drive store loads from prop / reconnect / refetchTrigger changes
+  // Drive store loads from prop / reconnect / tab-resume / refetchTrigger changes
   $effect(() => {
     void reconnect.count;
+    void tabResume.count;
     void refetchTrigger;
 
     const isFirstLoad = prevRoomId === undefined;
@@ -86,7 +92,7 @@
     prevRefetchTrigger = refetchTrigger;
 
     // Show skeletons on first load, room change, or refetch trigger.
-    // On reconnect, keep stale messages visible and refetch silently.
+    // On reconnect / tab-resume, keep stale messages visible and refetch silently.
     const mode = isFirstLoad || isRoomChange || isRefetch ? 'reset' : 'catchUp';
     store.setRoom(roomId, mode);
   });

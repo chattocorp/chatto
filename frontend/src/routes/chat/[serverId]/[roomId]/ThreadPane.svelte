@@ -2,7 +2,7 @@
   import { fly } from 'svelte/transition';
   import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useEvent, useReconnectTrigger, createTypingIndicator } from '$lib/hooks';
+  import { useEvent, useReconnectTrigger, useTabResumeAfterGapTrigger, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -92,10 +92,14 @@
   let canPost = $derived(canPostInThread);
 
   const reconnect = useReconnectTrigger();
+  const tabResume = useTabResumeAfterGapTrigger();
 
-  // Reload thread events when the thread changes or WebSocket reconnects
+  // Reload thread events when the thread changes, WebSocket reconnects, or
+  // the tab resumes after a gap (belt-and-suspenders for sleep cycles where
+  // the WS reconnect signal didn't propagate).
   $effect(() => {
     void reconnect.count;
+    void tabResume.count;
     store.setThread(roomId, threadRootEventId);
   });
 

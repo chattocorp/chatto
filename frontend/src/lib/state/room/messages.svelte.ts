@@ -628,10 +628,12 @@ export class RoomMessagesStore extends MessageListStore {
    */
   private catchUpForward(thisLoad: number): void {
     if (!this.newestCursor) {
+      console.log('[RoomMessagesStore] catchUpForward: no cursor, falling back to fetchLatest', { roomId: this.roomId });
       this.fetchLatest(thisLoad);
       return;
     }
 
+    console.log('[RoomMessagesStore] catchUpForward: querying', { roomId: this.roomId, after: this.newestCursor });
     this.client
       .query(RoomAfterQuery, {
         roomId: this.roomId,
@@ -649,6 +651,12 @@ export class RoomMessagesStore extends MessageListStore {
         if (!page) return;
 
         const fetched = unmask(page.events);
+        console.log('[RoomMessagesStore] catchUpForward: result', {
+          roomId: this.roomId,
+          fetched: fetched.length,
+          hasNewer: page.hasNewer,
+          strategy: page.hasNewer ? 'replace (gap too large)' : 'append'
+        });
         if (page.hasNewer) {
           this.replaceWithFetchedAndUpdateCursors(page);
         } else {

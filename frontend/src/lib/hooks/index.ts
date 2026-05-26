@@ -32,7 +32,11 @@ export { useRoomMembersSync } from './useRoomMembersSync.svelte';
 export { useRoomUnread } from './useRoomUnread.svelte';
 
 // Lifecycle hooks
-export { useTabResumeCallback } from './useTabResumeCallback.svelte';
+export {
+  useTabResumeCallback,
+  useTabResumeAfterGapCallback,
+  useTabResumeAfterGapTrigger
+} from './useTabResumeCallback.svelte';
 export { useReconnectCallback, useReconnectTrigger } from './useReconnectCallback.svelte';
 export { createTypingIndicator } from './useTypingIndicator.svelte';
 export type { TypingIndicator, TypingUser } from './useTypingIndicator.svelte';
