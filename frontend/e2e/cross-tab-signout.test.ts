@@ -18,8 +18,7 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
   // Wait for the WebSocket to connect, which proves the client-side app is running
   await wsConnected;
 
-  // Wait for SvelteKit hydration to complete and event handlers to register
-  await page.waitForLoadState('networkidle');
+  await page.locator('body').waitFor({ state: 'visible' });
 }
 
 test.describe('Cross-Tab Sign-Out', () => {

@@ -608,8 +608,11 @@ test.describe('Room Layout', () => {
 
         // Navigate to admin area directly — User B shouldn't see "Rooms" nav
         await page2.goto(routes.serverAdmin());
-        // Wait for page to load
-        await page2.waitForLoadState('networkidle');
+        await expect(
+          page2
+            .getByRole('heading', { name: 'Dashboard', level: 1 })
+            .or(page2.getByText('Access Denied', { exact: true }))
+        ).toBeVisible();
 
         // User B shouldn't see the Rooms nav item (requires room.manage)
         const spaceAdminPage2 = new SpaceAdminPage(page2);

@@ -25,10 +25,7 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
   // Wait for the WebSocket to connect, which proves the client-side app is running
   await wsConnected;
 
-  // Wait for SvelteKit hydration to complete — the session validation handler
-  // is registered during initCurrentUserFromData() in the /chat layout.
-  // We verify hydration by checking that the page is interactive.
-  await page.waitForLoadState('networkidle');
+  await page.locator('body').waitFor({ state: 'visible' });
 }
 
 /**
