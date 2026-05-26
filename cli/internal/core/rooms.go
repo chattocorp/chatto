@@ -268,11 +268,9 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 	// all target the per-room aggregate subject; this doesn't change
 	// across retries.
 	var roomID string
-	retrySamePayload := false
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RoomCreated:
 		roomID = e.RoomCreated.GetRoomId()
-		retrySamePayload = true
 	case *corev1.Event_RoomUpdated:
 		roomID = e.RoomUpdated.GetRoomId()
 	default:
@@ -296,9 +294,6 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 			return seq, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
-			return 0, err
-		}
-		if !retrySamePayload {
 			return 0, err
 		}
 
