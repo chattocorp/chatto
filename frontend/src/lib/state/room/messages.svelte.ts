@@ -160,7 +160,6 @@ export abstract class MessageListStore {
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
   protected roomId = '';
 
-  #disposed = false;
   #disposeReconnectEffect: (() => void) | null = null;
   #tabResumeHandler: (() => void) | null = null;
 
@@ -173,13 +172,8 @@ export abstract class MessageListStore {
     this.#wireTabResumeListener();
   }
 
-  /**
-   * Tear down lifecycle listeners. Idempotent. After this returns, any
-   * in-flight reconnect or visibility event is a no-op.
-   */
+  /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    if (this.#disposed) return;
-    this.#disposed = true;
     this.#disposeReconnectEffect?.();
     this.#disposeReconnectEffect = null;
     if (this.#tabResumeHandler && typeof document !== 'undefined') {
@@ -206,16 +200,15 @@ export abstract class MessageListStore {
     this.#disposeReconnectEffect = $effect.root(() => {
       $effect(() => {
         const n = this.gqlClient.reconnectCount;
-        if (n > lastSeen) {
-          lastSeen = n;
-          if (this.#disposed) return;
-          console.debug(
-            '[MessageListStore] reconnectCount %d → %d, catching up',
-            lastSeen - 1,
-            n
-          );
-          this.catchUp('ws reconnect');
-        }
+        if (n <= lastSeen) return;
+        const prev = lastSeen;
+        lastSeen = n;
+        console.debug(
+          '[MessageListStore] reconnectCount %d → %d, catching up',
+          prev,
+          n
+        );
+        this.catchUp('ws reconnect');
       });
     });
   }
@@ -224,19 +217,18 @@ export abstract class MessageListStore {
     if (typeof document === 'undefined') return;
     let lastVisibleAt = Date.now();
     this.#tabResumeHandler = () => {
-      if (this.#disposed) return;
-      if (document.visibilityState === 'visible') {
-        const gap = Date.now() - lastVisibleAt;
-        if (gap > TAB_RESUME_GAP_MS) {
-          console.debug(
-            '[MessageListStore] visible after %ds hidden → catching up',
-            Math.round(gap / 1000)
-          );
-          this.catchUp('tab resume');
-        }
+      if (document.visibilityState !== 'visible') {
         lastVisibleAt = Date.now();
-      } else {
-        lastVisibleAt = Date.now();
+        return;
+      }
+      const gap = Date.now() - lastVisibleAt;
+      lastVisibleAt = Date.now();
+      if (gap > TAB_RESUME_GAP_MS) {
+        console.debug(
+          '[MessageListStore] visible after %ds hidden → catching up',
+          Math.round(gap / 1000)
+        );
+        this.catchUp('tab resume');
       }
     };
     document.addEventListener('visibilitychange', this.#tabResumeHandler);
