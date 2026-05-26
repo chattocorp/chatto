@@ -57,6 +57,16 @@ func setupTestCore(t *testing.T) *core.ChattoCore {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
+	runCtx, runCancel := context.WithCancel(context.Background())
+	go func() { _ = c.Run(runCtx) }()
+	t.Cleanup(runCancel)
+
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := c.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+
 	return c
 }
 
