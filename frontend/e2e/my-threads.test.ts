@@ -623,6 +623,11 @@ test.describe('My Threads', () => {
 
 		// Navigate back to the original room to confirm no deadlock
 		await chatPage.enterRoom('general');
+		// ThreadPane's exit `transition:fly` keeps it in the DOM for ~200ms after
+		// the URL drops the thread suffix. Wait for it to actually unmount before
+		// asserting rootText is uniquely visible — otherwise the still-fading
+		// pane and the main timeline both match (strict-mode violation).
+		await expect(page.getByTestId('thread-pane')).toBeHidden();
 		await expect(page.getByText(rootText)).toBeVisible({
 			timeout: TIMEOUTS.UI_STANDARD
 		});
