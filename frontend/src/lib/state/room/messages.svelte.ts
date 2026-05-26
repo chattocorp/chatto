@@ -8,7 +8,16 @@ import {
 } from '$lib/gql/graphql';
 import type { FragmentType } from '$lib/gql/fragment-masking';
 import type { ServerEvent } from '$lib/eventBus.svelte';
+import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from './composerContext.svelte';
+
+/**
+ * Minimum hidden duration before a visibility→visible transition counts as
+ * a "tab resume" worth catching up for. Mirrors the eventBus visibility-
+ * resubscribe threshold and the GraphQL client's suspend-detector window
+ * so all three layers react on the same horizon.
+ */
+const TAB_RESUME_GAP_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -124,28 +133,114 @@ function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
  *     video processing all funnel through here)
  *   - the {@link ingestServerEvent} skeleton, which routes incoming
  *     subscription events to refetches or to subclass hooks
+ *   - **its own lifecycle wiring**: a reconnect listener on
+ *     `gqlClient.reconnectCount` and a tab-resume-after-gap listener on
+ *     `visibilitychange`, both feeding into {@link catchUp}
  *
  * Subclasses fill in:
  *   - the initial query (room: paginated; thread: single fetch)
  *   - the visible-events filter for {@link refetchAll}
  *   - {@link onMessagePosted} — what to do with a new MessagePostedEvent
  *   - {@link onSystemEvent} — what to do with room system events (default ignore)
+ *   - {@link catchUp} — silent refetch of newer events triggered by reconnect
+ *     or tab resume
  *
  * The component owns the actual subscription (via `useEvent`) and
  * forwards events here. Cross-cutting side effects (e.g. cancelling an
  * in-progress edit, removing a typing indicator) stay in the component.
+ *
+ * **Disposal:** callers MUST call {@link dispose} on unmount to tear down
+ * the reconnect and visibility listeners.
  */
 export abstract class MessageListStore {
   events = $state<RoomEventViewFragment[]>([]);
   isInitialLoading = $state(true);
 
+  protected readonly client: Client;
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
   protected roomId = '';
 
+  #disposed = false;
+  #disposeReconnectEffect: (() => void) | null = null;
+  #tabResumeHandler: (() => void) | null = null;
+
   constructor(
-    protected readonly client: Client,
+    protected readonly gqlClient: GraphQLClient,
     protected readonly getCurrentUserId: () => string | null
-  ) {}
+  ) {
+    this.client = gqlClient.client;
+    this.#wireReconnectListener();
+    this.#wireTabResumeListener();
+  }
+
+  /**
+   * Tear down lifecycle listeners. Idempotent. After this returns, any
+   * in-flight reconnect or visibility event is a no-op.
+   */
+  dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
+    this.#disposeReconnectEffect?.();
+    this.#disposeReconnectEffect = null;
+    if (this.#tabResumeHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.#tabResumeHandler);
+    }
+    this.#tabResumeHandler = null;
+  }
+
+  // -------------------------------------------------------------------------
+  // Lifecycle wiring (reconnect + tab-resume-after-gap → catchUp)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Silent refetch of newer events. Called by the reconnect / tab-resume
+   * listeners. Subclasses implement the actual fetch strategy (paginated
+   * forward query for rooms, single-shot thread fetch for threads). Must
+   * NOT toggle {@link isInitialLoading} — catch-up should keep the stale
+   * view on screen until the new data lands.
+   */
+  protected abstract catchUp(reason: string): void;
+
+  #wireReconnectListener(): void {
+    let lastSeen = this.gqlClient.reconnectCount;
+    this.#disposeReconnectEffect = $effect.root(() => {
+      $effect(() => {
+        const n = this.gqlClient.reconnectCount;
+        if (n > lastSeen) {
+          lastSeen = n;
+          if (this.#disposed) return;
+          console.log(
+            '[MessageListStore] reconnectCount %d → %d, catching up',
+            lastSeen - 1,
+            n
+          );
+          this.catchUp('ws reconnect');
+        }
+      });
+    });
+  }
+
+  #wireTabResumeListener(): void {
+    if (typeof document === 'undefined') return;
+    let lastVisibleAt = Date.now();
+    this.#tabResumeHandler = () => {
+      if (this.#disposed) return;
+      if (document.visibilityState === 'visible') {
+        const gap = Date.now() - lastVisibleAt;
+        if (gap > TAB_RESUME_GAP_MS) {
+          console.log(
+            '[MessageListStore] visible after %ds hidden → catching up',
+            Math.round(gap / 1000)
+          );
+          this.catchUp('tab resume');
+        }
+        lastVisibleAt = Date.now();
+      } else {
+        lastVisibleAt = Date.now();
+      }
+    };
+    document.addEventListener('visibilitychange', this.#tabResumeHandler);
+  }
 
   // -------------------------------------------------------------------------
   // Subscription event ingestion
@@ -379,29 +474,31 @@ export class RoomMessagesStore extends MessageListStore {
   // -------------------------------------------------------------------------
 
   /**
-   * Switch to a different room (or refetch the current one).
-   *
-   * @param mode 'reset' clears state and shows skeleton; 'catchUp' keeps
-   *   stale events visible and quietly fetches forward (use on reconnect).
+   * Switch to a room (or force-refetch the current one). Always shows the
+   * skeleton and clears state. Silent reconnect / tab-resume catch-ups go
+   * through {@link catchUp} (driven internally by the base class), not
+   * through this method.
    */
-  setRoom(roomId: string, mode: 'reset' | 'catchUp'): void {
-    const isSameRoom = this.roomId === roomId;
+  setRoom(roomId: string): void {
     this.roomId = roomId;
-
     const thisLoad = ++this.loadId;
+    this.resetState();
+    this.isInitialLoading = true;
+    this.fetchLatest(thisLoad);
+  }
 
-    if (mode === 'reset' || !isSameRoom) {
-      this.resetState();
-      this.isInitialLoading = true;
-      this.fetchLatest(thisLoad);
-      return;
-    }
+  // -------------------------------------------------------------------------
+  // Catch-up (called by base class on reconnect / tab-resume)
+  // -------------------------------------------------------------------------
 
+  protected catchUp(_reason: string): void {
+    if (!this.roomId) return;
+    const thisLoad = ++this.loadId;
     if (this.events.length === 0) {
       this.fetchLatest(thisLoad);
-      return;
+    } else {
+      this.catchUpForward(thisLoad);
     }
-    this.catchUpForward(thisLoad);
   }
 
   // -------------------------------------------------------------------------
@@ -747,7 +844,10 @@ export class ThreadMessagesStore extends MessageListStore {
     return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
   }
 
-  /** Switch to a different thread and (re)fetch its events. */
+  /** Switch to a thread (or force-refetch the current one). Always shows
+   *  the skeleton. Silent reconnect / tab-resume catch-ups go through
+   *  {@link catchUp}, not through this method.
+   */
   setThread(roomId: string, threadRootEventId: string): void {
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
@@ -755,6 +855,15 @@ export class ThreadMessagesStore extends MessageListStore {
     const thisLoad = ++this.loadId;
     this.resetState();
     this.isInitialLoading = true;
+    this.fetchThread(thisLoad);
+  }
+
+  protected catchUp(_reason: string): void {
+    if (!this.threadRootEventId) return;
+    // Silent: do NOT flip isInitialLoading. fetchThread merges results
+    // with existing events via replaceMergingExisting, so the stale view
+    // stays on screen until the new data lands.
+    const thisLoad = ++this.loadId;
     this.fetchThread(thisLoad);
   }
 
