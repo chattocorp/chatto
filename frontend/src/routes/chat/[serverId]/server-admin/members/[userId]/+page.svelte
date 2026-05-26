@@ -54,7 +54,6 @@
   let allRoles = $state<Role[]>([]);
   let viewerRoles = $state<string[]>([]);
   let memberSpaceRoles = $state<string[]>([]); // Member's space roles (separate from member object)
-  let availablePermissions = $state<string[]>([]);
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);
   let loading = $state(true);
@@ -127,7 +126,6 @@
 
     member = resp.data.server.member ?? null;
     allRoles = resp.data.server.roles ?? [];
-    availablePermissions = resp.data.server.availablePermissions ?? [];
     viewerRoles = resp.data.viewer?.user.roles ?? [];
     memberSpaceRoles = resp.data.server.member?.roles ?? [];
     canAssignRoles = resp.data.server.viewerCanAssignRoles;
@@ -258,11 +256,6 @@
     const role = allRoles.find((r) => r.name === roleName);
     return role?.position ?? Number.MAX_SAFE_INTEGER;
   }
-
-  // All roles the member effectively has (explicit + implicit everyone role)
-  const effectiveSpaceRoles = $derived(
-    memberSpaceRoles.includes('everyone') ? memberSpaceRoles : [...memberSpaceRoles, 'everyone']
-  );
 
   // Check if this is the current user
   const isSelf = $derived(currentUser.user?.id === userId);

@@ -79,14 +79,14 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
    * what they previously hadn't seen.
    */
   function noteReadCursor(timestamp: string) {
-    const ts = new Date(timestamp).getTime();
-    if (lastCursor && ts <= new Date(lastCursor).getTime()) return;
+    const ts = Date.parse(timestamp);
+    if (lastCursor && ts <= Date.parse(lastCursor)) return;
     lastCursor = timestamp;
 
     if (
       unreadAfterTime !== null &&
       unreadBeforeTime === null &&
-      ts > new Date(unreadAfterTime).getTime()
+      ts > Date.parse(unreadAfterTime)
     ) {
       unreadAfterTime = timestamp;
     }

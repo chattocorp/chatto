@@ -3,7 +3,6 @@ import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
 import {
   RoomType,
-  type RoomEventViewFragment,
   UserAvatarUserFragmentDoc,
   type UserAvatarUserFragment
 } from '$lib/gql/graphql';
@@ -220,4 +219,3 @@ export class RoomsStore {
     }
   }
 }
-

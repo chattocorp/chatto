@@ -2,7 +2,6 @@
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { graphql } from '$lib/gql';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import { useEvent, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';

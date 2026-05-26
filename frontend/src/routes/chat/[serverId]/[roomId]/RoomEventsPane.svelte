@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import { useEvent } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';

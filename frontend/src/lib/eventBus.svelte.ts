@@ -9,7 +9,6 @@
  * cross-server sidebar wiring).
  */
 
-import { type Client } from '@urql/svelte';
 import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { graphql, useFragment } from './gql';

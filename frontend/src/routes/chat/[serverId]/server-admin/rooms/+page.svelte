@@ -16,6 +16,7 @@
   import { toast } from '$lib/ui/toast';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
+  import { SvelteMap } from 'svelte/reactivity';
 
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 
@@ -282,13 +283,13 @@
   type GroupRoomOrder = Map<string, string[]>;
 
   function buildGroupRoomOrder(state: GroupState[]): GroupRoomOrder {
-    const map = new Map<string, string[]>();
+    const map = new SvelteMap<string, string[]>();
     for (const g of state) map.set(g.id, g.rooms.map((r) => r.id));
     return map;
   }
 
   function buildRoomToGroup(snapshot: GroupRoomOrder): Map<string, string> {
-    const map = new Map<string, string>();
+    const map = new SvelteMap<string, string>();
     for (const [groupId, roomIds] of snapshot) {
       for (const roomId of roomIds) map.set(roomId, groupId);
     }
@@ -922,5 +923,4 @@
     be able to access it again.
   </ConfirmDialog>
 {/if}
-
 

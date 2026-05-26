@@ -11,7 +11,6 @@ Allows the user to set server-level and per-room notification levels.
 - All Messages - Like Normal, plus a notification for every root message
 -->
 <script lang="ts">
-  import { page } from '$app/state';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphql } from '$lib/gql';
