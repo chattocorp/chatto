@@ -755,7 +755,7 @@ type Event_MessageDeleted struct {
 }
 
 type Event_ReactionAdded struct {
-	// ----- Reactions (1050-1059) — KV is source of truth -----
+	// ----- Reactions (1050-1059) — EVT/projection is source of truth -----
 	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,1050,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
 }
 
@@ -2802,7 +2802,7 @@ type ReactionAddedEvent struct {
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message being reacted to (NanoID)
 	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	// The emoji used for the reaction (Unicode emoji string)
+	// The emoji used for the reaction (shortcode name)
 	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2865,7 +2865,7 @@ type ReactionRemovedEvent struct {
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message the reaction was removed from (NanoID)
 	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	// The emoji that was removed
+	// The emoji shortcode that was removed
 	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

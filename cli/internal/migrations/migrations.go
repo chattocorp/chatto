@@ -57,6 +57,8 @@ import (
 //     recomputable state).
 //   - `runtimeConfigKV`: INSTANCE_CONFIG (operator-editable server
 //     settings — name, MOTD, blocked usernames, etc.).
+//   - `serverReactionsKV`: SERVER_REACTIONS (legacy current reaction
+//     state; retained until reaction ES migration cleanup).
 //
 // `publisher` writes to the EVT event-sourcing stream and is
 // used by the ES migrations (ADR-035 phase 3 per aggregate) that seed
@@ -65,6 +67,7 @@ func RunAll(
 	ctx context.Context,
 	serverKV, serverConfigKV, serverBodiesKV, serverRuntimeKV, runtimeConfigKV jetstream.KeyValue,
 	serverEventsStream jetstream.Stream,
+	serverReactionsKV jetstream.KeyValue,
 	publisher *events.Publisher,
 	logger *log.Logger,
 ) error {
@@ -98,6 +101,9 @@ func RunAll(
 	}
 	if err := MigrateMessagesToES(ctx, serverEventsStream, serverBodiesKV, publisher, logger); err != nil {
 		return fmt.Errorf("messages_es: %w", err)
+	}
+	if err := MigrateReactionsToES(ctx, serverEventsStream, serverReactionsKV, publisher, logger); err != nil {
+		return fmt.Errorf("reactions_es: %w", err)
 	}
 	return nil
 }

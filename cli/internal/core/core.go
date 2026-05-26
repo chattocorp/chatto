@@ -34,17 +34,17 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing all KV buckets and event streams internally.
 type ChattoCore struct {
-	nc                      *nats.Conn
-	js                      jetstream.JetStream
-	logger                  *log.Logger
-	storage                 *storage
-	config                  config.CoreConfig
-	encryption              *encryptionManager
-	configManager           *ConfigManager
-	s3Client                *S3Client            // Optional S3 client for S3-compatible storage
-	permissionResolver      *PermissionResolver  // Hierarchical permission resolver
-	linkPreviewCache        *linkpreview.Cache   // Cache for link preview metadata
-	linkPreviewFetcher      *linkpreview.Fetcher // Fetcher for link preview metadata
+	nc                 *nats.Conn
+	js                 jetstream.JetStream
+	logger             *log.Logger
+	storage            *storage
+	config             config.CoreConfig
+	encryption         *encryptionManager
+	configManager      *ConfigManager
+	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher *linkpreview.Fetcher // Fetcher for link preview metadata
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -140,6 +140,14 @@ type ChattoCore struct {
 	// ThreadsProjector runs the consumer for Threads. Exposed for
 	// WaitForSeq from message writers that touch threads.
 	ThreadsProjector *events.Projector
+
+	// Reactions holds current per-message reaction state derived
+	// from durable room-aggregate reaction events.
+	Reactions *ReactionProjection
+
+	// ReactionsProjector runs the consumer for Reactions. Exposed
+	// for WaitForSeq from reaction writers.
+	ReactionsProjector *events.Projector
 
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
@@ -563,6 +571,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "ThreadsProjector")
 
+	reactions := NewReactionProjection()
+	reactionsProjector := newProjector(reactions, "ReactionsProjector")
+
 	// ConfigManager owns server-config dual-writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
@@ -592,6 +603,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomTimelineProjector:   roomTimelineProjector,
 		Threads:                 threads,
 		ThreadsProjector:        threadsProjector,
+		Reactions:               reactions,
+		ReactionsProjector:      reactionsProjector,
 		projectors:              projectors,
 		bootDone:                make(chan struct{}),
 	}
@@ -608,7 +621,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err := migrations.RunAll(
 		ctx,
 		storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, storage.runtimeConfigKV,
-		storage.serverEventsStream,
+		storage.serverEventsStream, storage.serverReactionsKV,
 		eventPublisher,
 		logger,
 	); err != nil {

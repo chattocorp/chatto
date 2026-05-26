@@ -63,6 +63,11 @@ const (
 	EventMessageEdited    = "message_edited"
 	EventMessageRetracted = "message_retracted"
 
+	// Reactions (also under the room aggregate). Reaction state is
+	// derived from these durable events by the reaction projection.
+	EventReactionAdded   = "reaction_added"
+	EventReactionRemoved = "reaction_removed"
+
 	// Group aggregate
 	EventRoomGroupCreated      = "group_created"
 	EventRoomGroupUpdated      = "group_updated"
@@ -110,6 +115,11 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageEdited
 	case *corev1.Event_MessageRetracted:
 		return EventMessageRetracted
+
+	case *corev1.Event_ReactionAdded:
+		return EventReactionAdded
+	case *corev1.Event_ReactionRemoved:
+		return EventReactionRemoved
 
 	case *corev1.Event_RoomGroupCreated:
 		return EventRoomGroupCreated

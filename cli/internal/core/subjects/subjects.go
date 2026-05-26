@@ -320,8 +320,8 @@ func LiveRoomAllEvents(kind string) string {
 	return fmt.Sprintf("live.server.room.%s.>", kind)
 }
 
-// LiveRoomReactionEvents returns the subscription subject for all live-only
-// reaction events of a given kind.
+// LiveRoomReactionEvents returns the subscription subject for all reaction
+// live mirrors of a given kind.
 // Pattern: `live.server.room.{kind}.*.reaction_*`.
 func LiveRoomReactionEvents(kind string) string {
 	return fmt.Sprintf("live.server.room.%s.*.reaction_*", kind)

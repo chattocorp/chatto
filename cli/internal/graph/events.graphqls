@@ -389,7 +389,7 @@ type MessageDeletedEvent {
 }
 
 # ==============================================================================
-# REACTION EVENTS (Live-only - KV bucket is source of truth)
+# REACTION EVENTS (durable in EVT; delivered live via live.server mirror)
 # ==============================================================================
 
 """

@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-26
 
 ## Overview
 
@@ -17,11 +17,11 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ## Design Decisions
 
-### 1. Reactions key on event ID, not message body ID
+### 1. Reactions key on canonical message event ID
 
-**Decision:** A reaction is keyed by the event it was added to. A thread reply and its channel echo therefore accumulate reactions independently.
-**Why:** Reacting in the channel is a different social signal from reacting inside the thread. Combining them would mute one of those signals. See FDR-003.
-**Tradeoff:** The total reaction count across a reply-and-echo pair is split between two events. No single canonical number. Matches user intuition.
+**Decision:** A reaction is keyed by message event ID. When the user reacts to a channel echo of a thread reply, the backend canonicalizes the target to the original thread reply event ID, so the echo and original share reaction state.
+**Why:** This preserves current product behavior while reactions move into the event-sourced architecture. Both surfaces represent the same underlying reply, and a shared reaction count avoids divergent state between the channel and thread views.
+**Tradeoff:** The channel echo is not an independent social surface for reactions. If we want split reactions later, that should be a deliberate behavior change rather than a storage migration side effect.
 
 ### 2. Shortcodes, not raw Unicode
 
@@ -29,11 +29,11 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Why:** NATS KV keys can't contain arbitrary Unicode, and storing the codepoint as a key would also lock us into one particular Unicode version's normalization rules. Shortcodes are stable, portable, and human-readable in storage.
 **Tradeoff:** Emojis outside the gemoji set can't be used. The set is large enough that this rarely matters.
 
-### 3. Live-only events, KV is source of truth
+### 3. Durable events, in-memory projection is source of truth
 
-**Decision:** Reaction add/remove changes publish as transient live events; the KV bucket holds the authoritative state. Live events just trigger the frontend to refetch.
-**Why:** A reaction event has no audit value (the current count is what matters; the history doesn't). Persisting them to JetStream would multiply event volume for no gain. See ADR-006 and ADR-012.
-**Tradeoff:** A client that misses the live event briefly shows stale counts until it next refetches. Acceptable given the visual stakes.
+**Decision:** Reaction add/remove changes append durable room-aggregate events to EVT (`evt.room.{roomId}.reaction_added` / `reaction_removed`). Current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. A non-durable `live.server.room...reaction_*` mirror is still published for the existing subscription pipeline.
+**Why:** Reactions are part of the event-sourcing migration tracked by #596. Keeping them in the room stream makes add/remove ordering explicit, gives replayable state, and removes the KV bucket from the hot read/write path.
+**Tradeoff:** The first projection version keeps all current reaction state in RAM. That is simple and correct; bounded or demand-loaded projections can follow once the rest of the event-sourcing architecture is in place and real access patterns are measured.
 
 ### 4. Quick-reaction recents are per-device, not per-user
 
@@ -47,5 +47,5 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ## Related
 
-- **ADRs:** ADR-006 (KV as source of truth, streams as audit logs), ADR-012 (two-tier real-time events), ADR-026 (event identity via NanoID)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration)
 - **FDRs:** FDR-003 (Thread Reply Echo)

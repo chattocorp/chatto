@@ -145,7 +145,7 @@ message Event {
     MessageUpdatedEvent message_updated = 1040;
     MessageDeletedEvent message_deleted = 1041;
 
-    // ----- Reactions (1050-1059) — KV is source of truth -----
+    // ----- Reactions (1050-1059) — EVT/projection is source of truth -----
     ReactionAddedEvent reaction_added = 1050;
     ReactionRemovedEvent reaction_removed = 1051;
 
@@ -611,7 +611,7 @@ message MessageDeletedEvent {
 }
 
 // ============================================================================
-// REACTION EVENTS (room-scoped — KV bucket is source of truth)
+// REACTION EVENTS (room-scoped, durable in EVT)
 // ============================================================================
 
 message ReactionAddedEvent {
@@ -624,7 +624,7 @@ message ReactionAddedEvent {
   // Event ID of the message being reacted to (NanoID)
   string message_event_id = 3;
 
-  // The emoji used for the reaction (Unicode emoji string)
+  // The emoji used for the reaction (shortcode name)
   string emoji = 4;
 }
 
@@ -638,7 +638,7 @@ message ReactionRemovedEvent {
   // Event ID of the message the reaction was removed from (NanoID)
   string message_event_id = 3;
 
-  // The emoji that was removed
+  // The emoji shortcode that was removed
   string emoji = 4;
 }
 

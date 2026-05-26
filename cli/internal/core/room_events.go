@@ -237,6 +237,8 @@ func (c *ChattoCore) GetEventSequence(ctx context.Context, kind RoomKind, roomID
 //   - MessageEditedEvent / MessageRetractedEvent — folded onto the
 //     original post via projection.LatestBody; not surfaced as
 //     separate timeline entries.
+//   - ReactionAddedEvent / ReactionRemovedEvent — folded into the
+//     reaction projection.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
 // unarchived/deleted), memberships (user_joined / user_left).
@@ -247,7 +249,8 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
 		return e.MessagePosted.GetInThread() == ""
-	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
+	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
+		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
 		return false
 	}
 	return true

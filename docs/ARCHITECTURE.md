@@ -264,7 +264,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `SERVER_RBAC`                 | Roles, permissions, assignments (single flat tier — owner/admin/moderator/everyone) |
 | KV      | `SERVER_RUNTIME`              | Read status, mention tracking               |
 | KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
-| KV      | `SERVER_REACTIONS`            | Emoji reactions                             |
+| KV      | `SERVER_REACTIONS`            | Legacy emoji reactions source for boot migration only |
 | KV      | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
 | Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
@@ -275,7 +275,7 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 
 **Important:** Event publishing is best-effort for most operations. If event publishing fails for spaces, users, or rooms, the operation still succeeds because the KV store (source of truth) was updated successfully. Event publishing failures are logged but do not block operations.
 
-**Exception:** Message posting requires successful event publishing because messages are stored only in event streams (see Messages section below). If event publishing fails for a message, the entire post operation fails.
+**Exception:** Message and reaction writes require successful event publishing because they are stored in EVT and read through in-memory projections. If event publishing fails, the write fails.
 
 ### Consistency Model
 
@@ -337,8 +337,8 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, UserJoinedRoom                  | Ordering guarantees, historical replay, audit trail            |
-| Room live-only              | NATS Core  | ReactionAdded, ReactionRemoved, MessageDeleted, MessageUpdated, PresenceChanged, UserTyping | Ephemeral room notifications where KV bucket is source of truth |
+| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, historical replay, projection source of truth |
+| Room live-only              | NATS Core  | MessageDeleted, MessageUpdated, PresenceChanged, UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/space/config) | NATS Core  | UserCreated, SpaceUpdated, ConfigUpdated, MentionNotification, NotificationCreated | Cross-tab sync, notifications, server lifecycle |
 
 The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). All variants share the single `corev1.Event` envelope; GraphQL exposes them through one `ServerEvent` wrapping union with the typed payloads as members of the `ServerEventType` union.
@@ -356,8 +356,8 @@ Every event eventually lands on `live.server.>` so a subscriber needs only one N
 
 1. **Primary Stream** (persistent):
    - `SERVER_EVENTS` (subjects `server.>`) holds room messages, thread replies, room meta lifecycle, and server-level member events. A stream-level `RePublish` config forwards every accepted message onto `live.server.>` (same suffix, new prefix). The republish fires after persistence, so a subscriber cannot observe an event that didn't durably store.
-2. **Direct Live Publish** (transient):
-   - Reactions, typing, message edits/deletes, user/space/config notifications publish directly via NATS Core to `live.server.>` — no stream storage. KV buckets are the source of truth for the state these reflect.
+2. **Direct Live Publish** (transient/mirror):
+   - Typing, legacy message edits/deletes, user/space/config notifications publish directly via NATS Core to `live.server.>` — no stream storage. EVT-backed messages and reactions also publish non-durable mirrors on `live.server.>` so the existing `myEvents` subscription path keeps one subject root while the durable source lives in EVT.
 
 The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`, `.meta`, `.{verb}` for republished stream events; `.reaction_added`, `.user_typing`, `.profile_updated`, etc. for direct publishes). The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that wraps a single `ChanSubscribe("live.server.>")` plus per-event authorization. There is no per-connection JetStream consumer.
 
@@ -366,7 +366,7 @@ The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events for the legacy CRUD+log pattern; republishes onto `live.server.>` |
-| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}`; republishes onto `live.evt.>`. Currently fed by per-aggregate migrations ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); the room-membership aggregate is the first migrated. |
+| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>`. Currently fed by per-aggregate migrations ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, and reactions. |
 | Live Events                  | `corev1.Event`   | Transient  | `live.server.>` (NATS Core, fed by `SERVER_EVENTS` republish + direct publishes) and `live.evt.>` (fed by `EVT` republish). The two roots coexist during the migration window. |
 
 **SERVER\_EVENTS subjects:**
@@ -412,7 +412,7 @@ Pattern: `live.server.{scope}.{subject}` — the single subscription root for re
 - `SERVER_EVENTS` RePublish (`server.>` → `live.server.>`): every accepted stream message is re-emitted onto a NATS Core subject after persistence. Subscribers don't need a JetStream consumer to receive room messages, thread replies, room meta, or server-level member events.
 - Direct NATS Core publishes (`publishLiveUserEvent()`, `publishLiveDeploymentEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, `publishLiveMemberEvent()`): transient events with no stream storage.
 
-Subject leaf tokens never collide between the two paths — republished events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.).
+Subject leaf tokens never collide between the two paths — republished legacy events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.). For EVT-backed reactions, `.reaction_added` and `.reaction_removed` are live mirrors of durable `evt.room.{roomId}.reaction_*` events.
 
 **Deployment-wide live events** (`live.server.{user,config}.>`):
 
@@ -472,7 +472,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `SERVER_RBAC`                 | File    | Yes      | Roles, permissions, assignments (single flat tier) |
 | `SERVER_RUNTIME`              | File    | Yes      | Read state, mention tracking                    |
 | `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
-| `SERVER_REACTIONS`            | File    | Yes      | Emoji reactions on messages                     |
+| `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions, read only by the EVT boot migration |
 | `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
 | `NOTIFICATIONS`               | File    | Yes      | User notifications (90-day TTL)                 |
 | `AUTH_TOKENS`                 | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
@@ -598,7 +598,7 @@ Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-bas
 | --------------------------------------- | ---------------------------------------------- |
 | `{messageEventId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted; value stores nanosecond timestamp for "added at" ordering) |
 
-Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Separated for load isolation (high-volume). Events are live-only (not stored in JetStream). KV bucket is source of truth. Keyed by event ID (not the volatile JetStream sequence) so reactions survive any future stream re-publishing.
+Notes: Legacy source for `MigrateReactionsToES`. Current reaction writes append durable `ReactionAdded` / `ReactionRemoved` events to `evt.room.{roomId}.reaction_added` and `evt.room.{roomId}.reaction_removed`; current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. The bucket remains so old deployments can be imported and will be removed in the later cleanup phase.
 
 **SERVER\_THREADS keys:**
 
