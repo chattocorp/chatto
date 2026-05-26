@@ -86,6 +86,9 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		replyID := m.GetEventId()
 		if replyID == "" {
+			replyID = event.GetId()
+		}
+		if replyID == "" {
 			return nil
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})

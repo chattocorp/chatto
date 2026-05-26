@@ -14,6 +14,7 @@ func TestEvaluateESBootVerificationReportDetectsCountRegressions(t *testing.T) {
 			roomLayoutPresent:   true,
 			serverConfigPresent: true,
 			messages:            9,
+			threadReplies:       2,
 			reactions:           4,
 		},
 		projected: esProjectedCounts{
@@ -23,6 +24,7 @@ func TestEvaluateESBootVerificationReportDetectsCountRegressions(t *testing.T) {
 			roomLayoutGroups:       0,
 			serverConfigConfigured: false,
 			messagePosts:           8,
+			threadReplies:          0,
 			activeReactions:        4,
 		},
 		decodeErrors: 1,
@@ -33,6 +35,7 @@ func TestEvaluateESBootVerificationReportDetectsCountRegressions(t *testing.T) {
 
 	assertProblemContains(t, report.problems, "memberships")
 	assertProblemContains(t, report.problems, "messages")
+	assertProblemContains(t, report.problems, "thread replies")
 	assertProblemContains(t, report.problems, "server config")
 	assertProblemContains(t, report.problems, "room layout")
 	assertProblemContains(t, report.problems, "decode errors")
@@ -41,17 +44,19 @@ func TestEvaluateESBootVerificationReportDetectsCountRegressions(t *testing.T) {
 func TestEvaluateESBootVerificationReportAllowsProjectedSuperset(t *testing.T) {
 	report := &esBootVerificationReport{
 		legacy: esLegacyCounts{
-			rooms:       2,
-			memberships: 3,
-			roomGroups:  1,
-			messages:    5,
-			reactions:   1,
+			rooms:         2,
+			memberships:   3,
+			roomGroups:    1,
+			messages:      5,
+			threadReplies: 2,
+			reactions:     1,
 		},
 		projected: esProjectedCounts{
 			rooms:           3,
 			memberships:     4,
 			roomGroups:      2,
 			messagePosts:    6,
+			threadReplies:   2,
 			activeReactions: 1,
 		},
 	}

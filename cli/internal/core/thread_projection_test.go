@@ -57,6 +57,26 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	}
 }
 
+func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", body: "legacy reply", at: 2}),
+		editedEvent("EDIT-REPLY1", "REPLY1", "R1", "U2", "edited legacy reply", 3),
+	})
+
+	entries := p.ThreadEvents("ROOT")
+	if len(entries) != 2 {
+		t.Fatalf("ThreadEvents(ROOT) len = %d, want 2", len(entries))
+	}
+	if got := p.ReplyCount("ROOT"); got != 1 {
+		t.Errorf("ReplyCount = %d, want 1", got)
+	}
+	if entries[1].Event.GetMessageEdited() == nil {
+		t.Error("expected edit to route through envelope-id fallback")
+	}
+}
+
 func TestThreadProjection_EditOfReplyAppendedToThread(t *testing.T) {
 	p := NewThreadProjection()
 	applyAll(t, p, []*corev1.Event{

@@ -141,14 +141,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		},
 	})
-	// Set EventId AND MessageBodyId both to the envelope id. Post-#597
-	// cutover, MessageBodyId is no longer a {userId}.{bodyId} compound
+	// Set MessageBodyId to the envelope id. Post-#597 cutover,
+	// MessageBodyId is no longer a {userId}.{bodyId} compound
 	// key — it's just an alias for event_id, kept on the proto so
 	// legacy code paths that pass MessageBodyId around (resolvers,
 	// attachment signed URLs) keep working without changes.
 	// eventIDFromBodyKey treats no-dot keys as event_ids, so the
 	// projection lookup picks the right entry.
-	event.GetMessagePosted().EventId = event.Id
 	event.GetMessagePosted().MessageBodyId = event.Id
 
 	// Stamp the event_id onto each attachment so signed attachment
@@ -332,7 +331,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				},
 			},
 		})
-		echoEvent.GetMessagePosted().EventId = echoEvent.Id
 		echoEvent.GetMessagePosted().MessageBodyId = echoEvent.Id
 
 		echoSequenceID, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, echoEvent)

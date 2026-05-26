@@ -314,6 +314,58 @@ func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
 	}
 }
 
+func TestMigrateMessagesToES_BackfillsLegacyEventIDAndThreadRootFromSubject(t *testing.T) {
+	rig := setupMessagesRig(t)
+
+	rig.putBody(t, "U1.ROOT-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("root")})
+	rig.putBody(t, "U2.REPLY-BODY", &corev1.MessageBody{AuthorId: "U2", EncryptedBody: []byte("reply")})
+
+	// Legacy PostMessage did not persist MessagePostedEvent.EventId; it
+	// lived on the envelope and subject. This is the real pre-ES shape
+	// imported from production-like data.
+	rig.publishLegacy(t, "server.room.channel.R1.msg.ROOT", &corev1.Event{
+		Id:        "ROOT",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId:        "R1",
+				MessageBodyId: "U1.ROOT-BODY",
+			},
+		},
+	})
+
+	// Be defensive for even older/broken imports: if InThread is absent,
+	// the legacy thread subject still carries the root event id.
+	rig.publishLegacy(t, "server.room.channel.R1.msg.ROOT.replies.REPLY1", &corev1.Event{
+		Id:        "REPLY1",
+		ActorId:   "U2",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId:        "R1",
+				MessageBodyId: "U2.REPLY-BODY",
+			},
+		},
+	})
+
+	if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	root := rig.readEvent(t, 1)
+	checkImportedMessage(t, root, "ROOT", "U1", "root")
+	if got := root.GetMessagePosted().GetInThread(); got != "" {
+		t.Errorf("root in_thread = %q, want empty", got)
+	}
+
+	reply := rig.readEvent(t, 2)
+	checkImportedMessage(t, reply, "REPLY1", "U2", "reply")
+	if got := reply.GetMessagePosted().GetInThread(); got != "ROOT" {
+		t.Errorf("reply in_thread = %q, want ROOT", got)
+	}
+}
+
 func TestMigrateMessagesToES_MissingBodyImportsAsNil(t *testing.T) {
 	// Legacy hard-delete: body wiped from SERVER_BODIES, post envelope
 	// still in SERVER_EVENTS. Migration imports the envelope with
@@ -540,9 +592,10 @@ func TestMigrateMessagesToES_MultipleRoomsIsolated(t *testing.T) {
 // =============================================================================
 
 // checkImportedMessage asserts that an event is a MessagePostedEvent
-// for the given eventID, on the right room subject, with embedded
-// body matching the expected ciphertext, and no legacy
-// message_body_id pointer.
+// with the given envelope ID, embedded body matching the expected
+// ciphertext, and post-cutover message_body_id alias. The payload's
+// EventId field is intentionally not persisted; GraphQL populates it
+// at read time from the envelope.
 func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor, wantCiphertext string) {
 	t.Helper()
 	if ev.GetId() != wantEventID {
@@ -555,8 +608,8 @@ func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor
 	if posted == nil {
 		t.Fatal("expected MessagePostedEvent payload")
 	}
-	if posted.GetEventId() != wantEventID {
-		t.Errorf("posted event_id = %q, want %q", posted.GetEventId(), wantEventID)
+	if posted.GetEventId() != "" {
+		t.Errorf("posted event_id should not be persisted, got %q", posted.GetEventId())
 	}
 	if posted.GetMessageBodyId() != wantEventID {
 		t.Errorf("posted message_body_id should alias event_id post-cutover, got %q want %q", posted.GetMessageBodyId(), wantEventID)

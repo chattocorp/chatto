@@ -31,6 +31,7 @@ type esLegacyCounts struct {
 	roomLayoutPresent   bool
 	serverConfigPresent bool
 	messages            int
+	threadReplies       int
 	reactions           int
 	encryptionKeys      int
 }
@@ -78,6 +79,8 @@ func (c *ChattoCore) logESBootVerification(ctx context.Context) {
 		"projected_room_groups", report.projected.roomGroups,
 		"legacy_messages", report.legacy.messages,
 		"projected_message_posts", report.projected.messagePosts,
+		"legacy_thread_replies", report.legacy.threadReplies,
+		"projected_thread_replies", report.projected.threadReplies,
 		"legacy_reactions", report.legacy.reactions,
 		"projected_active_reactions", report.projected.activeReactions,
 		"server_config_legacy", report.legacy.serverConfigPresent,
@@ -162,6 +165,10 @@ func (c *ChattoCore) collectLegacyESCounts(ctx context.Context) (esLegacyCounts,
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy messages: %w", err)
 	}
+	counts.threadReplies, err = countStreamMessages(ctx, c.storage.serverEventsStream, []string{"server.room.*.*.msg.*.replies.>"})
+	if err != nil {
+		return counts, warnings, fmt.Errorf("count legacy thread replies: %w", err)
+	}
 	counts.reactions, err = countKVKeys(ctx, c.storage.serverReactionsKV)
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy reactions: %w", err)
@@ -213,6 +220,7 @@ func (c *ChattoCore) evaluateESBootVerificationReport(r *esBootVerificationRepor
 	compareAtLeast("memberships", r.legacy.memberships, r.projected.memberships)
 	compareAtLeast("room groups", r.legacy.roomGroups, r.projected.roomGroups)
 	compareAtLeast("messages", r.legacy.messages, r.projected.messagePosts)
+	compareAtLeast("thread replies", r.legacy.threadReplies, r.projected.threadReplies)
 	compareAtLeast("reactions", r.legacy.reactions, r.projected.activeReactions)
 
 	if r.legacy.serverConfigPresent && !r.projected.serverConfigConfigured {
