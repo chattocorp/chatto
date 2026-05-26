@@ -382,6 +382,81 @@ func (p *Publisher) LastSubjectSeq(ctx context.Context, subjectOrFilter string) 
 	return p.lastSubjectSeq(ctx, subjectOrFilter)
 }
 
+// SubjectEvents returns events currently published on a subject, in stream
+// order, plus the stream sequence of the last matching event. Migration code
+// uses this to resume imports without duplicating events after a crash or
+// failed boot.
+func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev1.Event, uint64, error) {
+	consumer, err := p.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		FilterSubjects:    []string{subject},
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckNonePolicy,
+		MemoryStorage:     true,
+		InactiveThreshold: 30 * time.Second,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	defer p.stream.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+
+	info, err := consumer.Info(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	remaining := int(info.NumPending)
+	events := make([]*corev1.Event, 0, remaining)
+	var lastSeq uint64
+	for remaining > 0 {
+		batchSize := remaining
+		if batchSize > 500 {
+			batchSize = 500
+		}
+		msgs, err := consumer.Fetch(batchSize, jetstream.FetchMaxWait(10*time.Second))
+		if err != nil {
+			if errors.Is(err, jetstream.ErrNoMessages) {
+				break
+			}
+			return nil, 0, err
+		}
+
+		fetched := 0
+		for msg := range msgs.Messages() {
+			fetched++
+			meta, err := msg.Metadata()
+			if err != nil {
+				return nil, 0, fmt.Errorf("message metadata: %w", err)
+			}
+			lastSeq = meta.Sequence.Stream
+
+			var event corev1.Event
+			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
+				return nil, 0, fmt.Errorf("unmarshal event at seq %d: %w", lastSeq, err)
+			}
+			events = append(events, &event)
+		}
+		if fetched == 0 {
+			break
+		}
+		remaining -= fetched
+	}
+	return events, lastSeq, nil
+}
+
+// SubjectEventIDs returns the envelope IDs currently published on a subject,
+// in stream order, plus the stream sequence of the last matching event.
+func (p *Publisher) SubjectEventIDs(ctx context.Context, subject string) ([]string, uint64, error) {
+	events, lastSeq, err := p.SubjectEvents(ctx, subject)
+	if err != nil {
+		return nil, 0, err
+	}
+	ids := make([]string, 0, len(events))
+	for _, event := range events {
+		ids = append(ids, event.GetId())
+	}
+	return ids, lastSeq, nil
+}
+
 // lastSubjectSeq returns the current last sequence for a subject (or
 // wildcard subject filter), or 0 if no matching messages exist.
 func (p *Publisher) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {

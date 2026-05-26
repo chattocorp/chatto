@@ -31,6 +31,15 @@ func seedMembership(t *testing.T, kv jetstream.KeyValue, kind, roomID, userID st
 	require.NoError(t, err)
 }
 
+func seedOldMembership(t *testing.T, kv jetstream.KeyValue, roomID, userID string) {
+	t.Helper()
+	m := &corev1.RoomMembership{UserId: userID, RoomId: roomID}
+	data, err := proto.Marshal(m)
+	require.NoError(t, err)
+	_, err = kv.Put(t.Context(), "room_membership."+userID+"."+roomID, data)
+	require.NoError(t, err)
+}
+
 func TestMigrateRoomAggregateToES_EmptyKV(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
 	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger()))
@@ -94,6 +103,56 @@ func TestMigrateRoomAggregateToES_SeedsRoomThenMembers(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(lastMsgR2.Data, &archivedEv))
 	_, isArchive := archivedEv.GetEvent().(*corev1.Event_RoomArchived)
 	require.True(t, isArchive, "expected last event on R2.room_archived to be RoomArchived")
+}
+
+func TestMigrateRoomAggregateToES_AcceptsOldMembershipKeyShape(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+
+	seedRoom(t, kv, "channel", &corev1.Room{
+		Id:   "R1",
+		Name: "general",
+		Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	})
+	seedOldMembership(t, kv, "R1", "U1")
+
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger()))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, info.State.Msgs)
+
+	msg, err := stream.GetMsg(ctx, 2)
+	require.NoError(t, err)
+	var ev corev1.Event
+	require.NoError(t, proto.Unmarshal(msg.Data, &ev))
+	require.Equal(t, "U1", ev.GetActorId())
+	require.Equal(t, "R1", ev.GetUserJoinedRoom().GetRoomId())
+}
+
+func TestMigrateRoomAggregateToES_BackfillsMissingMemberships(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+
+	seedRoom(t, kv, "channel", &corev1.Room{
+		Id:   "R1",
+		Name: "general",
+		Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	})
+	seedMembership(t, kv, "channel", "R1", "U1")
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger()))
+
+	seedOldMembership(t, kv, "R1", "U2")
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger()))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, info.State.Msgs)
+
+	msg, err := stream.GetMsg(ctx, 3)
+	require.NoError(t, err)
+	var ev corev1.Event
+	require.NoError(t, proto.Unmarshal(msg.Data, &ev))
+	require.Equal(t, "U2", ev.GetActorId())
+	require.Equal(t, "R1", ev.GetUserJoinedRoom().GetRoomId())
 }
 
 func TestMigrateRoomAggregateToES_Replay(t *testing.T) {

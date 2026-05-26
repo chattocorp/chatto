@@ -174,6 +174,22 @@ func (p *RoomTimelineProjection) RoomEventCount(roomID string) int {
 	return len(p.byRoom[roomID])
 }
 
+// Stats returns aggregate counts useful for import/rollout diagnostics.
+func (p *RoomTimelineProjection) Stats() (rooms int, entries int, messagePosts int) {
+	p.RLock()
+	defer p.RUnlock()
+	rooms = len(p.byRoom)
+	for _, roomEntries := range p.byRoom {
+		entries += len(roomEntries)
+		for _, entry := range roomEntries {
+			if entry != nil && entry.Event.GetMessagePosted() != nil {
+				messagePosts++
+			}
+		}
+	}
+	return rooms, entries, messagePosts
+}
+
 // Get returns a single timeline entry by its envelope id, or
 // (nil, false) if no such event has been projected.
 func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {

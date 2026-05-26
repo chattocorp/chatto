@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -193,6 +194,30 @@ func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 		p.mu.Unlock()
 		return ctx.Err()
 	}
+}
+
+// WaitForCurrent blocks until the projection has applied the latest
+// stream message currently matching its subject filters. It is intended
+// for diagnostics and boot verification: call it after the projector is
+// running to ensure projection reads reflect the stream as of this call.
+func (p *Projector) WaitForCurrent(ctx context.Context) error {
+	var target uint64
+	for _, subject := range p.proj.Subjects() {
+		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrMsgNotFound) {
+				continue
+			}
+			return fmt.Errorf("last msg for subject %q: %w", subject, err)
+		}
+		if msg.Sequence > target {
+			target = msg.Sequence
+		}
+	}
+	if target == 0 {
+		return nil
+	}
+	return p.WaitForSeq(ctx, target)
 }
 
 // advance updates lastSeq and releases any waiters that have now been

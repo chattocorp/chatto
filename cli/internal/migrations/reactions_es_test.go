@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -74,6 +75,80 @@ func TestMigrateReactionsToES_ImportsCurrentStateAndReplays(t *testing.T) {
 	}
 	if info.State.Msgs != 2 {
 		t.Fatalf("EVT messages after replay = %d, want 2", info.State.Msgs)
+	}
+}
+
+func TestMigrateReactionsToES_ChunksLargeRoom(t *testing.T) {
+	rig := setupMessagesRig(t)
+	reactionsKV := rig.reactionsKV(t)
+
+	rig.publishLegacy(t, "server.room.channel.R1.msg.M1", &corev1.Event{
+		Id:        "M1",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+		},
+	})
+
+	const total = messageMigrationBatchSize + 3
+	for i := 0; i < total; i++ {
+		putReaction(t, rig.ctx, reactionsKV, fmt.Sprintf("M1.emoji%d.U%d", i, i), time.Unix(1700000000+int64(i), 0))
+	}
+
+	if err := MigrateReactionsToES(rig.ctx, rig.srcStream, reactionsKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
+	if info.State.Msgs != total {
+		t.Fatalf("EVT messages = %d, want %d", info.State.Msgs, total)
+	}
+}
+
+func TestMigrateReactionsToES_ResumesPartiallyImportedRoom(t *testing.T) {
+	rig := setupMessagesRig(t)
+	reactionsKV := rig.reactionsKV(t)
+
+	rig.publishLegacy(t, "server.room.channel.R1.msg.M1", &corev1.Event{
+		Id:        "M1",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+		},
+	})
+	putReaction(t, rig.ctx, reactionsKV, "M1.heart.U2", time.Unix(1700000000, 0))
+	putReaction(t, rig.ctx, reactionsKV, "M1.thumbsup.U3", time.Unix(1700000001, 0))
+
+	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.reaction_added", &corev1.Event{
+		Id:        "seed",
+		ActorId:   "U2",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_ReactionAdded{
+			ReactionAdded: &corev1.ReactionAddedEvent{
+				RoomId:         "R1",
+				MessageEventId: "M1",
+				Emoji:          "heart",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("seed reaction: %v", err)
+	}
+
+	if err := MigrateReactionsToES(rig.ctx, rig.srcStream, reactionsKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
+	if info.State.Msgs != 2 {
+		t.Fatalf("EVT messages = %d, want 2", info.State.Msgs)
 	}
 }
 

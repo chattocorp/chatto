@@ -376,7 +376,7 @@ func TestMigrateMessagesToES_ReplayIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestMigrateMessagesToES_ConflictSkipsRoomAtomically(t *testing.T) {
+func TestMigrateMessagesToES_ResumesPartiallyImportedRoom(t *testing.T) {
 	rig := setupMessagesRig(t)
 	rig.putBody(t, "U1.M1-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("one")})
 	rig.putBody(t, "U1.M2-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("two")})
@@ -398,8 +398,8 @@ func TestMigrateMessagesToES_ConflictSkipsRoomAtomically(t *testing.T) {
 		},
 	})
 
-	// Simulate a previously imported room. The migration should conflict
-	// on the first batch entry and skip the whole room, not append M2.
+	// Simulate a previously imported first chunk. The migration should
+	// verify the existing event ID prefix and resume at M2.
 	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
 		Id:        "M1",
 		ActorId:   "U1",
@@ -419,8 +419,80 @@ func TestMigrateMessagesToES_ConflictSkipsRoomAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
+	if info.State.Msgs != 2 {
+		t.Errorf("EVT msg count = %d, want 2 (resumed after M1)", info.State.Msgs)
+	}
+}
+
+func TestMigrateMessagesToES_MismatchedExistingPrefixSkipsRoom(t *testing.T) {
+	rig := setupMessagesRig(t)
+	rig.publishLegacy(t, "server.room.channel.R1.msg.M1", &corev1.Event{
+		Id:        "M1",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+		},
+	})
+	rig.publishLegacy(t, "server.room.channel.R1.msg.M2", &corev1.Event{
+		Id:        "M2",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M2"},
+		},
+	})
+
+	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
+		Id:        "DIFFERENT",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "DIFFERENT", MessageBodyId: "DIFFERENT"},
+		},
+	}); err != nil {
+		t.Fatalf("seed target event: %v", err)
+	}
+
+	if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
 	if info.State.Msgs != 1 {
-		t.Errorf("EVT msg count = %d, want 1 (room skipped atomically)", info.State.Msgs)
+		t.Errorf("EVT msg count = %d, want 1 (mismatched room skipped)", info.State.Msgs)
+	}
+}
+
+func TestMigrateMessagesToES_ChunksLargeRoom(t *testing.T) {
+	rig := setupMessagesRig(t)
+	const total = messageMigrationBatchSize + 3
+
+	for i := 0; i < total; i++ {
+		eventID := "M" + time.Unix(int64(i), 0).Format("150405")
+		rig.publishLegacy(t, "server.room.channel.R1.msg."+eventID, &corev1.Event{
+			Id:        eventID,
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(time.Unix(int64(i), 0)),
+			Event: &corev1.Event_MessagePosted{
+				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: eventID},
+			},
+		})
+	}
+
+	if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
+	if info.State.Msgs != total {
+		t.Errorf("EVT msg count = %d, want %d", info.State.Msgs, total)
 	}
 }
 

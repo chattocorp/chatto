@@ -1,6 +1,13 @@
 package cmd
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/nats-io/jsm.go/api"
+)
 
 func TestManifestIncludesEncryptionKeys(t *testing.T) {
 	tests := []struct {
@@ -48,5 +55,58 @@ func TestManifestIncludesEncryptionKeys(t *testing.T) {
 				t.Errorf("manifestIncludesEncryptionKeys() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRestoreConfigForTargetOverridesReplicas(t *testing.T) {
+	streamDir := t.TempDir()
+	writeRestoreMetadata(t, streamDir, api.JSApiStreamRestoreRequest{
+		Config: api.StreamConfig{
+			Name:     "KV_INSTANCE",
+			Replicas: 3,
+		},
+	})
+
+	override, err := restoreConfigForTarget(streamDir, "KV_INSTANCE", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if override == nil {
+		t.Fatal("override = nil, want replica override")
+	}
+	if override.backupReplicas != 3 {
+		t.Errorf("backupReplicas = %d, want 3", override.backupReplicas)
+	}
+	if override.config.Replicas != 1 {
+		t.Errorf("config.Replicas = %d, want 1", override.config.Replicas)
+	}
+}
+
+func TestRestoreConfigForTargetKeepsMatchingReplicas(t *testing.T) {
+	streamDir := t.TempDir()
+	writeRestoreMetadata(t, streamDir, api.JSApiStreamRestoreRequest{
+		Config: api.StreamConfig{
+			Name:     "KV_INSTANCE",
+			Replicas: 1,
+		},
+	})
+
+	override, err := restoreConfigForTarget(streamDir, "KV_INSTANCE", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if override != nil {
+		t.Fatalf("override = %#v, want nil", override)
+	}
+}
+
+func writeRestoreMetadata(t *testing.T, streamDir string, req api.JSApiStreamRestoreRequest) {
+	t.Helper()
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(streamDir, "backup.json"), data, 0644); err != nil {
+		t.Fatal(err)
 	}
 }

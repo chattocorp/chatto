@@ -160,6 +160,7 @@ type AssetsConfig struct {
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
 	Assets       AssetsConfig  `toml:"assets"`
+	ESBootVerify bool          `toml:"es_boot_verify,commented" env:"CHATTO_CORE_ES_BOOT_VERIFY" comment:"Log event-sourcing import/projection verification during boot. Intended for local rollout dry-runs; scans EVT and legacy stores."`
 	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
 	Replicas     int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
 	Limits       LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits

@@ -19,8 +19,10 @@ import (
 )
 
 // MigrateRoomAggregateToES seeds the EVT stream from the existing
-// `room.{kind}.{roomID}` and `room_membership.{kind}.{roomID}.{userID}`
-// keys in SERVER_CONFIG (ADR-035 phase 3 for the room aggregate).
+// `room.{kind}.{roomID}` keys and both known room membership key shapes
+// in SERVER_CONFIG (ADR-035 phase 3 for the room aggregate):
+// `room_membership.{kind}.{roomID}.{userID}` and the older
+// `room_membership.{userID}.{roomID}`.
 //
 // Room metadata and membership share one event subject — `evt.room.{R}` —
 // so they must seed together: a `RoomCreatedEvent` must always be the
@@ -33,8 +35,10 @@ import (
 // # Idempotency
 //
 // Each batch's first entry uses `HasOCC: true` + `ExpectedSeq: 0`. On
-// re-run, the publish fails with events.ErrConflict and the room is
-// skipped wholesale — we don't try to "catch up" partial state.
+// re-run, the publish fails with events.ErrConflict. The room metadata is
+// then treated as already seeded, but missing membership events are
+// backfilled so older membership key shapes discovered after a failed boot
+// are not stranded.
 //
 // # When this can be removed
 //
@@ -57,7 +61,7 @@ func MigrateRoomAggregateToES(
 		return fmt.Errorf("load memberships: %w", err)
 	}
 
-	var migrated, skipped, archivedEvents, memberEvents int
+	var migrated, skipped, archivedEvents, memberEvents, memberBackfillEvents int
 	for _, key := range roomKeys {
 		entry, err := serverConfigKV.Get(ctx, key)
 		if err != nil {
@@ -125,6 +129,11 @@ func MigrateRoomAggregateToES(
 
 		if _, err := publisher.AppendBatch(ctx, batch); err != nil {
 			if errors.Is(err, events.ErrConflict) {
+				backfilled, backfillErr := backfillMissingRoomMemberships(ctx, publisher, room.GetId(), memberships[room.GetId()])
+				if backfillErr != nil {
+					return fmt.Errorf("backfill room memberships for %s: %w", room.GetId(), backfillErr)
+				}
+				memberBackfillEvents += backfilled
 				skipped++
 				continue
 			}
@@ -145,9 +154,55 @@ func MigrateRoomAggregateToES(
 			"rooms_skipped", skipped,
 			"archived_events", archivedEvents,
 			"member_events", memberEvents,
+			"member_backfill_events", memberBackfillEvents,
 		)
 	}
 	return nil
+}
+
+func backfillMissingRoomMemberships(
+	ctx context.Context,
+	publisher *events.Publisher,
+	roomID string,
+	memberships []membershipEntry,
+) (int, error) {
+	if len(memberships) == 0 {
+		return 0, nil
+	}
+
+	agg := events.RoomAggregate(roomID)
+	subject := agg.Subject(events.EventUserJoinedRoom)
+	existingEvents, expectedSeq, err := publisher.SubjectEvents(ctx, subject)
+	if err != nil {
+		return 0, fmt.Errorf("read existing membership events: %w", err)
+	}
+
+	existing := make(map[string]bool, len(existingEvents))
+	for _, event := range existingEvents {
+		if event.GetUserJoinedRoom() == nil {
+			continue
+		}
+		existing[event.GetActorId()] = true
+	}
+
+	var imported int
+	for _, membership := range memberships {
+		if existing[membership.userID] {
+			continue
+		}
+
+		event := stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
+			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
+		}}, membership.userID, timestamppb.New(membership.createdAt))
+
+		seq, err := publisher.AppendAt(ctx, subject, event, expectedSeq)
+		if err != nil {
+			return imported, err
+		}
+		expectedSeq = seq
+		imported++
+	}
+	return imported, nil
 }
 
 // membershipEntry pairs a userID with the KV-recorded creation time of
@@ -160,8 +215,9 @@ type membershipEntry struct {
 
 // loadMembershipsByRoom reads every `room_membership.>` key and groups
 // the entries by roomID, sorted chronologically (with userID as a
-// deterministic tiebreaker). Orphan memberships whose key is malformed
-// are logged and skipped.
+// deterministic tiebreaker). It accepts both the current
+// `room_membership.{kind}.{roomID}.{userID}` shape and the old
+// `room_membership.{userID}.{roomID}` shape.
 func loadMembershipsByRoom(
 	ctx context.Context,
 	serverConfigKV jetstream.KeyValue,
@@ -174,13 +230,11 @@ func loadMembershipsByRoom(
 
 	byRoom := make(map[string][]membershipEntry)
 	for _, key := range keys {
-		// Key shape: room_membership.{kind}.{roomID}.{userID}.
-		parts := strings.Split(key, ".")
-		if len(parts) != 4 {
+		roomID, userID, ok := parseRoomMembershipKey(key)
+		if !ok {
 			logger.Warn("room_aggregate ES migration: skipping malformed membership key", "key", key)
 			continue
 		}
-		roomID, userID := parts[2], parts[3]
 
 		entry, err := serverConfigKV.Get(ctx, key)
 		if err != nil {
@@ -200,6 +254,24 @@ func loadMembershipsByRoom(
 		byRoom[roomID] = ms
 	}
 	return byRoom, nil
+}
+
+func parseRoomMembershipKey(key string) (roomID string, userID string, ok bool) {
+	parts := strings.Split(key, ".")
+	switch len(parts) {
+	case 4:
+		if parts[0] != "room_membership" {
+			return "", "", false
+		}
+		return parts[2], parts[3], true
+	case 3:
+		if parts[0] != "room_membership" {
+			return "", "", false
+		}
+		return parts[2], parts[1], true
+	default:
+		return "", "", false
+	}
 }
 
 // listSortedKeys returns the union of keys matching the given filters,

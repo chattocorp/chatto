@@ -148,3 +148,19 @@ func (p *ThreadProjection) ThreadCount() int {
 	defer p.RUnlock()
 	return len(p.byThread)
 }
+
+// Stats returns aggregate counts useful for import/rollout diagnostics.
+func (p *ThreadProjection) Stats() (threads int, entries int, replies int) {
+	p.RLock()
+	defer p.RUnlock()
+	threads = len(p.byThread)
+	for _, threadEntries := range p.byThread {
+		entries += len(threadEntries)
+		for _, entry := range threadEntries {
+			if entry != nil && entry.Event.GetMessagePosted() != nil {
+				replies++
+			}
+		}
+	}
+	return threads, entries, replies
+}

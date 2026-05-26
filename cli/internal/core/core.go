@@ -200,6 +200,12 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
+		if c.config.ESBootVerify {
+			if err := c.WaitForProjectionsCurrent(gctx); err != nil {
+				return fmt.Errorf("wait for projections current: %w", err)
+			}
+			c.logESBootVerification(gctx)
+		}
 		close(c.bootDone)
 		return nil
 	})
@@ -238,6 +244,18 @@ func (c *ChattoCore) WaitForBoot(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// WaitForProjectionsCurrent blocks until every registered projection has
+// applied the latest stream message matching its filters as of this call.
+// Intended for boot/import diagnostics, not hot request paths.
+func (c *ChattoCore) WaitForProjectionsCurrent(ctx context.Context) error {
+	for _, p := range c.projectors {
+		if err := p.WaitForCurrent(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // waitForProjectorsStarted polls AllProjectorsStarted with a short

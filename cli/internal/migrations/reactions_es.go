@@ -36,10 +36,11 @@ import (
 //
 // # Idempotency and crash-safety
 //
-// Reactions are grouped by room and emitted via one atomic AppendBatch
-// per room. The first entry carries subject-level OCC against
-// `evt.room.{roomId}.reaction_added` expecting an empty subject; on
-// replay, the conflict skips the whole room.
+// Reactions are grouped by room and emitted in bounded atomic chunks.
+// The first entry in each chunk carries subject-level OCC against
+// `evt.room.{roomId}.reaction_added`. On replay, the importer reads the
+// existing reaction identities, verifies they match the legacy prefix, and
+// resumes at the first missing reaction.
 func MigrateReactionsToES(
 	ctx context.Context,
 	serverEventsStream jetstream.Stream,
@@ -118,17 +119,13 @@ func MigrateReactionsToES(
 		if len(batch.entries) == 0 {
 			continue
 		}
-		batch.entries[0].HasOCC = true
-		batch.entries[0].ExpectedSeq = 0
 
-		if _, err := publisher.AppendBatch(ctx, batch.entries); err != nil {
-			if errors.Is(err, events.ErrConflict) {
-				skipped += len(batch.entries)
-				continue
-			}
+		roomImported, roomSkipped, err := publishReactionMigrationRoom(ctx, publisher, roomID, batch.entries, logger)
+		if err != nil {
 			return fmt.Errorf("publish migrated reactions (room=%s): %w", roomID, err)
 		}
-		imported += len(batch.entries)
+		imported += roomImported
+		skipped += roomSkipped
 	}
 
 	if imported > 0 || skipped > 0 || skippedMissingRoom > 0 {
@@ -142,6 +139,79 @@ func MigrateReactionsToES(
 		)
 	}
 	return nil
+}
+
+func publishReactionMigrationRoom(
+	ctx context.Context,
+	publisher *events.Publisher,
+	roomID string,
+	entries []events.BatchEntry,
+	logger *log.Logger,
+) (imported int, skipped int, err error) {
+	if len(entries) == 0 {
+		return 0, 0, nil
+	}
+
+	subject := entries[0].Subject
+	existingEvents, expectedSeq, err := publisher.SubjectEvents(ctx, subject)
+	if err != nil {
+		return 0, 0, fmt.Errorf("read existing reaction events: %w", err)
+	}
+	if len(existingEvents) > len(entries) {
+		logger.Warn(
+			"reactions ES migration: skipping room with more projected reactions than legacy reactions",
+			"room_id", roomID,
+			"existing_reactions", len(existingEvents),
+			"legacy_reactions", len(entries),
+		)
+		return 0, len(entries), nil
+	}
+	for i, existing := range existingEvents {
+		if reactionIdentity(existing) != reactionIdentity(entries[i].Event) {
+			logger.Warn(
+				"reactions ES migration: skipping room with non-matching existing reaction prefix",
+				"room_id", roomID,
+				"index", i,
+				"existing_reaction", reactionIdentity(existing),
+				"legacy_reaction", reactionIdentity(entries[i].Event),
+			)
+			return 0, len(entries), nil
+		}
+	}
+	if len(existingEvents) == len(entries) {
+		return 0, len(entries), nil
+	}
+
+	pending := entries[len(existingEvents):]
+	for start := 0; start < len(pending); start += messageMigrationBatchSize {
+		end := start + messageMigrationBatchSize
+		if end > len(pending) {
+			end = len(pending)
+		}
+
+		chunk := append([]events.BatchEntry(nil), pending[start:end]...)
+		chunk[0].HasOCC = true
+		chunk[0].ExpectedSeq = expectedSeq
+
+		seqs, err := publisher.AppendBatch(ctx, chunk)
+		if err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				return imported, skipped, fmt.Errorf("reaction chunk OCC conflict after resume point %d: %w", len(existingEvents)+imported, err)
+			}
+			return imported, skipped, err
+		}
+		expectedSeq = seqs[len(seqs)-1]
+		imported += len(chunk)
+	}
+	return imported, len(existingEvents), nil
+}
+
+func reactionIdentity(event *corev1.Event) string {
+	added := event.GetReactionAdded()
+	if added == nil {
+		return ""
+	}
+	return added.GetMessageEventId() + "\x00" + added.GetEmoji() + "\x00" + event.GetActorId()
 }
 
 func listLegacyReactionKeys(ctx context.Context, kv jetstream.KeyValue) ([]string, error) {

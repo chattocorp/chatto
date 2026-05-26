@@ -55,15 +55,13 @@ import (
 //
 // # Idempotency and crash-safety
 //
-// Per-room: all migrated message events for a room are emitted as a
-// single atomic AppendBatch. The first entry carries subject-level OCC
-// against `evt.room.{R}.message_posted` with ExpectedSeq=0; subsequent
-// entries in the same batch do not carry dependent OCC because JetStream
-// evaluates every batch entry against the committed pre-batch state.
-// On re-run, the first entry conflicts and the whole room is skipped.
-// If the process crashes while importing a room, the batch either lands
-// completely or not at all, so a replay cannot leave a partially
-// imported room behind.
+// Per-room: migrated message events are emitted in bounded atomic
+// chunks. Each chunk's first entry carries subject-level OCC against
+// `evt.room.{R}.message_posted`; subsequent entries in the same chunk do
+// not carry dependent OCC because JetStream evaluates every batch entry
+// against the committed pre-batch state. On re-run, the importer reads
+// existing event IDs for the subject, verifies they match the legacy
+// prefix, and resumes at the first missing event.
 //
 // # When this can be removed
 //
@@ -219,17 +217,13 @@ func MigrateMessagesToES(
 		if len(batch.entries) == 0 {
 			continue
 		}
-		batch.entries[0].HasOCC = true
-		batch.entries[0].ExpectedSeq = 0
 
-		if _, err := publisher.AppendBatch(ctx, batch.entries); err != nil {
-			if errors.Is(err, events.ErrConflict) {
-				skipped += len(batch.entries)
-				continue
-			}
+		roomImported, roomSkipped, err := publishMessageMigrationRoom(ctx, publisher, roomID, batch.entries, logger)
+		if err != nil {
 			return fmt.Errorf("publish migrated messages (room=%s): %w", roomID, err)
 		}
-		imported += len(batch.entries)
+		imported += roomImported
+		skipped += roomSkipped
 	}
 
 	if imported > 0 || skipped > 0 {
@@ -243,6 +237,73 @@ func MigrateMessagesToES(
 		)
 	}
 	return nil
+}
+
+const messageMigrationBatchSize = 500
+
+func publishMessageMigrationRoom(
+	ctx context.Context,
+	publisher *events.Publisher,
+	roomID string,
+	entries []events.BatchEntry,
+	logger *log.Logger,
+) (imported int, skipped int, err error) {
+	if len(entries) == 0 {
+		return 0, 0, nil
+	}
+
+	subject := entries[0].Subject
+	existingIDs, expectedSeq, err := publisher.SubjectEventIDs(ctx, subject)
+	if err != nil {
+		return 0, 0, fmt.Errorf("read existing message events: %w", err)
+	}
+	if len(existingIDs) > len(entries) {
+		logger.Warn(
+			"messages ES migration: skipping room with more projected messages than legacy messages",
+			"room_id", roomID,
+			"existing_messages", len(existingIDs),
+			"legacy_messages", len(entries),
+		)
+		return 0, len(entries), nil
+	}
+	for i, existingID := range existingIDs {
+		if entries[i].Event.GetId() != existingID {
+			logger.Warn(
+				"messages ES migration: skipping room with non-matching existing message prefix",
+				"room_id", roomID,
+				"index", i,
+				"existing_event_id", existingID,
+				"legacy_event_id", entries[i].Event.GetId(),
+			)
+			return 0, len(entries), nil
+		}
+	}
+	if len(existingIDs) == len(entries) {
+		return 0, len(entries), nil
+	}
+
+	pending := entries[len(existingIDs):]
+	for start := 0; start < len(pending); start += messageMigrationBatchSize {
+		end := start + messageMigrationBatchSize
+		if end > len(pending) {
+			end = len(pending)
+		}
+
+		chunk := append([]events.BatchEntry(nil), pending[start:end]...)
+		chunk[0].HasOCC = true
+		chunk[0].ExpectedSeq = expectedSeq
+
+		seqs, err := publisher.AppendBatch(ctx, chunk)
+		if err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				return imported, skipped, fmt.Errorf("message chunk OCC conflict after resume point %d: %w", len(existingIDs)+imported, err)
+			}
+			return imported, skipped, err
+		}
+		expectedSeq = seqs[len(seqs)-1]
+		imported += len(chunk)
+	}
+	return imported, len(existingIDs), nil
 }
 
 // preserveTimestamp returns the original timestamp if non-nil, or a

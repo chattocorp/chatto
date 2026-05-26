@@ -142,6 +142,19 @@ func (p *ReactionProjection) ReactionsBatch(messageEventIDs []string) map[string
 	return result
 }
 
+// Stats returns aggregate counts useful for import/rollout diagnostics.
+func (p *ReactionProjection) Stats() (messages int, activeReactions int) {
+	p.RLock()
+	defer p.RUnlock()
+	messages = len(p.byMessage)
+	for _, byEmoji := range p.byMessage {
+		for _, byUser := range byEmoji {
+			activeReactions += len(byUser)
+		}
+	}
+	return messages, activeReactions
+}
+
 func reactionSummariesForMessage(byEmoji map[string]map[string]int64) []ReactionSummary {
 	if len(byEmoji) == 0 {
 		return nil
