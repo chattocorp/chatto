@@ -1,6 +1,11 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, generateRoleName, type TestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  generateRoleName,
+  loginAsAdminAndUsePrimarySpace,
+  type TestUser
+} from './fixtures/testUser';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -13,40 +18,7 @@ interface TestSpace {
  * The creator becomes the space admin.
  */
 async function createSpaceViaAPI(page: Page, name?: string): Promise<TestSpace> {
-  const timestamp = Date.now();
-  const spaceName = name ?? `Roles Test Space ${timestamp}`;
-
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateSpace($input: CreateSpaceInput!) {
-					createSpace(input: $input) {
-						id
-						name
-					}
-				}
-			`,
-      variables: {
-        input: {
-          name: spaceName,
-          description: 'A space for testing roles'
-        }
-      }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createSpace).toBeTruthy();
-
-  return {
-    id: data.data.createSpace.id,
-    name: data.data.createSpace.name
-  };
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 /**
@@ -116,8 +88,15 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
 /**
  * Creates a room via GraphQL API and returns the room ID.
  */
-async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
-  const roomName = name ?? `testroom${Date.now()}`;
+async function createRoomViaAPI(
+  page: Page,
+  spaceIdOrName?: string,
+  maybeName?: string
+): Promise<string> {
+  const roomName =
+    maybeName ??
+    (spaceIdOrName && spaceIdOrName !== 'server' ? spaceIdOrName : undefined) ??
+    `testroom${Date.now()}`;
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -141,7 +120,12 @@ async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
 /**
  * Joins a room via GraphQL API.
  */
-async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
+async function joinRoomViaAPI(
+  page: Page,
+  spaceIdOrRoomId: string,
+  maybeRoomId?: string
+): Promise<void> {
+  const roomId = maybeRoomId ?? spaceIdOrRoomId;
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -193,11 +177,7 @@ async function grantPermission(
 /**
  * Revokes a space permission from a role via GraphQL API.
  */
-async function _revokePermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
+async function _revokePermission(page: Page, role: string, permission: string): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -247,8 +227,7 @@ async function denyPermission(
   expect(data.data?.denyPermission).toBe(true);
 }
 
-// FIXME #330: see space-admin-members.test.ts.
-test.describe.skip('Space Roles Management', () => {
+test.describe('Space Roles Management', () => {
   test.describe('Roles List Page', () => {
     test('space admin can view roles list', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
@@ -262,8 +241,8 @@ test.describe.skip('Space Roles Management', () => {
 
       // Should see the roles table with default roles
       await spaceRolesPage.expectRolesListVisible();
-      await spaceRolesPage.expectRoleInList('Owner');
-      await spaceRolesPage.expectRoleInList('Everyone');
+      await spaceRolesPage.expectRoleInList('owner');
+      await spaceRolesPage.expectRoleInList('everyone');
     });
 
     test('space admin can see Create Role button', async ({ spaceRolesPage }) => {
@@ -318,7 +297,7 @@ test.describe.skip('Space Roles Management', () => {
 
       // Navigate back to list and verify role appears
       await spaceRolesPage.backToRolesButton.click();
-      await spaceRolesPage.expectRoleInList('Test Role');
+      await spaceRolesPage.expectRoleInList(roleName);
     });
 
     test('role name validation rejects invalid characters', async ({ spaceRolesPage }) => {
@@ -331,11 +310,15 @@ test.describe.skip('Space Roles Management', () => {
 
       // Try to enter an invalid name (uppercase)
       await spaceRolesPage.fillRoleForm({ name: 'InvalidName' });
-      await spaceRolesPage.expectValidationError('lowercase letters only');
+      await spaceRolesPage.expectValidationError(
+        'Name must use lowercase letters, numbers, and dashes; start with a letter'
+      );
 
       // Try special characters
       await spaceRolesPage.fillRoleForm({ name: 'test-role!' });
-      await spaceRolesPage.expectValidationError('lowercase letters only');
+      await spaceRolesPage.expectValidationError(
+        'Name must use lowercase letters, numbers, and dashes; start with a letter'
+      );
     });
 
     test('role name validation rejects names starting with number', async ({ spaceRolesPage }) => {
@@ -348,7 +331,9 @@ test.describe.skip('Space Roles Management', () => {
 
       // Try to enter a name starting with a number
       await spaceRolesPage.fillRoleForm({ name: '123role' });
-      await spaceRolesPage.expectValidationError('lowercase letters only');
+      await spaceRolesPage.expectValidationError(
+        'Name must use lowercase letters, numbers, and dashes; start with a letter'
+      );
     });
 
     test('non-admin member sees access denied on create page', async ({ spaceRolesPage }) => {
@@ -415,16 +400,16 @@ test.describe.skip('Space Roles Management', () => {
         displayName: 'Permission Test Role'
       });
 
-      // The role should start without space.manage permission
-      await spaceRolesPage.expectPermissionNotGranted('space.manage');
+      // The role should start without server.manage permission
+      await spaceRolesPage.expectPermissionNotGranted('server.manage');
 
       // Grant the permission
-      await spaceRolesPage.togglePermission('space.manage');
+      await spaceRolesPage.togglePermission('server.manage');
 
       // Wait for the toast confirmation, then verify persistence
-      await spaceRolesPage.expectToast('Granted space.manage');
+      await spaceRolesPage.expectToast('Granted server.manage');
       await page.reload();
-      await spaceRolesPage.expectPermissionGranted('space.manage');
+      await spaceRolesPage.expectPermissionGranted('server.manage');
     });
 
     test('space admin can clear permission from a role', async ({ spaceRolesPage }) => {
@@ -526,7 +511,7 @@ test.describe.skip('Space Roles Management', () => {
   });
 });
 
-test.describe.skip('Roles Management', () => {
+test.describe('Roles Management', () => {
   test.describe('Roles List', () => {
     test('space admin can see roles in roles list', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
@@ -559,8 +544,8 @@ test.describe.skip('Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to admin role detail page
-      await spaceRolesPage.gotoRoleDetail(space.id, 'admin');
+      // Navigate to moderator role detail page; admin already has role.manage by default.
+      await spaceRolesPage.gotoRoleDetail(space.id, 'moderator');
 
       // The role should start without role.manage permission
       await spaceRolesPage.expectPermissionNotGranted('role.manage');
@@ -633,9 +618,11 @@ test.describe.skip('Roles Management', () => {
       await loginUser(page, regularUser.login, regularUser.password);
       await joinSpaceViaAPI(page, space.id);
 
-      // Navigate to roles list - should have access via everyone role grant
+      // Navigate to roles list - should have create/manage access via everyone role grant.
+      // The matrix itself is intentionally hidden from non-admins because role
+      // permission inspection is still restricted.
       await spaceRolesPage.gotoRolesList(space.id);
-      await spaceRolesPage.expectRolesListVisible();
+      await spaceRolesPage.expectCreateRoleButtonVisible();
     });
 
     test('user with everyone role denial is blocked', async ({ spaceRolesPage }) => {
@@ -661,7 +648,7 @@ test.describe.skip('Roles Management', () => {
   });
 });
 
-test.describe.skip('Space Permission Enforcement', () => {
+test.describe('Space Permission Enforcement', () => {
   test.describe('rooms.manage permission (room creation)', () => {
     test('space admin can create a room via admin page', async ({ page }) => {
       // Create admin user and space
@@ -826,7 +813,10 @@ test.describe.skip('Space Permission Enforcement', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Deny room.list from everyone role
+      const hiddenRoomId = await createRoomViaAPI(page);
+
+      // Deny room.list from everyone role. Users can still see rooms they
+      // already joined; this assertion checks that an unjoined room is filtered.
       await denyPermission(page, space.id, 'everyone', 'room.list');
 
       // Create second user and log them in
@@ -855,11 +845,10 @@ test.describe.skip('Space Permission Enforcement', () => {
 
       const data = await response.json();
 
-      // Should fail - room.list is denied
-      // The response should either have errors or return null/empty rooms
-      const hasError = data.errors && data.errors.length > 0;
-      const noRooms = data.data?.server?.rooms === null;
-      expect(hasError || noRooms).toBeTruthy();
+      expect(data.errors).toBeUndefined();
+      expect(data.data?.server?.rooms ?? []).not.toContainEqual(
+        expect.objectContaining({ id: hiddenRoomId })
+      );
     });
 
     // The three tests that previously asserted "room.list gates the
@@ -889,8 +878,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: { name: `testroom${Date.now()}`
-            }
+            input: { name: `testroom${Date.now()}` }
           }
         }
       });
@@ -947,8 +935,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: { name: `testroom${Date.now()}`
-            }
+            input: { name: `testroom${Date.now()}` }
           }
         }
       });
@@ -1007,8 +994,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: { name: `testroom${Date.now()}`
-            }
+            input: { name: `testroom${Date.now()}` }
           }
         }
       });
@@ -1086,137 +1072,16 @@ test.describe.skip('Space Permission Enforcement', () => {
       await message.expectContextMenuNoReaction();
     });
 
-    test('edit button hidden when user lacks message.edit-own permission', async ({
-      page,
-      roomPage
-    }) => {
-      // Admin creates space, room, and denies message.edit-own
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Deny message.edit-own for everyone role
-      await denyPermission(page, space.id, 'everyone', 'message.edit-own');
-
-      // Create second user (non-owner, only has everyone role)
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Navigate and send a message as the second user
-      await page.goto(routes.room(roomId));
-      await roomPage.sendMessage('My message');
-
-      // Open context menu via toolbar — edit button should not be present
-      const message = roomPage.getMessage('My message');
-      await message.expectContextMenuNoEdit();
-    });
-
-    test('delete button hidden when user lacks message.delete-own permission', async ({
-      page,
-      roomPage
-    }) => {
-      // Admin creates space, room, and denies message.delete-own
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Deny message.delete-own for everyone role
-      await denyPermission(page, space.id, 'everyone', 'message.delete-own');
-
-      // Create second user (non-owner, only has everyone role)
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Navigate and send a message as the second user
-      await page.goto(routes.room(roomId));
-      await roomPage.sendMessage('My message');
-
-      // Open context menu via toolbar — delete button should not be present
-      const message = roomPage.getMessage('My message');
-      await message.expectContextMenuNoDelete();
-    });
-
-    test('delete button visible on other users messages when user has message.delete-any', async ({
-      page,
-      roomPage
-    }) => {
-      // Admin creates space, room, joins, and sends a message
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Admin navigates and sends a message
-      await page.goto(routes.room(roomId));
-      await roomPage.sendMessage('Admin message');
-
-      // Grant message.delete-any to everyone role (moderator power)
-      await grantPermission(page, space.id, 'everyone', 'message.delete-any');
-
-      // Create second user, join space and room
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Navigate to the room
-      await page.goto(routes.room(roomId));
-
-      // Wait for admin's message to be visible
-      await expect(page.getByText('Admin message')).toBeVisible();
-
-      // Open context menu via toolbar — delete button should be visible even though this is someone else's message
-      const message = roomPage.getMessage('Admin message');
-      await message.expectContextMenuHasDelete();
-    });
-
-    test('edit button visible on other users messages when user has message.edit-any', async ({
-      page,
-      roomPage
-    }) => {
-      // Admin creates space, room, joins, and sends a message
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Admin navigates and sends a message
-      await page.goto(routes.room(roomId));
-      await roomPage.sendMessage('Admin message');
-
-      // Grant message.edit-any to everyone role (moderator power)
-      await grantPermission(page, space.id, 'everyone', 'message.edit-any');
-
-      // Create second user, join space and room
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-
-      // Navigate to the room
-      await page.goto(routes.room(roomId));
-
-      // Wait for admin's message to be visible
-      await expect(page.getByText('Admin message')).toBeVisible();
-
-      // Open context menu via toolbar — edit button should be visible even though this is someone else's message
-      const message = roomPage.getMessage('Admin message');
-      await message.expectContextMenuHasEdit();
-    });
+    // Retired permission coverage removed here:
+    // - message.edit-own / message.delete-own no longer exist; authors can
+    //   edit/delete their own messages subject to room membership.
+    // - message.edit-any / message.delete-any were consolidated into
+    //   message.manage plus hierarchy checks. The current behavior is covered
+    //   by room-permissions.test.ts and backend resolver tests.
   });
 
   test.describe('room.manage permission', () => {
-    test('settings gear hidden when user lacks room.manage permission', async ({ page }) => {
+    test('administration link hidden when user lacks room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1234,18 +1099,18 @@ test.describe.skip('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Settings gear should NOT be visible
-      await expect(page.getByTitle('Room settings')).not.toBeVisible();
+      // Administration link should NOT be visible
+      await expect(page.getByRole('link', { name: 'Administration' })).not.toBeVisible();
     });
 
-    test('settings gear visible when user has room.manage permission', async ({ page }) => {
+    test('administration link visible when user has room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      // Grant room.manage to everyone
+      // Grant server-scope room.manage to everyone.
       await grantPermission(page, space.id, 'everyone', 'room.manage');
 
       // Create second user and log in
@@ -1259,8 +1124,8 @@ test.describe.skip('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Settings gear should be visible
-      await expect(page.getByTitle('Room settings')).toBeVisible();
+      // Administration link should be visible
+      await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible();
     });
   });
 });

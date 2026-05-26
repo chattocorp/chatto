@@ -1,6 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, type TestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  loginAsAdminAndUsePrimarySpace,
+  type TestUser
+} from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -14,40 +18,7 @@ interface TestSpace {
  * The creator becomes the space admin.
  */
 async function createSpaceViaAPI(page: Page, name?: string): Promise<TestSpace> {
-  const timestamp = Date.now();
-  const spaceName = name ?? `Members Test Space ${timestamp}`;
-
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateSpace($input: CreateSpaceInput!) {
-					createSpace(input: $input) {
-						id
-						name
-					}
-				}
-			`,
-      variables: {
-        input: {
-          name: spaceName,
-          description: 'A space for testing member management'
-        }
-      }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createSpace).toBeTruthy();
-
-  return {
-    id: data.data.createSpace.id,
-    name: data.data.createSpace.name
-  };
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 /**
@@ -109,16 +80,12 @@ async function logoutUser(page: Page): Promise<void> {
 
 /**
  * Vestigial helper kept for source-compat: post-#330 PR(a) joinSpace is gone.
- * This test file is currently skipped (FIXME #330).
  */
 async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
   // no-op
 }
 
-// FIXME #330: createSpaceViaAPI relies on the createSpace mutation which is
-// gone. These tests need rewriting in phase 5 (RBAC consolidation) to run
-// against the bootstrap space with admin creds.
-test.describe.skip('Space Admin Members', () => {
+test.describe('Space Admin Members', () => {
   test.describe('Members List Page', () => {
     test('space admin can view members list', async ({ spaceAdminPage }) => {
       const { page } = spaceAdminPage;
@@ -150,7 +117,9 @@ test.describe.skip('Space Admin Members', () => {
       await spaceAdminPage.gotoMembersDirectly(space.id);
 
       // Wait for members to load
-      await expect(page.getByText(`@${admin.login}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.getByText(`@${admin.login}`)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // Click on the row containing the admin's login (DataTable uses onRowClick)
       await page.getByRole('row').filter({ hasText: admin.login }).click();
@@ -182,8 +151,12 @@ test.describe.skip('Space Admin Members', () => {
       });
 
       // Should NOT be loading or showing error
-      await expect(page.getByText('Loading member...')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(page.getByText('Member not found')).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(page.getByText('Loading member...')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(page.getByText('Member not found')).not.toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
 
       // Should see User Details panel
       await expect(page.locator('h2', { hasText: 'User Details' })).toBeVisible({
@@ -210,7 +183,9 @@ test.describe.skip('Space Admin Members', () => {
       });
 
       // Should NOT be loading
-      await expect(page.getByText('Loading member...')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.getByText('Loading member...')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // Should see Role Assignments section heading
       await expect(page.locator('h2', { hasText: 'Role Assignments' })).toBeVisible();

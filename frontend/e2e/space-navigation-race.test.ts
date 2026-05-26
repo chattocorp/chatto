@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
-import { loginAsAdmin, verifyAdminEmail } from './fixtures/testUser';
+import { loginAsAdminAndUsePrimarySpace } from './fixtures/testUser';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -13,38 +13,13 @@ interface TestSpace {
  * Creates a space via GraphQL API.
  */
 async function createSpaceViaAPI(page: Page, name: string): Promise<TestSpace> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateSpace($input: CreateSpaceInput!) {
-					createSpace(input: $input) {
-						id
-						name
-					}
-				}
-			`,
-      variables: { input: { name } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createSpace).toBeTruthy();
-
-  return {
-    id: data.data.createSpace.id,
-    name: data.data.createSpace.name
-  };
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 /**
  * Creates a room in a space via GraphQL API and joins it.
  */
-async function createRoomViaAPI(page: Page, name: string): Promise<string> {
+async function createRoomViaAPI(page: Page, _spaceId: string, name: string): Promise<string> {
   // Create the room
   const createResponse = await page.request.post('/api/graphql', {
     headers: {
@@ -95,7 +70,7 @@ async function createRoomViaAPI(page: Page, name: string): Promise<string> {
 /**
  * Uploads a banner to a space via UI (General settings page).
  */
-async function uploadBannerViaUI(page: Page): Promise<void> {
+async function uploadBannerViaUI(page: Page, _spaceId: string): Promise<void> {
   // Navigate to General settings page (where banner upload is)
   await page.goto(routes.serverAdminGeneral);
   await expect(page.locator('h1', { hasText: 'General' })).toBeVisible();
@@ -117,20 +92,16 @@ async function uploadBannerViaUI(page: Page): Promise<void> {
   });
 
   // Wait for upload success
-  await expect(page.getByText('Banner uploaded successfully')).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+  await expect(page.getByText('Banner uploaded successfully')).toBeVisible({
+    timeout: TIMEOUTS.COMPLEX_OPERATION
+  });
 }
 
-// FIXME #330: relies on createSpaceViaAPI; see space-admin-members.test.ts.
-test.describe.skip('Space navigation race condition fix', () => {
-
+test.describe('Space navigation race condition fix', () => {
   test('rapid navigation between spaces and admin does not break room loading', async ({
     page,
     adminPage
   }) => {
-    // Login as admin
-    const adminUser = await loginAsAdmin(page);
-    await verifyAdminEmail(page, adminUser.id!);
-
     // Create a space with banner
     const space = await createSpaceViaAPI(page, 'Rapid Nav Test');
     const roomId = await createRoomViaAPI(page, space.id, 'test-room');
@@ -148,7 +119,9 @@ test.describe.skip('Space navigation race condition fix', () => {
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(page.getByTestId('message-input')).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
     await expect(page.locator('img[alt="Server banner"]')).toBeVisible();
   });
 });
