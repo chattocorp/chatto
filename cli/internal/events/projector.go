@@ -121,6 +121,12 @@ func (p *Projector) Started() bool {
 	return p.started
 }
 
+// Subjects returns the subject filters this projector consumes.
+// The returned slice is a copy so callers cannot mutate projection state.
+func (p *Projector) Subjects() []string {
+	return append([]string(nil), p.proj.Subjects()...)
+}
+
 // AppendAndWait publishes an event for an aggregate and blocks until
 // this projection has applied it. The subject is derived from
 // `agg.SubjectFor(event)`, so the caller cannot accidentally publish an
@@ -201,6 +207,20 @@ func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 // for diagnostics and boot verification: call it after the projector is
 // running to ensure projection reads reflect the stream as of this call.
 func (p *Projector) WaitForCurrent(ctx context.Context) error {
+	target, err := p.CurrentTargetSeq(ctx)
+	if err != nil {
+		return err
+	}
+	if target == 0 {
+		return nil
+	}
+	return p.WaitForSeq(ctx, target)
+}
+
+// CurrentTargetSeq returns the highest stream sequence currently matching
+// this projection's subject filters. A zero return means the stream has no
+// message for any of the filters yet.
+func (p *Projector) CurrentTargetSeq(ctx context.Context) (uint64, error) {
 	var target uint64
 	for _, subject := range p.proj.Subjects() {
 		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
@@ -208,16 +228,13 @@ func (p *Projector) WaitForCurrent(ctx context.Context) error {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
 				continue
 			}
-			return fmt.Errorf("last msg for subject %q: %w", subject, err)
+			return 0, fmt.Errorf("last msg for subject %q: %w", subject, err)
 		}
 		if msg.Sequence > target {
 			target = msg.Sequence
 		}
 	}
-	if target == 0 {
-		return nil
-	}
-	return p.WaitForSeq(ctx, target)
+	return target, nil
 }
 
 // advance updates lastSeq and releases any waiters that have now been

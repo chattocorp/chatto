@@ -149,6 +149,51 @@ extend type AdminQueries {
   eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)
 }
 
+# =============================================================================
+# Projection Runtime State
+# =============================================================================
+
+"One named diagnostic count/byte bucket for a projection."
+type ProjectionMetric {
+  "Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'."
+  name: String!
+  "Count associated with this metric."
+  value: Int64!
+  "Estimated bytes associated with this metric. Zero when the metric is count-only."
+  bytes: Int64!
+}
+
+"Runtime state for one event-sourced projection."
+type ProjectionState {
+  "Human-readable projection name."
+  name: String!
+  "NATS subject filters consumed by this projection."
+  subjects: [String!]!
+  "Whether the projector run loop has started."
+  started: Boolean!
+  "Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow."
+  lastAppliedSequence: String!
+  "Highest EVT stream sequence currently matching this projection's subject filters."
+  matchingStreamSequence: String!
+  "Highest sequence in the EVT stream, regardless of whether this projection consumes it."
+  streamLastSequence: String!
+  "Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence."
+  lag: Int64!
+  "Primary projected entry count for this projection."
+  entryCount: Int64!
+  "Estimated bytes held in memory by this projection."
+  estimatedBytes: Int64!
+  "estimatedBytes divided by entryCount, or zero when entryCount is zero."
+  averageEntryBytes: Int64!
+  "Breakdown of the projection's current state."
+  metrics: [ProjectionMetric!]!
+}
+
+extend type AdminQueries {
+  "Inspect runtime state and rough memory estimates for event-sourced projections."
+  projections: [ProjectionState!]! @goField(forceResolver: true)
+}
+
 "Admin mutations for configuration management."
 type AdminMutations {
   "Update server configuration. Returns the updated config section."
@@ -179,4 +224,3 @@ extend type Mutation {
   "Admin mutations. Returns null if user lacks admin permission."
   admin: AdminMutations @goField(forceResolver: true)
 }
-

@@ -259,6 +259,33 @@ func (r *adminQueriesResolver) EventLogEntry(ctx context.Context, obj *model.Adm
 	return streamMsgToEventLogEntry(msg)
 }
 
+// Projections is the resolver for the projections field. It uses
+// admin.view-system: projection lag and RAM estimates are operational health
+// data, distinct from the audit-gated raw EVT event log.
+func (r *adminQueriesResolver) Projections(ctx context.Context, obj *model.AdminQueries) ([]*model.ProjectionState, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canView, err := r.core.CanAdminSystemView(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("check admin.view-system: %w", err)
+	}
+	if !canView {
+		return nil, core.ErrPermissionDenied
+	}
+
+	states, err := r.core.ProjectionAdminStates(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("projection states: %w", err)
+	}
+	out := make([]*model.ProjectionState, 0, len(states))
+	for _, state := range states {
+		out = append(out, projectionStateToModel(state))
+	}
+	return out, nil
+}
+
 // Admin is the resolver for the admin field.
 func (r *mutationResolver) Admin(ctx context.Context) (*model.AdminMutations, error) {
 	user := auth.ForContext(ctx)

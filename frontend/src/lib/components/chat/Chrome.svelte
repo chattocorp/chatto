@@ -306,6 +306,12 @@
         label: 'System',
         icon: 'iconify uil--server'
       });
+
+      items.push({
+        href: resolve('/chat/[serverId]/server-admin/projections', { serverId: serverSegment }),
+        label: 'Projections',
+        icon: 'iconify uil--chart-line'
+      });
     }
 
     if (serverPerms.current.canAdminViewAudit) {

@@ -99,6 +99,8 @@ export type AdminQueries = {
    * specific set (user-level overrides at set scope).
    */
   groupUserPermissions: RoomGroupUserPermissions;
+  /** Inspect runtime state and rough memory estimates for event-sourced projections. */
+  projections: Array<ProjectionState>;
   /** Get server configuration. */
   serverConfig: AdminServerConfig;
   /** List all available server permission identifiers. */
@@ -1701,6 +1703,44 @@ export enum PresenceStatus {
   /** User is actively connected. */
   Online = 'ONLINE'
 }
+
+/** One named diagnostic count/byte bucket for a projection. */
+export type ProjectionMetric = {
+  __typename?: 'ProjectionMetric';
+  /** Estimated bytes associated with this metric. Zero when the metric is count-only. */
+  bytes: Scalars['Int64']['output'];
+  /** Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'. */
+  name: Scalars['String']['output'];
+  /** Count associated with this metric. */
+  value: Scalars['Int64']['output'];
+};
+
+/** Runtime state for one event-sourced projection. */
+export type ProjectionState = {
+  __typename?: 'ProjectionState';
+  /** estimatedBytes divided by entryCount, or zero when entryCount is zero. */
+  averageEntryBytes: Scalars['Int64']['output'];
+  /** Primary projected entry count for this projection. */
+  entryCount: Scalars['Int64']['output'];
+  /** Estimated bytes held in memory by this projection. */
+  estimatedBytes: Scalars['Int64']['output'];
+  /** Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence. */
+  lag: Scalars['Int64']['output'];
+  /** Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow. */
+  lastAppliedSequence: Scalars['String']['output'];
+  /** Highest EVT stream sequence currently matching this projection's subject filters. */
+  matchingStreamSequence: Scalars['String']['output'];
+  /** Breakdown of the projection's current state. */
+  metrics: Array<ProjectionMetric>;
+  /** Human-readable projection name. */
+  name: Scalars['String']['output'];
+  /** Whether the projector run loop has started. */
+  started: Scalars['Boolean']['output'];
+  /** Highest sequence in the EVT stream, regardless of whether this projection consumes it. */
+  streamLastSequence: Scalars['String']['output'];
+  /** NATS subject filters consumed by this projection. */
+  subjects: Array<Scalars['String']['output']>;
+};
 
 /**
  * Input for subscribing to Web Push notifications.
@@ -4235,6 +4275,11 @@ export type AssignRoleToMemberMutationVariables = Exact<{
 
 export type AssignRoleToMemberMutation = { __typename?: 'Mutation', assignRole: boolean };
 
+export type AdminProjectionsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type AdminProjectionsQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', projections: Array<{ __typename?: 'ProjectionState', name: string, subjects: Array<string>, started: boolean, lastAppliedSequence: string, matchingStreamSequence: string, streamLastSequence: string, lag: any, entryCount: any, estimatedBytes: any, averageEntryBytes: any }> } | null };
+
 export type SpaceRolesGateQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4533,6 +4578,7 @@ export const AdminUpdateUserDocument = {"kind":"Document","definitions":[{"kind"
 export const AdminClearUsernameCooldownDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminClearUsernameCooldown"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearUsernameCooldownInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearUsernameCooldown"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]} as unknown as DocumentNode<AdminClearUsernameCooldownMutation, AdminClearUsernameCooldownMutationVariables>;
 export const RevokeRoleFromMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RevokeRoleFromMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RevokeRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"revokeRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RevokeRoleFromMemberMutation, RevokeRoleFromMemberMutationVariables>;
 export const AssignRoleToMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AssignRoleToMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AssignRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"assignRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AssignRoleToMemberMutation, AssignRoleToMemberMutationVariables>;
+export const AdminProjectionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminProjections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"subjects"}},{"kind":"Field","name":{"kind":"Name","value":"started"}},{"kind":"Field","name":{"kind":"Name","value":"lastAppliedSequence"}},{"kind":"Field","name":{"kind":"Name","value":"matchingStreamSequence"}},{"kind":"Field","name":{"kind":"Name","value":"streamLastSequence"}},{"kind":"Field","name":{"kind":"Name","value":"lag"}},{"kind":"Field","name":{"kind":"Name","value":"entryCount"}},{"kind":"Field","name":{"kind":"Name","value":"estimatedBytes"}},{"kind":"Field","name":{"kind":"Name","value":"averageEntryBytes"}}]}}]}}]}}]} as unknown as DocumentNode<AdminProjectionsQuery, AdminProjectionsQueryVariables>;
 export const SpaceRolesGateDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRolesGate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRolesGateQuery, SpaceRolesGateQueryVariables>;
 export const SpaceRoleDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRoleDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"role"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roleUsers"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roleName"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRoleDetailQuery, SpaceRoleDetailQueryVariables>;
 export const UpdateRoleDetailPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRoleDetailPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<UpdateRoleDetailPageMutation, UpdateRoleDetailPageMutationVariables>;

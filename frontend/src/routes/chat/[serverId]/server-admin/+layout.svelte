@@ -31,6 +31,7 @@
     const rolesBase = adminBase + '/roles';
     const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
+    const projectionsBase = adminBase + '/projections';
     const eventLogBase = adminBase + '/event-log';
 
     // General settings page requires space.manage permission
@@ -66,6 +67,11 @@
 
     // System info (NATS/JetStream stats) — admin.view-system
     if (pathname.startsWith(systemBase)) {
+      return () => serverPerms.current.canAdminViewSystem;
+    }
+
+    // Projection state (runtime ES health) - admin.view-system
+    if (pathname.startsWith(projectionsBase)) {
       return () => serverPerms.current.canAdminViewSystem;
     }
 

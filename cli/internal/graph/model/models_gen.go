@@ -80,6 +80,8 @@ type AdminQueries struct {
 	EventLog *EventLogConnection `json:"eventLog"`
 	// Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist.
 	EventLogEntry *EventLogEntry `json:"eventLogEntry,omitempty"`
+	// Inspect runtime state and rough memory estimates for event-sourced projections.
+	Projections []*ProjectionState `json:"projections"`
 	// Resolve the explicit grants and denials configured for a role on a
 	// specific set. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
@@ -537,6 +539,42 @@ type PostMessageInput struct {
 	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
 	// Link preview data from the composer. Server stores this directly without fetching.
 	LinkPreview *LinkPreviewInput `json:"linkPreview,omitempty"`
+}
+
+// One named diagnostic count/byte bucket for a projection.
+type ProjectionMetric struct {
+	// Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'.
+	Name string `json:"name"`
+	// Count associated with this metric.
+	Value int `json:"value"`
+	// Estimated bytes associated with this metric. Zero when the metric is count-only.
+	Bytes int `json:"bytes"`
+}
+
+// Runtime state for one event-sourced projection.
+type ProjectionState struct {
+	// Human-readable projection name.
+	Name string `json:"name"`
+	// NATS subject filters consumed by this projection.
+	Subjects []string `json:"subjects"`
+	// Whether the projector run loop has started.
+	Started bool `json:"started"`
+	// Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow.
+	LastAppliedSequence string `json:"lastAppliedSequence"`
+	// Highest EVT stream sequence currently matching this projection's subject filters.
+	MatchingStreamSequence string `json:"matchingStreamSequence"`
+	// Highest sequence in the EVT stream, regardless of whether this projection consumes it.
+	StreamLastSequence string `json:"streamLastSequence"`
+	// Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence.
+	Lag int `json:"lag"`
+	// Primary projected entry count for this projection.
+	EntryCount int `json:"entryCount"`
+	// Estimated bytes held in memory by this projection.
+	EstimatedBytes int `json:"estimatedBytes"`
+	// estimatedBytes divided by entryCount, or zero when entryCount is zero.
+	AverageEntryBytes int `json:"averageEntryBytes"`
+	// Breakdown of the projection's current state.
+	Metrics []*ProjectionMetric `json:"metrics"`
 }
 
 // Input for subscribing to Web Push notifications.

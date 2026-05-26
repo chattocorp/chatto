@@ -104,6 +104,7 @@ type ComplexityRoot struct {
 		EventLogEntry        func(childComplexity int, sequence string) int
 		GroupRolePermissions func(childComplexity int, groupID string, roleName string) int
 		GroupUserPermissions func(childComplexity int, groupID string, userID string) int
+		Projections          func(childComplexity int) int
 		ServerConfig         func(childComplexity int) int
 		ServerPermissions    func(childComplexity int) int
 		SystemInfo           func(childComplexity int) int
@@ -372,6 +373,26 @@ type ComplexityRoot struct {
 
 	PresenceChangedEvent struct {
 		Status func(childComplexity int) int
+	}
+
+	ProjectionMetric struct {
+		Bytes func(childComplexity int) int
+		Name  func(childComplexity int) int
+		Value func(childComplexity int) int
+	}
+
+	ProjectionState struct {
+		AverageEntryBytes      func(childComplexity int) int
+		EntryCount             func(childComplexity int) int
+		EstimatedBytes         func(childComplexity int) int
+		Lag                    func(childComplexity int) int
+		LastAppliedSequence    func(childComplexity int) int
+		MatchingStreamSequence func(childComplexity int) int
+		Metrics                func(childComplexity int) int
+		Name                   func(childComplexity int) int
+		Started                func(childComplexity int) int
+		StreamLastSequence     func(childComplexity int) int
+		Subjects               func(childComplexity int) int
 	}
 
 	Query struct {
@@ -842,6 +863,7 @@ type AdminQueriesResolver interface {
 	ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error)
 	EventLog(ctx context.Context, obj *model.AdminQueries, limit *int32, before *string) (*model.EventLogConnection, error)
 	EventLogEntry(ctx context.Context, obj *model.AdminQueries, sequence string) (*model.EventLogEntry, error)
+	Projections(ctx context.Context, obj *model.AdminQueries) ([]*model.ProjectionState, error)
 	GroupRolePermissions(ctx context.Context, obj *model.AdminQueries, groupID string, roleName string) (*model.RoomGroupRolePermissions, error)
 	GroupUserPermissions(ctx context.Context, obj *model.AdminQueries, groupID string, userID string) (*model.RoomGroupUserPermissions, error)
 }
@@ -1278,6 +1300,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminQueries.GroupUserPermissions(childComplexity, args["groupId"].(string), args["userId"].(string)), true
+	case "AdminQueries.projections":
+		if e.complexity.AdminQueries.Projections == nil {
+			break
+		}
+
+		return e.complexity.AdminQueries.Projections(childComplexity), true
 	case "AdminQueries.serverConfig":
 		if e.complexity.AdminQueries.ServerConfig == nil {
 			break
@@ -2730,6 +2758,92 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PresenceChangedEvent.Status(childComplexity), true
+
+	case "ProjectionMetric.bytes":
+		if e.complexity.ProjectionMetric.Bytes == nil {
+			break
+		}
+
+		return e.complexity.ProjectionMetric.Bytes(childComplexity), true
+	case "ProjectionMetric.name":
+		if e.complexity.ProjectionMetric.Name == nil {
+			break
+		}
+
+		return e.complexity.ProjectionMetric.Name(childComplexity), true
+	case "ProjectionMetric.value":
+		if e.complexity.ProjectionMetric.Value == nil {
+			break
+		}
+
+		return e.complexity.ProjectionMetric.Value(childComplexity), true
+
+	case "ProjectionState.averageEntryBytes":
+		if e.complexity.ProjectionState.AverageEntryBytes == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.AverageEntryBytes(childComplexity), true
+	case "ProjectionState.entryCount":
+		if e.complexity.ProjectionState.EntryCount == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.EntryCount(childComplexity), true
+	case "ProjectionState.estimatedBytes":
+		if e.complexity.ProjectionState.EstimatedBytes == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.EstimatedBytes(childComplexity), true
+	case "ProjectionState.lag":
+		if e.complexity.ProjectionState.Lag == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.Lag(childComplexity), true
+	case "ProjectionState.lastAppliedSequence":
+		if e.complexity.ProjectionState.LastAppliedSequence == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.LastAppliedSequence(childComplexity), true
+	case "ProjectionState.matchingStreamSequence":
+		if e.complexity.ProjectionState.MatchingStreamSequence == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.MatchingStreamSequence(childComplexity), true
+	case "ProjectionState.metrics":
+		if e.complexity.ProjectionState.Metrics == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.Metrics(childComplexity), true
+	case "ProjectionState.name":
+		if e.complexity.ProjectionState.Name == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.Name(childComplexity), true
+	case "ProjectionState.started":
+		if e.complexity.ProjectionState.Started == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.Started(childComplexity), true
+	case "ProjectionState.streamLastSequence":
+		if e.complexity.ProjectionState.StreamLastSequence == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.StreamLastSequence(childComplexity), true
+	case "ProjectionState.subjects":
+		if e.complexity.ProjectionState.Subjects == nil {
+			break
+		}
+
+		return e.complexity.ProjectionState.Subjects(childComplexity), true
 
 	case "Query.activeCallRoomIds":
 		if e.complexity.Query.ActiveCallRoomIds == nil {
@@ -6636,6 +6750,59 @@ func (ec *executionContext) fieldContext_AdminQueries_eventLogEntry(ctx context.
 	if fc.Args, err = ec.field_AdminQueries_eventLogEntry_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdminQueries_projections(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AdminQueries_projections,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.AdminQueries().Projections(ctx, obj)
+		},
+		nil,
+		ec.marshalNProjectionState2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionStateᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AdminQueries_projections(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdminQueries",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ProjectionState_name(ctx, field)
+			case "subjects":
+				return ec.fieldContext_ProjectionState_subjects(ctx, field)
+			case "started":
+				return ec.fieldContext_ProjectionState_started(ctx, field)
+			case "lastAppliedSequence":
+				return ec.fieldContext_ProjectionState_lastAppliedSequence(ctx, field)
+			case "matchingStreamSequence":
+				return ec.fieldContext_ProjectionState_matchingStreamSequence(ctx, field)
+			case "streamLastSequence":
+				return ec.fieldContext_ProjectionState_streamLastSequence(ctx, field)
+			case "lag":
+				return ec.fieldContext_ProjectionState_lag(ctx, field)
+			case "entryCount":
+				return ec.fieldContext_ProjectionState_entryCount(ctx, field)
+			case "estimatedBytes":
+				return ec.fieldContext_ProjectionState_estimatedBytes(ctx, field)
+			case "averageEntryBytes":
+				return ec.fieldContext_ProjectionState_averageEntryBytes(ctx, field)
+			case "metrics":
+				return ec.fieldContext_ProjectionState_metrics(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProjectionState", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -14218,6 +14385,420 @@ func (ec *executionContext) fieldContext_PresenceChangedEvent_status(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _ProjectionMetric_name(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionMetric) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionMetric_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionMetric_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionMetric",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionMetric_value(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionMetric) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionMetric_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNInt642int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionMetric_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionMetric",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int64 does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionMetric_bytes(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionMetric) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionMetric_bytes,
+		func(ctx context.Context) (any, error) {
+			return obj.Bytes, nil
+		},
+		nil,
+		ec.marshalNInt642int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionMetric_bytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionMetric",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int64 does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_name(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_subjects(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_subjects,
+		func(ctx context.Context) (any, error) {
+			return obj.Subjects, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_subjects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_started(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_started,
+		func(ctx context.Context) (any, error) {
+			return obj.Started, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_started(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_lastAppliedSequence(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_lastAppliedSequence,
+		func(ctx context.Context) (any, error) {
+			return obj.LastAppliedSequence, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_lastAppliedSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_matchingStreamSequence(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_matchingStreamSequence,
+		func(ctx context.Context) (any, error) {
+			return obj.MatchingStreamSequence, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_matchingStreamSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_streamLastSequence(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_streamLastSequence,
+		func(ctx context.Context) (any, error) {
+			return obj.StreamLastSequence, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_streamLastSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_lag(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_lag,
+		func(ctx context.Context) (any, error) {
+			return obj.Lag, nil
+		},
+		nil,
+		ec.marshalNInt642int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_lag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int64 does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_entryCount(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_entryCount,
+		func(ctx context.Context) (any, error) {
+			return obj.EntryCount, nil
+		},
+		nil,
+		ec.marshalNInt642int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_entryCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int64 does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_estimatedBytes(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_estimatedBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.EstimatedBytes, nil
+		},
+		nil,
+		ec.marshalNInt642int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_estimatedBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int64 does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_averageEntryBytes(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_averageEntryBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.AverageEntryBytes, nil
+		},
+		nil,
+		ec.marshalNInt642int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_averageEntryBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int64 does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProjectionState_metrics(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProjectionState_metrics,
+		func(ctx context.Context) (any, error) {
+			return obj.Metrics, nil
+		},
+		nil,
+		ec.marshalNProjectionMetric2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionMetricᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProjectionState_metrics(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProjectionState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ProjectionMetric_name(ctx, field)
+			case "value":
+				return ec.fieldContext_ProjectionMetric_value(ctx, field)
+			case "bytes":
+				return ec.fieldContext_ProjectionMetric_bytes(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProjectionMetric", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_room(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14544,6 +15125,8 @@ func (ec *executionContext) fieldContext_Query_admin(_ context.Context, field gr
 				return ec.fieldContext_AdminQueries_eventLog(ctx, field)
 			case "eventLogEntry":
 				return ec.fieldContext_AdminQueries_eventLogEntry(ctx, field)
+			case "projections":
+				return ec.fieldContext_AdminQueries_projections(ctx, field)
 			case "groupRolePermissions":
 				return ec.fieldContext_AdminQueries_groupRolePermissions(ctx, field)
 			case "groupUserPermissions":
@@ -28451,6 +29034,42 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "projections":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AdminQueries_projections(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "groupRolePermissions":
 			field := field
 
@@ -31591,6 +32210,144 @@ func (ec *executionContext) _PresenceChangedEvent(ctx context.Context, sel ast.S
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var projectionMetricImplementors = []string{"ProjectionMetric"}
+
+func (ec *executionContext) _ProjectionMetric(ctx context.Context, sel ast.SelectionSet, obj *model.ProjectionMetric) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, projectionMetricImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProjectionMetric")
+		case "name":
+			out.Values[i] = ec._ProjectionMetric_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._ProjectionMetric_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bytes":
+			out.Values[i] = ec._ProjectionMetric_bytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var projectionStateImplementors = []string{"ProjectionState"}
+
+func (ec *executionContext) _ProjectionState(ctx context.Context, sel ast.SelectionSet, obj *model.ProjectionState) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, projectionStateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProjectionState")
+		case "name":
+			out.Values[i] = ec._ProjectionState_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subjects":
+			out.Values[i] = ec._ProjectionState_subjects(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "started":
+			out.Values[i] = ec._ProjectionState_started(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastAppliedSequence":
+			out.Values[i] = ec._ProjectionState_lastAppliedSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "matchingStreamSequence":
+			out.Values[i] = ec._ProjectionState_matchingStreamSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "streamLastSequence":
+			out.Values[i] = ec._ProjectionState_streamLastSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lag":
+			out.Values[i] = ec._ProjectionState_lag(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "entryCount":
+			out.Values[i] = ec._ProjectionState_entryCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "estimatedBytes":
+			out.Values[i] = ec._ProjectionState_estimatedBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "averageEntryBytes":
+			out.Values[i] = ec._ProjectionState_averageEntryBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "metrics":
+			out.Values[i] = ec._ProjectionState_metrics(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -39310,6 +40067,114 @@ func (ec *executionContext) unmarshalNPresenceStatus2hmansᚗdeᚋchattoᚋinter
 
 func (ec *executionContext) marshalNPresenceStatus2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐPresenceStatus(ctx context.Context, sel ast.SelectionSet, v model.PresenceStatus) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNProjectionMetric2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionMetricᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProjectionMetric) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNProjectionMetric2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionMetric(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProjectionMetric2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionMetric(ctx context.Context, sel ast.SelectionSet, v *model.ProjectionMetric) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProjectionMetric(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNProjectionState2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionStateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProjectionState) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNProjectionState2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionState(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProjectionState2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionState(ctx context.Context, sel ast.SelectionSet, v *model.ProjectionState) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProjectionState(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNPushSubscriptionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐPushSubscriptionInput(ctx context.Context, v any) (model.PushSubscriptionInput, error) {
