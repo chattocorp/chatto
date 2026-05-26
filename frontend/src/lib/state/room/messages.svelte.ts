@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import { on } from 'svelte/events';
 import { SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
@@ -160,44 +161,17 @@ export abstract class MessageListStore {
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
   protected roomId = '';
 
-  #disposeReconnectEffect: (() => void) | null = null;
-  #tabResumeHandler: (() => void) | null = null;
+  #disposeLifecycle: (() => void) | null = null;
 
   constructor(
     protected readonly gqlClient: GraphQLClient,
     protected readonly getCurrentUserId: () => string | null
   ) {
     this.client = gqlClient.client;
-    this.#wireReconnectListener();
-    this.#wireTabResumeListener();
-  }
-
-  /** Tear down lifecycle listeners. Idempotent. */
-  dispose(): void {
-    this.#disposeReconnectEffect?.();
-    this.#disposeReconnectEffect = null;
-    if (this.#tabResumeHandler && typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', this.#tabResumeHandler);
-    }
-    this.#tabResumeHandler = null;
-  }
-
-  // -------------------------------------------------------------------------
-  // Lifecycle wiring (reconnect + tab-resume-after-gap → catchUp)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Silent refetch of newer events. Called by the reconnect / tab-resume
-   * listeners. Subclasses implement the actual fetch strategy (paginated
-   * forward query for rooms, single-shot thread fetch for threads). Must
-   * NOT toggle {@link isInitialLoading} — catch-up should keep the stale
-   * view on screen until the new data lands.
-   */
-  protected abstract catchUp(reason: string): void;
-
-  #wireReconnectListener(): void {
-    let lastSeen = this.gqlClient.reconnectCount;
-    this.#disposeReconnectEffect = $effect.root(() => {
+    this.#disposeLifecycle = $effect.root(() => {
+      // Reactive: re-run when reconnectCount changes, fire catchUp on
+      // genuine increments.
+      let lastSeen = this.gqlClient.reconnectCount;
       $effect(() => {
         const n = this.gqlClient.reconnectCount;
         if (n <= lastSeen) return;
@@ -210,29 +184,47 @@ export abstract class MessageListStore {
         );
         this.catchUp('ws reconnect');
       });
+
+      // Non-reactive: register a document visibilitychange listener and
+      // let $effect.root tear it down via the returned cleanup.
+      if (typeof document === 'undefined') return;
+      let lastVisibleAt = Date.now();
+      return on(document, 'visibilitychange', () => {
+        if (document.visibilityState !== 'visible') {
+          lastVisibleAt = Date.now();
+          return;
+        }
+        const gap = Date.now() - lastVisibleAt;
+        lastVisibleAt = Date.now();
+        if (gap > TAB_RESUME_GAP_MS) {
+          console.debug(
+            '[MessageListStore] visible after %ds hidden → catching up',
+            Math.round(gap / 1000)
+          );
+          this.catchUp('tab resume');
+        }
+      });
     });
   }
 
-  #wireTabResumeListener(): void {
-    if (typeof document === 'undefined') return;
-    let lastVisibleAt = Date.now();
-    this.#tabResumeHandler = () => {
-      if (document.visibilityState !== 'visible') {
-        lastVisibleAt = Date.now();
-        return;
-      }
-      const gap = Date.now() - lastVisibleAt;
-      lastVisibleAt = Date.now();
-      if (gap > TAB_RESUME_GAP_MS) {
-        console.debug(
-          '[MessageListStore] visible after %ds hidden → catching up',
-          Math.round(gap / 1000)
-        );
-        this.catchUp('tab resume');
-      }
-    };
-    document.addEventListener('visibilitychange', this.#tabResumeHandler);
+  /** Tear down lifecycle listeners. Idempotent. */
+  dispose(): void {
+    this.#disposeLifecycle?.();
+    this.#disposeLifecycle = null;
   }
+
+  // -------------------------------------------------------------------------
+  // Catch-up hook (called by reconnect / tab-resume listeners)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Silent refetch of newer events. Called by the reconnect / tab-resume
+   * listeners wired in the constructor. Subclasses implement the actual
+   * fetch strategy (paginated forward query for rooms, single-shot thread
+   * fetch for threads). Must NOT toggle {@link isInitialLoading} —
+   * catch-up should keep the stale view on screen until the new data lands.
+   */
+  protected abstract catchUp(reason: string): void;
 
   // -------------------------------------------------------------------------
   // Subscription event ingestion
