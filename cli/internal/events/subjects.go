@@ -93,6 +93,7 @@ const (
 	EventUserPasswordHashChanged      = "password_hash_changed"
 	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
 	EventUserServerPreferencesChanged = "server_preferences_changed"
+	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
 )
@@ -172,6 +173,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserOIDCSubjectLinked
 	case *corev1.Event_UserServerPreferencesChanged:
 		return EventUserServerPreferencesChanged
+	case *corev1.Event_UserLoginCooldownStarted:
+		return EventUserLoginCooldownStarted
 	case *corev1.Event_UserLoginCooldownCleared:
 		return EventUserLoginCooldownCleared
 	case *corev1.Event_UserAccountDeleted:

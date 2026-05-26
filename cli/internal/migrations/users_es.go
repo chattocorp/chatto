@@ -198,11 +198,9 @@ func buildUserMigrationEntries(
 	if changedAt, ok, err := getLegacyLoginChangedAt(ctx, kv, "user_login_changed_at."+user.GetId()); err != nil {
 		return nil, err
 	} else if ok {
-		event := stamp(&corev1.Event{Event: &corev1.Event_UserLoginChanged{
-			UserLoginChanged: &corev1.UserLoginChangedEvent{
-				UserId:           user.GetId(),
-				Login:            user.GetLogin(),
-				AdvancesCooldown: true,
+		event := stamp(&corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
+			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{
+				UserId: user.GetId(),
 			},
 		}}, "system:migration", timestamppb.New(changedAt))
 		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
@@ -416,7 +414,9 @@ func userMigrationIdentity(event *corev1.Event) string {
 		data, _ := proto.Marshal(e.UserServerPreferencesChanged.GetPreferences())
 		return events.EventUserServerPreferencesChanged + "\x00" + e.UserServerPreferencesChanged.GetUserId() + "\x00" + hex.EncodeToString(data)
 	case *corev1.Event_UserLoginChanged:
-		return events.EventUserLoginChanged + "\x00" + e.UserLoginChanged.GetUserId() + "\x00" + strings.ToLower(e.UserLoginChanged.GetLogin()) + "\x00" + fmt.Sprint(e.UserLoginChanged.GetAdvancesCooldown())
+		return events.EventUserLoginChanged + "\x00" + e.UserLoginChanged.GetUserId() + "\x00" + strings.ToLower(e.UserLoginChanged.GetLogin())
+	case *corev1.Event_UserLoginCooldownStarted:
+		return events.EventUserLoginCooldownStarted + "\x00" + e.UserLoginCooldownStarted.GetUserId()
 	case *corev1.Event_UserLoginCooldownCleared:
 		return events.EventUserLoginCooldownCleared + "\x00" + e.UserLoginCooldownCleared.GetUserId()
 	}

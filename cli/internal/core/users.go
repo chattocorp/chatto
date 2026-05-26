@@ -680,14 +680,28 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 		}
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
+	loginChanged := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 		UserLoginChanged: &corev1.UserLoginChangedEvent{
-			UserId:           userID,
-			Login:            newLogin,
-			AdvancesCooldown: enforceCooldown && !caseOnly,
+			UserId: userID,
+			Login:  newLogin,
 		},
 	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+	agg := events.UserAggregate(userID)
+	entries := []events.BatchEntry{{
+		Subject: agg.SubjectFor(loginChanged),
+		Event:   loginChanged,
+	}}
+	if enforceCooldown && !caseOnly {
+		cooldownStarted := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
+			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{UserId: userID},
+		}})
+		cooldownStarted.CreatedAt = loginChanged.GetCreatedAt()
+		entries = append(entries, events.BatchEntry{
+			Subject: agg.SubjectFor(cooldownStarted),
+			Event:   cooldownStarted,
+		})
+	}
+	if _, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
 		if !caseOnly && c.Users.LoginExists(newLogin) {
 			return ErrLoginAlreadyTaken
 		}

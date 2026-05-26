@@ -83,6 +83,8 @@ func (p *UserProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyOIDCSubjectLinked(e.UserOidcSubjectLinked)
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
+	case *corev1.Event_UserLoginCooldownStarted:
+		p.applyLoginCooldownStarted(e.UserLoginCooldownStarted, event.GetCreatedAt())
 	case *corev1.Event_UserLoginCooldownCleared:
 		p.applyLoginCooldownCleared(e.UserLoginCooldownCleared)
 	case *corev1.Event_UserAccountDeleted:
@@ -133,9 +135,6 @@ func (p *UserProjection) applyLoginChanged(e *corev1.UserLoginChangedEvent, enve
 	}
 	u.user.Login = e.GetLogin()
 	p.loginIndex[strings.ToLower(e.GetLogin())] = e.GetUserId()
-	if e.GetAdvancesCooldown() && envelopeCreatedAt != nil {
-		u.loginChanged = envelopeCreatedAt.AsTime()
-	}
 }
 
 func (p *UserProjection) applyDisplayNameChanged(e *corev1.UserDisplayNameChangedEvent) {
@@ -214,6 +213,14 @@ func (p *UserProjection) applyServerPreferencesChanged(e *corev1.UserServerPrefe
 		return
 	}
 	u.preferences = proto.Clone(e.GetPreferences()).(*corev1.ServerUserPreferences)
+}
+
+func (p *UserProjection) applyLoginCooldownStarted(e *corev1.UserLoginCooldownStartedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
+	if e == nil || e.GetUserId() == "" || envelopeCreatedAt == nil {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	u.loginChanged = envelopeCreatedAt.AsTime()
 }
 
 func (p *UserProjection) applyLoginCooldownCleared(e *corev1.UserLoginCooldownClearedEvent) {

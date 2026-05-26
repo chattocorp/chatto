@@ -126,6 +126,7 @@ message Event {
     UserServerPreferencesChangedEvent user_server_preferences_changed = 708;
     UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
     UserAccountDeletedEvent user_account_deleted = 710;
+    UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
 
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
@@ -502,9 +503,6 @@ message UserAccountCreatedEvent {
 message UserLoginChangedEvent {
   string user_id = 1;
   string login = 2;
-  // True when this user-initiated login change advances the cooldown.
-  // The cooldown timestamp is the envelope created_at.
-  bool advances_cooldown = 3;
 }
 
 message UserDisplayNameChangedEvent {
@@ -543,6 +541,10 @@ message UserOIDCSubjectLinkedEvent {
 message UserServerPreferencesChangedEvent {
   string user_id = 1;
   ServerUserPreferences preferences = 2;
+}
+
+message UserLoginCooldownStartedEvent {
+  string user_id = 1;
 }
 
 message UserLoginCooldownClearedEvent {

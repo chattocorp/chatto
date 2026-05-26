@@ -24,11 +24,16 @@ func accountCreated(userID, login, displayName string) *corev1.Event {
 	}}}
 }
 
-func loginChanged(userID, login string, advancesCooldown bool) *corev1.Event {
+func loginChanged(userID, login string) *corev1.Event {
 	return &corev1.Event{Event: &corev1.Event_UserLoginChanged{UserLoginChanged: &corev1.UserLoginChangedEvent{
-		UserId:           userID,
-		Login:            login,
-		AdvancesCooldown: advancesCooldown,
+		UserId: userID,
+		Login:  login,
+	}}}
+}
+
+func loginCooldownStarted(userID string) *corev1.Event {
+	return &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{
+		UserId: userID,
 	}}}
 }
 
@@ -66,15 +71,18 @@ func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
 	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated("U1", "Alice", "Alice A.")), 1))
 	require.True(t, p.LoginChangedAt("U1").IsZero())
 
-	require.NoError(t, p.Apply(userEvent("E3", changedAt, loginChanged("U1", "Alice2", true)), 3))
-	require.True(t, p.LoginChangedAt("U1").Equal(changedAt))
+	require.NoError(t, p.Apply(userEvent("E3", changedAt, loginChanged("U1", "Alice2")), 3))
+	require.True(t, p.LoginChangedAt("U1").IsZero())
 	require.False(t, p.LoginExists("Alice"))
 	require.True(t, p.LoginExists("alice2"))
 
+	require.NoError(t, p.Apply(userEvent("E4", changedAt, loginCooldownStarted("U1")), 4))
+	require.True(t, p.LoginChangedAt("U1").Equal(changedAt))
+
 	require.NoError(t, p.Apply(&corev1.Event{
-		Id:    "E4",
+		Id:    "E5",
 		Event: &corev1.Event_UserLoginCooldownCleared{UserLoginCooldownCleared: &corev1.UserLoginCooldownClearedEvent{UserId: "U1"}},
-	}, 4))
+	}, 5))
 	require.True(t, p.LoginChangedAt("U1").IsZero())
 }
 

@@ -64,7 +64,7 @@ func TestMigrateUsersToES_SeedsUserAggregateAndReplays(t *testing.T) {
 	require.IsType(t, &corev1.Event_UserVerifiedEmailAdded{}, eventsBySeq[3].GetEvent())
 	require.IsType(t, &corev1.Event_UserOidcSubjectLinked{}, eventsBySeq[4].GetEvent())
 	require.IsType(t, &corev1.Event_UserServerPreferencesChanged{}, eventsBySeq[5].GetEvent())
-	require.IsType(t, &corev1.Event_UserLoginChanged{}, eventsBySeq[6].GetEvent())
+	require.IsType(t, &corev1.Event_UserLoginCooldownStarted{}, eventsBySeq[6].GetEvent())
 
 	require.Equal(t, "U1", eventsBySeq[0].GetUserAccountCreated().GetUserId())
 	require.Equal(t, "Alice", eventsBySeq[0].GetUserAccountCreated().GetLogin())
@@ -72,8 +72,7 @@ func TestMigrateUsersToES_SeedsUserAggregateAndReplays(t *testing.T) {
 	require.Equal(t, "Alice@Example.com", eventsBySeq[3].GetUserVerifiedEmailAdded().GetEmail())
 	require.True(t, eventsBySeq[3].GetCreatedAt().AsTime().Equal(verifiedAt))
 	require.Equal(t, "subjecthash", eventsBySeq[4].GetUserOidcSubjectLinked().GetSubjectHash())
-	require.Equal(t, "Alice", eventsBySeq[6].GetUserLoginChanged().GetLogin())
-	require.True(t, eventsBySeq[6].GetUserLoginChanged().GetAdvancesCooldown())
+	require.Equal(t, "U1", eventsBySeq[6].GetUserLoginCooldownStarted().GetUserId())
 	require.True(t, eventsBySeq[6].GetCreatedAt().AsTime().Equal(loginChangedAt))
 
 	msg, err := stream.GetLastMsgForSubject(ctx, events.UserAggregate("U1").AllEventsFilter())
