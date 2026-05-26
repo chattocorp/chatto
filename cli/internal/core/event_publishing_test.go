@@ -8,6 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -108,9 +109,14 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	// Post-#597 cutover: retractions publish MessageRetractedEvent on
-	// live.evt.room.{R}.message_retracted (republished from EVT).
-	subject := "live.evt.room." + room.Id + ".message_retracted"
+	// Post-#597 cutover: DeleteMessage publishes a durable
+	// MessageRetractedEvent on EVT AND a synthesised
+	// MessageDeletedEvent live mirror on
+	// live.server.room.{kind}.{r}.message_deleted, so frontend
+	// handlers that listen for MessageDeletedEvent keep working.
+	// This test watches the live mirror, which is what reaches
+	// the myEvents subscription.
+	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_deleted")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -134,21 +140,21 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		retracted := got.GetMessageRetracted()
-		if retracted == nil {
-			t.Fatalf("expected MessageRetractedEvent, got %T", got.Event)
+		deleted := got.GetMessageDeleted()
+		if deleted == nil {
+			t.Fatalf("expected MessageDeletedEvent, got %T", got.Event)
 		}
-		if retracted.RoomId != room.Id {
-			t.Errorf("RoomId = %q, want %q", retracted.RoomId, room.Id)
+		if deleted.RoomId != room.Id {
+			t.Errorf("RoomId = %q, want %q", deleted.RoomId, room.Id)
 		}
-		if retracted.EventId != event.Id {
-			t.Errorf("EventId = %q, want %q", retracted.EventId, event.Id)
+		if deleted.MessageEventId != event.Id {
+			t.Errorf("MessageEventId = %q, want %q", deleted.MessageEventId, event.Id)
 		}
 		if got.ActorId != user.Id {
 			t.Errorf("ActorId = %q, want %q", got.ActorId, user.Id)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for MessageRetractedEvent on live subject")
+		t.Fatal("timed out waiting for MessageDeletedEvent on live mirror subject")
 	}
 }
 
@@ -165,9 +171,12 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	// Post-#597 cutover: edits publish MessageEditedEvent on
-	// live.evt.room.{R}.message_edited (republished from EVT).
-	subject := "live.evt.room." + room.Id + ".message_edited"
+	// Post-#597 cutover: EditMessage publishes a durable
+	// MessageEditedEvent on EVT AND a synthesised
+	// MessageUpdatedEvent live mirror on
+	// live.server.room.{kind}.{r}.message_updated, so frontend
+	// handlers that listen for MessageUpdatedEvent keep working.
+	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_updated")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -191,18 +200,18 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		edited := got.GetMessageEdited()
-		if edited == nil {
-			t.Fatalf("expected MessageEditedEvent, got %T", got.Event)
+		updated := got.GetMessageUpdated()
+		if updated == nil {
+			t.Fatalf("expected MessageUpdatedEvent, got %T", got.Event)
 		}
-		if edited.RoomId != room.Id {
-			t.Errorf("RoomId = %q, want %q", edited.RoomId, room.Id)
+		if updated.RoomId != room.Id {
+			t.Errorf("RoomId = %q, want %q", updated.RoomId, room.Id)
 		}
-		if edited.EventId != event.Id {
-			t.Errorf("EventId = %q, want %q", edited.EventId, event.Id)
+		if updated.MessageEventId != event.Id {
+			t.Errorf("MessageEventId = %q, want %q", updated.MessageEventId, event.Id)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for MessageEditedEvent on live subject")
+		t.Fatal("timed out waiting for MessageUpdatedEvent on live mirror subject")
 	}
 }
 
@@ -260,27 +269,29 @@ func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 
-	// Post-#597 cutover: deletions emit MessageRetractedEvent on
-	// live.evt.room.{R}.message_retracted. StreamMyEvents subscribes
-	// to live.evt.> in addition to live.server.>, and filterLiveEvent
-	// parses both subject shapes.
+	// Post-#597 cutover: DeleteMessage writes a MessageRetractedEvent
+	// to EVT (durable) AND synthesises a legacy MessageDeletedEvent on
+	// live.server.room.{kind}.{r}.message_deleted via publishLiveServerEvent
+	// so the existing myEvents pipeline delivers it unchanged.
+	// StreamMyEvents subscribes to live.server.> only — the legacy
+	// mirror is what reaches the viewer.
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case ev := <-eventChan:
-			retracted := ev.GetMessageRetracted()
-			if retracted == nil {
+			deleted := ev.GetMessageDeleted()
+			if deleted == nil {
 				continue
 			}
-			if retracted.RoomId != room.Id {
-				t.Errorf("RoomId = %q, want %q", retracted.RoomId, room.Id)
+			if deleted.RoomId != room.Id {
+				t.Errorf("RoomId = %q, want %q", deleted.RoomId, room.Id)
 			}
-			if retracted.EventId != posted.Id {
-				t.Errorf("EventId = %q, want %q", retracted.EventId, posted.Id)
+			if deleted.MessageEventId != posted.Id {
+				t.Errorf("MessageEventId = %q, want %q", deleted.MessageEventId, posted.Id)
 			}
 			return
 		case <-timeout:
-			t.Fatal("viewer never received MessageRetractedEvent — live.evt.> subscription / filter regressed")
+			t.Fatal("viewer never received MessageDeletedEvent — live mirror / filterLiveEvent regressed")
 		}
 	}
 }
