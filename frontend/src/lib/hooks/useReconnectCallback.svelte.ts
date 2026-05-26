@@ -22,6 +22,7 @@ export function useReconnectCallback(callback: () => void) {
 		const count = connection().reconnectCount;
 
 		if (prevCount !== undefined && count !== prevCount) {
+			console.debug('[useReconnectCallback] firing callback (reconnectCount %d → %d)', prevCount, count);
 			callback();
 		}
 		prevCount = count;

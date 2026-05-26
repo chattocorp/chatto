@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useEvent, useReconnectTrigger, createTypingIndicator } from '$lib/hooks';
+  import { useEvent, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -43,9 +44,10 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   const store = new ThreadMessagesStore(
-    connection().client,
+    connection(),
     () => currentUser.user?.id ?? null
   );
+  onDestroy(() => store.dispose());
 
   let threadEvents = $derived(store.threadEvents);
   let updateCounter = $derived(threadEvents.length);
@@ -91,11 +93,9 @@
 
   let canPost = $derived(canPostInThread);
 
-  const reconnect = useReconnectTrigger();
-
-  // Reload thread events when the thread changes or WebSocket reconnects
+  // Reload thread events when the thread prop changes. Silent reconnect +
+  // tab-resume catch-ups are owned by the store itself.
   $effect(() => {
-    void reconnect.count;
     store.setThread(roomId, threadRootEventId);
   });
 

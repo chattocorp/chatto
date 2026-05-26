@@ -29,6 +29,11 @@ const WATCHDOG_INTERVAL_MS = 15_000;
 // connection on quick tab toggles.
 const VISIBILITY_RESUBSCRIBE_AFTER_MS = 30_000;
 
+// Periodic liveness summary cadence. Emitted at log level (not debug) so
+// post-incident screenshots show a clean timeline of subscription health
+// without needing verbose console filtering enabled.
+const LIVENESS_SUMMARY_INTERVAL_MS = 60_000;
+
 class EventBusManager {
 	// SvelteMap so getBus() is a reactive read — consumers like NotificationSync
 	// re-run their $effect when a bus is started/stopped, which avoids a race
@@ -71,6 +76,12 @@ class EventBusManager {
 		const handlers = new SvelteSet<EventHandler>();
 		const bus: EventBus = { handlers };
 		let lastEventAt = Date.now();
+		// Running counters so the periodic liveness summary and post-mortem
+		// logs can quote concrete numbers ("5 events, 12 heartbeats in the
+		// last minute") rather than just "subscription is alive".
+		let heartbeatCount = 0;
+		let dispatchedEventCount = 0;
+		let resubscribeCount = 0;
 		// Set while we're tearing down a subscription (either to replace it
 		// or because the bus is stopping). Prevents `onEnd` from firing a
 		// reentrant resubscribe in response to our own unsubscribe.
@@ -82,6 +93,7 @@ class EventBusManager {
 				client.subscription(MyServerEventsSubscriptionDoc, {}),
 				onEnd(() => {
 					if (teardownInProgress || stopped) return;
+					console.warn(`[eventBus:${serverId}] subscription source ended`);
 					resubscribe('subscription source ended');
 				}),
 				urqlSubscribe((result) => {
@@ -101,7 +113,17 @@ class EventBusManager {
 					const event = result.data.myEvents;
 					// Heartbeats are pure liveness signals — already accounted for
 					// via lastEventAt above. Don't dispatch to handlers.
-					if (event.event?.__typename === 'HeartbeatEvent') return;
+					if (event.event?.__typename === 'HeartbeatEvent') {
+						heartbeatCount++;
+						console.debug(`[eventBus:${serverId}] heartbeat received (total: ${heartbeatCount})`);
+						return;
+					}
+					dispatchedEventCount++;
+					console.debug(
+						`[eventBus:${serverId}] event dispatched`,
+						event.event?.__typename ?? '<unknown>',
+						`(total: ${dispatchedEventCount})`
+					);
 					// Run handlers in isolation: a throw from one handler must not
 					// stop the others or tear down the subscription itself.
 					for (const handler of handlers) {
@@ -119,7 +141,10 @@ class EventBusManager {
 
 		const resubscribe = (reason: string) => {
 			if (stopped) return;
-			console.warn(`[eventBus:${serverId}] re-subscribing (${reason})`);
+			resubscribeCount++;
+			console.warn(
+				`[eventBus:${serverId}] re-subscribing (${reason}; total resubscribes: ${resubscribeCount}; lastEvent: ${Math.round((Date.now() - lastEventAt) / 1000)}s ago)`
+			);
 			teardownInProgress = true;
 			this.#subscriptions.get(serverId)?.unsubscribe();
 			teardownInProgress = false;
@@ -127,18 +152,45 @@ class EventBusManager {
 			this.#subscriptions.set(serverId, subscribeOnce());
 		};
 
+		console.debug(`[eventBus:${serverId}] bus started`);
 		this.#subscriptions.set(serverId, subscribeOnce());
 
 		const watchdog = setInterval(() => {
-			if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-			if (Date.now() - lastEventAt < STALE_THRESHOLD_MS) return;
+			if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+				console.debug(`[eventBus:${serverId}] watchdog skipped (tab hidden)`);
+				return;
+			}
+			const gap = Date.now() - lastEventAt;
+			if (gap < STALE_THRESHOLD_MS) return;
+			console.warn(
+				`[eventBus:${serverId}] watchdog: stale (${Math.round(gap / 1000)}s since last event, threshold ${STALE_THRESHOLD_MS / 1000}s)`
+			);
 			resubscribe(`no event for ${STALE_THRESHOLD_MS}ms`);
 		}, WATCHDOG_INTERVAL_MS);
 
+		// Periodic at-a-glance health snapshot so a multi-hour log shows
+		// whether the subscription was alive throughout — invaluable when
+		// debugging post-sleep "no events received" reports where the
+		// per-event debug lines may be too noisy to scroll through.
+		const livenessSummary = setInterval(() => {
+			const gapSec = Math.round((Date.now() - lastEventAt) / 1000);
+			console.debug(
+				`[eventBus:${serverId}] alive (handlers=${handlers.size}, events=${dispatchedEventCount}, heartbeats=${heartbeatCount}, resubscribes=${resubscribeCount}, lastEvent=${gapSec}s ago, visible=${typeof document === 'undefined' ? 'n/a' : document.visibilityState === 'visible'})`
+			);
+		}, LIVENESS_SUMMARY_INTERVAL_MS);
+
 		const onVisibility = () => {
 			if (document.visibilityState !== 'visible') return;
-			if (Date.now() - lastEventAt > VISIBILITY_RESUBSCRIBE_AFTER_MS) {
+			const gap = Date.now() - lastEventAt;
+			if (gap > VISIBILITY_RESUBSCRIBE_AFTER_MS) {
+				console.debug(
+					`[eventBus:${serverId}] visibility=visible, gap=${Math.round(gap / 1000)}s → resubscribing`
+				);
 				resubscribe('tab became visible after gap');
+			} else {
+				console.debug(
+					`[eventBus:${serverId}] visibility=visible, gap=${Math.round(gap / 1000)}s → no resubscribe (under threshold)`
+				);
 			}
 		};
 		if (typeof document !== 'undefined') {
@@ -156,6 +208,9 @@ class EventBusManager {
 			$effect(() => {
 				const n = gqlClient.reconnectCount;
 				if (n > lastSeenReconnects) {
+					console.debug(
+						`[eventBus:${serverId}] ws reconnectCount ${lastSeenReconnects} → ${n}, resubscribing`
+					);
 					lastSeenReconnects = n;
 					resubscribe('ws reconnected');
 				}
@@ -167,6 +222,7 @@ class EventBusManager {
 			// doesn't fire a reentrant resubscribe through onEnd.
 			stopped = true;
 			clearInterval(watchdog);
+			clearInterval(livenessSummary);
 			if (typeof document !== 'undefined') {
 				document.removeEventListener('visibilitychange', onVisibility);
 			}

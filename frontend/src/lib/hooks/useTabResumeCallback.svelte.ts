@@ -27,3 +27,4 @@ export function useTabResumeCallback(callback: () => void) {
 		return () => callbacks.delete(callback);
 	});
 }
+

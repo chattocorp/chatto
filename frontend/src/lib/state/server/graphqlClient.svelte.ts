@@ -60,6 +60,13 @@ export class GraphQLClient {
 	 * resume, where a frozen 5s timer can fire many minutes late.
 	 */
 	#pendingRetryResolve: (() => void) | null = null;
+	/**
+	 * Set when status flips to 'disconnected' (via `closed:`), cleared when
+	 * `connected:` consumes it. Lets us detect "we just reconnected" even
+	 * though `connecting:` has since overwritten status away from
+	 * 'disconnected'.
+	 */
+	#wasDisconnected = false;
 	#lastVisibleAt = Date.now();
 	#visibilityHandler: (() => void) | null = null;
 	#onlineHandler: (() => void) | null = null;
@@ -185,6 +192,15 @@ export class GraphQLClient {
 					// opened. Move out of 'disconnected' so the mapExchange
 					// HTTP-result path doesn't kick another forceReconnect mid-
 					// handshake and kill the attempt we just started.
+					//
+					// Side effect: overwrites 'disconnected' before `connected:`
+					// can see it. The standalone `#wasDisconnected` flag below
+					// preserves the "did we just reconnect?" signal so the
+					// `connected:` handler can still bump `reconnectCount`.
+					if (this.status === 'disconnected') {
+						this.#wasDisconnected = true;
+					}
+					console.debug('[ws:%s] Connecting (prev status: %s)', this.#host, this.status);
 					this.status = 'connecting';
 				},
 				ping: (received) => {
@@ -212,9 +228,10 @@ export class GraphQLClient {
 				},
 				connected: (socket) => {
 					this.#activeSocket = socket as WebSocket;
-					console.log('[ws:%s] Connected', this.#host);
+					console.log('[ws:%s] Connected (prev status: %s, wasDisconnected: %s)', this.#host, this.status, this.#wasDisconnected);
 
-					if (this.status === 'disconnected') {
+					if (this.#wasDisconnected) {
+						this.#wasDisconnected = false;
 						this.reconnectCount++;
 						console.log(
 							'[ws:%s] Reconnected (count: %d)',
@@ -234,11 +251,15 @@ export class GraphQLClient {
 					}
 					const closeEvent = event as CloseEvent | undefined;
 					console.log(
-						'[ws:%s] Closed (code: %s, reason: %s)',
+						'[ws:%s] Closed (code: %s, reason: %s, prev status: %s)',
 						this.#host,
 						closeEvent?.code ?? 'unknown',
-						closeEvent?.reason || 'none'
+						closeEvent?.reason || 'none',
+						this.status
 					);
+					if (this.status === 'connected') {
+						this.#wasDisconnected = true;
+					}
 					this.status = 'disconnected';
 				},
 				error: (err) => console.error('[ws:%s] Error:', this.#host, err)
@@ -299,8 +320,21 @@ export class GraphQLClient {
 					this.#triggerSessionValidation();
 
 					if (this.status === 'disconnected' || hiddenDuration > 30_000) {
+						console.debug(
+							'[ws:%s] visibility=visible after %ds hidden, status=%s → forceReconnect',
+							this.#host,
+							Math.round(hiddenDuration / 1000),
+							this.status
+						);
 						this.forceReconnect(
 							`tab visible after ${Math.round(hiddenDuration / 1000)}s hidden`
+						);
+					} else {
+						console.debug(
+							'[ws:%s] visibility=visible after %ds hidden, status=%s → no reconnect',
+							this.#host,
+							Math.round(hiddenDuration / 1000),
+							this.status
 						);
 					}
 
@@ -328,6 +362,11 @@ export class GraphQLClient {
 				lastTick = now;
 				if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
 				if (gap > 30_000) {
+					console.debug(
+						'[ws:%s] Suspend detector fired (timer gap %ds)',
+						this.#host,
+						Math.round(gap / 1000)
+					);
 					this.forceReconnect(
 						`suspend detected (timer gap: ${Math.round(gap / 1000)}s)`
 					);
@@ -337,6 +376,7 @@ export class GraphQLClient {
 			// Reconnect when network comes back online (e.g., after airplane mode
 			// or Wi-Fi re-association following sleep).
 			this.#onlineHandler = () => {
+				console.debug('[ws:%s] online event fired', this.#host);
 				this.forceReconnect('network came back online');
 			};
 			window.addEventListener('online', this.#onlineHandler);

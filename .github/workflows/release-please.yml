@@ -33,13 +33,12 @@ on:
   push:
     branches:
       - main
-      # Backport maintenance branches (e.g. release-0.0.x). MUST NOT be a
-      # plain `release-*` glob: release-please names its own working
-      # branches `release-please--branches--…`, which start with
-      # `release-` and would match `release-*`, re-firing this workflow
-      # on each release-please branch and creating an exponential
-      # nested-PR chain. Use a digit-anchored pattern so backport
-      # branches still match but release-please's own branches do not.
+      # Maintenance branches like `release-0.0.x`. The leading digit class is
+      # important: a bare `release-*` glob also matches release-please's own
+      # PR branches (`release-please--branches--...`), which causes a runaway
+      # loop — each push to a PR branch re-triggers the workflow with that
+      # branch as `target-branch`, spawning a new nested PR. See incident on
+      # 2026-05-25 (PRs #618–#621).
       - 'release-[0-9]*'
       - next
 

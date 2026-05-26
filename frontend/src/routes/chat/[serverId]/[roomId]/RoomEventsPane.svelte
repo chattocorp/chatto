@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useEvent, useReconnectTrigger } from '$lib/hooks';
+  import { useEvent } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -30,9 +31,10 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   const store = new RoomMessagesStore(
-    connection().client,
+    connection(),
     () => currentUser.user?.id ?? null
   );
+  onDestroy(() => store.dispose());
 
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
@@ -66,29 +68,12 @@
     if (jumpState) jumpState.reset();
   });
 
-  const reconnect = useReconnectTrigger();
-
-  // Track previous values to distinguish room changes from reconnects
-  let prevRoomId: string | undefined;
-  let prevRefetchTrigger: number | undefined;
-
-  // Drive store loads from prop / reconnect / refetchTrigger changes
+  // Drive store loads from roomId / manual-refetch prop changes. Silent
+  // reconnect + tab-resume catch-ups are owned by the store itself — they
+  // do not flow through this effect.
   $effect(() => {
-    void reconnect.count;
     void refetchTrigger;
-
-    const isFirstLoad = prevRoomId === undefined;
-    const isRoomChange = !isFirstLoad && prevRoomId !== roomId;
-    const isRefetch =
-      prevRefetchTrigger !== undefined && prevRefetchTrigger !== refetchTrigger;
-
-    prevRoomId = roomId;
-    prevRefetchTrigger = refetchTrigger;
-
-    // Show skeletons on first load, room change, or refetch trigger.
-    // On reconnect, keep stale messages visible and refetch silently.
-    const mode = isFirstLoad || isRoomChange || isRefetch ? 'reset' : 'catchUp';
-    store.setRoom(roomId, mode);
+    store.setRoom(roomId);
   });
 
   // Subscribe to server events: route to store, plus handle component-level

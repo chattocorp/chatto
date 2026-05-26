@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import { on } from 'svelte/events';
 import { SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
@@ -8,7 +9,16 @@ import {
 } from '$lib/gql/graphql';
 import type { FragmentType } from '$lib/gql/fragment-masking';
 import type { ServerEvent } from '$lib/eventBus.svelte';
+import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from './composerContext.svelte';
+
+/**
+ * Minimum hidden duration before a visibility→visible transition counts as
+ * a "tab resume" worth catching up for. Mirrors the eventBus visibility-
+ * resubscribe threshold and the GraphQL client's suspend-detector window
+ * so all three layers react on the same horizon.
+ */
+const TAB_RESUME_GAP_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -124,28 +134,113 @@ function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
  *     video processing all funnel through here)
  *   - the {@link ingestServerEvent} skeleton, which routes incoming
  *     subscription events to refetches or to subclass hooks
+ *   - **its own lifecycle wiring**: a reconnect listener on
+ *     `gqlClient.reconnectCount` and a tab-resume-after-gap listener on
+ *     `visibilitychange`, both feeding into {@link catchUp}
  *
  * Subclasses fill in:
  *   - the initial query (room: paginated; thread: single fetch)
  *   - the visible-events filter for {@link refetchAll}
  *   - {@link onMessagePosted} — what to do with a new MessagePostedEvent
  *   - {@link onSystemEvent} — what to do with room system events (default ignore)
+ *   - {@link catchUp} — silent refetch of newer events triggered by reconnect
+ *     or tab resume
  *
  * The component owns the actual subscription (via `useEvent`) and
  * forwards events here. Cross-cutting side effects (e.g. cancelling an
  * in-progress edit, removing a typing indicator) stay in the component.
+ *
+ * **Disposal:** callers MUST call {@link dispose} on unmount to tear down
+ * the reconnect and visibility listeners.
  */
 export abstract class MessageListStore {
   events = $state<RoomEventViewFragment[]>([]);
   isInitialLoading = $state(true);
 
+  protected readonly client: Client;
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
   protected roomId = '';
 
+  /** Increments on every load kickoff. Async callbacks compare against
+   *  it via {@link isStale} to discard results from superseded loads. */
+  #loadId = 0;
+
+  #disposeLifecycle: (() => void) | null = null;
+
+  /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
+  protected startLoad(): number {
+    return ++this.#loadId;
+  }
+
+  /** True if a newer load has started — caller should discard its result. */
+  protected isStale(thisLoad: number): boolean {
+    return this.#loadId !== thisLoad;
+  }
+
   constructor(
-    protected readonly client: Client,
+    protected readonly gqlClient: GraphQLClient,
     protected readonly getCurrentUserId: () => string | null
-  ) {}
+  ) {
+    this.client = gqlClient.client;
+    this.#disposeLifecycle = $effect.root(() => {
+      // Reactive: re-run when reconnectCount changes, fire catchUp on
+      // genuine increments.
+      let lastSeen = this.gqlClient.reconnectCount;
+      $effect(() => {
+        const n = this.gqlClient.reconnectCount;
+        if (n <= lastSeen) return;
+        const prev = lastSeen;
+        lastSeen = n;
+        console.debug(
+          '[MessageListStore] reconnectCount %d → %d, catching up',
+          prev,
+          n
+        );
+        this.catchUp();
+      });
+
+      // Non-reactive: register a document visibilitychange listener and
+      // let $effect.root tear it down via the returned cleanup.
+      if (typeof document === 'undefined') return;
+      let lastVisibleAt = Date.now();
+      return on(document, 'visibilitychange', () => {
+        if (document.visibilityState !== 'visible') {
+          lastVisibleAt = Date.now();
+          return;
+        }
+        const gap = Date.now() - lastVisibleAt;
+        lastVisibleAt = Date.now();
+        if (gap > TAB_RESUME_GAP_MS) {
+          console.debug(
+            '[MessageListStore] visible after %ds hidden → catching up',
+            Math.round(gap / 1000)
+          );
+          this.catchUp();
+        }
+      });
+    });
+  }
+
+  /** Tear down lifecycle listeners. Idempotent. */
+  dispose(): void {
+    this.#disposeLifecycle?.();
+    this.#disposeLifecycle = null;
+  }
+
+  // -------------------------------------------------------------------------
+  // Catch-up hook (called by reconnect / tab-resume listeners)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Silent refetch of newer events. Called by the reconnect / tab-resume
+   * listeners wired in the constructor (the trigger reason is logged by
+   * the base class before this is invoked). Subclasses implement the
+   * actual fetch strategy (paginated forward query for rooms, single-
+   * shot thread fetch for threads). Must NOT toggle
+   * {@link isInitialLoading} — catch-up should keep the stale view on
+   * screen until the new data lands.
+   */
+  protected abstract catchUp(): void;
 
   // -------------------------------------------------------------------------
   // Subscription event ingestion
@@ -366,8 +461,6 @@ export class RoomMessagesStore extends MessageListStore {
    */
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
-  /** Increments on every setRoom or jumpToPresent — guards async callbacks. */
-  private loadId = 0;
 
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): RoomEventViewFragment[] {
@@ -379,29 +472,37 @@ export class RoomMessagesStore extends MessageListStore {
   // -------------------------------------------------------------------------
 
   /**
-   * Switch to a different room (or refetch the current one).
-   *
-   * @param mode 'reset' clears state and shows skeleton; 'catchUp' keeps
-   *   stale events visible and quietly fetches forward (use on reconnect).
+   * Switch to a room (or force-refetch the current one). Always shows the
+   * skeleton and clears state. Silent reconnect / tab-resume catch-ups go
+   * through {@link catchUp} (driven internally by the base class), not
+   * through this method.
    */
-  setRoom(roomId: string, mode: 'reset' | 'catchUp'): void {
-    const isSameRoom = this.roomId === roomId;
+  setRoom(roomId: string): void {
     this.roomId = roomId;
+    this.resetAndFetchLatest();
+  }
 
-    const thisLoad = ++this.loadId;
+  // -------------------------------------------------------------------------
+  // Catch-up (called by base class on reconnect / tab-resume)
+  // -------------------------------------------------------------------------
 
-    if (mode === 'reset' || !isSameRoom) {
-      this.resetState();
-      this.isInitialLoading = true;
-      this.fetchLatest(thisLoad);
-      return;
-    }
-
+  protected catchUp(): void {
+    if (!this.roomId) return;
+    const thisLoad = this.startLoad();
     if (this.events.length === 0) {
       this.fetchLatest(thisLoad);
-      return;
+    } else {
+      this.catchUpForward(thisLoad);
     }
-    this.catchUpForward(thisLoad);
+  }
+
+  /** Shared by {@link setRoom} and {@link jumpToPresent}: clear state, show
+   *  the skeleton, kick off a fresh fetchLatest under a new load id. */
+  private resetAndFetchLatest(): void {
+    const thisLoad = this.startLoad();
+    this.resetState();
+    this.isInitialLoading = true;
+    this.fetchLatest(thisLoad);
   }
 
   // -------------------------------------------------------------------------
@@ -541,10 +642,7 @@ export class RoomMessagesStore extends MessageListStore {
   /** Exit jumped mode and refetch the latest events. */
   jumpToPresent(jumpState: JumpToMessageState): void {
     jumpState.reset();
-    const thisLoad = ++this.loadId;
-    this.resetState();
-    this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
+    this.resetAndFetchLatest();
   }
 
   // -------------------------------------------------------------------------
@@ -599,7 +697,7 @@ export class RoomMessagesStore extends MessageListStore {
       })
       .toPromise()
       .then((result) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         if (result.error) console.error('RoomMessagesStore: fetchLatest error:', result.error);
         const page = result.data?.room?.events;
         if (page) {
@@ -609,7 +707,7 @@ export class RoomMessagesStore extends MessageListStore {
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         console.error('RoomMessagesStore: fetchLatest failed:', error);
         this.isInitialLoading = false;
       });
@@ -632,15 +730,16 @@ export class RoomMessagesStore extends MessageListStore {
       return;
     }
 
+    const after = this.newestCursor;
     this.client
       .query(RoomAfterQuery, {
         roomId: this.roomId,
         limit: PAGE_SIZE,
-        after: this.newestCursor
+        after
       })
       .toPromise()
       .then((result) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         if (result.error) {
           console.error('RoomMessagesStore: catchUp error:', result.error);
           return;
@@ -649,6 +748,15 @@ export class RoomMessagesStore extends MessageListStore {
         if (!page) return;
 
         const fetched = unmask(page.events);
+        const strategy = page.hasNewer ? 'replace' : 'append';
+        console.debug(
+          '[RoomMessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
+          this.roomId,
+          after,
+          fetched.length,
+          page.hasNewer,
+          strategy
+        );
         if (page.hasNewer) {
           this.replaceWithFetchedAndUpdateCursors(page);
         } else {
@@ -659,7 +767,7 @@ export class RoomMessagesStore extends MessageListStore {
         }
       })
       .catch((error: unknown) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         console.error('RoomMessagesStore: catchUp failed:', error);
       });
   }
@@ -731,23 +839,32 @@ export class RoomMessagesStore extends MessageListStore {
  */
 export class ThreadMessagesStore extends MessageListStore {
   private threadRootEventId = '';
-  /** Increments on every setThread — guards async callbacks. */
-  private loadId = 0;
 
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): RoomEventViewFragment[] {
     return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
   }
 
-  /** Switch to a different thread and (re)fetch its events. */
+  /** Switch to a thread (or force-refetch the current one). Always shows
+   *  the skeleton. Silent reconnect / tab-resume catch-ups go through
+   *  {@link catchUp}, not through this method.
+   */
   setThread(roomId: string, threadRootEventId: string): void {
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
 
-    const thisLoad = ++this.loadId;
+    const thisLoad = this.startLoad();
     this.resetState();
     this.isInitialLoading = true;
     this.fetchThread(thisLoad);
+  }
+
+  protected catchUp(): void {
+    if (!this.threadRootEventId) return;
+    // Silent: do NOT flip isInitialLoading. fetchThread merges results
+    // with existing events via replaceMergingExisting, so the stale view
+    // stays on screen until the new data lands.
+    this.fetchThread(this.startLoad());
   }
 
   async refetchAll(): Promise<void> {
@@ -784,7 +901,7 @@ export class ThreadMessagesStore extends MessageListStore {
       })
       .toPromise()
       .then((result) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         if (result.error) console.error('ThreadMessagesStore: fetch error:', result.error);
         const root = result.data?.room?.event;
         if (root) {
@@ -796,7 +913,7 @@ export class ThreadMessagesStore extends MessageListStore {
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         console.error('ThreadMessagesStore: fetch failed:', error);
         this.isInitialLoading = false;
       });

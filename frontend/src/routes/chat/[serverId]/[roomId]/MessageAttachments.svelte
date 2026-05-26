@@ -27,6 +27,29 @@
       }
     }
   `);
+
+  // Re-fetch a message event's attachment URLs just before the user
+  // actually needs them, so a 5-minute-old page can still open a
+  // full-size image or download an attached file. `Attachment.url`
+  // re-signs on every resolve; the staleness lives in the cached query
+  // response, not the server. See ADR-032 / authorization.md for the
+  // URL-as-capability / short-TTL rationale.
+  const RefreshMessageAttachmentUrlsQuery = graphql(`
+    query RefreshMessageAttachmentUrls($roomId: ID!, $eventId: ID!) {
+      room(roomId: $roomId) {
+        event(eventId: $eventId) {
+          event {
+            ... on MessagePostedEvent {
+              attachments {
+                id
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  `);
 </script>
 
 <script lang="ts">
@@ -40,6 +63,8 @@
   import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
+  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { toast } from '$lib/ui/toast';
 
   let {
     attachments: rawAttachments,
@@ -71,19 +96,62 @@
   }
 
   const imageAttachments = $derived(attachments.filter((a) => a.contentType.startsWith('image/')));
-  const imageItems: ImageItem[] = $derived(
-    imageAttachments.map((a) => ({ src: a.url, alt: a.filename, filename: a.filename }))
-  );
 
-  function openImageModal(attachment: Attachment) {
+  const connection = useConnection();
+
+  // Returns a map of attachment id → freshly signed URL by re-running
+  // the message-attachments query. Returns an empty map on error;
+  // callers should fall back to the pre-baked URLs in that case rather
+  // than blocking the action entirely.
+  async function refreshUrlsForMessage(): Promise<Map<string, string>> {
+    const fresh = new Map<string, string>();
+    const result = await connection()
+      .client.query(RefreshMessageAttachmentUrlsQuery, { roomId, eventId })
+      .toPromise();
+    if (result.error) {
+      console.warn('Failed to refresh attachment URLs', result.error);
+      return fresh;
+    }
+    const inner = result.data?.room?.event?.event;
+    if (inner && inner.__typename === 'MessagePostedEvent') {
+      for (const att of inner.attachments) {
+        fresh.set(att.id, att.url);
+      }
+    }
+    return fresh;
+  }
+
+  async function openImageModal(attachment: Attachment) {
     const idx = imageAttachments.indexOf(attachment);
+    // Refresh in one round-trip so navigating between images in the
+    // lightbox can't hit an expired URL mid-session.
+    const freshUrls = await refreshUrlsForMessage();
+    const imageItems: ImageItem[] = imageAttachments.map((a) => ({
+      src: freshUrls.get(a.id) ?? a.url,
+      alt: a.filename,
+      filename: a.filename
+    }));
     pushState('', {
       modal: {
         type: 'imageViewer',
-        imageItems: imageItems,
+        imageItems,
         imageIndex: idx >= 0 ? idx : 0
       }
     });
+  }
+
+  async function openDownload(attachment: Attachment, event: MouseEvent) {
+    // Intercept the default navigation so we can swap in a fresh URL.
+    // The `<a>` keeps its original href as a fallback for middle-click /
+    // "Open in new tab", which the browser handles before this runs.
+    event.preventDefault();
+    const freshUrls = await refreshUrlsForMessage();
+    const fresh = freshUrls.get(attachment.id) ?? attachment.url;
+    if (!fresh) {
+      toast.error('Could not refresh download link');
+      return;
+    }
+    window.open(fresh, '_blank', 'noopener,noreferrer');
   }
 
   function openDeleteConfirmation(attachment: Attachment, event: Event) {
@@ -229,6 +297,7 @@
           href={attachment.url}
           target="_blank"
           rel="noopener noreferrer"
+          onclick={(e) => openDownload(attachment, e)}
           aria-label="Download {attachment.filename}"
           class="group/attachment relative block overflow-hidden rounded-lg shadow-md transition-transform"
         >
