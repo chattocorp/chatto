@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -176,6 +177,22 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
+	// Legacy live mirror. Same pattern as RoomMembership / RoomGroups
+	// after their ES migration — the durable event lives on EVT, but
+	// frontend subscribers consume from live.server.>. We mirror onto
+	// the legacy subject family so the existing myEvents pipeline
+	// keeps working unchanged. publishLiveServerEvent is fire-and-
+	// forget over NATS Core; no second durable copy.
+	var liveSubject string
+	if inThread == "" {
+		liveSubject = subjects.RoomMessage(string(kind), room_id, event.Id)
+	} else {
+		liveSubject = subjects.RoomThread(string(kind), room_id, inThread, event.Id)
+	}
+	if err := c.publishLiveServerEvent(ctx, liveSubject, event); err != nil {
+		c.logger.Warn("Failed to publish message live mirror", "error", err, "subject", liveSubject)
+	}
+
 	// messageBodyKey retained as a label for log lines and downstream
 	// notifications that historically logged the compound key — the
 	// projection-keyed event_id is the new canonical identifier.
@@ -322,6 +339,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else {
+			echoLiveSubject := subjects.RoomMessage(string(kind), room_id, echoEvent.Id)
+			if err := c.publishLiveServerEvent(ctx, echoLiveSubject, echoEvent); err != nil {
+				c.logger.Warn("Failed to publish echo live mirror", "error", err)
+			}
 			c.logger.Info("Thread reply echo posted",
 				"kind", kind, "room_id", room_id,
 				"echo_event_id", echoEvent.Id, "original_event_id", event.Id,
@@ -425,13 +446,13 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// retract subject. The projection ignores duplicates by event_id,
 	// so retrying after a network glitch is safe.
 	agg := events.RoomAggregate(roomID)
-	if err := c.publishMessageRetract(ctx, actorID, agg, roomID, eventID); err != nil {
+	if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, eventID); err != nil {
 		return err
 	}
 	// Fan out the retract to echoes / original (legacy "delete one,
 	// both go" semantic).
 	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
-		if err := c.publishMessageRetract(ctx, actorID, agg, roomID, linkedID); err != nil {
+		if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, linkedID); err != nil {
 			c.logger.Warn("Failed to propagate retract to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
 		}
@@ -527,14 +548,14 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	updated.UpdatedAt = timestamppb.Now()
 
 	agg := events.RoomAggregate(roomID)
-	if err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, updated); err != nil {
+	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
 		return err
 	}
 	// Fan out to echoes (and to the original if this IS an echo) so
 	// the legacy "edit one, both update" semantic is preserved.
 	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
 		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
-		if err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, linkedBody); err != nil {
+		if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, linkedID, linkedBody); err != nil {
 			c.logger.Warn("Failed to propagate edit to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
 		}
@@ -544,9 +565,12 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	return nil
 }
 
-// publishMessageRetract emits a single MessageRetractedEvent.
-// Factored out so DeleteMessage can fan to linked messages.
-func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, agg events.Aggregate, roomID, eventID string) error {
+// publishMessageRetract emits a single MessageRetractedEvent on EVT
+// and the legacy MessageDeletedEvent live mirror on
+// live.server.room.{kind}.{r}.message_deleted so the frontend's
+// existing handlers fire. Factored out so DeleteMessage can fan to
+// linked messages.
+func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageRetracted{
 			MessageRetracted: &corev1.MessageRetractedEvent{
@@ -558,13 +582,32 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
+
+	// Legacy live mirror so the frontend's MessageDeletedEvent handler
+	// keeps firing. Fire-and-forget over NATS Core, no durable
+	// duplicate.
+	liveEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageDeleted{
+			MessageDeleted: &corev1.MessageDeletedEvent{
+				RoomId:         roomID,
+				MessageEventId: eventID,
+				MessageBodyId:  eventID,
+			},
+		},
+	})
+	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_deleted")
+	if err := c.publishLiveServerEvent(ctx, liveSubject, liveEvent); err != nil {
+		c.logger.Warn("Failed to publish retract live mirror", "error", err)
+	}
 	return nil
 }
 
-// publishMessageEdit emits a single MessageEditedEvent. Factored
-// out so EditMessage / editEmbeddedBody can fan the same payload to
-// linked messages without duplicating the publish boilerplate.
-func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
+// publishMessageEdit emits a single MessageEditedEvent on EVT and a
+// synthesised MessageUpdatedEvent live mirror on
+// live.server.room.{kind}.{r}.message_updated so the frontend's
+// existing handlers fire. Factored out so EditMessage /
+// editEmbeddedBody can fan the same payload to linked messages.
+func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageEdited{
 			MessageEdited: &corev1.MessageEditedEvent{
@@ -576,6 +619,20 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, agg
 	})
 	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageEditedEvent: %w", err)
+	}
+
+	liveEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageUpdated{
+			MessageUpdated: &corev1.MessageUpdatedEvent{
+				RoomId:         roomID,
+				MessageEventId: eventID,
+				MessageBodyId:  eventID,
+			},
+		},
+	})
+	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_updated")
+	if err := c.publishLiveServerEvent(ctx, liveSubject, liveEvent); err != nil {
+		c.logger.Warn("Failed to publish edit live mirror", "error", err)
 	}
 	return nil
 }
@@ -591,6 +648,7 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, agg
 func (c *ChattoCore) editEmbeddedBody(
 	ctx context.Context,
 	actorID string,
+	kind RoomKind,
 	roomID, messageBodyKey string,
 	mutate func(*corev1.MessageBody) error,
 ) error {
@@ -619,12 +677,12 @@ func (c *ChattoCore) editEmbeddedBody(
 	updated.UpdatedAt = timestamppb.Now()
 
 	agg := events.RoomAggregate(roomID)
-	if err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, updated); err != nil {
+	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
 		return err
 	}
 	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
 		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
-		if err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, linkedBody); err != nil {
+		if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, linkedID, linkedBody); err != nil {
 			c.logger.Warn("Failed to propagate partial edit to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
 		}
@@ -638,7 +696,7 @@ func (c *ChattoCore) editEmbeddedBody(
 // deletes the file from the asset store best-effort.
 func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, attachmentID string) error {
 	var removed *corev1.Attachment
-	err := c.editEmbeddedBody(ctx, actorID, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
 		idx := -1
 		for i, att := range body.GetAttachments() {
 			if att.GetId() == attachmentID {
@@ -679,7 +737,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 // Only the message author can delete link previews from their
 // messages.
 func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, previewURL string) error {
-	err := c.editEmbeddedBody(ctx, actorID, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
 		if body.GetLinkPreview() == nil || body.GetLinkPreview().GetUrl() != previewURL {
 			return fmt.Errorf("link preview not found in message")
 		}
