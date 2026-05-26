@@ -149,6 +149,14 @@ type ChattoCore struct {
 	// for WaitForSeq from reaction writers.
 	ReactionsProjector *events.Projector
 
+	// Users holds current user/account/profile/auth lookup state derived
+	// from durable user-aggregate events.
+	Users *UserProjection
+
+	// UsersProjector runs the consumer for Users. Exposed for
+	// WaitForSeq from user/account writers.
+	UsersProjector *events.Projector
+
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
 	// during NewChattoCore; Run iterates the slice. Adding a projector
@@ -592,6 +600,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "ReactionsProjector")
 
+	users := NewUserProjection()
+	usersProjector := newProjector(users, "UsersProjector")
+
 	// ConfigManager owns event-only server-config writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
@@ -623,6 +634,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ThreadsProjector:        threadsProjector,
 		Reactions:               reactions,
 		ReactionsProjector:      reactionsProjector,
+		Users:                   users,
+		UsersProjector:          usersProjector,
 		projectors:              projectors,
 		bootDone:                make(chan struct{}),
 	}

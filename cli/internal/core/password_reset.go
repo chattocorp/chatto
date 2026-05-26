@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -151,10 +153,13 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	// Delete token immediately to prevent reuse (even if password update fails)
 	defer c.deletePasswordResetToken(ctx, token)
 
-	// Update the password
-	passwordKey := fmt.Sprintf("auth.%s.password", tokenData.UserID)
-	_, err = c.storage.serverKV.Put(ctx, passwordKey, []byte(newPasswordHash))
-	if err != nil {
+	event := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+			UserId:       tokenData.UserID,
+			PasswordHash: []byte(newPasswordHash),
+		},
+	}})
+	if _, err := c.appendUserEvent(ctx, tokenData.UserID, event, "", nil); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
 

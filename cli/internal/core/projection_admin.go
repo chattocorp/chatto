@@ -45,7 +45,7 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 	}
 	streamLastSeq := info.State.LastSeq
 
-	states := make([]ProjectionAdminState, 0, 8)
+	states := make([]ProjectionAdminState, 0, 9)
 	add := func(name string, projector *events.Projector, entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric) error {
 		targetSeq, err := projector.CurrentTargetSeq(ctx)
 		if err != nil {
@@ -108,6 +108,10 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 		func() error {
 			entries, bytes, metrics := c.Reactions.adminProjectionEstimate()
 			return add("Reactions", c.ReactionsProjector, entries, bytes, metrics)
+		},
+		func() error {
+			entries, bytes, metrics := c.Users.adminProjectionEstimate()
+			return add("Users", c.UsersProjector, entries, bytes, metrics)
 		},
 	} {
 		if err := collect(); err != nil {
@@ -308,6 +312,64 @@ func (p *ReactionProjection) adminProjectionEstimate() (int64, int64, []Projecti
 		{Name: "emoji_groups", Value: emojiGroups, Bytes: 0},
 		{Name: "active_reactions", Value: active, Bytes: bytes - seenBytes},
 		{Name: "seen_event_ids", Value: int64(len(p.seen)), Bytes: seenBytes},
+	}
+}
+
+func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	p.RLock()
+	defer p.RUnlock()
+	var users, deleted, verifiedEmails, bytes int64
+	for userID, user := range p.users {
+		userBytes := projectionMapEntryOverhead + int64(len(userID))
+		if user == nil {
+			bytes += userBytes
+			continue
+		}
+		if user.deleted {
+			deleted++
+		} else if user.user != nil {
+			users++
+		}
+		if user.user != nil {
+			userBytes += int64(proto.Size(user.user))
+		}
+		if user.avatar != nil {
+			userBytes += int64(proto.Size(user.avatar))
+		}
+		if len(user.passwordHash) > 0 {
+			userBytes += projectionSliceEntryOverhead + int64(len(user.passwordHash))
+		}
+		for hash, email := range user.verifiedEmail {
+			verifiedEmails++
+			userBytes += projectionMapEntryOverhead + int64(len(hash)+len(email.Email)) + 8
+		}
+		if user.preferences != nil {
+			userBytes += int64(proto.Size(user.preferences))
+		}
+		bytes += userBytes
+	}
+	loginBytes := int64(len(p.loginIndex)) * projectionMapEntryOverhead
+	for login, userID := range p.loginIndex {
+		loginBytes += int64(len(login) + len(userID))
+	}
+	emailBytes := int64(len(p.emailIndex)) * projectionMapEntryOverhead
+	for hash, userID := range p.emailIndex {
+		emailBytes += int64(len(hash) + len(userID))
+	}
+	oidcBytes := int64(len(p.oidcIndex)) * projectionMapEntryOverhead
+	for hash, userID := range p.oidcIndex {
+		oidcBytes += int64(len(hash) + len(userID))
+	}
+	seenBytes := int64(len(p.eventIDSeen)) * projectionMapEntryOverhead
+	bytes += loginBytes + emailBytes + oidcBytes + seenBytes
+	return users, bytes, []ProjectionAdminMetric{
+		{Name: "users", Value: users, Bytes: 0},
+		{Name: "deleted_users", Value: deleted, Bytes: 0},
+		{Name: "verified_emails", Value: verifiedEmails, Bytes: 0},
+		{Name: "login_index", Value: int64(len(p.loginIndex)), Bytes: loginBytes},
+		{Name: "email_index", Value: int64(len(p.emailIndex)), Bytes: emailBytes},
+		{Name: "oidc_index", Value: int64(len(p.oidcIndex)), Bytes: oidcBytes},
+		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
 	}
 }
 

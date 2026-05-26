@@ -11,9 +11,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -180,31 +179,8 @@ func (c *ChattoCore) VerifyEmail(ctx context.Context, token string) (userID stri
 		return "", err
 	}
 
-	// Try to claim the email (atomic operation to prevent duplicates)
-	normalizedEmail := strings.ToLower(tokenData.Email)
-	claimKey := userByEmailKey(normalizedEmail)
-
-	// Track whether we created the claim (for rollback purposes)
-	claimCreated := false
-	_, err = c.storage.serverKV.Create(ctx, claimKey, []byte(tokenData.UserID))
-	if err != nil {
-		// Claim failed - check if it's already claimed by this same user (idempotent)
-		entry, getErr := c.storage.serverKV.Get(ctx, claimKey)
-		if getErr != nil || string(entry.Value()) != tokenData.UserID {
-			// Email claimed by another user
-			return "", ErrEmailAlreadyVerified
-		}
-		// Claim exists for this user - continue to ensure email is in verified list
-	} else {
-		claimCreated = true
-	}
-
 	// Add to user's verified emails (idempotent - won't duplicate)
 	if err := c.addVerifiedEmail(ctx, tokenData.UserID, tokenData.Email); err != nil {
-		// Only rollback if we just created the claim
-		if claimCreated {
-			c.storage.serverKV.Delete(ctx, claimKey)
-		}
 		return "", err
 	}
 
@@ -214,19 +190,25 @@ func (c *ChattoCore) VerifyEmail(ctx context.Context, token string) (userID stri
 	return tokenData.UserID, nil
 }
 
-// addVerifiedEmail writes a single per-email proto entry for the user.
+// addVerifiedEmail appends a durable verified-email event for the user.
 // Idempotent: rewriting the same (user, email) pair just overwrites the
 // existing entry with identical content.
 func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string) error {
-	data, err := proto.Marshal(&corev1.VerifiedEmail{
-		Email:      email,
-		VerifiedAt: timestamppb.New(time.Now()),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal verified email: %w", err)
-	}
-
-	if _, err := c.storage.serverKV.Put(ctx, verifiedEmailKey(userID, email), data); err != nil {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
+		UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+			UserId: userID,
+			Email:  email,
+		},
+	}})
+	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+		if user, ok := c.Users.GetByEmail(email); ok && user.GetId() != userID {
+			return ErrEmailAlreadyVerified
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, ErrEmailAlreadyVerified) {
+			return ErrEmailAlreadyVerified
+		}
 		return fmt.Errorf("failed to store verified email: %w", err)
 	}
 
@@ -247,82 +229,29 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	return nil
 }
 
-// GetVerifiedEmails returns all verified emails for a user.
-//
-// One KV entry per email under `verified_emails.{userID}.*`, so this is
-// a prefix scan plus an O(N) decode of just this user's entries.
+// GetVerifiedEmails returns all verified emails for a user from the user projection.
 func (c *ChattoCore) GetVerifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
-	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, verifiedEmailPrefix(userID))
-	if err != nil {
-		// No matching keys.
-		return []VerifiedEmail{}, nil
-	}
-
-	var emails []VerifiedEmail
-	for key := range keyLister.Keys() {
-		entry, err := c.storage.serverKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return nil, fmt.Errorf("failed to get verified email entry: %w", err)
-		}
-		ve := &corev1.VerifiedEmail{}
-		if err := proto.Unmarshal(entry.Value(), ve); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal verified email: %w", err)
-		}
-		emails = append(emails, VerifiedEmail{
-			Email:      ve.Email,
-			VerifiedAt: ve.VerifiedAt.AsTime(),
-		})
-	}
-	return emails, nil
+	return c.Users.VerifiedEmails(userID), nil
 }
 
 // HasVerifiedEmail checks if a user has at least one verified email.
 func (c *ChattoCore) HasVerifiedEmail(ctx context.Context, userID string) (bool, error) {
-	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, verifiedEmailPrefix(userID))
-	if err != nil {
-		return false, nil
-	}
-	for range keyLister.Keys() {
-		return true, nil
-	}
-	return false, nil
+	return c.Users.HasVerifiedEmail(userID), nil
 }
 
 // IsEmailClaimed checks if an email address is already verified by any user.
 // Used to prevent registration with an email that's already in use.
 func (c *ChattoCore) IsEmailClaimed(ctx context.Context, email string) (bool, error) {
-	normalizedEmail := strings.ToLower(email)
-	claimKey := userByEmailKey(normalizedEmail)
-
-	_, err := c.storage.serverKV.Get(ctx, claimKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return false, nil // Email is not claimed
-		}
-		return false, fmt.Errorf("failed to check email claim: %w", err)
-	}
-	return true, nil // Email is claimed
+	return c.Users.EmailClaimed(email), nil
 }
 
 // GetUserByVerifiedEmail looks up a user by their verified email address.
 // Returns the user if found, or an error if not found.
 func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*corev1.User, error) {
-	normalizedEmail := strings.ToLower(email)
-	claimKey := userByEmailKey(normalizedEmail)
-
-	entry, err := c.storage.serverKV.Get(ctx, claimKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, fmt.Errorf("no user found with verified email")
-		}
-		return nil, fmt.Errorf("failed to lookup user by email: %w", err)
+	if user, ok := c.Users.GetByEmail(email); ok {
+		return user, nil
 	}
-
-	userID := string(entry.Value())
-	return c.GetUser(ctx, userID)
+	return nil, fmt.Errorf("no user found with verified email")
 }
 
 // CountVerifiedUsers returns the number of distinct users with at least
@@ -335,76 +264,16 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 // the older version of this file for the JetStream subject-count
 // pitfall.
 func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
-	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user_by_email.*")
-	if err != nil {
-		return 0, nil
-	}
-	users := map[string]struct{}{}
-	for key := range keyLister.Keys() {
-		entry, err := c.storage.serverKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return 0, fmt.Errorf("failed to read user_by_email entry: %w", err)
-		}
-		users[string(entry.Value())] = struct{}{}
-	}
-	return len(users), nil
+	return len(c.Users.VerifiedUserIDs()), nil
 }
 
 // ListUsersWithVerifiedEmail returns all user IDs that have at least one verified email.
 func (c *ChattoCore) ListUsersWithVerifiedEmail(ctx context.Context) ([]string, error) {
-	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user_by_email.*")
-	if err != nil {
-		return []string{}, nil
-	}
-
-	seen := map[string]struct{}{}
-	users := []string{}
-	for key := range keyLister.Keys() {
-		entry, err := c.storage.serverKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return nil, fmt.Errorf("failed to read user_by_email entry: %w", err)
-		}
-		userID := string(entry.Value())
-		if _, ok := seen[userID]; ok {
-			continue
-		}
-		seen[userID] = struct{}{}
-		users = append(users, userID)
-	}
-	return users, nil
+	return c.Users.VerifiedUserIDs(), nil
 }
 
 // AddVerifiedEmailDirect adds an email as verified without requiring token verification.
 // Used for OAuth flows where the email is already verified by the provider.
 func (c *ChattoCore) AddVerifiedEmailDirect(ctx context.Context, userID, email string) error {
-	// Try to claim the email
-	normalizedEmail := strings.ToLower(email)
-	claimKey := userByEmailKey(normalizedEmail)
-
-	_, err := c.storage.serverKV.Create(ctx, claimKey, []byte(userID))
-	if err != nil {
-		// Email already claimed - check if it's by this user
-		entry, getErr := c.storage.serverKV.Get(ctx, claimKey)
-		if getErr == nil && string(entry.Value()) == userID {
-			// Already verified by this user, nothing to do
-			return nil
-		}
-		// Claimed by another user
-		return ErrEmailAlreadyVerified
-	}
-
-	// Add to verified emails
-	if err := c.addVerifiedEmail(ctx, userID, email); err != nil {
-		// Rollback: delete the claim
-		c.storage.serverKV.Delete(ctx, claimKey)
-		return err
-	}
-
-	return nil
+	return c.addVerifiedEmail(ctx, userID, email)
 }

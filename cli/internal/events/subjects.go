@@ -25,6 +25,7 @@ const (
 	AggregateConfig = "config"
 	AggregateGroup  = "group"
 	AggregateLayout = "layout"
+	AggregateUser   = "user"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -81,6 +82,19 @@ const (
 
 	// Config aggregate (singleton)
 	EventServerConfigChanged = "config_changed"
+
+	// User aggregate
+	EventUserAccountCreated           = "account_created"
+	EventUserLoginChanged             = "login_changed"
+	EventUserDisplayNameChanged       = "display_name_changed"
+	EventUserAvatarSet                = "avatar_set"
+	EventUserAvatarCleared            = "avatar_cleared"
+	EventUserVerifiedEmailAdded       = "verified_email_added"
+	EventUserPasswordHashChanged      = "password_hash_changed"
+	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
+	EventUserServerPreferencesChanged = "server_preferences_changed"
+	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
+	EventUserAccountDeleted           = "account_deleted"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -139,6 +153,29 @@ func EventTypeOf(e *corev1.Event) string {
 
 	case *corev1.Event_ServerConfigChanged:
 		return EventServerConfigChanged
+
+	case *corev1.Event_UserAccountCreated:
+		return EventUserAccountCreated
+	case *corev1.Event_UserLoginChanged:
+		return EventUserLoginChanged
+	case *corev1.Event_UserDisplayNameChanged:
+		return EventUserDisplayNameChanged
+	case *corev1.Event_UserAvatarSet:
+		return EventUserAvatarSet
+	case *corev1.Event_UserAvatarCleared:
+		return EventUserAvatarCleared
+	case *corev1.Event_UserVerifiedEmailAdded:
+		return EventUserVerifiedEmailAdded
+	case *corev1.Event_UserPasswordHashChanged:
+		return EventUserPasswordHashChanged
+	case *corev1.Event_UserOidcSubjectLinked:
+		return EventUserOIDCSubjectLinked
+	case *corev1.Event_UserServerPreferencesChanged:
+		return EventUserServerPreferencesChanged
+	case *corev1.Event_UserLoginCooldownCleared:
+		return EventUserLoginCooldownCleared
+	case *corev1.Event_UserAccountDeleted:
+		return EventUserAccountDeleted
 	}
 	return ""
 }
@@ -208,6 +245,13 @@ func ConfigAggregate() Aggregate {
 	return Aggregate{Type: AggregateConfig, ID: ConfigSingletonID}
 }
 
+// UserAggregate is the typed constructor for a user aggregate. It owns
+// identity/profile state, verified-email indexes, password auth state,
+// OIDC subject links, server preferences, and account deletion.
+func UserAggregate(userID string) Aggregate {
+	return Aggregate{Type: AggregateUser, ID: userID}
+}
+
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.
 // Pattern: evt.room.>
@@ -227,6 +271,11 @@ func LayoutSubjectFilter() string { return SubjectRoot + AggregateLayout + ".>" 
 // of the singleton config aggregate.
 // Pattern: evt.config.>
 func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" }
+
+// UserSubjectFilter returns the wildcard filter matching every user
+// aggregate event.
+// Pattern: evt.user.>
+func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
 
 // RoomEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every room. Used by
@@ -255,6 +304,12 @@ func ParseRoomSubject(subject string) (roomID string, ok bool) {
 // subject. Accepts durable and republished live forms.
 func ParseGroupSubject(subject string) (groupID string, ok bool) {
 	return parseAggregateSubject(subject, AggregateGroup)
+}
+
+// ParseUserSubject extracts the userID from a user-aggregate event
+// subject. Accepts durable and republished live forms.
+func ParseUserSubject(subject string) (userID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateUser)
 }
 
 // parseAggregateSubject extracts the aggregate ID from a subject of the

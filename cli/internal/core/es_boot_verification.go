@@ -32,6 +32,9 @@ type esLegacyCounts struct {
 	serverConfigPresent bool
 	messages            int
 	reactions           int
+	users               int
+	verifiedEmails      int
+	oidcSubjects        int
 	encryptionKeys      int
 }
 
@@ -52,6 +55,9 @@ type esProjectedCounts struct {
 	threadReplies          int
 	reactionMessages       int
 	activeReactions        int
+	users                  int
+	verifiedEmails         int
+	oidcSubjects           int
 }
 
 // logESBootVerification emits a structured summary of the ES import and
@@ -80,6 +86,12 @@ func (c *ChattoCore) logESBootVerification(ctx context.Context) {
 		"projected_message_posts", report.projected.messagePosts,
 		"legacy_reactions", report.legacy.reactions,
 		"projected_active_reactions", report.projected.activeReactions,
+		"legacy_users", report.legacy.users,
+		"projected_users", report.projected.users,
+		"legacy_verified_emails", report.legacy.verifiedEmails,
+		"projected_verified_emails", report.projected.verifiedEmails,
+		"legacy_oidc_subjects", report.legacy.oidcSubjects,
+		"projected_oidc_subjects", report.projected.oidcSubjects,
 		"server_config_legacy", report.legacy.serverConfigPresent,
 		"server_config_projected", report.projected.serverConfigConfigured,
 		"room_layout_legacy", report.legacy.roomLayoutPresent,
@@ -101,6 +113,8 @@ func (c *ChattoCore) logESBootVerification(ctx context.Context) {
 		"thread_entries", report.projected.threadEntries,
 		"thread_replies", report.projected.threadReplies,
 		"reaction_messages", report.projected.reactionMessages,
+		"verified_emails", report.projected.verifiedEmails,
+		"oidc_subjects", report.projected.oidcSubjects,
 	)
 
 	c.logESEventCounts(report.eventCounts)
@@ -166,6 +180,18 @@ func (c *ChattoCore) collectLegacyESCounts(ctx context.Context) (esLegacyCounts,
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy reactions: %w", err)
 	}
+	counts.users, err = countLegacyUserRecords(ctx, c.storage.serverConfigKV)
+	if err != nil {
+		return counts, warnings, fmt.Errorf("count legacy users: %w", err)
+	}
+	counts.verifiedEmails, err = countKVKeys(ctx, c.storage.serverConfigKV, "verified_emails.*.*")
+	if err != nil {
+		return counts, warnings, fmt.Errorf("count legacy verified emails: %w", err)
+	}
+	counts.oidcSubjects, err = countKVKeys(ctx, c.storage.serverConfigKV, "user_by_oidc.*")
+	if err != nil {
+		return counts, warnings, fmt.Errorf("count legacy OIDC subjects: %w", err)
+	}
 	counts.encryptionKeys, err = countKVKeys(ctx, c.storage.encryptionKV)
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count encryption keys: %w", err)
@@ -181,6 +207,7 @@ func (c *ChattoCore) collectProjectedESCounts() esProjectedCounts {
 	timelineRooms, timelineEntries, messagePosts := c.RoomTimeline.Stats()
 	threads, threadEntries, threadReplies := c.Threads.Stats()
 	reactionMessages, activeReactions := c.Reactions.Stats()
+	users, verifiedEmails, oidcSubjects := c.Users.Stats()
 	_, serverConfigConfigured := c.ServerConfig.Get()
 
 	return esProjectedCounts{
@@ -200,6 +227,9 @@ func (c *ChattoCore) collectProjectedESCounts() esProjectedCounts {
 		threadReplies:          threadReplies,
 		reactionMessages:       reactionMessages,
 		activeReactions:        activeReactions,
+		users:                  users,
+		verifiedEmails:         verifiedEmails,
+		oidcSubjects:           oidcSubjects,
 	}
 }
 
@@ -214,6 +244,9 @@ func (c *ChattoCore) evaluateESBootVerificationReport(r *esBootVerificationRepor
 	compareAtLeast("room groups", r.legacy.roomGroups, r.projected.roomGroups)
 	compareAtLeast("messages", r.legacy.messages, r.projected.messagePosts)
 	compareAtLeast("reactions", r.legacy.reactions, r.projected.activeReactions)
+	compareAtLeast("users", r.legacy.users, r.projected.users)
+	compareAtLeast("verified emails", r.legacy.verifiedEmails, r.projected.verifiedEmails)
+	compareAtLeast("OIDC subjects", r.legacy.oidcSubjects, r.projected.oidcSubjects)
 
 	if r.legacy.serverConfigPresent && !r.projected.serverConfigConfigured {
 		r.problems = append(r.problems, "server config: legacy config.instance exists but projection is not configured")
@@ -316,6 +349,23 @@ func countKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) 
 	var count int
 	for range lister.Keys() {
 		count++
+	}
+	return count, nil
+}
+
+func countLegacyUserRecords(ctx context.Context, kv jetstream.KeyValue) (int, error) {
+	lister, err := kv.ListKeysFiltered(ctx, "user.*")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	var count int
+	for key := range lister.Keys() {
+		if len(strings.Split(key, ".")) == 2 {
+			count++
+		}
 	}
 	return count, nil
 }

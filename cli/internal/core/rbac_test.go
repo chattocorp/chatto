@@ -176,6 +176,7 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create first ChattoCore: %v", err)
 	}
+	startCoreServices(t, core1)
 
 	// Create a user
 	user, err := core1.CreateUser(ctx, "", "testuser", "Test User", "password123")
@@ -213,6 +214,7 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create second ChattoCore: %v", err)
 	}
+	startCoreServices(t, core2)
 
 	// Step 4: Verify the permission change was preserved
 	hasPerm, err = core2.HasServerPermission(ctx, user.Id, PermDMWrite)
@@ -1344,7 +1346,6 @@ func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Try to create role with invalid name
 	_, err := core.CreateServerRole(ctx, "Invalid-Name", "Invalid", "Should fail")
 	if err == nil {
@@ -1358,7 +1359,6 @@ func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
 func TestChattoCore_CreateRole_Duplicate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "First")
@@ -1379,7 +1379,6 @@ func TestChattoCore_CreateRole_Duplicate(t *testing.T) {
 func TestChattoCore_GetRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
@@ -1406,7 +1405,6 @@ func TestChattoCore_GetRole_NotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Try to get nonexistent role
 	_, err := core.GetServerRole(ctx, "nonexistent")
 	if err == nil {
@@ -1421,7 +1419,6 @@ func TestChattoCore_GetRole_NotFound(t *testing.T) {
 func TestChattoCore_ListRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Initially should have 4 default roles (owner, admin, moderator, everyone) created by CreateSpace
 	roles, err := core.ListServerRoles(ctx)
@@ -1449,7 +1446,6 @@ func TestChattoCore_ListRoles(t *testing.T) {
 func TestChattoCore_UpdateRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
@@ -1486,7 +1482,6 @@ func TestChattoCore_DeleteRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
 	if err != nil {
@@ -1509,7 +1504,6 @@ func TestChattoCore_DeleteRole(t *testing.T) {
 func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Admin role is automatically created by CreateSpace via CreateDefaultRoles
 	// Verify it exists
@@ -1538,7 +1532,6 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Create a role, grant permissions, and assign to a user
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
@@ -1809,7 +1802,6 @@ func TestChattoCore_AssignRole_RoleNotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Try to assign nonexistent role
 	err := core.AssignServerRole(ctx, SystemActorID, "user123", "nonexistent")
 	if !errors.Is(err, ErrRoleNotFound) {
@@ -1854,7 +1846,6 @@ func TestChattoCore_RevokeRole_AdminCannotDemotePeerAdmin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Create two admins (must be space members for permission checks)
 	adminA := "admin-a"
 	adminB := "admin-b"
@@ -1886,7 +1877,6 @@ func TestChattoCore_RevokeRole_AdminCannotDemotePeerAdmin(t *testing.T) {
 func TestChattoCore_RevokeRole_AdminCanDemoteLowerRankedUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Create admin and moderator (must be space members for permission checks)
 	admin := "admin-user"
@@ -2028,7 +2018,6 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Create two roles with different permissions
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
@@ -2438,7 +2427,6 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Setup users
 	owner := "owner-user"
 	mod := "mod-user"
@@ -2503,7 +2491,6 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	// Setup user with owner role
 	owner := "owner-user"
 	core.AssignServerRole(ctx, SystemActorID, owner, RoleOwner)
@@ -2531,7 +2518,6 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 func TestChattoCore_RevokeRole_PeerProtection(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Setup two moderators
 	modA := "mod-a"
@@ -2590,7 +2576,6 @@ func TestChattoCore_RevokeRole_PeerProtection(t *testing.T) {
 func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	t.Run("first custom role gets position after system roles", func(t *testing.T) {
 		// System roles: owner (0), moderator (2), member (MAX)
@@ -2655,7 +2640,6 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 func TestChattoCore_OutranksUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	// Setup hierarchy using system roles: owner > moderator > member
 	// Note: Custom roles currently get position MaxInt32 (same as member),

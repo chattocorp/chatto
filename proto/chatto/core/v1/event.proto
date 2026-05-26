@@ -114,6 +114,19 @@ message Event {
     // tracks explicit reorders.
     RoomGroupsReorderedEvent room_groups_reordered = 650;
 
+    // ----- Users (700-719, durable, evt.user.{userId}) -----
+    UserAccountCreatedEvent user_account_created = 700;
+    UserLoginChangedEvent user_login_changed = 701;
+    UserDisplayNameChangedEvent user_display_name_changed = 702;
+    UserAvatarSetEvent user_avatar_set = 703;
+    UserAvatarClearedEvent user_avatar_cleared = 704;
+    UserVerifiedEmailAddedEvent user_verified_email_added = 705;
+    UserPasswordHashChangedEvent user_password_hash_changed = 706;
+    UserOIDCSubjectLinkedEvent user_oidc_subject_linked = 707;
+    UserServerPreferencesChangedEvent user_server_preferences_changed = 708;
+    UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
+    UserAccountDeletedEvent user_account_deleted = 710;
+
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
     // These ride NATS Core only; field numbers can be renumbered
@@ -474,6 +487,70 @@ message ServerUserPreferencesUpdatedEvent {
   string timezone = 1;
   // Time display format preference.
   TimeFormat time_format = 2;
+}
+
+// ============================================================================
+// DURABLE USER EVENTS (evt.user.{userId})
+// ============================================================================
+
+message UserAccountCreatedEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
+
+message UserLoginChangedEvent {
+  string user_id = 1;
+  string login = 2;
+  // True when this user-initiated login change advances the cooldown.
+  // The cooldown timestamp is the envelope created_at.
+  bool advances_cooldown = 3;
+}
+
+message UserDisplayNameChangedEvent {
+  string user_id = 1;
+  string display_name = 2;
+}
+
+message UserAvatarSetEvent {
+  string user_id = 1;
+  Asset avatar = 2;
+}
+
+message UserAvatarClearedEvent {
+  string user_id = 1;
+}
+
+message UserVerifiedEmailAddedEvent {
+  string user_id = 1;
+  string email = 2;
+}
+
+message UserPasswordHashChangedEvent {
+  string user_id = 1;
+  bytes password_hash = 2;
+}
+
+message UserOIDCSubjectLinkedEvent {
+  string user_id = 1;
+  // New writes include issuer/subject so the event is inspectable. Legacy
+  // imports may only have the hash, because the old KV index key is one-way.
+  string issuer = 2;
+  string subject = 3;
+  string subject_hash = 4;
+}
+
+message UserServerPreferencesChangedEvent {
+  string user_id = 1;
+  ServerUserPreferences preferences = 2;
+}
+
+message UserLoginCooldownClearedEvent {
+  string user_id = 1;
+}
+
+message UserAccountDeletedEvent {
+  string user_id = 1;
 }
 
 // NotificationLevelChangedEvent is published when a user changes their notification

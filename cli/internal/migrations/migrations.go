@@ -105,5 +105,8 @@ func RunAll(
 	if err := MigrateReactionsToES(ctx, serverEventsStream, serverReactionsKV, publisher, logger); err != nil {
 		return fmt.Errorf("reactions_es: %w", err)
 	}
+	if err := MigrateUsersToES(ctx, serverKV, publisher, logger); err != nil {
+		return fmt.Errorf("users_es: %w", err)
+	}
 	return nil
 }
