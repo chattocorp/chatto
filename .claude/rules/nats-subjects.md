@@ -54,6 +54,16 @@ This gives one logical pipe (`live.server.>`) with two physical publishers:
 
 Subject leaf tokens disambiguate the two paths so a subscriber on `live.server.>` cannot receive the same event twice. Republished events always end in `.msg.{id}`, `.meta`, or `.{member_verb}` (mirroring the stream subject shape); direct publishes use event-type tokens like `.reaction_added`, `.user_typing`, `.profile_updated`.
 
+Event-sourced aggregates are the exception to the old "durable stream
+republish is the live path" rule during the ES migration. They write durable
+state to `EVT` (`evt.{aggregateType}.{aggregateId}.{eventType}`) and, when
+the frontend still expects an event, publish a non-durable compatibility
+mirror on `live.server.>` after the write/projection catch-up succeeds.
+`EVT` still republishes to `live.evt.>`, but `myEvents` does not subscribe
+to that root during the migration window. Do not add a second `live.evt.>`
+subscription to `myEvents` unless the live-routing design is deliberately
+changed; doing so can double-deliver migrated aggregate events.
+
 **Anti-pattern: do not double-publish.** Calling both `publishServerEvent(..., subjects.X(...))` *and* `publishLiveServerEvent(..., subjects.LiveX(...))` for the same conceptual event will deliver it twice to every subscriber, because the stream-republish already covers the live path. Choose one based on whether the event is part of durable history.
 
 When extending the subject parsers (`subjects.go`), accept both shapes via the `stripLivePrefix` helper so durable (`server.>`) and republished/live (`live.server.>`) subjects share one canonical form. New parsers should follow the existing pattern (`ParseRoomIDFromSubject`, `IsThreadSubject`, etc.).

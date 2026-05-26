@@ -23,10 +23,8 @@ var ErrConfigConflict = errors.New("config was modified by another request")
 // ADR-035 phase 6: writes are event-only (publish to EVT +
 // WaitForSeq for read-your-writes). Reads come from the in-memory
 // ServerConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
-// kept populated from prior dual-write history and the boot-time
-// MigrateServerConfigToES backfill, but is not written by this code
-// anymore. It exists solely to allow a rollback to a pre-phase-6
-// binary to boot against existing data.
+// retained as pre-ES import evidence for MigrateServerConfigToES, but
+// is not written by this code anymore.
 type ConfigManager struct {
 	publisher  *events.Publisher
 	projector  *events.Projector

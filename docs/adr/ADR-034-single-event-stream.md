@@ -60,7 +60,7 @@ The N+1 events are emitted by the actor code (`DeleteUser` calls into the existi
 
 Rationale:
 
-- **Live-event delivery falls out for free.** The RePublish `evt.>` → `live.evt.>` mapping means every per-room event reaches frontend subscribers in that room. With a single "user deleted" event, room subscribers would not see it and would silently miss the membership change unless we built derived live-event machinery.
+- **Room-scoped delivery stays mechanically derivable.** Every per-room event is present on that room aggregate's history and can be surfaced through either `EVT` republish (`live.evt.>`) or the migration-window compatibility mirror on `live.server.>`. With a single "user deleted" event, room subscribers would not see the room-level effect unless we built derived live-event machinery.
 - **Per-room audit moments.** Each room's history records exactly when each member was removed and by which action. Derivable from a single upstream event is not the same as a recorded fact.
 - **Projections stay decoupled.** A projection consuming `evt.room.>` doesn't have to know about user-deletion semantics; it just reacts to membership events. Cross-aggregate coupling lives in actor code, where the cascade *originates*.
 
@@ -68,9 +68,21 @@ When *not* to use per-aggregate fan-out: pure internal-state cleanup that no oth
 
 ### Live delivery
 
-The stream's `RePublish` config forwards every accepted event from `evt.>` to `live.evt.>`. Subscribers do not hold JetStream consumers — they take NATS Core subscriptions on `live.evt.>` and the stream feeds them after persistence. This is the same pattern that today maps `server.>` → `live.server.>` for `SERVER_EVENTS`.
+The stream's `RePublish` config forwards every accepted event from `evt.>` to `live.evt.>`. This keeps the option open for subscribers to consume persisted ES events directly from a NATS Core live subject without holding JetStream consumers.
 
-A consequence worth naming: **the event stream is also the live event stream.** There is no separate "live event" path for these aggregates. Today's `live.server.user.{userId}.*` and `live.server.config.*` subjects (direct NATS Core publishes for transient signals — typing, presence, reactions) continue to use their existing path; they are not migrated by ADR-033 and remain ephemeral.
+During the migration window, however, Chatto's GraphQL `myEvents`
+subscription continues to consume `live.server.>` only. Migrated
+aggregates append durable events to `EVT` and then publish a
+non-durable compatibility mirror on the existing `live.server.>`
+subject family after the relevant projection has caught up. This avoids
+double delivery while the legacy stream and `EVT` coexist, and it keeps
+frontend event routing stable during the storage migration.
+
+The earlier design goal was "the event stream is also the live event
+stream." That remains a possible future simplification, but it is not
+the active migration behavior. Re-examining whether to switch
+subscribers to `live.evt.>` or keep projector/mutator-driven live
+mirrors is follow-up work, not part of the initial cutover.
 
 ### Replication and retention
 
@@ -91,6 +103,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream conti
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}`. The framework wraps consumer creation around the projection's declared subjects.
 - **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
 - **Two streams during migration.** `EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
+- **Live delivery has a compatibility layer.** Until the live-event follow-up is resolved, storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.server.>` mirrors keep existing subscribers working.
 
 ## Out of scope for this ADR
 

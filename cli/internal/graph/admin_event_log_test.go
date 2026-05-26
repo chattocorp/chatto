@@ -21,8 +21,8 @@ func TestEventLog_BrowseNewestFirst(t *testing.T) {
 	ctx := env.authContext()
 
 	// Drive a few more membership events into the stream so we have
-	// something definite to page through. JoinRoom is dual-write, so
-	// each call lands one event on evt.room.{R}.
+	// something definite to page through. JoinRoom writes one durable
+	// event on evt.room.{R}.
 	for i := 0; i < 3; i++ {
 		login := "logbrowser" + strconv.Itoa(i)
 		u := env.createVerifiedUser(t, login, "Log Browser "+strconv.Itoa(i), "password123")

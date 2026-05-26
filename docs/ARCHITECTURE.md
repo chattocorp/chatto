@@ -249,7 +249,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
 | `admin.clearUsernameCooldown(userId)`            | Mutation  | Manually clear a user's login change cooldown.                                               |
 
-## Architecture Pattern: CRUD + Audit Log
+## Architecture Pattern: CRUD + Audit Log Moving to Event Sourcing
 
 ### Write Path
 
@@ -273,27 +273,42 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
-**Important:** Event publishing is best-effort for most operations. If event publishing fails for spaces, users, or rooms, the operation still succeeds because the KV store (source of truth) was updated successfully. Event publishing failures are logged but do not block operations.
+**Important:** Event publishing is best-effort only for aggregates that
+still use the legacy CRUD + audit-log pattern. If event publishing fails
+there, the operation can still succeed because the KV store is the source
+of truth and the event is additive.
 
-**Exception:** Message and reaction writes require successful event publishing because they are stored in EVT and read through in-memory projections. If event publishing fails, the write fails.
+**Exception:** Aggregates migrated to event sourcing require successful
+`EVT` publishing because `EVT` is their source of truth and reads come
+from in-memory projections. If event publishing fails, the write fails.
+Current migrated aggregates include room membership/metadata,
+room groups/layout, server config, messages/threads, and reactions.
 
 ### Consistency Model
 
-**Current (Single Embedded NATS):**
+**Legacy CRUD aggregates:**
 
 - Strong consistency for KV operations (source of truth)
 - Read-your-writes guaranteed via immediate KV updates
 - Event streams provide audit trail with best-effort delivery
-- No dual-write problem: KV is source of truth, events are additive
+- No store-mirroring problem: KV is source of truth, events are additive
+
+**Migrated event-sourced aggregates:**
+
+- `EVT` is the source of truth.
+- Boot importers seed `EVT` from pre-ES KV/`SERVER_EVENTS` data.
+- Reads come from in-memory projections rebuilt from `EVT`.
+- Writes append to `EVT` only; legacy KV/stream data is not maintained as a mirror.
+- Read-your-writes is provided by waiting for the local projector to reach the append sequence.
 
 **Future (Clustered NATS - Multi-Process):**
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)
 - Event streams continue providing audit trail and pub/sub
-- Configurable retention policies on the unified `SERVER_EVENTS` stream (delete old events without data loss)
+- Configurable retention policies on legacy `SERVER_EVENTS` only where events remain additive; `EVT` retention is effectively forever until snapshot/archival policy is designed.
 - Can rebuild/migrate KV stores from current state exports (not from events)
 
-**Benefits of This Approach:**
+**Benefits of the legacy CRUD approach:**
 
 - Simple to understand and debug (CRUD operations with event logging)
 - Can safely age out old events based on retention policy
@@ -366,8 +381,8 @@ The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events for the legacy CRUD+log pattern; republishes onto `live.server.>` |
-| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>`. Currently fed by per-aggregate migrations ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, and reactions. |
-| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` (NATS Core, fed by `SERVER_EVENTS` republish + direct publishes) and `live.evt.>` (fed by `EVT` republish). The two roots coexist during the migration window. |
+| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` for future/direct consumers. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, and reactions. |
+| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` is the active GraphQL subscription root. `SERVER_EVENTS` republishes into it, and migrated `EVT` aggregates publish non-durable compatibility mirrors into it. `live.evt.>` is fed by `EVT` republish but is not the active `myEvents` path during the migration window. |
 
 **SERVER\_EVENTS subjects:**
 
@@ -412,7 +427,7 @@ Pattern: `live.server.{scope}.{subject}` — the single subscription root for re
 - `SERVER_EVENTS` RePublish (`server.>` → `live.server.>`): every accepted stream message is re-emitted onto a NATS Core subject after persistence. Subscribers don't need a JetStream consumer to receive room messages, thread replies, room meta, or server-level member events.
 - Direct NATS Core publishes (`publishLiveUserEvent()`, `publishLiveDeploymentEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, `publishLiveMemberEvent()`): transient events with no stream storage.
 
-Subject leaf tokens never collide between the two paths — republished legacy events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.). For EVT-backed reactions, `.reaction_added` and `.reaction_removed` are live mirrors of durable `evt.room.{roomId}.reaction_*` events.
+Subject leaf tokens never collide between the two paths — republished legacy events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.). For EVT-backed messages and reactions, live message edit/delete and reaction add/remove events are mirrors of durable `evt.room.{roomId}.message_*` / `reaction_*` events.
 
 **Deployment-wide live events** (`live.server.{user,config}.>`):
 

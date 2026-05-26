@@ -44,8 +44,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 // ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT,
 // mirrors to the legacy live subject for frontend myEvents delivery,
 // then WaitForSeq for read-your-writes. The room_membership KV bucket
-// is no longer written to (kept populated from prior dual-write +
-// boot-time migration for rollback only).
+// is no longer written to (retained as pre-ES import evidence).
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
