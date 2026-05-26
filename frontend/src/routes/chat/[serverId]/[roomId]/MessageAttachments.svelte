@@ -27,29 +27,6 @@
       }
     }
   `);
-
-  // Re-fetch a message event's attachment URLs just before the user
-  // actually needs them, so a 5-minute-old page can still open a
-  // full-size image or download an attached file. `Attachment.url`
-  // re-signs on every resolve; the staleness lives in the cached query
-  // response, not the server. See ADR-032 / authorization.md for the
-  // URL-as-capability / short-TTL rationale.
-  const RefreshMessageAttachmentUrlsQuery = graphql(`
-    query RefreshMessageAttachmentUrls($roomId: ID!, $eventId: ID!) {
-      room(roomId: $roomId) {
-        event(eventId: $eventId) {
-          event {
-            ... on MessagePostedEvent {
-              attachments {
-                id
-                url
-              }
-            }
-          }
-        }
-      }
-    }
-  `);
 </script>
 
 <script lang="ts">
@@ -65,6 +42,7 @@
   import { pushState } from '$app/navigation';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { toast } from '$lib/ui/toast';
+  import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
 
   let {
     attachments: rawAttachments,
@@ -99,26 +77,8 @@
 
   const connection = useConnection();
 
-  // Returns a map of attachment id → freshly signed URL by re-running
-  // the message-attachments query. Returns an empty map on error;
-  // callers should fall back to the pre-baked URLs in that case rather
-  // than blocking the action entirely.
   async function refreshUrlsForMessage(): Promise<Map<string, string>> {
-    const fresh = new Map<string, string>();
-    const result = await connection()
-      .client.query(RefreshMessageAttachmentUrlsQuery, { roomId, eventId })
-      .toPromise();
-    if (result.error) {
-      console.warn('Failed to refresh attachment URLs', result.error);
-      return fresh;
-    }
-    const inner = result.data?.room?.event?.event;
-    if (inner && inner.__typename === 'MessagePostedEvent') {
-      for (const att of inner.attachments) {
-        fresh.set(att.id, att.url);
-      }
-    }
-    return fresh;
+    return refreshAttachmentUrlsForMessage(connection().client, roomId, eventId);
   }
 
   async function openImageModal(attachment: Attachment) {
@@ -127,6 +87,7 @@
     // lightbox can't hit an expired URL mid-session.
     const freshUrls = await refreshUrlsForMessage();
     const imageItems: ImageItem[] = imageAttachments.map((a) => ({
+      id: a.id,
       src: freshUrls.get(a.id) ?? a.url,
       alt: a.filename,
       filename: a.filename
@@ -134,6 +95,8 @@
     pushState('', {
       modal: {
         type: 'imageViewer',
+        roomId,
+        eventId,
         imageItems,
         imageIndex: idx >= 0 ? idx : 0
       }
@@ -189,11 +152,11 @@
             <button
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-surface-700/80 text-white shadow-sm transition-opacity hover:bg-surface-800 md:opacity-0 md:group-hover/attachment:opacity-100"
+              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
               aria-label="Delete attachment"
               title="Delete attachment"
             >
-              <span class="iconify uil--times text-sm"></span>
+              <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
         </div>
@@ -207,7 +170,7 @@
           onclick={() => openImageModal(attachment)}
           aria-label="View {attachment.filename}"
           class={[
-            'group/attachment embed-frame relative block min-w-0 cursor-pointer',
+            'group/attachment relative block min-w-0 cursor-pointer embed-frame',
             !size && 'max-h-64'
           ]}
           style={size
@@ -228,11 +191,11 @@
               onkeydown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
               }}
-              class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-surface-700/80 text-white shadow-sm transition-opacity hover:bg-surface-800 md:opacity-0 md:group-hover/attachment:opacity-100"
+              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
               aria-label="Delete attachment"
               title="Delete attachment"
             >
-              <span class="iconify uil--times text-sm"></span>
+              <span class="iconify text-sm uil--times"></span>
             </span>
           {/if}
         </button>
@@ -251,18 +214,18 @@
             <button
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-surface-700/80 text-white shadow-sm transition-opacity hover:bg-surface-800 md:opacity-0 md:group-hover/attachment:opacity-100"
+              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
               aria-label="Delete attachment"
               title="Delete attachment"
             >
-              <span class="iconify uil--times text-sm"></span>
+              <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
         </div>
       {:else if attachment.contentType.startsWith('video/')}
         <!-- Video without processing data — original may have been deleted after transcoding -->
         <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
-          <span class="iconify uil--video text-lg text-muted"></span>
+          <span class="iconify text-lg text-muted uil--video"></span>
           <span class="text-sm text-muted">Video unavailable</span>
         </div>
       {:else if attachment.contentType.startsWith('audio/')}
@@ -283,11 +246,11 @@
             <button
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-surface-700/80 text-white shadow-sm transition-opacity hover:bg-surface-800 md:opacity-0 md:group-hover/attachment:opacity-100"
+              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
               aria-label="Delete attachment"
               title="Delete attachment"
             >
-              <span class="iconify uil--times text-sm"></span>
+              <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
         </div>
@@ -322,11 +285,11 @@
             <button
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-surface-700/80 text-white shadow-sm transition-opacity hover:bg-surface-800 md:opacity-0 md:group-hover/attachment:opacity-100"
+              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
               aria-label="Delete attachment"
               title="Delete attachment"
             >
-              <span class="iconify uil--times text-sm"></span>
+              <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
         </a>
