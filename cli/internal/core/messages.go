@@ -159,12 +159,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Publish to EVT. Pure append per #597's design ("message_posted
-	// is a pure append — no expected-last-seq needed"). AppendAndWait
-	// blocks until the RoomTimelineProjection has caught up, giving
-	// read-your-writes for subsequent reads from this request.
+	// Publish to EVT. MessagePosted is append-only per #597's design, so
+	// retrying the same payload after an OCC conflict is safe.
+	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
+	// has caught up, giving read-your-writes for subsequent reads from
+	// this request.
 	agg := events.RoomAggregate(room_id)
-	sequenceID, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event)
+	sequenceID, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
 	}
@@ -333,7 +334,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		})
 		echoEvent.GetMessagePosted().MessageBodyId = echoEvent.Id
 
-		echoSequenceID, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, echoEvent)
+		echoSequenceID, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, echoEvent)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else {
@@ -577,7 +578,7 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 			},
 		},
 	})
-	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
 
@@ -615,7 +616,7 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 			},
 		},
 	})
-	if _, err := c.RoomTimelineProjector.AppendAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageEditedEvent: %w", err)
 	}
 

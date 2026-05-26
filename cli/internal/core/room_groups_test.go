@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"sync"
 	"testing"
 )
 
@@ -208,6 +209,57 @@ func TestMoveRoomToSet_Idempotent(t *testing.T) {
 	got, _ := core.GetRoomGroup(ctx, set.Id)
 	if len(got.RoomIds) != 1 {
 		t.Errorf("Room appears %d times in set, want exactly 1", len(got.RoomIds))
+	}
+}
+
+func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	setA, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
+	setB, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
+
+	for i := 0; i < 25; i++ {
+		if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
+			t.Fatalf("reset move to A failed: %v", err)
+		}
+
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		errs := make(chan error, 2)
+		for _, target := range []string{setB.Id, setA.Id} {
+			wg.Add(1)
+			go func(target string) {
+				defer wg.Done()
+				<-start
+				errs <- core.MoveRoomToGroup(ctx, "actor", room.Id, target)
+			}(target)
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("concurrent MoveRoomToGroup failed: %v", err)
+			}
+		}
+
+		groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
+		if err != nil {
+			t.Fatalf("ListRoomGroupsOrdered: %v", err)
+		}
+		assignments := 0
+		for _, group := range groups {
+			for _, roomID := range group.RoomIds {
+				if roomID == room.Id {
+					assignments++
+				}
+			}
+		}
+		if assignments != 1 {
+			t.Fatalf("iteration %d: room has %d group assignments, want exactly 1", i, assignments)
+		}
 	}
 }
 

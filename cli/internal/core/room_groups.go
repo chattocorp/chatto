@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+const maxMoveRoomToGroupRetries = 5
 
 // room_groups.go is the API surface for channel-room groups (ADR-031).
 //
@@ -67,7 +70,7 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 			},
 		},
 	})
-	if _, err := c.RoomGroupsProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupAggregate(group.Id), createdEvent); err != nil {
+	if _, err := c.RoomGroupsProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.GroupAggregate(group.Id), createdEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomGroupCreatedEvent: %w", err)
 	}
 
@@ -147,7 +150,7 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 			},
 		},
 	})
-	if _, err := c.RoomGroupsProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupAggregate(groupID), deletedEvent); err != nil {
+	if _, err := c.RoomGroupsProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.GroupAggregate(groupID), deletedEvent); err != nil {
 		return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
 	}
 
@@ -171,68 +174,97 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 // Authorization for the source and target groups must be checked by
 // the caller — see ADR-031's two-group rule.
 func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) error {
-	if !c.RoomGroups.Exists(targetGroupID) {
-		return ErrRoomGroupNotFound
-	}
+	occFilter := events.GroupSubjectFilter()
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, occFilter)
+		if err != nil {
+			return fmt.Errorf("read room-group OCC seq: %w", err)
+		}
+		if filterSeq > 0 {
+			if err := c.RoomGroupsProjector.WaitForSeq(ctx, filterSeq); err != nil {
+				return fmt.Errorf("wait for groups projection: %w", err)
+			}
+		}
 
-	sourceGroupID := c.RoomGroups.GroupForRoom(roomID)
-	if sourceGroupID == targetGroupID {
-		// Already in the target group; idempotent no-op.
-		return nil
-	}
+		if !c.RoomGroups.Exists(targetGroupID) {
+			return ErrRoomGroupNotFound
+		}
 
-	// Build the move as an atomic batch (ADR-034 Approach A): the
-	// RoomRemovedFromGroup on the source and the RoomAddedToGroup on
-	// the target land adjacently in stream order. The "every room
-	// belongs to exactly one group" invariant therefore holds at
-	// every observable sequence — including across crashes, since
-	// the batch is all-or-nothing.
-	added := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomAddedToGroup{
-			RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
-				GroupId: targetGroupID,
-				RoomId:  roomID,
-			},
-		},
-	})
+		sourceGroupID := c.RoomGroups.GroupForRoom(roomID)
+		if sourceGroupID == targetGroupID {
+			// Already in the target group; idempotent no-op.
+			return nil
+		}
 
-	var entries []events.BatchEntry
-	if sourceGroupID != "" {
-		removed := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_RoomRemovedFromGroup{
-				RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
-					GroupId: sourceGroupID,
+		// Build the move as an atomic batch (ADR-034 Approach A): the
+		// RoomRemovedFromGroup on the source and the RoomAddedToGroup on
+		// the target land adjacently in stream order. The first entry
+		// carries wildcard OCC over evt.group.>, so a concurrent move that
+		// changes any group membership forces a retry and a fresh source
+		// lookup before we publish.
+		added := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomAddedToGroup{
+				RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
+					GroupId: targetGroupID,
 					RoomId:  roomID,
 				},
 			},
 		})
-		sourceAgg := events.GroupAggregate(sourceGroupID)
+
+		var entries []events.BatchEntry
+		if sourceGroupID != "" {
+			removed := newEvent(actorID, &corev1.Event{
+				Event: &corev1.Event_RoomRemovedFromGroup{
+					RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
+						GroupId: sourceGroupID,
+						RoomId:  roomID,
+					},
+				},
+			})
+			sourceAgg := events.GroupAggregate(sourceGroupID)
+			entries = append(entries, events.BatchEntry{
+				Subject:       sourceAgg.SubjectFor(removed),
+				Event:         removed,
+				HasOCC:        true,
+				ExpectedSeq:   filterSeq,
+				FilterSubject: occFilter,
+			})
+		}
+		targetAgg := events.GroupAggregate(targetGroupID)
 		entries = append(entries, events.BatchEntry{
-			Subject: sourceAgg.SubjectFor(removed),
-			Event:   removed,
+			Subject: targetAgg.SubjectFor(added),
+			Event:   added,
 		})
-	}
-	targetAgg := events.GroupAggregate(targetGroupID)
-	entries = append(entries, events.BatchEntry{
-		Subject: targetAgg.SubjectFor(added),
-		Event:   added,
-	})
+		if !entries[0].HasOCC {
+			entries[0].HasOCC = true
+			entries[0].ExpectedSeq = filterSeq
+			entries[0].FilterSubject = occFilter
+		}
 
-	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
-	if err != nil {
-		return fmt.Errorf("publish move-room batch: %w", err)
-	}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
+			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
 
-	c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
-	c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
+			// Wait on the final seq — the projector applies in stream order
+			// so reaching the last batch entry's seq implies every earlier
+			// entry's Apply has also landed.
+			if err := c.RoomGroupsProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
+				return fmt.Errorf("wait for groups projection: %w", err)
+			}
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish move-room batch: %w", err)
+		}
 
-	// Wait on the final seq — the projector applies in stream order
-	// so reaching the last batch entry's seq implies every earlier
-	// entry's Apply has also landed.
-	if err := c.RoomGroupsProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
-		return fmt.Errorf("wait for groups projection: %w", err)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	return nil
+	return fmt.Errorf("move-room OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
 }
 
 // ReorderRoomGroups publishes a RoomGroupsReorderedEvent with the

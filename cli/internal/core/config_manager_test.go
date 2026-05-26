@@ -32,7 +32,7 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 
 	t.Run("returns config after SetServerConfig", func(t *testing.T) {
 		testCfg := &configv1.ServerConfig{
-			ServerName: "Test Instance",
+			ServerName:     "Test Instance",
 			WelcomeMessage: "Welcome!",
 			Motd:           "Message of the day",
 		}
@@ -89,7 +89,7 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 		// Set initial config
 		core.configManager.SetServerConfig(ctx, "test", &configv1.ServerConfig{
 			ServerName: "Original Name",
-			Motd:         "Original MOTD",
+			Motd:       "Original MOTD",
 		})
 
 		cfg, err := core.configManager.UpdateServerConfigFunc(ctx, "test", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
@@ -175,6 +175,75 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 			t.Error("expected at least one successful update")
 		}
 	})
+}
+
+func TestConfigManager_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if err := core.configManager.SetServerConfig(ctx, "test", &configv1.ServerConfig{
+		ServerName: "Initial",
+		Motd:       "Initial MOTD",
+	}); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
+
+	bothReadInitial := make(chan struct{})
+	release := make(chan struct{})
+	var reads atomic.Int32
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		_, err := core.configManager.UpdateServerConfigFunc(ctx, "actor-a", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+			if current.GetServerName() == "Initial" && reads.Add(1) == 2 {
+				close(bothReadInitial)
+			}
+			<-release
+			current.ServerName = "Name A"
+			return current, nil
+		})
+		errs <- err
+	}()
+	go func() {
+		defer wg.Done()
+		_, err := core.configManager.UpdateServerConfigFunc(ctx, "actor-b", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+			if current.GetServerName() == "Initial" && reads.Add(1) == 2 {
+				close(bothReadInitial)
+			}
+			<-release
+			current.Motd = "MOTD B"
+			return current, nil
+		})
+		errs <- err
+	}()
+
+	select {
+	case <-bothReadInitial:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for both updates to read initial config")
+	}
+	close(release)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("UpdateServerConfigFunc returned error: %v", err)
+		}
+	}
+
+	cfg, _, err := core.configManager.GetServerConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetServerConfig: %v", err)
+	}
+	if cfg.GetServerName() != "Name A" {
+		t.Fatalf("ServerName = %q, want Name A", cfg.GetServerName())
+	}
+	if cfg.GetMotd() != "MOTD B" {
+		t.Fatalf("Motd = %q, want MOTD B", cfg.GetMotd())
+	}
 }
 
 func TestConfigManager_GetEffectiveWelcomeMessage(t *testing.T) {

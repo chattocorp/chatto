@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -17,6 +18,8 @@ import (
 // without success. Callers can retry the whole UpdateServerConfigFunc
 // call.
 var ErrConfigConflict = errors.New("config was modified by another request")
+
+const maxConfigUpdateRetries = 5
 
 // ConfigManager handles runtime server configuration.
 //
@@ -77,35 +80,65 @@ func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cf
 // UpdateServerConfigFunc atomically updates the server config using
 // optimistic concurrency control. The updateFn receives the current
 // projection snapshot (or nil if no config has been written yet) and
-// should return the updated config. OCC retries live inside the
-// publisher's Append loop — if the underlying publish exhausts retries,
-// this returns ErrConfigConflict. Returns the final config after a
-// successful write.
+// should return the updated config. On conflict, the whole compose step
+// is retried against the newer projection snapshot, so field-level edits
+// do not publish stale full-config replacements.
 func (cm *ConfigManager) UpdateServerConfigFunc(
 	ctx context.Context,
 	actorID string,
 	updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error),
 ) (*configv1.ServerConfig, error) {
-	// Read current projection state for the compose step. Clone is
-	// already returned by Projection.Get so updateFn may mutate the
-	// input freely.
-	current, _ := cm.projection.Get()
-
-	updated, err := updateFn(current)
-	if err != nil {
-		return nil, err
-	}
-	if updated == nil {
-		return nil, fmt.Errorf("update function returned nil config")
+	if cm.publisher == nil || cm.projector == nil {
+		return nil, fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
-	if err := cm.publish(ctx, actorID, updated); err != nil {
-		if errors.Is(err, events.ErrConflict) {
-			return nil, ErrConfigConflict
+	agg := events.ConfigAggregate()
+	subject := agg.Subject(events.EventServerConfigChanged)
+	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
+		expectedSeq, err := cm.publisher.LastSubjectSeq(ctx, subject)
+		if err != nil {
+			return nil, fmt.Errorf("read config OCC seq: %w", err)
 		}
-		return nil, err
+		if expectedSeq > 0 {
+			if err := cm.projector.WaitForSeq(ctx, expectedSeq); err != nil {
+				return nil, fmt.Errorf("wait for config projection: %w", err)
+			}
+		}
+
+		current, _ := cm.projection.Get()
+		updated, err := updateFn(current)
+		if err != nil {
+			return nil, err
+		}
+		if updated == nil {
+			return nil, fmt.Errorf("update function returned nil config")
+		}
+
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_ServerConfigChanged{
+				ServerConfigChanged: &corev1.ServerConfigChangedEvent{
+					Config: updated,
+				},
+			},
+		})
+		seq, err := cm.publisher.AppendAt(ctx, subject, event, expectedSeq)
+		if err == nil {
+			if err := cm.projector.WaitForSeq(ctx, seq); err != nil {
+				return nil, fmt.Errorf("wait for config projection: %w", err)
+			}
+			return updated, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	return updated, nil
+	return nil, ErrConfigConflict
 }
 
 // publish writes the server config by emitting a

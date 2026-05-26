@@ -147,10 +147,10 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 	}
 }
 
-func TestPublisher_Append_ConcurrentWrites(t *testing.T) {
+func TestPublisher_AppendEventually_ConcurrentWrites(t *testing.T) {
 	// Multiple goroutines append to the same subject. Each should succeed
-	// (Append retries on OCC conflict); the final per-subject seq should
-	// equal the number of writes.
+	// (AppendEventually retries on OCC conflict); the final per-subject
+	// seq should equal the number of writes.
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
@@ -164,7 +164,7 @@ func TestPublisher_Append_ConcurrentWrites(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			_, err := pub.Append(ctx, subject, makeEvent("R1", "U"+itoa(i)))
+			_, err := pub.AppendEventually(ctx, subject, makeEvent("R1", "U"+itoa(i)))
 			if err != nil {
 				errCh <- err
 			}
@@ -256,7 +256,7 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 	}
 
 	entries := []BatchEntry{
-		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U1")},
+		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U1"), HasOCC: true, ExpectedSeq: 0},
 		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U2")},
 		{Subject: GroupAggregate("GC").Subject(EventUserJoinedRoom), Event: makeEvent("RC", "U3")},
 	}
@@ -281,6 +281,21 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 		if got != seqs[i] {
 			t.Errorf("subject %s last seq = %d, want %d", e.Subject, got, seqs[i])
 		}
+	}
+}
+
+func TestPublisher_AppendBatch_RejectsUnguardedBatch(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+
+	entries := []BatchEntry{
+		{Subject: GroupAggregate("GA").Subject(EventUserJoinedRoom), Event: makeEvent("RA", "U1")},
+		{Subject: GroupAggregate("GB").Subject(EventUserJoinedRoom), Event: makeEvent("RB", "U2")},
+	}
+
+	_, err := pub.AppendBatch(testContext(t), entries)
+	if !errors.Is(err, ErrMissingOCC) {
+		t.Fatalf("want ErrMissingOCC, got %v", err)
 	}
 }
 
@@ -487,6 +502,47 @@ func TestProjector_WaitForSeq_HonoursContextCancel(t *testing.T) {
 	defer cancel()
 	if err := projector.WaitForSeq(ctx, 9999); !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("want DeadlineExceeded, got %v", err)
+	}
+}
+
+type failingProjection struct {
+	*trackingProjection
+	err error
+}
+
+func (p *failingProjection) Apply(_ *corev1.Event, _ uint64) error {
+	return p.err
+}
+
+func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	applyErr := errors.New("apply failed")
+	proj := &failingProjection{
+		trackingProjection: newTrackingProjection(RoomSubjectFilter()),
+		err:                applyErr,
+	}
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	t.Cleanup(cancelRun)
+	go func() { _ = projector.Run(runCtx) }()
+
+	ctx := testContext(t)
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	err = projector.WaitForSeq(ctx, seq)
+	if !errors.Is(err, ErrProjectionFailed) {
+		t.Fatalf("want ErrProjectionFailed, got %v", err)
+	}
+	if !errors.Is(err, applyErr) {
+		t.Fatalf("want wrapped apply error, got %v", err)
+	}
+	if got := projector.LastSeq(); got >= seq {
+		t.Fatalf("LastSeq=%d, want less than failed seq %d", got, seq)
 	}
 }
 

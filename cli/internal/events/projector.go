@@ -14,6 +14,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// ErrProjectionFailed marks a projector that stopped applying events
+// because its Projection.Apply returned an error.
+var ErrProjectionFailed = errors.New("projection failed")
+
 // MemoryProjection is an embeddable base for projections whose state
 // lives entirely in process memory. It contributes a sync.RWMutex that
 // subclasses use for read/write coordination, plus no-op
@@ -76,9 +80,11 @@ type Projector struct {
 	proj   Projection
 	logger Logger
 
-	mu      sync.Mutex
-	lastSeq uint64
-	waiters []seqWaiter
+	mu        sync.Mutex
+	lastSeq   uint64
+	waiters   []seqWaiter
+	failedSeq uint64
+	failedErr error
 	// started flips true the first time Run is invoked and stays true
 	// for the projector's lifetime. WaitForSeq uses this to short-
 	// circuit during boot-time mutations that happen before
@@ -132,9 +138,9 @@ func (p *Projector) Subjects() []string {
 // `agg.SubjectFor(event)`, so the caller cannot accidentally publish an
 // event onto the wrong subject for its payload.
 //
-// This is the canonical "publish-then read-your-writes" primitive —
-// every caller that needs to read its own write through the projection
-// should use this rather than hand-rolling Append + WaitForSeq.
+// This is the single-shot "publish-then read-your-writes" primitive.
+// If it returns ErrConflict, state-replacement callers must re-read and
+// re-compose before retrying.
 //
 // Returns the stream sequence the publish landed at, plus any error.
 // On a publish failure the sequence is 0; on a wait failure (most
@@ -143,6 +149,20 @@ func (p *Projector) Subjects() []string {
 // hasn't caught up.
 func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
 	seq, err := pub.Append(ctx, agg.SubjectFor(event), event)
+	if err != nil {
+		return 0, err
+	}
+	if err := p.WaitForSeq(ctx, seq); err != nil {
+		return seq, err
+	}
+	return seq, nil
+}
+
+// AppendEventuallyAndWait is AppendAndWait for append-only events that can
+// safely retry the same payload after an OCC conflict. See
+// Publisher.AppendEventually for the safety rule.
+func (p *Projector) AppendEventuallyAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
+	seq, err := pub.AppendEventually(ctx, agg.SubjectFor(event), event)
 	if err != nil {
 		return 0, err
 	}
@@ -170,6 +190,11 @@ func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, agg Aggre
 // out of sync with the KV write and produces orphan-room bugs.
 func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 	p.mu.Lock()
+	if p.failedErr != nil && seq >= p.failedSeq {
+		err := p.failedErr
+		p.mu.Unlock()
+		return err
+	}
 	if p.lastSeq >= seq {
 		p.mu.Unlock()
 		return nil
@@ -185,6 +210,13 @@ func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 
 	select {
 	case <-ch:
+		p.mu.Lock()
+		err := p.failedErr
+		failedSeq := p.failedSeq
+		p.mu.Unlock()
+		if err != nil && seq >= failedSeq {
+			return err
+		}
 		return nil
 	case <-ctx.Done():
 		// Drop our waiter so we don't leak. The advance path tolerates
@@ -259,6 +291,19 @@ func (p *Projector) advance(seq uint64) {
 	}
 }
 
+func (p *Projector) fail(seq uint64, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.failedErr == nil {
+		p.failedSeq = seq
+		p.failedErr = fmt.Errorf("%w at seq %d: %w", ErrProjectionFailed, seq, err)
+	}
+	for _, w := range p.waiters {
+		close(w.ch)
+	}
+	p.waiters = nil
+}
+
 // Run starts the consumer + apply loop. Blocks until ctx is cancelled.
 // Returns the context's error on shutdown.
 //
@@ -306,10 +351,17 @@ func (p *Projector) Run(ctx context.Context) error {
 // Consume handler. It is invoked from a single goroutine the SDK owns, in
 // stream order — matching the Projection.Apply concurrency contract.
 //
-// Errors from the projection's Apply are logged and swallowed per
-// ADR-033's "a projection bug shouldn't stall the consumer" rule. Stream
-// sequence is advanced regardless so WaitForSeq waiters unblock.
+// Errors from the projection's Apply mark the projector as failed. Waiters
+// for the failed sequence (or later) return ErrProjectionFailed instead of
+// reporting read-your-writes success against state that did not apply.
 func (p *Projector) handleMessage(msg jetstream.Msg) {
+	p.mu.Lock()
+	failed := p.failedErr != nil
+	p.mu.Unlock()
+	if failed {
+		return
+	}
+
 	meta, err := msg.Metadata()
 	if err != nil {
 		p.logger.Warn("Skipping event with no metadata", "subject", msg.Subject(), "error", err)
@@ -332,6 +384,8 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 			"seq", meta.Sequence.Stream,
 			"event_id", event.GetId(),
 			"error", err)
+		p.fail(meta.Sequence.Stream, err)
+		return
 	}
 
 	p.advance(meta.Sequence.Stream)

@@ -46,6 +46,11 @@ var ErrConflict = errors.New("expected-last-subject-sequence mismatch")
 // not well-formed before publish.
 var ErrInvalidEvent = errors.New("invalid event")
 
+// ErrMissingOCC is returned when an atomic batch contains no optimistic
+// concurrency guard. Every batch needs at least one guard so there is no
+// accidental "publish without OCC" path through the framework.
+var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
+
 // Publisher writes events to a JetStream stream with optimistic concurrency
 // control. The stream is expected to be the EVT stream; the Publisher
 // itself doesn't enforce that — it operates on whatever stream is passed in,
@@ -64,14 +69,37 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger Logger
 const maxAppendRetries = 5
 
 // Append publishes an event to a subject, automatically computing the
-// expected last subject sequence from the stream and retrying on conflict.
-// Returns the new stream sequence on success.
+// expected last subject sequence from the stream. Returns the new stream
+// sequence on success.
 //
 // This is the bread-and-butter mutation primitive: read state, decide the
-// write, call Append, get a seq back. The OCC retry handles concurrent
-// writers transparently. For deterministic-sequence callers (migrations),
-// use AppendAt instead.
+// write, call Append, get a seq back. Conflicts are returned to the caller
+// so state-replacement mutations can re-read and re-compose before retrying.
+// For deterministic-sequence callers (migrations), use AppendAt instead.
 func (p *Publisher) Append(ctx context.Context, subject string, event *corev1.Event) (uint64, error) {
+	if err := validateEvent(event); err != nil {
+		return 0, err
+	}
+
+	data, err := proto.Marshal(event)
+	if err != nil {
+		return 0, fmt.Errorf("marshal event: %w", err)
+	}
+
+	expectedSeq, err := p.lastSubjectSeq(ctx, subject)
+	if err != nil {
+		return 0, err
+	}
+	return p.publishAt(ctx, subject, data, expectedSeq, "")
+}
+
+// AppendEventually is the append-only variant of Append: it retries OCC
+// conflicts with the same event payload. Use it only for event types where
+// retrying the exact same fact is safe after an intervening write, such as
+// message posts, membership joins/leaves, and tombstone-style lifecycle
+// events. State-replacement events should use Append or AppendAt and
+// re-compose from the latest projection state on conflict.
+func (p *Publisher) AppendEventually(ctx context.Context, subject string, event *corev1.Event) (uint64, error) {
 	if err := validateEvent(event); err != nil {
 		return 0, err
 	}
@@ -246,6 +274,16 @@ func (p *Publisher) AppendBatch(ctx context.Context, entries []BatchEntry) ([]ui
 		if err := validateEvent(e.Event); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
+	}
+	hasOCC := false
+	for _, e := range entries {
+		if e.HasOCC {
+			hasOCC = true
+			break
+		}
+	}
+	if !hasOCC {
+		return nil, ErrMissingOCC
 	}
 
 	batchID, err := newBatchID()
