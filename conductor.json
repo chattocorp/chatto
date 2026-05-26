@@ -1,5 +1,6 @@
 {
     "scripts": {
+        "setup": "mise trust",
         "run": "VITE_PORT=$CONDUCTOR_PORT CHATTO_WEBSERVER_PORT=$((CONDUCTOR_PORT+1)) CHATTO_WEBSERVER_URL=http://localhost:$CONDUCTOR_PORT CHATTO_NATS_EMBEDDED_PORT=$((CONDUCTOR_PORT+2)) mise dev"
     }
 }
