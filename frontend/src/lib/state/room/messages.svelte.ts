@@ -161,7 +161,21 @@ export abstract class MessageListStore {
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
   protected roomId = '';
 
+  /** Increments on every load kickoff. Async callbacks compare against
+   *  it via {@link isStale} to discard results from superseded loads. */
+  #loadId = 0;
+
   #disposeLifecycle: (() => void) | null = null;
+
+  /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
+  protected startLoad(): number {
+    return ++this.#loadId;
+  }
+
+  /** True if a newer load has started — caller should discard its result. */
+  protected isStale(thisLoad: number): boolean {
+    return this.#loadId !== thisLoad;
+  }
 
   constructor(
     protected readonly gqlClient: GraphQLClient,
@@ -182,7 +196,7 @@ export abstract class MessageListStore {
           prev,
           n
         );
-        this.catchUp('ws reconnect');
+        this.catchUp();
       });
 
       // Non-reactive: register a document visibilitychange listener and
@@ -201,7 +215,7 @@ export abstract class MessageListStore {
             '[MessageListStore] visible after %ds hidden → catching up',
             Math.round(gap / 1000)
           );
-          this.catchUp('tab resume');
+          this.catchUp();
         }
       });
     });
@@ -219,12 +233,14 @@ export abstract class MessageListStore {
 
   /**
    * Silent refetch of newer events. Called by the reconnect / tab-resume
-   * listeners wired in the constructor. Subclasses implement the actual
-   * fetch strategy (paginated forward query for rooms, single-shot thread
-   * fetch for threads). Must NOT toggle {@link isInitialLoading} —
-   * catch-up should keep the stale view on screen until the new data lands.
+   * listeners wired in the constructor (the trigger reason is logged by
+   * the base class before this is invoked). Subclasses implement the
+   * actual fetch strategy (paginated forward query for rooms, single-
+   * shot thread fetch for threads). Must NOT toggle
+   * {@link isInitialLoading} — catch-up should keep the stale view on
+   * screen until the new data lands.
    */
-  protected abstract catchUp(reason: string): void;
+  protected abstract catchUp(): void;
 
   // -------------------------------------------------------------------------
   // Subscription event ingestion
@@ -445,8 +461,6 @@ export class RoomMessagesStore extends MessageListStore {
    */
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
-  /** Increments on every setRoom or jumpToPresent — guards async callbacks. */
-  private loadId = 0;
 
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): RoomEventViewFragment[] {
@@ -465,24 +479,30 @@ export class RoomMessagesStore extends MessageListStore {
    */
   setRoom(roomId: string): void {
     this.roomId = roomId;
-    const thisLoad = ++this.loadId;
-    this.resetState();
-    this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
+    this.resetAndFetchLatest();
   }
 
   // -------------------------------------------------------------------------
   // Catch-up (called by base class on reconnect / tab-resume)
   // -------------------------------------------------------------------------
 
-  protected catchUp(_reason: string): void {
+  protected catchUp(): void {
     if (!this.roomId) return;
-    const thisLoad = ++this.loadId;
+    const thisLoad = this.startLoad();
     if (this.events.length === 0) {
       this.fetchLatest(thisLoad);
     } else {
       this.catchUpForward(thisLoad);
     }
+  }
+
+  /** Shared by {@link setRoom} and {@link jumpToPresent}: clear state, show
+   *  the skeleton, kick off a fresh fetchLatest under a new load id. */
+  private resetAndFetchLatest(): void {
+    const thisLoad = this.startLoad();
+    this.resetState();
+    this.isInitialLoading = true;
+    this.fetchLatest(thisLoad);
   }
 
   // -------------------------------------------------------------------------
@@ -622,10 +642,7 @@ export class RoomMessagesStore extends MessageListStore {
   /** Exit jumped mode and refetch the latest events. */
   jumpToPresent(jumpState: JumpToMessageState): void {
     jumpState.reset();
-    const thisLoad = ++this.loadId;
-    this.resetState();
-    this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
+    this.resetAndFetchLatest();
   }
 
   // -------------------------------------------------------------------------
@@ -680,7 +697,7 @@ export class RoomMessagesStore extends MessageListStore {
       })
       .toPromise()
       .then((result) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         if (result.error) console.error('RoomMessagesStore: fetchLatest error:', result.error);
         const page = result.data?.room?.events;
         if (page) {
@@ -690,7 +707,7 @@ export class RoomMessagesStore extends MessageListStore {
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         console.error('RoomMessagesStore: fetchLatest failed:', error);
         this.isInitialLoading = false;
       });
@@ -709,21 +726,20 @@ export class RoomMessagesStore extends MessageListStore {
    */
   private catchUpForward(thisLoad: number): void {
     if (!this.newestCursor) {
-      console.debug('[RoomMessagesStore] catchUpForward: no cursor, falling back to fetchLatest', { roomId: this.roomId });
       this.fetchLatest(thisLoad);
       return;
     }
 
-    console.debug('[RoomMessagesStore] catchUpForward: querying', { roomId: this.roomId, after: this.newestCursor });
+    const after = this.newestCursor;
     this.client
       .query(RoomAfterQuery, {
         roomId: this.roomId,
         limit: PAGE_SIZE,
-        after: this.newestCursor
+        after
       })
       .toPromise()
       .then((result) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         if (result.error) {
           console.error('RoomMessagesStore: catchUp error:', result.error);
           return;
@@ -732,12 +748,15 @@ export class RoomMessagesStore extends MessageListStore {
         if (!page) return;
 
         const fetched = unmask(page.events);
-        console.debug('[RoomMessagesStore] catchUpForward: result', {
-          roomId: this.roomId,
-          fetched: fetched.length,
-          hasNewer: page.hasNewer,
-          strategy: page.hasNewer ? 'replace (gap too large)' : 'append'
-        });
+        const strategy = page.hasNewer ? 'replace' : 'append';
+        console.debug(
+          '[RoomMessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
+          this.roomId,
+          after,
+          fetched.length,
+          page.hasNewer,
+          strategy
+        );
         if (page.hasNewer) {
           this.replaceWithFetchedAndUpdateCursors(page);
         } else {
@@ -748,7 +767,7 @@ export class RoomMessagesStore extends MessageListStore {
         }
       })
       .catch((error: unknown) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         console.error('RoomMessagesStore: catchUp failed:', error);
       });
   }
@@ -820,8 +839,6 @@ export class RoomMessagesStore extends MessageListStore {
  */
 export class ThreadMessagesStore extends MessageListStore {
   private threadRootEventId = '';
-  /** Increments on every setThread — guards async callbacks. */
-  private loadId = 0;
 
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): RoomEventViewFragment[] {
@@ -836,19 +853,18 @@ export class ThreadMessagesStore extends MessageListStore {
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
 
-    const thisLoad = ++this.loadId;
+    const thisLoad = this.startLoad();
     this.resetState();
     this.isInitialLoading = true;
     this.fetchThread(thisLoad);
   }
 
-  protected catchUp(_reason: string): void {
+  protected catchUp(): void {
     if (!this.threadRootEventId) return;
     // Silent: do NOT flip isInitialLoading. fetchThread merges results
     // with existing events via replaceMergingExisting, so the stale view
     // stays on screen until the new data lands.
-    const thisLoad = ++this.loadId;
-    this.fetchThread(thisLoad);
+    this.fetchThread(this.startLoad());
   }
 
   async refetchAll(): Promise<void> {
@@ -885,7 +901,7 @@ export class ThreadMessagesStore extends MessageListStore {
       })
       .toPromise()
       .then((result) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         if (result.error) console.error('ThreadMessagesStore: fetch error:', result.error);
         const root = result.data?.room?.event;
         if (root) {
@@ -897,7 +913,7 @@ export class ThreadMessagesStore extends MessageListStore {
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {
-        if (this.loadId !== thisLoad) return;
+        if (this.isStale(thisLoad)) return;
         console.error('ThreadMessagesStore: fetch failed:', error);
         this.isInitialLoading = false;
       });
