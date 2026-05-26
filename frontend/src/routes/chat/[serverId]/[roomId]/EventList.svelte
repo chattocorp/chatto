@@ -205,11 +205,7 @@
 
     const newestId = filteredEvents[filteredEvents.length - 1].id;
 
-    if (
-      lastSeenNewestId !== null &&
-      newestId !== lastSeenNewestId &&
-      !shouldScrollToBottom
-    ) {
+    if (lastSeenNewestId !== null && newestId !== lastSeenNewestId && !shouldScrollToBottom) {
       hasNewMessages = true;
     }
 
@@ -242,6 +238,7 @@
         if (scrollContainer && shouldScrollToBottom) {
           startScrollCorrection();
           scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          refreshScrollFader();
         }
       });
     }
@@ -277,7 +274,10 @@
       // fires when content is shorter than the viewport.
       setTimeout(() => {
         if (!virtualizerHandle) return;
-        const dist = virtualizerHandle.getScrollSize() - virtualizerHandle.getScrollOffset() - virtualizerHandle.getViewportSize();
+        const dist =
+          virtualizerHandle.getScrollSize() -
+          virtualizerHandle.getScrollOffset() -
+          virtualizerHandle.getViewportSize();
         if (dist < 50) {
           shouldScrollToBottom = true;
         }
@@ -312,6 +312,11 @@
   // Scroll container and virtualizer handle
   let scrollContainer = $state<HTMLDivElement>();
   let virtualizerHandle = $state<VirtualizerHandle>();
+  let scrollFaderRefreshKey = $state(0);
+
+  function refreshScrollFader() {
+    scrollFaderRefreshKey++;
+  }
 
   // Safely call scrollToIndex on the virtualizer. After a {#key roomId} transition,
   // the new Virtualizer's bind:this fires immediately but its onMount → tick() →
@@ -363,12 +368,14 @@
           if (!untrack(() => alwaysScrollToBottom || shouldScrollToBottom)) return;
           startScrollCorrection();
           safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+          refreshScrollFader();
           if (!untrack(() => initialScrollDone)) {
             // Give virtua time to measure actual item heights and settle the
             // scroll position. The skeleton overlay hides the content during
             // this window, so there's no visual cost to waiting.
             setTimeout(() => {
               safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+              refreshScrollFader();
               initialScrollDone = true;
             }, 80);
           }
@@ -383,6 +390,7 @@
     hasNewMessages = false;
     if (virtualizerHandle) {
       safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+      refreshScrollFader();
     }
   }
 
@@ -430,7 +438,10 @@
   useTabResumeCallback(() => {
     if (alwaysScrollToBottom || !shouldScrollToBottom || !initialScrollDone) return;
     if (!virtualizerHandle) return;
-    const dist = virtualizerHandle.getScrollSize() - virtualizerHandle.getScrollOffset() - virtualizerHandle.getViewportSize();
+    const dist =
+      virtualizerHandle.getScrollSize() -
+      virtualizerHandle.getScrollOffset() -
+      virtualizerHandle.getViewportSize();
     if (dist > 50) shouldScrollToBottom = false;
   });
 
@@ -491,6 +502,7 @@
       scrollContainer
     ) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      refreshScrollFader();
     }
 
     previousOffset = offset;
@@ -572,22 +584,21 @@
        settles its initial scroll position, preventing the flash where content
        renders at the wrong position before jumping to the bottom. -->
   {#if isLoading || (!initialScrollDone && virtualItems.length > 0)}
-    <div class="pointer-events-none absolute inset-0 z-[5] flex flex-col justify-end gap-2 overflow-hidden bg-background">
+    <div
+      class="pointer-events-none absolute inset-0 z-[5] flex flex-col justify-end gap-2 overflow-hidden bg-background"
+    >
       <MessageEventSkeleton />
       {#each Array(15) as _, i (i)}
-        <MessageEventSkeleton
-          compact={i % 5 > 0}
-          lines={(i % 3) + 1}
-        />
+        <MessageEventSkeleton compact={i % 5 > 0} lines={(i % 3) + 1} />
       {/each}
     </div>
   {/if}
 
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <ScrollFader
     top
     bottom
     bind:scrollEl={scrollContainer}
+    refreshKey={scrollFaderRefreshKey}
     scrollClass="overscroll-y-contain"
     data-testid="messages-container"
     onwheel={markUserScrollIntent}
@@ -665,9 +676,9 @@
       transition:fade={{ duration: 150 }}
       onclick={onJumpToPresent}
       data-testid="jump-to-present"
-      class="menu absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap"
+      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
-      <div class="menu-section flex items-center gap-2 px-3 py-1">
+      <div class="flex items-center gap-2 menu-section px-3 py-1">
         {#if firstVisibleDate}
           <span class="text-muted">{firstVisibleDate}</span>
           <span class="text-muted/40">|</span>
@@ -681,9 +692,9 @@
       transition:fade={{ duration: 150 }}
       onclick={scrollToBottom}
       data-testid="jump-to-present"
-      class="menu absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap"
+      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
-      <div class="menu-section flex items-center gap-2 px-3 py-1">
+      <div class="flex items-center gap-2 menu-section px-3 py-1">
         {#if firstVisibleDate}
           <span class="text-muted">{firstVisibleDate}</span>
           <span class="text-muted/40">|</span>

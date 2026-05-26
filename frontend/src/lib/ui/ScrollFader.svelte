@@ -29,6 +29,8 @@ scroll container; children render inside the scroll container.
     scrollClass?: string;
     /** Bound to the inner scroll container so callers can reference it. */
     scrollEl?: HTMLDivElement;
+    /** Bump when external layout work should force edge re-measurement. */
+    refreshKey?: unknown;
     [key: string]: unknown;
   };
 
@@ -40,17 +42,23 @@ scroll container; children render inside the scroll container.
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
+    refreshKey,
     ...rest
   }: Props = $props();
 
   let scrolledFromTop = $state(false);
   let scrolledFromBottom = $state(false);
 
+  function updateScrollEdges(el: HTMLElement) {
+    scrolledFromTop = el.scrollTop > 1;
+    scrolledFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight > 1;
+  }
+
   function trackScrollEdges(el: HTMLElement) {
     const update = () => {
-      scrolledFromTop = el.scrollTop > 1;
-      scrolledFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight > 1;
+      updateScrollEdges(el);
     };
+
     update();
     el.addEventListener('scroll', update, { passive: true });
     const ro = new ResizeObserver(update);
@@ -60,16 +68,24 @@ scroll container; children render inside the scroll container.
       ro.disconnect();
     };
   }
+
+  $effect(() => {
+    void refreshKey;
+    if (!scrollEl) return;
+
+    const frame = requestAnimationFrame(() => {
+      if (scrollEl) updateScrollEdges(scrollEl);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  });
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}>
   <div
     bind:this={scrollEl}
     {@attach trackScrollEdges}
-    class={[
-      'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto',
-      scrollClass
-    ]}
+    class={['flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto', scrollClass]}
     {...rest}
   >
     {@render children()}
