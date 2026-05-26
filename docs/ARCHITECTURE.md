@@ -261,7 +261,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
 | KV      | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
 | KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
-| KV      | `SERVER_RBAC`                 | Roles, permissions, assignments (single flat tier — owner/admin/moderator/everyone) |
+| KV      | `SERVER_RBAC`                 | Legacy RBAC seed data read by the `EVT` boot migration |
 | KV      | `SERVER_RUNTIME`              | Read status, mention tracking               |
 | KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | KV      | `SERVER_REACTIONS`            | Legacy emoji reactions source for boot migration only |
@@ -282,7 +282,7 @@ of truth and the event is additive.
 `EVT` publishing because `EVT` is their source of truth and reads come
 from in-memory projections. If event publishing fails, the write fails.
 Current migrated aggregates include room membership/metadata,
-room groups/layout, server config, messages/threads, and reactions.
+room groups/layout, server config, messages/threads, reactions, and RBAC.
 
 ### Consistency Model
 
@@ -381,7 +381,7 @@ The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events for the legacy CRUD+log pattern; republishes onto `live.server.>` |
-| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` for future/direct consumers. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, and reactions. |
+| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` for future/direct consumers. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, reactions, and RBAC. |
 | Live Events                  | `corev1.Event`   | Transient  | `live.server.>` is the active GraphQL subscription root. `SERVER_EVENTS` republishes into it, and migrated `EVT` aggregates publish non-durable compatibility mirrors into it. `live.evt.>` is fed by `EVT` republish but is not the active `myEvents` path during the migration window. |
 
 **SERVER\_EVENTS subjects:**
@@ -484,7 +484,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
 | `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
-| `SERVER_RBAC`                 | File    | Yes      | Roles, permissions, assignments (single flat tier) |
+| `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
 | `SERVER_RUNTIME`              | File    | Yes      | Read state, mention tracking                    |
 | `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions, read only by the EVT boot migration |
@@ -577,7 +577,21 @@ Useful filter patterns:
 
 **SERVER\_RBAC keys:**
 
-Keys: `role.*`, `role_permission.*`, `role_assignment.*`, `user_permission.*`, `user_permission_denied.*`.
+RBAC is event-sourced under `evt.rbac.>`. Role CRUD/reorder, role assignment,
+direct user overrides, and server-scoped permission decisions use
+`evt.rbac.server.*`; room and group scoped decisions use
+`evt.rbac.{roomId}.*` and `evt.rbac.{groupId}.*` with the Chatto entity ID
+directly as the aggregate ID. All RBAC writes share `evt.rbac.>` as their OCC
+domain, so those subject partitions are descriptive labels, not independent
+consistency boundaries. Permission checks, admin role/permission reads,
+permission inspector traces, and hierarchy/outrank checks read from the
+in-memory RBAC projection.
+
+`SERVER_RBAC` is retained only as legacy import evidence until the aggregate
+cleanup phase. The RBAC boot importer reads historical `role.*`, `member.*`,
+`allow.*`, `deny.*`, `group_allow.*`, `group_deny.*`, `room_allow.*`, and
+`room_deny.*` keys into `EVT` using OCC so repeated boots skip an already seeded
+RBAC subject family.
 
 **SERVER\_RUNTIME keys:**
 

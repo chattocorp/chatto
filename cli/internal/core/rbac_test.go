@@ -1216,6 +1216,27 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects incomplete custom role list", func(t *testing.T) {
+		_, err := core.ReorderServerRoles(ctx, []string{"alpha"})
+		if err == nil {
+			t.Error("Expected error when reorder omits a custom role")
+		}
+	})
+
+	t.Run("rejects duplicate custom roles", func(t *testing.T) {
+		_, err := core.ReorderServerRoles(ctx, []string{"alpha", "alpha"})
+		if err == nil {
+			t.Error("Expected error when reorder includes a duplicate role")
+		}
+	})
+
+	t.Run("rejects unknown custom role", func(t *testing.T) {
+		_, err := core.ReorderServerRoles(ctx, []string{"alpha", "gamma"})
+		if !errors.Is(err, ErrRoleNotFound) {
+			t.Fatalf("Expected ErrRoleNotFound, got %v", err)
+		}
+	})
+
 	t.Run("preserves system role positions", func(t *testing.T) {
 		roles, _ := core.ListServerRoles(ctx)
 
@@ -2615,8 +2636,10 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 		core.CreateServerRole(ctx, "alpha", "Alpha", "Alpha role")
 		core.CreateServerRole(ctx, "beta", "Beta", "Beta role")
 
-		// Reorder them
-		roles, err := core.ReorderServerRoles(ctx, []string{"beta", "alpha"})
+		// Reorder all custom roles. ReorderServerRoles requires a complete
+		// custom-role list so clients cannot accidentally drop roles from the
+		// authoritative ordering event.
+		roles, err := core.ReorderServerRoles(ctx, []string{"editor", "contributor", "beta", "alpha"})
 		if err != nil {
 			t.Fatalf("ReorderServerRoles failed: %v", err)
 		}

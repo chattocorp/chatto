@@ -2,13 +2,11 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
-	"sort"
+	"strings"
 
 	"github.com/nats-io/nats.go/jetstream"
-
 )
 
 // PermissionResolver handles permission resolution using a single
@@ -16,10 +14,10 @@ import (
 //
 // For each role assigned to the user, in hierarchy order (highest rank
 // first), check for an explicit decision in this priority order:
-//   1. room-level allow (if a room context was provided)
-//   2. room-level deny  (if a room context was provided)
-//   3. server-level allow
-//   4. server-level deny
+//  1. room-level allow (if a room context was provided)
+//  2. room-level deny  (if a room context was provided)
+//  3. server-level allow
+//  4. server-level deny
 //
 // The first decision encountered is the answer; lower-ranked roles are
 // not consulted further. If no role has any decision the result is
@@ -332,13 +330,13 @@ func permissionMetadataHasScope(meta PermissionMetadata, scope PermissionScope) 
 // walker runs.
 //
 // Resolution priority (the first emitted decision wins):
-//   1. User-level overrides — checked before any role:
-//      a. room-level allow / deny (only when roomID != "")
-//      b. server-level allow / deny
-//   2. Role-level decisions — for each role assigned to the user, sorted by
-//      hierarchy (highest rank first):
-//      a. room-level allow / deny (only when roomID != "")
-//      b. server-level allow / deny
+//  1. User-level overrides — checked before any role:
+//     a. room-level allow / deny (only when roomID != "")
+//     b. server-level allow / deny
+//  2. Role-level decisions — for each role assigned to the user, sorted by
+//     hierarchy (highest rank first):
+//     a. room-level allow / deny (only when roomID != "")
+//     b. server-level allow / deny
 //
 // User-level overrides "outrank" every role grant: an explicit user-deny
 // blocks the action even for owners, and an explicit user-grant allows it
@@ -551,14 +549,40 @@ func dmBoundaryDenies(perm Permission) bool {
 
 // keyExists checks if a key exists in a KV bucket.
 func (r *PermissionResolver) keyExists(ctx context.Context, kv jetstream.KeyValue, key string) (bool, error) {
-	_, err := kv.Get(ctx, key)
-	if err == nil {
-		return true, nil
-	}
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
+	switch {
+	case strings.HasPrefix(key, AllowKeyPrefix):
+		parts := ParseAllowKey(key)
+		perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+		return parts.Subject != "" && perm != "" &&
+			r.core.RBAC.GetDecision(ScopeServer, "", parts.Subject, perm) == DecisionAllow, nil
+	case strings.HasPrefix(key, DenyKeyPrefix):
+		parts := ParseDenyKey(key)
+		perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+		return parts.Subject != "" && perm != "" &&
+			r.core.RBAC.GetDecision(ScopeServer, "", parts.Subject, perm) == DecisionDeny, nil
+	case strings.HasPrefix(key, GroupAllowKeyPrefix):
+		parts := ParseSetAllowKey(key)
+		perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+		return parts.ScopeID != "" && parts.Subject != "" && perm != "" &&
+			r.core.RBAC.GetDecision(ScopeGroup, parts.ScopeID, parts.Subject, perm) == DecisionAllow, nil
+	case strings.HasPrefix(key, GroupDenyKeyPrefix):
+		parts := ParseSetDenyKey(key)
+		perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+		return parts.ScopeID != "" && parts.Subject != "" && perm != "" &&
+			r.core.RBAC.GetDecision(ScopeGroup, parts.ScopeID, parts.Subject, perm) == DecisionDeny, nil
+	case strings.HasPrefix(key, RoomAllowKeyPrefix):
+		parts := ParseRoomAllowKey(key)
+		perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+		return parts.ScopeID != "" && parts.Subject != "" && perm != "" &&
+			r.core.RBAC.GetDecision(ScopeRoom, parts.ScopeID, parts.Subject, perm) == DecisionAllow, nil
+	case strings.HasPrefix(key, RoomDenyKeyPrefix):
+		parts := ParseRoomDenyKey(key)
+		perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+		return parts.ScopeID != "" && parts.Subject != "" && perm != "" &&
+			r.core.RBAC.GetDecision(ScopeRoom, parts.ScopeID, parts.Subject, perm) == DecisionDeny, nil
+	default:
 		return false, nil
 	}
-	return false, fmt.Errorf("failed to check key %s: %w", key, err)
 }
 
 // getUserServerRoles returns the user's roles (including implicit ones).
@@ -584,34 +608,5 @@ type roleWithPosition struct {
 
 // getUserServerRolesWithPositions returns the user's roles with positions, sorted by hierarchy.
 func (r *PermissionResolver) getUserServerRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
-	roleNames, err := r.getUserServerRoles(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	engine := r.core.storage.serverRBACEngine
-
-	result := make([]roleWithPosition, 0, len(roleNames))
-	for _, name := range roleNames {
-		pos := PositionEveryone // Default for virtual roles or if lookup fails
-		if role, err := engine.GetRole(ctx, name); err == nil && role != nil {
-			pos = role.Position
-		}
-		result = append(result, roleWithPosition{name: name, position: pos})
-	}
-
-	// Sort by position descending (higher = higher rank = checked first).
-	// Use sort.SliceStable + role name as a deterministic secondary key so
-	// two roles at the same position always resolve in the same order
-	// across calls. Otherwise position collisions would let the walker's
-	// "first decision wins" depend on map iteration order — a real
-	// security risk.
-	sort.SliceStable(result, func(i, j int) bool {
-		if result[i].position != result[j].position {
-			return result[i].position > result[j].position
-		}
-		return result[i].name < result[j].name
-	})
-
-	return result, nil
+	return r.core.RBAC.RolesWithPositionsForUser(userID), nil
 }

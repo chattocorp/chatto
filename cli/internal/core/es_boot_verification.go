@@ -37,6 +37,7 @@ type esLegacyCounts struct {
 	verifiedEmails      int
 	oidcSubjects        int
 	encryptionKeys      int
+	rbacKeys            int
 }
 
 type esProjectedCounts struct {
@@ -59,6 +60,9 @@ type esProjectedCounts struct {
 	users                  int
 	verifiedEmails         int
 	oidcSubjects           int
+	rbacRoles              int
+	rbacAssignments        int
+	rbacDecisions          int
 }
 
 // logESBootVerification emits a structured summary of the ES import and
@@ -95,6 +99,10 @@ func (c *ChattoCore) logESBootVerification(ctx context.Context) {
 		"projected_verified_emails", report.projected.verifiedEmails,
 		"legacy_oidc_subjects", report.legacy.oidcSubjects,
 		"projected_oidc_subjects", report.projected.oidcSubjects,
+		"legacy_rbac_keys", report.legacy.rbacKeys,
+		"projected_rbac_roles", report.projected.rbacRoles,
+		"projected_rbac_assignments", report.projected.rbacAssignments,
+		"projected_rbac_decisions", report.projected.rbacDecisions,
 		"server_config_legacy", report.legacy.serverConfigPresent,
 		"server_config_projected", report.projected.serverConfigConfigured,
 		"room_layout_legacy", report.legacy.roomLayoutPresent,
@@ -203,6 +211,10 @@ func (c *ChattoCore) collectLegacyESCounts(ctx context.Context) (esLegacyCounts,
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count encryption keys: %w", err)
 	}
+	counts.rbacKeys, err = countKVKeys(ctx, c.storage.serverRBACKV)
+	if err != nil {
+		return counts, warnings, fmt.Errorf("count legacy RBAC keys: %w", err)
+	}
 	if counts.encryptionKeys == 0 {
 		warnings = append(warnings, "ENCRYPTION_KEYS is empty; encrypted message bodies will not decrypt in local smoke tests")
 	}
@@ -215,6 +227,7 @@ func (c *ChattoCore) collectProjectedESCounts() esProjectedCounts {
 	threads, threadEntries, threadReplies := c.Threads.Stats()
 	reactionMessages, activeReactions := c.Reactions.Stats()
 	users, verifiedEmails, oidcSubjects := c.Users.Stats()
+	rbacRoles, rbacAssignments, rbacDecisions := c.RBAC.CountStats()
 	_, serverConfigConfigured := c.ServerConfig.Get()
 
 	return esProjectedCounts{
@@ -237,6 +250,9 @@ func (c *ChattoCore) collectProjectedESCounts() esProjectedCounts {
 		users:                  users,
 		verifiedEmails:         verifiedEmails,
 		oidcSubjects:           oidcSubjects,
+		rbacRoles:              rbacRoles,
+		rbacAssignments:        rbacAssignments,
+		rbacDecisions:          rbacDecisions,
 	}
 }
 
@@ -261,6 +277,12 @@ func (c *ChattoCore) evaluateESBootVerificationReport(r *esBootVerificationRepor
 	}
 	if r.legacy.roomLayoutPresent && r.projected.roomGroups > 0 && r.projected.roomLayoutGroups == 0 {
 		r.problems = append(r.problems, "room layout: legacy room_layout exists but projected layout ordering is empty")
+	}
+	if r.legacy.rbacKeys > 0 && r.projected.rbacRoles == 0 {
+		r.problems = append(r.problems, "RBAC: projection has no roles")
+	}
+	if r.legacy.rbacKeys > 0 && r.projected.rbacDecisions == 0 {
+		r.problems = append(r.problems, "RBAC: projection has no permission decisions")
 	}
 	if r.decodeErrors > 0 {
 		r.problems = append(r.problems, fmt.Sprintf("EVT contains %d decode errors", r.decodeErrors))

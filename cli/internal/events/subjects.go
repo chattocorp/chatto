@@ -26,6 +26,7 @@ const (
 	AggregateGroup  = "group"
 	AggregateLayout = "layout"
 	AggregateUser   = "user"
+	AggregateRBAC   = "rbac"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -36,6 +37,11 @@ const ConfigSingletonID = "server"
 // LayoutSingletonID is the sentinel aggregate ID for the singleton
 // sidebar layout. Same convention as ConfigSingletonID.
 const LayoutSingletonID = "default"
+
+// RBACServerID is the aggregate ID for server-scoped RBAC state: role catalog,
+// role order, assignments, and server-scoped permission decisions. Room and
+// group scoped decisions use their room/group ID directly as the aggregate ID.
+const RBACServerID = "server"
 
 // Event-type tokens. NATS-idiomatic snake_case; the trailing segment of
 // every event subject. Stable identifiers — once written, never renamed.
@@ -96,6 +102,18 @@ const (
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
+
+	// RBAC aggregate
+	EventRBACRoleCreated            = "role_created"
+	EventRBACRoleDisplayNameChanged = "role_display_name_changed"
+	EventRBACRoleDescriptionChanged = "role_description_changed"
+	EventRBACRoleDeleted            = "role_deleted"
+	EventRBACRolesReordered         = "roles_reordered"
+	EventRBACRoleAssigned           = "role_assigned"
+	EventRBACRoleRevoked            = "role_revoked"
+	EventRBACPermissionGranted      = "permission_granted"
+	EventRBACPermissionDenied       = "permission_denied"
+	EventRBACPermissionCleared      = "permission_cleared"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -179,6 +197,27 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *corev1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+
+	case *corev1.Event_RbacRoleCreated:
+		return EventRBACRoleCreated
+	case *corev1.Event_RbacRoleDisplayNameChanged:
+		return EventRBACRoleDisplayNameChanged
+	case *corev1.Event_RbacRoleDescriptionChanged:
+		return EventRBACRoleDescriptionChanged
+	case *corev1.Event_RbacRoleDeleted:
+		return EventRBACRoleDeleted
+	case *corev1.Event_RbacRolesReordered:
+		return EventRBACRolesReordered
+	case *corev1.Event_RbacRoleAssigned:
+		return EventRBACRoleAssigned
+	case *corev1.Event_RbacRoleRevoked:
+		return EventRBACRoleRevoked
+	case *corev1.Event_RbacPermissionGranted:
+		return EventRBACPermissionGranted
+	case *corev1.Event_RbacPermissionDenied:
+		return EventRBACPermissionDenied
+	case *corev1.Event_RbacPermissionCleared:
+		return EventRBACPermissionCleared
 	}
 	return ""
 }
@@ -255,6 +294,27 @@ func UserAggregate(userID string) Aggregate {
 	return Aggregate{Type: AggregateUser, ID: userID}
 }
 
+// RBACAggregate is the typed constructor for server-level RBAC events:
+// role definitions/order and server-scoped permission decisions.
+func RBACAggregate() Aggregate {
+	return RBACServerAggregate()
+}
+
+// RBACServerAggregate is the typed constructor for server-level RBAC events.
+func RBACServerAggregate() Aggregate {
+	return Aggregate{Type: AggregateRBAC, ID: RBACServerID}
+}
+
+// RBACScopedAggregate is the typed constructor for scoped RBAC decisions. The
+// scope ID is a Chatto entity ID, whose prefix already encodes whether it is a
+// room (R...) or group (G...).
+func RBACScopedAggregate(scopeID string) Aggregate {
+	if scopeID == "" {
+		return RBACServerAggregate()
+	}
+	return Aggregate{Type: AggregateRBAC, ID: scopeID}
+}
+
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.
 // Pattern: evt.room.>
@@ -279,6 +339,11 @@ func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" 
 // aggregate event.
 // Pattern: evt.user.>
 func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
+
+// RBACSubjectFilter returns the wildcard filter matching every RBAC aggregate
+// event.
+// Pattern: evt.rbac.>
+func RBACSubjectFilter() string { return SubjectRoot + AggregateRBAC + ".>" }
 
 // RoomEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every room. Used by

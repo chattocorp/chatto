@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-26
 
 ## Overview
 
@@ -35,7 +35,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 **Decision:** Permissions resolve room → group → server. The most specific scope wins.
 **Why:** Operators want both "system-wide defaults" and "this one channel works differently" without modelling them as separate role systems. See ADR-031.
-**Tradeoff:** A given permission decision now requires checking up to three KV lookups per role. Acceptable given resolution happens in-process.
+**Tradeoff:** A given permission decision now checks up to three scopes per role. This is acceptable because current RBAC state is kept in an in-memory projection.
 
 ### 4. Owner privileges materialize as role grants, not bypass
 
@@ -55,6 +55,12 @@ Chatto controls who can do what through role-based access control. Every authent
 **Why:** Otherwise a rogue moderator with `role.assign` could rename the owner. Permission asks "can this role do X at all?"; rank asks "does the actor outrank this specific target?". Both are needed.
 **Tradeoff:** Two-step checks are more code than a single permission lookup, and easy to forget when adding new mutations. Helpers (`requireUserAdminTarget`, `requireUserPermissionTarget`) exist to keep call sites uniform.
 
+### 7. RBAC state is event-sourced
+
+**Decision:** Role definitions, role order, assignments, and explicit permission decisions are durable events, with reads served from an in-memory RBAC projection.
+**Why:** This aligns RBAC with the rest of Chatto's event-sourced migration and makes authorization reads rebuildable from the deployment event log. See ADR-033 and ADR-035.
+**Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes.
+
 ## Permissions
 
 The full permission catalog is in `cli/internal/core/permission.go`. Key permissions that gate RBAC management itself:
@@ -65,5 +71,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-004 (authorization at API boundary), ADR-005 (hierarchy-wins RBAC), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL)
+- **ADRs:** ADR-004 (authorization at API boundary), ADR-005 (hierarchy-wins RBAC), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration)
 - **FDRs:** Every FDR that mentions a permission depends on this one.

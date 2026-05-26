@@ -114,7 +114,7 @@ message Event {
     // tracks explicit reorders.
     RoomGroupsReorderedEvent room_groups_reordered = 650;
 
-    // ----- Users (700-719, durable, evt.user.{userId}) -----
+    // ----- Users (700-799, durable, evt.user.{userId}) -----
     UserAccountCreatedEvent user_account_created = 700;
     UserLoginChangedEvent user_login_changed = 701;
     UserDisplayNameChangedEvent user_display_name_changed = 702;
@@ -127,6 +127,18 @@ message Event {
     UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
     UserAccountDeletedEvent user_account_deleted = 710;
     UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
+
+    // ----- RBAC (800-839, durable, evt.rbac.>) -----
+    RbacRoleCreatedEvent rbac_role_created = 800;
+    RbacRoleDisplayNameChangedEvent rbac_role_display_name_changed = 801;
+    RbacRoleDescriptionChangedEvent rbac_role_description_changed = 802;
+    RbacRoleDeletedEvent rbac_role_deleted = 803;
+    RbacRolesReorderedEvent rbac_roles_reordered = 804;
+    RbacRoleAssignedEvent rbac_role_assigned = 805;
+    RbacRoleRevokedEvent rbac_role_revoked = 806;
+    RbacPermissionGrantedEvent rbac_permission_granted = 810;
+    RbacPermissionDeniedEvent rbac_permission_denied = 811;
+    RbacPermissionClearedEvent rbac_permission_cleared = 812;
 
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
@@ -553,6 +565,64 @@ message UserLoginCooldownClearedEvent {
 
 message UserAccountDeletedEvent {
   string user_id = 1;
+}
+
+// ============================================================================
+// DURABLE RBAC EVENTS (evt.rbac.>)
+// ============================================================================
+
+message RbacRoleCreatedEvent {
+  string role_name = 1;
+  string display_name = 2;
+  string description = 3;
+  int32 rank = 4;
+}
+
+message RbacRoleDisplayNameChangedEvent {
+  string role_name = 1;
+  string display_name = 2;
+}
+
+message RbacRoleDescriptionChangedEvent {
+  string role_name = 1;
+  string description = 2;
+}
+
+message RbacRoleDeletedEvent {
+  string role_name = 1;
+}
+
+message RbacRolesReorderedEvent {
+  repeated string role_names = 1;
+}
+
+message RbacRoleAssignedEvent {
+  string user_id = 1;
+  string role_name = 2;
+}
+
+message RbacRoleRevokedEvent {
+  string user_id = 1;
+  string role_name = 2;
+}
+
+message RbacPermissionGrantedEvent {
+  string location = 1; // "server", room ID, or group ID.
+  string subject = 2;
+  string permission = 3;
+}
+
+message RbacPermissionDeniedEvent {
+  string location = 1; // "server", room ID, or group ID.
+  string subject = 2;
+  string permission = 3;
+}
+
+// Removes any explicit allow or deny, returning this permission to inherited/no-decision state.
+message RbacPermissionClearedEvent {
+  string location = 1; // "server", room ID, or group ID.
+  string subject = 2;
+  string permission = 3;
 }
 
 // NotificationLevelChangedEvent is published when a user changes their notification

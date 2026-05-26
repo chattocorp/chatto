@@ -45,7 +45,7 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 	}
 	streamLastSeq := info.State.LastSeq
 
-	states := make([]ProjectionAdminState, 0, 9)
+	states := make([]ProjectionAdminState, 0, 10)
 	add := func(name string, projector *events.Projector, entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric) error {
 		targetSeq, err := projector.CurrentTargetSeq(ctx)
 		if err != nil {
@@ -113,6 +113,10 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 			entries, bytes, metrics := c.Users.adminProjectionEstimate()
 			return add("Users", c.UsersProjector, entries, bytes, metrics)
 		},
+		func() error {
+			entries, bytes, metrics := c.RBAC.adminProjectionEstimate()
+			return add("RBAC", c.RBACProjector, entries, bytes, metrics)
+		},
 	} {
 		if err := collect(); err != nil {
 			return nil, err
@@ -175,6 +179,37 @@ func (p *ServerConfigProjection) adminProjectionEstimate() (int64, int64, []Proj
 		bytes = int64(proto.Size(p.cfg)) + projectionMapEntryOverhead
 	}
 	return 1, bytes, []ProjectionAdminMetric{{Name: "configured", Value: 1, Bytes: bytes}}
+}
+
+func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	p.RLock()
+	defer p.RUnlock()
+	var roleBytes int64
+	for name, role := range p.roles {
+		roleBytes += projectionMapEntryOverhead + int64(len(name))
+		if role != nil {
+			roleBytes += int64(proto.Size(role))
+		}
+	}
+	var assignmentBytes, assignments int64
+	for userID, roles := range p.assignments {
+		assignmentBytes += projectionMapEntryOverhead + int64(len(userID))
+		for roleName := range roles {
+			assignments++
+			assignmentBytes += projectionMapEntryOverhead + int64(len(roleName))
+		}
+	}
+	var decisionBytes int64
+	for key := range p.decisions {
+		decisionBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)+len(key.subject)+len(key.permission))
+	}
+	totalEntries := int64(len(p.roles)) + assignments + int64(len(p.decisions))
+	totalBytes := roleBytes + assignmentBytes + decisionBytes
+	return totalEntries, totalBytes, []ProjectionAdminMetric{
+		{Name: "roles", Value: int64(len(p.roles)), Bytes: roleBytes},
+		{Name: "assignments", Value: assignments, Bytes: assignmentBytes},
+		{Name: "permission_decisions", Value: int64(len(p.decisions)), Bytes: decisionBytes},
+	}
 }
 
 func (p *RoomGroupProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {

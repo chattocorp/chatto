@@ -217,7 +217,7 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	// account verifies their email, they pick up the `owner` role without
 	// requiring a server restart or `chatto reset rbac` run.
 	if c.config.Owners.IsServerOwnerEmail(email) {
-		if err := c.storage.serverRBACEngine.AssignRole(ctx, userID, RoleOwner); err != nil {
+		if err := c.AssignServerRole(ctx, SystemActorID, userID, RoleOwner); err != nil {
 			c.logger.Warn("Failed to auto-assign owner role on email verification",
 				"user_id", userID, "email", email, "error", err)
 		} else {

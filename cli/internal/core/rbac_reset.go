@@ -2,15 +2,16 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ResetRBAC wipes the SERVER_RBAC bucket, re-seeds the system roles plus
+// ResetRBAC resets the RBAC event-sourced aggregate, re-seeds the system roles plus
 // default permissions from code, and assigns the `owner` role to every user
 // whose verified email matches `owners.emails` in the supplied config.
 //
@@ -19,64 +20,17 @@ import (
 // Phase-5 server-RBAC layout. Idempotent: running it twice produces the
 // same result.
 //
-// Wiping is intentionally aggressive — every key in SERVER_RBAC is deleted,
-// including custom roles and any room-level permission overrides. Rebuild
-// those after the reset.
+// Resetting is intentionally aggressive: custom roles, assignments, and
+// explicit permission overrides are removed from the projection by appended
+// reset events. Rebuild those after the reset.
 func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfig) error {
-	kv := c.storage.serverRBACKV
-
-	// Drain all keys.
-	keyLister, err := kv.ListKeys(ctx)
-	if err != nil {
-		return fmt.Errorf("list SERVER_RBAC keys: %w", err)
-	}
-	deleted := 0
-	for key := range keyLister.Keys() {
-		if err := kv.Purge(ctx, key); err != nil {
-			return fmt.Errorf("purge key %q: %w", key, err)
-		}
-		deleted++
-	}
-	c.logger.Info("Wiped SERVER_RBAC", "keys_deleted", deleted)
-
-	// Re-create the system roles. The everyone role stays virtual.
-	engine := c.storage.serverRBACEngine
-	roleSpecs := []struct {
-		name        string
-		displayName string
-		description string
-		position    int32
-	}{
-		{RoleOwner, "Owner", "Full server control", PositionOwner},
-		{RoleAdmin, "Admin", "Full administrative access", PositionAdmin},
-		{RoleModerator, "Moderator", "Moderation permissions without administrative reach", PositionModerator},
-	}
-	for _, spec := range roleSpecs {
-		if _, err := engine.CreateRoleWithPosition(ctx, spec.name, spec.displayName, spec.description, spec.position); err != nil {
-			if !errors.Is(err, ErrRoleAlreadyExists) {
-				return fmt.Errorf("create role %q: %w", spec.name, err)
-			}
-		}
-	}
-
-	// Seed default permissions. Owner gets everything; admin / moderator /
-	// everyone get the documented default sets.
-	if err := c.InitDefaultPermissions(ctx); err != nil {
-		return fmt.Errorf("seed default permissions: %w", err)
-	}
-
-	// Re-write the sentinel so the boot-time guard skips re-seeding next start.
-	if _, err := kv.Put(ctx, rbacDefaultsSentinel, []byte("1")); err != nil {
-		return fmt.Errorf("write sentinel: %w", err)
-	}
-
 	// Auto-promote config owners. Every user whose verified email matches
 	// owners.emails in chatto.toml gets the `owner` role.
 	users, err := c.ListUsers(ctx)
 	if err != nil {
 		return fmt.Errorf("list users: %w", err)
 	}
-	promoted := 0
+	promotions := []rbacSeedAssignment{}
 	for _, user := range users {
 		emails, err := c.GetVerifiedEmails(ctx, user.Id)
 		if err != nil {
@@ -94,19 +48,58 @@ func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfi
 		if !matched {
 			continue
 		}
-		if err := engine.AssignRole(ctx, user.Id, RoleOwner); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				continue
-			}
-			return fmt.Errorf("assign owner role to %s: %w", user.Id, err)
-		}
-		c.logger.Info("Promoted config owner to owner role",
-			"user_id", user.Id, "login", user.Login)
-		promoted++
+		promotions = append(promotions, rbacSeedAssignment{userID: user.Id, roleName: RoleOwner})
 	}
 
+	entries := c.rbacResetEntries(promotions)
+	if _, err := c.appendRBACBatch(ctx, entries, nil); err != nil {
+		return fmt.Errorf("publish RBAC reset events: %w", err)
+	}
+
+	for _, promotion := range promotions {
+		c.logger.Info("Promoted config owner to owner role", "user_id", promotion.userID)
+	}
 	c.logger.Info("RBAC reset complete",
-		"roles_seeded", len(roleSpecs),
-		"owners_promoted", promoted)
+		"events_published", len(entries),
+		"owners_promoted", len(promotions))
 	return nil
+}
+
+func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.BatchEntry {
+	createdAt := timestamppb.Now()
+	var entries []events.BatchEntry
+
+	roles := c.RBAC.ListRoles()
+	for _, role := range roles {
+		if role.GetName() == "" || IsSystemRole(role.GetName()) {
+			continue
+		}
+		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleDeleted{
+			RbacRoleDeleted: &corev1.RbacRoleDeletedEvent{RoleName: role.GetName()},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+
+	revokedUsers := make(map[string]struct{})
+	for _, assignment := range c.RBAC.Assignments() {
+		key := assignment.userID + "|" + assignment.roleName
+		if _, ok := revokedUsers[key]; ok {
+			continue
+		}
+		revokedUsers[key] = struct{}{}
+		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+
+	for _, decision := range c.RBAC.Decisions() {
+		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacPermissionCleared{
+			RbacPermissionCleared: rbacPermissionClearedEvent(decision.scope, decision.scopeID, decision.subject, decision.permission),
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+
+	entries = append(entries, rbacSeedEntries(defaultRBACRoles(), promotions, defaultRBACDecisions())...)
+	return entries
 }

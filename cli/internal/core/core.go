@@ -157,6 +157,14 @@ type ChattoCore struct {
 	// WaitForSeq from user/account writers.
 	UsersProjector *events.Projector
 
+	// RBAC holds current role, assignment, and permission state derived
+	// from durable RBAC aggregate events.
+	RBAC *RBACProjection
+
+	// RBACProjector runs the consumer for RBAC. Exposed for WaitForSeq
+	// from role and permission writers.
+	RBACProjector *events.Projector
+
 	// projectors is the set of all event-sourcing projectors owned by
 	// this core. Each new aggregate migration (ADR-035) appends here
 	// during NewChattoCore; Run iterates the slice. Adding a projector
@@ -603,6 +611,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	users := NewUserProjection()
 	usersProjector := newProjector(users, "UsersProjector")
 
+	rbac := NewRBACProjection()
+	rbacProjector := newProjector(rbac, "RBACProjector")
+
 	// ConfigManager owns event-only server-config writes; it needs the
 	// publisher (for ServerConfigChangedEvent), the projector
 	// (WaitForSeq for read-your-writes), and the projection (for reads).
@@ -636,8 +647,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ReactionsProjector:      reactionsProjector,
 		Users:                   users,
 		UsersProjector:          usersProjector,
+		RBAC:                    rbac,
+		RBACProjector:           rbacProjector,
 		projectors:              projectors,
 		bootDone:                make(chan struct{}),
+	}
+
+	if err := core.migrateRBACToES(ctx); err != nil {
+		return nil, fmt.Errorf("failed to migrate RBAC to ES: %w", err)
 	}
 
 	// Run boot-time data migrations. Idempotent and cheap on subsequent
@@ -670,11 +687,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.linkPreviewCache = linkPreviewCache
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
-
-	// Initialize server-level RBAC (roles and permissions)
-	if err := core.initServerRBAC(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize server RBAC: %w", err)
-	}
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /

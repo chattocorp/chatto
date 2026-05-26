@@ -496,10 +496,8 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 			t.Fatalf("Failed to grant room permission: %v", err)
 		}
 
-		// Create a "muted" role with explicit position LOWER than everyone (higher rank).
-		// Position 100 is between moderator (2) and everyone (MaxInt32), so muted's
-		// denial will be checked before everyone's grant in hierarchy order.
-		_, err = core.storage.serverRBACEngine.CreateRoleWithPosition(ctx, "muted", "Muted", "Cannot post", 100)
+		// Create a "muted" role, which ranks above the implicit everyone role.
+		_, err = core.CreateServerRole(ctx, "muted", "Muted", "Cannot post")
 		if err != nil {
 			t.Fatalf("Failed to create muted role: %v", err)
 		}
