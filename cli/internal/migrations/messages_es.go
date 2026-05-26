@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -174,22 +175,48 @@ func MigrateMessagesToES(
 		// Build the migrated event. Preserve the original envelope
 		// metadata (id, actor, created_at) so the timeline order and
 		// audit trail are preserved. Body is embedded; message_body_id
-		// is repurposed post-cutover as an alias for event_id (same
-		// value as the EventId field), so legacy resolver code paths
+		// is repurposed post-cutover as an alias for the envelope id,
+		// so legacy resolver code paths
 		// that pass MessageBodyId around continue to resolve through
 		// eventIDFromBodyKey.
+		//
+		// Legacy MessagePostedEvent.event_id was a read-time helper, not
+		// persisted by PostMessage. Recover it from the envelope id or,
+		// as a last resort, the legacy subject.
 		eventID := posted.GetEventId()
+		if eventID == "" {
+			eventID = legacyEvent.GetId()
+		}
+		if eventID == "" {
+			eventID = subjects.ParseEventIDFromSubject(msg.Subject())
+		}
+		if eventID == "" {
+			logger.Warn("messages ES migration: skipping post without event id", "subject", msg.Subject())
+			continue
+		}
+
+		envelopeID := legacyEvent.GetId()
+		if envelopeID == "" {
+			envelopeID = eventID
+		}
+
+		inThread := posted.GetInThread()
+		if inThread == "" {
+			if rootID, ok := subjects.ParseThreadRootEventIDFromSubject(msg.Subject()); ok {
+				inThread = rootID
+			}
+		}
+
 		newEvent := &corev1.Event{
-			Id:        legacyEvent.GetId(),
+			Id:        envelopeID,
 			ActorId:   legacyEvent.GetActorId(),
 			CreatedAt: preserveTimestamp(legacyEvent.GetCreatedAt()),
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
 					RoomId:                    roomID,
-					EventId:                   eventID,
 					MessageBodyId:             eventID,
 					InReplyTo:                 posted.GetInReplyTo(),
-					InThread:                  posted.GetInThread(),
+					InThread:                  inThread,
 					MentionedUserIds:          posted.GetMentionedUserIds(),
 					EchoOfEventId:             posted.GetEchoOfEventId(),
 					EchoFromThreadRootEventId: posted.GetEchoFromThreadRootEventId(),
