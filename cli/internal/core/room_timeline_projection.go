@@ -315,6 +315,38 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	return out
 }
 
+// VisibleRoomTimelineAfter walks the room's timeline oldest-first,
+// applying `visible` as a per-entry filter, and returns up to `limit`
+// matching entries with stream seq > afterStreamSeq. This is the
+// forward-pagination counterpart to VisibleRoomTimeline.
+func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
+	roomID string,
+	limit int,
+	afterStreamSeq uint64,
+	visible func(*corev1.Event) bool,
+) []*TimelineEntry {
+	if limit <= 0 {
+		return nil
+	}
+	p.RLock()
+	defer p.RUnlock()
+	entries := p.byRoom[roomID]
+	out := make([]*TimelineEntry, 0, limit)
+	for _, e := range entries {
+		if e.StreamSeq <= afterStreamSeq {
+			continue
+		}
+		if visible != nil && !visible(e.Event) {
+			continue
+		}
+		out = append(out, e)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out
+}
+
 // roomIDOfEvent extracts the room_id from any room-scoped event
 // variant. Returns "" for non-room events.
 //

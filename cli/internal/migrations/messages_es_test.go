@@ -376,6 +376,54 @@ func TestMigrateMessagesToES_ReplayIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestMigrateMessagesToES_ConflictSkipsRoomAtomically(t *testing.T) {
+	rig := setupMessagesRig(t)
+	rig.putBody(t, "U1.M1-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("one")})
+	rig.putBody(t, "U1.M2-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("two")})
+
+	rig.publishLegacy(t, "server.room.channel.R1.msg.M1", &corev1.Event{
+		Id:        "M1",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1", MessageBodyId: "U1.M1-BODY"},
+		},
+	})
+	rig.publishLegacy(t, "server.room.channel.R1.msg.M2", &corev1.Event{
+		Id:        "M2",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M2", MessageBodyId: "U1.M2-BODY"},
+		},
+	})
+
+	// Simulate a previously imported room. The migration should conflict
+	// on the first batch entry and skip the whole room, not append M2.
+	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
+		Id:        "M1",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1", MessageBodyId: "M1"},
+		},
+	}); err != nil {
+		t.Fatalf("seed target event: %v", err)
+	}
+
+	if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
+	if info.State.Msgs != 1 {
+		t.Errorf("EVT msg count = %d, want 1 (room skipped atomically)", info.State.Msgs)
+	}
+}
+
 func TestMigrateMessagesToES_MultipleRoomsIsolated(t *testing.T) {
 	rig := setupMessagesRig(t)
 	rig.putBody(t, "U1.A-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("in-R1")})

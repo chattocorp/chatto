@@ -53,23 +53,17 @@ import (
 //     #597 design: the projection holds the audit-trail event,
 //     bodies are crypto-shredded territory.
 //
-// # Idempotency
+// # Idempotency and crash-safety
 //
-// Per-room: the first message we emit for a room uses subject-level
-// OCC against `evt.room.{R}.message_posted` with ExpectedSeq=0. On
-// re-run, the publish fails with events.ErrConflict and the room is
-// skipped wholesale — every subsequent message for that room is also
-// skipped.
-//
-// # Crash-safety caveat
-//
-// Idempotency is at the room granularity, not the message granularity.
-// If the import crashes mid-room (after the first message has landed
-// but before all of them), a re-run will skip the room and leave it
-// partially imported. For the PoC migration window this is
-// acceptable; if it becomes a problem the per-room loop can be
-// converted to AppendBatch for atomicity at the cost of large in-
-// memory batches.
+// Per-room: all migrated message events for a room are emitted as a
+// single atomic AppendBatch. The first entry carries subject-level OCC
+// against `evt.room.{R}.message_posted` with ExpectedSeq=0; subsequent
+// entries in the same batch do not carry dependent OCC because JetStream
+// evaluates every batch entry against the committed pre-batch state.
+// On re-run, the first entry conflicts and the whole room is skipped.
+// If the process crashes while importing a room, the batch either lands
+// completely or not at all, so a replay cannot leave a partially
+// imported room behind.
 //
 // # When this can be removed
 //
@@ -118,19 +112,6 @@ func MigrateMessagesToES(
 		return nil
 	}
 
-	// roomState tracks which rooms we've successfully written at least
-	// one event for in this run. The first event per room uses OCC=0;
-	// subsequent events use no OCC. If the first publish conflicts, the
-	// room is recorded as "skip" so we don't even try its remaining
-	// messages.
-	type roomImportState int
-	const (
-		roomFresh   roomImportState = 0 // not yet seen
-		roomActive  roomImportState = 1 // imported at least one event this run
-		roomSkipped roomImportState = 2 // ErrConflict on first publish — already imported
-	)
-	roomStates := make(map[string]roomImportState)
-
 	var imported, skipped, bodyMissing int
 	startedAt := time.Now()
 
@@ -141,6 +122,12 @@ func MigrateMessagesToES(
 	if msgs == nil {
 		return nil
 	}
+
+	type roomBatch struct {
+		entries []events.BatchEntry
+	}
+	roomBatches := make(map[string]*roomBatch)
+	var roomOrder []string
 
 	for msg := range msgs.Messages() {
 		// Decode the legacy event envelope.
@@ -161,12 +148,6 @@ func MigrateMessagesToES(
 		if roomID == "" {
 			// Older posts may have room_id reserved; nothing we can do.
 			logger.Warn("messages ES migration: skipping post without room_id", "subject", msg.Subject())
-			continue
-		}
-
-		state := roomStates[roomID]
-		if state == roomSkipped {
-			skipped++
 			continue
 		}
 
@@ -221,31 +202,34 @@ func MigrateMessagesToES(
 
 		agg := events.RoomAggregate(roomID)
 		subject := agg.Subject(events.EventMessagePosted)
+		batch := roomBatches[roomID]
+		if batch == nil {
+			batch = &roomBatch{}
+			roomBatches[roomID] = batch
+			roomOrder = append(roomOrder, roomID)
+		}
+		batch.entries = append(batch.entries, events.BatchEntry{
+			Subject: subject,
+			Event:   newEvent,
+		})
+	}
 
-		var publishErr error
-		if state == roomFresh {
-			// First event for this room in this run: assert the subject
-			// is empty so re-runs skip already-imported rooms.
-			_, publishErr = publisher.AppendAt(ctx, subject, newEvent, 0)
-			if publishErr == nil {
-				roomStates[roomID] = roomActive
-				imported++
-			} else if errors.Is(publishErr, events.ErrConflict) {
-				roomStates[roomID] = roomSkipped
-				skipped++
+	for _, roomID := range roomOrder {
+		batch := roomBatches[roomID]
+		if len(batch.entries) == 0 {
+			continue
+		}
+		batch.entries[0].HasOCC = true
+		batch.entries[0].ExpectedSeq = 0
+
+		if _, err := publisher.AppendBatch(ctx, batch.entries); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				skipped += len(batch.entries)
 				continue
 			}
-		} else {
-			// roomActive: append without OCC.
-			_, publishErr = publisher.Append(ctx, subject, newEvent)
-			if publishErr == nil {
-				imported++
-			}
+			return fmt.Errorf("publish migrated messages (room=%s): %w", roomID, err)
 		}
-
-		if publishErr != nil && !errors.Is(publishErr, events.ErrConflict) {
-			return fmt.Errorf("publish migrated message (room=%s event=%s): %w", roomID, newEvent.GetId(), publishErr)
-		}
+		imported += len(batch.entries)
 	}
 
 	if imported > 0 || skipped > 0 {
@@ -253,7 +237,7 @@ func MigrateMessagesToES(
 			"messages ES migration: seeded events from legacy SERVER_EVENTS + SERVER_BODIES",
 			"messages_imported", imported,
 			"messages_skipped", skipped,
-			"rooms_processed", len(roomStates),
+			"rooms_processed", len(roomBatches),
 			"bodies_missing", bodyMissing,
 			"duration_ms", time.Since(startedAt).Milliseconds(),
 		)
