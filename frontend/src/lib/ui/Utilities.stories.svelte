@@ -17,15 +17,15 @@
     </p>
     <div class="flex flex-col gap-3 rounded border border-input-border bg-surface p-4 text-text">
       <p>
-        Forgot your password? <a href="#" class="link">Request a reset link</a>.
+        Forgot your password? <a href="https://example.com/reset" class="link">Request a reset link</a>.
       </p>
       <p>
-        Head to the <a href="#" class="link">Overview</a> to browse rooms, or jump back to the
-        <a href="#" class="link">← previous page</a>.
+        Head to the <a href="https://example.com/overview" class="link">Overview</a> to browse rooms,
+        or jump back to the <a href="https://example.com/back" class="link">← previous page</a>.
       </p>
       <p class="text-sm text-muted">
         Combines cleanly with text-size utilities:
-        <a href="#" class="link text-sm">Edit role</a>.
+        <a href="https://example.com/roles" class="link text-sm">Edit role</a>.
       </p>
     </div>
   </div>
