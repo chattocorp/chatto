@@ -2,6 +2,7 @@
   /* eslint-disable svelte/no-navigation-without-resolve -- external image URLs */
 
   export type ImageItem = {
+    id?: string;
     src: string;
     alt?: string;
     filename?: string;
@@ -55,7 +56,7 @@
   onclick={(e) => {
     if (e.target === dialogEl) close();
   }}
-  class="fixed inset-0 m-0 flex h-dvh w-dvw max-h-dvh max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
+  class="fixed inset-0 m-0 flex h-dvh max-h-dvh w-dvw max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
 >
   {#if current}
     <div class="flex flex-col items-center gap-3">

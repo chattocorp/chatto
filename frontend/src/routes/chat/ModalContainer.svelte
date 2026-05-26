@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -16,6 +16,7 @@
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
   import { graphql } from '$lib/gql';
+  import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
@@ -39,9 +40,13 @@
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
 
+  // Attachment URLs expire after five minutes; refresh while the lightbox stays open.
+  const IMAGE_MODAL_URL_REFRESH_MS = 4 * 60 * 1000;
+
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
-    const result = await getActiveClient().mutation(
+    const result = await getActiveClient()
+      .mutation(
         graphql(`
           mutation LeaveRoomFromModal($input: LeaveRoomInput!) {
             leaveRoom(input: $input)
@@ -85,7 +90,8 @@
 
   async function handleDeleteMessage(roomId: string, eventId: string) {
     deletingMessage = true;
-    const result = await getActiveClient().mutation(
+    const result = await getActiveClient()
+      .mutation(
         graphql(`
           mutation DeleteMessageFromModal($input: DeleteMessageInput!) {
             deleteMessage(input: $input)
@@ -105,13 +111,10 @@
     closeModal();
   }
 
-  async function handleDeleteLinkPreview(
-    roomId: string,
-    eventId: string,
-    previewUrl: string
-  ) {
+  async function handleDeleteLinkPreview(roomId: string, eventId: string, previewUrl: string) {
     deletingLinkPreview = true;
-    const result = await getActiveClient().mutation(
+    const result = await getActiveClient()
+      .mutation(
         graphql(`
           mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {
             deleteLinkPreview(input: $input)
@@ -129,13 +132,10 @@
     closeModal();
   }
 
-  async function handleDeleteAttachment(
-    roomId: string,
-    eventId: string,
-    attachmentId: string
-  ) {
+  async function handleDeleteAttachment(roomId: string, eventId: string, attachmentId: string) {
     deletingAttachment = true;
-    const result = await getActiveClient().mutation(
+    const result = await getActiveClient()
+      .mutation(
         graphql(`
           mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {
             deleteAttachment(input: $input)
@@ -153,6 +153,43 @@
     closeModal();
   }
 
+  async function refreshImageViewerUrls() {
+    const modal = page.state.modal;
+    if (modal?.type !== 'imageViewer' || !roomId || !eventId || !modal.imageItems?.length) {
+      return;
+    }
+    const refreshRoomId = roomId;
+    const refreshEventId = eventId;
+    const freshUrls = await refreshAttachmentUrlsForMessage(
+      getActiveClient(),
+      refreshRoomId,
+      refreshEventId
+    );
+    if (freshUrls.size === 0) {
+      return;
+    }
+    const currentModal = page.state.modal;
+    if (
+      currentModal?.type !== 'imageViewer' ||
+      currentModal.roomId !== refreshRoomId ||
+      currentModal.eventId !== refreshEventId ||
+      !currentModal.imageItems?.length
+    ) {
+      return;
+    }
+    const imageItems = currentModal.imageItems.map((item) => ({
+      ...item,
+      src: item.id ? (freshUrls.get(item.id) ?? item.src) : item.src
+    }));
+    replaceState('', {
+      ...page.state,
+      modal: {
+        ...currentModal,
+        imageItems
+      }
+    });
+  }
+
   const modalType = $derived(page.state.modal?.type);
   const roomId = $derived(page.state.modal?.roomId);
   const roomName = $derived(page.state.modal?.roomName);
@@ -163,6 +200,20 @@
   const previewUrl = $derived(page.state.modal?.previewUrl);
   const imageItems = $derived(page.state.modal?.imageItems ?? []);
   const imageIndex = $derived(page.state.modal?.imageIndex ?? 0);
+
+  $effect(() => {
+    if (modalType !== 'imageViewer') {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      refreshImageViewerUrls().catch((error: unknown) => {
+        console.warn('Failed to refresh image viewer URLs', error);
+      });
+    }, IMAGE_MODAL_URL_REFRESH_MS);
+
+    return () => window.clearInterval(interval);
+  });
 </script>
 
 {#if modalType === 'createRoom'}
@@ -188,7 +239,8 @@
     }}
     onclose={closeModal}
   >
-    This will disconnect all instances and sign you out. Your accounts on each instance are not affected.
+    This will disconnect all instances and sign you out. Your accounts on each instance are not
+    affected.
   </ConfirmDialog>
 {:else if modalType === 'leaveRoom' && roomId}
   <ConfirmDialog
@@ -247,5 +299,9 @@
     Are you sure you want to remove this link preview? This cannot be undone.
   </ConfirmDialog>
 {:else if modalType === 'imageViewer' && imageItems.length > 0}
-  <ImageModal items={imageItems} index={imageIndex} onclose={closeModal} />
+  <ImageModal
+    items={imageItems}
+    index={imageIndex}
+    onclose={closeModal}
+  />
 {/if}
