@@ -1,6 +1,6 @@
 ---
-name: chatto-architecture
-description: Update docs/ARCHITECTURE.md to reflect the current state of the codebase by examining code and documentation.
+name: "chatto-architecture"
+description: "Update docs/ARCHITECTURE.md to reflect the current state of the codebase by examining code and documentation."
 ---
 
 # Update Architecture Documentation

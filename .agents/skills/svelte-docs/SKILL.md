@@ -1,6 +1,6 @@
 ---
-name: svelte-docs
-description: Use this if you want to look up Svelte, SvelteKit, and Svelte CLI documentation.
+name: "svelte-docs"
+description: "Use this if you want to look up Svelte, SvelteKit, and Svelte CLI documentation."
 ---
 
 # Svelte Documentation Lookup

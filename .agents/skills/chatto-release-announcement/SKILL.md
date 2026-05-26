@@ -1,6 +1,6 @@
 ---
-name: chatto-release-announcement
-description: Generate user-facing release notes by comparing two git tags
+name: "chatto-release-announcement"
+description: "Generate user-facing release notes by comparing two git tags"
 ---
 
 Generate user-facing release notes for the latest release!

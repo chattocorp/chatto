@@ -1,6 +1,6 @@
 ---
-name: chatto-checkup
-description: Run a documentation-focused maintenance checkup of the Chatto codebase. Fans out to /fdr, /adr, and /chatto-architecture, then compiles a single consolidated report. Always propose-only — no changes applied without explicit user approval. At the end, points the human at other maintenance skills (/update-project-dependencies, /chatto-security-review) they may want to run themselves.
+name: "chatto-checkup"
+description: "Run a documentation-focused maintenance checkup of the Chatto codebase. Fans out to /fdr, /adr, and /chatto-architecture, then compiles a single consolidated report. Always propose-only \u2014 no changes applied without explicit user approval. At the end, points the human at other maintenance skills (/update-project-dependencies, /chatto-security-review) they may want to run themselves."
 ---
 
 # Chatto Checkup

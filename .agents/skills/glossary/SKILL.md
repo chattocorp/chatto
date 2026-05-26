@@ -1,6 +1,6 @@
 ---
-name: glossary
-description: Maintain Chatto's glossary of terms in docs/GLOSSARY.md. Look up a term, add a new one, or audit the glossary against the codebase, FDRs, and ADRs for missing or stale entries.
+name: "glossary"
+description: "Maintain Chatto's glossary of terms in docs/GLOSSARY.md. Look up a term, add a new one, or audit the glossary against the codebase, FDRs, and ADRs for missing or stale entries."
 ---
 
 # Glossary

@@ -1,6 +1,6 @@
 ---
-name: chatto-dev-instance
-description: Deploy a new version of Chatto to the dev instance Kubernetes server using Argo Rollouts.
+name: "chatto-dev-instance"
+description: "Deploy a new version of Chatto to the dev instance Kubernetes server using Argo Rollouts."
 ---
 
 # Deploy to Dev Server

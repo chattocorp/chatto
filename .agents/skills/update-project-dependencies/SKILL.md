@@ -1,6 +1,6 @@
 ---
-name: update-project-dependencies
-description: Use this if you want to update all project dependencies while respecting semver compatibility.
+name: "update-project-dependencies"
+description: "Use this if you want to update all project dependencies while respecting semver compatibility."
 ---
 
 # Skill: Update Project Dependencies

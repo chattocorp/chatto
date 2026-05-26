@@ -1,5 +1,5 @@
 ---
-name: chatto-security-review
+name: "chatto-security-review"
 description: "Perform a comprehensive security review of the Chatto codebase. Launch multiple exploration agents in parallel to examine different security aspects, then have an adversarial reviewer verify and challenge the findings."
 ---
 

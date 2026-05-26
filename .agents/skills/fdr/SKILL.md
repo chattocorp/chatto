@@ -1,6 +1,6 @@
 ---
-name: fdr
-description: Keep track of Chatto's features as Feature Decision Records (FDRs) — one structured document per feature capturing behavior, design decisions, and rationale. Replaces the older agent-docs/features/ system.
+name: "fdr"
+description: "Keep track of Chatto's features as Feature Decision Records (FDRs) \u2014 one structured document per feature capturing behavior, design decisions, and rationale. Replaces the older agent-docs/features/ system."
 ---
 
 # Feature Decision Records (FDRs)

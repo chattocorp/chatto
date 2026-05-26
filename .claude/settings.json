@@ -1,17 +1,7 @@
 {
-  "extraKnownMarketplaces": {
-    "chattocorp-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "chattocorp/agents"
-      }
-    }
-  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "feature-dev@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "chattocorp-org@chattocorp-plugins": true,
-    "chattocorp-rules@chattocorp-plugins": true
+    "code-simplifier@claude-plugins-official": true
   }
 }

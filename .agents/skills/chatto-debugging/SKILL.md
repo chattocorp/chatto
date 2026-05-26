@@ -1,5 +1,5 @@
 ---
-name: chatto-debugging
+name: "chatto-debugging"
 description: "Production debugging tools for NATS streams, KV buckets, and protobuf events. Covers nats CLI commands, stream inspection, protobuf decoding, and message iteration."
 ---
 

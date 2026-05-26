@@ -1,6 +1,6 @@
 ---
-name: chatto-finalize-pr
-description: Pre-merge PR checklist that verifies FDRs and ADRs are up to date. Runs the fdr and adr audits against the current branch's changes to catch missing documentation updates before merging.
+name: "chatto-finalize-pr"
+description: "Pre-merge PR checklist that verifies FDRs and ADRs are up to date. Runs the fdr and adr audits against the current branch's changes to catch missing documentation updates before merging."
 ---
 
 # Finalize PR

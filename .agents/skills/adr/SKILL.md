@@ -1,6 +1,6 @@
 ---
-name: adr
-description: Keep track of architectural decisions in a structured format using Architecture Decision Records (ADRs).
+name: "adr"
+description: "Keep track of architectural decisions in a structured format using Architecture Decision Records (ADRs)."
 ---
 
 # Architecture Decision Records (ADRs)
