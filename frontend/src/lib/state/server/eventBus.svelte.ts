@@ -152,7 +152,7 @@ class EventBusManager {
 			this.#subscriptions.set(serverId, subscribeOnce());
 		};
 
-		console.log(`[eventBus:${serverId}] bus started`);
+		console.debug(`[eventBus:${serverId}] bus started`);
 		this.#subscriptions.set(serverId, subscribeOnce());
 
 		const watchdog = setInterval(() => {
@@ -174,7 +174,7 @@ class EventBusManager {
 		// per-event debug lines may be too noisy to scroll through.
 		const livenessSummary = setInterval(() => {
 			const gapSec = Math.round((Date.now() - lastEventAt) / 1000);
-			console.log(
+			console.debug(
 				`[eventBus:${serverId}] alive (handlers=${handlers.size}, events=${dispatchedEventCount}, heartbeats=${heartbeatCount}, resubscribes=${resubscribeCount}, lastEvent=${gapSec}s ago, visible=${typeof document === 'undefined' ? 'n/a' : document.visibilityState === 'visible'})`
 			);
 		}, LIVENESS_SUMMARY_INTERVAL_MS);
@@ -183,7 +183,7 @@ class EventBusManager {
 			if (document.visibilityState !== 'visible') return;
 			const gap = Date.now() - lastEventAt;
 			if (gap > VISIBILITY_RESUBSCRIBE_AFTER_MS) {
-				console.log(
+				console.debug(
 					`[eventBus:${serverId}] visibility=visible, gap=${Math.round(gap / 1000)}s → resubscribing`
 				);
 				resubscribe('tab became visible after gap');
@@ -208,7 +208,7 @@ class EventBusManager {
 			$effect(() => {
 				const n = gqlClient.reconnectCount;
 				if (n > lastSeenReconnects) {
-					console.log(
+					console.debug(
 						`[eventBus:${serverId}] ws reconnectCount ${lastSeenReconnects} → ${n}, resubscribing`
 					);
 					lastSeenReconnects = n;

@@ -200,7 +200,7 @@ export class GraphQLClient {
 					if (this.status === 'disconnected') {
 						this.#wasDisconnected = true;
 					}
-					console.log('[ws:%s] Connecting (prev status: %s)', this.#host, this.status);
+					console.debug('[ws:%s] Connecting (prev status: %s)', this.#host, this.status);
 					this.status = 'connecting';
 				},
 				ping: (received) => {
@@ -320,7 +320,7 @@ export class GraphQLClient {
 					this.#triggerSessionValidation();
 
 					if (this.status === 'disconnected' || hiddenDuration > 30_000) {
-						console.log(
+						console.debug(
 							'[ws:%s] visibility=visible after %ds hidden, status=%s → forceReconnect',
 							this.#host,
 							Math.round(hiddenDuration / 1000),
@@ -362,7 +362,7 @@ export class GraphQLClient {
 				lastTick = now;
 				if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
 				if (gap > 30_000) {
-					console.log(
+					console.debug(
 						'[ws:%s] Suspend detector fired (timer gap %ds)',
 						this.#host,
 						Math.round(gap / 1000)
@@ -376,7 +376,7 @@ export class GraphQLClient {
 			// Reconnect when network comes back online (e.g., after airplane mode
 			// or Wi-Fi re-association following sleep).
 			this.#onlineHandler = () => {
-				console.log('[ws:%s] online event fired', this.#host);
+				console.debug('[ws:%s] online event fired', this.#host);
 				this.forceReconnect('network came back online');
 			};
 			window.addEventListener('online', this.#onlineHandler);

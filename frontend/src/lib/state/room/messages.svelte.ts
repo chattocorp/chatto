@@ -209,7 +209,7 @@ export abstract class MessageListStore {
         if (n > lastSeen) {
           lastSeen = n;
           if (this.#disposed) return;
-          console.log(
+          console.debug(
             '[MessageListStore] reconnectCount %d → %d, catching up',
             lastSeen - 1,
             n
@@ -228,7 +228,7 @@ export abstract class MessageListStore {
       if (document.visibilityState === 'visible') {
         const gap = Date.now() - lastVisibleAt;
         if (gap > TAB_RESUME_GAP_MS) {
-          console.log(
+          console.debug(
             '[MessageListStore] visible after %ds hidden → catching up',
             Math.round(gap / 1000)
           );
@@ -725,12 +725,12 @@ export class RoomMessagesStore extends MessageListStore {
    */
   private catchUpForward(thisLoad: number): void {
     if (!this.newestCursor) {
-      console.log('[RoomMessagesStore] catchUpForward: no cursor, falling back to fetchLatest', { roomId: this.roomId });
+      console.debug('[RoomMessagesStore] catchUpForward: no cursor, falling back to fetchLatest', { roomId: this.roomId });
       this.fetchLatest(thisLoad);
       return;
     }
 
-    console.log('[RoomMessagesStore] catchUpForward: querying', { roomId: this.roomId, after: this.newestCursor });
+    console.debug('[RoomMessagesStore] catchUpForward: querying', { roomId: this.roomId, after: this.newestCursor });
     this.client
       .query(RoomAfterQuery, {
         roomId: this.roomId,
@@ -748,7 +748,7 @@ export class RoomMessagesStore extends MessageListStore {
         if (!page) return;
 
         const fetched = unmask(page.events);
-        console.log('[RoomMessagesStore] catchUpForward: result', {
+        console.debug('[RoomMessagesStore] catchUpForward: result', {
           roomId: this.roomId,
           fetched: fetched.length,
           hasNewer: page.hasNewer,
