@@ -10,15 +10,14 @@ const __dirname = path.dirname(__filename);
 export interface ServerInfo {
   baseURL: string;
   port: number;
-  natsPort: number;
   process: ChildProcess;
 }
 
-const PORT_STRIDE = 10;
+const PORT_STRIDE = 1;
 
 // Random offset for this test suite run to avoid port collisions
 // when running multiple test suites simultaneously.
-// Each suite needs ~100 ports (10 workers × 10 stride).
+// Each suite needs ~100 ports (10 workers × 10 parallel tests).
 // Range 4040-30000 gives ~260 slots, making collisions very unlikely.
 const SUITE_PORT_RANGE = 100;
 const MIN_PORT = 4040;
@@ -36,13 +35,11 @@ const BASE_PORT = process.env.E2E_BASE_PORT
  * parallelIndex is unique within a worker for parallel tests.
  */
 function getPortsForTest(workerIndex: number, parallelIndex: number) {
-  // With 10 workers max and 10 parallel tests per worker max,
-  // this gives us 100 unique port ranges starting from BASE_PORT
-  const base = BASE_PORT + (workerIndex * 10 + parallelIndex) * PORT_STRIDE;
+  // With 10 workers max and 10 parallel tests per worker max, this gives us
+  // 100 unique web ports starting from BASE_PORT.
+  const webserver = BASE_PORT + (workerIndex * 10 + parallelIndex) * PORT_STRIDE;
   return {
-    webserver: base,
-    nats: base + 2,
-    natsHttp: base + 3
+    webserver
   };
 }
 
@@ -93,20 +90,24 @@ export async function startServer(
   mkdirSync(dataDir, { recursive: true });
 
   // chatto.toml seeds the e2eadmin user via [bootstrap] on every server start.
-  const serverProcess = spawn(path.join(__dirname, 'bin', 'chatto'), ['start', '-c', 'chatto.toml'], {
-    cwd: __dirname,
-    env: {
-      ...process.env,
-      ...options.env,
-      CHATTO_WEBSERVER_PORT: String(ports.webserver),
-      CHATTO_WEBSERVER_URL: `http://localhost:${ports.webserver}`,
-      CHATTO_NATS_EMBEDDED_PORT: String(ports.nats),
-      CHATTO_NATS_EMBEDDED_HTTP_PORT: String(ports.natsHttp),
-      CHATTO_NATS_EMBEDDED_DATA_DIR: dataDir,
-      CHATTO_TEST_EMAIL_ENDPOINT: 'true' // Enable test email endpoint for E2E tests
-    },
-    stdio: ['ignore', 'pipe', 'pipe']
-  });
+  const serverProcess = spawn(
+    path.join(__dirname, 'bin', 'chatto'),
+    ['start', '-c', 'chatto.toml'],
+    {
+      cwd: __dirname,
+      env: {
+        ...process.env,
+        ...options.env,
+        CHATTO_WEBSERVER_PORT: String(ports.webserver),
+        CHATTO_WEBSERVER_URL: `http://localhost:${ports.webserver}`,
+        CHATTO_NATS_EMBEDDED_PORT: '0',
+        CHATTO_NATS_EMBEDDED_HTTP_PORT: '0',
+        CHATTO_NATS_EMBEDDED_DATA_DIR: dataDir,
+        CHATTO_TEST_EMAIL_ENDPOINT: 'true' // Enable test email endpoint for E2E tests
+      },
+      stdio: ['ignore', 'pipe', 'pipe']
+    }
+  );
 
   // Log server output for debugging (prefix with test title)
   const prefix = `[${testInfo.title}]`;
@@ -129,7 +130,6 @@ export async function startServer(
   return {
     baseURL: `http://localhost:${ports.webserver}`,
     port: ports.webserver,
-    natsPort: ports.nats,
     process: serverProcess
   };
 }
