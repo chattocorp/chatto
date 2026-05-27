@@ -613,8 +613,6 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string)
 			return fmt.Errorf("role reorder must include every custom role exactly once")
 		}
 
-		position := PositionCustomFirst
-		var reordered []string
 		seen := make(map[string]struct{}, len(roleNames))
 		for _, name := range roleNames {
 			if _, ok := seen[name]; ok {
@@ -624,14 +622,9 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string)
 			if _, ok := customRoles[name]; !ok {
 				return fmt.Errorf("role %s: %w", name, ErrRoleNotFound)
 			}
-			for isSystemPosition(position) {
-				position++
-			}
-			reordered = append(reordered, name)
-			position++
 		}
 		event.Event = &corev1.Event_RbacRolesReordered{
-			RbacRolesReordered: &corev1.RbacRolesReorderedEvent{RoleNames: reordered},
+			RbacRolesReordered: &corev1.RbacRolesReorderedEvent{RoleNames: roleNames},
 		}
 		return nil
 	}); err != nil {

@@ -200,8 +200,8 @@ func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		}
 	}
 	var decisionBytes int64
-	for key := range p.decisions {
-		decisionBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)+len(key.subject)+len(key.permission))
+	for key, decision := range p.decisions {
+		decisionBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)+len(key.subject)+len(key.permission)+len(decision))
 	}
 	totalEntries := int64(len(p.roles)) + assignments + int64(len(p.decisions))
 	totalBytes := roleBytes + assignmentBytes + decisionBytes

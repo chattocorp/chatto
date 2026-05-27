@@ -114,7 +114,7 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 	if len(entries) == 0 {
 		return 0, nil
 	}
-	filter := events.RBACAggregate().AllEventsFilter()
+	filter := events.RBACSubjectFilter()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
