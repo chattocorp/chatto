@@ -13,11 +13,10 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // ============================================================================
@@ -63,29 +62,7 @@ func setupGraphQLTestServerFull(t *testing.T, ownersConfig config.OwnersConfig, 
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-	t.Cleanup(func() { ns.Shutdown() })
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
-	t.Cleanup(func() { nc.Close() })
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
@@ -126,7 +103,7 @@ func setupGraphQLTestServerFull(t *testing.T, ownersConfig config.OwnersConfig, 
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
 			},
 			Owners: ownersConfig,
-			Core:  coreConfig,
+			Core:   coreConfig,
 		},
 		nc:     nc,
 		router: router,
@@ -346,7 +323,6 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 	// Create user, space, and room
 	userID := env.createTestUser(t, "roomowner", "password123")
 
-
 	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "", "private-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
@@ -360,7 +336,7 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 	resp := env.doGraphQL(t, `query($roomId: ID!) {
 		room(roomId: $roomId) { id name }
 	}`, map[string]any{
-		"roomId":  room.Id,
+		"roomId": room.Id,
 	})
 
 	// Should get an error
@@ -397,8 +373,8 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 		}
 	}`, map[string]any{
 		"input": map[string]any{
-			"roomId":  room.Id,
-			"body":    "Hello!",
+			"roomId": room.Id,
+			"body":   "Hello!",
 		},
 	})
 
@@ -549,7 +525,7 @@ func TestGraphQL_Variables(t *testing.T) {
 	resp := env.doGraphQL(t, `query GetRoom($roomId: ID!) {
 		room(roomId: $roomId) { id name }
 	}`, map[string]any{
-		"roomId":  room.Id,
+		"roomId": room.Id,
 	})
 
 	if len(resp.Errors) > 0 {
@@ -581,7 +557,6 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 	// Create user, space, and room
 	userID := env.createTestUser(t, "alice", "password123")
 
-
 	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "", "general", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
@@ -612,8 +587,8 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 		}
 	`, map[string]any{
 		"input": map[string]any{
-			"roomId":  room.Id,
-			"body":    "This is a secret message",
+			"roomId": room.Id,
+			"body":   "This is a secret message",
 		},
 	})
 
@@ -805,7 +780,9 @@ func TestBearerToken_RevokedTokenFails(t *testing.T) {
 	resp := env.doGraphQLWithToken(t, token, `{ viewer { user { id } } }`)
 	var data struct {
 		Viewer *struct {
-			User struct{ ID string `json:"id"` } `json:"user"`
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
 		} `json:"viewer"`
 	}
 	json.Unmarshal(resp.Data, &data)

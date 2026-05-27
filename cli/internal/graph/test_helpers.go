@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // testEnv holds all test dependencies for GraphQL resolver tests
@@ -28,27 +28,7 @@ type testEnv struct {
 func setupTestResolver(t *testing.T) *testEnv {
 	t.Helper()
 
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
+	_, nc := testutil.StartNATS(t)
 
 	// Use a context with timeout for setup
 	setupCtx, setupCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -69,13 +49,16 @@ func setupTestResolver(t *testing.T) *testEnv {
 	// lifetime of the test. StreamMyEvents needs PresenceHub; membership
 	// mutations need the projector loops to advance so WaitForSeq returns.
 	servicesCtx, servicesCancel := context.WithCancel(context.Background())
-	go func() { _ = chattoCore.Run(servicesCtx) }()
+	servicesDone := make(chan error, 1)
+	go func() { servicesDone <- chattoCore.Run(servicesCtx) }()
 
 	t.Cleanup(func() {
 		servicesCancel()
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
+		select {
+		case <-servicesDone:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
 	})
 
 	// Wait for Run's boot phase before letting the test issue reads
@@ -174,27 +157,7 @@ func (e *testEnv) createVerifiedUser(t *testing.T, login, displayName, password 
 func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	t.Helper()
 
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
+	_, nc := testutil.StartNATS(t)
 
 	// Use a context with timeout for setup
 	setupCtx, setupCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -220,13 +183,16 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	// lifetime of the test. StreamMyEvents needs PresenceHub; membership
 	// mutations need the projector loops to advance so WaitForSeq returns.
 	servicesCtx, servicesCancel := context.WithCancel(context.Background())
-	go func() { _ = chattoCore.Run(servicesCtx) }()
+	servicesDone := make(chan error, 1)
+	go func() { servicesDone <- chattoCore.Run(servicesCtx) }()
 
 	t.Cleanup(func() {
 		servicesCancel()
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
+		select {
+		case <-servicesDone:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
 	})
 
 	// Wait for Run's boot phase before letting the test issue reads

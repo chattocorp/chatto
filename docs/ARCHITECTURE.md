@@ -259,10 +259,11 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `INSTANCE_CONFIG`             | Server runtime configuration overrides      |
 | KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
-| KV      | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
+| KV      | `AUTH_TOKENS`                 | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
+| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state   |
 | KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
 | KV      | `SERVER_RBAC`                 | Legacy RBAC seed data read by the `EVT` boot migration |
-| KV      | `SERVER_RUNTIME`              | Read status, mention tracking               |
+| KV      | `SERVER_RUNTIME`              | Legacy runtime state pending cleanup        |
 | KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | KV      | `SERVER_REACTIONS`            | Legacy emoji reactions source for boot migration only |
 | KV      | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
@@ -483,14 +484,15 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
 | `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state       |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
-| `SERVER_RUNTIME`              | File    | Yes      | Read state, mention tracking                    |
+| `SERVER_RUNTIME`              | File    | Yes      | Legacy runtime state pending cleanup            |
 | `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions, read only by the EVT boot migration |
 | `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
 | `NOTIFICATIONS`               | File    | Yes      | User notifications (90-day TTL)                 |
-| `AUTH_TOKENS`                 | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
+| `AUTH_TOKENS`                 | File    | No       | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
 | `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
 | `CALL_STATE`                  | Memory  | No       | Active voice call participants, keyed `{spaceId}.{roomId}` (repopulated by LiveKit webhooks after restart) |
 | `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
@@ -541,7 +543,7 @@ Notes: 90-day TTL for automatic cleanup. Notifications are created for DM messag
 | --------- | ----------------------------------------------------- |
 | `{token}` | JSON with user ID and creation time                   |
 
-Notes: Tokens are opaque strings (`cht_AT` + 14-char NanoID). Used for `Authorization: Bearer <token>` header authentication, enabling cross-origin clients. TTL-based auto-expiry (default 90 days, configurable via `auth.token_ttl`). Excluded from backups since tokens are ephemeral credentials. Tokens are issued on login, registration, bootstrap, and OAuth callback.
+Notes: Tokens are opaque strings (`cht_AT` + 14-char NanoID). Used for `Authorization: Bearer <token>` header authentication, enabling cross-origin clients. TTL-based auto-expiry (default 90 days, configurable via `auth.token_ttl`). Excluded from backups in the legacy `AUTH_TOKENS` bucket since tokens are ephemeral credentials; ADR-036 targets durable token state for `RUNTIME_STATE` so TTL policy can be managed through the shared runtime-state bucket. Tokens are issued on login, registration, bootstrap, and OAuth callback.
 
 **ENCRYPTION_KEYS keys:**
 
@@ -593,11 +595,21 @@ cleanup phase. The RBAC boot importer reads historical `role.*`, `member.*`,
 `room_deny.*` keys into `EVT` using OCC so repeated boots skip an already seeded
 RBAC subject family.
 
+**RUNTIME\_STATE keys:**
+
+`RUNTIME_STATE` is the persisted home for latest-value runtime state that
+survives restart but is not content/domain history. See
+[ADR-036](adr/ADR-036-runtime-state-kv-boundary.md).
+
+| Key                                    | Description                                                       |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Legacy `SERVER_RUNTIME` `room_read_event.*` keys are copied here at boot; older `room_read_status.*` sequence keys are orphaned and ignored. |
+| `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
+
 **SERVER\_RUNTIME keys:**
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| `room_read_event.{userId}.{roomId}`    | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). The legacy `room_read_status.*` keys (8-byte uint64 sequences) are orphaned and ignored. |
 | `room_mention_status.{userId}.{roomId}`| Unread mention indicator (boolean — key presence means unread)    |
 | `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
 | `video.{attachmentId}`                 | Video processing state for an attachment                          |
@@ -679,7 +691,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 | `{attachmentId}`      | Original attachment files (images, videos, etc.)|
 | `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
 
-Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment **metadata** (room ID, filename, dimensions, storage pointer, …) lives embedded inside its owning `MessageBody` proto in `SERVER_BODIES` (`{userId}.{bodyId}`) — that's the only source of truth. Variant + thumbnail attachments generated by the video pipeline are embedded inside the relevant `VideoProcessingState` proto in `SERVER_RUNTIME` instead. The asset HTTP handler doesn't look up a separate metadata bucket; the body-or-VPS key travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
+Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment **metadata** (room ID, filename, dimensions, storage pointer, …) lives embedded inside its owning `MessageBody` proto in `SERVER_BODIES` (`{userId}.{bodyId}`) — that's the only source of truth. Variant + thumbnail attachments generated by the video pipeline are currently embedded inside the relevant `VideoProcessingState` proto in legacy `SERVER_RUNTIME`; ADR-036 makes asset processing state a `RUNTIME_STATE` target. The asset HTTP handler doesn't look up a separate metadata bucket; the body-or-VPS key travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 
@@ -787,7 +799,7 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 - `@username` patterns in message body are extracted via regex (ASCII alphanumeric, underscore, hyphen)
 - Usernames are resolved to user IDs; only space members are included (non-members silently ignored)
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
-- Mention status stored in RUNTIME bucket (`room_mention_status.{userId}.{roomId}`)
+- Mention status currently stored in legacy `SERVER_RUNTIME` (`room_mention_status.{userId}.{roomId}`); #660 tracks folding this into the notification model instead of migrating it to `RUNTIME_STATE`.
 - Live notification published to `live.server.user.{userId}.mentioned` for toast display
 - Mention indicator cleared when user calls `markRoomAsRead`
 - Self-mentions are filtered out (no notification to message author)

@@ -57,6 +57,8 @@ import (
 //     recomputable state).
 //   - `runtimeConfigKV`: INSTANCE_CONFIG (operator-editable server
 //     settings — name, MOTD, blocked usernames, etc.).
+//   - `runtimeStateKV`: RUNTIME_STATE (persisted latest-value runtime/user
+//     state such as read markers).
 //   - `serverReactionsKV`: SERVER_REACTIONS (legacy current reaction
 //     state; retained until reaction ES migration cleanup).
 //
@@ -66,6 +68,7 @@ import (
 func RunAll(
 	ctx context.Context,
 	serverKV, serverConfigKV, serverBodiesKV, serverRuntimeKV, runtimeConfigKV jetstream.KeyValue,
+	runtimeStateKV jetstream.KeyValue,
 	serverEventsStream jetstream.Stream,
 	serverReactionsKV jetstream.KeyValue,
 	publisher *events.Publisher,
@@ -82,6 +85,9 @@ func RunAll(
 	}
 	if err := DropLegacyAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
 		return fmt.Errorf("legacy_attachment_records: %w", err)
+	}
+	if err := MigrateReadMarkersToRuntimeState(ctx, serverRuntimeKV, runtimeStateKV, logger); err != nil {
+		return fmt.Errorf("read_markers_runtime_state: %w", err)
 	}
 	// Room metadata + memberships share the evt.room.{R} subject and
 	// must seed together — a RoomCreatedEvent first, then the

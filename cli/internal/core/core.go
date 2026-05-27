@@ -669,6 +669,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err := migrations.RunAll(
 		ctx,
 		storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, storage.runtimeConfigKV,
+		storage.runtimeStateKV,
 		storage.serverEventsStream, storage.serverReactionsKV,
 		eventPublisher,
 		logger,
@@ -720,6 +721,7 @@ type storage struct {
 	serverStore     jetstream.ObjectStore
 	encryptionKV    jetstream.KeyValue // Encryption keys (excluded from backups)
 	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - runtime configuration overrides
+	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state
 
 	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
 	// (#330 phase 4d). Shared by the primary and DM spaces; non-primary,
@@ -809,6 +811,19 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create INSTANCE_CONFIG KV bucket: %w", err)
+	}
+
+	runtimeStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:         "RUNTIME_STATE",
+		Description:    "Persisted latest-value runtime/user state",
+		Storage:        jetstream.FileStorage,
+		History:        1,
+		Compression:    true,
+		Replicas:       cfg.Replicas,
+		LimitMarkerTTL: 24 * time.Hour,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RUNTIME_STATE KV bucket: %w", err)
 	}
 
 	// Initialize image cache object store (optional, only when enabled)
@@ -1014,6 +1029,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverStore:        serverStore,
 		encryptionKV:       encryptionKV,
 		runtimeConfigKV:    runtimeConfigKV,
+		runtimeStateKV:     runtimeStateKV,
 		serverConfigKV:     serverConfigKV,
 		serverRBACKV:       serverRBACKV,
 		serverRuntimeKV:    serverRuntimeKV,

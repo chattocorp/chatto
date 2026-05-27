@@ -4,46 +4,20 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-
+	"hmans.de/chatto/internal/testutil"
 )
 
 // setupTestEngine creates an embedded NATS server, KV bucket, and RBAC engine for testing.
 func setupTestEngine(t *testing.T, config Config) (*Engine, func()) {
 	t.Helper()
 
-	// Start embedded NATS server with JetStream
-	opts := &server.Options{
-		Port:      -1, // Random available port
-		JetStream: true,
-		StoreDir:  t.TempDir(),
-	}
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-	ns.Start()
-
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("NATS server not ready")
-	}
-
-	// Connect to the server
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		ns.Shutdown()
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
+	_, nc := testutil.StartNATS(t)
 
 	// Create JetStream context
 	js, err := jetstream.New(nc)
 	if err != nil {
-		nc.Close()
-		ns.Shutdown()
 		t.Fatalf("Failed to create JetStream context: %v", err)
 	}
 
@@ -53,19 +27,12 @@ func setupTestEngine(t *testing.T, config Config) (*Engine, func()) {
 		Bucket: "TEST_RBAC",
 	})
 	if err != nil {
-		nc.Close()
-		ns.Shutdown()
 		t.Fatalf("Failed to create KV bucket: %v", err)
 	}
 
 	engine := NewEngine(kv, config)
 
-	cleanup := func() {
-		nc.Close()
-		ns.Shutdown()
-	}
-
-	return engine, cleanup
+	return engine, func() {}
 }
 
 // Default test config without user overrides
@@ -76,13 +43,13 @@ func defaultTestConfig() Config {
 		ValidateVerbObjectType: func(verb, objectType string) error {
 			// Valid verb+objectType combinations for tests
 			validCombos := map[string]bool{
-				"create.room":     true,
-				"post.message":    true,
+				"create.room":        true,
+				"post.message":       true,
 				"delete-any.message": true,
-				"manage.space":    true,
-				"create.space":    true,
-				"access.admin":    true,
-				"delete.room":     true,
+				"manage.space":       true,
+				"create.space":       true,
+				"access.admin":       true,
+				"delete.room":        true,
 			}
 			key := verb + "." + objectType
 			if !validCombos[key] {
@@ -873,9 +840,9 @@ func TestParseKeyFunctions(t *testing.T) {
 			{"allow.moderator.access.admin.any", "moderator", "access", "admin", "any"},
 			{"allow.U9mP2qR5tYz3wK.create.room.any", "U9mP2qR5tYz3wK", "create", "room", "any"},
 			{"allow.everyone.post.message.Rabc456", "everyone", "post", "message", "Rabc456"},
-			{"deny.admin.create.room.any", "", "", "", ""},  // Wrong prefix
-			{"allow.admin.create", "", "", "", ""},          // Missing parts
-			{"invalid", "", "", "", ""},                     // Completely invalid
+			{"deny.admin.create.room.any", "", "", "", ""}, // Wrong prefix
+			{"allow.admin.create", "", "", "", ""},         // Missing parts
+			{"invalid", "", "", "", ""},                    // Completely invalid
 		}
 
 		for _, tt := range tests {

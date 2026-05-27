@@ -62,5 +62,5 @@ No separate upload permission. Posting an attachment requires room membership an
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs)
+- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion)

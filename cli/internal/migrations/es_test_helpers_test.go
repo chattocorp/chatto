@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // setupTestES stands up an embedded NATS server with JetStream and
@@ -30,28 +29,7 @@ func setupTestES(t *testing.T) (
 ) {
 	t.Helper()
 
-	ns, err := server.NewServer(&server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	})
-	if err != nil {
-		t.Fatalf("create NATS server: %v", err)
-	}
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

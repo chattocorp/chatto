@@ -339,7 +339,12 @@ func TestChattoCore_ThreadLastOpened(t *testing.T) {
 	// Setup
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	threadRootEventId := "test-thread-root-123"
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Failed to post root message: %v", err)
+	}
+	threadRootEventId := root.Id
 
 	// Initially should return zero time (never opened)
 	lastOpened, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, threadRootEventId)

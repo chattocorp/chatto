@@ -12,12 +12,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // setupTestKV stands up an embedded NATS server with JetStream and
@@ -27,31 +26,7 @@ import (
 func setupTestKV(t *testing.T) (context.Context, jetstream.KeyValue) {
 	t.Helper()
 
-	ns, err := server.NewServer(&server.Options{
-		JetStream: true,
-		Port:      -1,
-		// JetStream still wants a StoreDir for its own metadata even
-		// when every stream/KV is memory-backed. t.TempDir auto-cleans
-		// so it stays out of the way.
-		StoreDir: t.TempDir(),
-	})
-	if err != nil {
-		t.Fatalf("create NATS server: %v", err)
-	}
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

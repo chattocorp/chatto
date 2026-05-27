@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // ============================================================================
@@ -30,33 +30,7 @@ func testContext(t *testing.T) context.Context {
 func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
 
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
-
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartNATS(t)
 
 	ctx := testContext(t)
 
@@ -86,8 +60,16 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 func startCoreServices(t *testing.T, core *ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() { _ = core.Run(ctx) }()
-	t.Cleanup(cancel)
+	done := make(chan error, 1)
+	go func() { done <- core.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
+	})
 	// Block until Run's boot phase is complete — projectors started
 	// AND ensureChannelRoomsAreInAGroup has run. Without this the
 	// test thread races ahead and issues reads against an empty

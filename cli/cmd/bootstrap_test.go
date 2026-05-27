@@ -7,10 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // setupCore spins up an in-process NATS server + ChattoCore for cmd-layer tests.
@@ -18,25 +17,7 @@ import (
 func setupCore(t *testing.T) *core.ChattoCore {
 	t.Helper()
 
-	opts := &server.Options{JetStream: true, Port: -1, StoreDir: t.TempDir()}
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("nats server: %v", err)
-	}
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("nats not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("nats connect: %v", err)
-	}
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
@@ -51,8 +32,16 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	// same set cmd/run.go boots via c.Run. Membership mutations need the
 	// projector loops to advance so WaitForSeq returns.
 	servicesCtx, servicesCancel := context.WithCancel(context.Background())
-	go func() { _ = c.Run(servicesCtx) }()
-	t.Cleanup(servicesCancel)
+	servicesDone := make(chan error, 1)
+	go func() { servicesDone <- c.Run(servicesCtx) }()
+	t.Cleanup(func() {
+		servicesCancel()
+		select {
+		case <-servicesDone:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
+	})
 	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer bootCancel()
 	if err := c.WaitForBoot(bootCtx); err != nil {
@@ -76,11 +65,11 @@ func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	cfg := config.BootstrapConfig{
 		Users: []config.BootstrapUser{
 			{
-				Login:        "alice",
-				DisplayName:  "Alice",
-				Email:        "alice@example.com",
-				Password:     "devpassword",
-				ServerRole: "owner",
+				Login:       "alice",
+				DisplayName: "Alice",
+				Email:       "alice@example.com",
+				Password:    "devpassword",
+				ServerRole:  "owner",
 			},
 			{
 				Login:    "bob",

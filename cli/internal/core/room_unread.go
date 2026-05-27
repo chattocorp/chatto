@@ -17,10 +17,11 @@ import (
 // Unread Message Tracking
 // ============================================================================
 //
-// Per-user, per-room read state is keyed on the last-read root message's stable
-// event ID (14-char NanoID, see ADR-026), not on the (volatile) JetStream
-// sequence number. Event IDs are embedded in NATS subjects, so they survive
-// stream renumbering and rebuilds. See docs/adr/ADR-028 for rationale.
+// Per-user, per-room read state lives in RUNTIME_STATE and is keyed on the
+// last-read root message's stable event ID (14-char NanoID, see ADR-026), not
+// on the (volatile) JetStream sequence number. Event IDs are embedded in NATS
+// subjects, so they survive stream renumbering and rebuilds. See docs/adr/ADR-028
+// for rationale.
 //
 // The legacy `room_read_status.*` keys (uint64 sequence numbers) are orphaned
 // and ignored. Users with no `room_read_event.*` key are lazy-initialized to
@@ -73,10 +74,10 @@ func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID
 	return ev.GetId(), createdAt, true, nil
 }
 
-// roomReadEventKey returns the KV key for tracking the user's last-read root
-// event ID in a room.
+// roomReadEventKey returns the RUNTIME_STATE key for tracking the user's
+// last-read root event ID in a room.
 func roomReadEventKey(userID, roomID string) string {
-	return fmt.Sprintf("room_read_event.%s.%s", userID, roomID)
+	return fmt.Sprintf("read.room.%s.%s", userID, roomID)
 }
 
 // GetLastReadEventID returns the user's last-read root-message event ID for a
@@ -84,7 +85,7 @@ func roomReadEventKey(userID, roomID string) string {
 // current last root event ("caught up at deploy time"); if the room has no
 // messages, it returns "".
 func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID string) (string, error) {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 
 	key := roomReadEventKey(userID, roomID)
 	entry, err := bucket.Get(ctx, key)
@@ -122,12 +123,11 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 
 // SetLastReadEventID stores the user's last-read root-message event ID.
 //
-// Callers MUST pass either a root message event ID (one published with subject
-// `space.{s}.room.{r}.msg.{eventId}`) or the empty string. Thread-reply event
-// IDs would not resolve via GetEventTimestamp's root-subject lookup and would
-// keep the room permanently flagged as unread.
+// Callers MUST pass either a root message event ID or the empty string. Thread
+// reply event IDs are tracked separately by the thread read marker; using one
+// here would make room-level unread comparisons point at the wrong timeline.
 func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) error {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 	if _, err := bucket.Put(ctx, roomReadEventKey(userID, roomID), []byte(eventID)); err != nil {
 		return fmt.Errorf("failed to set read marker: %w", err)
 	}

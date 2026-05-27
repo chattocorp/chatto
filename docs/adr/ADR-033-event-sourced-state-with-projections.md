@@ -29,7 +29,7 @@ Adopt event sourcing as the storage pattern for domain state.
 - **All writes use optimistic concurrency control.** Every event publish carries a `Nats-Expected-Last-Subject-Sequence` header. The framework offers no "publish without OCC" primitive. This guarantees that per-subject (per-aggregate) history is a serialized sequence with no race-induced gaps. The same invariant makes migration replayable and makes uniqueness claims expressible as ordered subject sequences.
 - **Read-your-writes via wait-for-seq.** Successful publish returns a stream sequence number. The actor's next read against the projection blocks (briefly) until the projection consumer position has reached that sequence. Reads from other actors see the new state on the projection's natural consumer cadence — typically sub-millisecond, never coordinated.
 - **Snapshots are deferred but accommodated.** The projection interface includes `Snapshot()` and `Restore()` methods from day one. No snapshot orchestration ships initially — startup replays from the beginning of the stream. We add snapshot persistence when stream length makes startup time unacceptable, without changing the projection contract.
-- **Ephemeral state stays out.** Presence, typing indicators, link-preview cache, auth tokens, image cache, and similar TTL-driven or content-addressed state continue to use plain NATS KV / Object Store. They are not part of the event log.
+- **Runtime state stays out.** Presence, typing indicators, link-preview cache, auth tokens, image cache, and similar TTL-driven or content-addressed state are not part of the event log. Durable latest-value runtime state uses `RUNTIME_STATE` per [ADR-036](ADR-036-runtime-state-kv-boundary.md); purely transient state can remain memory-backed, and binary/object data stays in object stores.
 - **A thin internal Go package owns the abstractions.** No third-party event-sourcing framework is adopted. The package exposes `Publish`, a `Projection` interface, a `Projector` (consumer + apply loop), and `WaitForSeq`. Estimated size: ~1000–1500 lines, fully under our control.
 
 This ADR supersedes ADR-006.
@@ -52,6 +52,7 @@ This ADR supersedes ADR-006.
 
 - The shape of the event log itself (one stream vs. many) — see [ADR-034](ADR-034-single-event-stream.md).
 - The migration strategy from today's CRUD+log model — see [ADR-035](ADR-035-per-aggregate-phased-migration.md).
+- The runtime-state storage boundary — see [ADR-036](ADR-036-runtime-state-kv-boundary.md).
 - Snapshot persistence and projection bootstrapping from snapshots — interface is committed here; mechanism is deferred to a future ADR when stream length forces the issue.
 - Long-term retention, archival, cold storage — also deferred.
 - Multi-process coordination beyond "every process maintains its own projection." If we ever want a single authoritative projection across processes, that is a separate decision.

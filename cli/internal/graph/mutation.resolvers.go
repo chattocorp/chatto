@@ -670,22 +670,33 @@ func (r *mutationResolver) MarkThreadAsRead(ctx context.Context, input model.Mar
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Anchor the read cursor at a specific event's timestamp if the client
-	// provided one. This avoids the race where new replies arrive between
-	// the subscription delivery and the mutation hitting the server. Falls
-	// back to wall-clock "now" when no explicit anchor is supplied.
-	markerTime := time.Now()
+	// Anchor the read cursor at a specific event ID if the client provided
+	// one. This avoids the race where new replies arrive between subscription
+	// delivery and the mutation hitting the server. Otherwise, mark the latest
+	// currently visible message in the thread.
+	markerEventID := ""
 	if input.UpToEventID != nil && *input.UpToEventID != "" {
 		event, eerr := r.core.GetRoomEventByEventID(ctx, kind, input.RoomID, *input.UpToEventID)
 		if eerr != nil {
 			return nil, eerr
 		}
-		if event != nil && event.CreatedAt != nil {
-			markerTime = event.CreatedAt.AsTime()
+		if event != nil {
+			markerEventID = event.Id
+		}
+	} else {
+		events, eerr := r.core.GetThreadEvents(ctx, kind, input.RoomID, input.ThreadRootEventID)
+		if eerr != nil {
+			return nil, eerr
+		}
+		for i := len(events) - 1; i >= 0; i-- {
+			if events[i] != nil && events[i].GetMessagePosted() != nil {
+				markerEventID = events[i].Id
+				break
+			}
 		}
 	}
 
-	previousReadAt, err := r.core.SetThreadLastOpenedAt(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID, markerTime)
+	previousReadAt, err := r.core.SetThreadLastReadEventID(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID, markerEventID)
 	if err != nil {
 		return nil, err
 	}

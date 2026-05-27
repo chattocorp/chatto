@@ -5,37 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // setupTestCoreWithEncryption creates a ChattoCore for encryption tests.
 func setupTestCoreWithEncryption(t *testing.T) *ChattoCore {
 	t.Helper()
 
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	require.NoError(t, err)
-
-	go ns.Start()
-	require.True(t, ns.ReadyForConnections(5*time.Second))
-
-	nc, err := nats.Connect(ns.ClientURL())
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

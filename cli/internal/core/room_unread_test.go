@@ -456,7 +456,7 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	// the stranger never wrote, simulating a concurrent winner.
 	stranger, _ := core.CreateUser(ctx, "system", "race-stranger", "race-stranger", "password123")
 	const concurrentWinner = "Eraceconcurwin"
-	bucket := core.storage.serverRuntimeKV
+	bucket := core.storage.runtimeStateKV
 	if _, err := bucket.Put(ctx, roomReadEventKey(stranger.Id, room.Id), []byte(concurrentWinner)); err != nil {
 		t.Fatalf("seed marker error: %v", err)
 	}

@@ -232,9 +232,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			rootAuthorID = rootEvent.ActorId
 		}
 
-		// Update the poster's "last opened" timestamp for this thread.
+		// Update the poster's thread read marker to the reply they just wrote.
 		// This ensures that on page reload, their own message won't show as "unread".
-		if _, err := c.SetThreadLastOpened(ctx, kind, user_id, room_id, inThread); err != nil {
+		if _, err := c.SetThreadLastReadEventID(ctx, kind, user_id, room_id, inThread, event.Id); err != nil {
 			c.logger.Warn("Failed to update thread last opened for poster", "error", err, "thread_root_event_id", inThread)
 			// Continue anyway - this is best-effort
 		}

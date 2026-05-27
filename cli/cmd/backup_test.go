@@ -14,6 +14,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestSkipReason(t *testing.T) {
@@ -182,37 +183,12 @@ func TestCreateAndExtractTarGz(t *testing.T) {
 func startTestNATS(t *testing.T) (*server.Server, *nats.Conn, jetstream.JetStream) {
 	t.Helper()
 
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1, // random port
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
+	ns, nc := testutil.StartNATS(t)
 
 	js, err := jetstream.New(nc)
 	if err != nil {
 		t.Fatalf("Failed to create JetStream context: %v", err)
 	}
-
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
 
 	return ns, nc, js
 }
