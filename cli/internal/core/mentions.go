@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"errors"
 	"regexp"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -65,7 +63,6 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 }
 
 // notifyMentionedUsers creates persistent notifications for all mentioned users.
-// This handles both the room-level mention indicator and the bell icon notification.
 // This is best-effort - failures are logged but don't affect message posting.
 //
 // inThread is the thread root event ID when the mention is on a message inside
@@ -85,15 +82,6 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 				"user_id", mentionedUserID, "error", err)
 		} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			continue
-		}
-
-		// Store persistent mention state in KV (for room-level indicator)
-		if err := c.setMentionStatus(ctx, roomID, mentionedUserID); err != nil {
-			c.logger.Warn("Failed to set mention status",
-				"user_id", mentionedUserID,
-				"kind", kind,
-				"room_id", roomID,
-				"error", err)
 		}
 
 		// Publish live mention event for room-level indicator real-time update
@@ -141,101 +129,5 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 				"kind", kind,
 				"room_id", roomID)
 		}
-	}
-}
-
-// Mention status KV key pattern: room_mention_status.{userId}.{roomId}
-func mentionStatusKey(userID, roomID string) string {
-	return "room_mention_status." + userID + "." + roomID
-}
-
-// setMentionStatus marks that a user has an unread mention in a room.
-// Uses atomic create-if-not-exists so it's idempotent — the first mention
-// is preserved until the user reads the room and clears it.
-func (c *ChattoCore) setMentionStatus(ctx context.Context, roomID, userID string) error {
-	bucket := c.storage.serverRuntimeKV
-
-	key := mentionStatusKey(userID, roomID)
-
-	// Use Create to only set if key doesn't exist - preserves earliest mention
-	_, err := bucket.Create(ctx, key, []byte{1})
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			// Key already exists means there's already an unread mention - that's fine
-			return nil
-		}
-		// Real error - propagate it
-		return err
-	}
-	return nil
-}
-
-// HasMention checks if a user has an unread mention in a room.
-func (c *ChattoCore) HasMention(ctx context.Context, roomID, userID string) (bool, error) {
-	bucket := c.storage.serverRuntimeKV
-
-	key := mentionStatusKey(userID, roomID)
-	_, err := bucket.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			// Key not found means no unread mention
-			return false, nil
-		}
-		// Real error - propagate it
-		return false, err
-	}
-	return true, nil
-}
-
-// ClearMentionStatus removes the mention indicator for a user in a room.
-// Called when the user visits the room and reads their mentions, or when
-// they dismiss a mention notification. Idempotent.
-//
-// When a flag is actually removed, publishes a MentionStatusClearedEvent on
-// the user's live stream so other devices drop the orange dot for the room
-// without waiting for the next GraphQL refetch. The Get-then-Delete shape
-// keeps idempotent callers from spamming events on no-op clears (the common
-// case when entering a room with no pending mention).
-func (c *ChattoCore) ClearMentionStatus(ctx context.Context, roomID, userID string) error {
-	bucket := c.storage.serverRuntimeKV
-	key := mentionStatusKey(userID, roomID)
-
-	if _, err := bucket.Get(ctx, key); err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil
-		}
-		return err
-	}
-
-	if err := bucket.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return err
-	}
-
-	c.publishMentionStatusClearedEvent(ctx, userID, roomID)
-	return nil
-}
-
-// publishMentionStatusClearedEvent emits a live event so the user's other
-// devices can drop the room's orange dot in real time. Best-effort — a
-// publish failure is logged but doesn't fail the clear operation, since the
-// KV is already updated and clients will catch up on next refetch.
-func (c *ChattoCore) publishMentionStatusClearedEvent(ctx context.Context, userID, roomID string) {
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   userID,
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MentionStatusCleared{
-			MentionStatusCleared: &corev1.MentionStatusClearedEvent{
-				RoomId: roomID,
-			},
-		},
-	}
-
-	subject := subjects.LiveUserEvent(userID, "mention_status_cleared")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish mention status cleared event",
-			"user_id", userID,
-			"room_id", roomID,
-			"error", err)
 	}
 }

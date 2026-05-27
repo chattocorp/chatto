@@ -740,7 +740,6 @@ type storage struct {
 
 	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
-	notificationsKV jetstream.KeyValue    // User notifications with TTL
 	callStateKV     jetstream.KeyValue    // Active voice call participants (ephemeral, memory-backed)
 	authTokensKV    jetstream.KeyValue    // Bearer auth tokens with TTL
 }
@@ -840,18 +839,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ASSET_CACHE object store: %w", err)
 		}
-	}
-
-	// Initialize notifications KV bucket with 3-month TTL
-	notificationsKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "NOTIFICATIONS",
-		Description: "User notifications (mentions, DMs, thread replies)",
-		Storage:     jetstream.FileStorage,
-		TTL:         90 * 24 * time.Hour, // 3 months
-		Replicas:    cfg.Replicas,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create NOTIFICATIONS KV bucket: %w", err)
 	}
 
 	// Initialize call state KV bucket (memory-backed, ephemeral)
@@ -1043,7 +1030,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		// exists) and assigned in NewChattoCore.
 		presenceKV:      presenceKV,
 		imageCacheStore: imageCacheStore,
-		notificationsKV: notificationsKV,
 		callStateKV:     callStateKV,
 		authTokensKV:    authTokensKV,
 	}, nil

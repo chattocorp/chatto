@@ -472,7 +472,8 @@ type PresenceChangedEvent {
 """
 Notification: A user was mentioned in a message.
 This is a live-only notification event for toast displays.
-Persistent state is tracked separately via Room.hasMention.
+Persistent pending-attention state is tracked separately by NotificationCreatedEvent
+and the user's notification records in RUNTIME_STATE.
 """
 type MentionNotificationEvent {
   "The ID of the room where the mention occurred."
@@ -528,11 +529,9 @@ type RoomMarkedAsReadEvent {
 }
 
 """
-Event: The mention indicator for a room was cleared for the current user.
-Fires whenever the server-side mention flag is deleted — that happens when the
-user marks a room as read (auto on entry or explicit) or dismisses a mention
-notification on any device. Other devices drop the orange dot for the room
-without waiting for a refetch.
+Legacy event: the mention indicator for a room was cleared for the current user.
+Retained for wire compatibility; new builds derive orange dots from pending
+notifications and do not publish this event.
 """
 type MentionStatusClearedEvent {
   "The ID of the room whose mention indicator was cleared."

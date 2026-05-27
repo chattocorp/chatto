@@ -20,7 +20,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import {
     useEvent,
     useTabResumeCallback,
-    useMention,
     useRoomMarkedAsRead
   } from '$lib/hooks';
   import { serverStorageKey } from '$lib/storage/serverStorage';
@@ -122,7 +121,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function isHighlighted(room: RoomsListItem): boolean {
     if (room.id === activeRoomId) return true;
     if (room.hasUnread) return true;
-    if (room.hasMention) return true;
     if (room.type === RoomType.Dm) {
       return notificationStore.hasDMRoomNotification(room.id);
     }
@@ -131,11 +129,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   // --- Real-time event handlers ---
 
-  // Clear unread/mention when entering a room while present. Navigation
+  // Clear unread when entering a room while present. Navigation
   // alone (e.g. clicking a notification while the tab is hidden) isn't
   // enough — we wait until the user can actually see the room. The
-  // cross-tab `useRoomMarkedAsRead` handler below also clears the dot when
-  // useRoomUnread fires its mutation on presence-true.
+  // cross-tab `useRoomMarkedAsRead` handler below also clears the unread
+  // marker when useRoomUnread fires its mutation on presence-true.
   $effect(() => {
     if (activeRoomId && appState.isPresent) roomsStore.markRead(activeRoomId);
   });
@@ -160,12 +158,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } else if (event.__typename === 'CallParticipantLeftEvent') {
       activeCallRooms.handleLeave(event.roomId, spaceEvent.actorId);
     }
-  });
-
-  // Mention notifications — mark room as having mention
-  useMention((notification) => {
-    if (notification.roomId === activeRoomId) return;
-    roomsStore.setMention(notification.roomId);
   });
 
   // Marked-as-read from other tabs/devices.
@@ -231,12 +223,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.stopPropagation();
 
     const notification = notificationStore.getRoomNotification(roomId);
-    if (!notification) {
-      // Clear stuck hasMention state — the dot was visible but no notification
-      // exists in the store to dismiss. Clear the local flag so the dot disappears.
-      roomsStore.clearMention(roomId);
-      return;
-    }
+    if (!notification) return;
 
     const target = notificationTarget(notification);
     if (target.eventId && target.roomId) {
@@ -245,7 +232,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved SvelteKit route.
     await goto(path);
   }
 
@@ -262,7 +249,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved SvelteKit route.
     await goto(path);
   }
 </script>
@@ -287,7 +274,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
-    {#if room.hasMention || notificationStore.hasRoomNotification(room.id)}
+    {#if notificationStore.hasRoomNotification(room.id)}
       <button
         type="button"
         onclick={(e) => handleRoomNotificationClick(e, room.id)}
@@ -296,7 +283,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       >
         <UnreadDot />
       </button>
-      <span class="sr-only">{room.hasMention ? 'you were mentioned' : 'thread reply'}</span>
+      <span class="sr-only">notification</span>
       <!-- Unread Indicator (subtle) -->
     {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />

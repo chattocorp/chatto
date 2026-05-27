@@ -85,17 +85,6 @@ func (r *roomResolver) HasUnread(ctx context.Context, obj *corev1.Room) (bool, e
 	return r.core.HasUnread(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 }
 
-// HasMention is the resolver for the hasMention field.
-func (r *roomResolver) HasMention(ctx context.Context, obj *corev1.Room) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-
-	// Call core directly for mention status
-	return r.core.HasMention(ctx, obj.Id, user.Id)
-}
-
 // ViewerCanPostMessage is the resolver for the viewerCanPostMessage field.
 func (r *roomResolver) ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)

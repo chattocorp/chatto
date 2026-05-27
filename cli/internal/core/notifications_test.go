@@ -52,6 +52,9 @@ func TestCreateNotification(t *testing.T) {
 		if dmNotif.RoomId != "dm-room-123" {
 			t.Errorf("Expected room ID dm-room-123, got %s", dmNotif.RoomId)
 		}
+		if _, err := core.storage.runtimeStateKV.Get(ctx, notificationKey(recipientID, created.Id)); err != nil {
+			t.Fatalf("expected notification in RUNTIME_STATE: %v", err)
+		}
 	})
 
 	t.Run("creates mention notification", func(t *testing.T) {

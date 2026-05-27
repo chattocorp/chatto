@@ -54,15 +54,15 @@ Initial and planned occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
+- Pending notifications: `notification.{userId}.{notificationId}`, with per-key
+  90-day TTL.
 - Auth, verification, reset, and revocation tokens after their migration from
   token-specific buckets.
 - Asset and video processing state after its migration from `SERVER_RUNTIME`.
-- Other notification-adjacent latest-value state after the notification model
-  refactor.
 
-Mention flags are not a target runtime-state model. The notification refactor
-tracked by #660 should make orange-dot behavior derive from the notification
-model instead of preserving `room_mention_status.*` as canonical state.
+Mention flags are not a target runtime-state model. Orange-dot behavior derives
+from pending notifications instead of preserving `room_mention_status.*` as
+canonical state.
 
 ## Consequences
 

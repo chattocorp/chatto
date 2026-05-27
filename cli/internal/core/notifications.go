@@ -20,16 +20,21 @@ import (
 // Notification Key Helpers
 // ============================================================================
 
+const (
+	notificationTTL       = 90 * 24 * time.Hour
+	notificationKeyPrefix = "notification."
+)
+
 // notificationKey returns the KV key for a notification.
-// Format: {userId}.{notificationId}
+// Format: notification.{userId}.{notificationId}
 func notificationKey(userID, notificationID string) string {
-	return fmt.Sprintf("%s.%s", userID, notificationID)
+	return fmt.Sprintf("%s%s.%s", notificationKeyPrefix, userID, notificationID)
 }
 
 // notificationKeyFilter returns the NATS subject filter for all notifications for a user.
-// Uses NATS subject wildcard syntax: "userID.*" matches all keys starting with userID.
+// Uses NATS subject wildcard syntax: "notification.userID.*" matches all keys for the user.
 func notificationKeyFilter(userID string) string {
-	return userID + ".*"
+	return notificationKeyPrefix + userID + ".*"
 }
 
 // ============================================================================
@@ -37,7 +42,7 @@ func notificationKeyFilter(userID string) string {
 // ============================================================================
 
 // CreateNotification creates a new notification and publishes a sync event.
-// The notification is stored in the NOTIFICATIONS KV bucket with TTL.
+// The notification is stored in RUNTIME_STATE with a per-key TTL.
 // Authorization: Internal use only - called by message posting logic.
 //
 // The notification parameter should already have its oneof payload set.
@@ -63,7 +68,7 @@ func (c *ChattoCore) CreateNotification(
 	}
 
 	key := notificationKey(recipientID, notificationID)
-	_, err = c.storage.notificationsKV.Put(ctx, key, data)
+	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(notificationTTL))
 	if err != nil {
 		return nil, fmt.Errorf("failed to store notification: %w", err)
 	}
@@ -89,7 +94,7 @@ func (c *ChattoCore) CreateNotification(
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*corev1.Notification, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return []*corev1.Notification{}, nil
@@ -99,7 +104,7 @@ func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*co
 
 	var notifications []*corev1.Notification
 	for key := range lister.Keys() {
-		entry, err := c.storage.notificationsKV.Get(ctx, key)
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			c.logger.Warn("Failed to get notification", "key", key, "error", err)
 			continue
@@ -126,7 +131,7 @@ func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*co
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotification(ctx context.Context, userID, notificationID string) (*corev1.Notification, error) {
 	key := notificationKey(userID, notificationID)
-	entry, err := c.storage.notificationsKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -149,7 +154,7 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 	key := notificationKey(userID, notificationID)
 
 	// Fetch notification before deleting (needed for push dismissal callback)
-	entry, err := c.storage.notificationsKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil // Already dismissed
@@ -163,26 +168,13 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 	}
 
 	// Delete
-	err = c.storage.notificationsKV.Delete(ctx, key)
+	err = c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return false, fmt.Errorf("failed to delete notification: %w", err)
 	}
 
 	// Publish sync event for cross-device sync (WebSocket)
 	c.publishNotificationDismissedEvent(ctx, userID, notificationID)
-
-	// For a mention notification, also clear the room-level mention KV flag so
-	// the orange dot disappears on every device — not just locally on the tab
-	// that handled the dismissal. ClearMentionStatus publishes its own live
-	// event, which propagates to other tabs via MentionStatusClearedEvent.
-	if mention, ok := notif.Notification.(*corev1.Notification_Mention); ok && mention.Mention != nil {
-		if err := c.ClearMentionStatus(ctx, mention.Mention.RoomId, userID); err != nil {
-			c.logger.Warn("Failed to clear mention status on dismiss",
-				"user_id", userID,
-				"room_id", mention.Mention.RoomId,
-				"error", err)
-		}
-	}
 
 	// Call the notification callback for push dismissal (if set)
 	// Run asynchronously to avoid blocking notification dismissal
@@ -202,7 +194,7 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string) (int, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
@@ -217,24 +209,8 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 	}
 
 	deleted := 0
-	// Track which rooms had a mention notification dismissed, so we can clear
-	// the corresponding room-level mention KV flag once per room (dedup since
-	// a room may have multiple pending mentions sharing one flag).
-	mentionRooms := make(map[string]struct{})
 	for _, key := range keys {
-		// Read before delete so we can detect mention notifications and trigger
-		// the corresponding mention-status clears. Best-effort: a read failure
-		// just means we don't get the cross-device flag clear for this one.
-		if entry, err := c.storage.notificationsKV.Get(ctx, key); err == nil {
-			var notif corev1.Notification
-			if proto.Unmarshal(entry.Value(), &notif) == nil {
-				if m, ok := notif.Notification.(*corev1.Notification_Mention); ok && m.Mention != nil {
-					mentionRooms[m.Mention.RoomId] = struct{}{}
-				}
-			}
-		}
-
-		if err := c.storage.notificationsKV.Delete(ctx, key); err != nil {
+		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
 			if !errors.Is(err, jetstream.ErrKeyNotFound) {
 				c.logger.Warn("Failed to delete notification", "key", key, "error", err)
 			}
@@ -243,22 +219,10 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 		deleted++
 
 		// Extract notification ID from key and publish sync event
-		// Key format: {userId}.{notificationId}
-		keyPrefix := userID + "."
+		// Key format: notification.{userId}.{notificationId}
+		keyPrefix := notificationKeyPrefix + userID + "."
 		if notificationID := strings.TrimPrefix(key, keyPrefix); notificationID != key {
 			c.publishNotificationDismissedEvent(ctx, userID, notificationID)
-		}
-	}
-
-	// Clear room-level mention flags last so each room gets at most one KV op
-	// and one MentionStatusClearedEvent published, regardless of how many
-	// pending mention notifications referenced it.
-	for roomID := range mentionRooms {
-		if err := c.ClearMentionStatus(ctx, roomID, userID); err != nil {
-			c.logger.Warn("Failed to clear mention status on dismiss-all",
-				"user_id", userID,
-				"room_id", roomID,
-				"error", err)
 		}
 	}
 
@@ -274,7 +238,7 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) HasUnreadNotifications(ctx context.Context, userID string) (bool, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return false, nil
@@ -293,7 +257,7 @@ func (c *ChattoCore) HasUnreadNotifications(ctx context.Context, userID string) 
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (int, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil

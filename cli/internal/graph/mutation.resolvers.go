@@ -376,9 +376,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			r.logger.Warn("Failed to auto-mark room as read", "error", err)
 		} else {
 			r.core.NotifyRoomMarkedAsRead(ctx, user.Id, kind, input.RoomID)
-			if err := r.core.ClearMentionStatus(ctx, input.RoomID, user.Id); err != nil {
-				r.logger.Warn("Failed to clear mention status", "error", err)
-			}
 		}
 	}
 
@@ -629,12 +626,6 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 
 	// Notify user that they marked a room as read (for space unread indicator updates)
 	r.core.NotifyRoomMarkedAsRead(ctx, user.Id, kind, input.RoomID)
-
-	// Also clear any unread mention indicator for this room
-	if err := r.core.ClearMentionStatus(ctx, input.RoomID, user.Id); err != nil {
-		// Log but don't fail - marking read is still successful
-		r.logger.Warn("Failed to clear mention status", "space_id", kind, "room_id", input.RoomID, "error", err)
-	}
 
 	result := &model.MarkRoomAsReadResult{}
 

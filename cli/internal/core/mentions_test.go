@@ -1,7 +1,10 @@
 package core
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestExtractMentionUsernames(t *testing.T) {
@@ -155,30 +158,6 @@ func TestExtractMentionUsernames(t *testing.T) {
 }
 
 // ============================================================================
-// Key Helper Tests
-// ============================================================================
-
-func TestMentionStatusKey(t *testing.T) {
-	tests := []struct {
-		userID   string
-		roomID   string
-		expected string
-	}{
-		{"user123", "room456", "room_mention_status.user123.room456"},
-		{"abc", "def", "room_mention_status.abc.def"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.userID+"_"+tt.roomID, func(t *testing.T) {
-			result := mentionStatusKey(tt.userID, tt.roomID)
-			if result != tt.expected {
-				t.Errorf("mentionStatusKey(%q, %q) = %q, want %q", tt.userID, tt.roomID, result, tt.expected)
-			}
-		})
-	}
-}
-
-// ============================================================================
 // Integration Tests
 // ============================================================================
 
@@ -260,113 +239,40 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	})
 }
 
-func TestChattoCore_MentionStatus(t *testing.T) {
+func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create user and space
-	user, err := core.CreateUser(ctx, "system", "mentionuser", "Mention User", "password123")
+	mentioned, err := core.CreateUser(ctx, "system", "mentioneduser", "Mentioned User", "password123")
 	if err != nil {
-		t.Fatalf("Failed to create user: %v", err)
+		t.Fatalf("CreateUser mentioned: %v", err)
+	}
+	mentioner, err := core.CreateUser(ctx, "system", "mentionauthor", "Mention Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser mentioner: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, mentioned.Id, KindChannel, "", "mentions", "Mentions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, mentioner.Id, KindChannel, mentioner.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom mentioner: %v", err)
 	}
 
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, mentioner.Id, "hello @mentioneduser", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "General chat")
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
 	if err != nil {
-		t.Fatalf("Failed to create room: %v", err)
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 
-	t.Run("HasMention returns false when no mention exists", func(t *testing.T) {
-		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("HasMention failed: %v", err)
-		}
-		if hasMention {
-			t.Error("Expected no mention, but HasMention returned true")
-		}
-	})
-
-	t.Run("setMentionStatus creates mention indicator", func(t *testing.T) {
-		err := core.setMentionStatus(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("setMentionStatus failed: %v", err)
-		}
-
-		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("HasMention failed: %v", err)
-		}
-		if !hasMention {
-			t.Error("Expected mention after setMentionStatus, but HasMention returned false")
-		}
-	})
-
-	t.Run("setMentionStatus is idempotent - preserves first mention", func(t *testing.T) {
-		// Attempt to set another mention - should not fail
-		err := core.setMentionStatus(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("setMentionStatus (second call) failed: %v", err)
-		}
-
-		// Still has mention
-		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("HasMention failed: %v", err)
-		}
-		if !hasMention {
-			t.Error("Expected mention to persist after second setMentionStatus")
-		}
-	})
-
-	t.Run("ClearMentionStatus removes mention indicator", func(t *testing.T) {
-		err := core.ClearMentionStatus(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("ClearMentionStatus failed: %v", err)
-		}
-
-		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("HasMention failed: %v", err)
-		}
-		if hasMention {
-			t.Error("Expected no mention after ClearMentionStatus, but HasMention returned true")
-		}
-	})
-
-	t.Run("ClearMentionStatus is idempotent", func(t *testing.T) {
-		// Clear again - should not fail even though already cleared
-		err := core.ClearMentionStatus(ctx, room.Id, user.Id)
-		if err != nil {
-			t.Fatalf("ClearMentionStatus (second call) failed: %v", err)
-		}
-	})
-
-	t.Run("mention status is room-specific", func(t *testing.T) {
-		// Create another room
-		room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "random", "Random chat")
-		if err != nil {
-			t.Fatalf("Failed to create room2: %v", err)
-		}
-
-		// Set mention in room2
-		err = core.setMentionStatus(ctx, room2.Id, user.Id)
-		if err != nil {
-			t.Fatalf("setMentionStatus failed: %v", err)
-		}
-
-		// room1 should still have no mention (we cleared it above)
-		hasMention1, _ := core.HasMention(ctx, room.Id, user.Id)
-		if hasMention1 {
-			t.Error("room1 should not have mention")
-		}
-
-		// room2 should have mention
-		hasMention2, _ := core.HasMention(ctx, room2.Id, user.Id)
-		if !hasMention2 {
-			t.Error("room2 should have mention")
-		}
-	})
+	legacyKey := "room_mention_status." + mentioned.Id + "." + room.Id
+	if _, err := core.storage.serverRuntimeKV.Get(ctx, legacyKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("legacy mention status key lookup error = %v, want ErrKeyNotFound", err)
+	}
 }

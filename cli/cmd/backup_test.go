@@ -41,7 +41,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE", false, false, ""},
 		{"KV_INSTANCE_RBAC", false, false, ""},
 		{"KV_INSTANCE_CONFIG", false, false, ""},
-		{"KV_NOTIFICATIONS", false, false, ""},
+		{"KV_RUNTIME_STATE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
 		{"SPACE_abc123_EVENTS", false, false, ""},
 		{"KV_SPACE_abc123_CONFIG", false, false, ""},

@@ -258,9 +258,8 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `INSTANCE`                    | Users, memberships (bucket name retained from pre-rename) |
 | KV      | `INSTANCE_CONFIG`             | Server runtime configuration overrides      |
 | KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
-| KV      | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
 | KV      | `AUTH_TOKENS`                 | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
-| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state   |
+| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications |
 | KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
 | KV      | `SERVER_RBAC`                 | Legacy RBAC seed data read by the `EVT` boot migration |
 | KV      | `SERVER_RUNTIME`              | Legacy runtime state pending cleanup        |
@@ -484,14 +483,13 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
 | `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
-| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state       |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
 | `SERVER_RUNTIME`              | File    | Yes      | Legacy runtime state pending cleanup            |
 | `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions, read only by the EVT boot migration |
 | `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
-| `NOTIFICATIONS`               | File    | Yes      | User notifications (90-day TTL)                 |
 | `AUTH_TOKENS`                 | File    | No       | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
 | `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
 | `CALL_STATE`                  | Memory  | No       | Active voice call participants, keyed `{spaceId}.{roomId}` (repopulated by LiveKit webhooks after restart) |
@@ -528,14 +526,6 @@ Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NAT
 | `config.instance` | Server configuration (proto message; key + proto name retained) — name, MOTD, welcome message |
 
 Notes: Stores runtime configuration. Each section is a protobuf-serialized message. Server configuration (name, MOTD, welcome message) lives entirely in KV, not in chatto.toml. The TOML file is reserved for operational settings (ports, secrets, NATS config). Deleting a key reverts to defaults.
-
-**NOTIFICATIONS keys:**
-
-| Key                          | Description                                       |
-| ---------------------------- | ------------------------------------------------- |
-| `{userId}.{notificationId}`  | Notification record (protobuf Notification)       |
-
-Notes: 90-day TTL for automatic cleanup. Notifications are created for DM messages, @mentions, and thread replies. Supports real-time sync via `NotificationCreatedEvent` and `NotificationDismissedEvent` published to `live.server.user.{userId}.*`.
 
 **AUTH_TOKENS keys:**
 
@@ -605,12 +595,12 @@ survives restart but is not content/domain history. See
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Legacy `SERVER_RUNTIME` `room_read_event.*` keys are copied here at boot; older `room_read_status.*` sequence keys are orphaned and ignored. |
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
+| `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.server.user.{userId}.*`. |
 
 **SERVER\_RUNTIME keys:**
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| `room_mention_status.{userId}.{roomId}`| Unread mention indicator (boolean — key presence means unread)    |
 | `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
 | `video.{attachmentId}`                 | Video processing state for an attachment                          |
 | `attachment_records.backfilled`        | Sentinel set after the `BackfillAttachmentRecords` boot migration completes; short-circuits the scan on subsequent boots. |
@@ -799,9 +789,9 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 - `@username` patterns in message body are extracted via regex (ASCII alphanumeric, underscore, hyphen)
 - Usernames are resolved to user IDs; only space members are included (non-members silently ignored)
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
-- Mention status currently stored in legacy `SERVER_RUNTIME` (`room_mention_status.{userId}.{roomId}`); #660 tracks folding this into the notification model instead of migrating it to `RUNTIME_STATE`.
+- Pending mention state is a notification record in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`); sidebar orange dots derive from pending notifications, not a separate mention flag.
 - Live notification published to `live.server.user.{userId}.mentioned` for toast display
-- Mention indicator cleared when user calls `markRoomAsRead`
+- Mention notifications are dismissed when the user views the relevant room or thread, or explicitly dismisses them from the notification center.
 - Self-mentions are filtered out (no notification to message author)
 
 **GDPR Deletion:**

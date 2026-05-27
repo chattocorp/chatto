@@ -14,7 +14,6 @@ export type RoomsListItem = {
   name: string;
   type: RoomType;
   hasUnread: boolean;
-  hasMention: boolean;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
 };
@@ -35,7 +34,6 @@ const MyRoomsQuery = graphql(`
           name
           type
           hasUnread
-          hasMention
           archived
           viewerNotificationPreference {
             level
@@ -67,7 +65,7 @@ const MyRoomsQuery = graphql(`
  * `serverRegistry.getStore(activeServerId).rooms`, so the reactivity follows
  * the URL automatically when the user switches servers.
  *
- * Per-room flag mutations (markRead, setMention, ...) are exposed as methods
+ * Per-room flag mutations (markRead, setUnread, ...) are exposed as methods
  * so components can react to local UI events (entering a room) and to other
  * subscriptions (mentions, marked-as-read across tabs).
  *
@@ -120,7 +118,6 @@ export class RoomsStore {
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
-        hasMention: r.hasMention,
         members: r.members.map((m: typeof r.members[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initRooms(visible);
@@ -145,19 +142,11 @@ export class RoomsStore {
   // -------------------------------------------------------------------------
 
   markRead(roomId: string): void {
-    this.patchRoom(roomId, { hasUnread: false, hasMention: false });
+    this.patchRoom(roomId, { hasUnread: false });
   }
 
   setUnread(roomId: string): void {
     this.patchRoom(roomId, { hasUnread: true });
-  }
-
-  setMention(roomId: string): void {
-    this.patchRoom(roomId, { hasMention: true });
-  }
-
-  clearMention(roomId: string): void {
-    this.patchRoom(roomId, { hasMention: false });
   }
 
   /**

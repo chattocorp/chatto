@@ -1,11 +1,11 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-27
 
 ## Overview
 
-Users can mention each other in messages with `@username` syntax. A mention notifies the recipient, highlights a room-level mention indicator in the sidebar (more prominent than a normal unread marker), and renders the mention as styled text in the message body.
+Users can mention each other in messages with `@username` syntax. A mention notifies the recipient, contributes to the room's pending-notification indicator in the sidebar, and renders the mention as styled text in the message body.
 
 ## Behavior
 
@@ -42,6 +42,12 @@ Users can mention each other in messages with `@username` syntax. A mention noti
 **Decision:** If the recipient has muted the room, the mention is rendered but does not produce a notification.
 **Why:** Mute is the user's strongest signal that they don't want pings from this room. Honoring it for everything except mentions would create surprise notifications.
 **Tradeoff:** Users in muted rooms might miss directed pings. The mute affordance is loud enough that this is a reasonable default; users who want differently shouldn't mute.
+
+### 5. Mention attention state is a notification
+
+**Decision:** A delivered mention creates a pending notification. Sidebar mention dots derive from pending notifications, not from a separate room-level mention-status key.
+**Why:** Mention attention state has the same lifecycle as other notifications: it is pending until the user views or dismisses it, syncs across devices, and expires with notification retention. Keeping it in the notification model avoids duplicated state.
+**Tradeoff:** Mention dots follow notification dismissal semantics. Dismissing a mention notification clears the corresponding sidebar attention signal.
 
 ## Permissions
 

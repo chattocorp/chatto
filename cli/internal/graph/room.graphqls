@@ -28,12 +28,6 @@ type Room {
   Returns false if user is not a member or room has no new messages.
   """
   hasUnread: Boolean! @goField(forceResolver: true)
-  """
-  Whether the current user has an unread @mention in this room.
-  Returns false if user is not a member or has no unread mentions.
-  More prominent than hasUnread - indicates user was directly addressed.
-  """
-  hasMention: Boolean! @goField(forceResolver: true)
   "Whether the current user can post new root messages in this room."
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-27
 
 ## Overview
 
@@ -14,6 +14,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
 - A notification sound plays and the badge updates in real time as new notifications arrive.
+- Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
 
 ## Notification Levels
 
@@ -35,8 +36,8 @@ Per space and per room, the user picks one of four levels:
 
 ### 1. Persistent notification model with live-event sync
 
-**Decision:** Notifications are persistent objects stored per user, with a 90-day TTL. Live events fire on create and dismiss to keep all the user's connected sessions in sync.
-**Why:** Notifications need to survive a tab close (so the badge count is right when you come back tomorrow), and they need to be the same across devices. A persistent store plus live-event sync gives both. See ADR-012 and ADR-028.
+**Decision:** Notifications are persistent objects stored per user in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`), with a 90-day per-key TTL. Live events fire on create and dismiss to keep all the user's connected sessions in sync.
+**Why:** Notifications need to survive a tab close (so the badge count is right when you come back tomorrow), and they need to be the same across devices. They are pending user-runtime state, not reconstructable content history, so `RUNTIME_STATE` is the right home. See ADR-012, ADR-028, and ADR-036.
 **Tradeoff:** A notification dismissal anywhere clears it everywhere, even if the user wanted to dismiss only locally. The simpler model wins here — "I've seen it" is not device-specific.
 
 ### 2. Mute suppresses notifications AND unread
@@ -68,6 +69,12 @@ Per space and per room, the user picks one of four levels:
 **Decision:** A push notification fires when a persistent notification is created. If no persistent notification is created (because the room is muted, etc.), no push is sent either.
 **Why:** Pushes and in-app notifications are the same logical event presented in two surfaces. Sharing the gating logic ensures they can't diverge. See FDR-013.
 **Tradeoff:** No way to receive a push without also generating a persistent notification. Considered desirable: a push you can't find later in the app would be annoying.
+
+### 7. No parallel mention-status flag
+
+**Decision:** @mention orange dots are derived from pending mention notifications. Chatto does not maintain a separate `room_mention_status.*` flag.
+**Why:** The separate flag duplicated notification state and had to be cleared in lockstep with notification dismissals and room reads. A single pending-notification model gives one source of truth for mention, reply, DM, and all-message attention indicators.
+**Tradeoff:** Pending mention dots now have the same retention and dismissal semantics as notifications. This is deliberate: a mention that is no longer a pending notification is no longer pending attention.
 
 ## Permissions
 
