@@ -6,7 +6,7 @@ import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-async function simulateBackgroundResume(page: Page, hiddenMs = 31_000) {
+async function simulateBackgroundResumeAndReconnect(page: Page, hiddenMs = 31_000) {
   await page.evaluate((durationMs: number) => {
     const originalNow = Date.now;
     let now = originalNow();
@@ -27,6 +27,8 @@ async function simulateBackgroundResume(page: Page, hiddenMs = 31_000) {
       configurable: true
     });
     document.dispatchEvent(new Event('visibilitychange'));
+
+    window.dispatchEvent(new Event('online'));
 
     Date.now = originalNow;
   }, hiddenMs);
@@ -73,7 +75,7 @@ test.describe('WebSocket reconnect recovery', () => {
       await roomPage.expectMessageNotVisible(missedMessage);
 
       await page.context().setOffline(false);
-      await simulateBackgroundResume(page);
+      await simulateBackgroundResumeAndReconnect(page);
 
       await expect(page.getByText(missedMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
@@ -137,10 +139,7 @@ test.describe('WebSocket reconnect recovery', () => {
         data: {
           query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
           variables: {
-            input: { roomId,
-              body: missedReply,
-              threadRootEventId: threadRootEventId
-            }
+            input: { roomId, body: missedReply, threadRootEventId: threadRootEventId }
           }
         }
       });
@@ -150,7 +149,7 @@ test.describe('WebSocket reconnect recovery', () => {
 
       // Come back online and simulate background resume
       await page.context().setOffline(false);
-      await simulateBackgroundResume(page);
+      await simulateBackgroundResumeAndReconnect(page);
 
       // Verify User 1 sees the missed thread reply
       await expect(page.getByTestId('thread-pane').getByText(missedReply)).toBeVisible({
