@@ -24,8 +24,8 @@ import (
 // for rationale.
 //
 // The legacy `room_read_status.*` keys (uint64 sequence numbers) are orphaned
-// and ignored. Users with no `room_read_event.*` key are lazy-initialized to
-// the room's current last root event on first read — the "caught up at deploy
+// and ignored. Users with no `read.room.*` key are lazy-initialized to the
+// room's current last root event on first read — the "caught up at deploy
 // time" semantic.
 
 // NotifyRoomMarkedAsRead publishes a live event to notify the user that they marked
