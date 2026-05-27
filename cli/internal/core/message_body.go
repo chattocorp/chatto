@@ -156,7 +156,7 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, msg *corev1.Message
 func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID string, kind RoomKind) (int, error) {
 	bucket := c.storage.serverBodiesKV
 
-	lister, err := bucket.ListKeysFiltered(ctx, userID+".")
+	lister, err := bucket.ListKeysFiltered(ctx, userID+".>")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
