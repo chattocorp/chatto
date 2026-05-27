@@ -236,6 +236,33 @@ func TestFindOrCreateDM(t *testing.T) {
 		if !isMember2 {
 			t.Error("user2 should be a member of the DM")
 		}
+
+		eventsResult, err := core.GetRoomEvents(ctx, KindDM, room.Id, 50, nil)
+		if err != nil {
+			t.Fatalf("GetRoomEvents for new DM: %v", err)
+		}
+		if len(eventsResult.Events) != 3 {
+			t.Fatalf("expected 3 DM lifecycle events (room created + 2 joins), got %d", len(eventsResult.Events))
+		}
+
+		createdCount := 0
+		joinedActors := map[string]bool{}
+		for _, event := range eventsResult.Events {
+			if created := event.GetRoomCreated(); created != nil && created.RoomId == room.Id {
+				createdCount++
+			}
+			if joined := event.GetUserJoinedRoom(); joined != nil && joined.RoomId == room.Id {
+				joinedActors[event.ActorId] = true
+			}
+		}
+		if createdCount != 1 {
+			t.Errorf("expected 1 DM RoomCreated event, got %d", createdCount)
+		}
+		for _, userID := range []string{user1, user2} {
+			if !joinedActors[userID] {
+				t.Errorf("expected DM UserJoinedRoom event for %s", userID)
+			}
+		}
 	})
 
 	t.Run("finds existing DM", func(t *testing.T) {

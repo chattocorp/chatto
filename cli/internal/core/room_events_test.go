@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -127,6 +128,52 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 	if leaveCount != 1 {
 		t.Errorf("Expected 1 UserLeftRoom event, got %d", leaveCount)
 	}
+}
+
+func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "lifecycle-room", "Original description")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		created := event.GetRoomCreated()
+		return created != nil && created.RoomId == room.Id
+	})
+
+	if _, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "renamed-lifecycle-room", "Updated description"); err != nil {
+		t.Fatalf("Failed to update room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		updated := event.GetRoomUpdated()
+		return updated != nil && updated.RoomId == room.Id && updated.Name == "renamed-lifecycle-room"
+	})
+
+	if _, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("Failed to archive room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		archived := event.GetRoomArchived()
+		return archived != nil && archived.RoomId == room.Id
+	})
+
+	if _, err := core.UnarchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("Failed to unarchive room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		unarchived := event.GetRoomUnarchived()
+		return unarchived != nil && unarchived.RoomId == room.Id
+	})
+
+	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("Failed to delete room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		deleted := event.GetRoomDeleted()
+		return deleted != nil && deleted.RoomId == room.Id
+	})
 }
 
 // TestChattoCore_GetRoomEvents_JoinAfterLastMessage verifies that join events
@@ -507,4 +554,28 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 			t.Error("Expected nil when looking up event in wrong room")
 		}
 	})
+}
+
+func assertLatestRoomEvent(
+	t *testing.T,
+	core *ChattoCore,
+	ctx context.Context,
+	kind RoomKind,
+	roomID string,
+	matches func(*corev1.Event) bool,
+) {
+	t.Helper()
+
+	result, err := core.GetRoomEvents(ctx, kind, roomID, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	if len(result.Events) == 0 {
+		t.Fatal("expected at least one room event")
+	}
+
+	latest := result.Events[len(result.Events)-1]
+	if !matches(latest.Event) {
+		t.Fatalf("latest event = %T, want requested lifecycle event", latest.Event.GetEvent())
+	}
 }

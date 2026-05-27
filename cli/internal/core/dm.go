@@ -274,6 +274,9 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
 		c.logger.Warn("DM membership projection wait failed", "error", err, "room_id", roomID)
 	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
+		c.logger.Warn("DM room timeline projection wait failed", "error", err, "room_id", roomID)
+	}
 
 	// Per-participant non-batched side effects: initialise the
 	// read marker (so HasUnread distinguishes a fresh member from a

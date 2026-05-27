@@ -43,8 +43,9 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 //
 // ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT,
 // mirrors to the legacy live subject for frontend myEvents delivery,
-// then WaitForSeq for read-your-writes. The room_membership KV bucket
-// is no longer written to (retained as pre-ES import evidence).
+// then WaitForSeq on the projections that serve membership and room
+// history reads. The room_membership KV bucket is no longer written
+// to (retained as pre-ES import evidence).
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
@@ -76,8 +77,12 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		},
 	})
 
-	if _, err := c.RoomMembershipProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event); err != nil {
+	seq, err := c.RoomMembershipProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
+	if err != nil {
 		return nil, fmt.Errorf("publish UserJoinedRoomEvent: %w", err)
+	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
 	}
 
 	// Legacy publish — feeds live.server.> for the frontend's
@@ -118,7 +123,8 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 //     cannot be left (users can mute them via notification preferences).
 //
 // ADR-035 phase 6: event-only. Publishes UserLeftRoomEvent, legacy
-// mirror, then WaitForSeq.
+// mirror, then WaitForSeq on the projections that serve membership
+// and room history reads.
 func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
 	if kind == KindDM {
 		return ErrCannotLeaveDMConversation
@@ -136,8 +142,12 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	if _, err := c.RoomMembershipProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event); err != nil {
+	seq, err := c.RoomMembershipProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
+	if err != nil {
 		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
+	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for room timeline projection: %w", err)
 	}
 
 	legacySubject := subjects.RoomMeta(string(kind), room_id)
@@ -253,7 +263,10 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 
 	if lastSeq > 0 {
 		if err := c.RoomMembershipProjector.WaitForSeq(ctx, lastSeq); err != nil {
-			return fmt.Errorf("wait for projection after membership cleanup: %w", err)
+			return fmt.Errorf("wait for membership projection after membership cleanup: %w", err)
+		}
+		if err := c.RoomTimelineProjector.WaitForSeq(ctx, lastSeq); err != nil {
+			return fmt.Errorf("wait for room timeline projection after membership cleanup: %w", err)
 		}
 	}
 	return nil
