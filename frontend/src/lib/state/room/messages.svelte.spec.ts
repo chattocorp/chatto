@@ -38,6 +38,131 @@ async function settle() {
 }
 
 describe('RoomMessagesStore — lifecycle ownership', () => {
+	it('applies MessageEditedEvent payloads inline without refetching', async () => {
+		const fake = new FakeGqlClient({
+			room: {
+				events: {
+					events: [
+						{
+							id: 'm1',
+							createdAt: '2026-05-27T00:00:00Z',
+							actorId: 'u1',
+							actor: null,
+							event: {
+								__typename: 'MessagePostedEvent',
+								roomId: 'room-1',
+								body: 'before',
+								attachments: [],
+								linkPreview: null,
+								updatedAt: null,
+								inReplyTo: null,
+								threadRootEventId: null,
+								echoOfEventId: null,
+								echoFromThreadRootEventId: null,
+								replyCount: 0,
+								lastReplyAt: null,
+								threadParticipants: [],
+								viewerIsFollowingThread: null
+							}
+						}
+					],
+					hasOlder: false,
+					hasNewer: false
+				}
+			}
+		});
+		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent({
+			id: 'edit-1',
+			createdAt: '2026-05-27T00:00:01Z',
+			actorId: 'u1',
+			actor: null,
+			event: {
+				__typename: 'MessageEditedEvent',
+				roomId: 'room-1',
+				messageEventId: 'm1',
+				body: 'after',
+				attachments: [],
+				linkPreview: null,
+				updatedAt: '2026-05-27T00:00:01Z'
+			}
+		} as never);
+
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			body: 'after',
+			updatedAt: '2026-05-27T00:00:01Z'
+		});
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('applies MessageRetractedEvent payloads inline without refetching', async () => {
+		const fake = new FakeGqlClient({
+			room: {
+				events: {
+					events: [
+						{
+							id: 'm1',
+							createdAt: '2026-05-27T00:00:00Z',
+							actorId: 'u1',
+							actor: null,
+							event: {
+								__typename: 'MessagePostedEvent',
+								roomId: 'room-1',
+								body: 'before',
+								attachments: [{ id: 'a1' }],
+								linkPreview: null,
+								updatedAt: null,
+								inReplyTo: null,
+								threadRootEventId: null,
+								echoOfEventId: null,
+								echoFromThreadRootEventId: null,
+								replyCount: 0,
+								lastReplyAt: null,
+								threadParticipants: [],
+								viewerIsFollowingThread: null
+							}
+						}
+					],
+					hasOlder: false,
+					hasNewer: false
+				}
+			}
+		});
+		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent({
+			id: 'retract-1',
+			createdAt: '2026-05-27T00:00:01Z',
+			actorId: 'u1',
+			actor: null,
+			event: {
+				__typename: 'MessageRetractedEvent',
+				roomId: 'room-1',
+				messageEventId: 'm1',
+				retractedReason: null
+			}
+		} as never);
+
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			body: null,
+			attachments: []
+		});
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
 	it('runs an initial fetch on setRoom', async () => {
 		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
 		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);

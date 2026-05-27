@@ -417,7 +417,7 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 // This removes the message content from the BODIES bucket and any attachments from the ASSETS
 // ObjectStore, while preserving the event in the stream for audit trail purposes.
 // Subsequent lazy-loading will result in an empty body field.
-// Publishes a MessageDeletedEvent to notify connected clients in real-time.
+// Publishes a MessageRetractedEvent to notify connected clients in real-time.
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
 // Authorization: Caller must verify the actor is the message author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
 func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
@@ -477,7 +477,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 }
 
 // EditMessage edits a message body. Updates the body content and sets updated_at.
-// Publishes a MessageUpdatedEvent to notify connected clients in real-time.
+// Publishes a MessageEditedEvent to notify connected clients in real-time.
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
 //
 // Business rule: Authors can only edit their own messages within MessageEditWindow (3 hours).
@@ -564,10 +564,9 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	return nil
 }
 
-// publishMessageRetract emits a single MessageRetractedEvent on EVT
-// and the legacy MessageDeletedEvent live mirror on
-// live.server.room.{kind}.{r}.message_deleted so the frontend's
-// existing handlers fire. Factored out so DeleteMessage can fan to
+// publishMessageRetract emits a MessageRetractedEvent on EVT and mirrors the
+// same canonical payload onto live.server.room.{kind}.{r}.message_retracted
+// for the myEvents subscription. Factored out so DeleteMessage can fan to
 // linked messages.
 func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string) error {
 	event := newEvent(actorID, &corev1.Event{
@@ -582,30 +581,28 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
 
-	// Legacy live mirror so the frontend's MessageDeletedEvent handler
-	// keeps firing. Fire-and-forget over NATS Core, no durable
-	// duplicate.
+	// Live mirror for StreamMyEvents. Fire-and-forget over NATS Core, no
+	// durable duplicate; EVT's live.evt.> republish is intentionally not
+	// subscribed by StreamMyEvents during the migration window.
 	liveEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageDeleted{
-			MessageDeleted: &corev1.MessageDeletedEvent{
-				RoomId:         roomID,
-				MessageEventId: eventID,
-				MessageBodyId:  eventID,
+		Event: &corev1.Event_MessageRetracted{
+			MessageRetracted: &corev1.MessageRetractedEvent{
+				RoomId:  roomID,
+				EventId: eventID,
 			},
 		},
 	})
-	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_deleted")
+	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_retracted")
 	if err := c.publishLiveServerEvent(ctx, liveSubject, liveEvent); err != nil {
 		c.logger.Warn("Failed to publish retract live mirror", "error", err)
 	}
 	return nil
 }
 
-// publishMessageEdit emits a single MessageEditedEvent on EVT and a
-// synthesised MessageUpdatedEvent live mirror on
-// live.server.room.{kind}.{r}.message_updated so the frontend's
-// existing handlers fire. Factored out so EditMessage /
-// editEmbeddedBody can fan the same payload to linked messages.
+// publishMessageEdit emits a MessageEditedEvent on EVT and mirrors the same
+// canonical payload onto live.server.room.{kind}.{r}.message_edited for the
+// myEvents subscription. Factored out so EditMessage / editEmbeddedBody can
+// fan the same payload to linked messages.
 func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageEdited{
@@ -621,15 +618,15 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 	}
 
 	liveEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageUpdated{
-			MessageUpdated: &corev1.MessageUpdatedEvent{
-				RoomId:         roomID,
-				MessageEventId: eventID,
-				MessageBodyId:  eventID,
+		Event: &corev1.Event_MessageEdited{
+			MessageEdited: &corev1.MessageEditedEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+				Body:    body,
 			},
 		},
 	})
-	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_updated")
+	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_edited")
 	if err := c.publishLiveServerEvent(ctx, liveSubject, liveEvent); err != nil {
 		c.logger.Warn("Failed to publish edit live mirror", "error", err)
 	}

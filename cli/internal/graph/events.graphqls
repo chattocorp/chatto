@@ -49,6 +49,8 @@ union RoomEventType =
   | ServerMemberDeletedEvent
   # Messages
   | MessagePostedEvent
+  | MessageEditedEvent
+  | MessageRetractedEvent
   | MessageUpdatedEvent
   | MessageDeletedEvent
   # Reactions
@@ -104,6 +106,8 @@ union ServerEventType =
   | ServerMemberDeletedEvent
   # Messages
   | MessagePostedEvent
+  | MessageEditedEvent
+  | MessageRetractedEvent
   | MessageUpdatedEvent
   | MessageDeletedEvent
   # Reactions
@@ -364,6 +368,38 @@ type MessagePostedEvent {
   threadParticipants(first: Int = 5): [User!]! @goField(forceResolver: true)
   "Whether the current viewer is following this thread. Null for non-root messages or messages without replies."
   viewerIsFollowingThread: Boolean @goField(forceResolver: true)
+}
+
+"""
+Event: A message was edited.
+Carries the updated message body inline so subscription clients can update
+without refetching the affected message.
+"""
+type MessageEditedEvent {
+  "The ID of the room where the message was edited."
+  roomId: ID!
+  "The event ID of the message that was edited."
+  messageEventId: ID! @goField(forceResolver: true)
+  "The decrypted message body, or null if the author was crypto-shredded."
+  body: String @goField(forceResolver: true)
+  "Attachments after the edit."
+  attachments: [Attachment!]! @goField(forceResolver: true)
+  "Link preview after the edit."
+  linkPreview: LinkPreview @goField(forceResolver: true)
+  "When the message was edited."
+  updatedAt: Time @goField(forceResolver: true)
+}
+
+"""
+Event: A message was retracted.
+"""
+type MessageRetractedEvent {
+  "The ID of the room where the message was retracted."
+  roomId: ID!
+  "The event ID of the message that was retracted."
+  messageEventId: ID! @goField(forceResolver: true)
+  "Optional human-readable retraction reason."
+  reason: String
 }
 
 """

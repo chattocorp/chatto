@@ -82,7 +82,8 @@
     if (!eventData) return;
 
     if (
-      eventData.__typename === 'MessageDeletedEvent' &&
+      (eventData.__typename === 'MessageRetractedEvent' ||
+        eventData.__typename === 'MessageDeletedEvent') &&
       eventData.roomId === roomId &&
       editState.eventId === eventData.messageEventId
     ) {

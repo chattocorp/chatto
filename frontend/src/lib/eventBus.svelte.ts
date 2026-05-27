@@ -63,6 +63,23 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           }
           viewerIsFollowingThread
         }
+        ... on MessageEditedEvent {
+          roomId
+          messageEventId
+          body
+          attachments {
+            ...MessageAttachmentView
+          }
+          linkPreview {
+            ...LinkPreviewView
+          }
+          updatedAt
+        }
+        ... on MessageRetractedEvent {
+          roomId
+          messageEventId
+          retractedReason: reason
+        }
         ... on MessageUpdatedEvent {
           roomId
           messageEventId

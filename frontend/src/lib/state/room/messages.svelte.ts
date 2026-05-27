@@ -248,7 +248,7 @@ export abstract class MessageListStore {
 
   /**
    * Route a space event into the store. Handles all common message-list
-   * mutations: refetch on edit/delete/reaction/video, full reset on
+   * mutations: inline edit/retract, refetch on reaction/video, full reset on
    * RoomDeletedEvent, full refetch on ServerMemberDeletedEvent. Delegates
    * MessagePostedEvent and room system events to subclass hooks.
    */
@@ -280,8 +280,16 @@ export abstract class MessageListStore {
     // (body=null, attachments=[]) and we already know the affected event id,
     // so a server round-trip is wasteful and a refetch failure would leave
     // the original message visible on screen.
-    if (eventData.__typename === 'MessageDeletedEvent') {
+    if (
+      eventData.__typename === 'MessageRetractedEvent' ||
+      eventData.__typename === 'MessageDeletedEvent'
+    ) {
       this.applyDeletion(eventData.messageEventId);
+      return;
+    }
+
+    if (eventData.__typename === 'MessageEditedEvent') {
+      this.applyEdit(eventData.messageEventId, eventData);
       return;
     }
 
@@ -379,6 +387,34 @@ export abstract class MessageListStore {
       this.events[i] = {
         ...e,
         event: { ...evt, body: null, attachments: [] }
+      };
+    }
+  }
+
+  /**
+   * Apply an edit payload directly to the matching MessagePostedEvent. The
+   * backend emits one canonical edit event per linked post/echo, so we only
+   * patch the direct event ID here; the linked event will arrive separately.
+   */
+  protected applyEdit(
+    messageEventId: string,
+    edit: Extract<ServerEvent['event'], { __typename: 'MessageEditedEvent' }>
+  ): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (e.id !== messageEventId) continue;
+
+      this.events[i] = {
+        ...e,
+        event: {
+          ...evt,
+          body: edit.body,
+          attachments: edit.attachments,
+          linkPreview: edit.linkPreview,
+          updatedAt: edit.updatedAt
+        }
       };
     }
   }
@@ -931,6 +967,8 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
     case 'MessagePostedEvent':
       // Echoes are root-level; thread replies (threadRootEventId set) are not.
       return !!eventData.echoOfEventId || !eventData.threadRootEventId;
+    case 'MessageEditedEvent':
+    case 'MessageRetractedEvent':
     case 'MessageUpdatedEvent':
     case 'MessageDeletedEvent':
     case 'UserJoinedRoomEvent':

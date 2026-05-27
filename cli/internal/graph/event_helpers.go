@@ -47,19 +47,15 @@ func unwrapEvent(event *corev1.Event) any {
 		// Populate EventId from wrapper for nested resolvers (reactions, thread metadata).
 		e.MessagePosted.EventId = event.Id
 		return e.MessagePosted
+	case *corev1.Event_MessageEdited:
+		return e.MessageEdited
+	case *corev1.Event_MessageRetracted:
+		return e.MessageRetracted
 	case *corev1.Event_MessageUpdated:
 		e.MessageUpdated.EventId = event.Id
 		return e.MessageUpdated
 	case *corev1.Event_MessageDeleted:
 		return e.MessageDeleted
-
-	// Event_MessageEdited / Event_MessageRetracted (the durable EVT
-	// variants from #597) intentionally don't have a GraphQL surface
-	// here — producers (messages.go) emit a synthesised
-	// MessageUpdatedEvent / MessageDeletedEvent on the legacy live
-	// subject family so the frontend's existing handlers fire. The
-	// EVT events themselves only flow into the projection, not
-	// through the live channel.
 
 	// ---- Reactions ----
 	case *corev1.Event_ReactionAdded:

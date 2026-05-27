@@ -152,6 +152,55 @@ func (r *messageDeletedEventResolver) MessageEventID(ctx context.Context, obj *c
 	return obj.MessageEventId, nil
 }
 
+// MessageEventID is the resolver for the messageEventId field.
+func (r *messageEditedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageEditedEvent) (string, error) {
+	if obj.EventId == "" {
+		r.logger.Warn("MessageEditedEvent has empty eventId", "room_id", obj.RoomId)
+	}
+	return obj.EventId, nil
+}
+
+// Body is the resolver for the body field.
+func (r *messageEditedEventResolver) Body(ctx context.Context, obj *corev1.MessageEditedEvent) (*string, error) {
+	messageBody, err := r.core.GetFullMessageBodyByEventID(ctx, obj.EventId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load edited message body: %w", err)
+	}
+	if messageBody == nil {
+		return nil, nil
+	}
+	return &messageBody.Body, nil
+}
+
+// Attachments is the resolver for the attachments field.
+func (r *messageEditedEventResolver) Attachments(ctx context.Context, obj *corev1.MessageEditedEvent) ([]*corev1.Attachment, error) {
+	if obj.Body == nil {
+		return []*corev1.Attachment{}, nil
+	}
+	for _, att := range obj.Body.Attachments {
+		if att != nil {
+			att.MessageBodyId = obj.EventId
+		}
+	}
+	return obj.Body.Attachments, nil
+}
+
+// LinkPreview is the resolver for the linkPreview field.
+func (r *messageEditedEventResolver) LinkPreview(ctx context.Context, obj *corev1.MessageEditedEvent) (*corev1.LinkPreview, error) {
+	if obj.Body == nil {
+		return nil, nil
+	}
+	return obj.Body.LinkPreview, nil
+}
+
+// UpdatedAt is the resolver for the updatedAt field.
+func (r *messageEditedEventResolver) UpdatedAt(ctx context.Context, obj *corev1.MessageEditedEvent) (*timestamppb.Timestamp, error) {
+	if obj.Body == nil || obj.Body.UpdatedAt == nil {
+		return nil, nil
+	}
+	return obj.Body.UpdatedAt, nil
+}
+
 // Body is the resolver for the body field.
 // Lazy-loads the message body from the KV bucket using the message body ID.
 // Returns nil if the message has been deleted (GDPR).
@@ -396,6 +445,14 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 }
 
 // MessageEventID is the resolver for the messageEventId field.
+func (r *messageRetractedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageRetractedEvent) (string, error) {
+	if obj.EventId == "" {
+		r.logger.Warn("MessageRetractedEvent has empty eventId", "room_id", obj.RoomId)
+	}
+	return obj.EventId, nil
+}
+
+// MessageEventID is the resolver for the messageEventId field.
 func (r *messageUpdatedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageUpdatedEvent) (string, error) {
 	if obj.MessageEventId == "" {
 		r.logger.Warn("MessageUpdatedEvent has empty messageEventId",
@@ -582,9 +639,19 @@ func (r *Resolver) MessageDeletedEvent() MessageDeletedEventResolver {
 	return &messageDeletedEventResolver{r}
 }
 
+// MessageEditedEvent returns MessageEditedEventResolver implementation.
+func (r *Resolver) MessageEditedEvent() MessageEditedEventResolver {
+	return &messageEditedEventResolver{r}
+}
+
 // MessagePostedEvent returns MessagePostedEventResolver implementation.
 func (r *Resolver) MessagePostedEvent() MessagePostedEventResolver {
 	return &messagePostedEventResolver{r}
+}
+
+// MessageRetractedEvent returns MessageRetractedEventResolver implementation.
+func (r *Resolver) MessageRetractedEvent() MessageRetractedEventResolver {
+	return &messageRetractedEventResolver{r}
 }
 
 // MessageUpdatedEvent returns MessageUpdatedEventResolver implementation.
@@ -638,7 +705,9 @@ type attachmentResolver struct{ *Resolver }
 type heartbeatEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
 type messageDeletedEventResolver struct{ *Resolver }
+type messageEditedEventResolver struct{ *Resolver }
 type messagePostedEventResolver struct{ *Resolver }
+type messageRetractedEventResolver struct{ *Resolver }
 type messageUpdatedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }

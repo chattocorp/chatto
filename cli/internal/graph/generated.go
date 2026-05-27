@@ -52,7 +52,9 @@ type ResolverRoot interface {
 	MentionNotificationEvent() MentionNotificationEventResolver
 	MentionNotificationItem() MentionNotificationItemResolver
 	MessageDeletedEvent() MessageDeletedEventResolver
+	MessageEditedEvent() MessageEditedEventResolver
 	MessagePostedEvent() MessagePostedEventResolver
+	MessageRetractedEvent() MessageRetractedEventResolver
 	MessageUpdatedEvent() MessageUpdatedEventResolver
 	Mutation() MutationResolver
 	NewDirectMessageNotificationEvent() NewDirectMessageNotificationEventResolver
@@ -244,6 +246,15 @@ type ComplexityRoot struct {
 		RoomId         func(childComplexity int) int
 	}
 
+	MessageEditedEvent struct {
+		Attachments    func(childComplexity int) int
+		Body           func(childComplexity int) int
+		LinkPreview    func(childComplexity int) int
+		MessageEventID func(childComplexity int) int
+		RoomId         func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
+	}
+
 	MessagePostedEvent struct {
 		Attachments               func(childComplexity int) int
 		Body                      func(childComplexity int) int
@@ -259,6 +270,12 @@ type ComplexityRoot struct {
 		ThreadRootEventID         func(childComplexity int) int
 		UpdatedAt                 func(childComplexity int) int
 		ViewerIsFollowingThread   func(childComplexity int) int
+	}
+
+	MessageRetractedEvent struct {
+		MessageEventID func(childComplexity int) int
+		Reason         func(childComplexity int) int
+		RoomId         func(childComplexity int) int
 	}
 
 	MessageUpdatedEvent struct {
@@ -903,6 +920,13 @@ type MentionNotificationItemResolver interface {
 type MessageDeletedEventResolver interface {
 	MessageEventID(ctx context.Context, obj *corev1.MessageDeletedEvent) (string, error)
 }
+type MessageEditedEventResolver interface {
+	MessageEventID(ctx context.Context, obj *corev1.MessageEditedEvent) (string, error)
+	Body(ctx context.Context, obj *corev1.MessageEditedEvent) (*string, error)
+	Attachments(ctx context.Context, obj *corev1.MessageEditedEvent) ([]*corev1.Attachment, error)
+	LinkPreview(ctx context.Context, obj *corev1.MessageEditedEvent) (*corev1.LinkPreview, error)
+	UpdatedAt(ctx context.Context, obj *corev1.MessageEditedEvent) (*timestamppb.Timestamp, error)
+}
 type MessagePostedEventResolver interface {
 	Body(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
 	Attachments(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*corev1.Attachment, error)
@@ -917,6 +941,9 @@ type MessagePostedEventResolver interface {
 	ThreadParticipants(ctx context.Context, obj *corev1.MessagePostedEvent, first *int32) ([]*corev1.User, error)
 	ViewerIsFollowingThread(ctx context.Context, obj *corev1.MessagePostedEvent) (*bool, error)
 	LinkPreview(ctx context.Context, obj *corev1.MessagePostedEvent) (*corev1.LinkPreview, error)
+}
+type MessageRetractedEventResolver interface {
+	MessageEventID(ctx context.Context, obj *corev1.MessageRetractedEvent) (string, error)
 }
 type MessageUpdatedEventResolver interface {
 	MessageEventID(ctx context.Context, obj *corev1.MessageUpdatedEvent) (string, error)
@@ -1841,6 +1868,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.MessageDeletedEvent.RoomId(childComplexity), true
 
+	case "MessageEditedEvent.attachments":
+		if e.complexity.MessageEditedEvent.Attachments == nil {
+			break
+		}
+
+		return e.complexity.MessageEditedEvent.Attachments(childComplexity), true
+	case "MessageEditedEvent.body":
+		if e.complexity.MessageEditedEvent.Body == nil {
+			break
+		}
+
+		return e.complexity.MessageEditedEvent.Body(childComplexity), true
+	case "MessageEditedEvent.linkPreview":
+		if e.complexity.MessageEditedEvent.LinkPreview == nil {
+			break
+		}
+
+		return e.complexity.MessageEditedEvent.LinkPreview(childComplexity), true
+	case "MessageEditedEvent.messageEventId":
+		if e.complexity.MessageEditedEvent.MessageEventID == nil {
+			break
+		}
+
+		return e.complexity.MessageEditedEvent.MessageEventID(childComplexity), true
+	case "MessageEditedEvent.roomId":
+		if e.complexity.MessageEditedEvent.RoomId == nil {
+			break
+		}
+
+		return e.complexity.MessageEditedEvent.RoomId(childComplexity), true
+	case "MessageEditedEvent.updatedAt":
+		if e.complexity.MessageEditedEvent.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.MessageEditedEvent.UpdatedAt(childComplexity), true
+
 	case "MessagePostedEvent.attachments":
 		if e.complexity.MessagePostedEvent.Attachments == nil {
 			break
@@ -1930,6 +1994,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MessagePostedEvent.ViewerIsFollowingThread(childComplexity), true
+
+	case "MessageRetractedEvent.messageEventId":
+		if e.complexity.MessageRetractedEvent.MessageEventID == nil {
+			break
+		}
+
+		return e.complexity.MessageRetractedEvent.MessageEventID(childComplexity), true
+	case "MessageRetractedEvent.reason":
+		if e.complexity.MessageRetractedEvent.Reason == nil {
+			break
+		}
+
+		return e.complexity.MessageRetractedEvent.Reason(childComplexity), true
+	case "MessageRetractedEvent.roomId":
+		if e.complexity.MessageRetractedEvent.RoomId == nil {
+			break
+		}
+
+		return e.complexity.MessageRetractedEvent.RoomId(childComplexity), true
 
 	case "MessageUpdatedEvent.messageEventId":
 		if e.complexity.MessageUpdatedEvent.MessageEventID == nil {
@@ -9668,6 +9751,220 @@ func (ec *executionContext) fieldContext_MessageDeletedEvent_messageEventId(_ co
 	return fc, nil
 }
 
+func (ec *executionContext) _MessageEditedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageEditedEvent_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageEditedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageEditedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageEditedEvent_messageEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageEditedEvent_messageEventId,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessageEditedEvent().MessageEventID(ctx, obj)
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageEditedEvent_messageEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageEditedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageEditedEvent_body(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageEditedEvent_body,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessageEditedEvent().Body(ctx, obj)
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageEditedEvent_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageEditedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageEditedEvent_attachments(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageEditedEvent_attachments,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessageEditedEvent().Attachments(ctx, obj)
+		},
+		nil,
+		ec.marshalNAttachment2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐAttachmentᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageEditedEvent_attachments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageEditedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Attachment_id(ctx, field)
+			case "roomId":
+				return ec.fieldContext_Attachment_roomId(ctx, field)
+			case "filename":
+				return ec.fieldContext_Attachment_filename(ctx, field)
+			case "contentType":
+				return ec.fieldContext_Attachment_contentType(ctx, field)
+			case "size":
+				return ec.fieldContext_Attachment_size(ctx, field)
+			case "width":
+				return ec.fieldContext_Attachment_width(ctx, field)
+			case "height":
+				return ec.fieldContext_Attachment_height(ctx, field)
+			case "url":
+				return ec.fieldContext_Attachment_url(ctx, field)
+			case "thumbnailUrl":
+				return ec.fieldContext_Attachment_thumbnailUrl(ctx, field)
+			case "videoProcessing":
+				return ec.fieldContext_Attachment_videoProcessing(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Attachment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageEditedEvent_linkPreview(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageEditedEvent_linkPreview,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessageEditedEvent().LinkPreview(ctx, obj)
+		},
+		nil,
+		ec.marshalOLinkPreview2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐLinkPreview,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageEditedEvent_linkPreview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageEditedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_LinkPreview_url(ctx, field)
+			case "title":
+				return ec.fieldContext_LinkPreview_title(ctx, field)
+			case "description":
+				return ec.fieldContext_LinkPreview_description(ctx, field)
+			case "imageUrl":
+				return ec.fieldContext_LinkPreview_imageUrl(ctx, field)
+			case "imageAssetId":
+				return ec.fieldContext_LinkPreview_imageAssetId(ctx, field)
+			case "siteName":
+				return ec.fieldContext_LinkPreview_siteName(ctx, field)
+			case "embedType":
+				return ec.fieldContext_LinkPreview_embedType(ctx, field)
+			case "embedId":
+				return ec.fieldContext_LinkPreview_embedId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LinkPreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageEditedEvent_updatedAt(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageEditedEvent_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessageEditedEvent().UpdatedAt(ctx, obj)
+		},
+		nil,
+		ec.marshalOTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageEditedEvent_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageEditedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MessagePostedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10161,6 +10458,93 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_linkPreview(_ contex
 				return ec.fieldContext_LinkPreview_embedId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type LinkPreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageRetractedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageRetractedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageRetractedEvent_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageRetractedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageRetractedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageRetractedEvent_messageEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageRetractedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageRetractedEvent_messageEventId,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessageRetractedEvent().MessageEventID(ctx, obj)
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageRetractedEvent_messageEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageRetractedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessageRetractedEvent_reason(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageRetractedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessageRetractedEvent_reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessageRetractedEvent_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageRetractedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -28405,11 +28789,21 @@ func (ec *executionContext) _RoomEventType(ctx context.Context, sel ast.Selectio
 			return graphql.Null
 		}
 		return ec._MessageUpdatedEvent(ctx, sel, obj)
+	case *corev1.MessageRetractedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessageRetractedEvent(ctx, sel, obj)
 	case *corev1.MessagePostedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._MessagePostedEvent(ctx, sel, obj)
+	case *corev1.MessageEditedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessageEditedEvent(ctx, sel, obj)
 	case *corev1.MessageDeletedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -28578,11 +28972,21 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._MessageUpdatedEvent(ctx, sel, obj)
+	case *corev1.MessageRetractedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessageRetractedEvent(ctx, sel, obj)
 	case *corev1.MessagePostedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._MessagePostedEvent(ctx, sel, obj)
+	case *corev1.MessageEditedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessageEditedEvent(ctx, sel, obj)
 	case *corev1.MessageDeletedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -30606,6 +31010,216 @@ func (ec *executionContext) _MessageDeletedEvent(ctx context.Context, sel ast.Se
 	return out
 }
 
+var messageEditedEventImplementors = []string{"MessageEditedEvent", "RoomEventType", "ServerEventType"}
+
+func (ec *executionContext) _MessageEditedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageEditedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, messageEditedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MessageEditedEvent")
+		case "roomId":
+			out.Values[i] = ec._MessageEditedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "messageEventId":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessageEditedEvent_messageEventId(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "body":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessageEditedEvent_body(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "attachments":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessageEditedEvent_attachments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "linkPreview":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessageEditedEvent_linkPreview(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "updatedAt":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessageEditedEvent_updatedAt(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var messagePostedEventImplementors = []string{"MessagePostedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessagePostedEvent) graphql.Marshaler {
@@ -31063,6 +31677,83 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var messageRetractedEventImplementors = []string{"MessageRetractedEvent", "RoomEventType", "ServerEventType"}
+
+func (ec *executionContext) _MessageRetractedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageRetractedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, messageRetractedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MessageRetractedEvent")
+		case "roomId":
+			out.Values[i] = ec._MessageRetractedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "messageEventId":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessageRetractedEvent_messageEventId(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "reason":
+			out.Values[i] = ec._MessageRetractedEvent_reason(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

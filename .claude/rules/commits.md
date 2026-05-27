@@ -34,6 +34,13 @@ This repo uses GitHub's modern issue features. Prefer them over hand-rolled chec
 ## Sub-issues (GA 2025)
 
 - Use parent/child sub-issue relationships for any multi-PR effort. The parent issue gets a native progress bar driven by closed sub-issues — no manual checklist sync.
-- Create the parent first, then link children via `gh api graphql` with the `addSubIssue` mutation. The `subIssueId` is the GraphQL node ID (not the issue number); fetch it via `gh issue view <number> --json id`.
+- When creating a child issue for an epic, set GitHub's native parent/sub-issue metadata immediately. Do not rely on body text like `Parent: #123` as the only link.
+- Prefer creating sub-issues through GraphQL `createIssue` with both `issueTypeId` and `parentIssueId` set. If the issue already exists, link it via `addSubIssue`. `subIssueId` is the GraphQL node ID, not the issue number.
+- After creating or linking sub-issues, verify the native relationship with a GraphQL query before reporting the work as done:
+
+  ```sh
+  gh api graphql -f query='query($owner:String!,$repo:String!,$number:Int!){ repository(owner:$owner,name:$repo){ issue(number:$number){ number subIssues(first:50){ nodes { number title parent { number } } } } } }' -F owner=chattocorp -F repo=chatto -F number=123
+  ```
+
 - Sub-issues can span repos in the same org. Don't bundle unrelated work under one parent just because they share a theme — keep parents tight.
 - For epics, write the hub issue body to capture the _why_ (motivation, key decisions, phase breakdown). Don't duplicate the per-sub-issue scope into the hub — the sub-issue list is the source of truth for what's left.

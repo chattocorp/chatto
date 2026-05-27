@@ -667,18 +667,17 @@ message ServerDeletedEvent {
 // MESSAGE MUTATION EVENTS (room-scoped)
 // ============================================================================
 //
-// Two flavours coexist during the event-sourcing migration (#597):
+// Two flavours coexist during the event-sourcing migration (#597/#629):
 //
 //   - MessageEditedEvent / MessageRetractedEvent — DURABLE, ride the EVT
 //     stream at evt.room.{R}.message_edited / .message_retracted, carry
 //     enough state (body for edits) for projections to replay history
-//     without reaching back to KV.
+//     without reaching back to KV. They are also mirrored onto the
+//     live.server.room subject family for the myEvents subscription.
 //
-//   - MessageUpdatedEvent / MessageDeletedEvent — LIVE-ONLY, ride
-//     live.server.room.{kind}.{r}.message_{updated,deleted} and signal
-//     "go re-read SERVER_BODIES KV". Will be retired in #597 phase 5
-//     once event-only writes land; the durable names can be renamed
-//     back to Updated/Deleted at that point.
+//   - MessageUpdatedEvent / MessageDeletedEvent — legacy live-only shapes
+//     retained for wire compatibility during the rollout window. New edit
+//     and retract delivery uses the canonical durable names above.
 
 // MessageEditedEvent is the durable event published when a message's body
 // is edited. Carries the full new body envelope; the projection overlays

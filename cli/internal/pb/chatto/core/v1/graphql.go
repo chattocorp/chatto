@@ -21,6 +21,8 @@ func (*UserJoinedRoomEvent) IsServerEventType()           {}
 func (*UserLeftRoomEvent) IsServerEventType()             {}
 func (*SpaceMemberDeletedEvent) IsServerEventType()       {}
 func (*MessagePostedEvent) IsServerEventType()            {}
+func (*MessageEditedEvent) IsServerEventType()            {}
+func (*MessageRetractedEvent) IsServerEventType()         {}
 func (*MessageUpdatedEvent) IsServerEventType()           {}
 func (*MessageDeletedEvent) IsServerEventType()           {}
 func (*ReactionAddedEvent) IsServerEventType()            {}
@@ -71,6 +73,8 @@ func (*UserJoinedRoomEvent) IsRoomEventType()           {}
 func (*UserLeftRoomEvent) IsRoomEventType()             {}
 func (*SpaceMemberDeletedEvent) IsRoomEventType()       {}
 func (*MessagePostedEvent) IsRoomEventType()            {}
+func (*MessageEditedEvent) IsRoomEventType()            {}
+func (*MessageRetractedEvent) IsRoomEventType()         {}
 func (*MessageUpdatedEvent) IsRoomEventType()           {}
 func (*MessageDeletedEvent) IsRoomEventType()           {}
 func (*ReactionAddedEvent) IsRoomEventType()            {}
