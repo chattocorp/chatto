@@ -241,6 +241,9 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	if err := c.RoomCatalogProjector.WaitForSeq(ctx, createdSeq); err != nil {
 		return nil, fmt.Errorf("wait for catalog projection: %w", err)
 	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, createdSeq); err != nil {
+		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	}
 	return room, nil
 }
 
@@ -373,6 +376,9 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 	if err := c.RoomCatalogProjector.WaitForSeq(ctx, updatedSeq); err != nil {
 		return nil, fmt.Errorf("wait for catalog projection: %w", err)
 	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, updatedSeq); err != nil {
+		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	}
 	return room, nil
 }
 
@@ -451,6 +457,9 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	if err := c.RoomCatalogProjector.WaitForSeq(ctx, seq); err != nil {
 		return fmt.Errorf("wait for catalog projection: %w", err)
 	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for room timeline projection: %w", err)
+	}
 	if groupRemovedSeq > 0 {
 		if err := c.RoomGroupsProjector.WaitForSeq(ctx, groupRemovedSeq); err != nil {
 			return fmt.Errorf("wait for groups projection: %w", err)
@@ -478,8 +487,12 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 			},
 		},
 	})
-	if _, err := c.RoomCatalogProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent); err != nil {
+	seq, err := c.RoomCatalogProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent)
+	if err != nil {
 		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
+	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
 	}
 
 	subject := subjects.RoomMeta(string(kind), roomID)
@@ -513,8 +526,12 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 			},
 		},
 	})
-	if _, err := c.RoomCatalogProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent); err != nil {
+	seq, err := c.RoomCatalogProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent)
+	if err != nil {
 		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
+	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
 	}
 
 	subject := subjects.RoomMeta(string(kind), roomID)
