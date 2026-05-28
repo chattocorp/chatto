@@ -527,8 +527,11 @@ message UserDisplayNameChangedEvent {
 }
 
 message UserAvatarSetEvent {
+  // Deprecated: legacy avatar storage pointer retained for decoding old
+  // user events. New avatar writes append AssetCreatedEvent with
+  // UserAvatarAssetOwner instead.
   string user_id = 1;
-  AssetStorage avatar = 2;
+  DeprecatedAsset avatar = 2;
 }
 
 message UserAvatarClearedEvent {
@@ -766,13 +769,40 @@ message MessageDeletedEvent {
 // uploaded/generated asset. Message bodies may embed attachments for render
 // compatibility, but this event is the asset aggregate root.
 message AssetCreatedEvent {
+  // Full asset metadata, including storage pointer.
+  Asset asset = 1;
+
   // Whether the asset binary was available when this asset creation event was
   // written/imported. New uploads are true; legacy migrated source assets may be
   // false because older pipelines deleted originals after transcoding.
-  bool binary_available = 1;
+  bool storage_available = 2;
 
-  // Full asset metadata, including storage pointer and parent.
-  Asset asset = 2;
+  // The context that caused the asset to enter the domain.
+  oneof owner {
+    MessageAssetOwner message = 10;
+    AssetDerivativeOwner derivative = 11;
+    UserAvatarAssetOwner user_avatar = 12;
+  }
+}
+
+message MessageAssetOwner {
+  // Room containing the owning message.
+  string room_id = 1;
+
+  // Event ID of the message containing the source attachment.
+  string message_event_id = 2;
+}
+
+message AssetDerivativeOwner {
+  // Source/parent asset ID.
+  string source_asset_id = 1;
+
+  // Stable derivative role, such as "thumbnail" or "video_variant".
+  string role = 2;
+}
+
+message UserAvatarAssetOwner {
+  string user_id = 1;
 }
 
 // AssetProcessingSucceededEvent records that asset processing

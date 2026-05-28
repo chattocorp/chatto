@@ -87,7 +87,7 @@ func (c *ChattoCore) UploadAttachment(
 	}
 
 	// Store the attachment in the appropriate backend
-	var storage *corev1.AssetStorage
+	var storage *corev1.DeprecatedAsset
 	if c.ShouldUseS3() {
 		// Upload to S3
 		s3Key := S3KeyAttachment(attachmentID)
@@ -95,8 +95,8 @@ func (c *ChattoCore) UploadAttachment(
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload attachment to S3: %w", err)
 		}
-		storage = &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_S3{
+		storage = &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_S3{
 				S3: &corev1.S3Asset{
 					Key:    s3Key,
 					Bucket: proto.String(c.s3Client.Bucket()),
@@ -125,8 +125,8 @@ func (c *ChattoCore) UploadAttachment(
 		if err != nil {
 			return nil, fmt.Errorf("failed to store attachment: %w", err)
 		}
-		storage = &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_Nats{
+		storage = &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_Nats{
 				Nats: &corev1.NATSAsset{
 					Key: attachmentID,
 				},
@@ -228,7 +228,7 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 		return c.probeAttachmentReaderByID(ctx, attachment.Id)
 	}
 	switch asset := attachment.Storage.Asset.(type) {
-	case *corev1.AssetStorage_Nats:
+	case *corev1.DeprecatedAsset_Nats:
 		reader, info, err := c.GetAttachment(ctx, asset.Nats.Key)
 		if err != nil {
 			return nil, nil, err
@@ -239,7 +239,7 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 			Filename:    info.Headers.Get("Filename"),
 			RoomID:      info.Headers.Get("Room-Id"),
 		}, nil
-	case *corev1.AssetStorage_S3:
+	case *corev1.DeprecatedAsset_S3:
 		if c.s3Client == nil {
 			return nil, nil, fmt.Errorf("S3 client not configured")
 		}
@@ -304,7 +304,7 @@ func assetFromAttachment(attachment *corev1.Attachment) *corev1.Asset {
 		ContentType: attachment.GetContentType(),
 		Size:        attachment.GetSize(),
 	}
-	applyAssetStorageFromAttachmentStorage(asset, attachment.GetStorage())
+	applyDeprecatedAssetFromAttachmentStorage(asset, attachment.GetStorage())
 	applyAssetMetadataFromAttachment(asset, attachment)
 	return asset
 }
@@ -325,38 +325,55 @@ func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
 	}
 }
 
-func applyAssetStorageFromAttachmentStorage(asset *corev1.Asset, storage *corev1.AssetStorage) {
+func applyDeprecatedAssetFromAttachmentStorage(asset *corev1.Asset, storage *corev1.DeprecatedAsset) {
 	if asset == nil || storage == nil {
 		return
 	}
 	switch stored := storage.GetAsset().(type) {
-	case *corev1.AssetStorage_Nats:
+	case *corev1.DeprecatedAsset_Nats:
 		if stored.Nats != nil {
 			asset.Storage = &corev1.Asset_Nats{Nats: proto.Clone(stored.Nats).(*corev1.NATSAsset)}
 		}
-	case *corev1.AssetStorage_S3:
+	case *corev1.DeprecatedAsset_S3:
 		if stored.S3 != nil {
 			asset.Storage = &corev1.Asset_S3{S3: proto.Clone(stored.S3).(*corev1.S3Asset)}
 		}
 	}
 }
 
-func assetStorageFromAsset(asset *corev1.Asset) *corev1.AssetStorage {
+func assetStorageFromAsset(asset *corev1.Asset) *corev1.DeprecatedAsset {
 	if asset == nil {
 		return nil
 	}
 	switch {
 	case asset.GetNats() != nil:
-		return &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_Nats{Nats: proto.Clone(asset.GetNats()).(*corev1.NATSAsset)},
+		return &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_Nats{Nats: proto.Clone(asset.GetNats()).(*corev1.NATSAsset)},
 		}
 	case asset.GetS3() != nil:
-		return &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_S3{S3: proto.Clone(asset.GetS3()).(*corev1.S3Asset)},
+		return &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_S3{S3: proto.Clone(asset.GetS3()).(*corev1.S3Asset)},
 		}
 	default:
 		return nil
 	}
+}
+
+func DeprecatedAssetFromAsset(asset *corev1.Asset) *corev1.DeprecatedAsset {
+	return assetStorageFromAsset(asset)
+}
+
+func assetFromDeprecatedAsset(storage *corev1.DeprecatedAsset, filename, contentType string) *corev1.Asset {
+	if storage == nil {
+		return nil
+	}
+	asset := &corev1.Asset{
+		Id:          assetIDFromAsset(storage),
+		Filename:    filename,
+		ContentType: contentType,
+	}
+	applyDeprecatedAssetFromAttachmentStorage(asset, storage)
+	return asset
 }
 
 func applyAssetMetadataFromAttachment(asset *corev1.Asset, attachment *corev1.Attachment) {
@@ -374,11 +391,11 @@ func assetDimensions(asset *corev1.Asset) (int32, int32) {
 	return asset.GetWidth(), asset.GetHeight()
 }
 
-func cloneAssetStorage(storage *corev1.AssetStorage) *corev1.AssetStorage {
+func cloneDeprecatedAsset(storage *corev1.DeprecatedAsset) *corev1.DeprecatedAsset {
 	if storage == nil {
 		return nil
 	}
-	return proto.Clone(storage).(*corev1.AssetStorage)
+	return proto.Clone(storage).(*corev1.DeprecatedAsset)
 }
 
 // FindBodyAttachment fetches the named MessageBody and returns the
@@ -461,7 +478,7 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	}
 
 	switch storage := attachment.Storage.Asset.(type) {
-	case *corev1.AssetStorage_Nats:
+	case *corev1.DeprecatedAsset_Nats:
 		store, err := c.GetAttachmentsStore(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get attachments store: %w", err)
@@ -470,7 +487,7 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 			return fmt.Errorf("failed to delete attachment from NATS: %w", err)
 		}
 		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachment.Id, "key", storage.Nats.Key)
-	case *corev1.AssetStorage_S3:
+	case *corev1.DeprecatedAsset_S3:
 		if c.s3Client == nil {
 			return fmt.Errorf("S3 client not configured")
 		}
@@ -554,7 +571,7 @@ func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *
 	if attachment.Storage == nil {
 		return c.probePresignedAttachmentURL(ctx, attachment.Id)
 	}
-	s3, ok := attachment.Storage.Asset.(*corev1.AssetStorage_S3)
+	s3, ok := attachment.Storage.Asset.(*corev1.DeprecatedAsset_S3)
 	if !ok {
 		return "", fmt.Errorf("attachment %s is not stored in S3", attachment.Id)
 	}
@@ -966,17 +983,17 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, _ RoomKind, roomID,
 		declaredAttachment.MessageBodyId = messageEventID
 	}
 	asset := assetFromAttachment(declaredAttachment)
-	asset.Parent = &corev1.Asset_Message{
-		Message: &corev1.MessageAssetParent{
-			RoomId:         roomID,
-			MessageEventId: messageEventID,
-		},
-	}
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				BinaryAvailable: true,
-				Asset:           asset,
+				StorageAvailable: true,
+				Asset:            asset,
+				Owner: &corev1.AssetCreatedEvent_Message{
+					Message: &corev1.MessageAssetOwner{
+						RoomId:         roomID,
+						MessageEventId: messageEventID,
+					},
+				},
 			},
 		},
 	})
@@ -994,13 +1011,7 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 	thumbnailAssetID := ""
 	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
 		thumbnailAssetID = thumbnailAsset.GetId()
-		thumbnailAsset.Parent = &corev1.Asset_Derivative{
-			Derivative: &corev1.AssetDerivativeParent{
-				AssetId: attachmentID,
-				Role:    "thumbnail",
-			},
-		}
-		if err := c.recordDerivativeAssetCreated(ctx, roomID, thumbnailAsset); err != nil {
+		if err := c.recordDerivativeAssetCreated(ctx, roomID, thumbnailAsset, attachmentID, "thumbnail"); err != nil {
 			return err
 		}
 	}
@@ -1009,13 +1020,7 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 			continue
 		}
 		variantAsset := assetFromAttachment(variant.GetAttachment())
-		variantAsset.Parent = &corev1.Asset_Derivative{
-			Derivative: &corev1.AssetDerivativeParent{
-				AssetId: attachmentID,
-				Role:    "video_variant",
-			},
-		}
-		if err := c.recordDerivativeAssetCreated(ctx, roomID, variantAsset); err != nil {
+		if err := c.recordDerivativeAssetCreated(ctx, roomID, variantAsset, attachmentID, "video_variant"); err != nil {
 			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
@@ -1042,15 +1047,21 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 	return c.PublishAssetProcessing(ctx, kind, roomID, event)
 }
 
-func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID string, asset *corev1.Asset) error {
-	if roomID == "" || asset == nil || asset.GetId() == "" {
+func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID string, asset *corev1.Asset, sourceAssetID, role string) error {
+	if roomID == "" || asset == nil || asset.GetId() == "" || sourceAssetID == "" || role == "" {
 		return fmt.Errorf("derivative asset creation missing room or asset id")
 	}
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				BinaryAvailable: true,
-				Asset:           asset,
+				StorageAvailable: true,
+				Asset:            asset,
+				Owner: &corev1.AssetCreatedEvent_Derivative{
+					Derivative: &corev1.AssetDerivativeOwner{
+						SourceAssetId: sourceAssetID,
+						Role:          role,
+					},
+				},
 			},
 		},
 	})

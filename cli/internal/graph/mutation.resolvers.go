@@ -1075,7 +1075,7 @@ func (r *mutationResolver) UploadAvatar(ctx context.Context, input model.UploadA
 	}
 
 	if err := r.core.SetUserAvatar(ctx, input.UserID, asset); err != nil {
-		r.core.CleanupAsset(ctx, asset)
+		r.core.CleanupAsset(ctx, core.DeprecatedAssetFromAsset(asset))
 		return nil, fmt.Errorf("failed to save avatar: %w", err)
 	}
 

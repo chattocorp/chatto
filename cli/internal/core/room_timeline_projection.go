@@ -499,31 +499,17 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	return assetRoomID(event.GetAsset())
+	if parent := event.GetMessage(); parent != nil {
+		return parent.GetRoomId()
+	}
+	return ""
 }
 
 func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	return assetMessageEventID(event.GetAsset())
-}
-
-func assetRoomID(asset *corev1.Asset) string {
-	if asset == nil {
-		return ""
-	}
-	if parent := asset.GetMessage(); parent != nil {
-		return parent.GetRoomId()
-	}
-	return ""
-}
-
-func assetMessageEventID(asset *corev1.Asset) string {
-	if asset == nil {
-		return ""
-	}
-	if parent := asset.GetMessage(); parent != nil {
+	if parent := event.GetMessage(); parent != nil {
 		return parent.GetMessageEventId()
 	}
 	return ""
@@ -533,8 +519,8 @@ func (p *RoomTimelineProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetC
 	if roomID := assetCreatedRoomID(event); roomID != "" {
 		return roomID
 	}
-	if parent := event.GetAsset().GetDerivative(); parent != nil {
-		if declared := p.assetCreations[parent.GetAssetId()]; declared != nil {
+	if parent := event.GetDerivative(); parent != nil {
+		if declared := p.assetCreations[parent.GetSourceAssetId()]; declared != nil {
 			return p.roomIDOfAssetCreatedLocked(declared)
 		}
 	}

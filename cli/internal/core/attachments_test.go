@@ -248,8 +248,8 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		ghost := &corev1.Attachment{
 			Id:     "nonexistent-attachment-id",
 			RoomId: room.Id,
-			Storage: &corev1.AssetStorage{
-				Asset: &corev1.AssetStorage_Nats{Nats: &corev1.NATSAsset{Key: "nonexistent-attachment-id"}},
+			Storage: &corev1.DeprecatedAsset{
+				Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "nonexistent-attachment-id"}},
 			},
 		}
 		// Deletion of non-existent item may or may not error depending on implementation

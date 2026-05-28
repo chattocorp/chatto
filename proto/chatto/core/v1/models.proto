@@ -49,7 +49,7 @@ message User {
   string id = 1;
   string login = 2; // Unique login identifier
   string display_name = 3;
-  // Avatar is stored separately in KV at key "user:{id}:avatar"
+  // Avatar state is projected from AssetCreatedEvent/UserAvatarClearedEvent.
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
 }
 
@@ -64,10 +64,12 @@ message VerifiedEmail {
   google.protobuf.Timestamp verified_at = 2;
 }
 
-// AssetStorage points at the binary/object backing an asset. This was named
-// `Asset` before first-class asset events existed; the wire shape is preserved
-// so legacy attachments, avatars, and branding records remain decodable.
-message AssetStorage {
+// DeprecatedAsset is the legacy storage-pointer-only asset record. It was named
+// `AssetStorage` after the original `Asset` message was renamed, but it remains
+// only so legacy Attachment, avatar, and branding records stay decodable.
+// New event-sourced asset records use `Asset` below. Remove this message as
+// part of the post-migration cleanup once legacy embedded records are gone.
+message DeprecatedAsset {
   oneof asset {
     NATSAsset nats = 2;
     S3Asset s3 = 1;
@@ -84,9 +86,8 @@ message NATSAsset {
 }
 
 // Asset is durable content metadata for one uploaded or generated binary.
-// Storage, parentage, and known media metadata are intrinsic to the asset so
-// originals and derivatives use the same model. New parent branches should be
-// added alongside the feature that emits those asset events.
+// Storage and known media metadata are intrinsic to the asset. Ownership and
+// derivation context live on AssetCreatedEvent.
 message Asset {
   // Unique identifier for this asset (NanoID).
   string id = 1;
@@ -110,35 +111,11 @@ message Asset {
   // Media bitrate in bits per second when known.
   int32 bitrate = 8;
 
-  // Storage location for the binary data. AssetStorage remains for legacy
-  // Attachment/avatar/icon records; new Asset events inline the same choices.
+  // Storage location for the binary data.
   oneof storage {
     NATSAsset nats = 10;
     S3Asset s3 = 11;
   }
-
-  // Parent context for ownership/authorization. Derivative assets point at
-  // their source asset instead of duplicating message/room/user ownership.
-  oneof parent {
-    MessageAssetParent message = 20;
-    AssetDerivativeParent derivative = 21;
-  }
-}
-
-message MessageAssetParent {
-  // Room containing the owning message.
-  string room_id = 1;
-
-  // Event ID of the message containing the source attachment.
-  string message_event_id = 2;
-}
-
-message AssetDerivativeParent {
-  // Source/parent asset ID.
-  string asset_id = 1;
-
-  // Stable derivative role, such as "thumbnail" or "video_variant".
-  string role = 2;
 }
 
 message RoomMembership {
@@ -226,7 +203,7 @@ message Attachment {
 
   // Storage location for the attachment binary data.
   // If not set (nil), defaults to NATS ObjectStore for backwards compatibility.
-  AssetStorage storage = 9;
+  DeprecatedAsset storage = 9;
 
   // Compound key (`{userId}.{bodyId}`) of the MessageBody that owns this
   // attachment. Set when the body is written in PostMessage; also

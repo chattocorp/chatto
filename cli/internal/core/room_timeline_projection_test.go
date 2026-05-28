@@ -143,15 +143,15 @@ func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType s
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				BinaryAvailable: true,
+				StorageAvailable: true,
 				Asset: &corev1.Asset{
 					Id:          attachmentID,
 					ContentType: contentType,
-					Parent: &corev1.Asset_Message{
-						Message: &corev1.MessageAssetParent{
-							RoomId:         roomID,
-							MessageEventId: messageEventID,
-						},
+				},
+				Owner: &corev1.AssetCreatedEvent_Message{
+					Message: &corev1.MessageAssetOwner{
+						RoomId:         roomID,
+						MessageEventId: messageEventID,
 					},
 				},
 			},

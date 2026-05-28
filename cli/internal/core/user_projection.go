@@ -26,7 +26,7 @@ type UserProjection struct {
 type projectedUser struct {
 	user          *corev1.User
 	deleted       bool
-	avatar        *corev1.AssetStorage
+	avatar        *corev1.Asset
 	passwordHash  []byte
 	verifiedEmail map[string]VerifiedEmail
 	preferences   *corev1.ServerUserPreferences
@@ -75,6 +75,8 @@ func (p *UserProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyAvatarSet(e.UserAvatarSet)
 	case *corev1.Event_UserAvatarCleared:
 		p.applyAvatarCleared(e.UserAvatarCleared)
+	case *corev1.Event_AssetCreated:
+		p.applyAssetCreated(e.AssetCreated)
 	case *corev1.Event_UserVerifiedEmailAdded:
 		p.applyVerifiedEmailAdded(e.UserVerifiedEmailAdded, event.GetCreatedAt())
 	case *corev1.Event_UserPasswordHashChanged:
@@ -156,7 +158,19 @@ func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
 	if e.GetAvatar() == nil {
 		return
 	}
-	u.avatar = proto.Clone(e.GetAvatar()).(*corev1.AssetStorage)
+	u.avatar = assetFromDeprecatedAsset(e.GetAvatar(), "avatar.webp", "image/webp")
+}
+
+func (p *UserProjection) applyAssetCreated(e *corev1.AssetCreatedEvent) {
+	if e == nil || e.GetAsset() == nil {
+		return
+	}
+	owner := e.GetUserAvatar()
+	if owner == nil || owner.GetUserId() == "" {
+		return
+	}
+	u := p.ensureUserLocked(owner.GetUserId())
+	u.avatar = proto.Clone(e.GetAsset()).(*corev1.Asset)
 }
 
 func (p *UserProjection) applyAvatarCleared(e *corev1.UserAvatarClearedEvent) {
@@ -321,14 +335,14 @@ func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
 	return append([]byte(nil), u.passwordHash...), true
 }
 
-func (p *UserProjection) Avatar(userID string) (*corev1.AssetStorage, bool) {
+func (p *UserProjection) Avatar(userID string) (*corev1.Asset, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.deleted || u.avatar == nil {
 		return nil, false
 	}
-	return proto.Clone(u.avatar).(*corev1.AssetStorage), true
+	return proto.Clone(u.avatar).(*corev1.Asset), true
 }
 
 func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferences, bool) {

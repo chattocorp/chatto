@@ -170,13 +170,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	thumbnailAssetID := ""
 	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
 		thumbnailAssetID = thumbnailAsset.GetId()
-		thumbnailAsset.Parent = &corev1.Asset_Derivative{
-			Derivative: &corev1.AssetDerivativeParent{
-				AssetId: attachmentID,
-				Role:    "thumbnail",
-			},
-		}
-		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, thumbnailAsset); err != nil {
+		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, thumbnailAsset, attachmentID, "thumbnail"); err != nil {
 			return err
 		}
 	}
@@ -185,13 +179,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 			continue
 		}
 		variantAsset := assetFromAttachment(variant.GetAttachment())
-		variantAsset.Parent = &corev1.Asset_Derivative{
-			Derivative: &corev1.AssetDerivativeParent{
-				AssetId: attachmentID,
-				Role:    "video_variant",
-			},
-		}
-		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, variantAsset); err != nil {
+		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, variantAsset, attachmentID, "video_variant"); err != nil {
 			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
@@ -219,15 +207,21 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	return err
 }
 
-func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.Asset) error {
+func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.Asset, sourceAssetID, role string) error {
 	if asset == nil || asset.GetId() == "" {
 		return nil
 	}
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				BinaryAvailable: true,
-				Asset:           asset,
+				StorageAvailable: true,
+				Asset:            asset,
+				Owner: &corev1.AssetCreatedEvent_Derivative{
+					Derivative: &corev1.AssetDerivativeOwner{
+						SourceAssetId: sourceAssetID,
+						Role:          role,
+					},
+				},
 			},
 		},
 	})

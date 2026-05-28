@@ -104,7 +104,7 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 		Id: "E4",
 		Event: &corev1.Event_UserAvatarSet{UserAvatarSet: &corev1.UserAvatarSetEvent{
 			UserId: "U1",
-			Avatar: &corev1.AssetStorage{Asset: &corev1.AssetStorage_S3{S3: &corev1.S3Asset{Key: "avatars/U1"}}},
+			Avatar: &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_S3{S3: &corev1.S3Asset{Key: "avatars/U1"}}},
 		}},
 	}, 4))
 	require.NoError(t, p.Apply(&corev1.Event{

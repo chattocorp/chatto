@@ -29,7 +29,7 @@ const (
 // bytes to the object store. Returns the asset reference. Use SetServerLogo
 // to atomically swap the server's logo pointer (and clean up the prior
 // asset).
-func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*corev1.AssetStorage, error) {
+func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*corev1.DeprecatedAsset, error) {
 	webpReader, err := assets.ProcessLogoImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process logo image: %w", err)
@@ -48,7 +48,7 @@ func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*c
 //
 // Banners double as the OG link-preview image, so they're processed at the
 // canonical 1200x630 OG aspect rather than the older 4:3 sidebar shape.
-func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (*corev1.AssetStorage, error) {
+func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (*corev1.DeprecatedAsset, error) {
 	webpReader, err := assets.ProcessLinkPreviewImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process banner image: %w", err)
@@ -63,7 +63,7 @@ func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (
 // uploadServerAsset routes processed image bytes to NATS or S3 based on
 // configuration and returns the resulting asset reference. Used by the
 // server-level logo and banner upload paths.
-func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kind string) (*corev1.AssetStorage, error) {
+func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kind string) (*corev1.DeprecatedAsset, error) {
 	assetID := NewAssetID()
 
 	if c.ShouldUseS3() {
@@ -72,8 +72,8 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 			return nil, fmt.Errorf("failed to upload %s to S3: %w", kind, err)
 		}
 		c.logger.Info("Uploaded server "+kind+" to S3", "asset_id", assetID, "size", len(webpData))
-		return &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_S3{
+		return &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_S3{
 				S3: &corev1.S3Asset{
 					Key:    assetID,
 					Bucket: proto.String(c.s3Client.Bucket()),
@@ -93,8 +93,8 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 		return nil, fmt.Errorf("failed to upload %s: %w", kind, err)
 	}
 	c.logger.Info("Uploaded server "+kind, "asset_id", assetID, "size", info.Size)
-	return &corev1.AssetStorage{
-		Asset: &corev1.AssetStorage_Nats{
+	return &corev1.DeprecatedAsset{
+		Asset: &corev1.DeprecatedAsset_Nats{
 			Nats: &corev1.NATSAsset{
 				Key: assetID,
 			},
@@ -104,20 +104,20 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 
 // SetServerLogo atomically points the instance at a new logo asset using
 // optimistic locking, and cleans up the prior asset on success.
-func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *corev1.AssetStorage) error {
+func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *corev1.DeprecatedAsset) error {
 	return c.setServerBrandingAsset(ctx, actorID, serverLogoKey, "logo", asset)
 }
 
 // SetServerBanner atomically points the instance at a new banner asset
 // using optimistic locking, and cleans up the prior asset on success.
-func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *corev1.AssetStorage) error {
+func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *corev1.DeprecatedAsset) error {
 	return c.setServerBrandingAsset(ctx, actorID, serverBannerKey, "banner", asset)
 }
 
 // setServerBrandingAsset is the shared OCC swap implementation backing
 // SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
-func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, kind string, asset *corev1.AssetStorage) error {
+func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, kind string, asset *corev1.DeprecatedAsset) error {
 	const maxRetries = 5
 
 	assetData, err := proto.Marshal(asset)
@@ -127,12 +127,12 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, k
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		var revision uint64
-		var oldAsset *corev1.AssetStorage
+		var oldAsset *corev1.DeprecatedAsset
 
 		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err == nil {
 			revision = entry.Revision()
-			oldAsset = &corev1.AssetStorage{}
+			oldAsset = &corev1.DeprecatedAsset{}
 			if unmarshalErr := proto.Unmarshal(entry.Value(), oldAsset); unmarshalErr != nil {
 				c.logger.Warn("Failed to unmarshal old "+kind+" asset", "error", unmarshalErr)
 				oldAsset = nil
@@ -170,17 +170,17 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, k
 
 // GetServerLogo returns the asset reference for the server's current
 // logo, or (nil, nil) if no logo is set.
-func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.AssetStorage, error) {
+func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.DeprecatedAsset, error) {
 	return c.getServerBrandingAsset(ctx, serverLogoKey, "logo")
 }
 
 // GetServerBanner returns the asset reference for the server's current
 // banner, or (nil, nil) if no banner is set.
-func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.AssetStorage, error) {
+func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.DeprecatedAsset, error) {
 	return c.getServerBrandingAsset(ctx, serverBannerKey, "banner")
 }
 
-func (c *ChattoCore) getServerBrandingAsset(ctx context.Context, key, kind string) (*corev1.AssetStorage, error) {
+func (c *ChattoCore) getServerBrandingAsset(ctx context.Context, key, kind string) (*corev1.DeprecatedAsset, error) {
 	entry, err := c.storage.serverKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -188,7 +188,7 @@ func (c *ChattoCore) getServerBrandingAsset(ctx context.Context, key, kind strin
 		}
 		return nil, fmt.Errorf("failed to get %s: %w", kind, err)
 	}
-	asset := &corev1.AssetStorage{}
+	asset := &corev1.DeprecatedAsset{}
 	if err := proto.Unmarshal(entry.Value(), asset); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal %s asset: %w", kind, err)
 	}
@@ -219,7 +219,7 @@ func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int)
 
 // serverAssetURL builds the public URL for an server-scoped asset,
 // optionally with transform parameters.
-func (c *ChattoCore) serverAssetURL(asset *corev1.AssetStorage, width, height *int) string {
+func (c *ChattoCore) serverAssetURL(asset *corev1.DeprecatedAsset, width, height *int) string {
 	assetID := assetIDFromAsset(asset)
 	if assetID == "" {
 		return ""
@@ -255,7 +255,7 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 		}
 
 		revision := entry.Revision()
-		asset := &corev1.AssetStorage{}
+		asset := &corev1.DeprecatedAsset{}
 		if unmarshalErr := proto.Unmarshal(entry.Value(), asset); unmarshalErr != nil {
 			c.logger.Warn("Failed to unmarshal "+kind+" asset for deletion", "error", unmarshalErr)
 		}
@@ -322,11 +322,11 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 
 // assetIDFromAsset extracts the asset ID from a NATS- or S3-backed asset
 // reference. Returns empty string for unknown asset variants.
-func assetIDFromAsset(asset *corev1.AssetStorage) string {
+func assetIDFromAsset(asset *corev1.DeprecatedAsset) string {
 	switch a := asset.Asset.(type) {
-	case *corev1.AssetStorage_Nats:
+	case *corev1.DeprecatedAsset_Nats:
 		return a.Nats.Key
-	case *corev1.AssetStorage_S3:
+	case *corev1.DeprecatedAsset_S3:
 		return a.S3.Key
 	default:
 		return ""

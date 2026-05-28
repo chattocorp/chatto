@@ -238,15 +238,15 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		assetID := "myasset123"
 
 		// NATS asset stores assetID in Key
-		natsAsset := &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_Nats{
+		natsAsset := &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_Nats{
 				Nats: &corev1.NATSAsset{Key: assetID},
 			},
 		}
 
 		// S3 asset should also store assetID in Key (not the full S3 path)
-		s3Asset := &corev1.AssetStorage{
-			Asset: &corev1.AssetStorage_S3{
+		s3Asset := &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_S3{
 				S3: &corev1.S3Asset{Key: assetID, Bucket: proto.String("test-bucket")},
 			},
 		}

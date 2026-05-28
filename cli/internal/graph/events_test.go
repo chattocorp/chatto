@@ -230,15 +230,15 @@ func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType str
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				BinaryAvailable: true,
+				StorageAvailable: true,
 				Asset: &corev1.Asset{
 					Id:          attachmentID,
 					ContentType: contentType,
-					Parent: &corev1.Asset_Message{
-						Message: &corev1.MessageAssetParent{
-							RoomId:         roomID,
-							MessageEventId: messageEventID,
-						},
+				},
+				Owner: &corev1.AssetCreatedEvent_Message{
+					Message: &corev1.MessageAssetOwner{
+						RoomId:         roomID,
+						MessageEventId: messageEventID,
 					},
 				},
 			},
@@ -251,18 +251,18 @@ func testDerivativeAssetCreatedEvent(assetID, parentAssetID, quality string, wid
 		Id: "ENV-DERIVATIVE-" + assetID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				BinaryAvailable: true,
+				StorageAvailable: true,
 				Asset: &corev1.Asset{
 					Id:          assetID,
 					ContentType: "video/mp4",
 					Size:        size,
 					Width:       width,
 					Height:      height,
-					Parent: &corev1.Asset_Derivative{
-						Derivative: &corev1.AssetDerivativeParent{
-							AssetId: parentAssetID,
-							Role:    "video_variant",
-						},
+				},
+				Owner: &corev1.AssetCreatedEvent_Derivative{
+					Derivative: &corev1.AssetDerivativeOwner{
+						SourceAssetId: parentAssetID,
+						Role:          "video_variant",
 					},
 				},
 			},

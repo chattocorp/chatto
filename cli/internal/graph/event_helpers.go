@@ -181,15 +181,14 @@ func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool)
 	if !ok || created == nil {
 		return fallback
 	}
-	return created.GetBinaryAvailable()
+	return created.GetStorageAvailable()
 }
 
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	asset := event.GetAsset()
-	if parent := asset.GetMessage(); parent != nil {
+	if parent := event.GetMessage(); parent != nil {
 		return parent.GetRoomId()
 	}
 	return ""
@@ -199,7 +198,7 @@ func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if parent := event.GetAsset().GetMessage(); parent != nil {
+	if parent := event.GetMessage(); parent != nil {
 		return parent.GetMessageEventId()
 	}
 	return ""
