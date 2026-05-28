@@ -193,6 +193,9 @@ func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string
 		}
 		return ""
 	}
+	if created := event.GetAssetCreated(); created != nil {
+		return p.roomIDOfAssetCreatedLocked(created)
+	}
 	return roomIDOfEvent(event)
 }
 
@@ -496,21 +499,47 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if owner := event.GetOwner().GetMessage(); owner != nil {
-		return owner.GetRoomId()
-	}
-	if owner := event.GetOwner().GetRoom(); owner != nil {
-		return owner.GetRoomId()
-	}
-	return ""
+	return assetRoomID(event.GetAsset())
 }
 
 func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if owner := event.GetOwner().GetMessage(); owner != nil {
-		return owner.GetMessageEventId()
+	return assetMessageEventID(event.GetAsset())
+}
+
+func assetRoomID(asset *corev1.Asset) string {
+	if asset == nil {
+		return ""
+	}
+	if parent := asset.GetMessage(); parent != nil {
+		return parent.GetRoomId()
+	}
+	if parent := asset.GetRoom(); parent != nil {
+		return parent.GetRoomId()
+	}
+	return ""
+}
+
+func assetMessageEventID(asset *corev1.Asset) string {
+	if asset == nil {
+		return ""
+	}
+	if parent := asset.GetMessage(); parent != nil {
+		return parent.GetMessageEventId()
+	}
+	return ""
+}
+
+func (p *RoomTimelineProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetCreatedEvent) string {
+	if roomID := assetCreatedRoomID(event); roomID != "" {
+		return roomID
+	}
+	if parent := event.GetAsset().GetAsset(); parent != nil {
+		if declared := p.assetCreations[parent.GetAssetId()]; declared != nil {
+			return p.roomIDOfAssetCreatedLocked(declared)
+		}
 	}
 	return ""
 }
@@ -548,7 +577,7 @@ func roomIDOfEvent(event *corev1.Event) string {
 	case *corev1.Event_MessageRetracted:
 		return e.MessageRetracted.GetRoomId()
 	case *corev1.Event_AssetCreated:
-		return assetCreatedRoomID(e.AssetCreated)
+		return ""
 	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded.GetRoomId()
 	case *corev1.Event_ReactionRemoved:

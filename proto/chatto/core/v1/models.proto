@@ -83,9 +83,10 @@ message NATSAsset {
   string key = 1;
 }
 
-// Asset is durable content metadata for an uploaded or generated file. It is
-// intentionally owner-neutral: room/message/user/server ownership lives in
-// AssetCreatedEvent so all app media can use one asset model.
+// Asset is durable content metadata for one uploaded or generated binary.
+// Storage, parentage, and media-specific metadata are intrinsic to the asset so
+// originals, derivatives, avatars, server media, and future room uploads can use
+// one model.
 message Asset {
   // Unique identifier for this asset (NanoID).
   string id = 1;
@@ -99,26 +100,32 @@ message Asset {
   // File size in bytes.
   int64 size = 4;
 
-  // Image/video dimensions when known.
-  int32 width = 5;
-  int32 height = 6;
+  // Storage location for the binary data. AssetStorage remains for legacy
+  // Attachment/avatar/icon records; new Asset events inline the same choices.
+  oneof storage {
+    NATSAsset nats = 10;
+    S3Asset s3 = 11;
+  }
 
-  // Storage location for the binary data.
-  AssetStorage storage = 7;
-}
+  // Parent context for ownership/authorization. Derivative assets point at
+  // their source asset instead of duplicating message/room/user ownership.
+  oneof parent {
+    MessageAssetParent message = 20;
+    RoomAssetParent room = 21;
+    UserAssetParent user = 22;
+    ServerAssetParent server = 23;
+    AssetDerivativeParent asset = 24;
+  }
 
-message AssetOwner {
-  // Durable owner of a source asset. The owner determines the aggregate and
-  // authorization scope without making Asset itself room/message-specific.
-  oneof owner {
-    MessageAssetOwner message = 1;
-    RoomAssetOwner room = 2;
-    UserAssetOwner user = 3;
-    ServerAssetOwner server = 4;
+  // Media-specific metadata when known.
+  oneof metadata {
+    ImageAssetMetadata image = 30;
+    VideoAssetMetadata video = 31;
+    ArchiveAssetMetadata archive = 32;
   }
 }
 
-message MessageAssetOwner {
+message MessageAssetParent {
   // Room containing the owning message.
   string room_id = 1;
 
@@ -126,7 +133,7 @@ message MessageAssetOwner {
   string message_event_id = 2;
 }
 
-message RoomAssetOwner {
+message RoomAssetParent {
   // Room containing the standalone room attachment.
   string room_id = 1;
 
@@ -134,16 +141,43 @@ message RoomAssetOwner {
   string room_attachment_event_id = 2;
 }
 
-message UserAssetOwner {
+message UserAssetParent {
   string user_id = 1;
 
   // Stable slot name such as "avatar".
   string asset_role = 2;
 }
 
-message ServerAssetOwner {
+message ServerAssetParent {
   // Stable slot name such as "icon" or "banner".
   string asset_role = 1;
+}
+
+message AssetDerivativeParent {
+  // Source/parent asset ID.
+  string asset_id = 1;
+
+  // Stable derivative role, such as "thumbnail" or "video_variant".
+  string role = 2;
+
+  // Optional variant key, such as "480p".
+  string variant = 3;
+}
+
+message ImageAssetMetadata {
+  int32 width = 1;
+  int32 height = 2;
+}
+
+message VideoAssetMetadata {
+  int32 width = 1;
+  int32 height = 2;
+  int64 duration_ms = 3;
+  int32 bitrate = 4;
+}
+
+message ArchiveAssetMetadata {
+  int32 file_count = 1;
 }
 
 message RoomMembership {

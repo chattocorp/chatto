@@ -20,7 +20,7 @@ Support two storage backends with NATS ObjectStore as the default:
 - **NATS ObjectStore** (default): Assets stored in JetStream-backed object store buckets. Works out of the box with zero configuration.
 - **S3-compatible storage** (optional): When configured, new uploads go to S3. Existing NATS-stored assets continue to be served from NATS.
 
-Each `Attachment` / EVT `Asset` proto carries an `AssetStorage` field — a oneof selecting either a `NATSAsset{key}` or an `S3Asset{key, bucket}` — populated at upload time. Retrieval reads `Storage` off the proto and goes directly to the indicated backend. The backend choice is per-asset, not per-deployment, so a host that switches from NATS to S3 can serve both eras side by side without any migration step.
+Each legacy `Attachment` carries an `AssetStorage` field, and each EVT `Asset` inlines the same storage choices — either `NATSAsset{key}` or `S3Asset{key, bucket}` — populated at upload time. Retrieval reads the storage pointer off the proto and goes directly to the indicated backend. The backend choice is per-asset, not per-deployment, so a host that switches from NATS to S3 can serve both eras side by side without any migration step.
 
 ## Consequences
 

@@ -188,11 +188,12 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if owner := event.GetOwner().GetMessage(); owner != nil {
-		return owner.GetRoomId()
+	asset := event.GetAsset()
+	if parent := asset.GetMessage(); parent != nil {
+		return parent.GetRoomId()
 	}
-	if owner := event.GetOwner().GetRoom(); owner != nil {
-		return owner.GetRoomId()
+	if parent := asset.GetRoom(); parent != nil {
+		return parent.GetRoomId()
 	}
 	return ""
 }
@@ -201,10 +202,23 @@ func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if owner := event.GetOwner().GetMessage(); owner != nil {
-		return owner.GetMessageEventId()
+	if parent := event.GetAsset().GetMessage(); parent != nil {
+		return parent.GetMessageEventId()
 	}
 	return ""
+}
+
+func assetDimensions(asset *corev1.Asset) (int32, int32) {
+	if asset == nil {
+		return 0, 0
+	}
+	if image := asset.GetImage(); image != nil {
+		return image.GetWidth(), image.GetHeight()
+	}
+	if video := asset.GetVideo(); video != nil {
+		return video.GetWidth(), video.GetHeight()
+	}
+	return 0, 0
 }
 
 func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) string {

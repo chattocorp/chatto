@@ -62,11 +62,17 @@ func TestVideoManifestMigration_CompletedImportsWithoutOriginal(t *testing.T) {
 	if video == nil {
 		t.Fatal("expected video metadata")
 	}
-	if got := video.GetThumbnailAsset().GetId(); got != thumb.Id {
+	if got := video.GetThumbnailAssetId(); got != thumb.Id {
 		t.Fatalf("thumbnail id = %q, want %q", got, thumb.Id)
 	}
-	if len(video.Variants) != 1 || video.Variants[0].GetAsset().GetId() != variantAttachment.Id {
+	if len(video.Variants) != 1 || video.Variants[0].GetAssetId() != variantAttachment.Id {
 		t.Fatalf("expected one imported usable variant, got %#v", video.Variants)
+	}
+	if _, ok := core.RoomTimeline.AssetCreation(thumb.Id); !ok {
+		t.Fatalf("expected imported thumbnail asset creation")
+	}
+	if _, ok := core.RoomTimeline.AssetCreation(variantAttachment.Id); !ok {
+		t.Fatalf("expected imported variant asset creation")
 	}
 }
 

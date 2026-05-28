@@ -762,7 +762,7 @@ message MessageDeletedEvent {
   string message_event_id = 4;
 }
 
-// AssetCreatedEvent records durable content identity and ownership for an
+// AssetCreatedEvent records durable content identity and parentage for an
 // uploaded/generated asset. Message bodies may embed attachments for render
 // compatibility, but this event is the asset aggregate root.
 message AssetCreatedEvent {
@@ -771,13 +771,8 @@ message AssetCreatedEvent {
   // be false because older pipelines deleted originals after transcoding.
   bool source_available = 1;
 
-  // Full source asset metadata, including storage pointer.
+  // Full asset metadata, including storage pointer and parent.
   Asset asset = 2;
-
-  // Durable owner of the source asset. This is kept outside Asset so derivative
-  // Asset protos can stay pure binary metadata while still sharing the same
-  // owner model for message, room, user, and server assets.
-  AssetOwner owner = 3;
 }
 
 // AssetProcessingSucceededEvent records that asset processing
@@ -812,8 +807,8 @@ message AssetProcessingFailedEvent {
 }
 
 message AssetProcessedSource {
-  // Display asset. Usually the source asset itself.
-  Asset asset = 1;
+  // Display asset ID. Usually the source asset itself.
+  string asset_id = 1;
 }
 
 // AssetProcessedVideo records processed video/GIF derivative assets.
@@ -825,8 +820,8 @@ message AssetProcessedVideo {
   int32 width = 2;
   int32 height = 3;
 
-  // Generated poster/thumbnail image.
-  Asset thumbnail_asset = 4;
+  // Generated poster/thumbnail image asset ID.
+  string thumbnail_asset_id = 4;
 
   // Processed video variants.
   repeated AssetVideoVariant variants = 5;
@@ -834,10 +829,7 @@ message AssetProcessedVideo {
 
 message AssetVideoVariant {
   string quality = 1;  // e.g., "720p", "480p"
-  int32 width = 2;
-  int32 height = 3;
-  int64 size = 4;
-  Asset asset = 5;
+  string asset_id = 2;
 }
 
 // ============================================================================

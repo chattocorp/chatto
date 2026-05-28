@@ -298,30 +298,98 @@ func assetFromAttachment(attachment *corev1.Attachment) *corev1.Asset {
 	if attachment == nil {
 		return nil
 	}
-	return &corev1.Asset{
+	asset := &corev1.Asset{
 		Id:          attachment.GetId(),
 		Filename:    attachment.GetFilename(),
 		ContentType: attachment.GetContentType(),
 		Size:        attachment.GetSize(),
-		Width:       attachment.GetWidth(),
-		Height:      attachment.GetHeight(),
-		Storage:     cloneAssetStorage(attachment.GetStorage()),
 	}
+	applyAssetStorageFromAttachmentStorage(asset, attachment.GetStorage())
+	applyAssetMetadataFromAttachment(asset, attachment)
+	return asset
 }
 
 func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
 	if asset == nil {
 		return nil
 	}
+	width, height := assetDimensions(asset)
 	return &corev1.Attachment{
 		Id:          asset.GetId(),
 		Filename:    asset.GetFilename(),
 		ContentType: asset.GetContentType(),
 		Size:        asset.GetSize(),
-		Width:       asset.GetWidth(),
-		Height:      asset.GetHeight(),
-		Storage:     cloneAssetStorage(asset.GetStorage()),
+		Width:       width,
+		Height:      height,
+		Storage:     assetStorageFromAsset(asset),
 	}
+}
+
+func applyAssetStorageFromAttachmentStorage(asset *corev1.Asset, storage *corev1.AssetStorage) {
+	if asset == nil || storage == nil {
+		return
+	}
+	switch stored := storage.GetAsset().(type) {
+	case *corev1.AssetStorage_Nats:
+		if stored.Nats != nil {
+			asset.Storage = &corev1.Asset_Nats{Nats: proto.Clone(stored.Nats).(*corev1.NATSAsset)}
+		}
+	case *corev1.AssetStorage_S3:
+		if stored.S3 != nil {
+			asset.Storage = &corev1.Asset_S3{S3: proto.Clone(stored.S3).(*corev1.S3Asset)}
+		}
+	}
+}
+
+func assetStorageFromAsset(asset *corev1.Asset) *corev1.AssetStorage {
+	if asset == nil {
+		return nil
+	}
+	switch {
+	case asset.GetNats() != nil:
+		return &corev1.AssetStorage{
+			Asset: &corev1.AssetStorage_Nats{Nats: proto.Clone(asset.GetNats()).(*corev1.NATSAsset)},
+		}
+	case asset.GetS3() != nil:
+		return &corev1.AssetStorage{
+			Asset: &corev1.AssetStorage_S3{S3: proto.Clone(asset.GetS3()).(*corev1.S3Asset)},
+		}
+	default:
+		return nil
+	}
+}
+
+func applyAssetMetadataFromAttachment(asset *corev1.Asset, attachment *corev1.Attachment) {
+	if asset == nil || attachment == nil || (attachment.GetWidth() == 0 && attachment.GetHeight() == 0) {
+		return
+	}
+	contentType := attachment.GetContentType()
+	if strings.HasPrefix(contentType, "video/") {
+		asset.Metadata = &corev1.Asset_Video{Video: &corev1.VideoAssetMetadata{
+			Width:  attachment.GetWidth(),
+			Height: attachment.GetHeight(),
+		}}
+		return
+	}
+	if strings.HasPrefix(contentType, "image/") {
+		asset.Metadata = &corev1.Asset_Image{Image: &corev1.ImageAssetMetadata{
+			Width:  attachment.GetWidth(),
+			Height: attachment.GetHeight(),
+		}}
+	}
+}
+
+func assetDimensions(asset *corev1.Asset) (int32, int32) {
+	if asset == nil {
+		return 0, 0
+	}
+	if image := asset.GetImage(); image != nil {
+		return image.GetWidth(), image.GetHeight()
+	}
+	if video := asset.GetVideo(); video != nil {
+		return video.GetWidth(), video.GetHeight()
+	}
+	return 0, 0
 }
 
 func cloneAssetStorage(storage *corev1.AssetStorage) *corev1.AssetStorage {
@@ -375,12 +443,16 @@ func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginI
 	if video == nil {
 		return nil, nil
 	}
-	if thumbnail := attachmentFromAsset(video.GetThumbnailAsset()); thumbnail != nil && thumbnail.Id == attachmentID {
-		return thumbnail, nil
+	if video.GetThumbnailAssetId() == attachmentID {
+		if declared, ok := c.RoomTimeline.AssetCreation(attachmentID); ok {
+			return attachmentFromAsset(declared.GetAsset()), nil
+		}
 	}
 	for _, v := range video.Variants {
-		if attachment := attachmentFromAsset(v.GetAsset()); attachment != nil && attachment.Id == attachmentID {
-			return attachment, nil
+		if v.GetAssetId() == attachmentID {
+			if declared, ok := c.RoomTimeline.AssetCreation(attachmentID); ok {
+				return attachmentFromAsset(declared.GetAsset()), nil
+			}
 		}
 	}
 	return nil, nil
@@ -454,7 +526,8 @@ func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, at
 	if video == nil {
 		return
 	}
-	if thumbnail := attachmentFromAsset(video.GetThumbnailAsset()); thumbnail != nil {
+	if declared, ok := c.RoomTimeline.AssetCreation(video.GetThumbnailAssetId()); ok {
+		thumbnail := attachmentFromAsset(declared.GetAsset())
 		if err := c.DeleteAttachmentFromStorage(ctx, thumbnail); err != nil {
 			c.logger.Warn("Failed to delete video thumbnail derivative",
 				"attachment_id", thumbnail.GetId(),
@@ -463,10 +536,14 @@ func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, at
 		}
 	}
 	for _, variant := range video.Variants {
-		attachment := attachmentFromAsset(variant.GetAsset())
-		if attachment == nil {
+		if variant.GetAssetId() == "" {
 			continue
 		}
+		declared, ok := c.RoomTimeline.AssetCreation(variant.GetAssetId())
+		if !ok {
+			continue
+		}
+		attachment := attachmentFromAsset(declared.GetAsset())
 		if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 			c.logger.Warn("Failed to delete video variant derivative",
 				"attachment_id", attachment.GetId(),
@@ -894,9 +971,8 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 	return nil
 }
 
-// RecordAssetCreated records the durable content identity and owner for
-// an uploaded asset. Processing outcomes reference this creation by asset id
-// rather than duplicating room/message ownership fields.
+// RecordAssetCreated records the durable content identity and message parent for
+// an uploaded asset. Processing outcomes reference this creation by asset id.
 func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("asset creation missing room, message, or asset id")
@@ -905,19 +981,18 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 	if declaredAttachment.MessageBodyId == "" {
 		declaredAttachment.MessageBodyId = messageEventID
 	}
+	asset := assetFromAttachment(declaredAttachment)
+	asset.Parent = &corev1.Asset_Message{
+		Message: &corev1.MessageAssetParent{
+			RoomId:         roomID,
+			MessageEventId: messageEventID,
+		},
+	}
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				SourceAvailable: true,
-				Owner: &corev1.AssetOwner{
-					Owner: &corev1.AssetOwner_Message{
-						Message: &corev1.MessageAssetOwner{
-							RoomId:         roomID,
-							MessageEventId: messageEventID,
-						},
-					},
-				},
-				Asset: assetFromAttachment(declaredAttachment),
+				Asset:           asset,
 			},
 		},
 	})
@@ -936,16 +1011,37 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 // manifest for an original video attachment.
 func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, roomID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
+	thumbnailAssetID := ""
+	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
+		thumbnailAssetID = thumbnailAsset.GetId()
+		thumbnailAsset.Parent = &corev1.Asset_Asset{
+			Asset: &corev1.AssetDerivativeParent{
+				AssetId: attachmentID,
+				Role:    "thumbnail",
+			},
+		}
+		if err := c.recordDerivativeAssetCreated(ctx, roomID, thumbnailAsset); err != nil {
+			return err
+		}
+	}
 	for _, variant := range variants {
-		if variant == nil {
+		if variant == nil || variant.GetAttachment() == nil {
 			continue
+		}
+		variantAsset := assetFromAttachment(variant.GetAttachment())
+		variantAsset.Parent = &corev1.Asset_Asset{
+			Asset: &corev1.AssetDerivativeParent{
+				AssetId: attachmentID,
+				Role:    "video_variant",
+				Variant: variant.GetQuality(),
+			},
+		}
+		if err := c.recordDerivativeAssetCreated(ctx, roomID, variantAsset); err != nil {
+			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
 			Quality: variant.GetQuality(),
-			Width:   variant.GetWidth(),
-			Height:  variant.GetHeight(),
-			Size:    variant.GetSize(),
-			Asset:   assetFromAttachment(variant.GetAttachment()),
+			AssetId: variant.GetAttachment().GetId(),
 		})
 	}
 	event := newEvent("", &corev1.Event{
@@ -954,17 +1050,35 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 				AssetId: attachmentID,
 				Result: &corev1.AssetProcessingSucceededEvent_Video{
 					Video: &corev1.AssetProcessedVideo{
-						DurationMs:     durationMs,
-						Width:          width,
-						Height:         height,
-						ThumbnailAsset: assetFromAttachment(thumbnail),
-						Variants:       assetVariants,
+						DurationMs:       durationMs,
+						Width:            width,
+						Height:           height,
+						ThumbnailAssetId: thumbnailAssetID,
+						Variants:         assetVariants,
 					},
 				},
 			},
 		},
 	})
 	return c.PublishAssetProcessing(ctx, kind, roomID, event)
+}
+
+func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID string, asset *corev1.Asset) error {
+	if roomID == "" || asset == nil || asset.GetId() == "" {
+		return fmt.Errorf("derivative asset creation missing room or asset id")
+	}
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				SourceAvailable: true,
+				Asset:           asset,
+			},
+		},
+	})
+	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
+		return fmt.Errorf("publish derivative asset creation event: %w", err)
+	}
+	return nil
 }
 
 // RecordAssetProcessingFailed builds and publishes a durable failed

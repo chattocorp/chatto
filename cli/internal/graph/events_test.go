@@ -144,18 +144,13 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 				AssetId: attachment.Id,
 				Result: &corev1.AssetProcessingSucceededEvent_Video{
 					Video: &corev1.AssetProcessedVideo{
-						DurationMs: 1234,
-						Width:      640,
-						Height:     360,
-						ThumbnailAsset: &corev1.Asset{
-							Id: "A-thumb",
-						},
+						DurationMs:       1234,
+						Width:            640,
+						Height:           360,
+						ThumbnailAssetId: "A-thumb",
 						Variants: []*corev1.AssetVideoVariant{{
 							Quality: "480p",
-							Width:   854,
-							Height:  480,
-							Size:    42,
-							Asset:   &corev1.Asset{Id: "A-480"},
+							AssetId: "A-480",
 						}},
 					},
 				},
@@ -164,6 +159,9 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 	}
 	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, "M1", attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
+	}
+	if err := env.core.RoomTimeline.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
+		t.Fatalf("Apply derivative asset creation: %v", err)
 	}
 	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video manifest: %v", err)
@@ -233,17 +231,41 @@ func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType str
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				SourceAvailable: true,
-				Owner: &corev1.AssetOwner{
-					Owner: &corev1.AssetOwner_Message{
-						Message: &corev1.MessageAssetOwner{
+				Asset: &corev1.Asset{
+					Id:          attachmentID,
+					ContentType: contentType,
+					Parent: &corev1.Asset_Message{
+						Message: &corev1.MessageAssetParent{
 							RoomId:         roomID,
 							MessageEventId: messageEventID,
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func testDerivativeAssetCreatedEvent(assetID, parentAssetID, quality string, width, height int32, size int64) *corev1.Event {
+	return &corev1.Event{
+		Id: "ENV-DERIVATIVE-" + assetID,
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				SourceAvailable: true,
 				Asset: &corev1.Asset{
-					Id:          attachmentID,
-					ContentType: contentType,
+					Id:          assetID,
+					ContentType: "video/mp4",
+					Size:        size,
+					Parent: &corev1.Asset_Asset{
+						Asset: &corev1.AssetDerivativeParent{
+							AssetId: parentAssetID,
+							Role:    "video_variant",
+							Variant: quality,
+						},
+					},
+					Metadata: &corev1.Asset_Video{
+						Video: &corev1.VideoAssetMetadata{Width: width, Height: height},
+					},
 				},
 			},
 		},

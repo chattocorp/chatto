@@ -167,16 +167,37 @@ func (c *ChattoCore) listLegacyVideoStateKeys(ctx context.Context) ([]string, er
 
 func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, state *corev1.VideoProcessingState, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
+	thumbnailAssetID := ""
+	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
+		thumbnailAssetID = thumbnailAsset.GetId()
+		thumbnailAsset.Parent = &corev1.Asset_Asset{
+			Asset: &corev1.AssetDerivativeParent{
+				AssetId: attachmentID,
+				Role:    "thumbnail",
+			},
+		}
+		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, thumbnailAsset); err != nil {
+			return err
+		}
+	}
 	for _, variant := range variants {
-		if variant == nil {
+		if variant == nil || variant.GetAttachment() == nil {
 			continue
+		}
+		variantAsset := assetFromAttachment(variant.GetAttachment())
+		variantAsset.Parent = &corev1.Asset_Asset{
+			Asset: &corev1.AssetDerivativeParent{
+				AssetId: attachmentID,
+				Role:    "video_variant",
+				Variant: variant.GetQuality(),
+			},
+		}
+		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, variantAsset); err != nil {
+			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
 			Quality: variant.GetQuality(),
-			Width:   variant.GetWidth(),
-			Height:  variant.GetHeight(),
-			Size:    variant.GetSize(),
-			Asset:   assetFromAttachment(variant.GetAttachment()),
+			AssetId: variant.GetAttachment().GetId(),
 		})
 	}
 	event := newEvent("", &corev1.Event{
@@ -185,13 +206,29 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 				AssetId: attachmentID,
 				Result: &corev1.AssetProcessingSucceededEvent_Video{
 					Video: &corev1.AssetProcessedVideo{
-						DurationMs:     state.GetDurationMs(),
-						Width:          state.GetWidth(),
-						Height:         state.GetHeight(),
-						ThumbnailAsset: assetFromAttachment(thumbnail),
-						Variants:       assetVariants,
+						DurationMs:       state.GetDurationMs(),
+						Width:            state.GetWidth(),
+						Height:           state.GetHeight(),
+						ThumbnailAssetId: thumbnailAssetID,
+						Variants:         assetVariants,
 					},
 				},
+			},
+		},
+	})
+	_, err := c.EventPublisher.AppendEventually(ctx, events.RoomAggregate(ref.roomID).SubjectFor(event), event)
+	return err
+}
+
+func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.Asset) error {
+	if asset == nil || asset.GetId() == "" {
+		return nil
+	}
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				SourceAvailable: true,
+				Asset:           asset,
 			},
 		},
 	})

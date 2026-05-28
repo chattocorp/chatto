@@ -138,19 +138,26 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 			if video.Height > 0 {
 				result.Height = &video.Height
 			}
-			if video.ThumbnailAsset != nil {
-				result.ThumbnailAttachmentID = video.ThumbnailAsset.Id
+			if video.GetThumbnailAssetId() != "" {
+				result.ThumbnailAttachmentID = video.GetThumbnailAssetId()
 			}
 			for _, v := range video.Variants {
 				if v == nil {
 					continue
 				}
-				variantID := v.GetAsset().GetId()
+				variantID := v.GetAssetId()
+				var width, height int32
+				var size int64
+				if variantAsset, ok := r.core.RoomTimeline.AssetCreation(variantID); ok {
+					asset := variantAsset.GetAsset()
+					width, height = assetDimensions(asset)
+					size = asset.GetSize()
+				}
 				result.Variants = append(result.Variants, &model.VideoVariant{
 					Quality:            v.Quality,
-					Width:              v.Width,
-					Height:             v.Height,
-					Size:               v.Size,
+					Width:              width,
+					Height:             height,
+					Size:               size,
 					RoomID:             obj.RoomId,
 					OriginAttachmentID: obj.Id,
 					AttachmentID:       variantID,

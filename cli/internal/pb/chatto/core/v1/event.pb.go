@@ -4412,7 +4412,7 @@ func (x *MessageDeletedEvent) GetMessageEventId() string {
 	return ""
 }
 
-// AssetCreatedEvent records durable content identity and ownership for an
+// AssetCreatedEvent records durable content identity and parentage for an
 // uploaded/generated asset. Message bodies may embed attachments for render
 // compatibility, but this event is the asset aggregate root.
 type AssetCreatedEvent struct {
@@ -4421,12 +4421,8 @@ type AssetCreatedEvent struct {
 	// event was written/imported. New uploads are true; legacy migrated assets may
 	// be false because older pipelines deleted originals after transcoding.
 	SourceAvailable bool `protobuf:"varint,1,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
-	// Full source asset metadata, including storage pointer.
-	Asset *Asset `protobuf:"bytes,2,opt,name=asset,proto3" json:"asset,omitempty"`
-	// Durable owner of the source asset. This is kept outside Asset so derivative
-	// Asset protos can stay pure binary metadata while still sharing the same
-	// owner model for message, room, user, and server assets.
-	Owner         *AssetOwner `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	// Full asset metadata, including storage pointer and parent.
+	Asset         *Asset `protobuf:"bytes,2,opt,name=asset,proto3" json:"asset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4471,13 +4467,6 @@ func (x *AssetCreatedEvent) GetSourceAvailable() bool {
 func (x *AssetCreatedEvent) GetAsset() *Asset {
 	if x != nil {
 		return x.Asset
-	}
-	return nil
-}
-
-func (x *AssetCreatedEvent) GetOwner() *AssetOwner {
-	if x != nil {
-		return x.Owner
 	}
 	return nil
 }
@@ -4637,8 +4626,8 @@ func (x *AssetProcessingFailedEvent) GetFailureCode() AssetProcessingFailureCode
 
 type AssetProcessedSource struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Display asset. Usually the source asset itself.
-	Asset         *Asset `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	// Display asset ID. Usually the source asset itself.
+	AssetId       string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4673,11 +4662,11 @@ func (*AssetProcessedSource) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{57}
 }
 
-func (x *AssetProcessedSource) GetAsset() *Asset {
+func (x *AssetProcessedSource) GetAssetId() string {
 	if x != nil {
-		return x.Asset
+		return x.AssetId
 	}
-	return nil
+	return ""
 }
 
 // AssetProcessedVideo records processed video/GIF derivative assets.
@@ -4688,8 +4677,8 @@ type AssetProcessedVideo struct {
 	// Original/source video dimensions.
 	Width  int32 `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
 	Height int32 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	// Generated poster/thumbnail image.
-	ThumbnailAsset *Asset `protobuf:"bytes,4,opt,name=thumbnail_asset,json=thumbnailAsset,proto3" json:"thumbnail_asset,omitempty"`
+	// Generated poster/thumbnail image asset ID.
+	ThumbnailAssetId string `protobuf:"bytes,4,opt,name=thumbnail_asset_id,json=thumbnailAssetId,proto3" json:"thumbnail_asset_id,omitempty"`
 	// Processed video variants.
 	Variants      []*AssetVideoVariant `protobuf:"bytes,5,rep,name=variants,proto3" json:"variants,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4747,11 +4736,11 @@ func (x *AssetProcessedVideo) GetHeight() int32 {
 	return 0
 }
 
-func (x *AssetProcessedVideo) GetThumbnailAsset() *Asset {
+func (x *AssetProcessedVideo) GetThumbnailAssetId() string {
 	if x != nil {
-		return x.ThumbnailAsset
+		return x.ThumbnailAssetId
 	}
-	return nil
+	return ""
 }
 
 func (x *AssetProcessedVideo) GetVariants() []*AssetVideoVariant {
@@ -4764,10 +4753,7 @@ func (x *AssetProcessedVideo) GetVariants() []*AssetVideoVariant {
 type AssetVideoVariant struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Quality       string                 `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"` // e.g., "720p", "480p"
-	Width         int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
-	Height        int32                  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
-	Asset         *Asset                 `protobuf:"bytes,5,opt,name=asset,proto3" json:"asset,omitempty"`
+	AssetId       string                 `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4809,32 +4795,11 @@ func (x *AssetVideoVariant) GetQuality() string {
 	return ""
 }
 
-func (x *AssetVideoVariant) GetWidth() int32 {
+func (x *AssetVideoVariant) GetAssetId() string {
 	if x != nil {
-		return x.Width
+		return x.AssetId
 	}
-	return 0
-}
-
-func (x *AssetVideoVariant) GetHeight() int32 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-func (x *AssetVideoVariant) GetSize() int64 {
-	if x != nil {
-		return x.Size
-	}
-	return 0
-}
-
-func (x *AssetVideoVariant) GetAsset() *Asset {
-	if x != nil {
-		return x.Asset
-	}
-	return nil
+	return ""
 }
 
 type ReactionAddedEvent struct {
@@ -5992,11 +5957,10 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x13MessageDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\x9d\x01\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"k\n" +
 	"\x11AssetCreatedEvent\x12)\n" +
 	"\x10source_available\x18\x01 \x01(\bR\x0fsourceAvailable\x12+\n" +
-	"\x05asset\x18\x02 \x01(\v2\x15.chatto.core.v1.AssetR\x05asset\x120\n" +
-	"\x05owner\x18\x03 \x01(\v2\x1a.chatto.core.v1.AssetOwnerR\x05owner\"\xc1\x01\n" +
+	"\x05asset\x18\x02 \x01(\v2\x15.chatto.core.v1.AssetR\x05asset\"\xc1\x01\n" +
 	"\x1dAssetProcessingSucceededEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12>\n" +
 	"\x06source\x18\n" +
@@ -6005,22 +5969,19 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x06result\"\x86\x01\n" +
 	"\x1aAssetProcessingFailedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12M\n" +
-	"\ffailure_code\x18\x02 \x01(\x0e2*.chatto.core.v1.AssetProcessingFailureCodeR\vfailureCode\"C\n" +
-	"\x14AssetProcessedSource\x12+\n" +
-	"\x05asset\x18\x01 \x01(\v2\x15.chatto.core.v1.AssetR\x05asset\"\xe3\x01\n" +
+	"\ffailure_code\x18\x02 \x01(\x0e2*.chatto.core.v1.AssetProcessingFailureCodeR\vfailureCode\"1\n" +
+	"\x14AssetProcessedSource\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\"\xd1\x01\n" +
 	"\x13AssetProcessedVideo\x12\x1f\n" +
 	"\vduration_ms\x18\x01 \x01(\x03R\n" +
 	"durationMs\x12\x14\n" +
 	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\x05R\x06height\x12>\n" +
-	"\x0fthumbnail_asset\x18\x04 \x01(\v2\x15.chatto.core.v1.AssetR\x0ethumbnailAsset\x12=\n" +
-	"\bvariants\x18\x05 \x03(\v2!.chatto.core.v1.AssetVideoVariantR\bvariants\"\x9c\x01\n" +
+	"\x06height\x18\x03 \x01(\x05R\x06height\x12,\n" +
+	"\x12thumbnail_asset_id\x18\x04 \x01(\tR\x10thumbnailAssetId\x12=\n" +
+	"\bvariants\x18\x05 \x03(\v2!.chatto.core.v1.AssetVideoVariantR\bvariants\"H\n" +
 	"\x11AssetVideoVariant\x12\x18\n" +
-	"\aquality\x18\x01 \x01(\tR\aquality\x12\x14\n" +
-	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\x12+\n" +
-	"\x05asset\x18\x05 \x01(\v2\x15.chatto.core.v1.AssetR\x05asset\"}\n" +
+	"\aquality\x18\x01 \x01(\tR\aquality\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\"}\n" +
 	"\x12ReactionAddedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
@@ -6176,7 +6137,6 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*ServerUserPreferences)(nil),             // 83: chatto.core.v1.ServerUserPreferences
 	(NotificationLevel)(0),                    // 84: chatto.core.v1.NotificationLevel
 	(*Asset)(nil),                             // 85: chatto.core.v1.Asset
-	(*AssetOwner)(nil),                        // 86: chatto.core.v1.AssetOwner
 }
 var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	77, // 0: chatto.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
@@ -6262,19 +6222,15 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	84, // 80: chatto.core.v1.NotificationLevelChangedEvent.effective_level:type_name -> chatto.core.v1.NotificationLevel
 	79, // 81: chatto.core.v1.MessageEditedEvent.body:type_name -> chatto.core.v1.MessageBody
 	85, // 82: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.Asset
-	86, // 83: chatto.core.v1.AssetCreatedEvent.owner:type_name -> chatto.core.v1.AssetOwner
-	58, // 84: chatto.core.v1.AssetProcessingSucceededEvent.source:type_name -> chatto.core.v1.AssetProcessedSource
-	59, // 85: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
-	0,  // 86: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
-	85, // 87: chatto.core.v1.AssetProcessedSource.asset:type_name -> chatto.core.v1.Asset
-	85, // 88: chatto.core.v1.AssetProcessedVideo.thumbnail_asset:type_name -> chatto.core.v1.Asset
-	60, // 89: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
-	85, // 90: chatto.core.v1.AssetVideoVariant.asset:type_name -> chatto.core.v1.Asset
-	91, // [91:91] is the sub-list for method output_type
-	91, // [91:91] is the sub-list for method input_type
-	91, // [91:91] is the sub-list for extension type_name
-	91, // [91:91] is the sub-list for extension extendee
-	0,  // [0:91] is the sub-list for field type_name
+	58, // 83: chatto.core.v1.AssetProcessingSucceededEvent.source:type_name -> chatto.core.v1.AssetProcessedSource
+	59, // 84: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
+	0,  // 85: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
+	60, // 86: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
+	87, // [87:87] is the sub-list for method output_type
+	87, // [87:87] is the sub-list for method input_type
+	87, // [87:87] is the sub-list for extension type_name
+	87, // [87:87] is the sub-list for extension extendee
+	0,  // [0:87] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_event_proto_init() }

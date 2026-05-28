@@ -144,17 +144,15 @@ func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType s
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				SourceAvailable: true,
-				Owner: &corev1.AssetOwner{
-					Owner: &corev1.AssetOwner_Message{
-						Message: &corev1.MessageAssetOwner{
+				Asset: &corev1.Asset{
+					Id:          attachmentID,
+					ContentType: contentType,
+					Parent: &corev1.Asset_Message{
+						Message: &corev1.MessageAssetParent{
 							RoomId:         roomID,
 							MessageEventId: messageEventID,
 						},
 					},
-				},
-				Asset: &corev1.Asset{
-					Id:          attachmentID,
-					ContentType: contentType,
 				},
 			},
 		},
@@ -301,7 +299,7 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 						Height:     360,
 						Variants: []*corev1.AssetVideoVariant{{
 							Quality: "480p",
-							Asset:   &corev1.Asset{Id: "A-video-480"},
+							AssetId: "A-video-480",
 						}},
 					},
 				},
