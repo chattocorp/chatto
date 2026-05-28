@@ -93,9 +93,9 @@ func (r *attachmentResolver) ThumbnailURL(ctx context.Context, obj *corev1.Attac
 }
 
 // VideoProcessing is the resolver for the videoProcessing field.
-// Returns nil for non-video attachments. Completed/failed manifests come
-// from the EVT-backed room projection; transient pending/processing states are
-// process-local only.
+// Returns nil for non-video attachments or assets without a durable processing
+// outcome yet. Completed/failed manifests come from the EVT-backed room
+// projection.
 func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.Attachment) (*model.VideoProcessing, error) {
 	if !strings.HasPrefix(obj.ContentType, "video/") && obj.ContentType != "image/gif" {
 		return nil, nil
@@ -163,74 +163,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		}
 	}
 
-	state, err := r.core.GetVideoProcessingState(ctx, obj.Id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get video processing state: %w", err)
-	}
-	if state == nil {
-		return nil, nil
-	}
-
-	// Map proto status to GraphQL enum
-	var status model.VideoProcessingStatus
-	switch state.Status {
-	case corev1.VideoStatus_VIDEO_STATUS_PENDING:
-		status = model.VideoProcessingStatusPending
-	case corev1.VideoStatus_VIDEO_STATUS_PROCESSING:
-		status = model.VideoProcessingStatusProcessing
-	case corev1.VideoStatus_VIDEO_STATUS_COMPLETED:
-		status = model.VideoProcessingStatusCompleted
-	case corev1.VideoStatus_VIDEO_STATUS_FAILED:
-		status = model.VideoProcessingStatusFailed
-	}
-
-	// Prefer the embedded thumbnail attachment proto (post-migration);
-	// fall back to the legacy string id while old entries are around.
-	thumbnailID := state.ThumbnailAttachmentId
-	if state.ThumbnailAttachment != nil {
-		thumbnailID = state.ThumbnailAttachment.Id
-	}
-
-	result := &model.VideoProcessing{
-		Status:                status,
-		RoomID:                obj.RoomId,
-		OriginAttachmentID:    obj.Id,
-		ThumbnailAttachmentID: thumbnailID,
-		SourceAvailable:       true,
-	}
-
-	if state.DurationMs > 0 {
-		d := state.DurationMs
-		result.DurationMs = &d
-	}
-	if state.Width > 0 {
-		result.Width = &state.Width
-	}
-	if state.Height > 0 {
-		result.Height = &state.Height
-	}
-	if state.ErrorMessage != "" {
-		reasonCode := "processing_failed"
-		result.ReasonCode = &reasonCode
-	}
-
-	for _, v := range state.Variants {
-		variantID := v.AttachmentId
-		if v.Attachment != nil {
-			variantID = v.Attachment.Id
-		}
-		result.Variants = append(result.Variants, &model.VideoVariant{
-			Quality:            v.Quality,
-			Width:              v.Width,
-			Height:             v.Height,
-			Size:               v.Size,
-			RoomID:             obj.RoomId,
-			OriginAttachmentID: obj.Id,
-			AttachmentID:       variantID,
-		})
-	}
-
-	return result, nil
+	return nil, nil
 }
 
 // Alive is the resolver for the alive field. Always true — clients only
@@ -340,16 +273,27 @@ func (r *messagePostedEventResolver) Attachments(ctx context.Context, obj *corev
 	if messageBody == nil {
 		return []*corev1.Attachment{}, nil // Return empty slice for deleted messages
 	}
-	// Populate MessageBodyId on each attachment so downstream URL
-	// resolvers can build signed locators. Persisted bodies written
-	// after the message_body_id proto field landed already have this
-	// set; older bodies are patched here at read time.
+	// Render from projected AssetCreatedEvent metadata when available. The
+	// embedded Attachment proto is the legacy message-body view and remains the
+	// fallback for pre-asset-created data.
+	attachments := make([]*corev1.Attachment, 0, len(messageBody.Attachments))
 	for _, att := range messageBody.Attachments {
-		if att != nil && att.MessageBodyId == "" {
-			att.MessageBodyId = bodyKeyForLookup(obj)
+		if att == nil {
+			continue
 		}
+		rendered := att
+		if created, ok := r.core.RoomTimeline.AssetCreation(att.GetId()); ok {
+			if projected := core.AttachmentFromAsset(created.GetAsset()); projected != nil {
+				rendered = projected
+			}
+		}
+		rendered.RoomId = obj.RoomId
+		if rendered.MessageBodyId == "" {
+			rendered.MessageBodyId = bodyKeyForLookup(obj)
+		}
+		attachments = append(attachments, rendered)
 	}
-	return messageBody.Attachments, nil
+	return attachments, nil
 }
 
 // InReplyTo is the resolver for the inReplyTo field.

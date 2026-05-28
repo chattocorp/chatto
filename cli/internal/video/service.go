@@ -1,128 +1,71 @@
-// Package video provides a NATS-based video processing service.
+// Package video provides in-process video processing.
 //
-// The service subscribes to video processing requests, transcodes uploaded videos
-// to web-friendly MP4 format using ffmpeg, generates thumbnails, and publishes
-// completion events. It implements service.Service for lifecycle management.
+// The service transcodes uploaded videos to web-friendly MP4 format using
+// ffmpeg, generates thumbnails, and publishes completion events. It implements
+// service.Service for lifecycle management and installs a direct callback on
+// ChattoCore for command-side processing.
 //
-// Architecture: This runs in-process by default but is designed for future extraction
-// into a standalone service. It communicates with the rest of Chatto exclusively
-// through NATS (subscribe for requests, publish completion events) and core methods
-// (read/write attachments and KV state).
+// Architecture: This intentionally runs in-process for now. A future durable
+// queue/worker setup should replace the direct callback when we need separate
+// video worker processes.
 package video
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"sync"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ProcessRequest is the payload published to request video processing.
-//
-// The video processing subject (`chatto.video.process`) is a NATS Core
-// subscription, not JetStream — there are no persisted requests to worry
-// about. The legacy `space_id` field was dropped in ADR-030 Phase 4; any
-// stale in-flight request from a pre-Phase-4 binary will simply have its
-// `space_id` ignored (unknown JSON fields are dropped silently) and the
-// downstream code paths handle the empty-spaceID case.
+// ProcessRequest is the in-process request shape for video processing.
 type ProcessRequest struct {
-	RoomID        string `json:"room_id"`
-	AttachmentID  string `json:"attachment_id"`
-	ContentType   string `json:"content_type"`
-	MessageBodyID string `json:"message_body_id"`
+	RoomID      string
+	AssetID     string
+	ContentType string
+	Attachment  *corev1.Attachment
 }
 
-// Service processes video attachments asynchronously.
-// It subscribes to a NATS subject for processing requests and manages
-// a pool of concurrent ffmpeg workers.
+// Service processes video attachments in-process.
 type Service struct {
 	core        *core.ChattoCore
-	nc          *nats.Conn
 	config      config.VideoConfig
 	logger      *log.Logger
 	ffmpegPath  string
 	ffprobePath string
+	initMu      sync.Mutex
+	initialized bool
 }
 
 // NewService creates a new video processing service.
-func NewService(chattoCore *core.ChattoCore, nc *nats.Conn, cfg config.VideoConfig, logger *log.Logger) *Service {
-	return &Service{
+func NewService(chattoCore *core.ChattoCore, cfg config.VideoConfig, logger *log.Logger) *Service {
+	s := &Service{
 		core:   chattoCore,
-		nc:     nc,
 		config: cfg,
 		logger: logger,
 	}
+	chattoCore.OnVideoProcessingRequested = s.ProcessAsset
+	return s
 }
 
 // Run starts the video processing service. It blocks until ctx is cancelled.
 // Implements service.Service.
 func (s *Service) Run(ctx context.Context) error {
-	// Resolve ffmpeg/ffprobe paths
-	var err error
-	s.ffmpegPath, err = resolveExecutable(s.config.FFmpegPath, "ffmpeg")
-	if err != nil {
+	if err := s.ensureInitialized(); err != nil {
 		s.logger.Error("ffmpeg not found — video processing disabled", "error", err)
 		s.logger.Error("Install ffmpeg: brew install ffmpeg (macOS) or apk add ffmpeg (Alpine)")
+		s.core.OnVideoProcessingRequested = nil
 		return nil // Don't crash the server, just disable video processing
-	}
-	s.ffprobePath, err = resolveExecutable(s.config.FFprobePath, "ffprobe")
-	if err != nil {
-		s.logger.Error("ffprobe not found — video processing disabled", "error", err)
-		return nil
 	}
 
 	s.logger.Info("Video processing service started",
 		"ffmpeg", s.ffmpegPath,
 		"ffprobe", s.ffprobePath,
-		"max_concurrent", s.config.MaxConcurrentOrDefault(),
 	)
-
-	// Semaphore for bounding concurrent processing
-	sem := make(chan struct{}, s.config.MaxConcurrentOrDefault())
-	var wg sync.WaitGroup
-
-	// Subscribe with queue group for future multi-server support
-	sub, err := s.nc.QueueSubscribe(core.SubjectVideoProcess, "video-workers", func(msg *nats.Msg) {
-		var req ProcessRequest
-		if err := json.Unmarshal(msg.Data, &req); err != nil {
-			s.logger.Error("Failed to unmarshal video processing request", "error", err)
-			return
-		}
-
-		s.logger.Info("Received video processing request",
-			"attachment_id", req.AttachmentID,
-		)
-
-		// Acquire semaphore slot (bounded concurrency)
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			return
-		}
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			if err := s.processVideo(ctx, req); err != nil {
-				s.logger.Error("Video processing failed",
-					"attachment_id", req.AttachmentID,
-					"error", err,
-				)
-			}
-		}()
-	})
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s: %w", core.SubjectVideoProcess, err)
-	}
-	defer sub.Unsubscribe()
 
 	go func() {
 		if err := s.core.WaitForBoot(ctx); err != nil {
@@ -133,13 +76,53 @@ func (s *Service) Run(ctx context.Context) error {
 
 	// Block until context is cancelled
 	<-ctx.Done()
-
-	// Drain in-flight processing
-	s.logger.Info("Shutting down video processing service, waiting for in-flight jobs...")
-	wg.Wait()
 	s.logger.Info("Video processing service stopped")
 
 	return nil
+}
+
+func (s *Service) ensureInitialized() error {
+	s.initMu.Lock()
+	defer s.initMu.Unlock()
+	if s.initialized {
+		return nil
+	}
+
+	ffmpegPath, err := resolveExecutable(s.config.FFmpegPath, "ffmpeg")
+	if err != nil {
+		return err
+	}
+	ffprobePath, err := resolveExecutable(s.config.FFprobePath, "ffprobe")
+	if err != nil {
+		return err
+	}
+
+	s.ffmpegPath = ffmpegPath
+	s.ffprobePath = ffprobePath
+	s.initialized = true
+	return nil
+}
+
+// ProcessAsset processes one asset synchronously in this process.
+func (s *Service) ProcessAsset(ctx context.Context, assetID string) error {
+	if err := s.ensureInitialized(); err != nil {
+		return err
+	}
+	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
+	if !ok || declared.GetAsset() == nil {
+		return fmt.Errorf("asset %s is not declared", assetID)
+	}
+	owner := declared.GetMessage()
+	if owner == nil || owner.GetRoomId() == "" {
+		return fmt.Errorf("asset %s is not a message-owned video asset", assetID)
+	}
+	req := ProcessRequest{
+		RoomID:      owner.GetRoomId(),
+		AssetID:     assetID,
+		ContentType: declared.GetAsset().GetContentType(),
+		Attachment:  core.AttachmentFromAsset(declared.GetAsset()),
+	}
+	return s.processVideo(ctx, req)
 }
 
 // resolveExecutable finds the path to an executable, using the provided path or

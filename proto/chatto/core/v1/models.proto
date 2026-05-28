@@ -171,10 +171,13 @@ message ThreadMetadata {
   repeated string participant_ids = 4;
 }
 
-// Attachment represents a file attached to a message.
-// The actual binary data is stored either in NATS ObjectStore or S3,
-// as indicated by the storage field.
+// Attachment is the legacy message-facing asset view. New durable asset state
+// is recorded as AssetCreatedEvent{asset: Asset}; this proto is retained so
+// existing MessageBody payloads, GraphQL attachment fields, and migration code
+// remain decodable. Remove/replace it in the post-migration asset cleanup.
 message Attachment {
+  option deprecated = true;
+
   // Unique identifier for this attachment (NanoID)
   string id = 1;
 

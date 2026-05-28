@@ -164,7 +164,7 @@ func runServer(configPath string) {
 
 	// Start video processing service if enabled
 	if cfg.Video.Enabled {
-		videoSvc := video.NewService(chattoCore, nc, cfg.Video, log.WithPrefix("video"))
+		videoSvc := video.NewService(chattoCore, cfg.Video, log.WithPrefix("video"))
 		g.Go(func() error {
 			return videoSvc.Run(ctx)
 		})

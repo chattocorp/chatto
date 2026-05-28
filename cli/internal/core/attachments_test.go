@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"errors"
 	"image"
 	"image/png"
 	"io"
@@ -138,36 +137,6 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 			t.Errorf("Expected size %d, got %d", len(textData), attachment.Size)
 		}
 	})
-}
-
-func TestVideoProcessingState_UsesClusterClaim(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	attachmentID := "video-claim-test"
-	_ = core.storage.serverRuntimeKV.Delete(ctx, videoProcessingClaimKey(attachmentID))
-
-	if err := core.InitVideoProcessingState(ctx, attachmentID); err != nil {
-		t.Fatalf("init video processing state: %v", err)
-	}
-	if err := core.InitVideoProcessingState(ctx, attachmentID); !errors.Is(err, ErrVideoProcessingAlreadyClaimed) {
-		t.Fatalf("second init error = %v, want ErrVideoProcessingAlreadyClaimed", err)
-	}
-
-	core.videoStateMu.Lock()
-	delete(core.videoStates, attachmentID)
-	core.videoStateMu.Unlock()
-	state, err := core.GetVideoProcessingState(ctx, attachmentID)
-	if err != nil {
-		t.Fatalf("get video processing state: %v", err)
-	}
-	if state == nil || state.GetStatus() != corev1.VideoStatus_VIDEO_STATUS_PENDING {
-		t.Fatalf("state = %+v, want pending", state)
-	}
-
-	core.ClearVideoProcessingState(attachmentID)
-	if err := core.InitVideoProcessingState(ctx, attachmentID); err != nil {
-		t.Fatalf("init after clear: %v", err)
-	}
 }
 
 // ============================================================================

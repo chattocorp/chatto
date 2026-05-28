@@ -63,7 +63,8 @@ Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
 target. Uploaded assets are content and are declared with `AssetCreatedEvent`;
 generated video thumbnails and variants are content metadata, so completed/failed
 outcomes live in durable room EVT events that reference the created asset ID.
-Only transient worker progress may remain process-local.
+The current video processor does not write new runtime progress or claim state;
+legacy `SERVER_RUNTIME video.*` records are only a migration source.
 
 Mention flags are not a target runtime-state model. Orange-dot behavior derives
 from pending notifications instead of preserving `room_mention_status.*` as

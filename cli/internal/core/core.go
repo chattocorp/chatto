@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -51,8 +50,11 @@ type ChattoCore struct {
 	// When set (> 0), video attachments use this limit instead of the asset limit.
 	// Set this after ChattoCore is created, from VideoConfig.
 	VideoMaxUploadSize int64
-	videoStateMu       sync.RWMutex
-	videoStates        map[string]*corev1.VideoProcessingState
+
+	// OnVideoProcessingRequested is called when a posted asset should be
+	// processed as video/GIF. The video service installs this callback when
+	// enabled; durable completed/failed outcomes are still written to EVT.
+	OnVideoProcessingRequested func(ctx context.Context, assetID string) error
 
 	// OnNotificationCreated is called when a notification is created.
 	// Used by the push notification system to send Web Push notifications.
@@ -653,7 +655,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RBAC:                    rbac,
 		RBACProjector:           rbacProjector,
 		projectors:              projectors,
-		videoStates:             make(map[string]*corev1.VideoProcessingState),
 		bootDone:                make(chan struct{}),
 	}
 

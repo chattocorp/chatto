@@ -207,16 +207,9 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Update state to PROCESSING
-	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, &corev1.VideoProcessingState{
-		Status: corev1.VideoStatus_VIDEO_STATUS_PROCESSING,
-	}); err != nil {
-		return fmt.Errorf("failed to set processing state: %w", err)
-	}
-
 	// Download original from asset store
 	inputPath := filepath.Join(tmpDir, "input")
-	if err := s.downloadAttachment(ctx, req.MessageBodyID, req.AttachmentID, inputPath); err != nil {
+	if err := s.downloadAttachment(ctx, req.Attachment, inputPath); err != nil {
 		return s.failProcessing(ctx, req, fmt.Errorf("failed to download original: %w", err))
 	}
 
@@ -230,7 +223,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 
 	s.logger.Info("Video probed",
-		"attachment_id", req.AttachmentID,
+		"asset_id", req.AssetID,
 		"duration_ms", probeResult.DurationMs,
 		"resolution", fmt.Sprintf("%dx%d", probeResult.Width, probeResult.Height),
 		"codec", probeResult.CodecInfo,
@@ -276,7 +269,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	for _, h := range heights {
 		outputPath := filepath.Join(tmpDir, fmt.Sprintf("%dp.mp4", h))
 		s.logger.Info("Transcoding variant",
-			"attachment_id", req.AttachmentID,
+			"asset_id", req.AssetID,
 			"height", h,
 		)
 
@@ -294,7 +287,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
-		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AttachmentID, filepath.Ext(req.AttachmentID)), quality)
+		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), quality)
 		variant, err := s.uploadFile(ctx, req.RoomID, filename, "video/mp4", outputPath)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
@@ -327,53 +320,40 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
 	if err != nil {
 		s.logger.Warn("Failed to resolve room kind for video processed event", "error", err)
-	} else if err := s.core.RecordAssetProcessed(ctx, kind, req.RoomID, req.AttachmentID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants); err != nil {
+	} else if err := s.core.RecordAssetProcessed(ctx, kind, req.RoomID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants); err != nil {
 		s.logger.Warn("Failed to publish video processed event", "error", err)
 	}
-	s.core.ClearVideoProcessingState(req.AttachmentID)
 
 	s.logger.Info("Video processing completed",
-		"attachment_id", req.AttachmentID,
+		"asset_id", req.AssetID,
 		"variants", len(variants),
 	)
 
 	return nil
 }
 
-// failProcessing updates the processing state to FAILED and returns the original error.
+// failProcessing records a durable failed outcome and returns the original error.
 func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, originalErr error) error {
 	// Log the full error for server-side debugging (may contain file paths, ffmpeg output, etc.)
 	s.logger.Error("Video processing failed",
-		"attachment_id", req.AttachmentID,
+		"asset_id", req.AssetID,
 		"error", originalErr)
 
-	state := &corev1.VideoProcessingState{
-		Status:       corev1.VideoStatus_VIDEO_STATUS_FAILED,
-		ErrorMessage: "Video processing failed. Please try uploading again.",
-	}
-	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
-		s.logger.Error("Failed to set error state", "error", err)
-	}
 	// Publish durable failure event even on failure so frontend can update
 	// and replay can reconstruct the terminal state.
 	kind, kindErr := s.core.FindRoomKind(ctx, req.RoomID)
 	if kindErr != nil {
 		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
-	} else if err := s.core.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.AttachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	} else if err := s.core.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
-	s.core.ClearVideoProcessingState(req.AttachmentID)
 	return originalErr
 }
 
 // downloadAttachment downloads an attachment from the asset store to a local file.
-func (s *Service) downloadAttachment(ctx context.Context, bodyKey, attachmentID, destPath string) error {
-	attachment, err := s.core.FindBodyAttachment(ctx, bodyKey, attachmentID)
-	if err != nil {
-		return fmt.Errorf("look up attachment: %w", err)
-	}
+func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Attachment, destPath string) error {
 	if attachment == nil {
-		return fmt.Errorf("attachment %s not found in body %s", attachmentID, bodyKey)
+		return fmt.Errorf("attachment is nil")
 	}
 	reader, _, err := s.core.GetAttachmentReader(ctx, attachment)
 	if err != nil {

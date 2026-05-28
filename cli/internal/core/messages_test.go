@@ -2,13 +2,11 @@ package core
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
-	"github.com/nats-io/nats.go"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -69,45 +67,19 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	requests := make(chan *nats.Msg, 1)
-	sub, err := core.nc.ChanSubscribe(SubjectVideoProcess, requests)
-	if err != nil {
-		t.Fatalf("Subscribe video process: %v", err)
-	}
-	defer sub.Unsubscribe()
-	if err := core.nc.Flush(); err != nil {
-		t.Fatalf("Flush subscription: %v", err)
+	var requestedAssetID string
+	core.OnVideoProcessingRequested = func(_ context.Context, assetID string) error {
+		requestedAssetID = assetID
+		return nil
 	}
 
-	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []*corev1.Attachment{attachment}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
+	_, err = core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []*corev1.Attachment{attachment}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	state, err := core.GetVideoProcessingState(ctx, attachment.Id)
-	if err != nil {
-		t.Fatalf("GetVideoProcessingState: %v", err)
-	}
-	if state == nil || state.GetStatus() != corev1.VideoStatus_VIDEO_STATUS_PENDING {
-		t.Fatalf("video state = %+v, want pending", state)
-	}
-
-	select {
-	case msg := <-requests:
-		var payload struct {
-			RoomID        string `json:"room_id"`
-			AttachmentID  string `json:"attachment_id"`
-			ContentType   string `json:"content_type"`
-			MessageBodyID string `json:"message_body_id"`
-		}
-		if err := json.Unmarshal(msg.Data, &payload); err != nil {
-			t.Fatalf("Unmarshal video request: %v", err)
-		}
-		if payload.RoomID != room.Id || payload.AttachmentID != attachment.Id || payload.ContentType != "video/mp4" || payload.MessageBodyID != event.Id {
-			t.Fatalf("video request = %+v, want room %s attachment %s message %s", payload, room.Id, attachment.Id, event.Id)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for video processing request")
+	if requestedAssetID != attachment.Id {
+		t.Fatalf("requested asset id = %q, want %q", requestedAssetID, attachment.Id)
 	}
 }
 

@@ -5,7 +5,7 @@
 
 ## Overview
 
-Users can attach files to messages — images, videos, documents — via drag-and-drop, paste, or file picker. Images are dimensioned and resizable on the fly via signed URLs. Videos and animated GIFs are transcoded asynchronously into web-friendly quality variants.
+Users can attach files to messages — images, videos, documents — via drag-and-drop, paste, or file picker. Images are dimensioned and resizable on the fly via signed URLs. Videos and animated GIFs are transcoded into web-friendly quality variants.
 
 ## Behavior
 
@@ -13,8 +13,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Draft attachments persist across room switches inside the same session.
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode).
-- Videos and animated GIFs are processed in the background. The message posts immediately; processed MP4 variants appear once processing completes.
-- Processing status: transient PENDING / PROCESSING progress is process-local; durable COMPLETED / FAILED outcomes are stored as room events. Failed videos still show the original message; the UI falls back to the original upload when it is available.
+- Videos and animated GIFs are processed by the current server process after the message and asset creation events are appended. This is best-effort and intentionally simple until a real durable worker queue exists.
+- Processing status: durable COMPLETED / FAILED outcomes are stored as room events. There is no new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
 - A thumbnail is generated from an early video frame.
 - Resized images can be cached as WebP with an auto-expiring cache.
 
@@ -26,11 +26,11 @@ Users can attach files to messages — images, videos, documents — via drag-an
 **Why:** Self-hosters running a single binary shouldn't have to spin up S3 just to send a screenshot. Larger operators need durable, replicated object storage. Supporting both lets us serve both ends of the spectrum. See ADR-021.
 **Tradeoff:** Migration between backends is operator-managed. The "try both" retrieval logic adds a tiny overhead but greatly improves the migration experience.
 
-### 2. Video processing is asynchronous and best-effort
+### 2. Video processing is in-process and best-effort
 
-**Decision:** A video upload doesn't block the message post. The message is posted immediately; transcoding happens in the background; a completion event refreshes the frontend.
-**Why:** Synchronous transcoding would tie up an HTTP request for tens of seconds to minutes. Users expect messages to send instantly. The cost of "the video appears a moment later" is much lower than "your chat froze for a minute".
-**Tradeoff:** Users see a "processing" placeholder until transcoding finishes. Failures surface as an error state on the attachment, not as a failed message.
+**Decision:** The current implementation directly calls the in-process video processor from the message command path after `MessagePostedEvent` and `AssetCreatedEvent` have been appended. It does not publish a NATS processing request and does not create runtime KV progress/claim records.
+**Why:** The previous transient pub/sub worker path added queue semantics without giving us durable delivery or a clean multi-process claim model. A direct call is easier to reason about and easier to replace later with a real durable queue.
+**Tradeoff:** This is intentionally best-effort. If the process crashes mid-transcode, boot recovery scans the EVT projection and retries unmanifested video assets. Multi-process duplicate work is possible until a future durable worker design adds explicit claims.
 
 ### 3. Animated GIFs go through the video pipeline
 
@@ -46,9 +46,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 5. Attachments are declared content; derivative manifests are durable events
 
-**Decision:** `AssetCreatedEvent` records each uploaded or generated binary as a first-class `Asset`. `Asset` carries inline storage and flat media metadata such as dimensions, duration, and bitrate; ownership context (`message`, `derivative`, `user_avatar`) lives on `AssetCreatedEvent`. Processing outcome events reference asset IDs instead of embedding derivative asset metadata. Message posting imperatively schedules video processing for newly uploaded video/animated-GIF assets after their asset creation events are appended; boot recovery derives any missed work from the EVT projection and uses the same scheduler. After transcoding succeeds, the original upload is retained as source content, and generated thumbnails/MP4 variants are appended as derivative `AssetCreatedEvent`s whose owner points at the original asset. Durable failed/unavailable outcomes are recorded with `AssetProcessingFailedEvent.failure_code`; GraphQL maps the source-missing enum to the stable `original_missing` reason for clients.
+**Decision:** `AssetCreatedEvent` records each uploaded or generated binary as a first-class `Asset`. `Asset` carries inline storage and flat media metadata such as dimensions, duration, and bitrate; ownership context (`message`, `derivative`, `user_avatar`) lives on `AssetCreatedEvent`. Processing outcome events reference asset IDs instead of embedding derivative asset metadata. Message posting imperatively invokes video processing for newly uploaded video/animated-GIF assets after their asset creation events are appended; boot recovery derives any missed work from the EVT projection and uses the same direct processor path. After transcoding succeeds, the original upload is retained as source content, and generated thumbnails/MP4 variants are appended as derivative `AssetCreatedEvent`s whose owner points at the original asset. Durable failed/unavailable outcomes are recorded with `AssetProcessingFailedEvent.failure_code`; GraphQL maps the source-missing enum to the stable `original_missing` reason for clients.
 **Why:** Attachments and video derivatives are content metadata, not runtime state. Making derivatives normal assets gives projections a single asset graph (`message -> original asset -> derivative assets`) and lets future uploads exist outside messages without a parallel asset model. Keeping the original allows future re-encoding, and storing processing outcomes in EVT lets processed playback survive projection rebuilds and storage-boundary cleanup.
-**Tradeoff:** Retaining originals costs more storage than the old replace-after-transcode behavior. The processing request itself is still transient, so a crash between the durable asset event and worker enqueue is repaired by boot recovery rather than by treating `AssetCreatedEvent` as a live subscriber trigger. Legacy processed videos may still have missing originals because the old pipeline deleted them; migration backfills asset creation events from message attachments and imports existing variant manifests so they remain playable.
+**Tradeoff:** Retaining originals costs more storage than the old replace-after-transcode behavior. Processing execution is still operational, not durable; a crash between the durable asset event and a completed processing outcome is repaired by boot recovery rather than by treating `AssetCreatedEvent` as a live subscriber trigger. Legacy processed videos may still have missing originals because the old pipeline deleted them; migration backfills asset creation events from message attachments and imports existing variant manifests so they remain playable.
 
 ### 6. Attachment URLs are per-user signed capabilities
 

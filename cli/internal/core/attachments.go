@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -323,6 +322,12 @@ func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
 		Height:      height,
 		Storage:     assetStorageFromAsset(asset),
 	}
+}
+
+// AttachmentFromAsset converts the new Asset model into the legacy
+// message-facing Attachment view used by GraphQL and asset URL helpers.
+func AttachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
+	return attachmentFromAsset(asset)
 }
 
 func applyDeprecatedAssetFromAttachmentStorage(asset *corev1.Asset, storage *corev1.DeprecatedAsset) {
@@ -812,15 +817,9 @@ func (c *ChattoCore) DeleteCachedResizesForKey(ctx context.Context, prefix, asse
 	return deleted, nil
 }
 
-// ============================================================================
-// Video Processing State
-// ============================================================================
-
-var ErrVideoProcessingAlreadyClaimed = errors.New("video processing already claimed")
-
 // AttachmentNeedsVideoProcessing returns whether an attachment should enter the
-// video worker pipeline. Static GIFs stay image-only; callers that inspect the
-// upload bytes can set animatedGIF for GIF-to-MP4 conversion.
+// video processing pipeline. Static GIFs stay image-only; callers that inspect
+// the upload bytes can set animatedGIF for GIF-to-MP4 conversion.
 func AttachmentNeedsVideoProcessing(attachment *corev1.Attachment, animatedGIF bool) bool {
 	if attachment == nil {
 		return false
@@ -829,165 +828,42 @@ func AttachmentNeedsVideoProcessing(attachment *corev1.Attachment, animatedGIF b
 }
 
 // videoProcessingKey returns the legacy SERVER_RUNTIME key for a video's
-// processing state. Legacy migration reads these keys but new processing claims
-// use videoProcessingClaimKey below.
+// processing state. Legacy migration reads these keys; new processing no
+// longer writes runtime state.
 func videoProcessingKey(attachmentID string) string {
 	return "video." + attachmentID
 }
 
-func videoProcessingClaimKey(attachmentID string) string {
-	return "video_processing_claim." + attachmentID
-}
-
-// GetVideoProcessingState retrieves the processing state for a video attachment.
-// Returns nil, nil if no transient processing state exists for this attachment.
-// Completed/failed manifests are source-of-truth in EVT and resolved via
-// RoomTimeline.VideoAttachmentManifest.
-func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, attachmentID string) (*corev1.VideoProcessingState, error) {
-	c.videoStateMu.RLock()
-	state := c.videoStates[attachmentID]
-	c.videoStateMu.RUnlock()
-	if state == nil {
-		entry, err := c.storage.serverRuntimeKV.Get(ctx, videoProcessingClaimKey(attachmentID))
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				return nil, nil
-			}
-			return nil, err
-		}
-		var shared corev1.VideoProcessingState
-		if err := proto.Unmarshal(entry.Value(), &shared); err != nil {
-			return nil, err
-		}
-		return &shared, nil
-	}
-	return proto.Clone(state).(*corev1.VideoProcessingState), nil
-}
-
-// SetVideoProcessingState stores operational processing progress. The
-// SERVER_RUNTIME claim is a cluster-wide dedupe/visibility guard, not the
-// durable source of truth; completed/failed outcomes are AssetProcessing*
-// events in EVT.
-func (c *ChattoCore) SetVideoProcessingState(ctx context.Context, attachmentID string, state *corev1.VideoProcessingState) error {
-	c.videoStateMu.Lock()
-	if state == nil {
-		delete(c.videoStates, attachmentID)
-		c.videoStateMu.Unlock()
-		if err := c.storage.serverRuntimeKV.Delete(ctx, videoProcessingClaimKey(attachmentID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-			return err
-		}
-		return nil
-	}
-	c.videoStates[attachmentID] = proto.Clone(state).(*corev1.VideoProcessingState)
-	c.videoStateMu.Unlock()
-	data, err := proto.Marshal(state)
-	if err != nil {
-		return err
-	}
-	_, err = c.storage.serverRuntimeKV.Put(ctx, videoProcessingClaimKey(attachmentID), data)
-	return err
-}
-
-// ClearVideoProcessingState removes transient in-memory processing progress.
-func (c *ChattoCore) ClearVideoProcessingState(attachmentID string) {
-	c.videoStateMu.Lock()
-	delete(c.videoStates, attachmentID)
-	c.videoStateMu.Unlock()
-	_ = c.storage.serverRuntimeKV.Delete(context.Background(), videoProcessingClaimKey(attachmentID))
-}
-
-// SubjectVideoProcess is the NATS subject for video processing requests.
-const SubjectVideoProcess = "chatto.video.process"
-
-// InitVideoProcessingState creates the initial PENDING state for a video
-// attachment using a cluster-wide KV create as the processing claim.
-func (c *ChattoCore) InitVideoProcessingState(ctx context.Context, attachmentID string) error {
-	state := &corev1.VideoProcessingState{
-		Status: corev1.VideoStatus_VIDEO_STATUS_PENDING,
-	}
-	data, err := proto.Marshal(state)
-	if err != nil {
-		return err
-	}
-	if _, err := c.storage.serverRuntimeKV.Create(ctx, videoProcessingClaimKey(attachmentID), data); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			return ErrVideoProcessingAlreadyClaimed
-		}
-		return err
-	}
-	c.videoStateMu.Lock()
-	c.videoStates[attachmentID] = proto.Clone(state).(*corev1.VideoProcessingState)
-	c.videoStateMu.Unlock()
-	return nil
-}
-
-// PublishVideoProcessingRequest publishes a video processing request to NATS.
-// The video service consumes this subject via a transient (non-JetStream)
-// subscription, so the payload format can evolve freely.
-func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, roomID, attachmentID, contentType, messageBodyID string) error {
-	payload := struct {
-		RoomID        string `json:"room_id"`
-		AttachmentID  string `json:"attachment_id"`
-		ContentType   string `json:"content_type"`
-		MessageBodyID string `json:"message_body_id"`
-	}{
-		RoomID:        roomID,
-		AttachmentID:  attachmentID,
-		ContentType:   contentType,
-		MessageBodyID: messageBodyID,
-	}
-
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal processing request: %w", err)
-	}
-
-	if err := c.nc.Publish(SubjectVideoProcess, data); err != nil {
-		return fmt.Errorf("failed to publish processing request: %w", err)
-	}
-
-	c.logger.Debug("Requested video processing",
-		"attachment_id", attachmentID,
-	)
-
-	return nil
-}
-
-// ScheduleVideoProcessingForMessageAttachment claims and enqueues video
-// processing for a message-owned asset. AssetCreatedEvent is the durable source
-// fact; this method is the imperative fast path, while boot recovery can call
-// the same method to repair missed enqueue attempts.
+// ScheduleVideoProcessingForMessageAttachment runs video processing for a
+// message-owned asset. AssetCreatedEvent is the durable source fact; this
+// method is the imperative best-effort path, while boot recovery can call the
+// same method to repair missed processing attempts.
 func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
-		return fmt.Errorf("video processing request missing room, message, or attachment")
+		return fmt.Errorf("video processing missing room, message, or attachment")
 	}
 	if _, ok := c.RoomTimeline.VideoAttachmentManifest(attachment.GetId()); ok {
 		return nil
 	}
-	if err := c.InitVideoProcessingState(ctx, attachment.GetId()); err != nil {
-		if errors.Is(err, ErrVideoProcessingAlreadyClaimed) {
-			return nil
-		}
-		return err
-	}
 	if !c.attachmentBinaryAvailable(ctx, attachment) {
 		if err := c.RecordAssetProcessingFailed(ctx, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
-			c.ClearVideoProcessingState(attachment.GetId())
 			return err
 		}
-		c.ClearVideoProcessingState(attachment.GetId())
 		return nil
 	}
-	if err := c.PublishVideoProcessingRequest(ctx, roomID, attachment.GetId(), attachment.GetContentType(), messageEventID); err != nil {
-		c.ClearVideoProcessingState(attachment.GetId())
+	if c.OnVideoProcessingRequested == nil {
+		return fmt.Errorf("video processor is not configured")
+	}
+	if err := c.OnVideoProcessingRequested(ctx, attachment.GetId()); err != nil {
 		return err
 	}
 	return nil
 }
 
 // RecoverUnmanifestedVideoAttachments replays durable message attachments into
-// the video worker queue when they have no completed/failed manifest yet. If
-// the original binary is already gone, it records a durable unavailable state.
+// the in-process video processor when they have no completed/failed manifest
+// yet. If the original binary is already gone, it records a durable unavailable
+// state.
 func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 	for _, req := range c.RoomTimeline.UnmanifestedVideoAttachments() {
 		if req.Attachment == nil {
@@ -999,7 +875,7 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 			continue
 		}
 		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, kind, req.RoomID, req.MessageEventID, req.Attachment); err != nil {
-			c.logger.Warn("Failed to recover video processing request", "attachment_id", req.Attachment.GetId(), "error", err)
+			c.logger.Warn("Failed to recover video processing", "attachment_id", req.Attachment.GetId(), "error", err)
 		}
 	}
 }

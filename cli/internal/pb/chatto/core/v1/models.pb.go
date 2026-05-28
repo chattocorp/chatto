@@ -1034,9 +1034,12 @@ func (x *ThreadMetadata) GetParticipantIds() []string {
 	return nil
 }
 
-// Attachment represents a file attached to a message.
-// The actual binary data is stored either in NATS ObjectStore or S3,
-// as indicated by the storage field.
+// Attachment is the legacy message-facing asset view. New durable asset state
+// is recorded as AssetCreatedEvent{asset: Asset}; this proto is retained so
+// existing MessageBody payloads, GraphQL attachment fields, and migration code
+// remain decodable. Remove/replace it in the post-migration asset cleanup.
+//
+// Deprecated: Marked as deprecated in chatto/core/v1/models.proto.
 type Attachment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this attachment (NanoID)
@@ -1880,7 +1883,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12'\n" +
-	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xa9\x02\n" +
+	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xad\x02\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
@@ -1892,7 +1895,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06height\x18\b \x01(\x05R\x06height\x129\n" +
 	"\astorage\x18\t \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\astorage\x12&\n" +
 	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\xf0\x02\n" +
+	" \x01(\tR\rmessageBodyId:\x02\x18\x01J\x04\b\x02\x10\x03R\bspace_id\"\xf0\x02\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +
