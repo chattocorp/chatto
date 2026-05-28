@@ -578,29 +578,24 @@ func (x *NATSAsset) GetKey() string {
 	return ""
 }
 
-// Asset is durable content metadata for an uploaded or generated file.
-// Message attachments embed the legacy Attachment proto for rendering
-// compatibility, but new EVT asset events use this neutral domain shape.
+// Asset is durable content metadata for an uploaded or generated file. It is
+// intentionally owner-neutral: room/message/user/server ownership lives in
+// AssetCreatedEvent so all app media can use one asset model.
 type Asset struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this asset (NanoID).
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Room ID where this asset is authorized.
-	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Original filename.
-	Filename string `protobuf:"bytes,4,opt,name=filename,proto3" json:"filename,omitempty"`
+	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
 	// MIME type (e.g., "image/jpeg", "video/mp4").
-	ContentType string `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	// File size in bytes.
-	Size int64 `protobuf:"varint,6,opt,name=size,proto3" json:"size,omitempty"`
+	Size int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
 	// Image/video dimensions when known.
-	Width  int32 `protobuf:"varint,7,opt,name=width,proto3" json:"width,omitempty"`
-	Height int32 `protobuf:"varint,8,opt,name=height,proto3" json:"height,omitempty"`
+	Width  int32 `protobuf:"varint,5,opt,name=width,proto3" json:"width,omitempty"`
+	Height int32 `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
 	// Storage location for the binary data.
-	Storage *AssetStorage `protobuf:"bytes,9,opt,name=storage,proto3" json:"storage,omitempty"`
-	// Event ID of the MessageBody owner for message-owned assets. Empty for
-	// generated derivatives and future room-owned assets.
-	MessageBodyId string `protobuf:"bytes,10,opt,name=message_body_id,json=messageBodyId,proto3" json:"message_body_id,omitempty"`
+	Storage       *AssetStorage `protobuf:"bytes,7,opt,name=storage,proto3" json:"storage,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -638,13 +633,6 @@ func (*Asset) Descriptor() ([]byte, []int) {
 func (x *Asset) GetId() string {
 	if x != nil {
 		return x.Id
-	}
-	return ""
-}
-
-func (x *Asset) GetRoomId() string {
-	if x != nil {
-		return x.RoomId
 	}
 	return ""
 }
@@ -689,13 +677,6 @@ func (x *Asset) GetStorage() *AssetStorage {
 		return x.Storage
 	}
 	return nil
-}
-
-func (x *Asset) GetMessageBodyId() string {
-	if x != nil {
-		return x.MessageBodyId
-	}
-	return ""
 }
 
 type RoomMembership struct {
@@ -1807,18 +1788,15 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06bucket\x18\x02 \x01(\tH\x00R\x06bucket\x88\x01\x01B\t\n" +
 	"\a_bucket\"\x1d\n" +
 	"\tNATSAsset\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\"\xa1\x02\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"\xd0\x01\n" +
 	"\x05Asset\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12\x1a\n" +
-	"\bfilename\x18\x04 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12\x12\n" +
-	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x14\n" +
-	"\x05width\x18\a \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\b \x01(\x05R\x06height\x126\n" +
-	"\astorage\x18\t \x01(\v2\x1c.chatto.core.v1.AssetStorageR\astorage\x12&\n" +
-	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"H\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x14\n" +
+	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x06 \x01(\x05R\x06height\x126\n" +
+	"\astorage\x18\a \x01(\v2\x1c.chatto.core.v1.AssetStorageR\astorage\"H\n" +
 	"\x0eRoomMembership\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomIdJ\x04\b\x02\x10\x03\"{\n" +

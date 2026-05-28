@@ -86,7 +86,7 @@ message Event {
     MessageEditedEvent message_edited = 401;
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
-    // ----- Room assets (450-459, durable) -----
+    // ----- Assets (450-459, durable) -----
     AssetCreatedEvent asset_created = 450;
     AssetProcessingSucceededEvent asset_processing_succeeded = 451;
     AssetProcessingFailedEvent asset_processing_failed = 452;
@@ -762,30 +762,54 @@ message MessageDeletedEvent {
   string message_event_id = 4;
 }
 
-// AssetCreatedEvent records the durable content identity and ownership for an
+// AssetCreatedEvent records durable content identity and ownership for an
 // uploaded/generated asset. Message bodies may embed attachments for render
 // compatibility, but this event is the asset aggregate root.
 message AssetCreatedEvent {
-  // Room ID containing or owning the source attachment.
-  string room_id = 1;
-
   // Whether the source/original binary was available when this asset creation
   // event was written/imported. New uploads are true; legacy migrated assets may
   // be false because older pipelines deleted originals after transcoding.
-  bool source_available = 2;
-
-  // Durable owner of the source attachment. Today this is a message; future
-  // room-level attachments can use the room branch without changing the FSM.
-  oneof owner {
-    // Event ID of the message containing the source attachment.
-    string message_event_id = 10;
-
-    // Event ID of the future room-attachment-created event.
-    string room_attachment_event_id = 11;
-  }
+  bool source_available = 1;
 
   // Full source asset metadata, including storage pointer.
-  Asset asset = 20;
+  Asset asset = 2;
+
+  // Durable owner of the source asset. The owner determines the aggregate and
+  // authorization scope without making Asset itself room/message-specific.
+  oneof owner {
+    MessageAssetOwner message = 10;
+    RoomAssetOwner room = 11;
+    UserAssetOwner user = 12;
+    ServerAssetOwner server = 13;
+  }
+}
+
+message MessageAssetOwner {
+  // Room containing the owning message.
+  string room_id = 1;
+
+  // Event ID of the message containing the source attachment.
+  string message_event_id = 2;
+}
+
+message RoomAssetOwner {
+  // Room containing the standalone room attachment.
+  string room_id = 1;
+
+  // Event ID of a future room-attachment-created event.
+  string room_attachment_event_id = 2;
+}
+
+message UserAssetOwner {
+  string user_id = 1;
+
+  // Stable slot name such as "avatar".
+  string asset_role = 2;
+}
+
+message ServerAssetOwner {
+  // Stable slot name such as "icon" or "banner".
+  string asset_role = 1;
 }
 
 // AssetProcessingSucceededEvent records that asset processing
@@ -797,10 +821,15 @@ message AssetProcessingSucceededEvent {
   // Processing result. Passthrough means the original source asset is the
   // display asset; media-specific branches can carry derivative assets.
   oneof result {
-    AssetProcessedPassthrough passthrough = 10;
-    AssetProcessedImage image = 11;
+    AssetProcessedSource source = 10;
     AssetProcessedVideo video = 12;
   }
+}
+
+enum AssetProcessingFailureCode {
+  ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED = 0;
+  ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED = 1;
+  ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING = 2;
 }
 
 // AssetProcessingFailedEvent records that asset processing reached a
@@ -810,20 +839,13 @@ message AssetProcessingFailedEvent {
   // Asset ID of the source/original asset.
   string asset_id = 1;
 
-  // Stable machine-readable reason, e.g. "processing_failed" or
-  // "original_missing".
-  string reason_code = 2;
+  // Stable machine-readable failure code.
+  AssetProcessingFailureCode failure_code = 2;
 }
 
-message AssetProcessedPassthrough {
+message AssetProcessedSource {
   // Display asset. Usually the source asset itself.
-  Asset source_asset = 1;
-}
-
-message AssetProcessedImage {
-  // Display image asset. Usually the source asset itself after
-  // dimensions and transform eligibility are known.
-  Asset image_asset = 1;
+  Asset asset = 1;
 }
 
 // AssetProcessedVideo records processed video/GIF derivative assets.

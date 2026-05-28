@@ -83,7 +83,7 @@ No standalone-record bucket is consulted.
 
 ### Source-of-truth changes
 
-- **Body attachments**: `AssetCreatedEvent` is the durable asset creation event for the asset ID, owning room, owner, and asset metadata. Message-owned assets are also embedded as attachments in `MessageBody.Attachments` so message rendering and signed URL generation have the back-pointer at hand. `PostMessage` emits asset creation events for new attachments, and a boot migration backfills asset creation events from legacy message attachments.
+- **Body attachments**: `AssetCreatedEvent` is the durable asset creation event for the asset ID, typed owner, and owner-neutral asset metadata. Message-owned assets use the `message` owner branch, and future room-level uploads, user avatars, and server media can use sibling owner branches without introducing another asset model. Message-owned assets are also embedded as attachments in `MessageBody.Attachments` so message rendering and signed URL generation have the back-pointer at hand. `PostMessage` emits asset creation events for new attachments, and a boot migration backfills asset creation events from legacy message attachments.
 - **Video variants and thumbnails**: full `Asset` protos are embedded into durable `AssetProcessingSucceededEvent.video.thumbnail_asset` and `AssetVideoVariant.asset`. The video processor emits that event on transcode completion, referencing only the created original asset ID. A boot migration imports legacy `VideoProcessingState` records, including prior standalone attachment records that were already embedded by `BackfillAttachmentLocatorData`.
 
 ## Consequences

@@ -91,8 +91,8 @@ func TestVideoManifestMigration_PendingMissingOriginalImportsUnavailable(t *test
 	if !ok || manifest.Failed == nil {
 		t.Fatal("expected failed manifest")
 	}
-	if got := manifest.Failed.GetReasonCode(); got != "original_missing" {
-		t.Fatalf("failure reason = %q, want original_missing", got)
+	if got := manifest.Failed.GetFailureCode(); got != corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING {
+		t.Fatalf("failure code = %v, want source missing", got)
 	}
 }
 
@@ -114,8 +114,8 @@ func TestVideoManifestMigration_UntrackedMissingOriginalImportsUnavailable(t *te
 	if !ok || manifest.Failed == nil {
 		t.Fatal("expected failed manifest")
 	}
-	if got := manifest.Failed.GetReasonCode(); got != "original_missing" {
-		t.Fatalf("failure reason = %q, want original_missing", got)
+	if got := manifest.Failed.GetFailureCode(); got != corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING {
+		t.Fatalf("failure code = %v, want source missing", got)
 	}
 }
 

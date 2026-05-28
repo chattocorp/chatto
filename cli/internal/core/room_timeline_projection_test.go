@@ -143,16 +143,16 @@ func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType s
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				RoomId:          roomID,
 				SourceAvailable: true,
-				Owner: &corev1.AssetCreatedEvent_MessageEventId{
-					MessageEventId: messageEventID,
+				Owner: &corev1.AssetCreatedEvent_Message{
+					Message: &corev1.MessageAssetOwner{
+						RoomId:         roomID,
+						MessageEventId: messageEventID,
+					},
 				},
 				Asset: &corev1.Asset{
-					Id:            attachmentID,
-					RoomId:        roomID,
-					MessageBodyId: messageEventID,
-					ContentType:   contentType,
+					Id:          attachmentID,
+					ContentType: contentType,
 				},
 			},
 		},
@@ -310,8 +310,8 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 		Id: "ENV-VIDEO-FAIL",
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:    "A-video",
-				ReasonCode: "original_missing",
+				AssetId:     "A-video",
+				FailureCode: corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING,
 			},
 		},
 	}

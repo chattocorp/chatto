@@ -299,15 +299,13 @@ func assetFromAttachment(attachment *corev1.Attachment) *corev1.Asset {
 		return nil
 	}
 	return &corev1.Asset{
-		Id:            attachment.GetId(),
-		RoomId:        attachment.GetRoomId(),
-		Filename:      attachment.GetFilename(),
-		ContentType:   attachment.GetContentType(),
-		Size:          attachment.GetSize(),
-		Width:         attachment.GetWidth(),
-		Height:        attachment.GetHeight(),
-		Storage:       cloneAssetStorage(attachment.GetStorage()),
-		MessageBodyId: attachment.GetMessageBodyId(),
+		Id:          attachment.GetId(),
+		Filename:    attachment.GetFilename(),
+		ContentType: attachment.GetContentType(),
+		Size:        attachment.GetSize(),
+		Width:       attachment.GetWidth(),
+		Height:      attachment.GetHeight(),
+		Storage:     cloneAssetStorage(attachment.GetStorage()),
 	}
 }
 
@@ -316,15 +314,13 @@ func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
 		return nil
 	}
 	return &corev1.Attachment{
-		Id:            asset.GetId(),
-		RoomId:        asset.GetRoomId(),
-		Filename:      asset.GetFilename(),
-		ContentType:   asset.GetContentType(),
-		Size:          asset.GetSize(),
-		Width:         asset.GetWidth(),
-		Height:        asset.GetHeight(),
-		Storage:       cloneAssetStorage(asset.GetStorage()),
-		MessageBodyId: asset.GetMessageBodyId(),
+		Id:          asset.GetId(),
+		Filename:    asset.GetFilename(),
+		ContentType: asset.GetContentType(),
+		Size:        asset.GetSize(),
+		Width:       asset.GetWidth(),
+		Height:      asset.GetHeight(),
+		Storage:     cloneAssetStorage(asset.GetStorage()),
 	}
 }
 
@@ -848,7 +844,7 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 			continue
 		}
 		if !c.attachmentBinaryAvailable(ctx, req.Attachment) {
-			if err := c.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.Attachment.GetId(), "original_missing"); err != nil {
+			if err := c.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.Attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 				c.logger.Warn("Failed to record missing original during video recovery", "attachment_id", req.Attachment.GetId(), "error", err)
 			}
 			continue
@@ -912,10 +908,12 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				RoomId:          roomID,
 				SourceAvailable: true,
-				Owner: &corev1.AssetCreatedEvent_MessageEventId{
-					MessageEventId: messageEventID,
+				Owner: &corev1.AssetCreatedEvent_Message{
+					Message: &corev1.MessageAssetOwner{
+						RoomId:         roomID,
+						MessageEventId: messageEventID,
+					},
 				},
 				Asset: assetFromAttachment(declaredAttachment),
 			},
@@ -969,12 +967,12 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 
 // RecordAssetProcessingFailed builds and publishes a durable failed
 // video-processing outcome.
-func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, kind RoomKind, roomID, attachmentID string, reasonCode string) error {
+func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, kind RoomKind, roomID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:    attachmentID,
-				ReasonCode: reasonCode,
+				AssetId:     attachmentID,
+				FailureCode: failureCode,
 			},
 		},
 	})

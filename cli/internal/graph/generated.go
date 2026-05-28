@@ -127,7 +127,7 @@ type ComplexityRoot struct {
 	AssetCreatedEvent struct {
 		AssetID        func(childComplexity int) int
 		MessageEventID func(childComplexity int) int
-		RoomId         func(childComplexity int) int
+		RoomID         func(childComplexity int) int
 	}
 
 	AssetProcessingFailedEvent struct {
@@ -907,6 +907,7 @@ type AdminQueriesResolver interface {
 	GroupUserPermissions(ctx context.Context, obj *model.AdminQueries, groupID string, userID string) (*model.RoomGroupUserPermissions, error)
 }
 type AssetCreatedEventResolver interface {
+	RoomID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error)
 	AssetID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error)
 	MessageEventID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error)
 }
@@ -914,6 +915,7 @@ type AssetProcessingFailedEventResolver interface {
 	RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error)
 
 	MessageEventID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error)
+	ReasonCode(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error)
 }
 type AssetProcessingSucceededEventResolver interface {
 	RoomID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error)
@@ -1437,11 +1439,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AssetCreatedEvent.MessageEventID(childComplexity), true
 	case "AssetCreatedEvent.roomId":
-		if e.complexity.AssetCreatedEvent.RoomId == nil {
+		if e.complexity.AssetCreatedEvent.RoomID == nil {
 			break
 		}
 
-		return e.complexity.AssetCreatedEvent.RoomId(childComplexity), true
+		return e.complexity.AssetCreatedEvent.RoomID(childComplexity), true
 
 	case "AssetProcessingFailedEvent.assetId":
 		if e.complexity.AssetProcessingFailedEvent.AssetId == nil {
@@ -7300,7 +7302,7 @@ func (ec *executionContext) _AssetCreatedEvent_roomId(ctx context.Context, field
 		field,
 		ec.fieldContext_AssetCreatedEvent_roomId,
 		func(ctx context.Context) (any, error) {
-			return obj.RoomId, nil
+			return ec.resolvers.AssetCreatedEvent().RoomID(ctx, obj)
 		},
 		nil,
 		ec.marshalNID2string,
@@ -7313,8 +7315,8 @@ func (ec *executionContext) fieldContext_AssetCreatedEvent_roomId(_ context.Cont
 	fc = &graphql.FieldContext{
 		Object:     "AssetCreatedEvent",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -7474,7 +7476,7 @@ func (ec *executionContext) _AssetProcessingFailedEvent_reasonCode(ctx context.C
 		field,
 		ec.fieldContext_AssetProcessingFailedEvent_reasonCode,
 		func(ctx context.Context) (any, error) {
-			return obj.ReasonCode, nil
+			return ec.resolvers.AssetProcessingFailedEvent().ReasonCode(ctx, obj)
 		},
 		nil,
 		ec.marshalNString2string,
@@ -7487,8 +7489,8 @@ func (ec *executionContext) fieldContext_AssetProcessingFailedEvent_reasonCode(_
 	fc = &graphql.FieldContext{
 		Object:     "AssetProcessingFailedEvent",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -30024,10 +30026,41 @@ func (ec *executionContext) _AssetCreatedEvent(ctx context.Context, sel ast.Sele
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AssetCreatedEvent")
 		case "roomId":
-			out.Values[i] = ec._AssetCreatedEvent_roomId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AssetCreatedEvent_roomId(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "assetId":
 			field := field
 
@@ -30212,10 +30245,41 @@ func (ec *executionContext) _AssetProcessingFailedEvent(ctx context.Context, sel
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "reasonCode":
-			out.Values[i] = ec._AssetProcessingFailedEvent_reasonCode(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AssetProcessingFailedEvent_reasonCode(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

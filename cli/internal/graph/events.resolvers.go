@@ -17,6 +17,11 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// RoomID is the resolver for the roomId field.
+func (r *assetCreatedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
+	return assetCreatedRoomID(obj), nil
+}
+
 // AssetID is the resolver for the assetId field.
 func (r *assetCreatedEventResolver) AssetID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
 	return obj.GetAsset().GetId(), nil
@@ -24,7 +29,7 @@ func (r *assetCreatedEventResolver) AssetID(ctx context.Context, obj *corev1.Ass
 
 // MessageEventID is the resolver for the messageEventId field.
 func (r *assetCreatedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
-	return obj.GetMessageEventId(), nil
+	return assetCreatedMessageEventID(obj), nil
 }
 
 // RoomID is the resolver for the roomId field.
@@ -33,7 +38,7 @@ func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *co
 	if err != nil {
 		return "", err
 	}
-	return declared.GetRoomId(), nil
+	return assetCreatedRoomID(declared), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -42,7 +47,12 @@ func (r *assetProcessingFailedEventResolver) MessageEventID(ctx context.Context,
 	if err != nil {
 		return "", err
 	}
-	return declared.GetMessageEventId(), nil
+	return assetCreatedMessageEventID(declared), nil
+}
+
+// ReasonCode is the resolver for the reasonCode field.
+func (r *assetProcessingFailedEventResolver) ReasonCode(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
+	return assetProcessingFailureReasonCode(obj.GetFailureCode()), nil
 }
 
 // RoomID is the resolver for the roomId field.
@@ -51,7 +61,7 @@ func (r *assetProcessingSucceededEventResolver) RoomID(ctx context.Context, obj 
 	if err != nil {
 		return "", err
 	}
-	return declared.GetRoomId(), nil
+	return assetCreatedRoomID(declared), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -60,7 +70,7 @@ func (r *assetProcessingSucceededEventResolver) MessageEventID(ctx context.Conte
 	if err != nil {
 		return "", err
 	}
-	return declared.GetMessageEventId(), nil
+	return assetCreatedMessageEventID(declared), nil
 }
 
 // Size is the resolver for the size field.
@@ -149,7 +159,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 			return result, nil
 		}
 		if failed := manifest.Failed; failed != nil {
-			reasonCode := failed.GetReasonCode()
+			reasonCode := assetProcessingFailureReasonCode(failed.GetFailureCode())
 			sourceAvailable := reasonCode != "original_missing" && r.assetSourceAvailable(obj.Id, true)
 			return &model.VideoProcessing{
 				Status:             model.VideoProcessingStatusFailed,

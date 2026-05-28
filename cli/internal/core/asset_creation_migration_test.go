@@ -63,11 +63,11 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 	if !ok {
 		t.Fatal("expected projected asset creation")
 	}
-	if declared.GetRoomId() != room.Id || declared.GetMessageEventId() != legacyPost.Id {
+	if assetCreatedRoomID(declared) != room.Id || assetCreatedMessageEventID(declared) != legacyPost.Id {
 		t.Fatalf("asset creation = %+v, want room/message owner", declared)
 	}
-	if got := declared.GetAsset().GetMessageBodyId(); got != legacyPost.Id {
-		t.Fatalf("created asset MessageBodyId = %q, want %q", got, legacyPost.Id)
+	if got := declared.GetAsset().GetId(); got != attachment.Id {
+		t.Fatalf("created asset id = %q, want %q", got, attachment.Id)
 	}
 
 	after, err := core.verifyAssetCreationsInEVT(ctx)

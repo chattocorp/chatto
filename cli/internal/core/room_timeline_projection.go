@@ -183,13 +183,13 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string {
 	if succeeded := event.GetAssetProcessingSucceeded(); succeeded != nil {
 		if declared := p.assetCreations[succeeded.GetAssetId()]; declared != nil {
-			return declared.GetRoomId()
+			return assetCreatedRoomID(declared)
 		}
 		return ""
 	}
 	if failed := event.GetAssetProcessingFailed(); failed != nil {
 		if declared := p.assetCreations[failed.GetAssetId()]; declared != nil {
-			return declared.GetRoomId()
+			return assetCreatedRoomID(declared)
 		}
 		return ""
 	}
@@ -331,7 +331,9 @@ func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessin
 	defer p.RUnlock()
 	var out []VideoProcessingRequest
 	for _, declared := range p.assetCreations {
-		if declared == nil || declared.GetMessageEventId() == "" {
+		roomID := assetCreatedRoomID(declared)
+		messageEventID := assetCreatedMessageEventID(declared)
+		if declared == nil || roomID == "" || messageEventID == "" {
 			continue
 		}
 		asset := declared.GetAsset()
@@ -346,8 +348,8 @@ func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessin
 			continue
 		}
 		out = append(out, VideoProcessingRequest{
-			RoomID:         declared.GetRoomId(),
-			MessageEventID: declared.GetMessageEventId(),
+			RoomID:         roomID,
+			MessageEventID: messageEventID,
 			Attachment:     attachmentFromAsset(asset),
 		})
 	}
@@ -490,6 +492,29 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	return out
 }
 
+func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
+	if event == nil {
+		return ""
+	}
+	if owner := event.GetMessage(); owner != nil {
+		return owner.GetRoomId()
+	}
+	if owner := event.GetRoom(); owner != nil {
+		return owner.GetRoomId()
+	}
+	return ""
+}
+
+func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
+	if event == nil {
+		return ""
+	}
+	if owner := event.GetMessage(); owner != nil {
+		return owner.GetMessageEventId()
+	}
+	return ""
+}
+
 // roomIDOfEvent extracts the room_id from any room-scoped event
 // variant. Returns "" for non-room events.
 //
@@ -523,7 +548,7 @@ func roomIDOfEvent(event *corev1.Event) string {
 	case *corev1.Event_MessageRetracted:
 		return e.MessageRetracted.GetRoomId()
 	case *corev1.Event_AssetCreated:
-		return e.AssetCreated.GetRoomId()
+		return assetCreatedRoomID(e.AssetCreated)
 	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded.GetRoomId()
 	case *corev1.Event_ReactionRemoved:

@@ -90,7 +90,7 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 			}
 			if len(variants) == 0 {
 				if !sourceAvailable {
-					if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
+					if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 						return err
 					}
 					imported++
@@ -102,24 +102,24 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 			}
 			imported++
 		case corev1.VideoStatus_VIDEO_STATUS_FAILED:
-			reason := "processing_failed"
+			failureCode := corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED
 			if !sourceAvailable {
-				reason = "original_missing"
+				failureCode = corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING
 			}
-			if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, reason); err != nil {
+			if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, failureCode); err != nil {
 				return err
 			}
 			imported++
 		case corev1.VideoStatus_VIDEO_STATUS_PENDING, corev1.VideoStatus_VIDEO_STATUS_PROCESSING:
 			if !sourceAvailable {
-				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
+				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 					return err
 				}
 				imported++
 			}
 		default:
 			if !sourceAvailable {
-				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
+				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 					return err
 				}
 				imported++
@@ -133,7 +133,7 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 		if ref == nil || ref.attachment == nil || c.attachmentBinaryAvailable(ctx, ref.attachment) {
 			continue
 		}
-		if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
+		if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 			return err
 		}
 		imported++
@@ -199,12 +199,12 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	return err
 }
 
-func (c *ChattoCore) appendVideoFailedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, reasonCode string) error {
+func (c *ChattoCore) appendVideoFailedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:    attachmentID,
-				ReasonCode: reasonCode,
+				AssetId:     attachmentID,
+				FailureCode: failureCode,
 			},
 		},
 	})
@@ -234,7 +234,9 @@ func (c *ChattoCore) indexVideoAttachmentsFromEVT(ctx context.Context) (map[stri
 	out := make(map[string]*legacyVideoAttachmentRef)
 	if err := c.scanEVT(ctx, []string{"evt.room.*.asset_created"}, func(event *corev1.Event) {
 		declared := event.GetAssetCreated()
-		if declared == nil || declared.GetRoomId() == "" || declared.GetMessageEventId() == "" {
+		roomID := assetCreatedRoomID(declared)
+		messageEventID := assetCreatedMessageEventID(declared)
+		if declared == nil || roomID == "" || messageEventID == "" {
 			return
 		}
 		att := attachmentFromAsset(declared.GetAsset())
@@ -245,8 +247,8 @@ func (c *ChattoCore) indexVideoAttachmentsFromEVT(ctx context.Context) (map[stri
 			return
 		}
 		out[att.GetId()] = &legacyVideoAttachmentRef{
-			roomID:         declared.GetRoomId(),
-			messageEventID: declared.GetMessageEventId(),
+			roomID:         roomID,
+			messageEventID: messageEventID,
 			attachment:     proto.Clone(att).(*corev1.Attachment),
 		}
 	}); err != nil {

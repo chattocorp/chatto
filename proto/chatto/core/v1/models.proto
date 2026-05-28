@@ -83,41 +83,28 @@ message NATSAsset {
   string key = 1;
 }
 
-// Asset is durable content metadata for an uploaded or generated file.
-// Message attachments embed the legacy Attachment proto for rendering
-// compatibility, but new EVT asset events use this neutral domain shape.
+// Asset is durable content metadata for an uploaded or generated file. It is
+// intentionally owner-neutral: room/message/user/server ownership lives in
+// AssetCreatedEvent so all app media can use one asset model.
 message Asset {
   // Unique identifier for this asset (NanoID).
   string id = 1;
 
-  // Field 2 (`space_id`) was the pre-ADR-030-Phase-4 discriminator embedded in
-  // legacy S3 keys. Retired in 2026-05; canonical storage location lives on
-  // `storage`.
-  reserved 2;
-  reserved "space_id";
-
-  // Room ID where this asset is authorized.
-  string room_id = 3;
-
   // Original filename.
-  string filename = 4;
+  string filename = 2;
 
   // MIME type (e.g., "image/jpeg", "video/mp4").
-  string content_type = 5;
+  string content_type = 3;
 
   // File size in bytes.
-  int64 size = 6;
+  int64 size = 4;
 
   // Image/video dimensions when known.
-  int32 width = 7;
-  int32 height = 8;
+  int32 width = 5;
+  int32 height = 6;
 
   // Storage location for the binary data.
-  AssetStorage storage = 9;
-
-  // Event ID of the MessageBody owner for message-owned assets. Empty for
-  // generated derivatives and future room-owned assets.
-  string message_body_id = 10;
+  AssetStorage storage = 7;
 }
 
 message RoomMembership {

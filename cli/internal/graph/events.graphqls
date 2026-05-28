@@ -498,7 +498,7 @@ Event: an uploaded attachment was declared as durable room content.
 """
 type AssetCreatedEvent {
   "The room ID."
-  roomId: ID!
+  roomId: ID! @goField(forceResolver: true)
   "The created asset ID."
   assetId: ID! @goField(forceResolver: true)
   "The event ID of the owning message, when message-owned."
@@ -510,7 +510,7 @@ Event: asset processing produced a durable derivative manifest.
 """
 type AssetProcessingSucceededEvent {
   "The room ID."
-  roomId: ID!
+  roomId: ID! @goField(forceResolver: true)
   "The original asset ID that was processed."
   assetId: ID!
   "The event ID of the message containing the processed attachment, when message-owned."
@@ -522,13 +522,13 @@ Event: asset processing reached a durable failed/unavailable outcome.
 """
 type AssetProcessingFailedEvent {
   "The room ID."
-  roomId: ID!
+  roomId: ID! @goField(forceResolver: true)
   "The original asset ID that failed processing."
   assetId: ID!
   "The event ID of the message containing the attachment, when message-owned."
   messageEventId: ID! @goField(forceResolver: true)
   "Stable machine-readable reason."
-  reasonCode: String!
+  reasonCode: String! @goField(forceResolver: true)
 }
 
 # ==============================================================================

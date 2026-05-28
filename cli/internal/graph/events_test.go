@@ -148,15 +148,14 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 						Width:      640,
 						Height:     360,
 						ThumbnailAsset: &corev1.Asset{
-							Id:     "A-thumb",
-							RoomId: env.testRoom.Id,
+							Id: "A-thumb",
 						},
 						Variants: []*corev1.AssetVideoVariant{{
 							Quality: "480p",
 							Width:   854,
 							Height:  480,
 							Size:    42,
-							Asset:   &corev1.Asset{Id: "A-480", RoomId: env.testRoom.Id},
+							Asset:   &corev1.Asset{Id: "A-480"},
 						}},
 					},
 				},
@@ -201,8 +200,8 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 		Id: "ENV-VIDEO-FAILED",
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:    attachment.Id,
-				ReasonCode: "original_missing",
+				AssetId:     attachment.Id,
+				FailureCode: corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING,
 			},
 		},
 	}
@@ -233,16 +232,16 @@ func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType str
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				RoomId:          roomID,
 				SourceAvailable: true,
-				Owner: &corev1.AssetCreatedEvent_MessageEventId{
-					MessageEventId: messageEventID,
+				Owner: &corev1.AssetCreatedEvent_Message{
+					Message: &corev1.MessageAssetOwner{
+						RoomId:         roomID,
+						MessageEventId: messageEventID,
+					},
 				},
 				Asset: &corev1.Asset{
-					Id:            attachmentID,
-					RoomId:        roomID,
-					MessageBodyId: messageEventID,
-					ContentType:   contentType,
+					Id:          attachmentID,
+					ContentType: contentType,
 				},
 			},
 		},

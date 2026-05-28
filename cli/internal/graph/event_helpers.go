@@ -184,6 +184,40 @@ func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool)
 	return created.GetSourceAvailable()
 }
 
+func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
+	if event == nil {
+		return ""
+	}
+	if owner := event.GetMessage(); owner != nil {
+		return owner.GetRoomId()
+	}
+	if owner := event.GetRoom(); owner != nil {
+		return owner.GetRoomId()
+	}
+	return ""
+}
+
+func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
+	if event == nil {
+		return ""
+	}
+	if owner := event.GetMessage(); owner != nil {
+		return owner.GetMessageEventId()
+	}
+	return ""
+}
+
+func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) string {
+	switch code {
+	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING:
+		return "original_missing"
+	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED:
+		return "processing_failed"
+	default:
+		return "processing_failed"
+	}
+}
+
 // unwrapEventAs unwraps a proto Event and asserts the payload to the
 // requested GraphQL union interface (model.RoomEventType or
 // model.ServerEventType). Returns a typed error for nil payloads and
