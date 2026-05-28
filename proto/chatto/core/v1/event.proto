@@ -771,15 +771,21 @@ message MessageDeletedEvent {
 }
 
 // AssetCreatedEvent records durable content identity for one uploaded or
-// generated binary. Owner context is carried as flat optional fields rather
-// than a discriminated oneof:
+// generated binary. Emitted at the moment the binary lands in storage, NOT
+// at message-post time — the asset is its own aggregate, and messages
+// reference it via MessageBody.asset_ids.
 //
-//   - room_id is set for room-scoped assets (message attachments + their
-//     derivatives); matches the EVT subject the event is published to
-//   - message_event_id is set when the asset entered via a message attachment
+// Owner context is carried as flat optional fields:
+//
+//   - room_id is set for room-scoped assets (uploaded into a room context)
+//   - user_id is set for user-scoped assets (e.g. avatars) or, for
+//     room-scoped uploads, the uploader's ID
 //   - parent_asset_id + derivative_role are set for derivatives (e.g. video
 //     thumbnail / variant); inherits room scope from the parent
-//   - user_id is set for user-scoped assets (e.g. avatars), with no room_id
+//   - message_event_id is legacy-only: pre-Option-1 events set this to the
+//     message that introduced the asset. New events never set it — message
+//     ownership is derived from MessagePostedEvent.asset_ids in the
+//     projection. The field stays so legacy bodies still decode.
 message AssetCreatedEvent {
   // The asset record (content identity + storage).
   AssetRecord asset = 1;
@@ -789,10 +795,13 @@ message AssetCreatedEvent {
   // because older pipelines deleted originals after transcoding.
   bool storage_available = 2;
 
-  // Room scope. Set for message attachments and their derivatives.
+  // Room scope. Set for room-scoped uploads and their derivatives.
   string room_id = 3;
 
-  // Event ID of the message that introduced this asset, when applicable.
+  // Deprecated: legacy field. Pre-Option-1 PostMessage emitted
+  // AssetCreatedEvent inline with the message and stamped its event id
+  // here. New uploads emit AssetCreatedEvent before any message exists;
+  // message ownership is derived from MessagePostedEvent.asset_ids.
   string message_event_id = 4;
 
   // ID of the parent asset when this asset is a derivative.
@@ -803,7 +812,9 @@ message AssetCreatedEvent {
   // Only meaningful when parent_asset_id is set.
   string derivative_role = 6;
 
-  // ID of the user that owns this asset, for user-scoped assets (avatars).
+  // ID of the user that owns or uploaded this asset. Always set on new
+  // events: the uploader for room-scoped uploads, the avatar owner for
+  // avatar assets. Empty only for worker-generated derivatives.
   string user_id = 7;
 }
 

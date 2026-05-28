@@ -44,6 +44,13 @@ type AttachmentLocator struct {
 // Validate returns an error if the locator is missing required fields
 // or specifies an inconsistent source. Both Sign and Parse run this so
 // invalid locators never make it onto a URL or out of one.
+//
+// Source-of-truth hint rules:
+//   - At most one of BodyKey / VideoOrigin may be set.
+//   - When neither is set, the handler resolves the asset directly from
+//     the asset projection by AttachmentID. This is the new (asset-as-
+//     aggregate) form; BodyKey and VideoOrigin are legacy hints retained
+//     for URLs minted before the asset aggregate redesign.
 func (l AttachmentLocator) Validate() error {
 	if l.RoomID == "" {
 		return errors.New("locator: missing room id")
@@ -57,10 +64,8 @@ func (l AttachmentLocator) Validate() error {
 	if l.ExpiresAt == 0 {
 		return errors.New("locator: missing expiry")
 	}
-	hasBody := l.BodyKey != ""
-	hasVideo := l.VideoOrigin != ""
-	if hasBody == hasVideo {
-		return errors.New("locator: must specify exactly one of body_key or video_origin")
+	if l.BodyKey != "" && l.VideoOrigin != "" {
+		return errors.New("locator: body_key and video_origin are mutually exclusive")
 	}
 	return nil
 }

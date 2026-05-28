@@ -24,7 +24,9 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	attachment, err := core.UploadAttachment(ctx, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	// Simulate the legacy state: write the binary without emitting an
+	// AssetCreatedEvent (pre-Option-1 PostMessage emitted it inline).
+	attachment, err := core.uploadAttachmentBinary(ctx, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
 	if err != nil {
 		t.Fatalf("upload attachment: %v", err)
 	}

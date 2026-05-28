@@ -4451,15 +4451,21 @@ func (x *MessageDeletedEvent) GetMessageEventId() string {
 }
 
 // AssetCreatedEvent records durable content identity for one uploaded or
-// generated binary. Owner context is carried as flat optional fields rather
-// than a discriminated oneof:
+// generated binary. Emitted at the moment the binary lands in storage, NOT
+// at message-post time — the asset is its own aggregate, and messages
+// reference it via MessageBody.asset_ids.
 //
-//   - room_id is set for room-scoped assets (message attachments + their
-//     derivatives); matches the EVT subject the event is published to
-//   - message_event_id is set when the asset entered via a message attachment
+// Owner context is carried as flat optional fields:
+//
+//   - room_id is set for room-scoped assets (uploaded into a room context)
+//   - user_id is set for user-scoped assets (e.g. avatars) or, for
+//     room-scoped uploads, the uploader's ID
 //   - parent_asset_id + derivative_role are set for derivatives (e.g. video
 //     thumbnail / variant); inherits room scope from the parent
-//   - user_id is set for user-scoped assets (e.g. avatars), with no room_id
+//   - message_event_id is legacy-only: pre-Option-1 events set this to the
+//     message that introduced the asset. New events never set it — message
+//     ownership is derived from MessagePostedEvent.asset_ids in the
+//     projection. The field stays so legacy bodies still decode.
 type AssetCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The asset record (content identity + storage).
@@ -4468,9 +4474,12 @@ type AssetCreatedEvent struct {
 	// New uploads are always true; legacy migrated source assets may be false
 	// because older pipelines deleted originals after transcoding.
 	StorageAvailable bool `protobuf:"varint,2,opt,name=storage_available,json=storageAvailable,proto3" json:"storage_available,omitempty"`
-	// Room scope. Set for message attachments and their derivatives.
+	// Room scope. Set for room-scoped uploads and their derivatives.
 	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the message that introduced this asset, when applicable.
+	// Deprecated: legacy field. Pre-Option-1 PostMessage emitted
+	// AssetCreatedEvent inline with the message and stamped its event id
+	// here. New uploads emit AssetCreatedEvent before any message exists;
+	// message ownership is derived from MessagePostedEvent.asset_ids.
 	MessageEventId string `protobuf:"bytes,4,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// ID of the parent asset when this asset is a derivative.
 	// Set together with derivative_role for thumbnails / video variants.
@@ -4478,7 +4487,9 @@ type AssetCreatedEvent struct {
 	// Stable derivative role (e.g., "thumbnail", "video_variant").
 	// Only meaningful when parent_asset_id is set.
 	DerivativeRole string `protobuf:"bytes,6,opt,name=derivative_role,json=derivativeRole,proto3" json:"derivative_role,omitempty"`
-	// ID of the user that owns this asset, for user-scoped assets (avatars).
+	// ID of the user that owns or uploaded this asset. Always set on new
+	// events: the uploader for room-scoped uploads, the avatar owner for
+	// avatar assets. Empty only for worker-generated derivatives.
 	UserId        string `protobuf:"bytes,7,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

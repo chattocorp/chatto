@@ -35,19 +35,60 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // are generated on-the-fly via transforms. The storage backend (NATS or
 // S3) is determined by configuration.
 //
-// `Attachment.MessageBodyId` is left empty here — the body key is set
-// later in PostMessage when the owning MessageBody is written.
+// UploadAttachment stores a binary in the configured backend, emits a
+// durable AssetCreatedEvent into the room aggregate (so the asset becomes
+// a first-class entity from the moment its bytes hit storage), and returns
+// the rendered Attachment view for the caller.
+//
+// `actorID` is the uploader; it's stamped on the AssetCreatedEvent as the
+// asset's user_id, distinct from any future message_event_id that might
+// claim the asset. The returned Attachment has `MessageBodyId` empty — the
+// asset is not (yet) bound to a message; PostMessage references it by id.
 func (c *ChattoCore) UploadAttachment(
+	ctx context.Context,
+	actorID string,
+	roomID string,
+	filename string,
+	contentType string,
+	reader io.Reader,
+) (*corev1.Attachment, error) {
+	if actorID == "" {
+		return nil, fmt.Errorf("upload missing actor id")
+	}
+	attachment, err := c.uploadAttachmentBinary(ctx, roomID, filename, contentType, reader)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.appendAssetCreatedForUpload(ctx, actorID, roomID, attachment, nil); err != nil {
+		return nil, err
+	}
+
+	c.logger.Debug("Uploaded attachment",
+		"attachment_id", attachment.GetId(),
+		"room_id", roomID,
+		"actor_id", actorID,
+		"filename", filename,
+		"content_type", contentType,
+		"size", attachment.GetSize(),
+		"storage_backend", c.config.Assets.StorageBackend,
+	)
+
+	return attachment, nil
+}
+
+// uploadAttachmentBinary writes the upload's bytes to the configured backend
+// (NATS object store or S3) and returns the rendered Attachment proto. No
+// event is emitted — callers are responsible for emitting AssetCreatedEvent
+// with the right owner shape (user upload vs derivative).
+func (c *ChattoCore) uploadAttachmentBinary(
 	ctx context.Context,
 	roomID string,
 	filename string,
 	contentType string,
 	reader io.Reader,
 ) (*corev1.Attachment, error) {
-	// Generate a unique ID for this attachment
 	attachmentID := NewAssetID()
 
-	// Check if this is an image that we should process
 	isImage := strings.HasPrefix(contentType, "image/")
 
 	var content []byte
@@ -55,25 +96,20 @@ func (c *ChattoCore) UploadAttachment(
 	var width, height int32
 
 	if isImage {
-		// Process the image: extract metadata (dimensions)
 		result, err := assets.ProcessAttachmentImageWithConfig(reader, c.AssetsConfig())
 		if err != nil {
 			return nil, fmt.Errorf("failed to process image: %w", err)
 		}
-
 		content = result.Original
 		size = int64(len(result.Original))
 		width = int32(result.Width)
 		height = int32(result.Height)
 	} else {
-		// For non-images, just read the file content.
-		// Videos get a higher limit when video processing is enabled.
 		assetsCfg := c.AssetsConfig()
 		maxSize := assetsCfg.MaxUploadSize
 		if strings.HasPrefix(contentType, "video/") && c.VideoMaxUploadSize > 0 {
 			maxSize = c.VideoMaxUploadSize
 		}
-
 		var err error
 		content, err = io.ReadAll(io.LimitReader(reader, maxSize+1))
 		if err != nil {
@@ -82,17 +118,13 @@ func (c *ChattoCore) UploadAttachment(
 		if int64(len(content)) > maxSize {
 			return nil, fmt.Errorf("attachment exceeds maximum size of %d bytes", maxSize)
 		}
-
 		size = int64(len(content))
 	}
 
-	// Store the attachment in the appropriate backend
 	var storage *corev1.DeprecatedAsset
 	if c.ShouldUseS3() {
-		// Upload to S3
 		s3Key := S3KeyAttachment(attachmentID)
-		_, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, content, contentType)
-		if err != nil {
+		if _, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, content, contentType); err != nil {
 			return nil, fmt.Errorf("failed to upload attachment to S3: %w", err)
 		}
 		storage = &corev1.DeprecatedAsset{
@@ -103,38 +135,29 @@ func (c *ChattoCore) UploadAttachment(
 				},
 			},
 		}
-		c.logger.Debug("Uploaded attachment to S3",
-			"attachment_id", attachmentID,
-			"s3_key", s3Key,
-		)
 	} else {
-		// Upload to NATS ObjectStore
 		store, err := c.GetAttachmentsStore(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get attachments store: %w", err)
 		}
-
-		_, err = store.Put(ctx, jetstream.ObjectMeta{
+		if _, err := store.Put(ctx, jetstream.ObjectMeta{
 			Name: attachmentID,
 			Headers: map[string][]string{
 				"Content-Type": {contentType},
 				"Filename":     {filename},
 				"Room-Id":      {roomID},
 			},
-		}, bytes.NewReader(content))
-		if err != nil {
+		}, bytes.NewReader(content)); err != nil {
 			return nil, fmt.Errorf("failed to store attachment: %w", err)
 		}
 		storage = &corev1.DeprecatedAsset{
 			Asset: &corev1.DeprecatedAsset_Nats{
-				Nats: &corev1.NATSAsset{
-					Key: attachmentID,
-				},
+				Nats: &corev1.NATSAsset{Key: attachmentID},
 			},
 		}
 	}
 
-	attachment := &corev1.Attachment{
+	return &corev1.Attachment{
 		Id:          attachmentID,
 		RoomId:      roomID,
 		Filename:    filename,
@@ -143,18 +166,67 @@ func (c *ChattoCore) UploadAttachment(
 		Width:       width,
 		Height:      height,
 		Storage:     storage,
+	}, nil
+}
+
+// derivativeContext records that an upload is a derivative of another
+// asset (thumbnail, video variant). Worker code uses this to ensure each
+// derivative has a single AssetCreatedEvent that already carries its
+// parentage — no separate "claim as derivative" event afterwards.
+type derivativeContext struct {
+	parentAssetID  string
+	derivativeRole string
+}
+
+// UploadDerivativeAttachment is the worker-side variant of UploadAttachment.
+// It writes bytes through the same storage path and emits AssetCreatedEvent
+// with parent_asset_id + derivative_role already set, so the projection
+// knows this asset is a child of `parentAssetID` (thumbnails, transcoded
+// video variants, etc.). Always attributed to SystemActorID — derivatives
+// are produced by workers, not user actions.
+func (c *ChattoCore) UploadDerivativeAttachment(
+	ctx context.Context,
+	parentAssetID string,
+	derivativeRole string,
+	roomID string,
+	filename string,
+	contentType string,
+	reader io.Reader,
+) (*corev1.Attachment, error) {
+	attachment, err := c.uploadAttachmentBinary(ctx, roomID, filename, contentType, reader)
+	if err != nil {
+		return nil, err
 	}
-
-	c.logger.Debug("Uploaded attachment",
-		"attachment_id", attachmentID,
-		"room_id", roomID,
-		"filename", filename,
-		"content_type", contentType,
-		"size", size,
-		"storage_backend", c.config.Assets.StorageBackend,
-	)
-
+	derivCtx := &derivativeContext{parentAssetID: parentAssetID, derivativeRole: derivativeRole}
+	if err := c.appendAssetCreatedForUpload(ctx, SystemActorID, roomID, attachment, derivCtx); err != nil {
+		return nil, err
+	}
 	return attachment, nil
+}
+
+// appendAssetCreatedForUpload writes the AssetCreatedEvent for a freshly-
+// uploaded binary. Pulled out so UploadAttachment and UploadDerivative-
+// Attachment share the projection-append path; the only difference is the
+// flat owner fields (user vs derivative).
+func (c *ChattoCore) appendAssetCreatedForUpload(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext) error {
+	created := &corev1.AssetCreatedEvent{
+		Asset:            assetFromAttachment(attachment),
+		StorageAvailable: true,
+		RoomId:           roomID,
+	}
+	if deriv != nil {
+		created.ParentAssetId = deriv.parentAssetID
+		created.DerivativeRole = deriv.derivativeRole
+	} else {
+		created.UserId = actorID
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_AssetCreated{AssetCreated: created},
+	})
+	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
+		return fmt.Errorf("publish asset creation event: %w", err)
+	}
+	return nil
 }
 
 // AttachmentInfo contains metadata about an attachment.
@@ -434,14 +506,14 @@ func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachment
 
 // MessageBodyAttachments returns the materialised attachments for a
 // MessageBody, hydrating from the asset projection when the body uses
-// attachment_ids (current format) and falling back to the legacy embedded
+// asset_ids (current format) and falling back to the legacy embedded
 // attachments slice otherwise. The returned slice preserves the body's
 // declared order; missing projection entries are skipped.
 func (c *ChattoCore) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
 	if body == nil {
 		return nil
 	}
-	ids := body.GetAttachmentIds()
+	ids := body.GetAssetIds()
 	if len(ids) == 0 {
 		return body.GetAttachments()
 	}
@@ -493,8 +565,13 @@ func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginI
 }
 
 // LookupAttachment resolves any attachment by its URL locator, choosing
-// the right source of truth (`MessageBody.Attachments` for body attachments,
-// projected video manifests for variants/thumbnails).
+// the right source of truth based on the optional hint fields:
+//
+//   - BodyKey set: legacy lookup via MessageBody.attachments (older URLs,
+//     bodies that pre-date the asset projection backfill).
+//   - VideoOrigin set: legacy lookup via VideoProcessingState.
+//   - Neither set: new asset-as-aggregate lookup — fetch the asset
+//     directly from the projection by AttachmentID.
 func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
 	if err := loc.Validate(); err != nil {
 		return nil, err
@@ -502,7 +579,14 @@ func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.Attachm
 	if loc.BodyKey != "" {
 		return c.FindBodyAttachment(ctx, loc.BodyKey, loc.AttachmentID)
 	}
-	return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
+	if loc.VideoOrigin != "" {
+		return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
+	}
+	declared, ok := c.RoomTimeline.AssetCreation(loc.AttachmentID)
+	if !ok || declared == nil {
+		return nil, nil
+	}
+	return attachmentFromAsset(declared.GetAsset()), nil
 }
 
 // DeleteAttachmentFromStorage deletes an attachment's binary and its
@@ -1049,26 +1133,22 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, actorID string, _ R
 }
 
 // RecordAssetProcessed builds and publishes a durable processed-video
-// manifest for an original video attachment.
+// manifest for an original video attachment. The thumbnail and variants
+// were already emitted as AssetCreatedEvents by UploadDerivativeAttachment
+// when the worker stored their bytes — this manifest just records the
+// processing outcome and points at those existing assets by id.
 //
 // actorID is typically SystemActorID — processing outcomes are produced by
 // the video worker, not by a user action.
 func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
-	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
 	thumbnailAssetID := ""
-	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
-		thumbnailAssetID = thumbnailAsset.GetId()
-		if err := c.recordDerivativeAssetCreated(ctx, actorID, roomID, thumbnailAsset, attachmentID, "thumbnail"); err != nil {
-			return err
-		}
+	if thumbnail != nil {
+		thumbnailAssetID = thumbnail.GetId()
 	}
+	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
 	for _, variant := range variants {
 		if variant == nil || variant.GetAttachment() == nil {
 			continue
-		}
-		variantAsset := assetFromAttachment(variant.GetAttachment())
-		if err := c.recordDerivativeAssetCreated(ctx, actorID, roomID, variantAsset, attachmentID, "video_variant"); err != nil {
-			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
 			Quality: variant.GetQuality(),
@@ -1108,30 +1188,6 @@ func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kin
 		},
 	})
 	return c.PublishAssetProcessing(ctx, kind, roomID, event)
-}
-
-func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, actorID, roomID string, asset *corev1.AssetRecord, sourceAssetID, role string) error {
-	if roomID == "" || asset == nil || asset.GetId() == "" || sourceAssetID == "" || role == "" {
-		return fmt.Errorf("derivative asset creation missing room or asset id")
-	}
-	if actorID == "" {
-		return fmt.Errorf("derivative asset creation missing actor id")
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
-				StorageAvailable: true,
-				Asset:            asset,
-				RoomId:           roomID,
-				ParentAssetId:    sourceAssetID,
-				DerivativeRole:   role,
-			},
-		},
-	})
-	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
-		return fmt.Errorf("publish derivative asset creation event: %w", err)
-	}
-	return nil
 }
 
 // RecordAssetProcessingFailed builds and publishes a durable failed

@@ -53,6 +53,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
+			SystemActorID,
 			room.Id,
 			"test-image.png",
 			"image/png",
@@ -106,6 +107,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
+			SystemActorID,
 			room.Id,
 			"test-file.txt",
 			"text/plain",
@@ -154,8 +156,9 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
-		ctx,
-		room.Id,
+			ctx,
+			SystemActorID,
+			room.Id,
 		"test-file.txt",
 		"text/plain",
 		bytes.NewReader(originalData),
@@ -215,8 +218,9 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
-		ctx,
-		room.Id,
+			ctx,
+			SystemActorID,
+			room.Id,
 		"test-file.txt",
 		"text/plain",
 		bytes.NewReader([]byte("Content to delete")),
@@ -272,7 +276,7 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -302,7 +306,7 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -356,7 +360,7 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 		ctx := testContext(t)
 
 		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
-		attachment, err := core.UploadAttachment(ctx, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("nats-binary")))
+		attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("nats-binary")))
 		if err != nil {
 			t.Fatalf("UploadAttachment: %v", err)
 		}
@@ -383,7 +387,7 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 		ctx := testContext(t)
 
 		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
-		attachment, err := core.UploadAttachment(ctx, room.Id, "y.txt", "text/plain", bytes.NewReader([]byte("s3-binary")))
+		attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "y.txt", "text/plain", bytes.NewReader([]byte("s3-binary")))
 		if err != nil {
 			t.Fatalf("UploadAttachment: %v", err)
 		}
@@ -578,8 +582,9 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 
 	// 1. Upload
 	attachment, err := core.UploadAttachment(
-		ctx,
-		room.Id,
+			ctx,
+			SystemActorID,
+			room.Id,
 		"lifecycle-test.txt",
 		"text/plain",
 		bytes.NewReader(originalContent),
@@ -636,6 +641,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 		content := []byte("Attachment content " + string(rune('A'+i)))
 		att, err := core.UploadAttachment(
 			ctx,
+			SystemActorID,
 			room.Id,
 			"attachment"+string(rune('A'+i))+".txt",
 			"text/plain",
@@ -685,8 +691,9 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 			imageData := createTestPNG(tc.width, tc.height)
 
 			attachment, err := core.UploadAttachment(
-				ctx,
-				room.Id,
+			ctx,
+			SystemActorID,
+			room.Id,
 				tc.name+".png",
 				"image/png",
 				bytes.NewReader(imageData),
@@ -870,8 +877,9 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 
 	imageData := createTestPNG(100, 100)
 	attachment, err := core.UploadAttachment(
-		ctx,
-		room.Id,
+			ctx,
+			SystemActorID,
+			room.Id,
 		"test-image.png",
 		"image/png",
 		bytes.NewReader(imageData),
@@ -936,8 +944,8 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 
 	// Create two attachments
 	imageData := createTestPNG(100, 100)
-	attachment1, _ := core.UploadAttachment(ctx, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
-	attachment2, _ := core.UploadAttachment(ctx, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
+	attachment1, _ := core.UploadAttachment(ctx, SystemActorID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
+	attachment2, _ := core.UploadAttachment(ctx, SystemActorID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
 
 	// Cache entries for both attachments
 	key1 := ImageCacheKey(AttachmentSignResource, attachment1.Id, 200, 150, "contain")
@@ -1013,12 +1021,12 @@ func TestFindBodyAttachment_RoundTrip(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello")))
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []*corev1.Attachment{attachment}, "", "", nil, false)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []string{attachment.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
@@ -1071,11 +1079,11 @@ func TestLookupAttachment_BodyDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	attachment, err := core.UploadAttachment(ctx, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("x")))
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("x")))
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}
-	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []*corev1.Attachment{attachment}, "", "", nil, false)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []string{attachment.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}

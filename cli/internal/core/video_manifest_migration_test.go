@@ -14,11 +14,11 @@ func TestVideoManifestMigration_CompletedImportsWithoutOriginal(t *testing.T) {
 	ctx := testContext(t)
 
 	room, _, original := createPostedVideoAttachment(t, core)
-	thumb, err := core.UploadAttachment(ctx, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 18)))
+	thumb, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 18)))
 	if err != nil {
 		t.Fatalf("upload thumbnail: %v", err)
 	}
-	variantAttachment, err := core.UploadAttachment(ctx, room.Id, "video-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	variantAttachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "video-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
 	if err != nil {
 		t.Fatalf("upload variant: %v", err)
 	}
@@ -146,7 +146,11 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
 		t.Fatalf("join room: %v", err)
 	}
-	original, err := core.UploadAttachment(ctx, room.Id, "original.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	// Simulate the legacy state: write the binary without emitting an
+	// AssetCreatedEvent (pre-Option-1 PostMessage emitted it inline). The
+	// migration is supposed to backfill the missing AssetCreated and the
+	// corresponding processing manifest.
+	original, err := core.uploadAttachmentBinary(ctx, room.Id, "original.mp4", "video/mp4", bytes.NewReader([]byte("original")))
 	if err != nil {
 		t.Fatalf("upload original: %v", err)
 	}

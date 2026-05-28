@@ -251,10 +251,13 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		thumbPath = "" // Non-fatal
 	}
 
-	// Upload thumbnail as attachment
+	// Upload thumbnail as a derivative asset of the original. Each derivative
+	// upload writes its own AssetCreatedEvent with parent_asset_id set, so
+	// the projection knows immediately that this asset is a child of the
+	// original — no separate "claim as derivative" step downstream.
 	var thumbnailAttachment *corev1.Attachment
 	if thumbPath != "" {
-		thumb, err := s.uploadFile(ctx, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
+		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, "thumbnail", req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
@@ -289,7 +292,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
 		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), quality)
-		variant, err := s.uploadFile(ctx, req.RoomID, filename, "video/mp4", outputPath)
+		variant, err := s.uploadDerivativeFile(ctx, req.AssetID, "video_variant", req.RoomID, filename, "video/mp4", outputPath)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
 			continue
@@ -377,15 +380,16 @@ func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Att
 	return nil
 }
 
-// uploadFile uploads a local file as an attachment and returns the
-// resulting Attachment proto. The proto carries the storage info needed
-// to embed it directly in VideoProcessingState.
-func (s *Service) uploadFile(ctx context.Context, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
+// uploadDerivativeFile uploads a local file produced by the worker (thumbnail
+// or transcoded variant) as a derivative of `parentAssetID`. The single
+// AssetCreatedEvent emitted carries the parent + role so the projection
+// links the derivative to its origin immediately.
+func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID, derivativeRole, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return s.core.UploadAttachment(ctx, roomID, filename, contentType, f)
+	return s.core.UploadDerivativeAttachment(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, f)
 }

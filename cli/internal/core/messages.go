@@ -48,11 +48,11 @@ func collectPostMessageOptions(opts []PostMessageOption) postMessageOptions {
 	return options
 }
 
-func (options postMessageOptions) shouldScheduleVideoProcessing(attachment *corev1.Attachment) bool {
-	if attachment == nil || attachment.GetId() == "" || len(options.videoProcessingAssetIDs) == 0 {
+func (options postMessageOptions) shouldScheduleVideoProcessingForID(assetID string) bool {
+	if assetID == "" || len(options.videoProcessingAssetIDs) == 0 {
 		return false
 	}
-	_, ok := options.videoProcessingAssetIDs[attachment.GetId()]
+	_, ok := options.videoProcessingAssetIDs[assetID]
 	return ok
 }
 
@@ -72,7 +72,7 @@ func (options postMessageOptions) shouldScheduleVideoProcessing(attachment *core
 // Authorization: Caller must verify room membership and
 // CanPostMessage / CanPostInThread before calling, and CanEchoMessage
 // (if alsoSendToChannel).
-func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*corev1.Event, error) {
+func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*corev1.Event, error) {
 	options := collectPostMessageOptions(opts)
 
 	// Validate message body length to prevent DoS via oversized messages
@@ -83,9 +83,35 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// Validate that message has either body or attachments.
 	// HasVisibleContent rejects messages with only invisible Unicode characters.
 	hasBody := HasVisibleContent(body)
-	hasAttachments := len(attachments) > 0
+	hasAttachments := len(assetIDs) > 0
 	if !hasBody && !hasAttachments {
 		return nil, fmt.Errorf("message must have either body or attachments")
+	}
+
+	// Resolve referenced assets from the projection. Each must already exist
+	// (UploadAttachment emitted AssetCreatedEvent before the caller routed
+	// the id here). Missing ids are dropped with a warning rather than
+	// failing the post — the user already typed and clicked Send; a transient
+	// projection lag for one attachment is better swallowed than fatal.
+	resolvedAssets := make([]*corev1.Attachment, 0, len(assetIDs))
+	resolvedAssetIDs := make([]string, 0, len(assetIDs))
+	for _, id := range assetIDs {
+		if id == "" {
+			continue
+		}
+		declared, ok := c.RoomTimeline.AssetCreation(id)
+		if !ok || declared == nil || declared.GetAsset() == nil {
+			c.logger.Warn("PostMessage references unknown asset; dropping",
+				"asset_id", id, "room_id", room_id, "actor_id", user_id)
+			continue
+		}
+		att := attachmentFromAsset(declared.GetAsset())
+		if att == nil {
+			continue
+		}
+		att.RoomId = room_id
+		resolvedAssets = append(resolvedAssets, att)
+		resolvedAssetIDs = append(resolvedAssetIDs, id)
 	}
 
 	// Verify room exists and isn't archived
@@ -162,16 +188,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		return nil, fmt.Errorf("failed to encrypt message body: %w", err)
 	}
 
-	attachmentIDs := make([]string, 0, len(attachments))
-	for _, att := range attachments {
-		if att == nil || att.GetId() == "" {
-			continue
-		}
-		attachmentIDs = append(attachmentIDs, att.GetId())
-	}
 	messageBody := &corev1.MessageBody{
 		CreatedAt:       timestamppb.New(now),
-		AttachmentIds:   attachmentIDs,
+		AssetIds:        resolvedAssetIDs,
 		AuthorId:        user_id,
 		LinkPreview:     linkPreview,
 		EncryptedBody:   encrypted.Ciphertext,
@@ -195,58 +214,24 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// key — it's just an alias for event_id, kept on the proto so
 	// legacy code paths that pass MessageBodyId around (resolvers,
 	// attachment signed URLs) keep working without changes.
-	// eventIDFromBodyKey treats no-dot keys as event_ids, so the
-	// projection lookup picks the right entry.
 	event.GetMessagePosted().MessageBodyId = event.Id
-
-	// Stamp the event_id onto each attachment so signed attachment
-	// URLs can carry it without a separate index lookup at request
-	// time.
-	for _, att := range attachments {
-		if att != nil {
-			att.MessageBodyId = event.Id
-		}
-	}
-
-	// Publish AssetCreatedEvent for every attachment before MessagePostedEvent.
-	// MessagePosted carries only attachment_ids; the projection (and any
-	// subscriber going through GraphQL) hydrates from these. Subscribers must
-	// see the AssetCreated events first to render the message correctly.
-	createdAssets := make(map[string]struct{}, len(attachments))
-	for _, att := range attachments {
-		if att == nil {
-			continue
-		}
-		if err := c.RecordAssetCreated(ctx, user_id, kind, room_id, event.Id, att); err != nil {
-			c.logger.Warn("Failed to publish asset creation event",
-				"room_id", room_id,
-				"message_event_id", event.Id,
-				"attachment_id", att.GetId(),
-				"error", err)
-			continue
-		}
-		createdAssets[att.GetId()] = struct{}{}
-	}
 
 	// Schedule any video processing before MessagePosted so AssetProcessing-
 	// Started fires before subscribers see the message; the frontend uses
 	// the started marker to render the "Processing…" placeholder.
-	for _, att := range attachments {
-		if !options.shouldScheduleVideoProcessing(att) {
-			continue
-		}
-		if _, ok := createdAssets[att.GetId()]; !ok {
-			c.logger.Warn("Skipping video processing for asset without AssetCreatedEvent",
-				"room_id", room_id,
-				"message_event_id", event.Id,
-				"attachment_id", att.GetId())
+	//
+	// The asset itself was already created at upload time
+	// (UploadAttachment → AssetCreatedEvent); here we just trigger derivative
+	// processing for any referenced asset the caller flagged as a video.
+	for _, att := range resolvedAssets {
+		if !options.shouldScheduleVideoProcessingForID(att.GetId()) {
 			continue
 		}
 		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, user_id, kind, room_id, event.Id, att); err != nil {
 			c.logger.Warn("Failed to schedule video processing",
 				"room_id", room_id,
 				"message_event_id", event.Id,
-				"attachment_id", att.GetId(),
+				"asset_id", att.GetId(),
 				"error", err)
 		}
 	}
@@ -803,13 +788,13 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 		if removed == nil {
 			return fmt.Errorf("attachment not found in message")
 		}
-		trimmedIDs := body.AttachmentIds[:0]
-		for _, id := range body.GetAttachmentIds() {
+		trimmedIDs := body.AssetIds[:0]
+		for _, id := range body.GetAssetIds() {
 			if id != attachmentID {
 				trimmedIDs = append(trimmedIDs, id)
 			}
 		}
-		body.AttachmentIds = trimmedIDs
+		body.AssetIds = trimmedIDs
 		trimmedAttachments := body.Attachments[:0]
 		for _, att := range body.GetAttachments() {
 			if att.GetId() != attachmentID {

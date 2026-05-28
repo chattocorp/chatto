@@ -252,6 +252,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 
 			attachment, err := r.core.UploadAttachment(
 				ctx,
+				user.Id,
 				input.RoomID,
 				upload.Filename,
 				upload.ContentType,
@@ -337,7 +338,13 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	}
 
-	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, attachments, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
+	assetIDs := make([]string, 0, len(attachments))
+	for _, att := range attachments {
+		if att != nil && att.GetId() != "" {
+			assetIDs = append(assetIDs, att.GetId())
+		}
+	}
+	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, assetIDs, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
 	if err != nil {
 		return nil, err
 	}

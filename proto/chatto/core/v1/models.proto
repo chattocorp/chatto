@@ -236,15 +236,17 @@ message MessageBody {
 
   // Legacy embedded attachment protos. Older bodies (and the legacy
   // import path) carry full Attachment records here. New bodies write
-  // attachment_ids instead and the GraphQL resolver hydrates from the
+  // asset_ids instead and the GraphQL resolver hydrates from the
   // asset projection (see AssetCreatedEvent). Keep this field for decode
   // until every historical body has been backfilled into the projection.
   repeated Attachment attachments = 30;
 
   // Ordered list of asset IDs referenced by this message. Source of truth
   // for new bodies; their content metadata + storage live on AssetRecord /
-  // AssetCreatedEvent in the projection.
-  repeated string attachment_ids = 31;
+  // AssetCreatedEvent in the projection. Each ID points at an asset that
+  // was created (via AssetCreatedEvent) before the message was posted —
+  // typically by an UploadAsset call from the same actor.
+  repeated string asset_ids = 31;
 
   // Link preview extracted from the first URL in the message body
   LinkPreview link_preview = 40;

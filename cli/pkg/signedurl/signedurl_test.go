@@ -228,7 +228,6 @@ func TestSignedAttachmentLocator_InvalidLocator(t *testing.T) {
 	}{
 		{"missing room", signedurl.AttachmentLocator{BodyKey: "U.E", AttachmentID: "A", UserID: "U", ExpiresAt: exp}},
 		{"missing attachment", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", UserID: "U", ExpiresAt: exp}},
-		{"missing source", signedurl.AttachmentLocator{RoomID: "R", AttachmentID: "A", UserID: "U", ExpiresAt: exp}},
 		{"both sources", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", VideoOrigin: "Av", AttachmentID: "A", UserID: "U", ExpiresAt: exp}},
 		{"missing user", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A", ExpiresAt: exp}},
 		{"missing expiry", signedurl.AttachmentLocator{RoomID: "R", BodyKey: "U.E", AttachmentID: "A", UserID: "U"}},
