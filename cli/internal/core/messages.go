@@ -181,7 +181,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			continue
 		}
 		if err := c.RecordAssetCreated(ctx, kind, room_id, event.Id, att); err != nil {
-			return nil, fmt.Errorf("failed to publish asset creation event: %w", err)
+			c.logger.Warn("Failed to publish asset creation event",
+				"room_id", room_id,
+				"message_event_id", event.Id,
+				"attachment_id", att.GetId(),
+				"error", err)
 		}
 	}
 

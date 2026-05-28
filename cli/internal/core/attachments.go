@@ -816,11 +816,17 @@ func (c *ChattoCore) DeleteCachedResizesForKey(ctx context.Context, prefix, asse
 // Video Processing State
 // ============================================================================
 
+var ErrVideoProcessingAlreadyClaimed = errors.New("video processing already claimed")
+
 // videoProcessingKey returns the legacy SERVER_RUNTIME key for a video's
-// processing state. New writes are process-local only; durable manifests
-// live in EVT.
+// processing state. Legacy migration reads these keys but new processing claims
+// use videoProcessingClaimKey below.
 func videoProcessingKey(attachmentID string) string {
 	return "video." + attachmentID
+}
+
+func videoProcessingClaimKey(attachmentID string) string {
+	return "video_processing_claim." + attachmentID
 }
 
 // GetVideoProcessingState retrieves the processing state for a video attachment.
@@ -829,33 +835,55 @@ func videoProcessingKey(attachmentID string) string {
 // RoomTimeline.VideoAttachmentManifest.
 func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, attachmentID string) (*corev1.VideoProcessingState, error) {
 	c.videoStateMu.RLock()
-	defer c.videoStateMu.RUnlock()
 	state := c.videoStates[attachmentID]
+	c.videoStateMu.RUnlock()
 	if state == nil {
-		return nil, nil
+		entry, err := c.storage.serverRuntimeKV.Get(ctx, videoProcessingClaimKey(attachmentID))
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		var shared corev1.VideoProcessingState
+		if err := proto.Unmarshal(entry.Value(), &shared); err != nil {
+			return nil, err
+		}
+		return &shared, nil
 	}
 	return proto.Clone(state).(*corev1.VideoProcessingState), nil
 }
 
-// SetVideoProcessingState stores transient per-process processing progress for
-// a video attachment. It deliberately does not write SERVER_RUNTIME/RUNTIME_STATE;
-// durable completed/failed outcomes are AssetProcessing* events in EVT.
+// SetVideoProcessingState stores operational processing progress. The
+// SERVER_RUNTIME claim is a cluster-wide dedupe/visibility guard, not the
+// durable source of truth; completed/failed outcomes are AssetProcessing*
+// events in EVT.
 func (c *ChattoCore) SetVideoProcessingState(ctx context.Context, attachmentID string, state *corev1.VideoProcessingState) error {
 	c.videoStateMu.Lock()
-	defer c.videoStateMu.Unlock()
 	if state == nil {
 		delete(c.videoStates, attachmentID)
+		c.videoStateMu.Unlock()
+		if err := c.storage.serverRuntimeKV.Delete(ctx, videoProcessingClaimKey(attachmentID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return err
+		}
 		return nil
 	}
 	c.videoStates[attachmentID] = proto.Clone(state).(*corev1.VideoProcessingState)
-	return nil
+	c.videoStateMu.Unlock()
+	data, err := proto.Marshal(state)
+	if err != nil {
+		return err
+	}
+	_, err = c.storage.serverRuntimeKV.Put(ctx, videoProcessingClaimKey(attachmentID), data)
+	return err
 }
 
 // ClearVideoProcessingState removes transient in-memory processing progress.
 func (c *ChattoCore) ClearVideoProcessingState(attachmentID string) {
 	c.videoStateMu.Lock()
-	defer c.videoStateMu.Unlock()
 	delete(c.videoStates, attachmentID)
+	c.videoStateMu.Unlock()
+	_ = c.storage.serverRuntimeKV.Delete(context.Background(), videoProcessingClaimKey(attachmentID))
 }
 
 // SubjectVideoProcess is the NATS subject for video processing requests.
@@ -865,9 +893,23 @@ const SubjectVideoProcess = "chatto.video.process"
 // Call this BEFORE PostMessage so that the subscription-delivered event already has
 // videoProcessing data when the frontend resolves it.
 func (c *ChattoCore) InitVideoProcessingState(ctx context.Context, attachmentID string) error {
-	return c.SetVideoProcessingState(ctx, attachmentID, &corev1.VideoProcessingState{
+	state := &corev1.VideoProcessingState{
 		Status: corev1.VideoStatus_VIDEO_STATUS_PENDING,
-	})
+	}
+	data, err := proto.Marshal(state)
+	if err != nil {
+		return err
+	}
+	if _, err := c.storage.serverRuntimeKV.Create(ctx, videoProcessingClaimKey(attachmentID), data); err != nil {
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			return ErrVideoProcessingAlreadyClaimed
+		}
+		return err
+	}
+	c.videoStateMu.Lock()
+	c.videoStates[attachmentID] = proto.Clone(state).(*corev1.VideoProcessingState)
+	c.videoStateMu.Unlock()
+	return nil
 }
 
 // PublishVideoProcessingRequest publishes a video processing request to NATS.
@@ -926,6 +968,9 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 			continue
 		}
 		if err := c.InitVideoProcessingState(ctx, req.Attachment.GetId()); err != nil {
+			if errors.Is(err, ErrVideoProcessingAlreadyClaimed) {
+				continue
+			}
 			c.logger.Warn("Failed to init recovered video processing state", "attachment_id", req.Attachment.GetId(), "error", err)
 			continue
 		}

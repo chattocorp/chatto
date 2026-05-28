@@ -30,10 +30,12 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 	if err := c.migrateAssetCreationsToES(ctx); err != nil {
 		return fmt.Errorf("migrate asset creations: %w", err)
 	}
-	if entry, err := c.storage.serverRuntimeKV.Get(ctx, videoManifestESMigrationKey); err == nil && entry != nil {
+	revision, claimed, err := c.claimRuntimeMigration(ctx, videoManifestESMigrationKey)
+	if err != nil {
+		return err
+	}
+	if !claimed {
 		return nil
-	} else if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("get sentinel: %w", err)
 	}
 
 	legacyKeys, err := c.listLegacyVideoStateKeys(ctx)
@@ -139,8 +141,8 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 		imported++
 	}
 
-	if _, err := c.storage.serverRuntimeKV.Put(ctx, videoManifestESMigrationKey, []byte("1")); err != nil {
-		return fmt.Errorf("set sentinel: %w", err)
+	if err := c.completeRuntimeMigration(ctx, videoManifestESMigrationKey, revision); err != nil {
+		return err
 	}
 	if imported > 0 {
 		c.logger.Info("Imported legacy video processing manifests into EVT", "count", imported)

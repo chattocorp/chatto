@@ -57,9 +57,11 @@ func unwrapEvent(event *corev1.Event) any {
 	case *corev1.Event_MessageDeleted:
 		return e.MessageDeleted
 
-	// ---- Reactions ----
+	// ---- Assets ----
 	case *corev1.Event_AssetCreated:
 		return e.AssetCreated
+
+	// ---- Reactions ----
 	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded
 	case *corev1.Event_ReactionRemoved:

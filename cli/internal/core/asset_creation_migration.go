@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -13,6 +14,11 @@ import (
 )
 
 const assetCreationESMigrationKey = "attachment_declarations_es.migrated"
+
+const (
+	runtimeMigrationRunning = "running"
+	runtimeMigrationDone    = "done"
+)
 
 type assetCreationVerification struct {
 	MessageAttachmentCount     int
@@ -26,10 +32,12 @@ type assetCreationVerification struct {
 // unchanged; the new events provide the asset identity/owner records that
 // processing outcomes can reference by asset id.
 func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
-	if entry, err := c.storage.serverRuntimeKV.Get(ctx, assetCreationESMigrationKey); err == nil && entry != nil {
+	revision, claimed, err := c.claimRuntimeMigration(ctx, assetCreationESMigrationKey)
+	if err != nil {
+		return err
+	}
+	if !claimed {
 		return nil
-	} else if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("get sentinel: %w", err)
 	}
 
 	existing, err := c.indexAssetCreationsFromEVT(ctx)
@@ -103,13 +111,55 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
 			"dangling_processing_outcomes", verification.DanglingProcessingOutcomes)
 	}
 
-	if _, err := c.storage.serverRuntimeKV.Put(ctx, assetCreationESMigrationKey, []byte("1")); err != nil {
-		return fmt.Errorf("set sentinel: %w", err)
+	if err := c.completeRuntimeMigration(ctx, assetCreationESMigrationKey, revision); err != nil {
+		return err
 	}
 	if imported > 0 {
 		c.logger.Info("Imported message asset creations into EVT", "count", imported)
 	}
 	return nil
+}
+
+func (c *ChattoCore) claimRuntimeMigration(ctx context.Context, key string) (uint64, bool, error) {
+	revision, err := c.storage.serverRuntimeKV.Create(ctx, key, []byte(runtimeMigrationRunning))
+	if err == nil {
+		return revision, true, nil
+	}
+	if !errors.Is(err, jetstream.ErrKeyExists) {
+		return 0, false, fmt.Errorf("claim migration sentinel %s: %w", key, err)
+	}
+	if err := c.waitRuntimeMigrationDone(ctx, key); err != nil {
+		return 0, false, err
+	}
+	return 0, false, nil
+}
+
+func (c *ChattoCore) completeRuntimeMigration(ctx context.Context, key string, revision uint64) error {
+	if _, err := c.storage.serverRuntimeKV.Update(ctx, key, []byte(runtimeMigrationDone), revision); err != nil {
+		return fmt.Errorf("complete migration sentinel %s: %w", key, err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) waitRuntimeMigrationDone(ctx context.Context, key string) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		entry, err := c.storage.serverRuntimeKV.Get(waitCtx, key)
+		if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return fmt.Errorf("wait for migration sentinel %s: %w", key, err)
+		}
+		if err == nil && string(entry.Value()) != runtimeMigrationRunning {
+			return nil
+		}
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("timed out waiting for migration sentinel %s", key)
+		case <-ticker.C:
+		}
+	}
 }
 
 func (c *ChattoCore) indexAssetCreationsFromEVT(ctx context.Context) (map[string]bool, error) {

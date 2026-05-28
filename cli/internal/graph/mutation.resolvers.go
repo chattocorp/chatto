@@ -8,6 +8,7 @@ package graph
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -327,12 +328,18 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 
 	// Set PENDING state for video/animated-GIF attachments BEFORE PostMessage, so that
 	// when the subscription delivers the event the videoProcessing field is already populated.
+	claimedForProcessing := make(map[string]bool)
 	if r.videoConfig.Enabled {
 		for _, att := range attachments {
 			if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
 				if err := r.core.InitVideoProcessingState(ctx, att.Id); err != nil {
+					if errors.Is(err, core.ErrVideoProcessingAlreadyClaimed) {
+						continue
+					}
 					r.logger.Warn("Failed to init video processing state", "attachment_id", att.Id, "error", err)
+					continue
 				}
+				claimedForProcessing[att.Id] = true
 			}
 		}
 	}
@@ -347,6 +354,9 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		if msg := event.GetMessagePosted(); msg != nil {
 			for _, att := range attachments {
 				if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
+					if !claimedForProcessing[att.Id] {
+						continue
+					}
 					if err := r.core.PublishVideoProcessingRequest(ctx, input.RoomID, att.Id, att.ContentType, msg.MessageBodyId); err != nil {
 						r.logger.Warn("Failed to request video processing", "attachment_id", att.Id, "error", err)
 					}

@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -76,6 +77,53 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 	}
 	if after.MissingCreations != 0 || after.DanglingProcessingOutcomes != 0 {
 		t.Fatalf("verification after migration = %+v, want no inconsistencies", after)
+	}
+}
+
+func TestRuntimeMigrationClaim_WaitsForAtomicOwner(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	key := "test.migration.claim"
+	_ = core.storage.serverRuntimeKV.Delete(ctx, key)
+
+	revision, claimed, err := core.claimRuntimeMigration(ctx, key)
+	if err != nil {
+		t.Fatalf("claim migration: %v", err)
+	}
+	if !claimed {
+		t.Fatal("first claimant did not acquire migration")
+	}
+
+	type result struct {
+		claimed bool
+		err     error
+	}
+	done := make(chan result, 1)
+	go func() {
+		_, claimed, err := core.claimRuntimeMigration(ctx, key)
+		done <- result{claimed: claimed, err: err}
+	}()
+
+	select {
+	case got := <-done:
+		t.Fatalf("second claimant returned before completion: %+v", got)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	if err := core.completeRuntimeMigration(ctx, key, revision); err != nil {
+		t.Fatalf("complete migration: %v", err)
+	}
+
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("second claimant error: %v", got.err)
+		}
+		if got.claimed {
+			t.Fatal("second claimant acquired already-completed migration")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second claimant did not observe migration completion")
 	}
 }
 
