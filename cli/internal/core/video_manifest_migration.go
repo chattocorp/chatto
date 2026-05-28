@@ -194,7 +194,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 			AssetId: variant.GetAttachment().GetId(),
 		})
 	}
-	event := newEvent("", &corev1.Event{
+	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: attachmentID,
@@ -216,7 +216,7 @@ func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Cont
 	if asset == nil || asset.GetId() == "" {
 		return nil
 	}
-	event := newEvent("", &corev1.Event{
+	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
@@ -232,7 +232,7 @@ func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Cont
 }
 
 func (c *ChattoCore) appendVideoFailedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
-	event := newEvent("", &corev1.Event{
+	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
 				AssetId:     attachmentID,

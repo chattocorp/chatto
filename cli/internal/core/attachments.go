@@ -552,7 +552,10 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 // binaries for a processed video attachment and emits AssetDeletedEvent for
 // each derivative. The durable processing manifest remains in EVT for
 // audit/replay; deletion makes future signed URLs resolve to 404.
-func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, kind RoomKind, attachmentID string) {
+//
+// actorID is attributed to the AssetDeletedEvents — typically the user who
+// triggered the parent deletion.
+func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, kind RoomKind, attachmentID string) {
 	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachmentID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return
@@ -577,7 +580,7 @@ func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, ki
 				"error", err)
 		}
 		if roomID := assetCreatedRoomID(declared); roomID != "" {
-			if err := c.RecordAssetDeleted(ctx, kind, roomID, id); err != nil {
+			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, id); err != nil {
 				c.logger.Warn("Failed to publish derivative asset deletion event",
 					"attachment_id", id,
 					"origin_attachment_id", attachmentID,
@@ -884,7 +887,10 @@ type VideoProcessRequest struct {
 // (the PENDING signal the frontend renders as "Processing…"), then publishes a
 // request onto SubjectVideoProcess. If the source binary is already missing,
 // emits an AssetProcessingFailedEvent with SOURCE_MISSING instead.
-func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
+//
+// actorID is the user who triggered processing (the message poster, or
+// SystemActorID for boot-recovery paths).
+func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("video processing missing room, message, or attachment")
 	}
@@ -894,9 +900,9 @@ func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 		}
 	}
 	if !c.attachmentBinaryAvailable(ctx, attachment) {
-		return c.RecordAssetProcessingFailed(ctx, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
+		return c.RecordAssetProcessingFailed(ctx, actorID, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
-	if err := c.RecordAssetProcessingStarted(ctx, kind, roomID, attachment.GetId()); err != nil {
+	if err := c.RecordAssetProcessingStarted(ctx, actorID, kind, roomID, attachment.GetId()); err != nil {
 		return err
 	}
 	if err := c.PublishVideoProcessRequest(ctx, attachment.GetId()); err != nil {
@@ -924,11 +930,15 @@ func (c *ChattoCore) PublishVideoProcessRequest(ctx context.Context, assetID str
 // RecordAssetProcessingStarted appends a durable AssetProcessingStartedEvent
 // for an asset. Subscribers use the projected manifest to render the
 // "Processing…" placeholder until succeeded/failed lands.
-func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, kind RoomKind, roomID, assetID string) error {
+//
+// actorID is the user who triggered processing (typically the message
+// poster). Use SystemActorID when the action is driven by boot recovery or
+// other background work with no user actor.
+func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
 	if roomID == "" || assetID == "" {
 		return fmt.Errorf("asset processing started missing room or asset id")
 	}
-	event := newEvent("", &corev1.Event{
+	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingStarted{
 			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
 				AssetId: assetID,
@@ -952,7 +962,7 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 			c.logger.Warn("Failed to resolve room kind for video recovery", "room_id", req.RoomID, "error", err)
 			continue
 		}
-		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, kind, req.RoomID, req.MessageEventID, req.Attachment); err != nil {
+		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, kind, req.RoomID, req.MessageEventID, req.Attachment); err != nil {
 			c.logger.Warn("Failed to recover video processing", "attachment_id", req.Attachment.GetId(), "error", err)
 		}
 	}
@@ -976,11 +986,16 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind R
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
-// PublishAssetProcessing appends a durable asset-processing event to
-// EVT and mirrors the same payload onto the legacy live room subject.
+// PublishAssetProcessing appends a durable asset-processing event to EVT and
+// mirrors the same payload onto the legacy live room subject. Refuses events
+// with an empty ActorId — every asset lifecycle event must be attributable to
+// a user (or SystemActorID for worker/migration paths).
 func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
 	if roomID == "" {
 		return fmt.Errorf("asset processing event missing room id")
+	}
+	if event.GetActorId() == "" {
+		return fmt.Errorf("asset processing event missing actor id (use SystemActorID for non-user paths)")
 	}
 	agg := events.RoomAggregate(roomID)
 	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
@@ -997,16 +1012,21 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 // an uploaded asset. Processing outcomes reference this creation by asset id.
 // Asset creation is projection state, so it is not mirrored to the public
 // live.server subscription stream.
-func (c *ChattoCore) RecordAssetCreated(ctx context.Context, _ RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
+//
+// actorID is the user who introduced the asset (typically the message poster).
+func (c *ChattoCore) RecordAssetCreated(ctx context.Context, actorID string, _ RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("asset creation missing room, message, or asset id")
+	}
+	if actorID == "" {
+		return fmt.Errorf("asset creation missing actor id (use SystemActorID for non-user paths)")
 	}
 	declaredAttachment := proto.Clone(attachment).(*corev1.Attachment)
 	if declaredAttachment.MessageBodyId == "" {
 		declaredAttachment.MessageBodyId = messageEventID
 	}
 	asset := assetFromAttachment(declaredAttachment)
-	event := newEvent("", &corev1.Event{
+	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
@@ -1025,12 +1045,15 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, _ RoomKind, roomID,
 
 // RecordAssetProcessed builds and publishes a durable processed-video
 // manifest for an original video attachment.
-func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, roomID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+//
+// actorID is typically SystemActorID — processing outcomes are produced by
+// the video worker, not by a user action.
+func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
 	thumbnailAssetID := ""
 	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
 		thumbnailAssetID = thumbnailAsset.GetId()
-		if err := c.recordDerivativeAssetCreated(ctx, roomID, thumbnailAsset, attachmentID, "thumbnail"); err != nil {
+		if err := c.recordDerivativeAssetCreated(ctx, actorID, roomID, thumbnailAsset, attachmentID, "thumbnail"); err != nil {
 			return err
 		}
 	}
@@ -1039,7 +1062,7 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 			continue
 		}
 		variantAsset := assetFromAttachment(variant.GetAttachment())
-		if err := c.recordDerivativeAssetCreated(ctx, roomID, variantAsset, attachmentID, "video_variant"); err != nil {
+		if err := c.recordDerivativeAssetCreated(ctx, actorID, roomID, variantAsset, attachmentID, "video_variant"); err != nil {
 			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
@@ -1047,7 +1070,7 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 			AssetId: variant.GetAttachment().GetId(),
 		})
 	}
-	event := newEvent("", &corev1.Event{
+	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: attachmentID,
@@ -1067,11 +1090,14 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 // RecordAssetDeleted appends a durable AssetDeletedEvent so subscribers and
 // projections drop any cached state for the asset. The binary cleanup is a
 // separate concern (DeleteAttachmentFromStorage); this event records intent.
-func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, kind RoomKind, roomID, assetID string) error {
+//
+// actorID is the user who triggered the deletion (or SystemActorID for
+// background cleanup).
+func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
 	if roomID == "" || assetID == "" {
 		return fmt.Errorf("asset deletion missing room or asset id")
 	}
-	event := newEvent("", &corev1.Event{
+	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetDeleted{
 			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
 		},
@@ -1079,11 +1105,14 @@ func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, kind RoomKind, room
 	return c.PublishAssetProcessing(ctx, kind, roomID, event)
 }
 
-func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID string, asset *corev1.AssetRecord, sourceAssetID, role string) error {
+func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, actorID, roomID string, asset *corev1.AssetRecord, sourceAssetID, role string) error {
 	if roomID == "" || asset == nil || asset.GetId() == "" || sourceAssetID == "" || role == "" {
 		return fmt.Errorf("derivative asset creation missing room or asset id")
 	}
-	event := newEvent("", &corev1.Event{
+	if actorID == "" {
+		return fmt.Errorf("derivative asset creation missing actor id")
+	}
+	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
@@ -1102,8 +1131,11 @@ func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID st
 
 // RecordAssetProcessingFailed builds and publishes a durable failed
 // video-processing outcome.
-func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, kind RoomKind, roomID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
-	event := newEvent("", &corev1.Event{
+//
+// actorID is typically SystemActorID for worker-emitted failures, or the
+// posting user for "source missing" emitted at schedule time.
+func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
+	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
 				AssetId:     attachmentID,

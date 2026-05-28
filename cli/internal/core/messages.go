@@ -217,7 +217,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if att == nil {
 			continue
 		}
-		if err := c.RecordAssetCreated(ctx, kind, room_id, event.Id, att); err != nil {
+		if err := c.RecordAssetCreated(ctx, user_id, kind, room_id, event.Id, att); err != nil {
 			c.logger.Warn("Failed to publish asset creation event",
 				"room_id", room_id,
 				"message_event_id", event.Id,
@@ -242,7 +242,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				"attachment_id", att.GetId())
 			continue
 		}
-		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, kind, room_id, event.Id, att); err != nil {
+		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, user_id, kind, room_id, event.Id, att); err != nil {
 			c.logger.Warn("Failed to schedule video processing",
 				"room_id", room_id,
 				"message_event_id", event.Id,
@@ -555,14 +555,14 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// best-effort, log warnings, keep going.
 	if body != nil {
 		for _, att := range c.MessageBodyAttachments(body) {
-			c.DeleteVideoDerivativesForAttachment(ctx, kind, att.GetId())
+			c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, att.GetId())
 			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
 				c.logger.Warn("Failed to delete attachment during message deletion",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
 					"error", err)
 			}
-			if err := c.RecordAssetDeleted(ctx, kind, roomID, att.GetId()); err != nil {
+			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, att.GetId()); err != nil {
 				c.logger.Warn("Failed to publish asset deletion event",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
@@ -824,14 +824,14 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 	}
 
 	if removed != nil {
-		c.DeleteVideoDerivativesForAttachment(ctx, kind, removed.GetId())
+		c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, removed.GetId())
 		if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
 			c.logger.Warn("Failed to delete attachment file after removing from message",
 				"attachment_id", attachmentID,
 				"message_body_key", messageBodyKey,
 				"error", delErr)
 		}
-		if err := c.RecordAssetDeleted(ctx, kind, roomID, removed.GetId()); err != nil {
+		if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, removed.GetId()); err != nil {
 			c.logger.Warn("Failed to publish asset deletion event",
 				"attachment_id", attachmentID,
 				"message_body_key", messageBodyKey,

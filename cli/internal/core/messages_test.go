@@ -540,7 +540,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 	}
 	postedMessage := roomEvent.GetMessagePosted()
 
-	if err := core.RecordAssetProcessed(ctx, KindChannel, room.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
+	if err := core.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
 		{
 			AttachmentId: variantAttachment.Id,
 			Quality:      "720p",
