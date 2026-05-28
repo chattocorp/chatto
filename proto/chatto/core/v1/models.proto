@@ -107,6 +107,45 @@ message Asset {
   AssetStorage storage = 7;
 }
 
+message AssetOwner {
+  // Durable owner of a source asset. The owner determines the aggregate and
+  // authorization scope without making Asset itself room/message-specific.
+  oneof owner {
+    MessageAssetOwner message = 1;
+    RoomAssetOwner room = 2;
+    UserAssetOwner user = 3;
+    ServerAssetOwner server = 4;
+  }
+}
+
+message MessageAssetOwner {
+  // Room containing the owning message.
+  string room_id = 1;
+
+  // Event ID of the message containing the source attachment.
+  string message_event_id = 2;
+}
+
+message RoomAssetOwner {
+  // Room containing the standalone room attachment.
+  string room_id = 1;
+
+  // Event ID of a future room-attachment-created event.
+  string room_attachment_event_id = 2;
+}
+
+message UserAssetOwner {
+  string user_id = 1;
+
+  // Stable slot name such as "avatar".
+  string asset_role = 2;
+}
+
+message ServerAssetOwner {
+  // Stable slot name such as "icon" or "banner".
+  string asset_role = 1;
+}
+
 message RoomMembership {
   string user_id = 1;
   reserved 2; // was space_id, redundant with KV bucket name

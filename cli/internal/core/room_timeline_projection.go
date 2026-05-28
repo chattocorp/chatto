@@ -496,10 +496,10 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if owner := event.GetMessage(); owner != nil {
+	if owner := event.GetOwner().GetMessage(); owner != nil {
 		return owner.GetRoomId()
 	}
-	if owner := event.GetRoom(); owner != nil {
+	if owner := event.GetOwner().GetRoom(); owner != nil {
 		return owner.GetRoomId()
 	}
 	return ""
@@ -509,7 +509,7 @@ func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if owner := event.GetMessage(); owner != nil {
+	if owner := event.GetOwner().GetMessage(); owner != nil {
 		return owner.GetMessageEventId()
 	}
 	return ""

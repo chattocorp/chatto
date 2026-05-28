@@ -66,10 +66,12 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
 				Event: &corev1.Event_AssetCreated{
 					AssetCreated: &corev1.AssetCreatedEvent{
 						SourceAvailable: c.attachmentBinaryAvailable(ctx, declaredAttachment),
-						Owner: &corev1.AssetCreatedEvent_Message{
-							Message: &corev1.MessageAssetOwner{
-								RoomId:         posted.GetRoomId(),
-								MessageEventId: messageEventID,
+						Owner: &corev1.AssetOwner{
+							Owner: &corev1.AssetOwner_Message{
+								Message: &corev1.MessageAssetOwner{
+									RoomId:         posted.GetRoomId(),
+									MessageEventId: messageEventID,
+								},
 							},
 						},
 						Asset: assetFromAttachment(declaredAttachment),

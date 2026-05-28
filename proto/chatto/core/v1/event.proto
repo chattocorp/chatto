@@ -774,42 +774,10 @@ message AssetCreatedEvent {
   // Full source asset metadata, including storage pointer.
   Asset asset = 2;
 
-  // Durable owner of the source asset. The owner determines the aggregate and
-  // authorization scope without making Asset itself room/message-specific.
-  oneof owner {
-    MessageAssetOwner message = 10;
-    RoomAssetOwner room = 11;
-    UserAssetOwner user = 12;
-    ServerAssetOwner server = 13;
-  }
-}
-
-message MessageAssetOwner {
-  // Room containing the owning message.
-  string room_id = 1;
-
-  // Event ID of the message containing the source attachment.
-  string message_event_id = 2;
-}
-
-message RoomAssetOwner {
-  // Room containing the standalone room attachment.
-  string room_id = 1;
-
-  // Event ID of a future room-attachment-created event.
-  string room_attachment_event_id = 2;
-}
-
-message UserAssetOwner {
-  string user_id = 1;
-
-  // Stable slot name such as "avatar".
-  string asset_role = 2;
-}
-
-message ServerAssetOwner {
-  // Stable slot name such as "icon" or "banner".
-  string asset_role = 1;
+  // Durable owner of the source asset. This is kept outside Asset so derivative
+  // Asset protos can stay pure binary metadata while still sharing the same
+  // owner model for message, room, user, and server assets.
+  AssetOwner owner = 3;
 }
 
 // AssetProcessingSucceededEvent records that asset processing
