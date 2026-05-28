@@ -848,7 +848,7 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 			continue
 		}
 		if !c.attachmentBinaryAvailable(ctx, req.Attachment) {
-			if err := c.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.Attachment.GetId(), "original_missing", "Video is unavailable because the original upload is missing."); err != nil {
+			if err := c.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.Attachment.GetId(), "original_missing"); err != nil {
 				c.logger.Warn("Failed to record missing original during video recovery", "attachment_id", req.Attachment.GetId(), "error", err)
 			}
 			continue
@@ -912,7 +912,8 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				RoomId: roomID,
+				RoomId:          roomID,
+				SourceAvailable: true,
 				Owner: &corev1.AssetCreatedEvent_MessageEventId{
 					MessageEventId: messageEventID,
 				},
@@ -933,7 +934,7 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 
 // RecordAssetProcessed builds and publishes a durable processed-video
 // manifest for an original video attachment.
-func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, roomID, attachmentID string, sourceAvailable bool, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, roomID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
 	for _, variant := range variants {
 		if variant == nil {
@@ -950,8 +951,7 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId:         attachmentID,
-				SourceAvailable: sourceAvailable,
+				AssetId: attachmentID,
 				Result: &corev1.AssetProcessingSucceededEvent_Video{
 					Video: &corev1.AssetProcessedVideo{
 						DurationMs:     durationMs,
@@ -969,13 +969,12 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 
 // RecordAssetProcessingFailed builds and publishes a durable failed
 // video-processing outcome.
-func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, kind RoomKind, roomID, attachmentID string, reason, errorMessage string) error {
+func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, kind RoomKind, roomID, attachmentID string, reasonCode string) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:      attachmentID,
-				Reason:       reason,
-				ErrorMessage: errorMessage,
+				AssetId:    attachmentID,
+				ReasonCode: reasonCode,
 			},
 		},
 	})

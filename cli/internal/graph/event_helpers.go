@@ -176,6 +176,14 @@ func (r *Resolver) assetCreationForProcessing(assetID string) (*corev1.AssetCrea
 	return declared, nil
 }
 
+func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool) bool {
+	created, ok := r.core.RoomTimeline.AssetCreation(assetID)
+	if !ok || created == nil {
+		return fallback
+	}
+	return created.GetSourceAvailable()
+}
+
 // unwrapEventAs unwraps a proto Event and asserts the payload to the
 // requested GraphQL union interface (model.RoomEventType or
 // model.ServerEventType). Returns a typed error for nil payloads and

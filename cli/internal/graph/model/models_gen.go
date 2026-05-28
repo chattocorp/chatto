@@ -1651,7 +1651,7 @@ const (
 	VideoProcessingStatusProcessing VideoProcessingStatus = "PROCESSING"
 	// Transcoding finished; at least one variant is available for playback.
 	VideoProcessingStatusCompleted VideoProcessingStatus = "COMPLETED"
-	// Transcoding failed; `errorMessage` describes the failure and no variants are available.
+	// Transcoding failed; `reasonCode` describes the failure and no variants are available.
 	VideoProcessingStatusFailed VideoProcessingStatus = "FAILED"
 )
 

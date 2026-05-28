@@ -54,8 +54,9 @@ func TestVideoManifestMigration_CompletedImportsWithoutOriginal(t *testing.T) {
 	if !ok || manifest.Succeeded == nil {
 		t.Fatal("expected processed manifest")
 	}
-	if manifest.Succeeded.SourceAvailable {
-		t.Fatal("expected source_available=false for missing original")
+	created, ok := core.RoomTimeline.AssetCreation(original.Id)
+	if !ok || created.GetSourceAvailable() {
+		t.Fatal("expected source_available=false on migrated asset creation")
 	}
 	video := manifest.Succeeded.GetVideo()
 	if video == nil {
@@ -90,7 +91,7 @@ func TestVideoManifestMigration_PendingMissingOriginalImportsUnavailable(t *test
 	if !ok || manifest.Failed == nil {
 		t.Fatal("expected failed manifest")
 	}
-	if got := manifest.Failed.GetReason(); got != "original_missing" {
+	if got := manifest.Failed.GetReasonCode(); got != "original_missing" {
 		t.Fatalf("failure reason = %q, want original_missing", got)
 	}
 }
@@ -113,7 +114,7 @@ func TestVideoManifestMigration_UntrackedMissingOriginalImportsUnavailable(t *te
 	if !ok || manifest.Failed == nil {
 		t.Fatal("expected failed manifest")
 	}
-	if got := manifest.Failed.GetReason(); got != "original_missing" {
+	if got := manifest.Failed.GetReasonCode(); got != "original_missing" {
 		t.Fatalf("failure reason = %q, want original_missing", got)
 	}
 }
@@ -124,6 +125,9 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 
 	if err := core.storage.serverRuntimeKV.Delete(ctx, videoManifestESMigrationKey); err != nil {
 		t.Fatalf("delete migration sentinel: %v", err)
+	}
+	if err := core.storage.serverRuntimeKV.Delete(ctx, assetCreationESMigrationKey); err != nil {
+		t.Fatalf("delete asset creation migration sentinel: %v", err)
 	}
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Video", "Video room")
 	if err != nil {
@@ -140,8 +144,29 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 	if err != nil {
 		t.Fatalf("upload original: %v", err)
 	}
-	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "video", []*corev1.Attachment{original}, "", "", nil, false); err != nil {
-		t.Fatalf("post message: %v", err)
+	legacyPost := newEvent(user.Id, &corev1.Event{
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId: room.Id,
+				Body: &corev1.MessageBody{
+					AuthorId:    user.Id,
+					Attachments: []*corev1.Attachment{original},
+				},
+			},
+		},
+	})
+	legacyPost.GetMessagePosted().MessageBodyId = legacyPost.Id
+	legacyPost.GetMessagePosted().EventId = legacyPost.Id
+	original.MessageBodyId = legacyPost.Id
+	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyPost), legacyPost); err != nil {
+		t.Fatalf("append legacy message: %v", err)
+	}
+	_, seq, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventMessagePosted))
+	if err != nil {
+		t.Fatalf("read legacy message subject: %v", err)
+	}
+	if err := core.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		t.Fatalf("wait for legacy message projection: %v", err)
 	}
 	return room, user, original
 }

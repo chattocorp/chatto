@@ -24,7 +24,7 @@
           height
           size
         }
-        errorMessage
+        reasonCode
       }
     }
   `);
@@ -146,7 +146,7 @@
             thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
             width={attachment.videoProcessing.width}
             height={attachment.videoProcessing.height}
-            errorMessage={attachment.videoProcessing.errorMessage}
+            reasonCode={attachment.videoProcessing.reasonCode}
             sourceAvailable={attachment.videoProcessing.sourceAvailable}
             originalUrl={attachment.url}
             filename={attachment.filename}
@@ -211,7 +211,7 @@
             thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
             width={attachment.videoProcessing.width}
             height={attachment.videoProcessing.height}
-            errorMessage={attachment.videoProcessing.errorMessage}
+            reasonCode={attachment.videoProcessing.reasonCode}
             sourceAvailable={attachment.videoProcessing.sourceAvailable}
             originalUrl={attachment.url}
             filename={attachment.filename}

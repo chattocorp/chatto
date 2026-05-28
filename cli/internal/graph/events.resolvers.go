@@ -116,7 +116,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 				Status:             model.VideoProcessingStatusCompleted,
 				RoomID:             obj.RoomId,
 				OriginAttachmentID: obj.Id,
-				SourceAvailable:    succeeded.GetSourceAvailable(),
+				SourceAvailable:    r.assetSourceAvailable(obj.Id, true),
 			}
 			if video.DurationMs > 0 {
 				d := video.DurationMs
@@ -149,14 +149,11 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 			return result, nil
 		}
 		if failed := manifest.Failed; failed != nil {
-			errMsg := failed.GetErrorMessage()
-			if errMsg == "" {
-				errMsg = "Video processing failed. Please try uploading again."
-			}
-			sourceAvailable := failed.GetReason() != "original_missing"
+			reasonCode := failed.GetReasonCode()
+			sourceAvailable := reasonCode != "original_missing" && r.assetSourceAvailable(obj.Id, true)
 			return &model.VideoProcessing{
 				Status:             model.VideoProcessingStatusFailed,
-				ErrorMessage:       &errMsg,
+				ReasonCode:         &reasonCode,
 				RoomID:             obj.RoomId,
 				OriginAttachmentID: obj.Id,
 				SourceAvailable:    sourceAvailable,
@@ -211,7 +208,8 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		result.Height = &state.Height
 	}
 	if state.ErrorMessage != "" {
-		result.ErrorMessage = &state.ErrorMessage
+		reasonCode := "processing_failed"
+		result.ReasonCode = &reasonCode
 	}
 
 	for _, v := range state.Variants {

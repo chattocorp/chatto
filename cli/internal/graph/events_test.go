@@ -141,8 +141,7 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 		Id: "ENV-VIDEO",
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId:         attachment.Id,
-				SourceAvailable: true,
+				AssetId: attachment.Id,
 				Result: &corev1.AssetProcessingSucceededEvent_Video{
 					Video: &corev1.AssetProcessedVideo{
 						DurationMs: 1234,
@@ -202,9 +201,8 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 		Id: "ENV-VIDEO-FAILED",
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:      attachment.Id,
-				Reason:       "original_missing",
-				ErrorMessage: "missing original",
+				AssetId:    attachment.Id,
+				ReasonCode: "original_missing",
 			},
 		},
 	}
@@ -225,8 +223,8 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 	if got.SourceAvailable {
 		t.Fatal("SourceAvailable = true, want false")
 	}
-	if got.ErrorMessage == nil || *got.ErrorMessage != "missing original" {
-		t.Fatalf("ErrorMessage = %v, want missing original", got.ErrorMessage)
+	if got.ReasonCode == nil || *got.ReasonCode != "original_missing" {
+		t.Fatalf("ReasonCode = %v, want original_missing", got.ReasonCode)
 	}
 }
 
@@ -235,7 +233,8 @@ func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType str
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				RoomId: roomID,
+				RoomId:          roomID,
+				SourceAvailable: true,
 				Owner: &corev1.AssetCreatedEvent_MessageEventId{
 					MessageEventId: messageEventID,
 				},

@@ -8,7 +8,7 @@ type VideoProcessing struct {
 	DurationMs            *int64
 	Width                 *int32
 	Height                *int32
-	ErrorMessage          *string
+	ReasonCode            *string
 	SourceAvailable       bool
 	Variants              []*VideoVariant
 	RoomID                string // internal: for locator

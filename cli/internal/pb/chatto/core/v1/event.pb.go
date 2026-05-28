@@ -906,15 +906,16 @@ type Event_MessageRetracted struct {
 
 type Event_AssetCreated struct {
 	// Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
-	AssetCreated *AssetCreatedEvent `protobuf:"bytes,404,opt,name=asset_created,json=assetCreated,proto3,oneof"`
+	// ----- Room assets (450-459, durable) -----
+	AssetCreated *AssetCreatedEvent `protobuf:"bytes,450,opt,name=asset_created,json=assetCreated,proto3,oneof"`
 }
 
 type Event_AssetProcessingSucceeded struct {
-	AssetProcessingSucceeded *AssetProcessingSucceededEvent `protobuf:"bytes,405,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
+	AssetProcessingSucceeded *AssetProcessingSucceededEvent `protobuf:"bytes,451,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
 }
 
 type Event_AssetProcessingFailed struct {
-	AssetProcessingFailed *AssetProcessingFailedEvent `protobuf:"bytes,406,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
+	AssetProcessingFailed *AssetProcessingFailedEvent `protobuf:"bytes,452,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
 }
 
 type Event_ServerConfigChanged struct {
@@ -4368,7 +4369,11 @@ func (x *MessageDeletedEvent) GetMessageEventId() string {
 type AssetCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room ID containing or owning the source attachment.
-	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Whether the source/original binary was available when this asset creation
+	// event was written/imported. New uploads are true; legacy migrated assets may
+	// be false because older pipelines deleted originals after transcoding.
+	SourceAvailable bool `protobuf:"varint,2,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
 	// Durable owner of the source attachment. Today this is a message; future
 	// room-level attachments can use the room branch without changing the FSM.
 	//
@@ -4418,6 +4423,13 @@ func (x *AssetCreatedEvent) GetRoomId() string {
 		return x.RoomId
 	}
 	return ""
+}
+
+func (x *AssetCreatedEvent) GetSourceAvailable() bool {
+	if x != nil {
+		return x.SourceAvailable
+	}
+	return false
 }
 
 func (x *AssetCreatedEvent) GetOwner() isAssetCreatedEvent_Owner {
@@ -4475,11 +4487,7 @@ func (*AssetCreatedEvent_RoomAttachmentEventId) isAssetCreatedEvent_Owner() {}
 type AssetProcessingSucceededEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Asset ID of the source/original asset.
-	AssetId string `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Whether the original uploaded binary was available when this manifest
-	// was written/imported. Legacy processed videos may have false here because
-	// the old pipeline deleted originals after transcoding.
-	SourceAvailable bool `protobuf:"varint,3,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Processing result. Passthrough means the original source asset is the
 	// display asset; media-specific branches can carry derivative assets.
 	//
@@ -4528,13 +4536,6 @@ func (x *AssetProcessingSucceededEvent) GetAssetId() string {
 		return x.AssetId
 	}
 	return ""
-}
-
-func (x *AssetProcessingSucceededEvent) GetSourceAvailable() bool {
-	if x != nil {
-		return x.SourceAvailable
-	}
-	return false
 }
 
 func (x *AssetProcessingSucceededEvent) GetResult() isAssetProcessingSucceededEvent_Result {
@@ -4599,12 +4600,10 @@ func (*AssetProcessingSucceededEvent_Video) isAssetProcessingSucceededEvent_Resu
 type AssetProcessingFailedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Asset ID of the source/original asset.
-	AssetId string `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Stable machine-readable reason, e.g. "processing_failed" or
 	// "original_missing".
-	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	// User-facing error message safe to expose through GraphQL.
-	ErrorMessage  string `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	ReasonCode    string `protobuf:"bytes,2,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4646,16 +4645,9 @@ func (x *AssetProcessingFailedEvent) GetAssetId() string {
 	return ""
 }
 
-func (x *AssetProcessingFailedEvent) GetReason() string {
+func (x *AssetProcessingFailedEvent) GetReasonCode() string {
 	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *AssetProcessingFailedEvent) GetErrorMessage() string {
-	if x != nil {
-		return x.ErrorMessage
+		return x.ReasonCode
 	}
 	return ""
 }
@@ -4663,7 +4655,7 @@ func (x *AssetProcessingFailedEvent) GetErrorMessage() string {
 type AssetProcessedPassthrough struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Display asset. Usually the source asset itself.
-	Asset         *Asset `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	SourceAsset   *Asset `protobuf:"bytes,1,opt,name=source_asset,json=sourceAsset,proto3" json:"source_asset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4698,9 +4690,9 @@ func (*AssetProcessedPassthrough) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{57}
 }
 
-func (x *AssetProcessedPassthrough) GetAsset() *Asset {
+func (x *AssetProcessedPassthrough) GetSourceAsset() *Asset {
 	if x != nil {
-		return x.Asset
+		return x.SourceAsset
 	}
 	return nil
 }
@@ -4709,7 +4701,7 @@ type AssetProcessedImage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Display image asset. Usually the source asset itself after
 	// dimensions and transform eligibility are known.
-	Asset         *Asset `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	ImageAsset    *Asset `protobuf:"bytes,1,opt,name=image_asset,json=imageAsset,proto3" json:"image_asset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4744,9 +4736,9 @@ func (*AssetProcessedImage) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{58}
 }
 
-func (x *AssetProcessedImage) GetAsset() *Asset {
+func (x *AssetProcessedImage) GetImageAsset() *Asset {
 	if x != nil {
-		return x.Asset
+		return x.ImageAsset
 	}
 	return nil
 }
@@ -5813,9 +5805,9 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x0emessage_posted\x18\x90\x03 \x01(\v2\".chatto.core.v1.MessagePostedEventH\x00R\rmessagePosted\x12L\n" +
 	"\x0emessage_edited\x18\x91\x03 \x01(\v2\".chatto.core.v1.MessageEditedEventH\x00R\rmessageEdited\x12U\n" +
 	"\x11message_retracted\x18\x92\x03 \x01(\v2%.chatto.core.v1.MessageRetractedEventH\x00R\x10messageRetracted\x12I\n" +
-	"\rasset_created\x18\x94\x03 \x01(\v2!.chatto.core.v1.AssetCreatedEventH\x00R\fassetCreated\x12n\n" +
-	"\x1aasset_processing_succeeded\x18\x95\x03 \x01(\v2-.chatto.core.v1.AssetProcessingSucceededEventH\x00R\x18assetProcessingSucceeded\x12e\n" +
-	"\x17asset_processing_failed\x18\x96\x03 \x01(\v2*.chatto.core.v1.AssetProcessingFailedEventH\x00R\x15assetProcessingFailed\x12_\n" +
+	"\rasset_created\x18\xc2\x03 \x01(\v2!.chatto.core.v1.AssetCreatedEventH\x00R\fassetCreated\x12n\n" +
+	"\x1aasset_processing_succeeded\x18\xc3\x03 \x01(\v2-.chatto.core.v1.AssetProcessingSucceededEventH\x00R\x18assetProcessingSucceeded\x12e\n" +
+	"\x17asset_processing_failed\x18\xc4\x03 \x01(\v2*.chatto.core.v1.AssetProcessingFailedEventH\x00R\x15assetProcessingFailed\x12_\n" +
 	"\x15server_config_changed\x18\xf4\x03 \x01(\v2(.chatto.core.v1.ServerConfigChangedEventH\x00R\x13serverConfigChanged\x12V\n" +
 	"\x12room_group_created\x18\xd8\x04 \x01(\v2%.chatto.core.v1.RoomGroupCreatedEventH\x00R\x10roomGroupCreated\x12V\n" +
 	"\x12room_group_updated\x18\xd9\x04 \x01(\v2%.chatto.core.v1.RoomGroupUpdatedEventH\x00R\x10roomGroupUpdated\x12V\n" +
@@ -6063,30 +6055,31 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x13MessageDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\xd9\x01\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\xf4\x01\n" +
 	"\x11AssetCreatedEvent\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12*\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12)\n" +
+	"\x10source_available\x18\x02 \x01(\bR\x0fsourceAvailable\x12*\n" +
 	"\x10message_event_id\x18\n" +
 	" \x01(\tH\x00R\x0emessageEventId\x129\n" +
 	"\x18room_attachment_event_id\x18\v \x01(\tH\x00R\x15roomAttachmentEventId\x12+\n" +
 	"\x05asset\x18\x14 \x01(\v2\x15.chatto.core.v1.AssetR\x05assetB\a\n" +
-	"\x05ownerJ\x04\b\x01\x10\x02R\bspace_id\"\xc8\x02\n" +
+	"\x05owner\"\x8d\x02\n" +
 	"\x1dAssetProcessingSucceededEvent\x12\x19\n" +
-	"\basset_id\x18\x02 \x01(\tR\aassetId\x12)\n" +
-	"\x10source_available\x18\x03 \x01(\bR\x0fsourceAvailable\x12M\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12M\n" +
 	"\vpassthrough\x18\n" +
 	" \x01(\v2).chatto.core.v1.AssetProcessedPassthroughH\x00R\vpassthrough\x12;\n" +
 	"\x05image\x18\v \x01(\v2#.chatto.core.v1.AssetProcessedImageH\x00R\x05image\x12;\n" +
 	"\x05video\x18\f \x01(\v2#.chatto.core.v1.AssetProcessedVideoH\x00R\x05videoB\b\n" +
-	"\x06resultJ\x04\b\x01\x10\x02R\bspace_id\"\x84\x01\n" +
+	"\x06result\"X\n" +
 	"\x1aAssetProcessingFailedEvent\x12\x19\n" +
-	"\basset_id\x18\x02 \x01(\tR\aassetId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\x12#\n" +
-	"\rerror_message\x18\x04 \x01(\tR\ferrorMessageJ\x04\b\x01\x10\x02R\bspace_id\"H\n" +
-	"\x19AssetProcessedPassthrough\x12+\n" +
-	"\x05asset\x18\x01 \x01(\v2\x15.chatto.core.v1.AssetR\x05asset\"B\n" +
-	"\x13AssetProcessedImage\x12+\n" +
-	"\x05asset\x18\x01 \x01(\v2\x15.chatto.core.v1.AssetR\x05asset\"\xe3\x01\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1f\n" +
+	"\vreason_code\x18\x02 \x01(\tR\n" +
+	"reasonCode\"U\n" +
+	"\x19AssetProcessedPassthrough\x128\n" +
+	"\fsource_asset\x18\x01 \x01(\v2\x15.chatto.core.v1.AssetR\vsourceAsset\"M\n" +
+	"\x13AssetProcessedImage\x126\n" +
+	"\vimage_asset\x18\x01 \x01(\v2\x15.chatto.core.v1.AssetR\n" +
+	"imageAsset\"\xe3\x01\n" +
 	"\x13AssetProcessedVideo\x12\x1f\n" +
 	"\vduration_ms\x18\x01 \x01(\x03R\n" +
 	"durationMs\x12\x14\n" +
@@ -6338,8 +6331,8 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	57, // 83: chatto.core.v1.AssetProcessingSucceededEvent.passthrough:type_name -> chatto.core.v1.AssetProcessedPassthrough
 	58, // 84: chatto.core.v1.AssetProcessingSucceededEvent.image:type_name -> chatto.core.v1.AssetProcessedImage
 	59, // 85: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
-	85, // 86: chatto.core.v1.AssetProcessedPassthrough.asset:type_name -> chatto.core.v1.Asset
-	85, // 87: chatto.core.v1.AssetProcessedImage.asset:type_name -> chatto.core.v1.Asset
+	85, // 86: chatto.core.v1.AssetProcessedPassthrough.source_asset:type_name -> chatto.core.v1.Asset
+	85, // 87: chatto.core.v1.AssetProcessedImage.image_asset:type_name -> chatto.core.v1.Asset
 	85, // 88: chatto.core.v1.AssetProcessedVideo.thumbnail_asset:type_name -> chatto.core.v1.Asset
 	60, // 89: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
 	85, // 90: chatto.core.v1.AssetVideoVariant.asset:type_name -> chatto.core.v1.Asset

@@ -327,7 +327,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
 	if err != nil {
 		s.logger.Warn("Failed to resolve room kind for video processed event", "error", err)
-	} else if err := s.core.RecordAssetProcessed(ctx, kind, req.RoomID, req.AttachmentID, true, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants); err != nil {
+	} else if err := s.core.RecordAssetProcessed(ctx, kind, req.RoomID, req.AttachmentID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants); err != nil {
 		s.logger.Warn("Failed to publish video processed event", "error", err)
 	}
 	s.core.ClearVideoProcessingState(req.AttachmentID)
@@ -359,7 +359,7 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 	kind, kindErr := s.core.FindRoomKind(ctx, req.RoomID)
 	if kindErr != nil {
 		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
-	} else if err := s.core.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.AttachmentID, "processing_failed", state.ErrorMessage); err != nil {
+	} else if err := s.core.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.AttachmentID, "processing_failed"); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	s.core.ClearVideoProcessingState(req.AttachmentID)

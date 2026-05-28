@@ -133,7 +133,7 @@ type ComplexityRoot struct {
 	AssetProcessingFailedEvent struct {
 		AssetId        func(childComplexity int) int
 		MessageEventID func(childComplexity int) int
-		Reason         func(childComplexity int) int
+		ReasonCode     func(childComplexity int) int
 		RoomID         func(childComplexity int) int
 	}
 
@@ -843,8 +843,8 @@ type ComplexityRoot struct {
 
 	VideoProcessing struct {
 		DurationMs      func(childComplexity int) int
-		ErrorMessage    func(childComplexity int) int
 		Height          func(childComplexity int) int
+		ReasonCode      func(childComplexity int) int
 		SourceAvailable func(childComplexity int) int
 		Status          func(childComplexity int) int
 		ThumbnailURL    func(childComplexity int) int
@@ -1455,12 +1455,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AssetProcessingFailedEvent.MessageEventID(childComplexity), true
-	case "AssetProcessingFailedEvent.reason":
-		if e.complexity.AssetProcessingFailedEvent.Reason == nil {
+	case "AssetProcessingFailedEvent.reasonCode":
+		if e.complexity.AssetProcessingFailedEvent.ReasonCode == nil {
 			break
 		}
 
-		return e.complexity.AssetProcessingFailedEvent.Reason(childComplexity), true
+		return e.complexity.AssetProcessingFailedEvent.ReasonCode(childComplexity), true
 	case "AssetProcessingFailedEvent.roomId":
 		if e.complexity.AssetProcessingFailedEvent.RoomID == nil {
 			break
@@ -4710,18 +4710,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.VideoProcessing.DurationMs(childComplexity), true
-	case "VideoProcessing.errorMessage":
-		if e.complexity.VideoProcessing.ErrorMessage == nil {
-			break
-		}
-
-		return e.complexity.VideoProcessing.ErrorMessage(childComplexity), true
 	case "VideoProcessing.height":
 		if e.complexity.VideoProcessing.Height == nil {
 			break
 		}
 
 		return e.complexity.VideoProcessing.Height(childComplexity), true
+	case "VideoProcessing.reasonCode":
+		if e.complexity.VideoProcessing.ReasonCode == nil {
+			break
+		}
+
+		return e.complexity.VideoProcessing.ReasonCode(childComplexity), true
 	case "VideoProcessing.sourceAvailable":
 		if e.complexity.VideoProcessing.SourceAvailable == nil {
 			break
@@ -7467,14 +7467,14 @@ func (ec *executionContext) fieldContext_AssetProcessingFailedEvent_messageEvent
 	return fc, nil
 }
 
-func (ec *executionContext) _AssetProcessingFailedEvent_reason(ctx context.Context, field graphql.CollectedField, obj *corev1.AssetProcessingFailedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _AssetProcessingFailedEvent_reasonCode(ctx context.Context, field graphql.CollectedField, obj *corev1.AssetProcessingFailedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AssetProcessingFailedEvent_reason,
+		ec.fieldContext_AssetProcessingFailedEvent_reasonCode,
 		func(ctx context.Context) (any, error) {
-			return obj.Reason, nil
+			return obj.ReasonCode, nil
 		},
 		nil,
 		ec.marshalNString2string,
@@ -7483,7 +7483,7 @@ func (ec *executionContext) _AssetProcessingFailedEvent_reason(ctx context.Conte
 	)
 }
 
-func (ec *executionContext) fieldContext_AssetProcessingFailedEvent_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AssetProcessingFailedEvent_reasonCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AssetProcessingFailedEvent",
 		Field:      field,
@@ -7904,8 +7904,8 @@ func (ec *executionContext) fieldContext_Attachment_videoProcessing(_ context.Co
 				return ec.fieldContext_VideoProcessing_thumbnailUrl(ctx, field)
 			case "variants":
 				return ec.fieldContext_VideoProcessing_variants(ctx, field)
-			case "errorMessage":
-				return ec.fieldContext_VideoProcessing_errorMessage(ctx, field)
+			case "reasonCode":
+				return ec.fieldContext_VideoProcessing_reasonCode(ctx, field)
 			case "sourceAvailable":
 				return ec.fieldContext_VideoProcessing_sourceAvailable(ctx, field)
 			}
@@ -24592,14 +24592,14 @@ func (ec *executionContext) fieldContext_VideoProcessing_variants(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _VideoProcessing_errorMessage(ctx context.Context, field graphql.CollectedField, obj *model.VideoProcessing) (ret graphql.Marshaler) {
+func (ec *executionContext) _VideoProcessing_reasonCode(ctx context.Context, field graphql.CollectedField, obj *model.VideoProcessing) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_VideoProcessing_errorMessage,
+		ec.fieldContext_VideoProcessing_reasonCode,
 		func(ctx context.Context) (any, error) {
-			return obj.ErrorMessage, nil
+			return obj.ReasonCode, nil
 		},
 		nil,
 		ec.marshalOString2ᚖstring,
@@ -24608,7 +24608,7 @@ func (ec *executionContext) _VideoProcessing_errorMessage(ctx context.Context, f
 	)
 }
 
-func (ec *executionContext) fieldContext_VideoProcessing_errorMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_VideoProcessing_reasonCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "VideoProcessing",
 		Field:      field,
@@ -30211,8 +30211,8 @@ func (ec *executionContext) _AssetProcessingFailedEvent(ctx context.Context, sel
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "reason":
-			out.Values[i] = ec._AssetProcessingFailedEvent_reason(ctx, field, obj)
+		case "reasonCode":
+			out.Values[i] = ec._AssetProcessingFailedEvent_reasonCode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -39523,8 +39523,8 @@ func (ec *executionContext) _VideoProcessing(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "errorMessage":
-			out.Values[i] = ec._VideoProcessing_errorMessage(ctx, field, obj)
+		case "reasonCode":
+			out.Values[i] = ec._VideoProcessing_reasonCode(ctx, field, obj)
 		case "sourceAvailable":
 			out.Values[i] = ec._VideoProcessing_sourceAvailable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

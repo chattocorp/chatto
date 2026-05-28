@@ -86,9 +86,10 @@ message Event {
     MessageEditedEvent message_edited = 401;
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
-    AssetCreatedEvent asset_created = 404;
-    AssetProcessingSucceededEvent asset_processing_succeeded = 405;
-    AssetProcessingFailedEvent asset_processing_failed = 406;
+    // ----- Room assets (450-459, durable) -----
+    AssetCreatedEvent asset_created = 450;
+    AssetProcessingSucceededEvent asset_processing_succeeded = 451;
+    AssetProcessingFailedEvent asset_processing_failed = 452;
 
     // ----- Server config (500-509, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
@@ -765,11 +766,13 @@ message MessageDeletedEvent {
 // uploaded/generated asset. Message bodies may embed attachments for render
 // compatibility, but this event is the asset aggregate root.
 message AssetCreatedEvent {
-  reserved 1;
-  reserved "space_id";
-
   // Room ID containing or owning the source attachment.
-  string room_id = 2;
+  string room_id = 1;
+
+  // Whether the source/original binary was available when this asset creation
+  // event was written/imported. New uploads are true; legacy migrated assets may
+  // be false because older pipelines deleted originals after transcoding.
+  bool source_available = 2;
 
   // Durable owner of the source attachment. Today this is a message; future
   // room-level attachments can use the room branch without changing the FSM.
@@ -788,16 +791,8 @@ message AssetCreatedEvent {
 // AssetProcessingSucceededEvent records that asset processing
 // produced a durable displayable result.
 message AssetProcessingSucceededEvent {
-  reserved 1;
-  reserved "space_id";
-
   // Asset ID of the source/original asset.
-  string asset_id = 2;
-
-  // Whether the original uploaded binary was available when this manifest
-  // was written/imported. Legacy processed videos may have false here because
-  // the old pipeline deleted originals after transcoding.
-  bool source_available = 3;
+  string asset_id = 1;
 
   // Processing result. Passthrough means the original source asset is the
   // display asset; media-specific branches can carry derivative assets.
@@ -812,29 +807,23 @@ message AssetProcessingSucceededEvent {
 // durable failed/unavailable outcome. A later successful event for the same
 // asset supersedes it.
 message AssetProcessingFailedEvent {
-  reserved 1;
-  reserved "space_id";
-
   // Asset ID of the source/original asset.
-  string asset_id = 2;
+  string asset_id = 1;
 
   // Stable machine-readable reason, e.g. "processing_failed" or
   // "original_missing".
-  string reason = 3;
-
-  // User-facing error message safe to expose through GraphQL.
-  string error_message = 4;
+  string reason_code = 2;
 }
 
 message AssetProcessedPassthrough {
   // Display asset. Usually the source asset itself.
-  Asset asset = 1;
+  Asset source_asset = 1;
 }
 
 message AssetProcessedImage {
   // Display image asset. Usually the source asset itself after
   // dimensions and transform eligibility are known.
-  Asset asset = 1;
+  Asset image_asset = 1;
 }
 
 // AssetProcessedVideo records processed video/GIF derivative assets.

@@ -90,41 +90,36 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 			}
 			if len(variants) == 0 {
 				if !sourceAvailable {
-					if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing", "Video is unavailable because the original upload and processed variants are missing."); err != nil {
+					if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
 						return err
 					}
 					imported++
 				}
 				continue
 			}
-			if err := c.appendVideoProcessedMigrationEvent(ctx, ref, attachmentID, sourceAvailable, &state, thumbnail, variants); err != nil {
+			if err := c.appendVideoProcessedMigrationEvent(ctx, ref, attachmentID, &state, thumbnail, variants); err != nil {
 				return err
 			}
 			imported++
 		case corev1.VideoStatus_VIDEO_STATUS_FAILED:
-			msg := state.GetErrorMessage()
-			if msg == "" {
-				msg = "Video processing failed. Please try uploading again."
-			}
 			reason := "processing_failed"
 			if !sourceAvailable {
 				reason = "original_missing"
-				msg = "Video is unavailable because the original upload is missing."
 			}
-			if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, reason, msg); err != nil {
+			if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, reason); err != nil {
 				return err
 			}
 			imported++
 		case corev1.VideoStatus_VIDEO_STATUS_PENDING, corev1.VideoStatus_VIDEO_STATUS_PROCESSING:
 			if !sourceAvailable {
-				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing", "Video is unavailable because the original upload is missing."); err != nil {
+				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
 					return err
 				}
 				imported++
 			}
 		default:
 			if !sourceAvailable {
-				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing", "Video is unavailable because the original upload is missing."); err != nil {
+				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
 					return err
 				}
 				imported++
@@ -138,7 +133,7 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 		if ref == nil || ref.attachment == nil || c.attachmentBinaryAvailable(ctx, ref.attachment) {
 			continue
 		}
-		if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing", "Video is unavailable because the original upload is missing."); err != nil {
+		if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, "original_missing"); err != nil {
 			return err
 		}
 		imported++
@@ -170,7 +165,7 @@ func (c *ChattoCore) listLegacyVideoStateKeys(ctx context.Context) ([]string, er
 	return keys, nil
 }
 
-func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, sourceAvailable bool, state *corev1.VideoProcessingState, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, state *corev1.VideoProcessingState, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
 	for _, variant := range variants {
 		if variant == nil {
@@ -187,8 +182,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId:         attachmentID,
-				SourceAvailable: sourceAvailable,
+				AssetId: attachmentID,
 				Result: &corev1.AssetProcessingSucceededEvent_Video{
 					Video: &corev1.AssetProcessedVideo{
 						DurationMs:     state.GetDurationMs(),
@@ -205,13 +199,12 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	return err
 }
 
-func (c *ChattoCore) appendVideoFailedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, reason, message string) error {
+func (c *ChattoCore) appendVideoFailedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, attachmentID string, reasonCode string) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:      attachmentID,
-				Reason:       reason,
-				ErrorMessage: message,
+				AssetId:    attachmentID,
+				ReasonCode: reasonCode,
 			},
 		},
 	})

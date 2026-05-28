@@ -528,7 +528,7 @@ type AssetProcessingFailedEvent {
   "The event ID of the message containing the attachment, when message-owned."
   messageEventId: ID! @goField(forceResolver: true)
   "Stable machine-readable reason."
-  reason: String!
+  reasonCode: String!
 }
 
 # ==============================================================================
@@ -732,8 +732,8 @@ type VideoProcessing {
   thumbnailUrl: String @goField(forceResolver: true)
   "Available quality variants."
   variants: [VideoVariant!]!
-  "Error message if processing failed."
-  errorMessage: String
+  "Stable machine-readable failure reason."
+  reasonCode: String
   "Whether the original uploaded video binary is available for fallback playback."
   sourceAvailable: Boolean!
 }
@@ -760,6 +760,6 @@ enum VideoProcessingStatus {
   PROCESSING
   "Transcoding finished; at least one variant is available for playback."
   COMPLETED
-  "Transcoding failed; `errorMessage` describes the failure and no variants are available."
+  "Transcoding failed; `reasonCode` describes the failure and no variants are available."
   FAILED
 }

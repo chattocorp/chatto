@@ -65,7 +65,8 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
 			declaration := newEvent("", &corev1.Event{
 				Event: &corev1.Event_AssetCreated{
 					AssetCreated: &corev1.AssetCreatedEvent{
-						RoomId: posted.GetRoomId(),
+						RoomId:          posted.GetRoomId(),
+						SourceAvailable: c.attachmentBinaryAvailable(ctx, declaredAttachment),
 						Owner: &corev1.AssetCreatedEvent_MessageEventId{
 							MessageEventId: messageEventID,
 						},
