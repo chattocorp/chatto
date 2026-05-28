@@ -181,6 +181,18 @@ func (s *S3Client) StatObject(ctx context.Context, key string) (*S3ObjectInfo, e
 	}, nil
 }
 
+// IsNoSuchKeyError reports whether err came from S3 returning a definitive
+// "object does not exist" response (404 / NoSuchKey). All other errors —
+// network failures, timeouts, auth errors, misconfigured endpoint — return
+// false so callers can distinguish "we know it's gone" from "we can't tell".
+func IsNoSuchKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	resp := minio.ToErrorResponse(err)
+	return resp.Code == "NoSuchKey" || resp.StatusCode == 404
+}
+
 // PresignedGetURL generates a presigned GET URL for an S3 object.
 // The URL is valid for the specified duration (max 7 days).
 func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.Duration) (*url.URL, error) {

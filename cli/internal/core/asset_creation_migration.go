@@ -78,10 +78,14 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr erro
 				declaredAttachment.MessageBodyId = messageEventID
 			}
 			asset := assetFromAttachment(declaredAttachment)
+			// Optimistic on Unknown: only flip StorageAvailable=false when
+			// storage definitively confirms the binary is gone. Treating an
+			// unreachable backend as "missing" would burn that into EVT.
+			storageAvailable := c.attachmentBinaryStatus(ctx, declaredAttachment) != AttachmentBinaryMissing
 			declaration := newEvent(SystemActorID, &corev1.Event{
 				Event: &corev1.Event_AssetCreated{
 					AssetCreated: &corev1.AssetCreatedEvent{
-						StorageAvailable: c.attachmentBinaryAvailable(ctx, declaredAttachment),
+						StorageAvailable: storageAvailable,
 						Asset:            asset,
 						RoomId:           posted.GetRoomId(),
 						MessageEventId:   messageEventID,

@@ -84,19 +84,28 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) (retErr erro
 			continue
 		}
 
-		sourceAvailable := c.attachmentBinaryAvailable(ctx, ref.attachment)
+		sourceStatus := c.attachmentBinaryStatus(ctx, ref.attachment)
+		// Only emit a durable SOURCE_MISSING outcome when storage definitively
+		// confirms the source binary is gone. Unknown status (S3 unreachable,
+		// missing client config, transient errors) is treated as "can't tell"
+		// and falls through to skip — a later boot in a properly-configured
+		// environment can fill in the manifest.
+		sourceDefinitelyMissing := sourceStatus == AttachmentBinaryMissing
 		switch state.Status {
 		case corev1.VideoStatus_VIDEO_STATUS_COMPLETED:
 			thumbnail := c.usableAttachment(ctx, state.ThumbnailAttachment)
 			var variants []*corev1.VideoVariant
 			for _, variant := range state.Variants {
-				if variant == nil || variant.Attachment == nil || !c.attachmentBinaryAvailable(ctx, variant.Attachment) {
+				if variant == nil || variant.Attachment == nil {
+					continue
+				}
+				if c.attachmentBinaryStatus(ctx, variant.Attachment) != AttachmentBinaryPresent {
 					continue
 				}
 				variants = append(variants, proto.Clone(variant).(*corev1.VideoVariant))
 			}
 			if len(variants) == 0 {
-				if !sourceAvailable {
+				if sourceDefinitelyMissing {
 					if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 						return err
 					}
@@ -110,7 +119,7 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) (retErr erro
 			imported++
 		case corev1.VideoStatus_VIDEO_STATUS_FAILED:
 			failureCode := corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED
-			if !sourceAvailable {
+			if sourceDefinitelyMissing {
 				failureCode = corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING
 			}
 			if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, failureCode); err != nil {
@@ -118,14 +127,14 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) (retErr erro
 			}
 			imported++
 		case corev1.VideoStatus_VIDEO_STATUS_PENDING, corev1.VideoStatus_VIDEO_STATUS_PROCESSING:
-			if !sourceAvailable {
+			if sourceDefinitelyMissing {
 				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 					return err
 				}
 				imported++
 			}
 		default:
-			if !sourceAvailable {
+			if sourceDefinitelyMissing {
 				if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 					return err
 				}
@@ -137,7 +146,10 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) (retErr erro
 		if legacyAttachmentIDs[attachmentID] || existing[attachmentID] {
 			continue
 		}
-		if ref == nil || ref.attachment == nil || c.attachmentBinaryAvailable(ctx, ref.attachment) {
+		if ref == nil || ref.attachment == nil {
+			continue
+		}
+		if c.attachmentBinaryStatus(ctx, ref.attachment) != AttachmentBinaryMissing {
 			continue
 		}
 		if err := c.appendVideoFailedMigrationEvent(ctx, ref, attachmentID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
@@ -245,21 +257,49 @@ func (c *ChattoCore) appendVideoFailedMigrationEvent(ctx context.Context, ref *l
 }
 
 func (c *ChattoCore) usableAttachment(ctx context.Context, attachment *corev1.Attachment) *corev1.Attachment {
-	if attachment == nil || !c.attachmentBinaryAvailable(ctx, attachment) {
+	if attachment == nil || c.attachmentBinaryStatus(ctx, attachment) != AttachmentBinaryPresent {
 		return nil
 	}
 	return proto.Clone(attachment).(*corev1.Attachment)
 }
 
-func (c *ChattoCore) attachmentBinaryAvailable(ctx context.Context, attachment *corev1.Attachment) bool {
+// AttachmentBinaryStatus is the tri-state result of probing an attachment's
+// underlying binary. Use this when the absence-vs-can't-tell distinction
+// matters — most importantly, when deciding whether to emit a durable
+// "source missing" terminal event.
+type AttachmentBinaryStatus int
+
+const (
+	// AttachmentBinaryPresent means storage definitively returned the object.
+	AttachmentBinaryPresent AttachmentBinaryStatus = iota
+	// AttachmentBinaryMissing means storage definitively said "not there"
+	// (S3 NoSuchKey / 404, NATS ObjectStore ErrObjectNotFound). Safe to
+	// treat as a permanent terminal state.
+	AttachmentBinaryMissing
+	// AttachmentBinaryUnknown means the probe failed for a reason that
+	// isn't "not found" — auth, network, missing client config, etc. The
+	// binary might still exist; callers must NOT publish missing-source
+	// events on this status, only skip / retry later.
+	AttachmentBinaryUnknown
+)
+
+// attachmentBinaryStatus probes storage for the attachment and classifies
+// the result. The intent is to let callers distinguish "we know it's gone"
+// from "we couldn't reach storage" so that one-shot migrations don't burn
+// SOURCE_MISSING events into EVT every time someone boots against
+// unreachable S3.
+func (c *ChattoCore) attachmentBinaryStatus(ctx context.Context, attachment *corev1.Attachment) AttachmentBinaryStatus {
 	reader, _, err := c.GetAttachmentReader(ctx, attachment)
-	if err != nil {
-		return false
+	if err == nil {
+		if closer, ok := reader.(io.Closer); ok {
+			_ = closer.Close()
+		}
+		return AttachmentBinaryPresent
 	}
-	if closer, ok := reader.(io.Closer); ok {
-		_ = closer.Close()
+	if errors.Is(err, jetstream.ErrObjectNotFound) || IsNoSuchKeyError(err) {
+		return AttachmentBinaryMissing
 	}
-	return true
+	return AttachmentBinaryUnknown
 }
 
 func (c *ChattoCore) indexVideoAttachmentsFromEVT(ctx context.Context) (map[string]*legacyVideoAttachmentRef, error) {

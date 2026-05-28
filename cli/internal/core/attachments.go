@@ -899,7 +899,12 @@ func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 			return nil
 		}
 	}
-	if !c.attachmentBinaryAvailable(ctx, attachment) {
+	// Only emit a durable SOURCE_MISSING on a definitive "not found" probe.
+	// Unknown status (S3 unreachable, transient error) falls through and lets
+	// the worker try — it'll emit PROCESSING_FAILED if the download actually
+	// can't complete. Burning SOURCE_MISSING on a transient failure would
+	// permanently tombstone the asset.
+	if c.attachmentBinaryStatus(ctx, attachment) == AttachmentBinaryMissing {
 		return c.RecordAssetProcessingFailed(ctx, actorID, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
 	if err := c.RecordAssetProcessingStarted(ctx, actorID, kind, roomID, attachment.GetId()); err != nil {
