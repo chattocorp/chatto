@@ -64,7 +64,10 @@ message VerifiedEmail {
   google.protobuf.Timestamp verified_at = 2;
 }
 
-message Asset {
+// AssetStorage points at the binary/object backing an asset. This was named
+// `Asset` before first-class asset events existed; the wire shape is preserved
+// so legacy attachments, avatars, and branding records remain decodable.
+message AssetStorage {
   oneof asset {
     NATSAsset nats = 2;
     S3Asset s3 = 1;
@@ -78,6 +81,43 @@ message S3Asset {
 
 message NATSAsset {
   string key = 1;
+}
+
+// Asset is durable content metadata for an uploaded or generated file.
+// Message attachments embed the legacy Attachment proto for rendering
+// compatibility, but new EVT asset events use this neutral domain shape.
+message Asset {
+  // Unique identifier for this asset (NanoID).
+  string id = 1;
+
+  // Field 2 (`space_id`) was the pre-ADR-030-Phase-4 discriminator embedded in
+  // legacy S3 keys. Retired in 2026-05; canonical storage location lives on
+  // `storage`.
+  reserved 2;
+  reserved "space_id";
+
+  // Room ID where this asset is authorized.
+  string room_id = 3;
+
+  // Original filename.
+  string filename = 4;
+
+  // MIME type (e.g., "image/jpeg", "video/mp4").
+  string content_type = 5;
+
+  // File size in bytes.
+  int64 size = 6;
+
+  // Image/video dimensions when known.
+  int32 width = 7;
+  int32 height = 8;
+
+  // Storage location for the binary data.
+  AssetStorage storage = 9;
+
+  // Event ID of the MessageBody owner for message-owned assets. Empty for
+  // generated derivatives and future room-owned assets.
+  string message_body_id = 10;
 }
 
 message RoomMembership {
@@ -165,7 +205,7 @@ message Attachment {
 
   // Storage location for the attachment binary data.
   // If not set (nil), defaults to NATS ObjectStore for backwards compatibility.
-  Asset storage = 9;
+  AssetStorage storage = 9;
 
   // Compound key (`{userId}.{bodyId}`) of the MessageBody that owns this
   // attachment. Set when the body is written in PostMessage; also
@@ -292,9 +332,9 @@ message RoomGroup {
 // ============================================================================
 
 // VideoProcessingState tracks the async processing state of a video attachment.
-// Stored in the SERVER_RUNTIME KV bucket at key "video.{attachmentId}".
-// Kept separate from MessageBody (which is encrypted per-user) so the video
-// service can update processing state without touching encryption.
+// Legacy entries were stored in SERVER_RUNTIME at key "video.{attachmentId}".
+// New durable completed/failed manifests live in AssetProcessing* EVT events;
+// this shape remains for transient worker progress and legacy import.
 message VideoProcessingState {
   // Current processing status
   VideoStatus status = 1;

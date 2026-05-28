@@ -66,9 +66,12 @@ const (
 	// MessageEditedEvent / MessageRetractedEvent proto names; if those
 	// proto names are renamed in a future cleanup, subject tokens can
 	// stay as-is (subjects are stable once written).
-	EventMessagePosted    = "message_posted"
-	EventMessageEdited    = "message_edited"
-	EventMessageRetracted = "message_retracted"
+	EventMessagePosted            = "message_posted"
+	EventMessageEdited            = "message_edited"
+	EventMessageRetracted         = "message_retracted"
+	EventAssetCreated             = "asset_created"
+	EventAssetProcessingSucceeded = "asset_processing_succeeded"
+	EventAssetProcessingFailed    = "asset_processing_failed"
 
 	// Reactions (also under the room aggregate). Reaction state is
 	// derived from these durable events by the reaction projection.
@@ -148,6 +151,12 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageEdited
 	case *corev1.Event_MessageRetracted:
 		return EventMessageRetracted
+	case *corev1.Event_AssetCreated:
+		return EventAssetCreated
+	case *corev1.Event_AssetProcessingSucceeded:
+		return EventAssetProcessingSucceeded
+	case *corev1.Event_AssetProcessingFailed:
+		return EventAssetProcessingFailed
 
 	case *corev1.Event_ReactionAdded:
 		return EventReactionAdded

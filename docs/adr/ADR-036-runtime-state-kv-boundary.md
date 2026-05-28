@@ -14,7 +14,7 @@ rather than reconstructable Chatto content.
 Historically these values have lived in a mix of buckets:
 
 - `SERVER_RUNTIME` for read cursors, mention flags, per-room runtime indexes,
-  and video processing state.
+  and legacy video processing state.
 - `AUTH_TOKENS` for bearer tokens.
 - Feature-specific KV buckets or object stores for caches and processing
   metadata.
@@ -58,7 +58,12 @@ Initial and planned occupants include:
   90-day TTL.
 - Auth, verification, reset, and revocation tokens after their migration from
   token-specific buckets.
-- Asset and video processing state after its migration from `SERVER_RUNTIME`.
+
+Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
+target. Uploaded assets are content and are declared with `AssetCreatedEvent`;
+generated video thumbnails and variants are content metadata, so completed/failed
+outcomes live in durable room EVT events that reference the created asset ID.
+Only transient worker progress may remain process-local.
 
 Mention flags are not a target runtime-state model. Orange-dot behavior derives
 from pending notifications instead of preserving `room_mention_status.*` as
@@ -74,8 +79,8 @@ canonical state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and
   restore procedures must include this bucket when preserving user/runtime
   continuity matters.
-- Per-key TTL becomes available for tokens, processing records, and similar
-  values without splitting each feature into its own bucket.
+- Per-key TTL becomes available for tokens and similar runtime values without
+  splitting each feature into its own bucket.
 - Security-sensitive exceptions remain explicit. In particular,
   `ENCRYPTION_KEYS` is not folded into this bucket.
 

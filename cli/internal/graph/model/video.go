@@ -9,6 +9,7 @@ type VideoProcessing struct {
 	Width                 *int32
 	Height                *int32
 	ErrorMessage          *string
+	SourceAvailable       bool
 	Variants              []*VideoVariant
 	RoomID                string // internal: for locator
 	OriginAttachmentID    string // internal: parent video's attachment id (locator's VideoOrigin)

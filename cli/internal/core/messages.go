@@ -176,6 +176,14 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
+	for _, att := range attachments {
+		if att == nil {
+			continue
+		}
+		if err := c.RecordAssetCreated(ctx, kind, room_id, event.Id, att); err != nil {
+			return nil, fmt.Errorf("failed to publish asset creation event: %w", err)
+		}
+	}
 
 	// Legacy live mirror. Same pattern as RoomMembership / RoomGroups
 	// after their ES migration — the durable event lives on EVT, but
@@ -463,6 +471,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// best-effort, log warnings, keep going.
 	if body != nil {
 		for _, att := range body.GetAttachments() {
+			c.DeleteVideoDerivativesForAttachment(ctx, att.GetId())
 			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
 				c.logger.Warn("Failed to delete attachment during message deletion",
 					"attachment_id", att.GetId(),
@@ -712,6 +721,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 	}
 
 	if removed != nil {
+		c.DeleteVideoDerivativesForAttachment(ctx, removed.GetId())
 		if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
 			c.logger.Warn("Failed to delete attachment file after removing from message",
 				"attachment_id", attachmentID,

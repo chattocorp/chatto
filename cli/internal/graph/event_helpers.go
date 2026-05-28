@@ -58,6 +58,8 @@ func unwrapEvent(event *corev1.Event) any {
 		return e.MessageDeleted
 
 	// ---- Reactions ----
+	case *corev1.Event_AssetCreated:
+		return e.AssetCreated
 	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded
 	case *corev1.Event_ReactionRemoved:
@@ -70,6 +72,10 @@ func unwrapEvent(event *corev1.Event) any {
 	// ---- Video processing ----
 	case *corev1.Event_VideoProcessingCompleted:
 		return e.VideoProcessingCompleted
+	case *corev1.Event_AssetProcessingSucceeded:
+		return e.AssetProcessingSucceeded
+	case *corev1.Event_AssetProcessingFailed:
+		return e.AssetProcessingFailed
 
 	// ---- Presence ----
 	case *corev1.Event_PresenceChanged:
@@ -157,6 +163,17 @@ func (r *Resolver) resolveEventActor(ctx context.Context, event *corev1.Event) (
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *Resolver) assetCreationForProcessing(assetID string) (*corev1.AssetCreatedEvent, error) {
+	if assetID == "" {
+		return nil, fmt.Errorf("asset processing event missing asset id")
+	}
+	declared, ok := r.core.RoomTimeline.AssetCreation(assetID)
+	if !ok || declared == nil {
+		return nil, fmt.Errorf("asset creation not found for %s", assetID)
+	}
+	return declared, nil
 }
 
 // unwrapEventAs unwraps a proto Event and asserts the payload to the

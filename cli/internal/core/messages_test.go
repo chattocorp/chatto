@@ -465,6 +465,67 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 	}
 }
 
+func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	original, err := core.UploadAttachment(ctx, room.Id, "original.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("Failed to upload original: %v", err)
+	}
+	thumb, err := core.UploadAttachment(ctx, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 18)))
+	if err != nil {
+		t.Fatalf("Failed to upload thumbnail: %v", err)
+	}
+	variantAttachment, err := core.UploadAttachment(ctx, room.Id, "video-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	if err != nil {
+		t.Fatalf("Failed to upload variant: %v", err)
+	}
+
+	roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []*corev1.Attachment{original}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Failed to post message: %v", err)
+	}
+	postedMessage := roomEvent.GetMessagePosted()
+
+	if err := core.RecordAssetProcessed(ctx, KindChannel, room.Id, original.Id, true, 1234, 640, 360, thumb, []*corev1.VideoVariant{
+		{
+			AttachmentId: variantAttachment.Id,
+			Quality:      "720p",
+			Width:        640,
+			Height:       360,
+			Size:         variantAttachment.Size,
+			Attachment:   variantAttachment,
+		},
+	}); err != nil {
+		t.Fatalf("Failed to record processed video manifest: %v", err)
+	}
+
+	store, err := core.GetAttachmentsStore(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get attachments store: %v", err)
+	}
+	for _, attachment := range []*corev1.Attachment{original, thumb, variantAttachment} {
+		if _, err := store.Get(ctx, attachment.Id); err != nil {
+			t.Fatalf("Attachment %s should exist before deletion: %v", attachment.Id, err)
+		}
+	}
+
+	if err := core.DeleteAttachmentFromMessage(ctx, user.Id, KindChannel, room.Id, postedMessage.MessageBodyId, original.Id); err != nil {
+		t.Fatalf("Failed to delete video attachment: %v", err)
+	}
+
+	for _, attachment := range []*corev1.Attachment{original, thumb, variantAttachment} {
+		if _, err := store.Get(ctx, attachment.Id); err == nil {
+			t.Fatalf("Attachment %s should be deleted", attachment.Id)
+		}
+	}
+}
+
 func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -21,8 +21,8 @@ import (
 //   - RoomID is checked against the signed user's current room membership.
 //   - Exactly one of BodyKey or VideoOrigin identifies where the source
 //     of truth lives: a `MessageBody` keyed by BodyKey (for body-embedded
-//     attachments), or a `VideoProcessingState` keyed by VideoOrigin
-//     (for variants and thumbnails generated from a parent video).
+//     attachments), or a projected `AssetProcessingSucceededEvent` keyed by
+//     VideoOrigin (for variants and thumbnails generated from a parent video).
 //   - AttachmentID identifies the specific attachment within that source.
 //   - UserID is the user the URL was issued for. The HTTP handler trusts
 //     this claim (it's covered by the HMAC) and checks current room

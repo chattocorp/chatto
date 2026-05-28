@@ -250,6 +250,8 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	case *corev1.Event_MessagePosted:
 		return e.MessagePosted.GetInThread() == ""
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
+		*corev1.Event_AssetCreated,
+		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
 		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
 		return false
 	}

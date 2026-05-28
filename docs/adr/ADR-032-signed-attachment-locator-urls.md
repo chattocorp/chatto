@@ -31,7 +31,7 @@ for the current flow and trade-offs.
 Attachment metadata (room ID, storage location, filename, dimensions) for a posted file lives embedded inside its owning `MessageBody` proto in `SERVER_BODIES`. The asset HTTP handler at `/assets/attachments/...` needs three things on every request:
 
 1. **The room ID**, to authorize the caller against room membership.
-2. **A pointer to the source-of-truth proto** (which body the attachment belongs to, or which `VideoProcessingState` it came from in the case of a transcoded variant or thumbnail).
+2. **A pointer to the source-of-truth proto** (which body the attachment belongs to, or which projected video manifest event it came from in the case of a transcoded variant or thumbnail).
 3. **The attachment ID**, to pick the right attachment out of that source proto.
 
 The previous design (introduced in #575) answered all three by maintaining a second copy of the `Attachment` proto as a standalone record at `attachment.{roomId}.{attachmentId}` in `SERVER_BODIES`. The HTTP handler took the attachment ID from the URL, did a wildcard filter lookup on the records bucket, and read everything else off the matched record.
@@ -66,7 +66,7 @@ Transformed (image resize):
 
 - `r` — room ID (for the authz check)
 - `b` — message body key `{userId}.{bodyId}` (set for body-embedded attachments; exactly one of `b` or `v` is set)
-- `v` — video-origin attachment ID (set for variants and thumbnails; the VPS is keyed by this ID)
+- `v` — video-origin attachment ID (set for variants and thumbnails; the processed video manifest is keyed by this ID)
 - `a` — the attachment ID itself
 
 `hexHMAC` is the first 16 bytes (32 hex chars) of HMAC-SHA256 of the base64 payload using `[core.assets].signing_secret` — the same secret as the transform-URL signing in [ADR-023](ADR-023-hmac-signed-image-transform-urls.md). The transform component, when present, retains its existing signing scheme with the locator string as its first resource ID.
@@ -83,13 +83,13 @@ No standalone-record bucket is consulted.
 
 ### Source-of-truth changes
 
-- **Body attachments**: the embedded proto in `MessageBody.Attachments` is the only copy. `PostMessage` stamps `MessageBodyId` on each attachment before persisting the body so URL generation has the back-pointer at hand. Bodies persisted before this field existed get the back-pointer patched in on read by the GraphQL resolver (and stamped permanently on the next edit). A boot migration (`BackfillAttachmentLocatorData`) does the same for existing bodies to make backend operations work too.
-- **Video variants and thumbnails**: full `Attachment` protos are now embedded into `VideoProcessingState.thumbnail_attachment` and `VideoVariant.attachment`. The video processor populates them on transcode completion. A boot migration backfills these from the prior standalone records on existing instances.
+- **Body attachments**: `AssetCreatedEvent` is the durable asset creation event for the asset ID, owning room, owner, and asset metadata. Message-owned assets are also embedded as attachments in `MessageBody.Attachments` so message rendering and signed URL generation have the back-pointer at hand. `PostMessage` emits asset creation events for new attachments, and a boot migration backfills asset creation events from legacy message attachments.
+- **Video variants and thumbnails**: full `Asset` protos are embedded into durable `AssetProcessingSucceededEvent.video.thumbnail_asset` and `AssetVideoVariant.asset`. The video processor emits that event on transcode completion, referencing only the created original asset ID. A boot migration imports legacy `VideoProcessingState` records, including prior standalone attachment records that were already embedded by `BackfillAttachmentLocatorData`.
 
 ## Consequences
 
 - **One source of truth per attachment.** No write-amplification, no drift surface. A message-body mutation (rare today, but a possibility tomorrow) updates the only copy.
-- **No second KV namespace.** `SERVER_BODIES` reverts to holding just bodies. The existing `attachment.*` records are dead weight that a future PR can sweep; they stay on disk for now because the boot migration reads them as a data source for the VPS backfill.
+- **No second KV namespace.** `SERVER_BODIES` reverts to holding just bodies. The existing `attachment.*` records are dead weight that a future PR can sweep; they stay on disk for now because the boot migration reads them as a data source for legacy video manifest import.
 - **Authorization surface unchanged.** Every request still authenticates and checks room membership; signature only prevents forgery. A leaked URL doesn't grant standalone access; auto-revocation on kick or attachment-delete still works.
 - **Forgery prevention.** The previous URL shape (`/assets/attachments/{id}`) let attackers probe arbitrary attachment IDs to enumerate the space. The locator URL requires a valid HMAC; only IDs the server has issued URLs for can be tested.
 - **Longer URLs.** ~150 chars vs ~30. Irrelevant for our use case (URLs aren't human-typed and aren't shared as bare share-links outside the app).

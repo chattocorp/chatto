@@ -138,6 +138,26 @@ func applyAll(t *testing.T, p interface {
 	}
 }
 
+func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType string) *corev1.Event {
+	return &corev1.Event{
+		Id: "ENV-DECLARED-" + attachmentID,
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				RoomId: roomID,
+				Owner: &corev1.AssetCreatedEvent_MessageEventId{
+					MessageEventId: messageEventID,
+				},
+				Asset: &corev1.Asset{
+					Id:            attachmentID,
+					RoomId:        roomID,
+					MessageBodyId: messageEventID,
+					ContentType:   contentType,
+				},
+			},
+		},
+	}
+}
+
 // =============================================================================
 // RoomTimelineProjection
 // =============================================================================
@@ -261,6 +281,85 @@ func TestRoomTimeline_Idempotency(t *testing.T) {
 	}
 	if got := p.RoomEventCount("R1"); got != 1 {
 		t.Errorf("RoomEventCount after duplicate Apply = %d, want 1", got)
+	}
+}
+
+func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	processed := &corev1.Event{
+		Id: "ENV-VIDEO-OK",
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
+				AssetId:         "A-video",
+				SourceAvailable: true,
+				Result: &corev1.AssetProcessingSucceededEvent_Video{
+					Video: &corev1.AssetProcessedVideo{
+						DurationMs: 1200,
+						Width:      640,
+						Height:     360,
+						Variants: []*corev1.AssetVideoVariant{{
+							Quality: "480p",
+							Asset:   &corev1.Asset{Id: "A-video-480"},
+						}},
+					},
+				},
+			},
+		},
+	}
+	failed := &corev1.Event{
+		Id: "ENV-VIDEO-FAIL",
+		Event: &corev1.Event_AssetProcessingFailed{
+			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
+				AssetId:      "A-video",
+				Reason:       "original_missing",
+				ErrorMessage: "missing",
+			},
+		},
+	}
+
+	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "M1", "video/mp4"), failed, processed})
+	manifest, ok := p.VideoAttachmentManifest("A-video")
+	if !ok || manifest.Succeeded == nil {
+		t.Fatalf("VideoAttachmentManifest = %#v, want processed manifest", manifest)
+	}
+	video := manifest.Succeeded.GetVideo()
+	if video.GetDurationMs() != 1200 || len(video.GetVariants()) != 1 {
+		t.Errorf("processed manifest = %+v, want duration and one variant", manifest.Succeeded)
+	}
+
+	manifest.Succeeded.GetVideo().Variants[0].Quality = "mutated"
+	again, _ := p.VideoAttachmentManifest("A-video")
+	if again.Succeeded.GetVideo().Variants[0].Quality != "480p" {
+		t.Error("VideoAttachmentManifest should return clones")
+	}
+}
+
+func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
+	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{
+		{Id: "A-video", ContentType: "video/mp4"},
+		{Id: "A-image", ContentType: "image/png"},
+	}
+	processed := &corev1.Event{
+		Id: "ENV-VIDEO-OK",
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
+				AssetId: "A-video",
+				Result: &corev1.AssetProcessingSucceededEvent_Video{
+					Video: &corev1.AssetProcessedVideo{},
+				},
+			},
+		},
+	}
+
+	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "M1", "video/mp4"), attachmentDeclaredEvent("R1", "A-image", "M1", "image/png")})
+	if got := p.UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
+		t.Fatalf("UnmanifestedVideoAttachments before manifest = %+v, want A-video", got)
+	}
+	applyAll(t, p, []*corev1.Event{processed})
+	if got := p.UnmanifestedVideoAttachments(); len(got) != 0 {
+		t.Fatalf("UnmanifestedVideoAttachments after manifest = %+v, want none", got)
 	}
 }
 

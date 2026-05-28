@@ -16,6 +16,7 @@
         width
         height
         thumbnailUrl
+        sourceAvailable
         variants {
           url
           quality
@@ -30,7 +31,8 @@
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- external attachment URLs */
+  /* eslint-disable svelte/no-navigation-without-resolve -- attachment URLs are signed asset URLs */
+
   import type { FragmentType } from '$lib/gql/fragment-masking';
   import { useFragment } from '$lib/gql/fragment-masking';
   import type { MessageAttachmentViewFragment } from '$lib/gql/graphql';
@@ -145,6 +147,8 @@
             width={attachment.videoProcessing.width}
             height={attachment.videoProcessing.height}
             errorMessage={attachment.videoProcessing.errorMessage}
+            sourceAvailable={attachment.videoProcessing.sourceAvailable}
+            originalUrl={attachment.url}
             filename={attachment.filename}
             autoLoop
           />
@@ -208,6 +212,8 @@
             width={attachment.videoProcessing.width}
             height={attachment.videoProcessing.height}
             errorMessage={attachment.videoProcessing.errorMessage}
+            sourceAvailable={attachment.videoProcessing.sourceAvailable}
+            originalUrl={attachment.url}
             filename={attachment.filename}
           />
           {#if canDeleteAttachment}
@@ -223,10 +229,10 @@
           {/if}
         </div>
       {:else if attachment.contentType.startsWith('video/')}
-        <!-- Video without processing data — original may have been deleted after transcoding -->
         <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
-          <span class="iconify text-lg text-muted uil--video"></span>
-          <span class="text-sm text-muted">Video unavailable</span>
+          <video controls preload="metadata" src={attachment.url} class="max-h-64 max-w-full rounded-sm">
+            <track kind="captions" />
+          </video>
         </div>
       {:else if attachment.contentType.startsWith('audio/')}
         <div class="group/attachment relative min-w-0">
@@ -255,7 +261,6 @@
           {/if}
         </div>
       {:else}
-        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external asset URL -->
         <a
           href={attachment.url}
           target="_blank"

@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-05-23
+**Last reviewed:** 2026-05-27
 
 ## Overview
 
@@ -13,8 +13,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Draft attachments persist across room switches inside the same session.
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode).
-- Videos and animated GIFs are processed in the background. The message posts immediately; the video player appears once processing completes.
-- Processing status: PENDING → PROCESSING → COMPLETED (or FAILED). Failed videos still show the original message; the UI surfaces an error state for the attachment.
+- Videos and animated GIFs are processed in the background. The message posts immediately; processed MP4 variants appear once processing completes.
+- Processing status: transient PENDING / PROCESSING progress is process-local; durable COMPLETED / FAILED outcomes are stored as room events. Failed videos still show the original message; the UI falls back to the original upload when it is available.
 - A thumbnail is generated from an early video frame.
 - Resized images can be cached as WebP with an auto-expiring cache.
 
@@ -42,13 +42,13 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 **Decision:** Transcoding produces multiple H.264 MP4 variants whose target resolutions are derived from the source resolution. A 1080p source might yield 720p and 480p; a 480p source skips the higher tiers.
 **Why:** Producing tiers higher than the source is pointless (upscaling is lossy without benefit). Producing tiers near the source is bandwidth waste for the common case.
-**Tradeoff:** No HLS / adaptive bitrate streaming — the frontend picks a variant based on viewport and connection at the time of play. Acceptable for chat-context videos.
+**Tradeoff:** No HLS / adaptive bitrate streaming yet — the frontend picks a variant based on viewport and connection at the time of play. Adaptive streaming is tracked separately in GitHub issue #668.
 
-### 5. Originals are replaced by variants after transcoding
+### 5. Attachments are declared content; derivative manifests are durable events
 
-**Decision:** After transcoding succeeds, the original upload is deleted and only the encoded variants are kept. Variants and the generated thumbnail are full `Attachment` protos, embedded directly into the message's `VideoProcessingState` proto (`VideoProcessingState.thumbnail_attachment` and `VideoVariant.attachment`).
-**Why:** Originals are uncompressed-ish source files that nobody needs to download. Keeping them around would double or triple storage cost for no benefit. Embedding the variant Attachment protos into the VPS makes the VPS the self-contained source of truth for variant metadata — the URL handler can read storage location, content-type, and dimensions from there directly without a separate index lookup.
-**Tradeoff:** Lossy. If we ever wanted to re-transcode with new settings, we couldn't recover the original. Considered acceptable given the cost ratio.
+**Decision:** `AssetCreatedEvent` records each uploaded asset's durable content identity, owning room, owner, and `Asset` metadata. Processing outcome events reference that asset ID instead of duplicating ownership. After transcoding succeeds, the original upload is retained as source content. The generated thumbnail and MP4 variants are derivative assets whose full `Asset` protos are recorded in the video branch of durable `AssetProcessingSucceededEvent` events on the room's EVT aggregate. Durable failed/unavailable outcomes are recorded with `AssetProcessingFailedEvent`; `original_missing` is the stable reason for failures where the source binary is gone.
+**Why:** Attachments and video derivatives are content metadata, not runtime state. Separating declaration from processing lets future uploads exist outside messages while keeping processing events small and referential. Keeping the original allows future re-encoding, and storing the derivative manifest in EVT lets processed playback survive projection rebuilds and storage-boundary cleanup.
+**Tradeoff:** Retaining originals costs more storage than the old replace-after-transcode behavior. Legacy processed videos may still have missing originals because the old pipeline deleted them; migration backfills asset creation events from message attachments and imports existing variant manifests so they remain playable.
 
 ### 6. Attachment URLs are per-user signed capabilities
 

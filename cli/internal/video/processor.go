@@ -322,41 +322,15 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		return s.failProcessing(ctx, req, fmt.Errorf("all variant transcodes failed"))
 	}
 
-	// Update state to COMPLETED
-	state := &corev1.VideoProcessingState{
-		Status:              corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
-		ThumbnailAttachment: thumbnailAttachment,
-		DurationMs:          probeResult.DurationMs,
-		Width:               probeResult.Width,
-		Height:              probeResult.Height,
-		Variants:            variants,
-	}
-	if thumbnailAttachment != nil {
-		state.ThumbnailAttachmentId = thumbnailAttachment.Id
-	}
-	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
-		return fmt.Errorf("failed to set completed state: %w", err)
-	}
-
-	// Delete the original attachment binary (save storage — variants
-	// replace it). The Attachment proto stays on the body so its URL
-	// still resolves (to a 404), and the frontend uses the variants.
-	if origAttachment, err := s.core.FindBodyAttachment(ctx, req.MessageBodyID, req.AttachmentID); err != nil {
-		s.logger.Warn("Failed to look up original for deletion", "error", err)
-	} else if origAttachment != nil {
-		if err := s.core.DeleteAttachmentFromStorage(ctx, origAttachment); err != nil {
-			s.logger.Warn("Failed to delete original after transcoding", "error", err)
-			// Non-fatal — the variants are already uploaded
-		}
-	}
-
-	// Publish live event
+	// Publish durable manifest. The original upload is retained as source
+	// content for future re-encoding; generated variants are derivatives.
 	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
 	if err != nil {
-		s.logger.Warn("Failed to resolve room kind for video-completed event", "error", err)
-	} else if err := s.core.PublishVideoProcessingCompleted(ctx, kind, req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
-		s.logger.Warn("Failed to publish video processing completed event", "error", err)
+		s.logger.Warn("Failed to resolve room kind for video processed event", "error", err)
+	} else if err := s.core.RecordAssetProcessed(ctx, kind, req.RoomID, req.AttachmentID, true, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants); err != nil {
+		s.logger.Warn("Failed to publish video processed event", "error", err)
 	}
+	s.core.ClearVideoProcessingState(req.AttachmentID)
 
 	s.logger.Info("Video processing completed",
 		"attachment_id", req.AttachmentID,
@@ -380,13 +354,15 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
 		s.logger.Error("Failed to set error state", "error", err)
 	}
-	// Publish live event even on failure so frontend can update
+	// Publish durable failure event even on failure so frontend can update
+	// and replay can reconstruct the terminal state.
 	kind, kindErr := s.core.FindRoomKind(ctx, req.RoomID)
 	if kindErr != nil {
 		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
-	} else if err := s.core.PublishVideoProcessingCompleted(ctx, kind, req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
+	} else if err := s.core.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.AttachmentID, "processing_failed", state.ErrorMessage); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
+	s.core.ClearVideoProcessingState(req.AttachmentID)
 	return originalErr
 }
 

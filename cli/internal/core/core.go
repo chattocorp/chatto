@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -50,6 +51,8 @@ type ChattoCore struct {
 	// When set (> 0), video attachments use this limit instead of the asset limit.
 	// Set this after ChattoCore is created, from VideoConfig.
 	VideoMaxUploadSize int64
+	videoStateMu       sync.RWMutex
+	videoStates        map[string]*corev1.VideoProcessingState
 
 	// OnNotificationCreated is called when a notification is created.
 	// Used by the push notification system to send Web Push notifications.
@@ -447,7 +450,7 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 
 // CleanupAsset deletes an asset from the server object store.
 // Used to clean up orphaned assets when subsequent operations fail.
-func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.Asset) {
+func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.AssetStorage) {
 	if asset == nil {
 		return
 	}
@@ -473,7 +476,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.Asset) {
 // This is a helper for cleaning up old assets when they are replaced.
 // For S3, the assetID stored in S3Asset.Key is used to construct the full S3 path.
 // The assetType and ownerID are used for logging only.
-func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.Asset, assetType, ownerID string) {
+func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.AssetStorage, assetType, ownerID string) {
 	if asset == nil {
 		return
 	}
@@ -650,6 +653,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RBAC:                    rbac,
 		RBACProjector:           rbacProjector,
 		projectors:              projectors,
+		videoStates:             make(map[string]*corev1.VideoProcessingState),
 		bootDone:                make(chan struct{}),
 	}
 
@@ -675,6 +679,12 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		logger,
 	); err != nil {
 		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
+	}
+	if err := core.migrateAssetCreationsToES(ctx); err != nil {
+		return nil, fmt.Errorf("failed to migrate asset creations to ES: %w", err)
+	}
+	if err := core.migrateVideoManifestsToES(ctx); err != nil {
+		return nil, fmt.Errorf("failed to migrate video manifests to ES: %w", err)
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)

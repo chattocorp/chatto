@@ -26,7 +26,7 @@ type UserProjection struct {
 type projectedUser struct {
 	user          *corev1.User
 	deleted       bool
-	avatar        *corev1.Asset
+	avatar        *corev1.AssetStorage
 	passwordHash  []byte
 	verifiedEmail map[string]VerifiedEmail
 	preferences   *corev1.ServerUserPreferences
@@ -156,7 +156,7 @@ func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
 	if e.GetAvatar() == nil {
 		return
 	}
-	u.avatar = proto.Clone(e.GetAvatar()).(*corev1.Asset)
+	u.avatar = proto.Clone(e.GetAvatar()).(*corev1.AssetStorage)
 }
 
 func (p *UserProjection) applyAvatarCleared(e *corev1.UserAvatarClearedEvent) {
@@ -321,14 +321,14 @@ func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
 	return append([]byte(nil), u.passwordHash...), true
 }
 
-func (p *UserProjection) Avatar(userID string) (*corev1.Asset, bool) {
+func (p *UserProjection) Avatar(userID string) (*corev1.AssetStorage, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.deleted || u.avatar == nil {
 		return nil, false
 	}
-	return proto.Clone(u.avatar).(*corev1.Asset), true
+	return proto.Clone(u.avatar).(*corev1.AssetStorage), true
 }
 
 func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferences, bool) {

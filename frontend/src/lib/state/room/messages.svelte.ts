@@ -297,7 +297,9 @@ export abstract class MessageListStore {
       eventData.__typename === 'MessageUpdatedEvent' ||
       eventData.__typename === 'ReactionAddedEvent' ||
       eventData.__typename === 'ReactionRemovedEvent' ||
-      eventData.__typename === 'VideoProcessingCompletedEvent'
+      eventData.__typename === 'VideoProcessingCompletedEvent' ||
+      eventData.__typename === 'AssetProcessingSucceededEvent' ||
+      eventData.__typename === 'AssetProcessingFailedEvent'
     ) {
       this.refetchByMessageEventId(eventData.messageEventId);
       return;

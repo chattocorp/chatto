@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -86,7 +87,7 @@ func (c *ChattoCore) UploadAttachment(
 	}
 
 	// Store the attachment in the appropriate backend
-	var storage *corev1.Asset
+	var storage *corev1.AssetStorage
 	if c.ShouldUseS3() {
 		// Upload to S3
 		s3Key := S3KeyAttachment(attachmentID)
@@ -94,8 +95,8 @@ func (c *ChattoCore) UploadAttachment(
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload attachment to S3: %w", err)
 		}
-		storage = &corev1.Asset{
-			Asset: &corev1.Asset_S3{
+		storage = &corev1.AssetStorage{
+			Asset: &corev1.AssetStorage_S3{
 				S3: &corev1.S3Asset{
 					Key:    s3Key,
 					Bucket: proto.String(c.s3Client.Bucket()),
@@ -124,8 +125,8 @@ func (c *ChattoCore) UploadAttachment(
 		if err != nil {
 			return nil, fmt.Errorf("failed to store attachment: %w", err)
 		}
-		storage = &corev1.Asset{
-			Asset: &corev1.Asset_Nats{
+		storage = &corev1.AssetStorage{
+			Asset: &corev1.AssetStorage_Nats{
 				Nats: &corev1.NATSAsset{
 					Key: attachmentID,
 				},
@@ -227,7 +228,7 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 		return c.probeAttachmentReaderByID(ctx, attachment.Id)
 	}
 	switch asset := attachment.Storage.Asset.(type) {
-	case *corev1.Asset_Nats:
+	case *corev1.AssetStorage_Nats:
 		reader, info, err := c.GetAttachment(ctx, asset.Nats.Key)
 		if err != nil {
 			return nil, nil, err
@@ -238,7 +239,7 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 			Filename:    info.Headers.Get("Filename"),
 			RoomID:      info.Headers.Get("Room-Id"),
 		}, nil
-	case *corev1.Asset_S3:
+	case *corev1.AssetStorage_S3:
 		if c.s3Client == nil {
 			return nil, nil, fmt.Errorf("S3 client not configured")
 		}
@@ -258,8 +259,9 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 // `BackfillAttachmentRecords` (long-since deleted) wrote minimal
 // `Attachment{Id, RoomId}` records for those, and
 // `BackfillAttachmentLocatorData` copied those minimal records into
-// `VideoProcessingState.{ThumbnailAttachment, Variants[i].Attachment}`.
-// They have no Storage, so we probe.
+// legacy `VideoProcessingState.{ThumbnailAttachment, Variants[i].Attachment}`.
+// The EVT manifest migration can import those protos; they have no Storage,
+// so we probe.
 func (c *ChattoCore) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
 	reader, natsInfo, err := c.GetAttachment(ctx, attachmentID)
 	if err == nil {
@@ -292,6 +294,47 @@ func legacyAttachmentS3KeyCandidates(attachmentID string) []string {
 	}
 }
 
+func assetFromAttachment(attachment *corev1.Attachment) *corev1.Asset {
+	if attachment == nil {
+		return nil
+	}
+	return &corev1.Asset{
+		Id:            attachment.GetId(),
+		RoomId:        attachment.GetRoomId(),
+		Filename:      attachment.GetFilename(),
+		ContentType:   attachment.GetContentType(),
+		Size:          attachment.GetSize(),
+		Width:         attachment.GetWidth(),
+		Height:        attachment.GetHeight(),
+		Storage:       cloneAssetStorage(attachment.GetStorage()),
+		MessageBodyId: attachment.GetMessageBodyId(),
+	}
+}
+
+func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
+	if asset == nil {
+		return nil
+	}
+	return &corev1.Attachment{
+		Id:            asset.GetId(),
+		RoomId:        asset.GetRoomId(),
+		Filename:      asset.GetFilename(),
+		ContentType:   asset.GetContentType(),
+		Size:          asset.GetSize(),
+		Width:         asset.GetWidth(),
+		Height:        asset.GetHeight(),
+		Storage:       cloneAssetStorage(asset.GetStorage()),
+		MessageBodyId: asset.GetMessageBodyId(),
+	}
+}
+
+func cloneAssetStorage(storage *corev1.AssetStorage) *corev1.AssetStorage {
+	if storage == nil {
+		return nil
+	}
+	return proto.Clone(storage).(*corev1.AssetStorage)
+}
+
 // FindBodyAttachment fetches the named MessageBody and returns the
 // embedded Attachment with the given ID, or (nil, nil) if either is
 // missing. The returned Attachment is the in-memory copy from the body
@@ -321,34 +364,35 @@ func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachment
 }
 
 // FindVideoOriginAttachment looks up a variant or thumbnail Attachment
-// from the `VideoProcessingState` keyed by the original video's
-// attachment ID. Returns (nil, nil) if the state is missing or doesn't
-// contain an attachment with the given ID.
+// from the durable video manifest keyed by the original video's attachment
+// ID. Returns (nil, nil) if the manifest is missing or doesn't contain an
+// attachment with the given ID.
 func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
 	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
-	state, err := c.GetVideoProcessingState(ctx, videoOriginID)
-	if err != nil {
-		return nil, fmt.Errorf("get video processing state: %w", err)
-	}
-	if state == nil {
+	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(videoOriginID)
+	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return nil, nil
 	}
-	if state.ThumbnailAttachment != nil && state.ThumbnailAttachment.Id == attachmentID {
-		return state.ThumbnailAttachment, nil
+	video := manifest.Succeeded.GetVideo()
+	if video == nil {
+		return nil, nil
 	}
-	for _, v := range state.Variants {
-		if v.Attachment != nil && v.Attachment.Id == attachmentID {
-			return v.Attachment, nil
+	if thumbnail := attachmentFromAsset(video.GetThumbnailAsset()); thumbnail != nil && thumbnail.Id == attachmentID {
+		return thumbnail, nil
+	}
+	for _, v := range video.Variants {
+		if attachment := attachmentFromAsset(v.GetAsset()); attachment != nil && attachment.Id == attachmentID {
+			return attachment, nil
 		}
 	}
 	return nil, nil
 }
 
 // LookupAttachment resolves any attachment by its URL locator, choosing
-// the right source of truth (`MessageBody.Attachments` for body
-// attachments, `VideoProcessingState` for variants/thumbnails).
+// the right source of truth (`MessageBody.Attachments` for body attachments,
+// projected video manifests for variants/thumbnails).
 func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
 	if err := loc.Validate(); err != nil {
 		return nil, err
@@ -367,7 +411,7 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	}
 
 	switch storage := attachment.Storage.Asset.(type) {
-	case *corev1.Asset_Nats:
+	case *corev1.AssetStorage_Nats:
 		store, err := c.GetAttachmentsStore(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get attachments store: %w", err)
@@ -376,7 +420,7 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 			return fmt.Errorf("failed to delete attachment from NATS: %w", err)
 		}
 		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachment.Id, "key", storage.Nats.Key)
-	case *corev1.Asset_S3:
+	case *corev1.AssetStorage_S3:
 		if c.s3Client == nil {
 			return fmt.Errorf("S3 client not configured")
 		}
@@ -402,6 +446,40 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	return nil
 }
 
+// DeleteVideoDerivativesForAttachment deletes generated thumbnail/variant
+// binaries for a processed video attachment. The durable manifest remains in
+// EVT for audit/replay; deletion makes future signed URLs resolve to 404.
+func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, attachmentID string) {
+	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachmentID)
+	if !ok || manifest == nil || manifest.Succeeded == nil {
+		return
+	}
+	video := manifest.Succeeded.GetVideo()
+	if video == nil {
+		return
+	}
+	if thumbnail := attachmentFromAsset(video.GetThumbnailAsset()); thumbnail != nil {
+		if err := c.DeleteAttachmentFromStorage(ctx, thumbnail); err != nil {
+			c.logger.Warn("Failed to delete video thumbnail derivative",
+				"attachment_id", thumbnail.GetId(),
+				"origin_attachment_id", attachmentID,
+				"error", err)
+		}
+	}
+	for _, variant := range video.Variants {
+		attachment := attachmentFromAsset(variant.GetAsset())
+		if attachment == nil {
+			continue
+		}
+		if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+			c.logger.Warn("Failed to delete video variant derivative",
+				"attachment_id", attachment.GetId(),
+				"origin_attachment_id", attachmentID,
+				"error", err)
+		}
+	}
+}
+
 // TryPresignedAttachmentURL generates a presigned S3 URL for an
 // attachment. Returns an error if S3 isn't configured, the attachment
 // isn't stored in S3 (e.g. NATS), or no S3 key can be found (in any of
@@ -421,7 +499,7 @@ func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *
 	if attachment.Storage == nil {
 		return c.probePresignedAttachmentURL(ctx, attachment.Id)
 	}
-	s3, ok := attachment.Storage.Asset.(*corev1.Asset_S3)
+	s3, ok := attachment.Storage.Asset.(*corev1.AssetStorage_S3)
 	if !ok {
 		return "", fmt.Errorf("attachment %s is not stored in S3", attachment.Id)
 	}
@@ -527,9 +605,10 @@ func LocatorForBodyAttachment(attachment *corev1.Attachment, bodyKey string) sig
 }
 
 // LocatorForVideoOriginAttachment builds the URL locator for a video
-// variant or thumbnail attachment owned by a VideoProcessingState
-// keyed by `videoOriginID` (the original video's attachment ID). UserID
-// + ExpiresAt are filled in at signing time — see LocatorForBodyAttachment.
+// variant or thumbnail attachment owned by a projected
+// AssetProcessingSucceededEvent keyed by `videoOriginID` (the original
+// video's attachment ID). UserID + ExpiresAt are filled in at signing time
+// — see LocatorForBodyAttachment.
 func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string) signedurl.AttachmentLocator {
 	return signedurl.AttachmentLocator{
 		RoomID:       roomID,
@@ -665,46 +744,46 @@ func (c *ChattoCore) DeleteCachedResizesForKey(ctx context.Context, prefix, asse
 // Video Processing State
 // ============================================================================
 
-// videoProcessingKey returns the RUNTIME KV key for a video's processing state.
+// videoProcessingKey returns the legacy SERVER_RUNTIME key for a video's
+// processing state. New writes are process-local only; durable manifests
+// live in EVT.
 func videoProcessingKey(attachmentID string) string {
 	return "video." + attachmentID
 }
 
 // GetVideoProcessingState retrieves the processing state for a video attachment.
-// Returns nil, nil if no processing state exists for this attachment.
+// Returns nil, nil if no transient processing state exists for this attachment.
+// Completed/failed manifests are source-of-truth in EVT and resolved via
+// RoomTimeline.VideoAttachmentManifest.
 func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, attachmentID string) (*corev1.VideoProcessingState, error) {
-	bucket := c.storage.serverRuntimeKV
-
-	entry, err := bucket.Get(ctx, videoProcessingKey(attachmentID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get video processing state: %w", err)
+	c.videoStateMu.RLock()
+	defer c.videoStateMu.RUnlock()
+	state := c.videoStates[attachmentID]
+	if state == nil {
+		return nil, nil
 	}
-
-	state := &corev1.VideoProcessingState{}
-	if err := proto.Unmarshal(entry.Value(), state); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal video processing state: %w", err)
-	}
-
-	return state, nil
+	return proto.Clone(state).(*corev1.VideoProcessingState), nil
 }
 
-// SetVideoProcessingState stores the processing state for a video attachment.
+// SetVideoProcessingState stores transient per-process processing progress for
+// a video attachment. It deliberately does not write SERVER_RUNTIME/RUNTIME_STATE;
+// durable completed/failed outcomes are AssetProcessing* events in EVT.
 func (c *ChattoCore) SetVideoProcessingState(ctx context.Context, attachmentID string, state *corev1.VideoProcessingState) error {
-	bucket := c.storage.serverRuntimeKV
-
-	data, err := proto.Marshal(state)
-	if err != nil {
-		return fmt.Errorf("failed to marshal video processing state: %w", err)
+	c.videoStateMu.Lock()
+	defer c.videoStateMu.Unlock()
+	if state == nil {
+		delete(c.videoStates, attachmentID)
+		return nil
 	}
-
-	if _, err := bucket.Put(ctx, videoProcessingKey(attachmentID), data); err != nil {
-		return fmt.Errorf("failed to store video processing state: %w", err)
-	}
-
+	c.videoStates[attachmentID] = proto.Clone(state).(*corev1.VideoProcessingState)
 	return nil
+}
+
+// ClearVideoProcessingState removes transient in-memory processing progress.
+func (c *ChattoCore) ClearVideoProcessingState(attachmentID string) {
+	c.videoStateMu.Lock()
+	defer c.videoStateMu.Unlock()
+	delete(c.videoStates, attachmentID)
 }
 
 // SubjectVideoProcess is the NATS subject for video processing requests.
@@ -752,6 +831,38 @@ func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, roomID, 
 	return nil
 }
 
+// RecoverUnmanifestedVideoAttachments replays durable message attachments into
+// the video worker queue when they have no completed/failed manifest yet. If
+// the original binary is already gone, it records a durable unavailable state.
+func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
+	for _, req := range c.RoomTimeline.UnmanifestedVideoAttachments() {
+		if req.Attachment == nil {
+			continue
+		}
+		if state, _ := c.GetVideoProcessingState(ctx, req.Attachment.GetId()); state != nil {
+			continue
+		}
+		kind, err := c.FindRoomKind(ctx, req.RoomID)
+		if err != nil {
+			c.logger.Warn("Failed to resolve room kind for video recovery", "room_id", req.RoomID, "error", err)
+			continue
+		}
+		if !c.attachmentBinaryAvailable(ctx, req.Attachment) {
+			if err := c.RecordAssetProcessingFailed(ctx, kind, req.RoomID, req.Attachment.GetId(), "original_missing", "Video is unavailable because the original upload is missing."); err != nil {
+				c.logger.Warn("Failed to record missing original during video recovery", "attachment_id", req.Attachment.GetId(), "error", err)
+			}
+			continue
+		}
+		if err := c.InitVideoProcessingState(ctx, req.Attachment.GetId()); err != nil {
+			c.logger.Warn("Failed to init recovered video processing state", "attachment_id", req.Attachment.GetId(), "error", err)
+			continue
+		}
+		if err := c.PublishVideoProcessingRequest(ctx, req.RoomID, req.Attachment.GetId(), req.Attachment.GetContentType(), req.MessageEventID); err != nil {
+			c.logger.Warn("Failed to queue recovered video processing request", "attachment_id", req.Attachment.GetId(), "error", err)
+		}
+	}
+}
+
 // PublishVideoProcessingCompleted publishes a live event indicating video processing is done.
 // The frontend subscription receives this and refreshes the affected message.
 func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind RoomKind, roomID, attachmentID, messageBodyID string) error {
@@ -770,3 +881,103 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind R
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
+// PublishAssetProcessing appends a durable asset-processing event to
+// EVT and mirrors the same payload onto the legacy live room subject.
+func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
+	if roomID == "" {
+		return fmt.Errorf("asset processing event missing room id")
+	}
+	agg := events.RoomAggregate(roomID)
+	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+		return fmt.Errorf("publish asset processing event: %w", err)
+	}
+	subject := subjects.LiveRoomEvent(string(kind), roomID, events.EventTypeOf(event))
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
+		c.logger.Warn("Failed to publish asset processing live mirror", "error", err)
+	}
+	return nil
+}
+
+// RecordAssetCreated records the durable content identity and owner for
+// an uploaded asset. Processing outcomes reference this creation by asset id
+// rather than duplicating room/message ownership fields.
+func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
+	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
+		return fmt.Errorf("asset creation missing room, message, or asset id")
+	}
+	declaredAttachment := proto.Clone(attachment).(*corev1.Attachment)
+	if declaredAttachment.MessageBodyId == "" {
+		declaredAttachment.MessageBodyId = messageEventID
+	}
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				RoomId: roomID,
+				Owner: &corev1.AssetCreatedEvent_MessageEventId{
+					MessageEventId: messageEventID,
+				},
+				Asset: assetFromAttachment(declaredAttachment),
+			},
+		},
+	})
+	agg := events.RoomAggregate(roomID)
+	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+		return fmt.Errorf("publish asset creation event: %w", err)
+	}
+	subject := subjects.LiveRoomEvent(string(kind), roomID, events.EventTypeOf(event))
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
+		c.logger.Warn("Failed to publish asset creation live mirror", "error", err)
+	}
+	return nil
+}
+
+// RecordAssetProcessed builds and publishes a durable processed-video
+// manifest for an original video attachment.
+func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, roomID, attachmentID string, sourceAvailable bool, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
+	for _, variant := range variants {
+		if variant == nil {
+			continue
+		}
+		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
+			Quality: variant.GetQuality(),
+			Width:   variant.GetWidth(),
+			Height:  variant.GetHeight(),
+			Size:    variant.GetSize(),
+			Asset:   assetFromAttachment(variant.GetAttachment()),
+		})
+	}
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
+				AssetId:         attachmentID,
+				SourceAvailable: sourceAvailable,
+				Result: &corev1.AssetProcessingSucceededEvent_Video{
+					Video: &corev1.AssetProcessedVideo{
+						DurationMs:     durationMs,
+						Width:          width,
+						Height:         height,
+						ThumbnailAsset: assetFromAttachment(thumbnail),
+						Variants:       assetVariants,
+					},
+				},
+			},
+		},
+	})
+	return c.PublishAssetProcessing(ctx, kind, roomID, event)
+}
+
+// RecordAssetProcessingFailed builds and publishes a durable failed
+// video-processing outcome.
+func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, kind RoomKind, roomID, attachmentID string, reason, errorMessage string) error {
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetProcessingFailed{
+			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
+				AssetId:      attachmentID,
+				Reason:       reason,
+				ErrorMessage: errorMessage,
+			},
+		},
+	})
+	return c.PublishAssetProcessing(ctx, kind, roomID, event)
+}

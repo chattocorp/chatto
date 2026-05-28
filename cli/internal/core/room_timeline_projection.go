@@ -1,6 +1,9 @@
 package core
 
 import (
+	"strings"
+
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -41,6 +44,26 @@ type RoomTimelineProjection struct {
 	// each has its own embedded body and we need explicit
 	// propagation.
 	echoLinks map[string][]string
+	// videoManifests stores the latest durable processing outcome for each
+	// original video attachment. A processed event supersedes a failed event
+	// and vice versa; generated asset metadata lives in the event payload.
+	assetCreations map[string]*corev1.AssetCreatedEvent
+	videoManifests map[string]*VideoAttachmentManifest
+}
+
+// VideoAttachmentManifest is the projection's latest processing outcome for
+// one original video attachment.
+type VideoAttachmentManifest struct {
+	Succeeded *corev1.AssetProcessingSucceededEvent
+	Failed    *corev1.AssetProcessingFailedEvent
+}
+
+// VideoProcessingRequest describes an original video/GIF attachment embedded
+// in a durable MessagePostedEvent that does not yet have a projected manifest.
+type VideoProcessingRequest struct {
+	RoomID         string
+	MessageEventID string
+	Attachment     *corev1.Attachment
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
@@ -60,6 +83,8 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		latestBody:     make(map[string]*corev1.MessageBody),
 		retractedFlags: make(map[string]struct{}),
 		echoLinks:      make(map[string][]string),
+		assetCreations: make(map[string]*corev1.AssetCreatedEvent),
+		videoManifests: make(map[string]*VideoAttachmentManifest),
 	}
 }
 
@@ -81,12 +106,12 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
-	roomID := roomIDOfEvent(event)
+	p.Lock()
+	defer p.Unlock()
+	roomID := p.roomIDOfEventLocked(event)
 	if roomID == "" {
 		return nil
 	}
-	p.Lock()
-	defer p.Unlock()
 
 	// Idempotency: a re-applied event with the same envelope id is a
 	// no-op. The Projection.Apply contract is "Apply(e,n) twice ==
@@ -132,8 +157,43 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			delete(p.latestBody, targetID)
 			p.retractedFlags[targetID] = struct{}{}
 		}
+	case *corev1.Event_AssetCreated:
+		assetID := ev.AssetCreated.GetAsset().GetId()
+		if assetID != "" {
+			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*corev1.AssetCreatedEvent)
+		}
+	case *corev1.Event_AssetProcessingSucceeded:
+		assetID := ev.AssetProcessingSucceeded.GetAssetId()
+		if assetID != "" {
+			p.videoManifests[assetID] = &VideoAttachmentManifest{
+				Succeeded: proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent),
+			}
+		}
+	case *corev1.Event_AssetProcessingFailed:
+		assetID := ev.AssetProcessingFailed.GetAssetId()
+		if assetID != "" {
+			p.videoManifests[assetID] = &VideoAttachmentManifest{
+				Failed: proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent),
+			}
+		}
 	}
 	return nil
+}
+
+func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string {
+	if succeeded := event.GetAssetProcessingSucceeded(); succeeded != nil {
+		if declared := p.assetCreations[succeeded.GetAssetId()]; declared != nil {
+			return declared.GetRoomId()
+		}
+		return ""
+	}
+	if failed := event.GetAssetProcessingFailed(); failed != nil {
+		if declared := p.assetCreations[failed.GetAssetId()]; declared != nil {
+			return declared.GetRoomId()
+		}
+		return ""
+	}
+	return roomIDOfEvent(event)
 }
 
 // RoomEvents returns up to `limit` entries from a room's timeline in
@@ -225,6 +285,73 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 		return b, false, true
 	}
 	return nil, false, true
+}
+
+// VideoAttachmentManifest returns the latest durable processing outcome for
+// the original video attachment ID, if one has been projected. The returned
+// protos are clones so callers can inspect or adapt them freely.
+func (p *RoomTimelineProjection) VideoAttachmentManifest(attachmentID string) (*VideoAttachmentManifest, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if attachmentID == "" {
+		return nil, false
+	}
+	manifest, ok := p.videoManifests[attachmentID]
+	if !ok || manifest == nil {
+		return nil, false
+	}
+	out := &VideoAttachmentManifest{}
+	if manifest.Succeeded != nil {
+		out.Succeeded = proto.Clone(manifest.Succeeded).(*corev1.AssetProcessingSucceededEvent)
+	}
+	if manifest.Failed != nil {
+		out.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
+	}
+	return out, true
+}
+
+// AssetCreation returns the durable creation event for an asset.
+func (p *RoomTimelineProjection) AssetCreation(attachmentID string) (*corev1.AssetCreatedEvent, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if attachmentID == "" {
+		return nil, false
+	}
+	declared, ok := p.assetCreations[attachmentID]
+	if !ok || declared == nil {
+		return nil, false
+	}
+	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
+}
+
+// UnmanifestedVideoAttachments returns video/GIF created assets that do
+// not yet have a durable processed/failed manifest.
+func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessingRequest {
+	p.RLock()
+	defer p.RUnlock()
+	var out []VideoProcessingRequest
+	for _, declared := range p.assetCreations {
+		if declared == nil || declared.GetMessageEventId() == "" {
+			continue
+		}
+		asset := declared.GetAsset()
+		if asset == nil {
+			continue
+		}
+		if _, hasManifest := p.videoManifests[asset.GetId()]; hasManifest {
+			continue
+		}
+		contentType := asset.GetContentType()
+		if !strings.HasPrefix(contentType, "video/") && contentType != "image/gif" {
+			continue
+		}
+		out = append(out, VideoProcessingRequest{
+			RoomID:         declared.GetRoomId(),
+			MessageEventID: declared.GetMessageEventId(),
+			Attachment:     attachmentFromAsset(asset),
+		})
+	}
+	return out
 }
 
 // LinkedEventIDs returns the set of event_ids that an edit / retract
@@ -395,6 +522,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageEdited.GetRoomId()
 	case *corev1.Event_MessageRetracted:
 		return e.MessageRetracted.GetRoomId()
+	case *corev1.Event_AssetCreated:
+		return e.AssetCreated.GetRoomId()
 	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded.GetRoomId()
 	case *corev1.Event_ReactionRemoved:

@@ -1,0 +1,177 @@
+package core
+
+import (
+	"bytes"
+	"testing"
+
+	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+func TestVideoManifestMigration_CompletedImportsWithoutOriginal(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _, original := createPostedVideoAttachment(t, core)
+	thumb, err := core.UploadAttachment(ctx, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 18)))
+	if err != nil {
+		t.Fatalf("upload thumbnail: %v", err)
+	}
+	variantAttachment, err := core.UploadAttachment(ctx, room.Id, "video-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	if err != nil {
+		t.Fatalf("upload variant: %v", err)
+	}
+	if err := core.DeleteAttachmentFromStorage(ctx, original); err != nil {
+		t.Fatalf("delete original: %v", err)
+	}
+
+	state := &corev1.VideoProcessingState{
+		Status:              corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
+		ThumbnailAttachment: thumb,
+		DurationMs:          1234,
+		Width:               640,
+		Height:              360,
+		Variants: []*corev1.VideoVariant{
+			{
+				AttachmentId: variantAttachment.Id,
+				Quality:      "720p",
+				Width:        640,
+				Height:       360,
+				Size:         variantAttachment.Size,
+				Attachment:   variantAttachment,
+			},
+		},
+	}
+	writeLegacyVideoState(t, core, original.Id, state)
+
+	if err := core.migrateVideoManifestsToES(ctx); err != nil {
+		t.Fatalf("migrate video manifests: %v", err)
+	}
+	waitForVideoSubject(t, core, room.Id, events.EventAssetProcessingSucceeded)
+
+	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(original.Id)
+	if !ok || manifest.Succeeded == nil {
+		t.Fatal("expected processed manifest")
+	}
+	if manifest.Succeeded.SourceAvailable {
+		t.Fatal("expected source_available=false for missing original")
+	}
+	video := manifest.Succeeded.GetVideo()
+	if video == nil {
+		t.Fatal("expected video metadata")
+	}
+	if got := video.GetThumbnailAsset().GetId(); got != thumb.Id {
+		t.Fatalf("thumbnail id = %q, want %q", got, thumb.Id)
+	}
+	if len(video.Variants) != 1 || video.Variants[0].GetAsset().GetId() != variantAttachment.Id {
+		t.Fatalf("expected one imported usable variant, got %#v", video.Variants)
+	}
+}
+
+func TestVideoManifestMigration_PendingMissingOriginalImportsUnavailable(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _, original := createPostedVideoAttachment(t, core)
+	if err := core.DeleteAttachmentFromStorage(ctx, original); err != nil {
+		t.Fatalf("delete original: %v", err)
+	}
+	writeLegacyVideoState(t, core, original.Id, &corev1.VideoProcessingState{
+		Status: corev1.VideoStatus_VIDEO_STATUS_PENDING,
+	})
+
+	if err := core.migrateVideoManifestsToES(ctx); err != nil {
+		t.Fatalf("migrate video manifests: %v", err)
+	}
+	waitForVideoSubject(t, core, room.Id, events.EventAssetProcessingFailed)
+
+	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(original.Id)
+	if !ok || manifest.Failed == nil {
+		t.Fatal("expected failed manifest")
+	}
+	if got := manifest.Failed.GetReason(); got != "original_missing" {
+		t.Fatalf("failure reason = %q, want original_missing", got)
+	}
+}
+
+func TestVideoManifestMigration_UntrackedMissingOriginalImportsUnavailable(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _, original := createPostedVideoAttachment(t, core)
+	if err := core.DeleteAttachmentFromStorage(ctx, original); err != nil {
+		t.Fatalf("delete original: %v", err)
+	}
+
+	if err := core.migrateVideoManifestsToES(ctx); err != nil {
+		t.Fatalf("migrate video manifests: %v", err)
+	}
+	waitForVideoSubject(t, core, room.Id, events.EventAssetProcessingFailed)
+
+	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(original.Id)
+	if !ok || manifest.Failed == nil {
+		t.Fatal("expected failed manifest")
+	}
+	if got := manifest.Failed.GetReason(); got != "original_missing" {
+		t.Fatalf("failure reason = %q, want original_missing", got)
+	}
+}
+
+func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, *corev1.User, *corev1.Attachment) {
+	t.Helper()
+	ctx := testContext(t)
+
+	if err := core.storage.serverRuntimeKV.Delete(ctx, videoManifestESMigrationKey); err != nil {
+		t.Fatalf("delete migration sentinel: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Video", "Video room")
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	user, err := core.CreateUser(ctx, "system", "video-user", "video-user", "password123")
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("join room: %v", err)
+	}
+	original, err := core.UploadAttachment(ctx, room.Id, "original.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("upload original: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "video", []*corev1.Attachment{original}, "", "", nil, false); err != nil {
+		t.Fatalf("post message: %v", err)
+	}
+	return room, user, original
+}
+
+func writeLegacyVideoState(t *testing.T, core *ChattoCore, attachmentID string, state *corev1.VideoProcessingState) {
+	t.Helper()
+	ctx := testContext(t)
+
+	data, err := proto.Marshal(state)
+	if err != nil {
+		t.Fatalf("marshal video state: %v", err)
+	}
+	if _, err := core.storage.serverRuntimeKV.Put(ctx, videoProcessingKey(attachmentID), data); err != nil {
+		t.Fatalf("put legacy video state: %v", err)
+	}
+}
+
+func waitForVideoSubject(t *testing.T, core *ChattoCore, roomID, eventType string) {
+	t.Helper()
+	ctx := testContext(t)
+
+	subject := events.RoomAggregate(roomID).Subject(eventType)
+	published, seq, err := core.EventPublisher.SubjectEvents(ctx, subject)
+	if err != nil {
+		t.Fatalf("read %s: %v", subject, err)
+	}
+	if len(published) == 0 {
+		t.Fatalf("expected event on %s", subject)
+	}
+	if err := core.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		t.Fatalf("wait for room timeline seq %d: %v", seq, err)
+	}
+}

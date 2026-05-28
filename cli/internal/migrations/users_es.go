@@ -220,12 +220,12 @@ func getLegacyBytes(ctx context.Context, kv jetstream.KeyValue, key string) ([]b
 	return append([]byte(nil), entry.Value()...), true, nil
 }
 
-func getLegacyAvatar(ctx context.Context, kv jetstream.KeyValue, key string) (*corev1.Asset, bool, error) {
+func getLegacyAvatar(ctx context.Context, kv jetstream.KeyValue, key string) (*corev1.AssetStorage, bool, error) {
 	value, ok, err := getLegacyBytes(ctx, kv, key)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
-	asset := &corev1.Asset{}
+	asset := &corev1.AssetStorage{}
 	if err := proto.Unmarshal(value, asset); err != nil {
 		return nil, false, fmt.Errorf("unmarshal %s: %w", key, err)
 	}

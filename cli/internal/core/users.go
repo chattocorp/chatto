@@ -316,7 +316,7 @@ func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, 
 // UploadUserAvatar processes an image (resizes to 256x256 max, converts to WebP),
 // uploads it to the object store (NATS or S3), and returns the asset reference.
 // If the user already has an avatar, the old one is deleted after successful upload.
-func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader io.Reader) (*corev1.Asset, error) {
+func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader io.Reader) (*corev1.AssetStorage, error) {
 	// Verify user exists
 	_, err := c.GetUser(ctx, userID)
 	if err != nil {
@@ -340,7 +340,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 
 	// Upload to storage with unique asset ID
 	assetID := NewAssetID()
-	var asset *corev1.Asset
+	var asset *corev1.AssetStorage
 
 	if c.ShouldUseS3() {
 		// Upload to S3 - use the same assetID as NATS would use for the key
@@ -351,8 +351,8 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 			return nil, fmt.Errorf("failed to upload avatar to S3: %w", err)
 		}
 		// Store just the assetID in Key (same as NATS) so URL generation is consistent
-		asset = &corev1.Asset{
-			Asset: &corev1.Asset_S3{
+		asset = &corev1.AssetStorage{
+			Asset: &corev1.AssetStorage_S3{
 				S3: &corev1.S3Asset{
 					Key:    assetID,
 					Bucket: proto.String(c.s3Client.Bucket()),
@@ -372,8 +372,8 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload avatar: %w", err)
 		}
-		asset = &corev1.Asset{
-			Asset: &corev1.Asset_Nats{
+		asset = &corev1.AssetStorage{
+			Asset: &corev1.AssetStorage_Nats{
 				Nats: &corev1.NATSAsset{
 					Key: assetID,
 				},
@@ -391,7 +391,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 }
 
 // SetUserAvatar stores the user's avatar asset reference through the user aggregate.
-func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *corev1.Asset) error {
+func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *corev1.AssetStorage) error {
 	// Verify user exists
 	_, err := c.GetUser(ctx, userID)
 	if err != nil {
@@ -418,7 +418,7 @@ func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *co
 
 // GetUserAvatar retrieves a user's avatar asset reference from the user projection.
 // Returns nil if the user has no avatar set.
-func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*corev1.Asset, error) {
+func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*corev1.AssetStorage, error) {
 	if asset, ok := c.Users.Avatar(userID); ok {
 		return asset, nil
 	}
@@ -526,9 +526,9 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 	// Get the asset ID (same format for both NATS and S3)
 	var assetID string
 	switch asset := avatar.Asset.(type) {
-	case *corev1.Asset_Nats:
+	case *corev1.AssetStorage_Nats:
 		assetID = asset.Nats.Key
-	case *corev1.Asset_S3:
+	case *corev1.AssetStorage_S3:
 		assetID = asset.S3.Key
 	default:
 		return "", fmt.Errorf("unknown asset type")

@@ -124,6 +124,13 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 	defer sub.Unsubscribe()
 
+	go func() {
+		if err := s.core.WaitForBoot(ctx); err != nil {
+			return
+		}
+		s.core.RecoverUnmanifestedVideoAttachments(ctx)
+	}()
+
 	// Block until context is cancelled
 	<-ctx.Done()
 

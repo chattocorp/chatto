@@ -34,8 +34,8 @@ func TestMigrateUsersToES_SeedsUserAggregateAndReplays(t *testing.T) {
 	putProtoKV(t, ctx, kv, "user.U1", user)
 	_, err := kv.Put(ctx, "auth.U1.password", []byte("hash"))
 	require.NoError(t, err)
-	putProtoKV(t, ctx, kv, "user.U1.avatar", &corev1.Asset{
-		Asset: &corev1.Asset_S3{S3: &corev1.S3Asset{Key: "avatars/U1"}},
+	putProtoKV(t, ctx, kv, "user.U1.avatar", &corev1.AssetStorage{
+		Asset: &corev1.AssetStorage_S3{S3: &corev1.S3Asset{Key: "avatars/U1"}},
 	})
 	putProtoKV(t, ctx, kv, "verified_emails.U1.emailhash", &corev1.VerifiedEmail{
 		Email:      "Alice@Example.com",

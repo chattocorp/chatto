@@ -17,6 +17,52 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// AssetID is the resolver for the assetId field.
+func (r *assetCreatedEventResolver) AssetID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
+	return obj.GetAsset().GetId(), nil
+}
+
+// MessageEventID is the resolver for the messageEventId field.
+func (r *assetCreatedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
+	return obj.GetMessageEventId(), nil
+}
+
+// RoomID is the resolver for the roomId field.
+func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
+	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
+	if err != nil {
+		return "", err
+	}
+	return declared.GetRoomId(), nil
+}
+
+// MessageEventID is the resolver for the messageEventId field.
+func (r *assetProcessingFailedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
+	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
+	if err != nil {
+		return "", err
+	}
+	return declared.GetMessageEventId(), nil
+}
+
+// RoomID is the resolver for the roomId field.
+func (r *assetProcessingSucceededEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
+	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
+	if err != nil {
+		return "", err
+	}
+	return declared.GetRoomId(), nil
+}
+
+// MessageEventID is the resolver for the messageEventId field.
+func (r *assetProcessingSucceededEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
+	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
+	if err != nil {
+		return "", err
+	}
+	return declared.GetMessageEventId(), nil
+}
+
 // Size is the resolver for the size field.
 // Converts int64 to int32 (safe for attachments up to 2GB).
 func (r *attachmentResolver) Size(ctx context.Context, obj *corev1.Attachment) (int32, error) {
@@ -52,10 +98,70 @@ func (r *attachmentResolver) ThumbnailURL(ctx context.Context, obj *corev1.Attac
 }
 
 // VideoProcessing is the resolver for the videoProcessing field.
-// Returns nil for non-video attachments. Reads state from RUNTIME KV.
+// Returns nil for non-video attachments. Completed/failed manifests come
+// from the EVT-backed room projection; transient pending/processing states are
+// process-local only.
 func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.Attachment) (*model.VideoProcessing, error) {
 	if !strings.HasPrefix(obj.ContentType, "video/") && obj.ContentType != "image/gif" {
 		return nil, nil
+	}
+
+	if manifest, ok := r.core.RoomTimeline.VideoAttachmentManifest(obj.Id); ok && manifest != nil {
+		if succeeded := manifest.Succeeded; succeeded != nil {
+			video := succeeded.GetVideo()
+			if video == nil {
+				return nil, nil
+			}
+			result := &model.VideoProcessing{
+				Status:             model.VideoProcessingStatusCompleted,
+				RoomID:             obj.RoomId,
+				OriginAttachmentID: obj.Id,
+				SourceAvailable:    succeeded.GetSourceAvailable(),
+			}
+			if video.DurationMs > 0 {
+				d := video.DurationMs
+				result.DurationMs = &d
+			}
+			if video.Width > 0 {
+				result.Width = &video.Width
+			}
+			if video.Height > 0 {
+				result.Height = &video.Height
+			}
+			if video.ThumbnailAsset != nil {
+				result.ThumbnailAttachmentID = video.ThumbnailAsset.Id
+			}
+			for _, v := range video.Variants {
+				if v == nil {
+					continue
+				}
+				variantID := v.GetAsset().GetId()
+				result.Variants = append(result.Variants, &model.VideoVariant{
+					Quality:            v.Quality,
+					Width:              v.Width,
+					Height:             v.Height,
+					Size:               v.Size,
+					RoomID:             obj.RoomId,
+					OriginAttachmentID: obj.Id,
+					AttachmentID:       variantID,
+				})
+			}
+			return result, nil
+		}
+		if failed := manifest.Failed; failed != nil {
+			errMsg := failed.GetErrorMessage()
+			if errMsg == "" {
+				errMsg = "Video processing failed. Please try uploading again."
+			}
+			sourceAvailable := failed.GetReason() != "original_missing"
+			return &model.VideoProcessing{
+				Status:             model.VideoProcessingStatusFailed,
+				ErrorMessage:       &errMsg,
+				RoomID:             obj.RoomId,
+				OriginAttachmentID: obj.Id,
+				SourceAvailable:    sourceAvailable,
+			}, nil
+		}
 	}
 
 	state, err := r.core.GetVideoProcessingState(ctx, obj.Id)
@@ -91,6 +197,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		RoomID:                obj.RoomId,
 		OriginAttachmentID:    obj.Id,
 		ThumbnailAttachmentID: thumbnailID,
+		SourceAvailable:       true,
 	}
 
 	if state.DurationMs > 0 {
@@ -623,6 +730,21 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 	return r.core.GetAttachmentURL(loc, callerID(ctx)), nil
 }
 
+// AssetCreatedEvent returns AssetCreatedEventResolver implementation.
+func (r *Resolver) AssetCreatedEvent() AssetCreatedEventResolver {
+	return &assetCreatedEventResolver{r}
+}
+
+// AssetProcessingFailedEvent returns AssetProcessingFailedEventResolver implementation.
+func (r *Resolver) AssetProcessingFailedEvent() AssetProcessingFailedEventResolver {
+	return &assetProcessingFailedEventResolver{r}
+}
+
+// AssetProcessingSucceededEvent returns AssetProcessingSucceededEventResolver implementation.
+func (r *Resolver) AssetProcessingSucceededEvent() AssetProcessingSucceededEventResolver {
+	return &assetProcessingSucceededEventResolver{r}
+}
+
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
 
@@ -701,6 +823,9 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 // VideoVariant returns VideoVariantResolver implementation.
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
+type assetCreatedEventResolver struct{ *Resolver }
+type assetProcessingFailedEventResolver struct{ *Resolver }
+type assetProcessingSucceededEventResolver struct{ *Resolver }
 type attachmentResolver struct{ *Resolver }
 type heartbeatEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
