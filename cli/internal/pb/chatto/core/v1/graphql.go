@@ -25,7 +25,6 @@ func (*MessageEditedEvent) IsServerEventType()            {}
 func (*MessageRetractedEvent) IsServerEventType()         {}
 func (*MessageUpdatedEvent) IsServerEventType()           {}
 func (*MessageDeletedEvent) IsServerEventType()           {}
-func (*AssetCreatedEvent) IsServerEventType()             {}
 func (*AssetProcessingSucceededEvent) IsServerEventType() {}
 func (*AssetProcessingFailedEvent) IsServerEventType()    {}
 func (*ReactionAddedEvent) IsServerEventType()            {}
@@ -80,7 +79,6 @@ func (*MessageEditedEvent) IsRoomEventType()            {}
 func (*MessageRetractedEvent) IsRoomEventType()         {}
 func (*MessageUpdatedEvent) IsRoomEventType()           {}
 func (*MessageDeletedEvent) IsRoomEventType()           {}
-func (*AssetCreatedEvent) IsRoomEventType()             {}
 func (*AssetProcessingSucceededEvent) IsRoomEventType() {}
 func (*AssetProcessingFailedEvent) IsRoomEventType()    {}
 func (*ReactionAddedEvent) IsRoomEventType()            {}

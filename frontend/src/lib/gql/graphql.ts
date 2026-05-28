@@ -169,17 +169,6 @@ export type ArchiveRoomInput = {
   roomId: Scalars['ID']['input'];
 };
 
-/** Event: an uploaded attachment was declared as durable room content. */
-export type AssetCreatedEvent = {
-  __typename?: 'AssetCreatedEvent';
-  /** The created asset ID. */
-  assetId: Scalars['ID']['output'];
-  /** The event ID of the owning message, when message-owned. */
-  messageEventId: Scalars['ID']['output'];
-  /** The room ID. */
-  roomId: Scalars['ID']['output'];
-};
-
 /** Event: asset processing reached a durable failed/unavailable outcome. */
 export type AssetProcessingFailedEvent = {
   __typename?: 'AssetProcessingFailedEvent';
@@ -2348,7 +2337,7 @@ export type RoomEvent = {
 };
 
 /** Union of all room-scoped event types (both persisted and live). */
-export type RoomEventType = AssetCreatedEvent | AssetProcessingFailedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | MessageDeletedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | MessageUpdatedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerMemberDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserTypingEvent | VideoProcessingCompletedEvent;
+export type RoomEventType = AssetProcessingFailedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | MessageDeletedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | MessageUpdatedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerMemberDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserTypingEvent | VideoProcessingCompletedEvent;
 
 /**
  * Result of fetching events around a specific target event. `startCursor`
@@ -2801,7 +2790,7 @@ export type ServerEvent = {
 };
 
 /** Union of every event type a subscriber can receive. */
-export type ServerEventType = AssetCreatedEvent | AssetProcessingFailedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MentionStatusClearedEvent | MessageDeletedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | MessageUpdatedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerConfigUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent | VideoProcessingCompletedEvent;
+export type ServerEventType = AssetProcessingFailedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MentionStatusClearedEvent | MessageDeletedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | MessageUpdatedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerConfigUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent | VideoProcessingCompletedEvent;
 
 /**
  * Event: A server member's account was deleted.
@@ -3600,7 +3589,6 @@ export type RefreshMessageAttachmentUrlsQueryVariables = Exact<{
 
 
 export type RefreshMessageAttachmentUrlsQuery = { __typename?: 'Query', room?: { __typename?: 'Room', event?: { __typename?: 'RoomEvent', event:
-        | { __typename: 'AssetCreatedEvent' }
         | { __typename: 'AssetProcessingFailedEvent' }
         | { __typename: 'AssetProcessingSucceededEvent' }
         | { __typename: 'CallParticipantJoinedEvent' }
@@ -3642,7 +3630,6 @@ export type MessagePreviewQuery = { __typename?: 'Query', server: { __typename?:
         { __typename?: 'User' }
         & { ' $fragmentRefs'?: { 'UserAvatarUserFragment': UserAvatarUserFragment } }
       ) | null, event:
-        | { __typename: 'AssetCreatedEvent' }
         | { __typename: 'AssetProcessingFailedEvent' }
         | { __typename: 'AssetProcessingSucceededEvent' }
         | { __typename: 'CallParticipantJoinedEvent' }
@@ -3831,7 +3818,6 @@ export type MyServerEventsSubscription = { __typename?: 'Subscription', myEvents
       { __typename?: 'User' }
       & { ' $fragmentRefs'?: { 'UserAvatarUserFragment': UserAvatarUserFragment } }
     ) | null, event:
-      | { __typename: 'AssetCreatedEvent' }
       | { __typename: 'AssetProcessingFailedEvent', roomId: string, assetId: string, messageEventId: string }
       | { __typename: 'AssetProcessingSucceededEvent', roomId: string, assetId: string, messageEventId: string }
       | { __typename: 'CallParticipantJoinedEvent', roomId: string }
@@ -4200,7 +4186,6 @@ export type RoomEventViewFragment = { __typename?: 'RoomEvent', id: string, crea
     { __typename?: 'User' }
     & { ' $fragmentRefs'?: { 'UserAvatarUserFragment': UserAvatarUserFragment } }
   ) | null, event:
-    | { __typename: 'AssetCreatedEvent' }
     | { __typename: 'AssetProcessingFailedEvent', roomId: string, assetId: string, messageEventId: string }
     | { __typename: 'AssetProcessingSucceededEvent', roomId: string, assetId: string, messageEventId: string }
     | { __typename: 'CallParticipantJoinedEvent', roomId: string }
@@ -4268,7 +4253,6 @@ export type ResolveMessageLinkQueryVariables = Exact<{
 
 
 export type ResolveMessageLinkQuery = { __typename?: 'Query', room?: { __typename?: 'Room', event?: { __typename?: 'RoomEvent', id: string, event:
-        | { __typename: 'AssetCreatedEvent' }
         | { __typename: 'AssetProcessingFailedEvent' }
         | { __typename: 'AssetProcessingSucceededEvent' }
         | { __typename: 'CallParticipantJoinedEvent' }

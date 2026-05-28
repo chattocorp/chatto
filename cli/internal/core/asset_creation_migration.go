@@ -72,7 +72,7 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
 			declaration := newEvent("", &corev1.Event{
 				Event: &corev1.Event_AssetCreated{
 					AssetCreated: &corev1.AssetCreatedEvent{
-						SourceAvailable: c.attachmentBinaryAvailable(ctx, declaredAttachment),
+						BinaryAvailable: c.attachmentBinaryAvailable(ctx, declaredAttachment),
 						Asset:           asset,
 					},
 				},

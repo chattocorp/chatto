@@ -170,8 +170,8 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	thumbnailAssetID := ""
 	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
 		thumbnailAssetID = thumbnailAsset.GetId()
-		thumbnailAsset.Parent = &corev1.Asset_Asset{
-			Asset: &corev1.AssetDerivativeParent{
+		thumbnailAsset.Parent = &corev1.Asset_Derivative{
+			Derivative: &corev1.AssetDerivativeParent{
 				AssetId: attachmentID,
 				Role:    "thumbnail",
 			},
@@ -185,11 +185,10 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 			continue
 		}
 		variantAsset := assetFromAttachment(variant.GetAttachment())
-		variantAsset.Parent = &corev1.Asset_Asset{
-			Asset: &corev1.AssetDerivativeParent{
+		variantAsset.Parent = &corev1.Asset_Derivative{
+			Derivative: &corev1.AssetDerivativeParent{
 				AssetId: attachmentID,
 				Role:    "video_variant",
-				Variant: variant.GetQuality(),
 			},
 		}
 		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, variantAsset); err != nil {
@@ -227,7 +226,7 @@ func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Cont
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				SourceAvailable: true,
+				BinaryAvailable: true,
 				Asset:           asset,
 			},
 		},

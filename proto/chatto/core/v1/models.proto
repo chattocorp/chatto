@@ -84,9 +84,9 @@ message NATSAsset {
 }
 
 // Asset is durable content metadata for one uploaded or generated binary.
-// Storage, parentage, and media-specific metadata are intrinsic to the asset so
-// originals, derivatives, avatars, server media, and future room uploads can use
-// one model.
+// Storage, parentage, and known media metadata are intrinsic to the asset so
+// originals and derivatives use the same model. New parent branches should be
+// added alongside the feature that emits those asset events.
 message Asset {
   // Unique identifier for this asset (NanoID).
   string id = 1;
@@ -100,6 +100,16 @@ message Asset {
   // File size in bytes.
   int64 size = 4;
 
+  // Media dimensions when known.
+  int32 width = 5;
+  int32 height = 6;
+
+  // Media duration in milliseconds when known.
+  int64 duration_ms = 7;
+
+  // Media bitrate in bits per second when known.
+  int32 bitrate = 8;
+
   // Storage location for the binary data. AssetStorage remains for legacy
   // Attachment/avatar/icon records; new Asset events inline the same choices.
   oneof storage {
@@ -111,17 +121,7 @@ message Asset {
   // their source asset instead of duplicating message/room/user ownership.
   oneof parent {
     MessageAssetParent message = 20;
-    RoomAssetParent room = 21;
-    UserAssetParent user = 22;
-    ServerAssetParent server = 23;
-    AssetDerivativeParent asset = 24;
-  }
-
-  // Media-specific metadata when known.
-  oneof metadata {
-    ImageAssetMetadata image = 30;
-    VideoAssetMetadata video = 31;
-    ArchiveAssetMetadata archive = 32;
+    AssetDerivativeParent derivative = 21;
   }
 }
 
@@ -133,51 +133,12 @@ message MessageAssetParent {
   string message_event_id = 2;
 }
 
-message RoomAssetParent {
-  // Room containing the standalone room attachment.
-  string room_id = 1;
-
-  // Event ID of a future room-attachment-created event.
-  string room_attachment_event_id = 2;
-}
-
-message UserAssetParent {
-  string user_id = 1;
-
-  // Stable slot name such as "avatar".
-  string asset_role = 2;
-}
-
-message ServerAssetParent {
-  // Stable slot name such as "icon" or "banner".
-  string asset_role = 1;
-}
-
 message AssetDerivativeParent {
   // Source/parent asset ID.
   string asset_id = 1;
 
   // Stable derivative role, such as "thumbnail" or "video_variant".
   string role = 2;
-
-  // Optional variant key, such as "480p".
-  string variant = 3;
-}
-
-message ImageAssetMetadata {
-  int32 width = 1;
-  int32 height = 2;
-}
-
-message VideoAssetMetadata {
-  int32 width = 1;
-  int32 height = 2;
-  int64 duration_ms = 3;
-  int32 bitrate = 4;
-}
-
-message ArchiveAssetMetadata {
-  int32 file_count = 1;
 }
 
 message RoomMembership {

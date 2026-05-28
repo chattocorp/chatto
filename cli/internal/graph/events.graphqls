@@ -53,7 +53,6 @@ union RoomEventType =
   | MessageRetractedEvent
   | MessageUpdatedEvent
   | MessageDeletedEvent
-  | AssetCreatedEvent
   # Reactions
   | ReactionAddedEvent
   | ReactionRemovedEvent
@@ -113,7 +112,6 @@ union ServerEventType =
   | MessageRetractedEvent
   | MessageUpdatedEvent
   | MessageDeletedEvent
-  | AssetCreatedEvent
   # Reactions
   | ReactionAddedEvent
   | ReactionRemovedEvent
@@ -490,18 +488,6 @@ type VideoProcessingCompletedEvent {
   "The original attachment ID that was processed."
   attachmentId: ID!
   "The event ID of the message containing the processed attachment."
-  messageEventId: ID! @goField(forceResolver: true)
-}
-
-"""
-Event: an uploaded attachment was declared as durable room content.
-"""
-type AssetCreatedEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
-  "The created asset ID."
-  assetId: ID! @goField(forceResolver: true)
-  "The event ID of the owning message, when message-owned."
   messageEventId: ID! @goField(forceResolver: true)
 }
 

@@ -143,7 +143,7 @@ func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType s
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				SourceAvailable: true,
+				BinaryAvailable: true,
 				Asset: &corev1.Asset{
 					Id:          attachmentID,
 					ContentType: contentType,

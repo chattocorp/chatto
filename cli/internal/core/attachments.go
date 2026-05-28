@@ -363,33 +363,15 @@ func applyAssetMetadataFromAttachment(asset *corev1.Asset, attachment *corev1.At
 	if asset == nil || attachment == nil || (attachment.GetWidth() == 0 && attachment.GetHeight() == 0) {
 		return
 	}
-	contentType := attachment.GetContentType()
-	if strings.HasPrefix(contentType, "video/") {
-		asset.Metadata = &corev1.Asset_Video{Video: &corev1.VideoAssetMetadata{
-			Width:  attachment.GetWidth(),
-			Height: attachment.GetHeight(),
-		}}
-		return
-	}
-	if strings.HasPrefix(contentType, "image/") {
-		asset.Metadata = &corev1.Asset_Image{Image: &corev1.ImageAssetMetadata{
-			Width:  attachment.GetWidth(),
-			Height: attachment.GetHeight(),
-		}}
-	}
+	asset.Width = attachment.GetWidth()
+	asset.Height = attachment.GetHeight()
 }
 
 func assetDimensions(asset *corev1.Asset) (int32, int32) {
 	if asset == nil {
 		return 0, 0
 	}
-	if image := asset.GetImage(); image != nil {
-		return image.GetWidth(), image.GetHeight()
-	}
-	if video := asset.GetVideo(); video != nil {
-		return video.GetWidth(), video.GetHeight()
-	}
-	return 0, 0
+	return asset.GetWidth(), asset.GetHeight()
 }
 
 func cloneAssetStorage(storage *corev1.AssetStorage) *corev1.AssetStorage {
@@ -973,7 +955,9 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 
 // RecordAssetCreated records the durable content identity and message parent for
 // an uploaded asset. Processing outcomes reference this creation by asset id.
-func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
+// Asset creation is projection state, so it is not mirrored to the public
+// live.server subscription stream.
+func (c *ChattoCore) RecordAssetCreated(ctx context.Context, _ RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("asset creation missing room, message, or asset id")
 	}
@@ -991,7 +975,7 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				SourceAvailable: true,
+				BinaryAvailable: true,
 				Asset:           asset,
 			},
 		},
@@ -999,10 +983,6 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, kind RoomKind, room
 	agg := events.RoomAggregate(roomID)
 	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish asset creation event: %w", err)
-	}
-	subject := subjects.LiveRoomEvent(string(kind), roomID, events.EventTypeOf(event))
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish asset creation live mirror", "error", err)
 	}
 	return nil
 }
@@ -1014,8 +994,8 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 	thumbnailAssetID := ""
 	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
 		thumbnailAssetID = thumbnailAsset.GetId()
-		thumbnailAsset.Parent = &corev1.Asset_Asset{
-			Asset: &corev1.AssetDerivativeParent{
+		thumbnailAsset.Parent = &corev1.Asset_Derivative{
+			Derivative: &corev1.AssetDerivativeParent{
 				AssetId: attachmentID,
 				Role:    "thumbnail",
 			},
@@ -1029,11 +1009,10 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 			continue
 		}
 		variantAsset := assetFromAttachment(variant.GetAttachment())
-		variantAsset.Parent = &corev1.Asset_Asset{
-			Asset: &corev1.AssetDerivativeParent{
+		variantAsset.Parent = &corev1.Asset_Derivative{
+			Derivative: &corev1.AssetDerivativeParent{
 				AssetId: attachmentID,
 				Role:    "video_variant",
-				Variant: variant.GetQuality(),
 			},
 		}
 		if err := c.recordDerivativeAssetCreated(ctx, roomID, variantAsset); err != nil {
@@ -1070,7 +1049,7 @@ func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID st
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				SourceAvailable: true,
+				BinaryAvailable: true,
 				Asset:           asset,
 			},
 		},

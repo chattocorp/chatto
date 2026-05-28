@@ -766,10 +766,10 @@ message MessageDeletedEvent {
 // uploaded/generated asset. Message bodies may embed attachments for render
 // compatibility, but this event is the asset aggregate root.
 message AssetCreatedEvent {
-  // Whether the source/original binary was available when this asset creation
-  // event was written/imported. New uploads are true; legacy migrated assets may
-  // be false because older pipelines deleted originals after transcoding.
-  bool source_available = 1;
+  // Whether the asset binary was available when this asset creation event was
+  // written/imported. New uploads are true; legacy migrated source assets may be
+  // false because older pipelines deleted originals after transcoding.
+  bool binary_available = 1;
 
   // Full asset metadata, including storage pointer and parent.
   Asset asset = 2;
@@ -781,10 +781,8 @@ message AssetProcessingSucceededEvent {
   // Asset ID of the source/original asset.
   string asset_id = 1;
 
-  // Processing result. Passthrough means the original source asset is the
-  // display asset; media-specific branches can carry derivative assets.
+  // Processing result. Media-specific branches carry derivative assets.
   oneof result {
-    AssetProcessedSource source = 10;
     AssetProcessedVideo video = 12;
   }
 }
@@ -804,11 +802,6 @@ message AssetProcessingFailedEvent {
 
   // Stable machine-readable failure code.
   AssetProcessingFailureCode failure_code = 2;
-}
-
-message AssetProcessedSource {
-  // Display asset ID. Usually the source asset itself.
-  string asset_id = 1;
 }
 
 // AssetProcessedVideo records processed video/GIF derivative assets.

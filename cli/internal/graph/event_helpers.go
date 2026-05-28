@@ -181,7 +181,7 @@ func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool)
 	if !ok || created == nil {
 		return fallback
 	}
-	return created.GetSourceAvailable()
+	return created.GetBinaryAvailable()
 }
 
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
@@ -190,9 +190,6 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	}
 	asset := event.GetAsset()
 	if parent := asset.GetMessage(); parent != nil {
-		return parent.GetRoomId()
-	}
-	if parent := asset.GetRoom(); parent != nil {
 		return parent.GetRoomId()
 	}
 	return ""
@@ -212,13 +209,7 @@ func assetDimensions(asset *corev1.Asset) (int32, int32) {
 	if asset == nil {
 		return 0, 0
 	}
-	if image := asset.GetImage(); image != nil {
-		return image.GetWidth(), image.GetHeight()
-	}
-	if video := asset.GetVideo(); video != nil {
-		return video.GetWidth(), video.GetHeight()
-	}
-	return 0, 0
+	return asset.GetWidth(), asset.GetHeight()
 }
 
 func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) string {

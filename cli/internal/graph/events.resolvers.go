@@ -18,21 +18,6 @@ import (
 )
 
 // RoomID is the resolver for the roomId field.
-func (r *assetCreatedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
-	return assetCreatedRoomID(obj), nil
-}
-
-// AssetID is the resolver for the assetId field.
-func (r *assetCreatedEventResolver) AssetID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
-	return obj.GetAsset().GetId(), nil
-}
-
-// MessageEventID is the resolver for the messageEventId field.
-func (r *assetCreatedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetCreatedEvent) (string, error) {
-	return assetCreatedMessageEventID(obj), nil
-}
-
-// RoomID is the resolver for the roomId field.
 func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
 	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
 	if err != nil {
@@ -745,11 +730,6 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 	return r.core.GetAttachmentURL(loc, callerID(ctx)), nil
 }
 
-// AssetCreatedEvent returns AssetCreatedEventResolver implementation.
-func (r *Resolver) AssetCreatedEvent() AssetCreatedEventResolver {
-	return &assetCreatedEventResolver{r}
-}
-
 // AssetProcessingFailedEvent returns AssetProcessingFailedEventResolver implementation.
 func (r *Resolver) AssetProcessingFailedEvent() AssetProcessingFailedEventResolver {
 	return &assetProcessingFailedEventResolver{r}
@@ -838,7 +818,6 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 // VideoVariant returns VideoVariantResolver implementation.
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
-type assetCreatedEventResolver struct{ *Resolver }
 type assetProcessingFailedEventResolver struct{ *Resolver }
 type assetProcessingSucceededEventResolver struct{ *Resolver }
 type attachmentResolver struct{ *Resolver }
