@@ -8,10 +8,8 @@ package graph
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -326,43 +324,22 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		linkPreview.EmbedId = lp.EmbedID
 	}
 
-	// Set PENDING state for video/animated-GIF attachments BEFORE PostMessage, so that
-	// when the subscription delivers the event the videoProcessing field is already populated.
-	claimedForProcessing := make(map[string]bool)
+	var postMessageOptions []core.PostMessageOption
 	if r.videoConfig.Enabled {
+		var videoProcessingAssetIDs []string
 		for _, att := range attachments {
-			if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
-				if err := r.core.InitVideoProcessingState(ctx, att.Id); err != nil {
-					if errors.Is(err, core.ErrVideoProcessingAlreadyClaimed) {
-						continue
-					}
-					r.logger.Warn("Failed to init video processing state", "attachment_id", att.Id, "error", err)
-					continue
-				}
-				claimedForProcessing[att.Id] = true
+			if core.AttachmentNeedsVideoProcessing(att, animatedGIFs[att.Id]) {
+				videoProcessingAssetIDs = append(videoProcessingAssetIDs, att.Id)
 			}
+		}
+		if len(videoProcessingAssetIDs) > 0 {
+			postMessageOptions = append(postMessageOptions, core.WithVideoProcessingAssets(videoProcessingAssetIDs...))
 		}
 	}
 
-	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, attachments, inThread, inReplyTo, linkPreview, alsoSendToChannel)
+	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, attachments, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
 	if err != nil {
 		return nil, err
-	}
-
-	// Publish processing requests (needs messageBodyId from PostMessage response)
-	if r.videoConfig.Enabled {
-		if msg := event.GetMessagePosted(); msg != nil {
-			for _, att := range attachments {
-				if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
-					if !claimedForProcessing[att.Id] {
-						continue
-					}
-					if err := r.core.PublishVideoProcessingRequest(ctx, input.RoomID, att.Id, att.ContentType, msg.MessageBodyId); err != nil {
-						r.logger.Warn("Failed to request video processing", "attachment_id", att.Id, "error", err)
-					}
-				}
-			}
-		}
 	}
 
 	// Auto-mark room as read since user is viewing it (avoids separate

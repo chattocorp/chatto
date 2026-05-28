@@ -16,6 +16,46 @@ import (
 
 const defaultHistoricalMessageLimit = 50
 
+type postMessageOptions struct {
+	videoProcessingAssetIDs map[string]struct{}
+}
+
+// PostMessageOption customizes side effects owned by the message-post command.
+type PostMessageOption func(*postMessageOptions)
+
+// WithVideoProcessingAssets schedules video processing for the listed message
+// attachments after their AssetCreatedEvent records have been appended.
+func WithVideoProcessingAssets(assetIDs ...string) PostMessageOption {
+	return func(options *postMessageOptions) {
+		if options.videoProcessingAssetIDs == nil {
+			options.videoProcessingAssetIDs = make(map[string]struct{}, len(assetIDs))
+		}
+		for _, assetID := range assetIDs {
+			if assetID != "" {
+				options.videoProcessingAssetIDs[assetID] = struct{}{}
+			}
+		}
+	}
+}
+
+func collectPostMessageOptions(opts []PostMessageOption) postMessageOptions {
+	var options postMessageOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&options)
+		}
+	}
+	return options
+}
+
+func (options postMessageOptions) shouldScheduleVideoProcessing(attachment *corev1.Attachment) bool {
+	if attachment == nil || attachment.GetId() == "" || len(options.videoProcessingAssetIDs) == 0 {
+		return false
+	}
+	_, ok := options.videoProcessingAssetIDs[attachment.GetId()]
+	return ok
+}
+
 // PostMessage posts a message to a room. Publishes a
 // MessagePostedEvent on evt.room.{R}.message_posted with the
 // encrypted body embedded — no separate SERVER_BODIES write.
@@ -32,7 +72,9 @@ const defaultHistoricalMessageLimit = 50
 // Authorization: Caller must verify room membership and
 // CanPostMessage / CanPostInThread before calling, and CanEchoMessage
 // (if alsoSendToChannel).
-func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool) (*corev1.Event, error) {
+func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*corev1.Event, error) {
+	options := collectPostMessageOptions(opts)
+
 	// Validate message body length to prevent DoS via oversized messages
 	if len(body) > MaxMessageBodyLength {
 		return nil, ErrMessageTooLong
@@ -176,12 +218,34 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
+	createdAssets := make(map[string]struct{}, len(attachments))
 	for _, att := range attachments {
 		if att == nil {
 			continue
 		}
 		if err := c.RecordAssetCreated(ctx, kind, room_id, event.Id, att); err != nil {
 			c.logger.Warn("Failed to publish asset creation event",
+				"room_id", room_id,
+				"message_event_id", event.Id,
+				"attachment_id", att.GetId(),
+				"error", err)
+			continue
+		}
+		createdAssets[att.GetId()] = struct{}{}
+	}
+	for _, att := range attachments {
+		if !options.shouldScheduleVideoProcessing(att) {
+			continue
+		}
+		if _, ok := createdAssets[att.GetId()]; !ok {
+			c.logger.Warn("Skipping video processing for asset without AssetCreatedEvent",
+				"room_id", room_id,
+				"message_event_id", event.Id,
+				"attachment_id", att.GetId())
+			continue
+		}
+		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, kind, room_id, event.Id, att); err != nil {
+			c.logger.Warn("Failed to schedule video processing",
 				"room_id", room_id,
 				"message_event_id", event.Id,
 				"attachment_id", att.GetId(),
