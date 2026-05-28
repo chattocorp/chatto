@@ -4,6 +4,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/log"
@@ -53,6 +54,26 @@ func (r *Resolver) getUser(ctx context.Context, userID string) (*corev1.User, er
 	}
 	// Fallback for tests or contexts without dataloaders
 	return r.core.GetUser(ctx, userID)
+}
+
+// resolveOptionalUser is a tolerant variant of getUser for resolvers backing
+// nullable `actor` / `sender` / `target` fields: a deleted user returns
+// (nil, nil) instead of (nil, ErrNotFound), so the field resolves to null
+// without erroring up and blanking a non-null enclosing list. Reserve true
+// errors for infrastructure faults (KV unreachable, decode failure, etc.) —
+// see graphql.md "Nullability Must Match Resolver Failure Mode."
+func (r *Resolver) resolveOptionalUser(ctx context.Context, userID string) (*corev1.User, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	user, err := r.getUser(ctx, userID)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
 }
 
 // getReactions loads reactions for a message, using the batch dataloader if available.

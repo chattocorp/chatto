@@ -31,7 +31,7 @@ type assetCreationVerification struct {
 // legacy MessagePostedEvent.body.attachments. The old message payloads remain
 // unchanged; the new events provide the asset identity/owner records that
 // processing outcomes can reference by asset id.
-func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
+func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr error) {
 	revision, claimed, err := c.claimRuntimeMigration(ctx, assetCreationESMigrationKey)
 	if err != nil {
 		return err
@@ -39,6 +39,13 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
 	if !claimed {
 		return nil
 	}
+	// On any error path, release the sentinel so a subsequent boot retries
+	// the migration instead of waiting forever on a stale "running" marker.
+	defer func() {
+		if retErr != nil {
+			c.releaseRuntimeMigrationOnFailure(assetCreationESMigrationKey, revision, retErr)
+		}
+	}()
 
 	existing, err := c.indexAssetCreationsFromEVT(ctx)
 	if err != nil {
@@ -76,12 +83,8 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) error {
 					AssetCreated: &corev1.AssetCreatedEvent{
 						StorageAvailable: c.attachmentBinaryAvailable(ctx, declaredAttachment),
 						Asset:            asset,
-						Owner: &corev1.AssetCreatedEvent_Message{
-							Message: &corev1.MessageAssetOwner{
-								RoomId:         posted.GetRoomId(),
-								MessageEventId: messageEventID,
-							},
-						},
+						RoomId:           posted.GetRoomId(),
+						MessageEventId:   messageEventID,
 					},
 				},
 			})
@@ -139,6 +142,21 @@ func (c *ChattoCore) completeRuntimeMigration(ctx context.Context, key string, r
 		return fmt.Errorf("complete migration sentinel %s: %w", key, err)
 	}
 	return nil
+}
+
+// releaseRuntimeMigrationOnFailure deletes the "running" sentinel when a
+// migration aborts mid-flight, so the next boot can retry instead of timing
+// out in waitRuntimeMigrationDone. Best-effort: a failed delete only means
+// the operator has to clear the key manually, no worse than the prior state.
+func (c *ChattoCore) releaseRuntimeMigrationOnFailure(key string, revision uint64, cause error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := c.storage.serverRuntimeKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
+		c.logger.Warn("Failed to release migration sentinel after failure",
+			"key", key,
+			"original_error", cause,
+			"release_error", err)
+	}
 }
 
 func (c *ChattoCore) waitRuntimeMigrationDone(ctx context.Context, key string) error {

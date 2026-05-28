@@ -162,9 +162,16 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		return nil, fmt.Errorf("failed to encrypt message body: %w", err)
 	}
 
+	attachmentIDs := make([]string, 0, len(attachments))
+	for _, att := range attachments {
+		if att == nil || att.GetId() == "" {
+			continue
+		}
+		attachmentIDs = append(attachmentIDs, att.GetId())
+	}
 	messageBody := &corev1.MessageBody{
 		CreatedAt:       timestamppb.New(now),
-		Attachments:     attachments,
+		AttachmentIds:   attachmentIDs,
 		AuthorId:        user_id,
 		LinkPreview:     linkPreview,
 		EncryptedBody:   encrypted.Ciphertext,
@@ -201,23 +208,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Publish to EVT. MessagePosted is append-only per #597's design, so
-	// retrying the same payload after an OCC conflict is safe.
-	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
-	// has caught up, giving read-your-writes for subsequent reads from
-	// this request.
-	agg := events.RoomAggregate(room_id)
-	sequenceID, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish message event: %w", err)
-	}
-	// Also wait for ThreadProjection if this is a thread reply, so a
-	// subsequent thread-pane fetch from the same request sees it.
-	if inThread != "" {
-		if err := c.ThreadsProjector.WaitForSeq(ctx, sequenceID); err != nil {
-			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
-		}
-	}
+	// Publish AssetCreatedEvent for every attachment before MessagePostedEvent.
+	// MessagePosted carries only attachment_ids; the projection (and any
+	// subscriber going through GraphQL) hydrates from these. Subscribers must
+	// see the AssetCreated events first to render the message correctly.
 	createdAssets := make(map[string]struct{}, len(attachments))
 	for _, att := range attachments {
 		if att == nil {
@@ -233,6 +227,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 		createdAssets[att.GetId()] = struct{}{}
 	}
+
+	// Schedule any video processing before MessagePosted so AssetProcessing-
+	// Started fires before subscribers see the message; the frontend uses
+	// the started marker to render the "Processing…" placeholder.
 	for _, att := range attachments {
 		if !options.shouldScheduleVideoProcessing(att) {
 			continue
@@ -250,6 +248,24 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				"message_event_id", event.Id,
 				"attachment_id", att.GetId(),
 				"error", err)
+		}
+	}
+
+	// Publish to EVT. MessagePosted is append-only per #597's design, so
+	// retrying the same payload after an OCC conflict is safe.
+	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
+	// has caught up, giving read-your-writes for subsequent reads from
+	// this request.
+	agg := events.RoomAggregate(room_id)
+	sequenceID, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish message event: %w", err)
+	}
+	// Also wait for ThreadProjection if this is a thread reply, so a
+	// subsequent thread-pane fetch from the same request sees it.
+	if inThread != "" {
+		if err := c.ThreadsProjector.WaitForSeq(ctx, sequenceID); err != nil {
+			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
 
@@ -538,10 +554,16 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// event log. Same posture as the legacy DeleteMessage path —
 	// best-effort, log warnings, keep going.
 	if body != nil {
-		for _, att := range body.GetAttachments() {
-			c.DeleteVideoDerivativesForAttachment(ctx, att.GetId())
+		for _, att := range c.MessageBodyAttachments(body) {
+			c.DeleteVideoDerivativesForAttachment(ctx, kind, att.GetId())
 			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
 				c.logger.Warn("Failed to delete attachment during message deletion",
+					"attachment_id", att.GetId(),
+					"event_id", eventID,
+					"error", err)
+			}
+			if err := c.RecordAssetDeleted(ctx, kind, roomID, att.GetId()); err != nil {
+				c.logger.Warn("Failed to publish asset deletion event",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
 					"error", err)
@@ -770,18 +792,31 @@ func (c *ChattoCore) editEmbeddedBody(
 func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, attachmentID string) error {
 	var removed *corev1.Attachment
 	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
-		idx := -1
-		for i, att := range body.GetAttachments() {
+		// Resolve the attachment (new bodies hold IDs; older bodies hold
+		// embedded protos). Then trim from whichever shape holds it.
+		for _, att := range c.MessageBodyAttachments(body) {
 			if att.GetId() == attachmentID {
-				idx = i
+				removed = att
 				break
 			}
 		}
-		if idx == -1 {
+		if removed == nil {
 			return fmt.Errorf("attachment not found in message")
 		}
-		removed = body.Attachments[idx]
-		body.Attachments = append(body.Attachments[:idx], body.Attachments[idx+1:]...)
+		trimmedIDs := body.AttachmentIds[:0]
+		for _, id := range body.GetAttachmentIds() {
+			if id != attachmentID {
+				trimmedIDs = append(trimmedIDs, id)
+			}
+		}
+		body.AttachmentIds = trimmedIDs
+		trimmedAttachments := body.Attachments[:0]
+		for _, att := range body.GetAttachments() {
+			if att.GetId() != attachmentID {
+				trimmedAttachments = append(trimmedAttachments, att)
+			}
+		}
+		body.Attachments = trimmedAttachments
 		return nil
 	})
 	if err != nil {
@@ -789,12 +824,18 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 	}
 
 	if removed != nil {
-		c.DeleteVideoDerivativesForAttachment(ctx, removed.GetId())
+		c.DeleteVideoDerivativesForAttachment(ctx, kind, removed.GetId())
 		if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
 			c.logger.Warn("Failed to delete attachment file after removing from message",
 				"attachment_id", attachmentID,
 				"message_body_key", messageBodyKey,
 				"error", delErr)
+		}
+		if err := c.RecordAssetDeleted(ctx, kind, roomID, removed.GetId()); err != nil {
+			c.logger.Warn("Failed to publish asset deletion event",
+				"attachment_id", attachmentID,
+				"message_body_key", messageBodyKey,
+				"error", err)
 		}
 	}
 

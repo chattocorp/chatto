@@ -195,7 +195,7 @@ func selectVariantHeights(sourceHeight int32) []int {
 }
 
 // processVideo handles the full processing pipeline for a single video.
-func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
+func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Per-job timeout prevents any single ffmpeg invocation from hanging forever.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -333,7 +333,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 }
 
 // failProcessing records a durable failed outcome and returns the original error.
-func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, originalErr error) error {
+func (s *Service) failProcessing(ctx context.Context, req processRequest, originalErr error) error {
 	// Log the full error for server-side debugging (may contain file paths, ffmpeg output, etc.)
 	s.logger.Error("Video processing failed",
 		"asset_id", req.AssetID,

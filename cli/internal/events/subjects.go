@@ -70,8 +70,10 @@ const (
 	EventMessageEdited            = "message_edited"
 	EventMessageRetracted         = "message_retracted"
 	EventAssetCreated             = "asset_created"
+	EventAssetProcessingStarted   = "asset_processing_started"
 	EventAssetProcessingSucceeded = "asset_processing_succeeded"
 	EventAssetProcessingFailed    = "asset_processing_failed"
+	EventAssetDeleted             = "asset_deleted"
 
 	// Reactions (also under the room aggregate). Reaction state is
 	// derived from these durable events by the reaction projection.
@@ -153,10 +155,14 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageRetracted
 	case *corev1.Event_AssetCreated:
 		return EventAssetCreated
+	case *corev1.Event_AssetProcessingStarted:
+		return EventAssetProcessingStarted
 	case *corev1.Event_AssetProcessingSucceeded:
 		return EventAssetProcessingSucceeded
 	case *corev1.Event_AssetProcessingFailed:
 		return EventAssetProcessingFailed
+	case *corev1.Event_AssetDeleted:
+		return EventAssetDeleted
 
 	case *corev1.Event_ReactionAdded:
 		return EventReactionAdded

@@ -64,11 +64,12 @@ message VerifiedEmail {
   google.protobuf.Timestamp verified_at = 2;
 }
 
-// DeprecatedAsset is the legacy storage-pointer-only asset record. It was named
-// `AssetStorage` after the original `Asset` message was renamed, but it remains
-// only so legacy Attachment, avatar, and branding records stay decodable.
-// New event-sourced asset records use `Asset` below. Remove this message as
-// part of the post-migration cleanup once legacy embedded records are gone.
+// DeprecatedAsset is the storage-pointer-only proto used for legacy values:
+// branding KV entries, avatar pointers on UserAvatarSetEvent, and the
+// Storage field on legacy embedded Attachment protos. Wire format matches
+// the original `Asset` message it replaced; keep it for decode of historical
+// bytes. New writes use AssetRecord (richer content metadata) and emit
+// AssetCreatedEvent for owner / lifecycle context.
 message DeprecatedAsset {
   oneof asset {
     NATSAsset nats = 2;
@@ -85,11 +86,11 @@ message NATSAsset {
   string key = 1;
 }
 
-// Asset is durable content metadata for one uploaded or generated binary.
-// Storage and known media metadata are intrinsic to the asset. Ownership and
+// AssetRecord is durable content metadata for one uploaded or generated
+// binary. Storage and intrinsic media metadata live here; ownership and
 // derivation context live on AssetCreatedEvent.
-message Asset {
-  // Unique identifier for this asset (NanoID).
+message AssetRecord {
+  // Unique identifier (NanoID).
   string id = 1;
 
   // Original filename.
@@ -171,13 +172,12 @@ message ThreadMetadata {
   repeated string participant_ids = 4;
 }
 
-// Attachment is the legacy message-facing asset view. New durable asset state
-// is recorded as AssetCreatedEvent{asset: Asset}; this proto is retained so
-// existing MessageBody payloads, GraphQL attachment fields, and migration code
-// remain decodable. Remove/replace it in the post-migration asset cleanup.
+// Attachment is the legacy embedded representation of a message attachment.
+// New posts store only attachment IDs on MessageBody and emit
+// AssetCreatedEvent records for each; this proto is retained so historical
+// MessageBody payloads remain decodable. Remove in post-migration cleanup
+// once all legacy embedded records have been backfilled and archived.
 message Attachment {
-  option deprecated = true;
-
   // Unique identifier for this attachment (NanoID)
   string id = 1;
 
@@ -234,8 +234,17 @@ message MessageBody {
   // 12-byte nonce for ChaCha20-Poly1305 (must be unique per encryption)
   bytes encryption_nonce = 21;
 
-  // File attachments (images, videos, etc.)
+  // Legacy embedded attachment protos. Older bodies (and the legacy
+  // import path) carry full Attachment records here. New bodies write
+  // attachment_ids instead and the GraphQL resolver hydrates from the
+  // asset projection (see AssetCreatedEvent). Keep this field for decode
+  // until every historical body has been backfilled into the projection.
   repeated Attachment attachments = 30;
+
+  // Ordered list of asset IDs referenced by this message. Source of truth
+  // for new bodies; their content metadata + storage live on AssetRecord /
+  // AssetCreatedEvent in the projection.
+  repeated string attachment_ids = 31;
 
   // Link preview extracted from the first URL in the message body
   LinkPreview link_preview = 40;

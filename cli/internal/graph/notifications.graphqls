@@ -22,7 +22,7 @@ type DMMessageNotificationItem {
   "When the notification was created"
   createdAt: Time!
   "User who triggered the notification"
-  actor: User! @goField(forceResolver: true)
+  actor: User @goField(forceResolver: true)
   "Human-readable summary for display"
   summary: String! @goField(forceResolver: true)
   "The DM conversation room"
@@ -39,7 +39,7 @@ type MentionNotificationItem {
   "When the notification was created"
   createdAt: Time!
   "User who triggered the notification"
-  actor: User! @goField(forceResolver: true)
+  actor: User @goField(forceResolver: true)
   "Human-readable summary for display"
   summary: String! @goField(forceResolver: true)
   "Room where the mention occurred"
@@ -60,7 +60,7 @@ type ReplyNotificationItem {
   "When the notification was created"
   createdAt: Time!
   "User who triggered the notification"
-  actor: User! @goField(forceResolver: true)
+  actor: User @goField(forceResolver: true)
   "Human-readable summary for display"
   summary: String! @goField(forceResolver: true)
   "Room where the reply occurred"

@@ -109,6 +109,11 @@
           attachmentId
           messageEventId
         }
+        ... on AssetProcessingStartedEvent {
+          roomId
+          assetId
+          messageEventId
+        }
         ... on AssetProcessingSucceededEvent {
           roomId
           assetId
@@ -118,6 +123,10 @@
           roomId
           assetId
           messageEventId
+        }
+        ... on AssetDeletedEvent {
+          deletedRoomId: roomId
+          assetId
         }
         ... on ServerMemberDeletedEvent {
           userId

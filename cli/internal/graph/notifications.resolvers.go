@@ -16,7 +16,7 @@ import (
 
 // Actor is the resolver for the actor field.
 func (r *dMMessageNotificationItemResolver) Actor(ctx context.Context, obj *model.DMMessageNotificationItem) (*corev1.User, error) {
-	return r.core.GetUser(ctx, obj.ActorID)
+	return r.resolveOptionalUser(ctx, obj.ActorID)
 }
 
 // Summary is the resolver for the summary field.
@@ -35,7 +35,7 @@ func (r *dMMessageNotificationItemResolver) Room(ctx context.Context, obj *model
 
 // Actor is the resolver for the actor field.
 func (r *mentionNotificationItemResolver) Actor(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.User, error) {
-	return r.core.GetUser(ctx, obj.ActorID)
+	return r.resolveOptionalUser(ctx, obj.ActorID)
 }
 
 // Summary is the resolver for the summary field.
@@ -79,7 +79,7 @@ func (r *mutationResolver) DismissAllNotifications(ctx context.Context) (int32, 
 
 // Actor is the resolver for the actor field.
 func (r *replyNotificationItemResolver) Actor(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.User, error) {
-	return r.core.GetUser(ctx, obj.ActorID)
+	return r.resolveOptionalUser(ctx, obj.ActorID)
 }
 
 // Summary is the resolver for the summary field.

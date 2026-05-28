@@ -36,8 +36,6 @@
 		width = null,
 		height = null,
 		reasonCode = null,
-		sourceAvailable = true,
-		originalUrl = null,
 		filename,
 		autoLoop = false
 	}: {
@@ -47,8 +45,6 @@
 		width?: number | null;
 		height?: number | null;
 		reasonCode?: string | null;
-		sourceAvailable?: boolean;
-		originalUrl?: string | null;
 		filename: string;
 		autoLoop?: boolean;
 	} = $props();
@@ -167,28 +163,6 @@
 			<media-video-layout></media-video-layout>
 		</media-player>
 
-	</div>
-{:else if autoLoop && originalUrl && sourceAvailable}
-	<img
-		src={originalUrl}
-		alt={filename}
-		class="max-h-64 max-w-full rounded-sm"
-		style="width: {displaySize.width}px; max-width: 100%;"
-	/>
-{:else if originalUrl && sourceAvailable}
-	<div
-		class="overflow-hidden rounded-sm"
-		style="width: {displaySize.width}px; max-width: 100%;"
-	>
-		<video
-			controls
-			preload="metadata"
-			playsinline
-			src={originalUrl}
-			style="aspect-ratio: {displaySize.width} / {displaySize.height}; width: 100%;"
-		>
-			<track kind="captions" />
-		</video>
 	</div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
 	<div

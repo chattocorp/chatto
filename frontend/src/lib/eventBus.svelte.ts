@@ -131,6 +131,11 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           attachmentId
           messageEventId
         }
+        ... on AssetProcessingStartedEvent {
+          roomId
+          assetId
+          messageEventId
+        }
         ... on AssetProcessingSucceededEvent {
           roomId
           assetId
@@ -140,6 +145,10 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
           assetId
           messageEventId
+        }
+        ... on AssetDeletedEvent {
+          deletedRoomId: roomId
+          assetId
         }
         ... on ServerMemberDeletedEvent {
           userId

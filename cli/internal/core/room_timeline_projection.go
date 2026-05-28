@@ -51,9 +51,13 @@ type RoomTimelineProjection struct {
 	videoManifests map[string]*VideoAttachmentManifest
 }
 
-// VideoAttachmentManifest is the projection's latest processing outcome for
-// one original video attachment.
+// VideoAttachmentManifest is the projection's current processing state for
+// one original video attachment. Started fires when processing is enqueued;
+// Succeeded or Failed fires on terminal outcome. A Started event for a
+// previously-finalised asset clears the prior terminal state (treated as a
+// retry); a Succeeded/Failed event clears the opposite terminal.
 type VideoAttachmentManifest struct {
+	Started   *corev1.AssetProcessingStartedEvent
 	Succeeded *corev1.AssetProcessingSucceededEvent
 	Failed    *corev1.AssetProcessingFailedEvent
 }
@@ -162,25 +166,53 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		if assetID != "" {
 			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*corev1.AssetCreatedEvent)
 		}
+	case *corev1.Event_AssetProcessingStarted:
+		assetID := ev.AssetProcessingStarted.GetAssetId()
+		if assetID != "" {
+			// Started clears any prior terminal state — treat as a retry.
+			p.videoManifests[assetID] = &VideoAttachmentManifest{
+				Started: proto.Clone(ev.AssetProcessingStarted).(*corev1.AssetProcessingStartedEvent),
+			}
+		}
 	case *corev1.Event_AssetProcessingSucceeded:
 		assetID := ev.AssetProcessingSucceeded.GetAssetId()
 		if assetID != "" {
-			p.videoManifests[assetID] = &VideoAttachmentManifest{
-				Succeeded: proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent),
+			manifest := p.videoManifests[assetID]
+			if manifest == nil {
+				manifest = &VideoAttachmentManifest{}
 			}
+			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent)
+			manifest.Failed = nil
+			p.videoManifests[assetID] = manifest
 		}
 	case *corev1.Event_AssetProcessingFailed:
 		assetID := ev.AssetProcessingFailed.GetAssetId()
 		if assetID != "" {
-			p.videoManifests[assetID] = &VideoAttachmentManifest{
-				Failed: proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent),
+			manifest := p.videoManifests[assetID]
+			if manifest == nil {
+				manifest = &VideoAttachmentManifest{}
 			}
+			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent)
+			manifest.Succeeded = nil
+			p.videoManifests[assetID] = manifest
+		}
+	case *corev1.Event_AssetDeleted:
+		assetID := ev.AssetDeleted.GetAssetId()
+		if assetID != "" {
+			delete(p.assetCreations, assetID)
+			delete(p.videoManifests, assetID)
 		}
 	}
 	return nil
 }
 
 func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string {
+	if started := event.GetAssetProcessingStarted(); started != nil {
+		if declared := p.assetCreations[started.GetAssetId()]; declared != nil {
+			return assetCreatedRoomID(declared)
+		}
+		return ""
+	}
 	if succeeded := event.GetAssetProcessingSucceeded(); succeeded != nil {
 		if declared := p.assetCreations[succeeded.GetAssetId()]; declared != nil {
 			return assetCreatedRoomID(declared)
@@ -189,6 +221,12 @@ func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string
 	}
 	if failed := event.GetAssetProcessingFailed(); failed != nil {
 		if declared := p.assetCreations[failed.GetAssetId()]; declared != nil {
+			return assetCreatedRoomID(declared)
+		}
+		return ""
+	}
+	if deleted := event.GetAssetDeleted(); deleted != nil {
+		if declared := p.assetCreations[deleted.GetAssetId()]; declared != nil {
 			return assetCreatedRoomID(declared)
 		}
 		return ""
@@ -304,6 +342,9 @@ func (p *RoomTimelineProjection) VideoAttachmentManifest(attachmentID string) (*
 		return nil, false
 	}
 	out := &VideoAttachmentManifest{}
+	if manifest.Started != nil {
+		out.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
+	}
 	if manifest.Succeeded != nil {
 		out.Succeeded = proto.Clone(manifest.Succeeded).(*corev1.AssetProcessingSucceededEvent)
 	}
@@ -499,28 +540,22 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if parent := event.GetMessage(); parent != nil {
-		return parent.GetRoomId()
-	}
-	return ""
+	return event.GetRoomId()
 }
 
 func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if parent := event.GetMessage(); parent != nil {
-		return parent.GetMessageEventId()
-	}
-	return ""
+	return event.GetMessageEventId()
 }
 
 func (p *RoomTimelineProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetCreatedEvent) string {
-	if roomID := assetCreatedRoomID(event); roomID != "" {
+	if roomID := event.GetRoomId(); roomID != "" {
 		return roomID
 	}
-	if parent := event.GetDerivative(); parent != nil {
-		if declared := p.assetCreations[parent.GetSourceAssetId()]; declared != nil {
+	if parentID := event.GetParentAssetId(); parentID != "" {
+		if declared := p.assetCreations[parentID]; declared != nil {
 			return p.roomIDOfAssetCreatedLocked(declared)
 		}
 	}

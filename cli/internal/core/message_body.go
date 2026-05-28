@@ -80,7 +80,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 	result := &DecryptedMessageBody{
 		AuthorId:    body.GetAuthorId(),
 		Body:        string(plaintext),
-		Attachments: body.GetAttachments(),
+		Attachments: c.MessageBodyAttachments(body),
 		LinkPreview: body.GetLinkPreview(),
 		CreatedAt:   entry.Event.GetCreatedAt().AsTime(),
 	}
@@ -183,7 +183,7 @@ func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID 
 			continue
 		}
 
-		for _, attachment := range messageBody.GetAttachments() {
+		for _, attachment := range c.MessageBodyAttachments(&messageBody) {
 			if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 				c.logger.Warn("Failed to delete attachment during user deletion",
 					"attachment_id", attachment.Id,

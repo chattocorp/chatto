@@ -51,11 +51,6 @@ type ChattoCore struct {
 	// Set this after ChattoCore is created, from VideoConfig.
 	VideoMaxUploadSize int64
 
-	// OnVideoProcessingRequested is called when a posted asset should be
-	// processed as video/GIF. The video service installs this callback when
-	// enabled; durable completed/failed outcomes are still written to EVT.
-	OnVideoProcessingRequested func(ctx context.Context, assetID string) error
-
 	// OnNotificationCreated is called when a notification is created.
 	// Used by the push notification system to send Web Push notifications.
 	// Set this after ChattoCore is created.
@@ -464,7 +459,6 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.DeprecatedA
 		}
 	}
 	if s3Asset := asset.GetS3(); s3Asset != nil && c.s3Client != nil {
-		// S3Asset.Key stores just the assetID; construct the full S3 path
 		s3Key := S3KeyServerAsset(s3Asset.Key)
 		if err := c.s3Client.DeleteObjectFromBucket(ctx, s3Asset.GetBucket(), s3Key); err != nil {
 			c.logger.Warn("Failed to clean up orphaned S3 asset", "asset_id", s3Asset.Key, "s3_key", s3Key, "error", err)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -293,11 +294,11 @@ func legacyAttachmentS3KeyCandidates(attachmentID string) []string {
 	}
 }
 
-func assetFromAttachment(attachment *corev1.Attachment) *corev1.Asset {
+func assetFromAttachment(attachment *corev1.Attachment) *corev1.AssetRecord {
 	if attachment == nil {
 		return nil
 	}
-	asset := &corev1.Asset{
+	asset := &corev1.AssetRecord{
 		Id:          attachment.GetId(),
 		Filename:    attachment.GetFilename(),
 		ContentType: attachment.GetContentType(),
@@ -308,7 +309,7 @@ func assetFromAttachment(attachment *corev1.Attachment) *corev1.Asset {
 	return asset
 }
 
-func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
+func attachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 	if asset == nil {
 		return nil
 	}
@@ -326,27 +327,27 @@ func attachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
 
 // AttachmentFromAsset converts the new Asset model into the legacy
 // message-facing Attachment view used by GraphQL and asset URL helpers.
-func AttachmentFromAsset(asset *corev1.Asset) *corev1.Attachment {
+func AttachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 	return attachmentFromAsset(asset)
 }
 
-func applyDeprecatedAssetFromAttachmentStorage(asset *corev1.Asset, storage *corev1.DeprecatedAsset) {
+func applyDeprecatedAssetFromAttachmentStorage(asset *corev1.AssetRecord, storage *corev1.DeprecatedAsset) {
 	if asset == nil || storage == nil {
 		return
 	}
 	switch stored := storage.GetAsset().(type) {
 	case *corev1.DeprecatedAsset_Nats:
 		if stored.Nats != nil {
-			asset.Storage = &corev1.Asset_Nats{Nats: proto.Clone(stored.Nats).(*corev1.NATSAsset)}
+			asset.Storage = &corev1.AssetRecord_Nats{Nats: proto.Clone(stored.Nats).(*corev1.NATSAsset)}
 		}
 	case *corev1.DeprecatedAsset_S3:
 		if stored.S3 != nil {
-			asset.Storage = &corev1.Asset_S3{S3: proto.Clone(stored.S3).(*corev1.S3Asset)}
+			asset.Storage = &corev1.AssetRecord_S3{S3: proto.Clone(stored.S3).(*corev1.S3Asset)}
 		}
 	}
 }
 
-func assetStorageFromAsset(asset *corev1.Asset) *corev1.DeprecatedAsset {
+func assetStorageFromAsset(asset *corev1.AssetRecord) *corev1.DeprecatedAsset {
 	if asset == nil {
 		return nil
 	}
@@ -364,15 +365,15 @@ func assetStorageFromAsset(asset *corev1.Asset) *corev1.DeprecatedAsset {
 	}
 }
 
-func DeprecatedAssetFromAsset(asset *corev1.Asset) *corev1.DeprecatedAsset {
+func DeprecatedAssetFromAsset(asset *corev1.AssetRecord) *corev1.DeprecatedAsset {
 	return assetStorageFromAsset(asset)
 }
 
-func assetFromDeprecatedAsset(storage *corev1.DeprecatedAsset, filename, contentType string) *corev1.Asset {
+func assetFromDeprecatedAsset(storage *corev1.DeprecatedAsset, filename, contentType string) *corev1.AssetRecord {
 	if storage == nil {
 		return nil
 	}
-	asset := &corev1.Asset{
+	asset := &corev1.AssetRecord{
 		Id:          assetIDFromAsset(storage),
 		Filename:    filename,
 		ContentType: contentType,
@@ -381,7 +382,7 @@ func assetFromDeprecatedAsset(storage *corev1.DeprecatedAsset, filename, content
 	return asset
 }
 
-func applyAssetMetadataFromAttachment(asset *corev1.Asset, attachment *corev1.Attachment) {
+func applyAssetMetadataFromAttachment(asset *corev1.AssetRecord, attachment *corev1.Attachment) {
 	if asset == nil || attachment == nil || (attachment.GetWidth() == 0 && attachment.GetHeight() == 0) {
 		return
 	}
@@ -389,7 +390,7 @@ func applyAssetMetadataFromAttachment(asset *corev1.Asset, attachment *corev1.At
 	asset.Height = attachment.GetHeight()
 }
 
-func assetDimensions(asset *corev1.Asset) (int32, int32) {
+func assetDimensions(asset *corev1.AssetRecord) (int32, int32) {
 	if asset == nil {
 		return 0, 0
 	}
@@ -420,7 +421,7 @@ func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachment
 	if !ok || retracted || body == nil {
 		return nil, nil
 	}
-	for _, att := range body.Attachments {
+	for _, att := range c.MessageBodyAttachments(body) {
 		if att.Id == attachmentID {
 			if att.MessageBodyId == "" {
 				att.MessageBodyId = bodyKey
@@ -429,6 +430,35 @@ func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachment
 		}
 	}
 	return nil, nil
+}
+
+// MessageBodyAttachments returns the materialised attachments for a
+// MessageBody, hydrating from the asset projection when the body uses
+// attachment_ids (current format) and falling back to the legacy embedded
+// attachments slice otherwise. The returned slice preserves the body's
+// declared order; missing projection entries are skipped.
+func (c *ChattoCore) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
+	if body == nil {
+		return nil
+	}
+	ids := body.GetAttachmentIds()
+	if len(ids) == 0 {
+		return body.GetAttachments()
+	}
+	out := make([]*corev1.Attachment, 0, len(ids))
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+		declared, ok := c.RoomTimeline.AssetCreation(id)
+		if !ok {
+			continue
+		}
+		if att := attachmentFromAsset(declared.GetAsset()); att != nil {
+			out = append(out, att)
+		}
+	}
+	return out
 }
 
 // FindVideoOriginAttachment looks up a variant or thumbnail Attachment
@@ -519,9 +549,10 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 }
 
 // DeleteVideoDerivativesForAttachment deletes generated thumbnail/variant
-// binaries for a processed video attachment. The durable manifest remains in
-// EVT for audit/replay; deletion makes future signed URLs resolve to 404.
-func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, attachmentID string) {
+// binaries for a processed video attachment and emits AssetDeletedEvent for
+// each derivative. The durable processing manifest remains in EVT for
+// audit/replay; deletion makes future signed URLs resolve to 404.
+func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, kind RoomKind, attachmentID string) {
 	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachmentID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return
@@ -530,30 +561,33 @@ func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, at
 	if video == nil {
 		return
 	}
-	if declared, ok := c.RoomTimeline.AssetCreation(video.GetThumbnailAssetId()); ok {
-		thumbnail := attachmentFromAsset(declared.GetAsset())
-		if err := c.DeleteAttachmentFromStorage(ctx, thumbnail); err != nil {
-			c.logger.Warn("Failed to delete video thumbnail derivative",
-				"attachment_id", thumbnail.GetId(),
+	deleteDerivative := func(id string) {
+		if id == "" {
+			return
+		}
+		declared, ok := c.RoomTimeline.AssetCreation(id)
+		if !ok {
+			return
+		}
+		att := attachmentFromAsset(declared.GetAsset())
+		if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
+			c.logger.Warn("Failed to delete video derivative binary",
+				"attachment_id", att.GetId(),
 				"origin_attachment_id", attachmentID,
 				"error", err)
+		}
+		if roomID := assetCreatedRoomID(declared); roomID != "" {
+			if err := c.RecordAssetDeleted(ctx, kind, roomID, id); err != nil {
+				c.logger.Warn("Failed to publish derivative asset deletion event",
+					"attachment_id", id,
+					"origin_attachment_id", attachmentID,
+					"error", err)
+			}
 		}
 	}
+	deleteDerivative(video.GetThumbnailAssetId())
 	for _, variant := range video.Variants {
-		if variant.GetAssetId() == "" {
-			continue
-		}
-		declared, ok := c.RoomTimeline.AssetCreation(variant.GetAssetId())
-		if !ok {
-			continue
-		}
-		attachment := attachmentFromAsset(declared.GetAsset())
-		if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
-			c.logger.Warn("Failed to delete video variant derivative",
-				"attachment_id", attachment.GetId(),
-				"origin_attachment_id", attachmentID,
-				"error", err)
-		}
+		deleteDerivative(variant.GetAssetId())
 	}
 }
 
@@ -834,30 +868,74 @@ func videoProcessingKey(attachmentID string) string {
 	return "video." + attachmentID
 }
 
-// ScheduleVideoProcessingForMessageAttachment runs video processing for a
-// message-owned asset. AssetCreatedEvent is the durable source fact; this
-// method is the imperative best-effort path, while boot recovery can call the
-// same method to repair missed processing attempts.
+// SubjectVideoProcess is the NATS Core subject the video worker queue
+// subscribes to. Requests are best-effort fanned through a queue group so
+// multiple worker processes share load; if the worker is unavailable the
+// request is dropped and boot recovery re-enqueues from the projection.
+const SubjectVideoProcess = "chatto.video.process"
+
+// VideoProcessRequest is the payload carried on SubjectVideoProcess.
+type VideoProcessRequest struct {
+	AssetID string `json:"asset_id"`
+}
+
+// ScheduleVideoProcessingForMessageAttachment enqueues async processing for a
+// message-owned video asset. It appends a durable AssetProcessingStartedEvent
+// (the PENDING signal the frontend renders as "Processing…"), then publishes a
+// request onto SubjectVideoProcess. If the source binary is already missing,
+// emits an AssetProcessingFailedEvent with SOURCE_MISSING instead.
 func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("video processing missing room, message, or attachment")
 	}
-	if _, ok := c.RoomTimeline.VideoAttachmentManifest(attachment.GetId()); ok {
-		return nil
+	if manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil {
+		if manifest.Succeeded != nil || manifest.Failed != nil {
+			return nil
+		}
 	}
 	if !c.attachmentBinaryAvailable(ctx, attachment) {
-		if err := c.RecordAssetProcessingFailed(ctx, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
-			return err
-		}
-		return nil
+		return c.RecordAssetProcessingFailed(ctx, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
-	if c.OnVideoProcessingRequested == nil {
-		return fmt.Errorf("video processor is not configured")
-	}
-	if err := c.OnVideoProcessingRequested(ctx, attachment.GetId()); err != nil {
+	if err := c.RecordAssetProcessingStarted(ctx, kind, roomID, attachment.GetId()); err != nil {
 		return err
 	}
+	if err := c.PublishVideoProcessRequest(ctx, attachment.GetId()); err != nil {
+		c.logger.Warn("Failed to publish video process request", "asset_id", attachment.GetId(), "error", err)
+	}
 	return nil
+}
+
+// PublishVideoProcessRequest fans a process request to the video-worker
+// queue group via NATS Core. Workers consume from SubjectVideoProcess.
+func (c *ChattoCore) PublishVideoProcessRequest(ctx context.Context, assetID string) error {
+	if assetID == "" {
+		return fmt.Errorf("video process request missing asset id")
+	}
+	payload, err := json.Marshal(VideoProcessRequest{AssetID: assetID})
+	if err != nil {
+		return fmt.Errorf("marshal video process request: %w", err)
+	}
+	if err := c.nc.Publish(SubjectVideoProcess, payload); err != nil {
+		return fmt.Errorf("publish video process request: %w", err)
+	}
+	return nil
+}
+
+// RecordAssetProcessingStarted appends a durable AssetProcessingStartedEvent
+// for an asset. Subscribers use the projected manifest to render the
+// "Processing…" placeholder until succeeded/failed lands.
+func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, kind RoomKind, roomID, assetID string) error {
+	if roomID == "" || assetID == "" {
+		return fmt.Errorf("asset processing started missing room or asset id")
+	}
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+				AssetId: assetID,
+			},
+		},
+	})
+	return c.PublishAssetProcessing(ctx, kind, roomID, event)
 }
 
 // RecoverUnmanifestedVideoAttachments replays durable message attachments into
@@ -933,12 +1011,8 @@ func (c *ChattoCore) RecordAssetCreated(ctx context.Context, _ RoomKind, roomID,
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
 				Asset:            asset,
-				Owner: &corev1.AssetCreatedEvent_Message{
-					Message: &corev1.MessageAssetOwner{
-						RoomId:         roomID,
-						MessageEventId: messageEventID,
-					},
-				},
+				RoomId:           roomID,
+				MessageEventId:   messageEventID,
 			},
 		},
 	})
@@ -977,14 +1051,12 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: attachmentID,
-				Result: &corev1.AssetProcessingSucceededEvent_Video{
-					Video: &corev1.AssetProcessedVideo{
-						DurationMs:       durationMs,
-						Width:            width,
-						Height:           height,
-						ThumbnailAssetId: thumbnailAssetID,
-						Variants:         assetVariants,
-					},
+				Video: &corev1.AssetProcessedVideo{
+					DurationMs:       durationMs,
+					Width:            width,
+					Height:           height,
+					ThumbnailAssetId: thumbnailAssetID,
+					Variants:         assetVariants,
 				},
 			},
 		},
@@ -992,7 +1064,22 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, kind RoomKind, ro
 	return c.PublishAssetProcessing(ctx, kind, roomID, event)
 }
 
-func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID string, asset *corev1.Asset, sourceAssetID, role string) error {
+// RecordAssetDeleted appends a durable AssetDeletedEvent so subscribers and
+// projections drop any cached state for the asset. The binary cleanup is a
+// separate concern (DeleteAttachmentFromStorage); this event records intent.
+func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, kind RoomKind, roomID, assetID string) error {
+	if roomID == "" || assetID == "" {
+		return fmt.Errorf("asset deletion missing room or asset id")
+	}
+	event := newEvent("", &corev1.Event{
+		Event: &corev1.Event_AssetDeleted{
+			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
+		},
+	})
+	return c.PublishAssetProcessing(ctx, kind, roomID, event)
+}
+
+func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID string, asset *corev1.AssetRecord, sourceAssetID, role string) error {
 	if roomID == "" || asset == nil || asset.GetId() == "" || sourceAssetID == "" || role == "" {
 		return fmt.Errorf("derivative asset creation missing room or asset id")
 	}
@@ -1001,12 +1088,9 @@ func (c *ChattoCore) recordDerivativeAssetCreated(ctx context.Context, roomID st
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
 				Asset:            asset,
-				Owner: &corev1.AssetCreatedEvent_Derivative{
-					Derivative: &corev1.AssetDerivativeOwner{
-						SourceAssetId: sourceAssetID,
-						Role:          role,
-					},
-				},
+				RoomId:           roomID,
+				ParentAssetId:    sourceAssetID,
+				DerivativeRole:   role,
 			},
 		},
 	})

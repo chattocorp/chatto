@@ -18,21 +18,26 @@ import (
 )
 
 // RoomID is the resolver for the roomId field.
-func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
-	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
-	if err != nil {
-		return "", err
+func (r *assetDeletedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetDeletedEvent) (*string, error) {
+	declared, ok := r.core.RoomTimeline.AssetCreation(obj.GetAssetId())
+	if !ok || declared == nil {
+		return nil, nil
 	}
-	return assetCreatedRoomID(declared), nil
+	roomID := assetCreatedRoomID(declared)
+	if roomID == "" {
+		return nil, nil
+	}
+	return &roomID, nil
+}
+
+// RoomID is the resolver for the roomId field.
+func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
+	return assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId())), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
 func (r *assetProcessingFailedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
-	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
-	if err != nil {
-		return "", err
-	}
-	return assetCreatedMessageEventID(declared), nil
+	return assetCreatedMessageEventID(r.assetCreationForProcessing(obj.GetAssetId())), nil
 }
 
 // ReasonCode is the resolver for the reasonCode field.
@@ -41,21 +46,23 @@ func (r *assetProcessingFailedEventResolver) ReasonCode(ctx context.Context, obj
 }
 
 // RoomID is the resolver for the roomId field.
+func (r *assetProcessingStartedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (string, error) {
+	return assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId())), nil
+}
+
+// MessageEventID is the resolver for the messageEventId field.
+func (r *assetProcessingStartedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (string, error) {
+	return assetCreatedMessageEventID(r.assetCreationForProcessing(obj.GetAssetId())), nil
+}
+
+// RoomID is the resolver for the roomId field.
 func (r *assetProcessingSucceededEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
-	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
-	if err != nil {
-		return "", err
-	}
-	return assetCreatedRoomID(declared), nil
+	return assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId())), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
 func (r *assetProcessingSucceededEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
-	declared, err := r.assetCreationForProcessing(obj.GetAssetId())
-	if err != nil {
-		return "", err
-	}
-	return assetCreatedMessageEventID(declared), nil
+	return assetCreatedMessageEventID(r.assetCreationForProcessing(obj.GetAssetId())), nil
 }
 
 // Size is the resolver for the size field.
@@ -161,6 +168,14 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 				SourceAvailable:    sourceAvailable,
 			}, nil
 		}
+		if manifest.Started != nil {
+			return &model.VideoProcessing{
+				Status:             model.VideoProcessingStatusProcessing,
+				RoomID:             obj.RoomId,
+				OriginAttachmentID: obj.Id,
+				SourceAvailable:    r.assetSourceAvailable(obj.Id, true),
+			}, nil
+		}
 	}
 
 	return nil, nil
@@ -179,7 +194,7 @@ func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1
 
 // Actor is the resolver for the actor field.
 func (r *mentionNotificationEventResolver) Actor(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.User, error) {
-	return r.getUser(ctx, obj.MentionedByUserId)
+	return r.resolveOptionalUser(ctx, obj.MentionedByUserId)
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -217,12 +232,17 @@ func (r *messageEditedEventResolver) Attachments(ctx context.Context, obj *corev
 	if obj.Body == nil {
 		return []*corev1.Attachment{}, nil
 	}
-	for _, att := range obj.Body.Attachments {
-		if att != nil {
+	attachments := r.core.MessageBodyAttachments(obj.Body)
+	for _, att := range attachments {
+		if att == nil {
+			continue
+		}
+		att.RoomId = obj.RoomId
+		if att.MessageBodyId == "" {
 			att.MessageBodyId = obj.EventId
 		}
 	}
-	return obj.Body.Attachments, nil
+	return attachments, nil
 }
 
 // LinkPreview is the resolver for the linkPreview field.
@@ -273,25 +293,18 @@ func (r *messagePostedEventResolver) Attachments(ctx context.Context, obj *corev
 	if messageBody == nil {
 		return []*corev1.Attachment{}, nil // Return empty slice for deleted messages
 	}
-	// Render from projected AssetCreatedEvent metadata when available. The
-	// embedded Attachment proto is the legacy message-body view and remains the
-	// fallback for pre-asset-created data.
+	// DecryptedMessageBody.Attachments is already hydrated through the asset
+	// projection (or falls back to the legacy embedded protos for old bodies).
 	attachments := make([]*corev1.Attachment, 0, len(messageBody.Attachments))
 	for _, att := range messageBody.Attachments {
 		if att == nil {
 			continue
 		}
-		rendered := att
-		if created, ok := r.core.RoomTimeline.AssetCreation(att.GetId()); ok {
-			if projected := core.AttachmentFromAsset(created.GetAsset()); projected != nil {
-				rendered = projected
-			}
+		att.RoomId = obj.RoomId
+		if att.MessageBodyId == "" {
+			att.MessageBodyId = bodyKeyForLookup(obj)
 		}
-		rendered.RoomId = obj.RoomId
-		if rendered.MessageBodyId == "" {
-			rendered.MessageBodyId = bodyKeyForLookup(obj)
-		}
-		attachments = append(attachments, rendered)
+		attachments = append(attachments, att)
 	}
 	return attachments, nil
 }
@@ -515,11 +528,14 @@ func (r *messageUpdatedEventResolver) MessageEventID(ctx context.Context, obj *c
 
 // Sender is the resolver for the sender field.
 func (r *newDirectMessageNotificationEventResolver) Sender(ctx context.Context, obj *corev1.NewDirectMessageNotificationEvent) (*corev1.User, error) {
-	return r.getUser(ctx, obj.SenderId)
+	return r.resolveOptionalUser(ctx, obj.SenderId)
 }
 
 // ConversationName is the resolver for the conversationName field.
 // Returns the display names of the other participants in the DM conversation.
+// Degrades to "Direct Message" if the participant lookup fails — a notification
+// event with a missing name is still useful, an error would drop the whole
+// delivery (and this field is non-null on the schema).
 func (r *newDirectMessageNotificationEventResolver) ConversationName(ctx context.Context, obj *corev1.NewDirectMessageNotificationEvent) (string, error) {
 	currentUser := auth.ForContext(ctx)
 	currentUserID := ""
@@ -529,7 +545,9 @@ func (r *newDirectMessageNotificationEventResolver) ConversationName(ctx context
 
 	participantIDs, err := r.core.GetDMParticipants(ctx, obj.RoomId)
 	if err != nil {
-		return "", fmt.Errorf("failed to get DM participants: %w", err)
+		r.logger.Warn("DM notification: failed to load participants for conversation name",
+			"room_id", obj.RoomId, "error", err)
+		return "Direct Message", nil
 	}
 
 	var names []string
@@ -674,9 +692,19 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 	return r.core.GetAttachmentURL(loc, callerID(ctx)), nil
 }
 
+// AssetDeletedEvent returns AssetDeletedEventResolver implementation.
+func (r *Resolver) AssetDeletedEvent() AssetDeletedEventResolver {
+	return &assetDeletedEventResolver{r}
+}
+
 // AssetProcessingFailedEvent returns AssetProcessingFailedEventResolver implementation.
 func (r *Resolver) AssetProcessingFailedEvent() AssetProcessingFailedEventResolver {
 	return &assetProcessingFailedEventResolver{r}
+}
+
+// AssetProcessingStartedEvent returns AssetProcessingStartedEventResolver implementation.
+func (r *Resolver) AssetProcessingStartedEvent() AssetProcessingStartedEventResolver {
+	return &assetProcessingStartedEventResolver{r}
 }
 
 // AssetProcessingSucceededEvent returns AssetProcessingSucceededEventResolver implementation.
@@ -762,7 +790,9 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 // VideoVariant returns VideoVariantResolver implementation.
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
+type assetDeletedEventResolver struct{ *Resolver }
 type assetProcessingFailedEventResolver struct{ *Resolver }
+type assetProcessingStartedEventResolver struct{ *Resolver }
 type assetProcessingSucceededEventResolver struct{ *Resolver }
 type attachmentResolver struct{ *Resolver }
 type heartbeatEventResolver struct{ *Resolver }

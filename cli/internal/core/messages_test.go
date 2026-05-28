@@ -2,11 +2,13 @@ package core
 
 import (
 	"bytes"
-	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/nats-io/nats.go"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -55,7 +57,7 @@ func TestChattoCore_PostMessage(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
@@ -67,19 +69,35 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	var requestedAssetID string
-	core.OnVideoProcessingRequested = func(_ context.Context, assetID string) error {
-		requestedAssetID = assetID
-		return nil
+	requests := make(chan VideoProcessRequest, 1)
+	sub, err := nc.Subscribe(SubjectVideoProcess, func(msg *nats.Msg) {
+		var req VideoProcessRequest
+		if err := json.Unmarshal(msg.Data, &req); err == nil {
+			requests <- req
+		}
+	})
+	if err != nil {
+		t.Fatalf("Failed to subscribe to %s: %v", SubjectVideoProcess, err)
 	}
+	defer sub.Unsubscribe()
 
 	_, err = core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []*corev1.Attachment{attachment}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	if requestedAssetID != attachment.Id {
-		t.Fatalf("requested asset id = %q, want %q", requestedAssetID, attachment.Id)
+	select {
+	case req := <-requests:
+		if req.AssetID != attachment.Id {
+			t.Fatalf("queued asset id = %q, want %q", req.AssetID, attachment.Id)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected video process request on NATS subject")
+	}
+
+	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(attachment.Id)
+	if !ok || manifest.Started == nil {
+		t.Fatalf("expected AssetProcessingStarted manifest, got %+v", manifest)
 	}
 }
 

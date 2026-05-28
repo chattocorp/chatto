@@ -147,8 +147,6 @@
             width={attachment.videoProcessing.width}
             height={attachment.videoProcessing.height}
             reasonCode={attachment.videoProcessing.reasonCode}
-            sourceAvailable={attachment.videoProcessing.sourceAvailable}
-            originalUrl={attachment.url}
             filename={attachment.filename}
             autoLoop
           />
@@ -212,15 +210,13 @@
             width={attachment.videoProcessing.width}
             height={attachment.videoProcessing.height}
             reasonCode={attachment.videoProcessing.reasonCode}
-            sourceAvailable={attachment.videoProcessing.sourceAvailable}
-            originalUrl={attachment.url}
             filename={attachment.filename}
           />
           {#if canDeleteAttachment}
             <button
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
+              class="bg-surface-700/80 hover:bg-surface-800 absolute top-1 right-1 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100"
               aria-label="Delete attachment"
               title="Delete attachment"
             >
@@ -229,7 +225,13 @@
           {/if}
         </div>
       {:else if attachment.contentType.startsWith('video/')}
-        <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
+        <!--
+          A video attachment that hasn't been projected as a processing manifest
+          yet — e.g. the message arrived before AssetProcessingStartedEvent did,
+          or processing has never been requested for this asset. Render the raw
+          original so the user can at least play it.
+        -->
+        <div class="overflow-hidden rounded-sm">
           <video controls preload="metadata" src={attachment.url} class="max-h-64 max-w-full rounded-sm">
             <track kind="captions" />
           </video>

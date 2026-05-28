@@ -102,7 +102,7 @@ func (r *roomResolver) ViewerNotificationPreference(ctx context.Context, obj *co
 
 // Actor is the resolver for the actor field.
 func (r *roomMessageNotificationItemResolver) Actor(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.User, error) {
-	return r.core.GetUser(ctx, obj.ActorID)
+	return r.resolveOptionalUser(ctx, obj.ActorID)
 }
 
 // Summary is the resolver for the summary field.

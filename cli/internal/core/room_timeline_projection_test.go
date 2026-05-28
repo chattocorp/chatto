@@ -144,16 +144,12 @@ func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType s
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
-				Asset: &corev1.Asset{
+				Asset: &corev1.AssetRecord{
 					Id:          attachmentID,
 					ContentType: contentType,
 				},
-				Owner: &corev1.AssetCreatedEvent_Message{
-					Message: &corev1.MessageAssetOwner{
-						RoomId:         roomID,
-						MessageEventId: messageEventID,
-					},
-				},
+				RoomId:         roomID,
+				MessageEventId: messageEventID,
 			},
 		},
 	}
@@ -292,16 +288,14 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: "A-video",
-				Result: &corev1.AssetProcessingSucceededEvent_Video{
-					Video: &corev1.AssetProcessedVideo{
-						DurationMs: 1200,
-						Width:      640,
-						Height:     360,
-						Variants: []*corev1.AssetVideoVariant{{
-							Quality: "480p",
-							AssetId: "A-video-480",
-						}},
-					},
+				Video: &corev1.AssetProcessedVideo{
+					DurationMs: 1200,
+					Width:      640,
+					Height:     360,
+					Variants: []*corev1.AssetVideoVariant{{
+						Quality: "480p",
+						AssetId: "A-video-480",
+					}},
 				},
 			},
 		},
@@ -345,9 +339,7 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: "A-video",
-				Result: &corev1.AssetProcessingSucceededEvent_Video{
-					Video: &corev1.AssetProcessedVideo{},
-				},
+				Video:   &corev1.AssetProcessedVideo{},
 			},
 		},
 	}

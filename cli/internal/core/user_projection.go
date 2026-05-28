@@ -26,7 +26,7 @@ type UserProjection struct {
 type projectedUser struct {
 	user          *corev1.User
 	deleted       bool
-	avatar        *corev1.Asset
+	avatar        *corev1.AssetRecord
 	passwordHash  []byte
 	verifiedEmail map[string]VerifiedEmail
 	preferences   *corev1.ServerUserPreferences
@@ -162,15 +162,11 @@ func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
 }
 
 func (p *UserProjection) applyAssetCreated(e *corev1.AssetCreatedEvent) {
-	if e == nil || e.GetAsset() == nil {
+	if e == nil || e.GetAsset() == nil || e.GetUserId() == "" {
 		return
 	}
-	owner := e.GetUserAvatar()
-	if owner == nil || owner.GetUserId() == "" {
-		return
-	}
-	u := p.ensureUserLocked(owner.GetUserId())
-	u.avatar = proto.Clone(e.GetAsset()).(*corev1.Asset)
+	u := p.ensureUserLocked(e.GetUserId())
+	u.avatar = proto.Clone(e.GetAsset()).(*corev1.AssetRecord)
 }
 
 func (p *UserProjection) applyAvatarCleared(e *corev1.UserAvatarClearedEvent) {
@@ -335,14 +331,14 @@ func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
 	return append([]byte(nil), u.passwordHash...), true
 }
 
-func (p *UserProjection) Avatar(userID string) (*corev1.Asset, bool) {
+func (p *UserProjection) Avatar(userID string) (*corev1.AssetRecord, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.deleted || u.avatar == nil {
 		return nil, false
 	}
-	return proto.Clone(u.avatar).(*corev1.Asset), true
+	return proto.Clone(u.avatar).(*corev1.AssetRecord), true
 }
 
 func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferences, bool) {

@@ -397,11 +397,12 @@ func (x *VerifiedEmail) GetVerifiedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// DeprecatedAsset is the legacy storage-pointer-only asset record. It was named
-// `AssetStorage` after the original `Asset` message was renamed, but it remains
-// only so legacy Attachment, avatar, and branding records stay decodable.
-// New event-sourced asset records use `Asset` below. Remove this message as
-// part of the post-migration cleanup once legacy embedded records are gone.
+// DeprecatedAsset is the storage-pointer-only proto used for legacy values:
+// branding KV entries, avatar pointers on UserAvatarSetEvent, and the
+// Storage field on legacy embedded Attachment protos. Wire format matches
+// the original `Asset` message it replaced; keep it for decode of historical
+// bytes. New writes use AssetRecord (richer content metadata) and emit
+// AssetCreatedEvent for owner / lifecycle context.
 type DeprecatedAsset struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Asset:
@@ -580,12 +581,12 @@ func (x *NATSAsset) GetKey() string {
 	return ""
 }
 
-// Asset is durable content metadata for one uploaded or generated binary.
-// Storage and known media metadata are intrinsic to the asset. Ownership and
+// AssetRecord is durable content metadata for one uploaded or generated
+// binary. Storage and intrinsic media metadata live here; ownership and
 // derivation context live on AssetCreatedEvent.
-type Asset struct {
+type AssetRecord struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique identifier for this asset (NanoID).
+	// Unique identifier (NanoID).
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Original filename.
 	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
@@ -604,27 +605,27 @@ type Asset struct {
 	//
 	// Types that are valid to be assigned to Storage:
 	//
-	//	*Asset_Nats
-	//	*Asset_S3
-	Storage       isAsset_Storage `protobuf_oneof:"storage"`
+	//	*AssetRecord_Nats
+	//	*AssetRecord_S3
+	Storage       isAssetRecord_Storage `protobuf_oneof:"storage"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Asset) Reset() {
-	*x = Asset{}
+func (x *AssetRecord) Reset() {
+	*x = AssetRecord{}
 	mi := &file_chatto_core_v1_models_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Asset) String() string {
+func (x *AssetRecord) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Asset) ProtoMessage() {}
+func (*AssetRecord) ProtoMessage() {}
 
-func (x *Asset) ProtoReflect() protoreflect.Message {
+func (x *AssetRecord) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_models_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -636,107 +637,107 @@ func (x *Asset) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Asset.ProtoReflect.Descriptor instead.
-func (*Asset) Descriptor() ([]byte, []int) {
+// Deprecated: Use AssetRecord.ProtoReflect.Descriptor instead.
+func (*AssetRecord) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *Asset) GetId() string {
+func (x *AssetRecord) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *Asset) GetFilename() string {
+func (x *AssetRecord) GetFilename() string {
 	if x != nil {
 		return x.Filename
 	}
 	return ""
 }
 
-func (x *Asset) GetContentType() string {
+func (x *AssetRecord) GetContentType() string {
 	if x != nil {
 		return x.ContentType
 	}
 	return ""
 }
 
-func (x *Asset) GetSize() int64 {
+func (x *AssetRecord) GetSize() int64 {
 	if x != nil {
 		return x.Size
 	}
 	return 0
 }
 
-func (x *Asset) GetWidth() int32 {
+func (x *AssetRecord) GetWidth() int32 {
 	if x != nil {
 		return x.Width
 	}
 	return 0
 }
 
-func (x *Asset) GetHeight() int32 {
+func (x *AssetRecord) GetHeight() int32 {
 	if x != nil {
 		return x.Height
 	}
 	return 0
 }
 
-func (x *Asset) GetDurationMs() int64 {
+func (x *AssetRecord) GetDurationMs() int64 {
 	if x != nil {
 		return x.DurationMs
 	}
 	return 0
 }
 
-func (x *Asset) GetBitrate() int32 {
+func (x *AssetRecord) GetBitrate() int32 {
 	if x != nil {
 		return x.Bitrate
 	}
 	return 0
 }
 
-func (x *Asset) GetStorage() isAsset_Storage {
+func (x *AssetRecord) GetStorage() isAssetRecord_Storage {
 	if x != nil {
 		return x.Storage
 	}
 	return nil
 }
 
-func (x *Asset) GetNats() *NATSAsset {
+func (x *AssetRecord) GetNats() *NATSAsset {
 	if x != nil {
-		if x, ok := x.Storage.(*Asset_Nats); ok {
+		if x, ok := x.Storage.(*AssetRecord_Nats); ok {
 			return x.Nats
 		}
 	}
 	return nil
 }
 
-func (x *Asset) GetS3() *S3Asset {
+func (x *AssetRecord) GetS3() *S3Asset {
 	if x != nil {
-		if x, ok := x.Storage.(*Asset_S3); ok {
+		if x, ok := x.Storage.(*AssetRecord_S3); ok {
 			return x.S3
 		}
 	}
 	return nil
 }
 
-type isAsset_Storage interface {
-	isAsset_Storage()
+type isAssetRecord_Storage interface {
+	isAssetRecord_Storage()
 }
 
-type Asset_Nats struct {
+type AssetRecord_Nats struct {
 	Nats *NATSAsset `protobuf:"bytes,10,opt,name=nats,proto3,oneof"`
 }
 
-type Asset_S3 struct {
+type AssetRecord_S3 struct {
 	S3 *S3Asset `protobuf:"bytes,11,opt,name=s3,proto3,oneof"`
 }
 
-func (*Asset_Nats) isAsset_Storage() {}
+func (*AssetRecord_Nats) isAssetRecord_Storage() {}
 
-func (*Asset_S3) isAsset_Storage() {}
+func (*AssetRecord_S3) isAssetRecord_Storage() {}
 
 type RoomMembership struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1034,12 +1035,11 @@ func (x *ThreadMetadata) GetParticipantIds() []string {
 	return nil
 }
 
-// Attachment is the legacy message-facing asset view. New durable asset state
-// is recorded as AssetCreatedEvent{asset: Asset}; this proto is retained so
-// existing MessageBody payloads, GraphQL attachment fields, and migration code
-// remain decodable. Remove/replace it in the post-migration asset cleanup.
-//
-// Deprecated: Marked as deprecated in chatto/core/v1/models.proto.
+// Attachment is the legacy embedded representation of a message attachment.
+// New posts store only attachment IDs on MessageBody and emit
+// AssetCreatedEvent records for each; this proto is retained so historical
+// MessageBody payloads remain decodable. Remove in post-migration cleanup
+// once all legacy embedded records have been backfilled and archived.
 type Attachment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this attachment (NanoID)
@@ -1178,8 +1178,16 @@ type MessageBody struct {
 	EncryptedBody []byte `protobuf:"bytes,20,opt,name=encrypted_body,json=encryptedBody,proto3" json:"encrypted_body,omitempty"`
 	// 12-byte nonce for ChaCha20-Poly1305 (must be unique per encryption)
 	EncryptionNonce []byte `protobuf:"bytes,21,opt,name=encryption_nonce,json=encryptionNonce,proto3" json:"encryption_nonce,omitempty"`
-	// File attachments (images, videos, etc.)
+	// Legacy embedded attachment protos. Older bodies (and the legacy
+	// import path) carry full Attachment records here. New bodies write
+	// attachment_ids instead and the GraphQL resolver hydrates from the
+	// asset projection (see AssetCreatedEvent). Keep this field for decode
+	// until every historical body has been backfilled into the projection.
 	Attachments []*Attachment `protobuf:"bytes,30,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Ordered list of asset IDs referenced by this message. Source of truth
+	// for new bodies; their content metadata + storage live on AssetRecord /
+	// AssetCreatedEvent in the projection.
+	AttachmentIds []string `protobuf:"bytes,31,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	// Link preview extracted from the first URL in the message body
 	LinkPreview   *LinkPreview `protobuf:"bytes,40,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1254,6 +1262,13 @@ func (x *MessageBody) GetEncryptionNonce() []byte {
 func (x *MessageBody) GetAttachments() []*Attachment {
 	if x != nil {
 		return x.Attachments
+	}
+	return nil
+}
+
+func (x *MessageBody) GetAttachmentIds() []string {
+	if x != nil {
+		return x.AttachmentIds
 	}
 	return nil
 }
@@ -1850,8 +1865,8 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06bucket\x18\x02 \x01(\tH\x00R\x06bucket\x88\x01\x01B\t\n" +
 	"\a_bucket\"\x1d\n" +
 	"\tNATSAsset\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\"\xba\x02\n" +
-	"\x05Asset\x12\x0e\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"\xc0\x02\n" +
+	"\vAssetRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
@@ -1883,7 +1898,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12'\n" +
-	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xad\x02\n" +
+	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xa9\x02\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
@@ -1895,7 +1910,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06height\x18\b \x01(\x05R\x06height\x129\n" +
 	"\astorage\x18\t \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\astorage\x12&\n" +
 	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyId:\x02\x18\x01J\x04\b\x02\x10\x03R\bspace_id\"\xf0\x02\n" +
+	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\x97\x03\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +
@@ -1904,7 +1919,8 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
 	"\x0eencrypted_body\x18\x14 \x01(\fR\rencryptedBody\x12)\n" +
 	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x12<\n" +
-	"\vattachments\x18\x1e \x03(\v2\x1a.chatto.core.v1.AttachmentR\vattachments\x12>\n" +
+	"\vattachments\x18\x1e \x03(\v2\x1a.chatto.core.v1.AttachmentR\vattachments\x12%\n" +
+	"\x0eattachment_ids\x18\x1f \x03(\tR\rattachmentIds\x12>\n" +
 	"\flink_preview\x18( \x01(\v2\x1b.chatto.core.v1.LinkPreviewR\vlinkPreview\"\xfe\x01\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
@@ -1991,7 +2007,7 @@ var file_chatto_core_v1_models_proto_goTypes = []any{
 	(*DeprecatedAsset)(nil),       // 6: chatto.core.v1.DeprecatedAsset
 	(*S3Asset)(nil),               // 7: chatto.core.v1.S3Asset
 	(*NATSAsset)(nil),             // 8: chatto.core.v1.NATSAsset
-	(*Asset)(nil),                 // 9: chatto.core.v1.Asset
+	(*AssetRecord)(nil),           // 9: chatto.core.v1.AssetRecord
 	(*RoomMembership)(nil),        // 10: chatto.core.v1.RoomMembership
 	(*Role)(nil),                  // 11: chatto.core.v1.Role
 	(*UserPresence)(nil),          // 12: chatto.core.v1.UserPresence
@@ -2013,8 +2029,8 @@ var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	23, // 2: chatto.core.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
 	8,  // 3: chatto.core.v1.DeprecatedAsset.nats:type_name -> chatto.core.v1.NATSAsset
 	7,  // 4: chatto.core.v1.DeprecatedAsset.s3:type_name -> chatto.core.v1.S3Asset
-	8,  // 5: chatto.core.v1.Asset.nats:type_name -> chatto.core.v1.NATSAsset
-	7,  // 6: chatto.core.v1.Asset.s3:type_name -> chatto.core.v1.S3Asset
+	8,  // 5: chatto.core.v1.AssetRecord.nats:type_name -> chatto.core.v1.NATSAsset
+	7,  // 6: chatto.core.v1.AssetRecord.s3:type_name -> chatto.core.v1.S3Asset
 	1,  // 7: chatto.core.v1.UserPresence.status:type_name -> chatto.core.v1.UserPresenceStatus
 	23, // 8: chatto.core.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
 	6,  // 9: chatto.core.v1.Attachment.storage:type_name -> chatto.core.v1.DeprecatedAsset
@@ -2046,8 +2062,8 @@ func file_chatto_core_v1_models_proto_init() {
 	}
 	file_chatto_core_v1_models_proto_msgTypes[4].OneofWrappers = []any{}
 	file_chatto_core_v1_models_proto_msgTypes[6].OneofWrappers = []any{
-		(*Asset_Nats)(nil),
-		(*Asset_S3)(nil),
+		(*AssetRecord_Nats)(nil),
+		(*AssetRecord_S3)(nil),
 	}
 	file_chatto_core_v1_models_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}

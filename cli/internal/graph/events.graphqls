@@ -60,8 +60,10 @@ union RoomEventType =
   | UserTypingEvent
   # Video processing
   | VideoProcessingCompletedEvent
+  | AssetProcessingStartedEvent
   | AssetProcessingSucceededEvent
   | AssetProcessingFailedEvent
+  | AssetDeletedEvent
   # Presence
   | PresenceChangedEvent
   # Voice calls
@@ -119,8 +121,10 @@ union ServerEventType =
   | UserTypingEvent
   # Video processing
   | VideoProcessingCompletedEvent
+  | AssetProcessingStartedEvent
   | AssetProcessingSucceededEvent
   | AssetProcessingFailedEvent
+  | AssetDeletedEvent
   # Presence
   | PresenceChangedEvent
   # Voice calls
@@ -492,6 +496,19 @@ type VideoProcessingCompletedEvent {
 }
 
 """
+Event: asset processing has been enqueued. Emitted before SucceededEvent or
+FailedEvent so subscribers can render a "processing…" placeholder.
+"""
+type AssetProcessingStartedEvent {
+  "The room ID."
+  roomId: ID! @goField(forceResolver: true)
+  "The original asset ID whose processing has been enqueued."
+  assetId: ID!
+  "The event ID of the message containing the attachment, when message-owned."
+  messageEventId: ID! @goField(forceResolver: true)
+}
+
+"""
 Event: asset processing produced a durable derivative manifest.
 """
 type AssetProcessingSucceededEvent {
@@ -515,6 +532,16 @@ type AssetProcessingFailedEvent {
   messageEventId: ID! @goField(forceResolver: true)
   "Stable machine-readable reason."
   reasonCode: String! @goField(forceResolver: true)
+}
+
+"""
+Event: an asset has been deleted; subscribers should drop any local reference.
+"""
+type AssetDeletedEvent {
+  "The room ID, when the asset was room-scoped."
+  roomId: ID @goField(forceResolver: true)
+  "The deleted asset ID."
+  assetId: ID!
 }
 
 # ==============================================================================
@@ -547,7 +574,7 @@ type MentionNotificationEvent {
   "The room where the mention occurred (for display)."
   room: Room! @goField(forceResolver: true)
   "The user who mentioned you."
-  actor: User! @goField(forceResolver: true)
+  actor: User @goField(forceResolver: true)
 }
 
 """

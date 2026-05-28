@@ -97,7 +97,7 @@ type RoomMessageNotificationItem {
   "When the notification was created."
   createdAt: Time!
   "User who posted the message."
-  actor: User! @goField(forceResolver: true)
+  actor: User @goField(forceResolver: true)
   "Human-readable summary for display."
   summary: String! @goField(forceResolver: true)
   "Room where the message was posted."

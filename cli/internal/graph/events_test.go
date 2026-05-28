@@ -142,17 +142,15 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: attachment.Id,
-				Result: &corev1.AssetProcessingSucceededEvent_Video{
-					Video: &corev1.AssetProcessedVideo{
-						DurationMs:       1234,
-						Width:            640,
-						Height:           360,
-						ThumbnailAssetId: "A-thumb",
-						Variants: []*corev1.AssetVideoVariant{{
-							Quality: "480p",
-							AssetId: "A-480",
-						}},
-					},
+				Video: &corev1.AssetProcessedVideo{
+					DurationMs:       1234,
+					Width:            640,
+					Height:           360,
+					ThumbnailAssetId: "A-thumb",
+					Variants: []*corev1.AssetVideoVariant{{
+						Quality: "480p",
+						AssetId: "A-480",
+					}},
 				},
 			},
 		},
@@ -231,40 +229,33 @@ func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType str
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
-				Asset: &corev1.Asset{
+				Asset: &corev1.AssetRecord{
 					Id:          attachmentID,
 					ContentType: contentType,
 				},
-				Owner: &corev1.AssetCreatedEvent_Message{
-					Message: &corev1.MessageAssetOwner{
-						RoomId:         roomID,
-						MessageEventId: messageEventID,
-					},
-				},
+				RoomId:         roomID,
+				MessageEventId: messageEventID,
 			},
 		},
 	}
 }
 
 func testDerivativeAssetCreatedEvent(assetID, parentAssetID, quality string, width, height int32, size int64) *corev1.Event {
+	_ = quality
 	return &corev1.Event{
 		Id: "ENV-DERIVATIVE-" + assetID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
-				Asset: &corev1.Asset{
+				Asset: &corev1.AssetRecord{
 					Id:          assetID,
 					ContentType: "video/mp4",
 					Size:        size,
 					Width:       width,
 					Height:      height,
 				},
-				Owner: &corev1.AssetCreatedEvent_Derivative{
-					Derivative: &corev1.AssetDerivativeOwner{
-						SourceAssetId: parentAssetID,
-						Role:          "video_variant",
-					},
-				},
+				ParentAssetId:  parentAssetID,
+				DerivativeRole: "video_variant",
 			},
 		},
 	}

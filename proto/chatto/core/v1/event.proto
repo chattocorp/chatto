@@ -87,9 +87,14 @@ message Event {
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
     // ----- Assets (450-459, durable) -----
+    // The asset aggregate. AssetCreated establishes content identity for
+    // one uploaded or generated binary; AssetProcessingStarted/Succeeded/
+    // Failed track derivative work; AssetDeleted terminates the lifecycle.
     AssetCreatedEvent asset_created = 450;
-    AssetProcessingSucceededEvent asset_processing_succeeded = 451;
-    AssetProcessingFailedEvent asset_processing_failed = 452;
+    AssetProcessingStartedEvent asset_processing_started = 451;
+    AssetProcessingSucceededEvent asset_processing_succeeded = 452;
+    AssetProcessingFailedEvent asset_processing_failed = 453;
+    AssetDeletedEvent asset_deleted = 454;
 
     // ----- Server config (500-509, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
@@ -765,56 +770,64 @@ message MessageDeletedEvent {
   string message_event_id = 4;
 }
 
-// AssetCreatedEvent records durable content identity and parentage for an
-// uploaded/generated asset. Message bodies may embed attachments for render
-// compatibility, but this event is the asset aggregate root.
+// AssetCreatedEvent records durable content identity for one uploaded or
+// generated binary. Owner context is carried as flat optional fields rather
+// than a discriminated oneof:
+//
+//   - room_id is set for room-scoped assets (message attachments + their
+//     derivatives); matches the EVT subject the event is published to
+//   - message_event_id is set when the asset entered via a message attachment
+//   - parent_asset_id + derivative_role are set for derivatives (e.g. video
+//     thumbnail / variant); inherits room scope from the parent
+//   - user_id is set for user-scoped assets (e.g. avatars), with no room_id
 message AssetCreatedEvent {
-  // Full asset metadata, including storage pointer.
-  Asset asset = 1;
+  // The asset record (content identity + storage).
+  AssetRecord asset = 1;
 
-  // Whether the asset binary was available when this asset creation event was
-  // written/imported. New uploads are true; legacy migrated source assets may be
-  // false because older pipelines deleted originals after transcoding.
+  // Whether the asset binary was available when the event was written.
+  // New uploads are always true; legacy migrated source assets may be false
+  // because older pipelines deleted originals after transcoding.
   bool storage_available = 2;
 
-  // The context that caused the asset to enter the domain.
-  oneof owner {
-    MessageAssetOwner message = 10;
-    AssetDerivativeOwner derivative = 11;
-    UserAvatarAssetOwner user_avatar = 12;
-  }
+  // Room scope. Set for message attachments and their derivatives.
+  string room_id = 3;
+
+  // Event ID of the message that introduced this asset, when applicable.
+  string message_event_id = 4;
+
+  // ID of the parent asset when this asset is a derivative.
+  // Set together with derivative_role for thumbnails / video variants.
+  string parent_asset_id = 5;
+
+  // Stable derivative role (e.g., "thumbnail", "video_variant").
+  // Only meaningful when parent_asset_id is set.
+  string derivative_role = 6;
+
+  // ID of the user that owns this asset, for user-scoped assets (avatars).
+  string user_id = 7;
 }
 
-message MessageAssetOwner {
-  // Room containing the owning message.
-  string room_id = 1;
-
-  // Event ID of the message containing the source attachment.
-  string message_event_id = 2;
+// AssetDeletedEvent terminates the asset lifecycle. Subscribers drop the
+// asset from any local projection; storage cleanup is separate.
+message AssetDeletedEvent {
+  string asset_id = 1;
 }
 
-message AssetDerivativeOwner {
-  // Source/parent asset ID.
-  string source_asset_id = 1;
-
-  // Stable derivative role, such as "thumbnail" or "video_variant".
-  string role = 2;
+// AssetProcessingStartedEvent signals that derivative processing has been
+// enqueued for an asset. It is the PENDING marker the frontend uses to
+// render a "processing…" placeholder until succeeded/failed lands.
+message AssetProcessingStartedEvent {
+  string asset_id = 1;
 }
 
-message UserAvatarAssetOwner {
-  string user_id = 1;
-}
-
-// AssetProcessingSucceededEvent records that asset processing
-// produced a durable displayable result.
+// AssetProcessingSucceededEvent records a durable, displayable processing
+// outcome. Only video-shaped processing exists today; if additional kinds
+// are added in the future they will become new fields on this message.
 message AssetProcessingSucceededEvent {
-  // Asset ID of the source/original asset.
   string asset_id = 1;
 
-  // Processing result. Media-specific branches carry derivative assets.
-  oneof result {
-    AssetProcessedVideo video = 12;
-  }
+  // Video/GIF derivative manifest. Set for video and animated-GIF assets.
+  AssetProcessedVideo video = 2;
 }
 
 enum AssetProcessingFailureCode {
@@ -823,30 +836,21 @@ enum AssetProcessingFailureCode {
   ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING = 2;
 }
 
-// AssetProcessingFailedEvent records that asset processing reached a
-// durable failed/unavailable outcome. A later successful event for the same
-// asset supersedes it.
+// AssetProcessingFailedEvent records a durable failed/unavailable outcome.
+// A later AssetProcessingSucceededEvent for the same asset supersedes it.
 message AssetProcessingFailedEvent {
-  // Asset ID of the source/original asset.
   string asset_id = 1;
-
-  // Stable machine-readable failure code.
   AssetProcessingFailureCode failure_code = 2;
 }
 
-// AssetProcessedVideo records processed video/GIF derivative assets.
+// AssetProcessedVideo is the per-asset video manifest carried by
+// AssetProcessingSucceededEvent. Derivative assets (thumbnail + variants)
+// are referenced by id and have their own AssetCreatedEvent records.
 message AssetProcessedVideo {
-  // Video duration in milliseconds.
   int64 duration_ms = 1;
-
-  // Original/source video dimensions.
   int32 width = 2;
   int32 height = 3;
-
-  // Generated poster/thumbnail image asset ID.
   string thumbnail_asset_id = 4;
-
-  // Processed video variants.
   repeated AssetVideoVariant variants = 5;
 }
 

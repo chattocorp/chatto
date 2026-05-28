@@ -26,7 +26,7 @@ type legacyVideoAttachmentRef struct {
 // migrateVideoManifestsToES imports legacy SERVER_RUNTIME video.{attachment}
 // processing state into durable EVT manifest events. It deliberately leaves the
 // old KV keys in place for rollback, using a sentinel to avoid duplicate imports.
-func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
+func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) (retErr error) {
 	if err := c.migrateAssetCreationsToES(ctx); err != nil {
 		return fmt.Errorf("migrate asset creations: %w", err)
 	}
@@ -37,6 +37,11 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) error {
 	if !claimed {
 		return nil
 	}
+	defer func() {
+		if retErr != nil {
+			c.releaseRuntimeMigrationOnFailure(videoManifestESMigrationKey, revision, retErr)
+		}
+	}()
 
 	legacyKeys, err := c.listLegacyVideoStateKeys(ctx)
 	if err != nil {
@@ -193,14 +198,12 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
 				AssetId: attachmentID,
-				Result: &corev1.AssetProcessingSucceededEvent_Video{
-					Video: &corev1.AssetProcessedVideo{
-						DurationMs:       state.GetDurationMs(),
-						Width:            state.GetWidth(),
-						Height:           state.GetHeight(),
-						ThumbnailAssetId: thumbnailAssetID,
-						Variants:         assetVariants,
-					},
+				Video: &corev1.AssetProcessedVideo{
+					DurationMs:       state.GetDurationMs(),
+					Width:            state.GetWidth(),
+					Height:           state.GetHeight(),
+					ThumbnailAssetId: thumbnailAssetID,
+					Variants:         assetVariants,
 				},
 			},
 		},
@@ -209,7 +212,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	return err
 }
 
-func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.Asset, sourceAssetID, role string) error {
+func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.AssetRecord, sourceAssetID, role string) error {
 	if asset == nil || asset.GetId() == "" {
 		return nil
 	}
@@ -218,12 +221,9 @@ func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Cont
 			AssetCreated: &corev1.AssetCreatedEvent{
 				StorageAvailable: true,
 				Asset:            asset,
-				Owner: &corev1.AssetCreatedEvent_Derivative{
-					Derivative: &corev1.AssetDerivativeOwner{
-						SourceAssetId: sourceAssetID,
-						Role:          role,
-					},
-				},
+				RoomId:           ref.roomID,
+				ParentAssetId:    sourceAssetID,
+				DerivativeRole:   role,
 			},
 		},
 	})

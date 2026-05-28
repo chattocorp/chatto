@@ -60,6 +60,8 @@ func unwrapEvent(event *corev1.Event) any {
 	// ---- Assets ----
 	case *corev1.Event_AssetCreated:
 		return e.AssetCreated
+	case *corev1.Event_AssetDeleted:
+		return e.AssetDeleted
 
 	// ---- Reactions ----
 	case *corev1.Event_ReactionAdded:
@@ -74,6 +76,8 @@ func unwrapEvent(event *corev1.Event) any {
 	// ---- Video processing ----
 	case *corev1.Event_VideoProcessingCompleted:
 		return e.VideoProcessingCompleted
+	case *corev1.Event_AssetProcessingStarted:
+		return e.AssetProcessingStarted
 	case *corev1.Event_AssetProcessingSucceeded:
 		return e.AssetProcessingSucceeded
 	case *corev1.Event_AssetProcessingFailed:
@@ -167,15 +171,21 @@ func (r *Resolver) resolveEventActor(ctx context.Context, event *corev1.Event) (
 	return user, nil
 }
 
-func (r *Resolver) assetCreationForProcessing(assetID string) (*corev1.AssetCreatedEvent, error) {
+// assetCreationForProcessing looks up the AssetCreatedEvent referenced by an
+// asset-processing event. Returns nil when the asset is unknown to the
+// projection (e.g. after AssetDeletedEvent has dropped it). Callers must
+// tolerate the nil and return empty fields rather than errors — these events
+// surface through non-null GraphQL fields, so a returned error would
+// propagate up and blank the entire room.events list.
+func (r *Resolver) assetCreationForProcessing(assetID string) *corev1.AssetCreatedEvent {
 	if assetID == "" {
-		return nil, fmt.Errorf("asset processing event missing asset id")
+		return nil
 	}
 	declared, ok := r.core.RoomTimeline.AssetCreation(assetID)
-	if !ok || declared == nil {
-		return nil, fmt.Errorf("asset creation not found for %s", assetID)
+	if !ok {
+		return nil
 	}
-	return declared, nil
+	return declared
 }
 
 func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool) bool {
@@ -190,23 +200,17 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if parent := event.GetMessage(); parent != nil {
-		return parent.GetRoomId()
-	}
-	return ""
+	return event.GetRoomId()
 }
 
 func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
 	}
-	if parent := event.GetMessage(); parent != nil {
-		return parent.GetMessageEventId()
-	}
-	return ""
+	return event.GetMessageEventId()
 }
 
-func assetDimensions(asset *corev1.Asset) (int32, int32) {
+func assetDimensions(asset *corev1.AssetRecord) (int32, int32) {
 	if asset == nil {
 		return 0, 0
 	}
