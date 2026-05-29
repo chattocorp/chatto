@@ -175,7 +175,7 @@ func (c *ChattoCore) uploadAttachmentBinary(
 // parentage — no separate "claim as derivative" event afterwards.
 type derivativeContext struct {
 	parentAssetID  string
-	derivativeRole string
+	derivativeRole corev1.AssetDerivativeRole
 }
 
 // UploadDerivativeAttachment is the worker-side variant of UploadAttachment.
@@ -187,7 +187,7 @@ type derivativeContext struct {
 func (c *ChattoCore) UploadDerivativeAttachment(
 	ctx context.Context,
 	parentAssetID string,
-	derivativeRole string,
+	derivativeRole corev1.AssetDerivativeRole,
 	roomID string,
 	filename string,
 	contentType string,

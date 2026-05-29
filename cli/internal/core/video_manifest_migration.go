@@ -188,7 +188,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	thumbnailAssetID := ""
 	if thumbnailAsset := assetFromAttachment(thumbnail); thumbnailAsset != nil {
 		thumbnailAssetID = thumbnailAsset.GetId()
-		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, thumbnailAsset, attachmentID, "thumbnail"); err != nil {
+		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, thumbnailAsset, attachmentID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL); err != nil {
 			return err
 		}
 	}
@@ -197,7 +197,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 			continue
 		}
 		variantAsset := assetFromAttachment(variant.GetAttachment())
-		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, variantAsset, attachmentID, "video_variant"); err != nil {
+		if err := c.appendDerivativeAssetCreatedMigrationEvent(ctx, ref, variantAsset, attachmentID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT); err != nil {
 			return err
 		}
 		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
@@ -223,7 +223,7 @@ func (c *ChattoCore) appendVideoProcessedMigrationEvent(ctx context.Context, ref
 	return err
 }
 
-func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.AssetRecord, sourceAssetID, role string) error {
+func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Context, ref *legacyVideoAttachmentRef, asset *corev1.AssetRecord, sourceAssetID string, role corev1.AssetDerivativeRole) error {
 	if asset == nil || asset.GetId() == "" {
 		return nil
 	}

@@ -257,7 +257,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// original — no separate "claim as derivative" step downstream.
 	var thumbnailAttachment *corev1.Attachment
 	if thumbPath != "" {
-		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, "thumbnail", req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
+		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
@@ -292,7 +292,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
 		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), quality)
-		variant, err := s.uploadDerivativeFile(ctx, req.AssetID, "video_variant", req.RoomID, filename, "video/mp4", outputPath)
+		variant, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", outputPath)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
 			continue
@@ -384,7 +384,7 @@ func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Att
 // or transcoded variant) as a derivative of `parentAssetID`. The single
 // AssetCreatedEvent emitted carries the parent + role so the projection
 // links the derivative to its origin immediately.
-func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID, derivativeRole, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
+func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return nil, err

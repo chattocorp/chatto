@@ -783,6 +783,17 @@ message MessageDeletedEvent {
 //   - parent_asset_id + derivative_role are set for derivatives (e.g. video
 //     thumbnail / variant); inherits room scope from the parent
 //
+// AssetDerivativeRole enumerates the kinds of derivative an asset can be.
+// Only meaningful when an AssetCreatedEvent carries a parent_asset_id.
+enum AssetDerivativeRole {
+  // Not a derivative (the asset is an original upload), or unknown role.
+  ASSET_DERIVATIVE_ROLE_UNSPECIFIED = 0;
+  // A still-image thumbnail generated from the parent asset.
+  ASSET_DERIVATIVE_ROLE_THUMBNAIL = 1;
+  // A transcoded video rendition (e.g. a 480p variant) of the parent.
+  ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT = 2;
+}
+
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
 // time, before any message exists. Message ownership of an asset is derived
 // from MessagePostedEvent.asset_ids in the room-timeline projection.
@@ -807,9 +818,9 @@ message AssetCreatedEvent {
   // Set together with derivative_role for thumbnails / video variants.
   string parent_asset_id = 5;
 
-  // Stable derivative role (e.g., "thumbnail", "video_variant").
+  // Derivative role (thumbnail, video variant, …).
   // Only meaningful when parent_asset_id is set.
-  string derivative_role = 6;
+  AssetDerivativeRole derivative_role = 6;
 
   // ID of the user that owns or uploaded this asset. Always set on new
   // events: the uploader for room-scoped uploads, the avatar owner for

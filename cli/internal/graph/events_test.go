@@ -297,7 +297,7 @@ func testDerivativeAssetCreatedEvent(assetID, parentAssetID, quality string, wid
 					Height:      height,
 				},
 				ParentAssetId:  parentAssetID,
-				DerivativeRole: "video_variant",
+				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT,
 			},
 		},
 	}
