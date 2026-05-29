@@ -105,6 +105,9 @@ func RunAll(
 	if err := MigrateServerConfigToES(ctx, runtimeConfigKV, publisher, logger); err != nil {
 		return fmt.Errorf("server_config_es: %w", err)
 	}
+	if err := MigrateNotificationPreferencesToES(ctx, serverConfigKV, publisher, logger); err != nil {
+		return fmt.Errorf("notification_preferences_es: %w", err)
+	}
 	if err := MigrateMessagesToES(ctx, serverEventsStream, serverBodiesKV, publisher, logger); err != nil {
 		return fmt.Errorf("messages_es: %w", err)
 	}

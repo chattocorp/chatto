@@ -102,6 +102,8 @@ message Event {
     // durable variant below lives on the EVT stream (subject
     // evt.config.server) per ADRs 033/034/035.
     ServerConfigChangedEvent server_config_changed = 500;
+    ConfigValueSetEvent config_value_set = 501;
+    ConfigValueClearedEvent config_value_cleared = 502;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.
@@ -381,6 +383,23 @@ message MessagePostedEvent {
 message ServerConfigChangedEvent {
   // The complete server config after the change.
   chatto.config.v1.ServerConfig config = 1;
+}
+
+// ConfigValueSetEvent records one dynamic configuration value. `subject` is
+// the configured entity ID or singleton sentinel (for example `server`, `U...`,
+// `R...`). `path` is a NATS-subject-compatible key path, but it intentionally
+// does not appear in the EVT subject.
+message ConfigValueSetEvent {
+  string subject = 1;
+  string path = 2;
+  chatto.config.v1.ConfigValue value = 3;
+}
+
+// ConfigValueClearedEvent removes one dynamic configuration override. Reads
+// fall back to the path registry's default after this event applies.
+message ConfigValueClearedEvent {
+  string subject = 1;
+  string path = 2;
 }
 
 // ============================================================================

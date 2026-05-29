@@ -15,24 +15,23 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// MigrateServerConfigToES seeds the EVT stream from the
-// existing config.instance entry in INSTANCE_CONFIG (ADR-035 phase 3
-// for the server-config aggregate).
+// MigrateServerConfigToES seeds the EVT stream from the existing
+// config.instance entry in INSTANCE_CONFIG (ADR-035 phase 3 for the
+// server-config aggregate).
 //
-// On a deployment that has at least one operator-saved config, this
-// emits exactly one ServerConfigChangedEvent on evt.config.server
-// carrying the current snapshot. The KV entry's Created() timestamp
-// is preserved as the event's created_at so the audit log dates the
-// seed event correctly.
+// On a deployment that has at least one operator-saved config, this emits
+// generic ConfigValueSetEvent entries on evt.config.server.value_set. The KV
+// entry's Created() timestamp is preserved as each event's created_at so the
+// audit log dates the seed events correctly.
 //
 // On a fresh deployment with no INSTANCE_CONFIG entry, this is a
 // no-op (returns nil without emitting anything).
 //
 // # Idempotency
 //
-// Replay-safe via OCC: AppendAt(seq=0) on evt.config.server hits
-// events.ErrConflict if the aggregate already has events, and we
-// treat that as a deliberate skip.
+// Replay-safe via wildcard OCC: the batch expects evt.config.server.> to be
+// empty. If the aggregate already has events, events.ErrConflict is treated as
+// a deliberate skip.
 //
 // # When this can be removed
 //
@@ -58,25 +57,49 @@ func MigrateServerConfigToES(
 		return fmt.Errorf("unmarshal legacy server config: %w", err)
 	}
 
-	event := &corev1.Event{
-		Id:        newMigrationEventID(),
-		ActorId:   "system:migration",
-		CreatedAt: timestamppb.New(entry.Created()),
-		Event: &corev1.Event_ServerConfigChanged{
-			ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-				Config: cfg,
+	agg := events.ConfigAggregate()
+	createdAt := timestamppb.New(entry.Created())
+	writes := []struct {
+		path  string
+		value string
+	}{
+		{path: "server.name", value: cfg.GetServerName()},
+		{path: "server.description", value: cfg.GetDescription()},
+		{path: "server.welcome_message", value: cfg.GetWelcomeMessage()},
+		{path: "server.motd", value: cfg.GetMotd()},
+		{path: "auth.blocked_usernames", value: cfg.GetBlockedUsernames()},
+	}
+	batch := make([]events.BatchEntry, 0, len(writes))
+	for i, write := range writes {
+		event := &corev1.Event{
+			Id:        newMigrationEventID(),
+			ActorId:   "system:migration",
+			CreatedAt: createdAt,
+			Event: &corev1.Event_ConfigValueSet{
+				ConfigValueSet: &corev1.ConfigValueSetEvent{
+					Subject: events.ConfigSingletonID,
+					Path:    write.path,
+					Value: &configv1.ConfigValue{
+						Value: &configv1.ConfigValue_StringValue{StringValue: write.value},
+					},
+				},
 			},
-		},
+		}
+		batchEntry := events.BatchEntry{
+			Subject: agg.Subject(events.EventConfigValueSet),
+			Event:   event,
+		}
+		if i == 0 {
+			batchEntry.ExpectedSeq = 0
+			batchEntry.FilterSubject = agg.AllEventsFilter()
+			batchEntry.HasOCC = true
+		}
+		batch = append(batch, batchEntry)
 	}
 
-	// Wildcard OCC against the aggregate's full filter — "aggregate
-	// must be empty" (idempotent replay: any prior config event →
-	// ErrConflict → no-op).
-	agg := events.ConfigAggregate()
-	subject := agg.SubjectFor(event)
-	_, err = publisher.AppendAtFilter(ctx, subject, event, agg.AllEventsFilter(), 0)
+	_, err = publisher.AppendBatch(ctx, batch)
 	if err == nil {
-		logger.Info("server_config ES migration: seeded event from legacy KV", "subject", subject)
+		logger.Info("server_config ES migration: seeded generic config events from legacy KV", "subject", agg.Subject(events.EventConfigValueSet), "values", len(batch))
 		return nil
 	}
 	if errors.Is(err, events.ErrConflict) {
@@ -84,5 +107,5 @@ func MigrateServerConfigToES(
 		// migration run (or a runtime publish) populated it. Skip.
 		return nil
 	}
-	return fmt.Errorf("seed ServerConfigChangedEvent: %w", err)
+	return fmt.Errorf("seed generic server config events: %w", err)
 }

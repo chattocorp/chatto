@@ -92,12 +92,11 @@ type ChattoCore struct {
 	// so writers can call WaitForSeq for read-your-writes.
 	RoomMembershipProjector *events.Projector
 
-	// ServerConfig is the projection holding the current server-config
-	// snapshot (ADR-035 phase 5 cutover for the config aggregate).
-	// Reads of "what's the server's MOTD / welcome message / blocked
-	// usernames" go through this projection rather than the legacy
-	// INSTANCE_CONFIG KV.
-	ServerConfig *ServerConfigProjection
+	// ServerConfig is the projection holding current dynamic configuration
+	// rebuilt from EVT. The field name is retained for compatibility with
+	// existing admin/verification code while the projection now stores more
+	// than the old server-config snapshot.
+	ServerConfig *ConfigProjection
 
 	// ServerConfigProjector runs the consumer + apply loop that keeps
 	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
@@ -588,7 +587,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomMembership := NewRoomMembershipProjection()
 	roomMembershipProjector := newProjector(roomMembership, "RoomMembershipProjector")
 
-	serverConfigProjection := NewServerConfigProjection()
+	serverConfigProjection := NewConfigProjection()
 	serverConfigProjector := newProjector(serverConfigProjection, "ServerConfigProjector")
 
 	roomCatalog := NewRoomCatalogProjection()
@@ -619,10 +618,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	rbac := NewRBACProjection()
 	rbacProjector := newProjector(rbac, "RBACProjector")
 
-	// ConfigManager owns event-only server-config writes; it needs the
-	// publisher (for ServerConfigChangedEvent), the projector
-	// (WaitForSeq for read-your-writes), and the projection (for reads).
-	configMgr := NewConfigManager(eventPublisher, serverConfigProjector, serverConfigProjection)
+	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
+	configMgr := NewConfigManager(configService, serverConfigProjection)
 
 	core := &ChattoCore{
 		nc:                      nc,

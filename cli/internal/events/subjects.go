@@ -93,6 +93,8 @@ const (
 
 	// Config aggregate (singleton)
 	EventServerConfigChanged = "config_changed"
+	EventConfigValueSet      = "value_set"
+	EventConfigValueCleared  = "value_cleared"
 
 	// User aggregate
 	EventUserAccountCreated           = "account_created"
@@ -187,6 +189,10 @@ func EventTypeOf(e *corev1.Event) string {
 
 	case *corev1.Event_ServerConfigChanged:
 		return EventServerConfigChanged
+	case *corev1.Event_ConfigValueSet:
+		return EventConfigValueSet
+	case *corev1.Event_ConfigValueCleared:
+		return EventConfigValueCleared
 
 	case *corev1.Event_UserAccountCreated:
 		return EventUserAccountCreated
@@ -300,6 +306,13 @@ func LayoutAggregate() Aggregate {
 // config aggregate.
 func ConfigAggregate() Aggregate {
 	return Aggregate{Type: AggregateConfig, ID: ConfigSingletonID}
+}
+
+// ConfigSubjectAggregate is the typed constructor for dynamic config on any
+// configurable subject. Subjects are canonical IDs/sentinels such as `server`,
+// `U...`, or `R...`; callers should not add redundant type prefixes.
+func ConfigSubjectAggregate(subject string) Aggregate {
+	return Aggregate{Type: AggregateConfig, ID: subject}
 }
 
 // UserAggregate is the typed constructor for a user aggregate. It owns

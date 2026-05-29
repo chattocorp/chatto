@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ErrConfigConflict is returned when a config update fails due to
@@ -25,26 +23,22 @@ const maxConfigUpdateRetries = 5
 //
 // ADR-035 phase 6: writes are event-only (publish to EVT +
 // WaitForSeq for read-your-writes). Reads come from the in-memory
-// ServerConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
+// ConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
 // retained as pre-ES import evidence for MigrateServerConfigToES, but
 // is not written by this code anymore.
 type ConfigManager struct {
-	publisher  *events.Publisher
-	projector  *events.Projector
-	projection *ServerConfigProjection
+	service    *ConfigService
+	projection *ConfigProjection
 }
 
-// NewConfigManager creates a new ConfigManager. publisher / projector /
-// projection are required for event-only writes and projection-backed
-// reads.
+// NewConfigManager creates a server-config compatibility facade over the
+// generic ConfigService / ConfigProjection.
 func NewConfigManager(
-	publisher *events.Publisher,
-	projector *events.Projector,
-	projection *ServerConfigProjection,
+	service *ConfigService,
+	projection *ConfigProjection,
 ) *ConfigManager {
 	return &ConfigManager{
-		publisher:  publisher,
-		projector:  projector,
+		service:    service,
 		projection: projection,
 	}
 }
@@ -55,8 +49,8 @@ func NewConfigManager(
 
 // GetServerConfig returns the current server configuration from the
 // projection. The second return value indicates whether a
-// ServerConfigChangedEvent has ever applied — i.e. whether the
-// projection holds a real snapshot vs. a cold "no config yet" state.
+// server config value has ever applied — i.e. whether the projection holds
+// real config values vs. a cold "no config yet" state.
 // The error return is preserved for signature compatibility; the
 // projection is in-memory and cannot fail to read.
 func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, bool, error) {
@@ -67,8 +61,8 @@ func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerCon
 	return cfg, isConfigured, nil
 }
 
-// SetServerConfig stores the server configuration by publishing a
-// ServerConfigChangedEvent and waiting for the projection to apply.
+// SetServerConfig stores the server configuration by publishing generic config
+// value events and waiting for the projection to apply.
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
@@ -88,23 +82,15 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 	actorID string,
 	updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error),
 ) (*configv1.ServerConfig, error) {
-	if cm.publisher == nil || cm.projector == nil {
+	if cm.service == nil {
 		return nil, fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
-	agg := events.ConfigAggregate()
-	subject := agg.Subject(events.EventServerConfigChanged)
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		expectedSeq, err := cm.publisher.LastSubjectSeq(ctx, subject)
+		agg, filter, expectedSeq, err := cm.service.prepareSubject(ctx, ConfigSubjectServer)
 		if err != nil {
-			return nil, fmt.Errorf("read config OCC seq: %w", err)
+			return nil, err
 		}
-		if expectedSeq > 0 {
-			if err := cm.projector.WaitForSeq(ctx, expectedSeq); err != nil {
-				return nil, fmt.Errorf("wait for config projection: %w", err)
-			}
-		}
-
 		current, _ := cm.projection.Get()
 		updated, err := updateFn(current)
 		if err != nil {
@@ -114,54 +100,42 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 			return nil, fmt.Errorf("update function returned nil config")
 		}
 
-		event := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_ServerConfigChanged{
-				ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-					Config: updated,
-				},
-			},
-		})
-		seq, err := cm.publisher.AppendAt(ctx, subject, event, expectedSeq)
+		if err := validateConfigWrites(serverConfigWrites(updated)); err != nil {
+			return nil, err
+		}
+		err = cm.service.appendValuesAt(ctx, actorID, agg, filter, expectedSeq, serverConfigWrites(updated))
 		if err == nil {
-			if err := cm.projector.WaitForSeq(ctx, seq); err != nil {
-				return nil, fmt.Errorf("wait for config projection: %w", err)
-			}
 			return updated, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err
 		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
 	}
 	return nil, ErrConfigConflict
 }
 
-// publish writes the server config by emitting a
-// ServerConfigChangedEvent on the config aggregate and waiting for the
-// projection to apply, giving the caller read-your-writes. OCC + retry
-// live inside publisher.Append.
+// publish writes the server config by emitting generic config events on the
+// config aggregate and waiting for the projection to apply, giving the caller
+// read-your-writes.
 func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
-	if cm.publisher == nil || cm.projector == nil {
+	if cm.service == nil {
 		return fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_ServerConfigChanged{
-			ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-				Config: cfg,
-			},
-		},
-	})
+	return cm.service.setValues(ctx, actorID, ConfigSubjectServer, serverConfigWrites(cfg))
+}
 
-	if _, err := cm.projector.AppendAndWait(ctx, cm.publisher, events.ConfigAggregate(), event); err != nil {
-		return fmt.Errorf("publish ServerConfigChangedEvent: %w", err)
+func serverConfigWrites(cfg *configv1.ServerConfig) []configWrite {
+	if cfg == nil {
+		cfg = &configv1.ServerConfig{}
 	}
-	return nil
+	return []configWrite{
+		{path: ConfigPathServerName.Name, value: configStringValue(cfg.GetServerName())},
+		{path: ConfigPathServerDescription.Name, value: configStringValue(cfg.GetDescription())},
+		{path: ConfigPathServerWelcomeMessage.Name, value: configStringValue(cfg.GetWelcomeMessage())},
+		{path: ConfigPathServerMOTD.Name, value: configStringValue(cfg.GetMotd())},
+		{path: ConfigPathBlockedUsernames.Name, value: configStringValue(cfg.GetBlockedUsernames())},
+	}
 }
 
 // =============================================================================

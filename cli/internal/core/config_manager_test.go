@@ -246,6 +246,50 @@ func TestConfigManager_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing
 	}
 }
 
+func TestConfigManager_SetServerConfigSkipsUnchangedValues(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	cfg := &configv1.ServerConfig{
+		ServerName:       "No-op Server",
+		Description:      "description",
+		WelcomeMessage:   "welcome",
+		Motd:             "motd",
+		BlockedUsernames: "admin",
+	}
+	if err := core.configManager.SetServerConfig(ctx, "test", cfg); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
+	before, err := core.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream info before: %v", err)
+	}
+
+	if err := core.configManager.SetServerConfig(ctx, "test", cfg); err != nil {
+		t.Fatalf("SetServerConfig same values: %v", err)
+	}
+	afterNoop, err := core.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream info after noop: %v", err)
+	}
+	if afterNoop.State.Msgs != before.State.Msgs {
+		t.Fatalf("unchanged config write appended events: before=%d after=%d", before.State.Msgs, afterNoop.State.Msgs)
+	}
+
+	changed := *cfg
+	changed.Motd = "new motd"
+	if err := core.configManager.SetServerConfig(ctx, "test", &changed); err != nil {
+		t.Fatalf("SetServerConfig changed value: %v", err)
+	}
+	afterChange, err := core.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream info after change: %v", err)
+	}
+	if afterChange.State.Msgs != before.State.Msgs+1 {
+		t.Fatalf("single changed config path should append one event: before=%d after=%d", before.State.Msgs, afterChange.State.Msgs)
+	}
+}
+
 func TestConfigManager_GetEffectiveWelcomeMessage(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

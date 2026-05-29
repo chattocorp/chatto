@@ -168,17 +168,28 @@ func (p *RoomMembershipProjection) adminProjectionEstimate() (int64, int64, []Pr
 	}
 }
 
-func (p *ServerConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.RLock()
 	defer p.RUnlock()
-	if !p.seen {
+	if len(p.values) == 0 {
 		return 0, 0, []ProjectionAdminMetric{{Name: "configured", Value: 0}}
 	}
 	var bytes int64
-	if p.cfg != nil {
-		bytes = int64(proto.Size(p.cfg)) + projectionMapEntryOverhead
+	var values int64
+	for subject, byPath := range p.values {
+		bytes += projectionMapEntryOverhead + int64(len(subject))
+		for path, value := range byPath {
+			values++
+			bytes += projectionMapEntryOverhead + int64(len(path))
+			if value != nil {
+				bytes += int64(proto.Size(value))
+			}
+		}
 	}
-	return 1, bytes, []ProjectionAdminMetric{{Name: "configured", Value: 1, Bytes: bytes}}
+	return values, bytes, []ProjectionAdminMetric{
+		{Name: "subjects", Value: int64(len(p.values)), Bytes: 0},
+		{Name: "values", Value: values, Bytes: bytes},
+	}
 }
 
 func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
