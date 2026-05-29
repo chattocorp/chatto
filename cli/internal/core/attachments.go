@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"time"
 
@@ -235,6 +236,11 @@ type AttachmentInfo struct {
 	ContentType string
 	Filename    string
 	RoomID      string
+}
+
+type StableAssetURL struct {
+	URL       string
+	ExpiresAt time.Time
 }
 
 // GetAttachment retrieves an attachment by ID from NATS ObjectStore.
@@ -742,6 +748,11 @@ const AttachmentSignResource = "attachment"
 // trade-off in detail.
 const AttachmentURLTTL = 5 * time.Minute
 
+// AssetAccessTicketTTL keeps direct browser/standalone-client asset URLs useful
+// for normal page render and media startup, without turning copied URLs into
+// long-lived bearer links.
+const AssetAccessTicketTTL = time.Hour
+
 // GetAttachmentURL returns the URL for accessing the binary identified
 // by the locator, signed for `userID` with a `AttachmentURLTTL`-bounded
 // expiry. The URL itself is the capability: the handler trusts the
@@ -784,6 +795,83 @@ func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator
 	}
 	signedTransform := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, signedLoc, width, height, fit)
 	return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", signedLoc, signedTransform))
+}
+
+// GetStableAttachmentURL returns the canonical URL for an asset binary. The
+// path identifies the asset; the asset-scoped access ticket authorizes the
+// viewer so browsers and standalone clients can load the URL directly from the
+// owning host without custom headers.
+func (c *ChattoCore) GetStableAttachmentURL(assetID, userID string) string {
+	return c.GetStableAttachmentAssetURL(assetID, userID).URL
+}
+
+// GetStableAttachmentAssetURL returns the canonical URL for an asset binary
+// together with the exact expiry embedded in its access ticket.
+func (c *ChattoCore) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
+	if assetID == "" || userID == "" {
+		return StableAssetURL{}
+	}
+	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	return StableAssetURL{
+		URL:       c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt)),
+		ExpiresAt: expiresAt,
+	}
+}
+
+// GetStableTransformedAttachmentURL returns the canonical URL for a derived
+// image form factor. The dimensions are visible in the URL; authorization is a
+// scoped access ticket.
+func (c *ChattoCore) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
+	return c.GetStableTransformedAttachmentAssetURL(assetID, userID, width, height, fit).URL
+}
+
+// GetStableTransformedAttachmentAssetURL returns the canonical URL for a
+// derived image form factor together with the exact expiry embedded in its
+// access ticket.
+func (c *ChattoCore) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
+	if assetID == "" || userID == "" {
+		return StableAssetURL{}
+	}
+	transformPath := fmt.Sprintf(
+		"/assets/files/%s/image/%dx%d/%s",
+		url.PathEscape(assetID),
+		width,
+		height,
+		url.PathEscape(fit),
+	)
+	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	return StableAssetURL{
+		URL: c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
+			Width:  width,
+			Height: height,
+			Fit:    fit,
+		}, expiresAt)),
+		ExpiresAt: expiresAt,
+	}
+}
+
+func (c *ChattoCore) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {
+	if path == "" {
+		path = fmt.Sprintf("/assets/files/%s", url.PathEscape(assetID))
+	}
+	accessTicket := signedurl.AssetAccessTicket{
+		AssetID:   assetID,
+		UserID:    userID,
+		ExpiresAt: expiresAt.Unix(),
+	}
+	if params != nil {
+		accessTicket.Width = params.Width
+		accessTicket.Height = params.Height
+		accessTicket.Fit = params.Fit
+	}
+	ticket, err := signedurl.SignedAssetAccessTicket(c.config.Assets.SigningSecret, accessTicket)
+	if err != nil {
+		c.logger.Warn("Failed to sign asset access ticket", "error", err, "asset_id", assetID, "user_id", userID)
+		return ""
+	}
+	values := url.Values{}
+	values.Set("access", ticket)
+	return path + "?" + values.Encode()
 }
 
 // LocatorForBodyAttachment builds the URL locator for an attachment

@@ -227,8 +227,14 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 				}
 			}
 		}
+		if c.RBAC.HasRole(userID, roleName) {
+			return errRBACNoop
+		}
 		return nil
 	}); err != nil {
+		if errors.Is(err, errRBACNoop) {
+			return nil
+		}
 		return err
 	}
 

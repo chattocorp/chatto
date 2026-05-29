@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -11,6 +12,8 @@ import (
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+const maxJoinRoomRetries = 5
 
 // GetRoomMembership retrieves a room membership for a user in a specific room.
 // Reads from the RoomMembership projection (ADR-035 phase 5 cutover).
@@ -61,14 +64,6 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		RoomId: room_id,
 	}
 
-	// Idempotency check via projection. There's a tiny race window if two
-	// callers IsMember-check before either publishes — both would emit a
-	// duplicate UserJoinedRoom. That's fine: the projection's Apply is
-	// idempotent on already-present (room, user) pairs.
-	if c.RoomMembership.IsMember(room_id, user_id) {
-		return membership, nil
-	}
-
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
@@ -77,12 +72,48 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		},
 	})
 
-	seq, err := c.RoomMembershipProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
-	if err != nil {
-		return nil, fmt.Errorf("publish UserJoinedRoomEvent: %w", err)
+	joinSubject := events.RoomAggregate(room_id).SubjectFor(event)
+	var seq uint64
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		if c.RoomMembership.IsMember(room_id, user_id) {
+			return membership, nil
+		}
+
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, joinSubject)
+		if err != nil {
+			return nil, fmt.Errorf("read UserJoinedRoomEvent OCC seq: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.RoomMembershipProjector.WaitForSeq(ctx, expectedSeq); err != nil {
+				return nil, fmt.Errorf("wait for membership projection before join: %w", err)
+			}
+			if c.RoomMembership.IsMember(room_id, user_id) {
+				return membership, nil
+			}
+		}
+
+		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
+		if err == nil {
+			if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
+				return nil, fmt.Errorf("wait for membership projection: %w", err)
+			}
+			if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+				return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+			}
+			break
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, fmt.Errorf("publish UserJoinedRoomEvent: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	if seq == 0 {
+		return nil, fmt.Errorf("publish UserJoinedRoomEvent retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
 	// Legacy publish — feeds live.server.> for the frontend's

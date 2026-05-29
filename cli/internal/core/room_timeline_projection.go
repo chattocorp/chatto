@@ -96,11 +96,11 @@ type TimelineEntry struct {
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
-		byRoom:         make(map[string][]*TimelineEntry),
-		byEventID:      make(map[string]*TimelineEntry),
-		latestBody:     make(map[string]*corev1.MessageBody),
-		retractedFlags: make(map[string]struct{}),
-		echoLinks:      make(map[string][]string),
+		byRoom:            make(map[string][]*TimelineEntry),
+		byEventID:         make(map[string]*TimelineEntry),
+		latestBody:        make(map[string]*corev1.MessageBody),
+		retractedFlags:    make(map[string]struct{}),
+		echoLinks:         make(map[string][]string),
 		assetCreations:    make(map[string]*corev1.AssetCreatedEvent),
 		videoManifests:    make(map[string]*VideoAttachmentManifest),
 		assetMessageOwner: make(map[string]assetMessageRef),
@@ -394,6 +394,23 @@ func (p *RoomTimelineProjection) AssetCreation(attachmentID string) (*corev1.Ass
 		return nil, false
 	}
 	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
+}
+
+// AssetRoomID returns the room that owns an asset. For derivatives, it walks up
+// the parent chain when needed so callers can authorize thumbnail and variant
+// assets using the original room scope.
+func (p *RoomTimelineProjection) AssetRoomID(assetID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return "", false
+	}
+	declared := p.assetCreations[assetID]
+	if declared == nil {
+		return "", false
+	}
+	roomID := p.roomIDOfAssetCreatedLocked(declared)
+	return roomID, roomID != ""
 }
 
 // AssetMessageOwner returns the room and message that own an asset, derived

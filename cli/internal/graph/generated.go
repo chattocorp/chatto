@@ -149,17 +149,24 @@ type ComplexityRoot struct {
 		RoomID         func(childComplexity int) int
 	}
 
+	AssetURL struct {
+		ExpiresAt func(childComplexity int) int
+		URL       func(childComplexity int) int
+	}
+
 	Attachment struct {
-		ContentType     func(childComplexity int) int
-		Filename        func(childComplexity int) int
-		Height          func(childComplexity int) int
-		Id              func(childComplexity int) int
-		RoomId          func(childComplexity int) int
-		Size            func(childComplexity int) int
-		ThumbnailURL    func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
-		URL             func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
-		VideoProcessing func(childComplexity int) int
-		Width           func(childComplexity int) int
+		AssetURL          func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
+		ContentType       func(childComplexity int) int
+		Filename          func(childComplexity int) int
+		Height            func(childComplexity int) int
+		Id                func(childComplexity int) int
+		RoomId            func(childComplexity int) int
+		Size              func(childComplexity int) int
+		ThumbnailAssetURL func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
+		ThumbnailURL      func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
+		URL               func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
+		VideoProcessing   func(childComplexity int) int
+		Width             func(childComplexity int) int
 	}
 
 	CallParticipant struct {
@@ -848,14 +855,15 @@ type ComplexityRoot struct {
 	}
 
 	VideoProcessing struct {
-		DurationMs      func(childComplexity int) int
-		Height          func(childComplexity int) int
-		ReasonCode      func(childComplexity int) int
-		SourceAvailable func(childComplexity int) int
-		Status          func(childComplexity int) int
-		ThumbnailURL    func(childComplexity int) int
-		Variants        func(childComplexity int) int
-		Width           func(childComplexity int) int
+		DurationMs        func(childComplexity int) int
+		Height            func(childComplexity int) int
+		ReasonCode        func(childComplexity int) int
+		SourceAvailable   func(childComplexity int) int
+		Status            func(childComplexity int) int
+		ThumbnailAssetURL func(childComplexity int) int
+		ThumbnailURL      func(childComplexity int) int
+		Variants          func(childComplexity int) int
+		Width             func(childComplexity int) int
 	}
 
 	VideoProcessingCompletedEvent struct {
@@ -865,11 +873,12 @@ type ComplexityRoot struct {
 	}
 
 	VideoVariant struct {
-		Height  func(childComplexity int) int
-		Quality func(childComplexity int) int
-		Size    func(childComplexity int) int
-		URL     func(childComplexity int) int
-		Width   func(childComplexity int) int
+		AssetURL func(childComplexity int) int
+		Height   func(childComplexity int) int
+		Quality  func(childComplexity int) int
+		Size     func(childComplexity int) int
+		URL      func(childComplexity int) int
+		Width    func(childComplexity int) int
 	}
 
 	Viewer struct {
@@ -935,7 +944,9 @@ type AttachmentResolver interface {
 	Size(ctx context.Context, obj *corev1.Attachment) (int32, error)
 
 	URL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (string, error)
+	AssetURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*model.AssetURL, error)
 	ThumbnailURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*string, error)
+	ThumbnailAssetURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*model.AssetURL, error)
 	VideoProcessing(ctx context.Context, obj *corev1.Attachment) (*model.VideoProcessing, error)
 }
 type DMMessageNotificationItemResolver interface {
@@ -1203,12 +1214,14 @@ type UserResolver interface {
 }
 type VideoProcessingResolver interface {
 	ThumbnailURL(ctx context.Context, obj *model.VideoProcessing) (*string, error)
+	ThumbnailAssetURL(ctx context.Context, obj *model.VideoProcessing) (*model.AssetURL, error)
 }
 type VideoProcessingCompletedEventResolver interface {
 	MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (string, error)
 }
 type VideoVariantResolver interface {
 	URL(ctx context.Context, obj *model.VideoVariant) (string, error)
+	AssetURL(ctx context.Context, obj *model.VideoVariant) (*model.AssetURL, error)
 }
 type ViewerResolver interface {
 	User(ctx context.Context, obj *model.Viewer) (*corev1.User, error)
@@ -1511,6 +1524,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AssetProcessingSucceededEvent.RoomID(childComplexity), true
 
+	case "AssetURL.expiresAt":
+		if e.complexity.AssetURL.ExpiresAt == nil {
+			break
+		}
+
+		return e.complexity.AssetURL.ExpiresAt(childComplexity), true
+	case "AssetURL.url":
+		if e.complexity.AssetURL.URL == nil {
+			break
+		}
+
+		return e.complexity.AssetURL.URL(childComplexity), true
+
+	case "Attachment.assetUrl":
+		if e.complexity.Attachment.AssetURL == nil {
+			break
+		}
+
+		args, err := ec.field_Attachment_assetUrl_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Attachment.AssetURL(childComplexity, args["width"].(*int32), args["height"].(*int32), args["fit"].(*model.FitMode)), true
 	case "Attachment.contentType":
 		if e.complexity.Attachment.ContentType == nil {
 			break
@@ -1547,6 +1584,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Attachment.Size(childComplexity), true
+	case "Attachment.thumbnailAssetUrl":
+		if e.complexity.Attachment.ThumbnailAssetURL == nil {
+			break
+		}
+
+		args, err := ec.field_Attachment_thumbnailAssetUrl_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Attachment.ThumbnailAssetURL(childComplexity, args["width"].(*int32), args["height"].(*int32), args["fit"].(*model.FitMode)), true
 	case "Attachment.thumbnailUrl":
 		if e.complexity.Attachment.ThumbnailURL == nil {
 			break
@@ -4758,6 +4806,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.VideoProcessing.Status(childComplexity), true
+	case "VideoProcessing.thumbnailAssetUrl":
+		if e.complexity.VideoProcessing.ThumbnailAssetURL == nil {
+			break
+		}
+
+		return e.complexity.VideoProcessing.ThumbnailAssetURL(childComplexity), true
 	case "VideoProcessing.thumbnailUrl":
 		if e.complexity.VideoProcessing.ThumbnailURL == nil {
 			break
@@ -4796,6 +4850,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.VideoProcessingCompletedEvent.RoomId(childComplexity), true
 
+	case "VideoVariant.assetUrl":
+		if e.complexity.VideoVariant.AssetURL == nil {
+			break
+		}
+
+		return e.complexity.VideoVariant.AssetURL(childComplexity), true
 	case "VideoVariant.height":
 		if e.complexity.VideoVariant.Height == nil {
 			break
@@ -5249,6 +5309,48 @@ func (ec *executionContext) field_AdminQueries_groupUserPermissions_args(ctx con
 		return nil, err
 	}
 	args["userId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Attachment_assetUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["width"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["height"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "fit", ec.unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode)
+	if err != nil {
+		return nil, err
+	}
+	args["fit"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Attachment_thumbnailAssetUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["width"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["height"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "fit", ec.unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode)
+	if err != nil {
+		return nil, err
+	}
+	args["fit"] = arg2
 	return args, nil
 }
 
@@ -7665,6 +7767,64 @@ func (ec *executionContext) fieldContext_AssetProcessingSucceededEvent_messageEv
 	return fc, nil
 }
 
+func (ec *executionContext) _AssetURL_url(ctx context.Context, field graphql.CollectedField, obj *model.AssetURL) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssetURL_url,
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssetURL_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssetURL",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssetURL_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.AssetURL) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssetURL_expiresAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ExpiresAt, nil
+		},
+		nil,
+		ec.marshalNTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssetURL_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssetURL",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Attachment_id(ctx context.Context, field graphql.CollectedField, obj *corev1.Attachment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7909,6 +8069,53 @@ func (ec *executionContext) fieldContext_Attachment_url(ctx context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Attachment_assetUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.Attachment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Attachment_assetUrl,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Attachment().AssetURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
+		},
+		nil,
+		ec.marshalNAssetURL2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Attachment_assetUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Attachment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_AssetURL_url(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_AssetURL_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssetURL", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Attachment_assetUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Attachment_thumbnailUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.Attachment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7950,6 +8157,53 @@ func (ec *executionContext) fieldContext_Attachment_thumbnailUrl(ctx context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _Attachment_thumbnailAssetUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.Attachment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Attachment_thumbnailAssetUrl,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Attachment().ThumbnailAssetURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
+		},
+		nil,
+		ec.marshalOAssetURL2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Attachment_thumbnailAssetUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Attachment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_AssetURL_url(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_AssetURL_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssetURL", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Attachment_thumbnailAssetUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Attachment_videoProcessing(ctx context.Context, field graphql.CollectedField, obj *corev1.Attachment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7984,6 +8238,8 @@ func (ec *executionContext) fieldContext_Attachment_videoProcessing(_ context.Co
 				return ec.fieldContext_VideoProcessing_height(ctx, field)
 			case "thumbnailUrl":
 				return ec.fieldContext_VideoProcessing_thumbnailUrl(ctx, field)
+			case "thumbnailAssetUrl":
+				return ec.fieldContext_VideoProcessing_thumbnailAssetUrl(ctx, field)
 			case "variants":
 				return ec.fieldContext_VideoProcessing_variants(ctx, field)
 			case "reasonCode":
@@ -10358,8 +10614,12 @@ func (ec *executionContext) fieldContext_MessageEditedEvent_attachments(_ contex
 				return ec.fieldContext_Attachment_height(ctx, field)
 			case "url":
 				return ec.fieldContext_Attachment_url(ctx, field)
+			case "assetUrl":
+				return ec.fieldContext_Attachment_assetUrl(ctx, field)
 			case "thumbnailUrl":
 				return ec.fieldContext_Attachment_thumbnailUrl(ctx, field)
+			case "thumbnailAssetUrl":
+				return ec.fieldContext_Attachment_thumbnailAssetUrl(ctx, field)
 			case "videoProcessing":
 				return ec.fieldContext_Attachment_videoProcessing(ctx, field)
 			}
@@ -10543,8 +10803,12 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_attachments(_ contex
 				return ec.fieldContext_Attachment_height(ctx, field)
 			case "url":
 				return ec.fieldContext_Attachment_url(ctx, field)
+			case "assetUrl":
+				return ec.fieldContext_Attachment_assetUrl(ctx, field)
 			case "thumbnailUrl":
 				return ec.fieldContext_Attachment_thumbnailUrl(ctx, field)
+			case "thumbnailAssetUrl":
+				return ec.fieldContext_Attachment_thumbnailAssetUrl(ctx, field)
 			case "videoProcessing":
 				return ec.fieldContext_Attachment_videoProcessing(ctx, field)
 			}
@@ -24633,6 +24897,41 @@ func (ec *executionContext) fieldContext_VideoProcessing_thumbnailUrl(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _VideoProcessing_thumbnailAssetUrl(ctx context.Context, field graphql.CollectedField, obj *model.VideoProcessing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VideoProcessing_thumbnailAssetUrl,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.VideoProcessing().ThumbnailAssetURL(ctx, obj)
+		},
+		nil,
+		ec.marshalOAssetURL2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_VideoProcessing_thumbnailAssetUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoProcessing",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_AssetURL_url(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_AssetURL_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssetURL", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _VideoProcessing_variants(ctx context.Context, field graphql.CollectedField, obj *model.VideoProcessing) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -24659,6 +24958,8 @@ func (ec *executionContext) fieldContext_VideoProcessing_variants(_ context.Cont
 			switch field.Name {
 			case "url":
 				return ec.fieldContext_VideoVariant_url(ctx, field)
+			case "assetUrl":
+				return ec.fieldContext_VideoVariant_assetUrl(ctx, field)
 			case "quality":
 				return ec.fieldContext_VideoVariant_quality(ctx, field)
 			case "width":
@@ -24843,6 +25144,41 @@ func (ec *executionContext) fieldContext_VideoVariant_url(_ context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VideoVariant_assetUrl(ctx context.Context, field graphql.CollectedField, obj *model.VideoVariant) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VideoVariant_assetUrl,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.VideoVariant().AssetURL(ctx, obj)
+		},
+		nil,
+		ec.marshalNAssetURL2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VideoVariant_assetUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VideoVariant",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_AssetURL_url(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_AssetURL_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssetURL", field.Name)
 		},
 	}
 	return fc, nil
@@ -30545,6 +30881,50 @@ func (ec *executionContext) _AssetProcessingSucceededEvent(ctx context.Context, 
 	return out
 }
 
+var assetURLImplementors = []string{"AssetURL"}
+
+func (ec *executionContext) _AssetURL(ctx context.Context, sel ast.SelectionSet, obj *model.AssetURL) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assetURLImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssetURL")
+		case "url":
+			out.Values[i] = ec._AssetURL_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expiresAt":
+			out.Values[i] = ec._AssetURL_expiresAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var attachmentImplementors = []string{"Attachment"}
 
 func (ec *executionContext) _Attachment(ctx context.Context, sel ast.SelectionSet, obj *corev1.Attachment) graphql.Marshaler {
@@ -30658,6 +31038,42 @@ func (ec *executionContext) _Attachment(ctx context.Context, sel ast.SelectionSe
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "assetUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Attachment_assetUrl(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "thumbnailUrl":
 			field := field
 
@@ -30668,6 +31084,39 @@ func (ec *executionContext) _Attachment(ctx context.Context, sel ast.SelectionSe
 					}
 				}()
 				res = ec._Attachment_thumbnailUrl(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "thumbnailAssetUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Attachment_thumbnailAssetUrl(ctx, field, obj)
 				return res
 			}
 
@@ -39695,6 +40144,39 @@ func (ec *executionContext) _VideoProcessing(ctx context.Context, sel ast.Select
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "thumbnailAssetUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._VideoProcessing_thumbnailAssetUrl(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "variants":
 			out.Values[i] = ec._VideoProcessing_variants(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -39831,6 +40313,42 @@ func (ec *executionContext) _VideoVariant(ctx context.Context, sel ast.Selection
 					}
 				}()
 				res = ec._VideoVariant_url(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "assetUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._VideoVariant_assetUrl(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -40893,6 +41411,20 @@ func (ec *executionContext) unmarshalNAdminUpdateUserInput2hmansᚗdeᚋchatto�
 func (ec *executionContext) unmarshalNArchiveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐArchiveRoomInput(ctx context.Context, v any) (model.ArchiveRoomInput, error) {
 	res, err := ec.unmarshalInputArchiveRoomInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssetURL2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL(ctx context.Context, sel ast.SelectionSet, v model.AssetURL) graphql.Marshaler {
+	return ec._AssetURL(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAssetURL2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL(ctx context.Context, sel ast.SelectionSet, v *model.AssetURL) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssetURL(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNAssignRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssignRoleInput(ctx context.Context, v any) (model.AssignRoleInput, error) {
@@ -43147,6 +43679,13 @@ func (ec *executionContext) marshalOAdminQueries2ᚖhmansᚗdeᚋchattoᚋintern
 		return graphql.Null
 	}
 	return ec._AdminQueries(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOAssetURL2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssetURL(ctx context.Context, sel ast.SelectionSet, v *model.AssetURL) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AssetURL(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v any) (bool, error) {

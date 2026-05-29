@@ -102,6 +102,56 @@ func TestPublisher_Append_HappyPath(t *testing.T) {
 	}
 }
 
+func TestPublisher_Append_SetsNATSMsgID(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	event := makeEvent("R1", "U1")
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	msg, err := stream.GetMsg(ctx, seq)
+	if err != nil {
+		t.Fatalf("GetMsg: %v", err)
+	}
+	if got := msg.Header.Get(jetstream.MsgIDHeader); got != event.Id {
+		t.Errorf("Nats-Msg-Id = %q, want %q", got, event.Id)
+	}
+}
+
+func TestPublisher_Append_DuplicateEventIDSuppressesSecondAppend(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	event := makeEvent("R1", "U1")
+
+	seq1, err := pub.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("first Append: %v", err)
+	}
+
+	seq2, err := pub.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("duplicate Append: %v", err)
+	}
+	if seq2 != seq1 {
+		t.Fatalf("duplicate Append seq = %d, want original seq %d", seq2, seq1)
+	}
+
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream Info: %v", err)
+	}
+	if info.State.Msgs != 1 {
+		t.Errorf("stream messages = %d, want 1", info.State.Msgs)
+	}
+}
+
 func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
@@ -247,6 +297,15 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 	}
 	if seqs[1] != seqs[0]+1 || seqs[2] != seqs[1]+1 {
 		t.Errorf("seqs not contiguous: %v", seqs)
+	}
+	for i, seq := range seqs {
+		msg, err := stream.GetMsg(ctx, seq)
+		if err != nil {
+			t.Fatalf("GetMsg[%d]: %v", i, err)
+		}
+		if got := msg.Header.Get(jetstream.MsgIDHeader); got != entries[i].Event.GetId() {
+			t.Errorf("batch msg %d Nats-Msg-Id = %q, want %q", i, got, entries[i].Event.GetId())
+		}
 	}
 
 	// Each subject's last seq must match what we published.

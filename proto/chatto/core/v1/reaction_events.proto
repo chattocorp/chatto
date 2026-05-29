@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// REACTION EVENTS (room-scoped, durable in EVT)
+// ============================================================================
+
+message ReactionAddedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID - identifies the room containing the message
+  string room_id = 2;
+
+  // Event ID of the message being reacted to (NanoID)
+  string message_event_id = 3;
+
+  // The emoji used for the reaction (shortcode name)
+  string emoji = 4;
+}
+
+message ReactionRemovedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID - identifies the room containing the message
+  string room_id = 2;
+
+  // Event ID of the message the reaction was removed from (NanoID)
+  string message_event_id = 3;
+
+  // The emoji shortcode that was removed
+  string emoji = 4;
+}

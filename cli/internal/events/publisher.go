@@ -90,7 +90,7 @@ func (p *Publisher) Append(ctx context.Context, subject string, event *corev1.Ev
 	if err != nil {
 		return 0, err
 	}
-	return p.publishAt(ctx, subject, data, expectedSeq, "")
+	return p.publishAt(ctx, subject, data, expectedSeq, "", event.GetId())
 }
 
 // AppendEventually is the append-only variant of Append: it retries OCC
@@ -116,7 +116,7 @@ func (p *Publisher) AppendEventually(ctx context.Context, subject string, event 
 			return 0, err
 		}
 
-		seq, err := p.publishAt(ctx, subject, data, expectedSeq, "")
+		seq, err := p.publishAt(ctx, subject, data, expectedSeq, "", event.GetId())
 		if err == nil {
 			return seq, nil
 		}
@@ -168,7 +168,7 @@ func (p *Publisher) AppendAt(ctx context.Context, subject string, event *corev1.
 		return 0, fmt.Errorf("marshal event: %w", err)
 	}
 
-	return p.publishAt(ctx, subject, data, expectedSeq, "")
+	return p.publishAt(ctx, subject, data, expectedSeq, "", event.GetId())
 }
 
 // AppendAtFilter publishes with OCC against a wildcard subject filter.
@@ -196,7 +196,7 @@ func (p *Publisher) AppendAtFilter(ctx context.Context, subject string, event *c
 	if err != nil {
 		return 0, fmt.Errorf("marshal event: %w", err)
 	}
-	return p.publishAt(ctx, subject, data, expectedFilterSeq, filter)
+	return p.publishAt(ctx, subject, data, expectedFilterSeq, filter, event.GetId())
 }
 
 // publishAt is the shared publish-with-expected-seq core used by
@@ -206,14 +206,14 @@ func (p *Publisher) AppendAtFilter(ctx context.Context, subject string, event *c
 // last stream message matching the filter — see
 // `Nats-Expected-Last-Subject-Sequence-Subject` in the JetStream
 // protocol. Translates the NATS sequence-mismatch error to ErrConflict.
-func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, expectedSeq uint64, filter string) (uint64, error) {
+func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, expectedSeq uint64, filter string, msgID string) (uint64, error) {
 	var opt jetstream.PublishOpt
 	if filter == "" {
 		opt = jetstream.WithExpectLastSequencePerSubject(expectedSeq)
 	} else {
 		opt = jetstream.WithExpectLastSequenceForSubject(expectedSeq, filter)
 	}
-	ack, err := p.js.Publish(ctx, subject, data, opt)
+	ack, err := p.js.Publish(ctx, subject, data, opt, jetstream.WithMsgID(msgID))
 	if err == nil {
 		return ack.Sequence, nil
 	}
@@ -392,6 +392,7 @@ func (p *Publisher) buildBatchMsg(e BatchEntry, batchID string, batchSeq uint64,
 			hdr.Set("Nats-Expected-Last-Subject-Sequence-Subject", e.FilterSubject)
 		}
 	}
+	hdr.Set(jetstream.MsgIDHeader, e.Event.GetId())
 	return &nats.Msg{Subject: e.Subject, Header: hdr, Data: data}, nil
 }
 
@@ -511,6 +512,9 @@ func (p *Publisher) lastSubjectSeq(ctx context.Context, subject string) (uint64,
 func validateEvent(event *corev1.Event) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: event payload is nil or oneof field is unset", ErrInvalidEvent)
+	}
+	if event.GetId() == "" {
+		return fmt.Errorf("%w: event id is empty", ErrInvalidEvent)
 	}
 	return nil
 }

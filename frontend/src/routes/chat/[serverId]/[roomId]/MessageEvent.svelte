@@ -663,6 +663,7 @@
         <!-- Message attachments -->
         <MessageAttachments
           attachments={msg.attachments ?? []}
+          serverId={getActiveServer()}
           {roomId}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
           canDeleteAttachment={isAuthor}

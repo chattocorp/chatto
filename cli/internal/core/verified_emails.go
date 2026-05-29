@@ -34,6 +34,8 @@ var (
 
 	// ErrEmailAlreadyVerified is returned when trying to verify an email that's already verified by another user.
 	ErrEmailAlreadyVerified = errors.New("email address is already verified by another account")
+
+	errVerifiedEmailNoop = errors.New("verified email mutation is a no-op")
 )
 
 // ============================================================================
@@ -201,15 +203,22 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 		},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		if user, ok := c.Users.GetByEmail(email); ok && user.GetId() != userID {
+		if user, ok := c.Users.GetByEmail(email); ok {
+			if user.GetId() == userID {
+				return errVerifiedEmailNoop
+			}
 			return ErrEmailAlreadyVerified
 		}
 		return nil
 	}); err != nil {
-		if errors.Is(err, ErrEmailAlreadyVerified) {
+		if errors.Is(err, errVerifiedEmailNoop) {
+			// Already verified for this user. Keep going so owner-email
+			// auto-promotion below still catches config changes.
+		} else if errors.Is(err, ErrEmailAlreadyVerified) {
 			return ErrEmailAlreadyVerified
+		} else {
+			return fmt.Errorf("failed to store verified email: %w", err)
 		}
-		return fmt.Errorf("failed to store verified email: %w", err)
 	}
 
 	// Auto-promote on config-owner email match. This is what closes the

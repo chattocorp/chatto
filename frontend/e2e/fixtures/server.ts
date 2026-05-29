@@ -89,7 +89,7 @@ export async function startServer(
   }
   mkdirSync(dataDir, { recursive: true });
 
-  // chatto.toml seeds the e2eadmin user via [bootstrap] on every server start.
+  // chatto.toml seeds the e2eadmin user via [bootstrap] for each fresh data dir.
   const serverProcess = spawn(
     path.join(__dirname, 'bin', 'chatto'),
     ['start', '-c', 'chatto.toml'],

@@ -281,6 +281,66 @@ func TestAttachmentLocator_Expired(t *testing.T) {
 	}
 }
 
+func TestSignedAssetAccessTicket(t *testing.T) {
+	secret := "test-secret"
+	ticket := signedurl.AssetAccessTicket{
+		AssetID:   "A123",
+		UserID:    "U456",
+		ExpiresAt: time.Now().Add(time.Hour).Unix(),
+		Width:     640,
+		Height:    512,
+		Fit:       "contain",
+	}
+
+	signed, err := signedurl.SignedAssetAccessTicket(secret, ticket)
+	if err != nil {
+		t.Fatalf("SignedAssetAccessTicket failed: %v", err)
+	}
+	parsed, err := signedurl.ParseSignedAssetAccessTicket(secret, signed)
+	if err != nil {
+		t.Fatalf("ParseSignedAssetAccessTicket failed: %v", err)
+	}
+
+	if parsed.AssetID != ticket.AssetID {
+		t.Errorf("AssetID mismatch: got %q, want %q", parsed.AssetID, ticket.AssetID)
+	}
+	if parsed.UserID != ticket.UserID {
+		t.Errorf("UserID mismatch: got %q, want %q", parsed.UserID, ticket.UserID)
+	}
+	if parsed.ExpiresAt != ticket.ExpiresAt {
+		t.Errorf("ExpiresAt mismatch: got %d, want %d", parsed.ExpiresAt, ticket.ExpiresAt)
+	}
+	if !parsed.MatchesTransform(&signedurl.TransformParams{Width: 640, Height: 512, Fit: "contain"}) {
+		t.Error("expected parsed ticket to match its transform params")
+	}
+	if parsed.MatchesTransform(&signedurl.TransformParams{Width: 641, Height: 512, Fit: "contain"}) {
+		t.Error("expected parsed ticket not to match mutated transform params")
+	}
+
+	if _, err := signedurl.ParseSignedAssetAccessTicket("wrong-secret", signed); err == nil {
+		t.Error("expected wrong secret to fail")
+	}
+
+	replacement := "0"
+	if signed[len(signed)-1:] == replacement {
+		replacement = "1"
+	}
+	tampered := signed[:len(signed)-1] + replacement
+	if _, err := signedurl.ParseSignedAssetAccessTicket(secret, tampered); err == nil {
+		t.Error("expected tampered ticket to fail")
+	}
+}
+
+func TestAssetAccessTicket_Expired(t *testing.T) {
+	ticket := signedurl.AssetAccessTicket{ExpiresAt: 1000}
+	if ticket.Expired(999) {
+		t.Error("expected not expired one second before deadline")
+	}
+	if !ticket.Expired(1000) {
+		t.Error("expected expired at deadline")
+	}
+}
+
 func TestParseSignedAttachmentLocator_InvalidFormat(t *testing.T) {
 	secret := "test-secret"
 

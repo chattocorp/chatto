@@ -18,8 +18,24 @@ describe('refreshAttachmentUrlsForMessage', () => {
           event: {
             event: {
               attachments: [
-                { id: 'att_1', url: 'https://cdn.example.com/fresh-1.jpg' },
-                { id: 'att_2', url: 'https://cdn.example.com/fresh-2.jpg' }
+                {
+                  id: 'att_1',
+                  assetUrl: {
+                    url: 'https://cdn.example.com/fresh-1.jpg',
+                    expiresAt: '2026-05-29T15:00:00Z'
+                  },
+                  thumbnailAssetUrl: null,
+                  videoProcessing: null
+                },
+                {
+                  id: 'att_2',
+                  assetUrl: {
+                    url: 'https://cdn.example.com/fresh-2.jpg',
+                    expiresAt: '2026-05-29T15:00:00Z'
+                  },
+                  thumbnailAssetUrl: null,
+                  videoProcessing: null
+                }
               ]
             }
           }
@@ -29,8 +45,8 @@ describe('refreshAttachmentUrlsForMessage', () => {
 
     const urls = await refreshAttachmentUrlsForMessage(client, 'room_1', 'event_1');
 
-    expect(urls.get('att_1')).toBe('https://cdn.example.com/fresh-1.jpg');
-    expect(urls.get('att_2')).toBe('https://cdn.example.com/fresh-2.jpg');
+    expect(urls.get('att_1')?.assetUrl.url).toBe('https://cdn.example.com/fresh-1.jpg');
+    expect(urls.get('att_2')?.assetUrl.url).toBe('https://cdn.example.com/fresh-2.jpg');
   });
 
   it('returns an empty map when the refresh query fails', async () => {

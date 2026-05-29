@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/models.proto";
+import "chatto/core/v1/user_preferences.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// USER LIFECYCLE EVENTS (server-scoped)
+// ============================================================================
+
+message UserCreatedEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
+
+// UserDeletedEvent is published when a user deletes their own account.
+// Server-level event for audit logging and admin UI updates.
+message UserDeletedEvent {
+  string user_id = 1;
+}
+
+// UserProfileUpdatedEvent is published when a user's profile changes.
+// This includes avatar uploads/deletions, display name changes, and login changes.
+// Allows other users to see profile changes in real-time.
+message UserProfileUpdatedEvent {
+  string user_id = 1;
+  string display_name = 2;
+  // URL to the user's avatar, or empty if no avatar is set.
+  string avatar_url = 3;
+  // The user's current login/username.
+  string login = 4;
+}
+
+// ============================================================================
+// USER PREFERENCE EVENTS (user-scoped)
+// ============================================================================
+
+// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
+// User-scoped private event for multi-tab/multi-device sync.
+message ServerUserPreferencesUpdatedEvent {
+  // IANA timezone name (empty = cleared/browser default).
+  string timezone = 1;
+  // Time display format preference.
+  TimeFormat time_format = 2;
+}
+
+// ============================================================================
+// DURABLE USER EVENTS (evt.user.{userId})
+// ============================================================================
+
+message UserAccountCreatedEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
+
+message UserLoginChangedEvent {
+  string user_id = 1;
+  string login = 2;
+}
+
+message UserDisplayNameChangedEvent {
+  string user_id = 1;
+  string display_name = 2;
+}
+
+message UserAvatarSetEvent {
+  // Deprecated: legacy avatar storage pointer retained for decoding old
+  // user events. New avatar writes append AssetCreatedEvent with
+  // UserAvatarAssetOwner instead.
+  string user_id = 1;
+  DeprecatedAsset avatar = 2;
+}
+
+message UserAvatarClearedEvent {
+  string user_id = 1;
+}
+
+message UserVerifiedEmailAddedEvent {
+  string user_id = 1;
+  string email = 2;
+}
+
+message UserPasswordHashChangedEvent {
+  string user_id = 1;
+  bytes password_hash = 2;
+}
+
+message UserOIDCSubjectLinkedEvent {
+  string user_id = 1;
+  // New writes include issuer/subject so the event is inspectable. Legacy
+  // imports may only have the hash, because the old KV index key is one-way.
+  string issuer = 2;
+  string subject = 3;
+  string subject_hash = 4;
+}
+
+message UserServerPreferencesChangedEvent {
+  string user_id = 1;
+  ServerUserPreferences preferences = 2;
+}
+
+message UserLoginCooldownStartedEvent {
+  string user_id = 1;
+}
+
+message UserLoginCooldownClearedEvent {
+  string user_id = 1;
+}
+
+message UserAccountDeletedEvent {
+  string user_id = 1;
+}

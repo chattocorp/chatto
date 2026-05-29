@@ -8,17 +8,29 @@
       contentType
       width
       height
-      url
-      thumbnailUrl(width: 960, height: 800, fit: CONTAIN)
+      assetUrl {
+        url
+        expiresAt
+      }
+      thumbnailAssetUrl(width: 960, height: 800, fit: CONTAIN) {
+        url
+        expiresAt
+      }
       videoProcessing {
         status
         durationMs
         width
         height
-        thumbnailUrl
+        thumbnailAssetUrl {
+          url
+          expiresAt
+        }
         sourceAvailable
         variants {
-          url
+          assetUrl {
+            url
+            expiresAt
+          }
           quality
           width
           height
@@ -31,35 +43,89 @@
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- attachment URLs are signed asset URLs */
-
   import type { FragmentType } from '$lib/gql/fragment-masking';
   import { useFragment } from '$lib/gql/fragment-masking';
   import type { MessageAttachmentViewFragment } from '$lib/gql/graphql';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
-  type Attachment = MessageAttachmentViewFragment;
+  type RawAttachment = MessageAttachmentViewFragment;
   import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { toast } from '$lib/ui/toast';
-  import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
+  import {
+    refreshAttachmentUrlsForMessage,
+    type ExpiringAssetUrl,
+    type RefreshedAttachmentUrls
+  } from '$lib/attachments/attachmentUrls';
+  import { assetUrlForServer } from '$lib/assets/assetUrls';
 
   let {
     attachments: rawAttachments,
+    serverId,
     roomId,
     eventId,
     canDeleteAttachment = false
   }: {
     attachments: readonly FragmentType<typeof MessageAttachmentFragment>[];
+    serverId: string;
     roomId: string;
     eventId: string;
     canDeleteAttachment?: boolean;
   } = $props();
 
-  const attachments = $derived(
-    rawAttachments.map((a) => useFragment(MessageAttachmentFragment, a))
+  let refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
+  let refreshInFlight = false;
+
+  function normalizeAssetUrl(value: ExpiringAssetUrl | null | undefined): ExpiringAssetUrl | null {
+    if (!value) return null;
+    return {
+      ...value,
+      url: assetUrlForServer(serverId, value.url) ?? value.url
+    };
+  }
+
+  function normalizeAttachment(attachment: RawAttachment) {
+    const refreshed = refreshedAttachmentUrls.get(attachment.id);
+    const assetUrl = normalizeAssetUrl(refreshed?.assetUrl ?? attachment.assetUrl);
+    const thumbnailAssetUrl = normalizeAssetUrl(
+      refreshed?.thumbnailAssetUrl ?? attachment.thumbnailAssetUrl
+    );
+    const videoThumbnailAssetUrl = normalizeAssetUrl(
+      refreshed?.videoThumbnailAssetUrl ?? attachment.videoProcessing?.thumbnailAssetUrl
+    );
+
+    return {
+      ...attachment,
+      assetUrl,
+      url: assetUrl?.url ?? '',
+      thumbnailAssetUrl,
+      thumbnailUrl: thumbnailAssetUrl?.url ?? null,
+      videoProcessing: attachment.videoProcessing
+        ? {
+            ...attachment.videoProcessing,
+            thumbnailAssetUrl: videoThumbnailAssetUrl,
+            thumbnailUrl: videoThumbnailAssetUrl?.url ?? null,
+            variants: attachment.videoProcessing.variants.map((variant) => {
+              const variantAssetUrl = normalizeAssetUrl(
+                refreshed?.variantAssetUrls.get(variant.quality) ?? variant.assetUrl
+              );
+              return {
+                ...variant,
+                assetUrl: variantAssetUrl,
+                url: variantAssetUrl?.url ?? ''
+              };
+            })
+          }
+        : null
+    };
+  }
+
+  type Attachment = ReturnType<typeof normalizeAttachment>;
+
+  const attachments = $derived.by(() =>
+    rawAttachments.map((a) => normalizeAttachment(useFragment(MessageAttachmentFragment, a)))
   );
 
   const MIN_THUMB_SIZE = 24;
@@ -79,7 +145,53 @@
 
   const connection = useConnection();
 
-  async function refreshUrlsForMessage(): Promise<Map<string, string>> {
+  function assetUrlRefreshAt(assetUrl: ExpiringAssetUrl | null | undefined) {
+    if (!assetUrl) return null;
+    const expiresAt = new Date(assetUrl.expiresAt).getTime();
+    if (Number.isNaN(expiresAt)) return Date.now();
+    return expiresAt - 2 * 60_000;
+  }
+
+  function minRefreshAt(current: number | null, assetUrl: ExpiringAssetUrl | null | undefined) {
+    const refreshAt = assetUrlRefreshAt(assetUrl);
+    if (refreshAt === null) return current;
+    return current === null ? refreshAt : Math.min(current, refreshAt);
+  }
+
+  const nextAssetUrlRefreshAt = $derived.by(() => {
+    let nextRefreshAt: number | null = null;
+    for (const attachment of attachments) {
+      nextRefreshAt = minRefreshAt(nextRefreshAt, attachment.assetUrl);
+      nextRefreshAt = minRefreshAt(nextRefreshAt, attachment.thumbnailAssetUrl);
+      nextRefreshAt = minRefreshAt(nextRefreshAt, attachment.videoProcessing?.thumbnailAssetUrl);
+      for (const variant of attachment.videoProcessing?.variants ?? []) {
+        nextRefreshAt = minRefreshAt(nextRefreshAt, variant.assetUrl);
+      }
+    }
+    return nextRefreshAt;
+  });
+
+  $effect(() => {
+    if (nextAssetUrlRefreshAt === null || refreshInFlight) return;
+
+    const timeout = window.setTimeout(
+      () => {
+        refreshInFlight = true;
+        refreshUrlsForMessage()
+          .then((freshUrls) => {
+            if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
+          })
+          .finally(() => {
+            refreshInFlight = false;
+          });
+      },
+      Math.max(0, nextAssetUrlRefreshAt - Date.now())
+    );
+
+    return () => window.clearTimeout(timeout);
+  });
+
+  async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {
     return refreshAttachmentUrlsForMessage(connection().client, roomId, eventId);
   }
 
@@ -88,9 +200,10 @@
     // Refresh in one round-trip so navigating between images in the
     // lightbox can't hit an expired URL mid-session.
     const freshUrls = await refreshUrlsForMessage();
+    if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
     const imageItems: ImageItem[] = imageAttachments.map((a) => ({
       id: a.id,
-      src: freshUrls.get(a.id) ?? a.url,
+      src: normalizeAssetUrl(freshUrls.get(a.id)?.assetUrl)?.url ?? a.url,
       alt: a.filename,
       filename: a.filename
     }));
@@ -105,13 +218,10 @@
     });
   }
 
-  async function openDownload(attachment: Attachment, event: MouseEvent) {
-    // Intercept the default navigation so we can swap in a fresh URL.
-    // The `<a>` keeps its original href as a fallback for middle-click /
-    // "Open in new tab", which the browser handles before this runs.
-    event.preventDefault();
+  async function openDownload(attachment: Attachment) {
     const freshUrls = await refreshUrlsForMessage();
-    const fresh = freshUrls.get(attachment.id) ?? attachment.url;
+    if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
+    const fresh = normalizeAssetUrl(freshUrls.get(attachment.id)?.assetUrl)?.url ?? attachment.url;
     if (!fresh) {
       toast.error('Could not refresh download link');
       return;
@@ -232,7 +342,12 @@
           original so the user can at least play it.
         -->
         <div class="overflow-hidden rounded-sm">
-          <video controls preload="metadata" src={attachment.url} class="max-h-64 max-w-full rounded-sm">
+          <video
+            controls
+            preload="metadata"
+            src={attachment.url}
+            class="max-h-64 max-w-full rounded-sm"
+          >
             <track kind="captions" />
           </video>
         </div>
@@ -246,7 +361,7 @@
               class="h-8 max-w-xs"
               data-testid="audio-player"
             >
-              <a href={attachment.url}>{attachment.filename}</a>
+              {attachment.filename}
             </audio>
             <span class="text-sm text-muted">{attachment.filename}</span>
           </div>
@@ -263,31 +378,33 @@
           {/if}
         </div>
       {:else}
-        <a
-          href={attachment.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onclick={(e) => openDownload(attachment, e)}
-          aria-label="Download {attachment.filename}"
+        <div
           class="group/attachment relative block overflow-hidden rounded-lg shadow-md transition-transform"
         >
-          <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6 text-muted"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-            <span class="text-sm">{attachment.filename}</span>
-          </div>
+          <button
+            type="button"
+            onclick={() => openDownload(attachment)}
+            aria-label="Download {attachment.filename}"
+            class="block w-full cursor-pointer text-left"
+          >
+            <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6 text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              <span class="text-sm">{attachment.filename}</span>
+            </div>
+          </button>
           {#if canDeleteAttachment}
             <button
               type="button"
@@ -299,7 +416,7 @@
               <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
-        </a>
+        </div>
       {/if}
     {/each}
   </div>

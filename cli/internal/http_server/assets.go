@@ -6,12 +6,14 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/auth"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -25,6 +27,8 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// as the path segment. The payload encodes roomId + (bodyKey | videoOrigin)
 	// + attachmentId — everything the handler needs to authorize and serve
 	// the binary without a separate index lookup.
+	s.router.GET("/assets/files/:assetID", s.serveStableAttachment)
+	s.router.GET("/assets/files/:assetID/image/:dimensions/:fit", s.serveStableTransformedAttachment)
 	s.router.GET("/assets/attachments/:locator", s.serveAttachment)
 	s.router.GET("/assets/attachments/:locator/t/:signedPath", s.serveTransformedAttachment)
 }
@@ -150,6 +154,198 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
+// serveStableAttachment serves the canonical authenticated asset URL:
+//
+//	/assets/files/{assetID}
+//
+// The URL identifies the binary, while the access ticket (or, for API clients,
+// the request's cookie/bearer token) authorizes access.
+func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
+	ctx := c.Request.Context()
+	assetID := c.Param("assetID")
+
+	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, nil)
+	if !ok {
+		return
+	}
+
+	// Try S3 presigned redirect first (zero-copy, full Range support) after
+	// validating the asset ticket/request credentials and room membership.
+	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
+		c.Header("Cache-Control", "private, max-age=3600")
+		c.Redirect(http.StatusFound, presignedURL)
+		return
+	}
+
+	reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
+	if err != nil {
+		s.logger.Error("Failed to get stable attachment", "error", err, "attachment_id", assetID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+
+	contentType := info.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	c.Header("Cache-Control", "private, max-age=3600")
+	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
+	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
+	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
+}
+
+// serveStableTransformedAttachment serves an authenticated image derivative:
+//
+//	/assets/files/{assetID}/image/{width}x{height}/{fit}
+//
+// Transform dimensions remain visible and stable in the URL. Authorization
+// comes from the asset-scoped access ticket or request credentials.
+func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
+	ctx := c.Request.Context()
+	assetID := c.Param("assetID")
+	params, err := parseStableTransformParams(c.Param("dimensions"), c.Param("fit"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, params)
+	if !ok {
+		return
+	}
+
+	s.serveTransformedAssetWithParams(c, transformRequest{
+		CachePrefix: AttachmentStableCachePrefix,
+		AssetID:     assetID,
+		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
+			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
+			if err != nil {
+				return nil, "", err
+			}
+			return reader, info.ContentType, nil
+		},
+		Authorize: func(c *gin.Context) bool { return true },
+	}, params)
+}
+
+const AttachmentStableCachePrefix = "attachment-stable"
+
+func parseStableTransformParams(dimensions, fit string) (*signedurl.TransformParams, error) {
+	widthText, heightText, ok := strings.Cut(dimensions, "x")
+	if !ok {
+		return nil, fmt.Errorf("invalid dimensions")
+	}
+	width, err := strconv.Atoi(widthText)
+	if err != nil {
+		return nil, fmt.Errorf("invalid width")
+	}
+	height, err := strconv.Atoi(heightText)
+	if err != nil {
+		return nil, fmt.Errorf("invalid height")
+	}
+	params := &signedurl.TransformParams{Width: width, Height: height, Fit: fit}
+	if params.Width < 1 || params.Width > 2048 {
+		return nil, fmt.Errorf("width out of range [1, 2048]: %d", params.Width)
+	}
+	if params.Height < 1 || params.Height > 2048 {
+		return nil, fmt.Errorf("height out of range [1, 2048]: %d", params.Height)
+	}
+	if params.Fit != "contain" && params.Fit != "cover" && params.Fit != "exact" {
+		return nil, fmt.Errorf("invalid fit mode: %s", params.Fit)
+	}
+	return params, nil
+}
+
+func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context, assetID string, params *signedurl.TransformParams) (*corev1.Attachment, bool) {
+	if assetID == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, false
+	}
+
+	userID, ok := s.resolveStableAssetViewerID(c, assetID, params)
+	if !ok {
+		return nil, false
+	}
+
+	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
+	if !ok || declared == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, false
+	}
+	roomID, ok := s.core.RoomTimeline.AssetRoomID(assetID)
+	if !ok {
+		s.logger.Warn("Asset has no room scope", "attachment_id", assetID)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return nil, false
+	}
+
+	kind, err := s.core.FindRoomKind(ctx, roomID)
+	if err != nil {
+		s.logger.Error("Failed to resolve room kind for stable attachment auth", "error", err, "room_id", roomID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
+		return nil, false
+	}
+	isMember, err := s.core.RoomMembershipExists(ctx, kind, userID, roomID)
+	if err != nil {
+		s.logger.Error("Failed to check stable attachment room membership", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
+		return nil, false
+	}
+	if !isMember {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: not a member of the room"})
+		return nil, false
+	}
+
+	attachment := core.AttachmentFromAsset(declared.GetAsset())
+	if attachment == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, false
+	}
+	attachment.RoomId = roomID
+	return attachment, true
+}
+
+func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, params *signedurl.TransformParams) (string, bool) {
+	if access := c.Query("access"); access != "" {
+		ticket, err := signedurl.ParseSignedAssetAccessTicket(s.config.Core.Assets.SigningSecret, access)
+		if err != nil {
+			s.logger.Warn("Invalid asset access ticket", "error", err, "asset_id", assetID)
+			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid asset access ticket"})
+			return "", false
+		}
+		if ticket.Expired(time.Now().Unix()) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket expired"})
+			return "", false
+		}
+		if ticket.AssetID != assetID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket does not match asset"})
+			return "", false
+		}
+		if !ticket.MatchesTransform(params) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket does not match derivative"})
+			return "", false
+		}
+		return ticket.UserID, true
+	}
+
+	if params != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Asset derivative URL requires a signed access ticket"})
+		return "", false
+	}
+
+	reqWithUser := injectUserIntoContext(c, s.core)
+	user := auth.ForContext(reqWithUser.Context())
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return "", false
+	}
+	return user.Id, true
+}
+
 // resolveLocatorAttachment parses the signed locator, validates its
 // expiry, verifies the signed user is still a member of the room, and
 // looks up the source Attachment proto. On success returns the locator,
@@ -207,8 +403,6 @@ func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Contex
 // serveTransformedAsset handles the common logic for serving transformed images.
 // It parses the signed path, checks cache, fetches the asset, transforms it, and serves the result.
 func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest) {
-	ctx := c.Request.Context()
-
 	// Parse and verify the signed path
 	params, err := signedurl.ParseSignedTransformPath(s.config.Core.Assets.SigningSecret, req.ResourceID1, req.ResourceID2, req.SignedPath)
 	if err != nil {
@@ -219,6 +413,12 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid or expired transform URL"})
 		return
 	}
+
+	s.serveTransformedAssetWithParams(c, req, params)
+}
+
+func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transformRequest, params *signedurl.TransformParams) {
+	ctx := c.Request.Context()
 
 	// Build cache key with prefix to distinguish between asset types
 	cacheKey := core.ImageCacheKey(req.CachePrefix, req.AssetID, params.Width, params.Height, params.Fit)
@@ -234,9 +434,9 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 			return
 		}
 
-		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
 		c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
-		c.Header("Vary", "Accept-Encoding")
+		c.Header("Vary", transformedAssetVary(req.Authorize == nil))
 		c.Header("X-Cache", "HIT")
 		c.Data(http.StatusOK, assets.DetectImageContentType(cached), cached)
 		return
@@ -300,13 +500,27 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 	}
 
 	// Set cache headers for long-term caching (immutable content)
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
 	c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
-	c.Header("Vary", "Accept-Encoding")
+	c.Header("Vary", transformedAssetVary(req.Authorize == nil))
 	c.Header("X-Cache", "MISS")
 
 	// Serve the transformed image with appropriate content type
 	c.Data(http.StatusOK, result.ContentType, transformedData)
+}
+
+func transformedAssetCacheControl(public bool) string {
+	if public {
+		return "public, max-age=31536000, immutable"
+	}
+	return "private, max-age=3600"
+}
+
+func transformedAssetVary(public bool) string {
+	if public {
+		return "Accept-Encoding"
+	}
+	return "Accept-Encoding, Authorization, Cookie"
 }
 
 // serveTransformedServerAsset serves a dynamically transformed version of an server asset.

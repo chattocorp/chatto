@@ -137,7 +137,7 @@ case "user":
 
 ## Known Test Issues
 
-- `TestAuthRoutes_TestEmailEndpoint` in `cli/internal/http_server/` is a pre-existing failure — do not investigate as a regression.
+- `cli/internal/http_server` tests that hit `/auth/test/*` endpoints require the `test_endpoints` build tag. Plain `go test ./...` will fail `TestAuthRoutes_TestEmailEndpoint` with a 404; run `go test -tags test_endpoints ./internal/http_server` or use `mise test-cli`, which sets the tag for the full backend suite.
 
 ## Cost Reference
 

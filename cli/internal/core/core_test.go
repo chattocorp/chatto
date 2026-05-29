@@ -83,9 +83,85 @@ func startCoreServices(t *testing.T, core *ChattoCore) {
 	}
 }
 
+func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {
+	t.Helper()
+
+	ctx := testContext(t)
+	stream, err := core.EventStreamForDebug(ctx)
+	if err != nil {
+		t.Fatalf("event stream: %v", err)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatalf("event stream info: %v", err)
+	}
+	return info.State.Msgs
+}
+
 // ============================================================================
 // Integration Tests
 // ============================================================================
+
+func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	cfg := config.CoreConfig{
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	start := func(t *testing.T, core *ChattoCore) func() {
+		t.Helper()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() { done <- core.Run(ctx) }()
+
+		bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer bootCancel()
+		if err := core.WaitForBoot(bootCtx); err != nil {
+			cancel()
+			t.Fatalf("WaitForBoot: %v", err)
+		}
+
+		return func() {
+			cancel()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("core.Run did not stop within timeout")
+			}
+		}
+	}
+
+	ctx := testContext(t)
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("first core: %v", err)
+	}
+	stopFirst := start(t, first)
+	if err := first.SeedDefaultRooms(ctx); err != nil {
+		stopFirst()
+		t.Fatalf("seed default rooms: %v", err)
+	}
+	eventsAfterFirstBoot := eventStreamMsgCount(t, first)
+	stopFirst()
+
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("second core: %v", err)
+	}
+	stopSecond := start(t, second)
+	defer stopSecond()
+	if err := second.SeedDefaultRooms(ctx); err != nil {
+		t.Fatalf("seed default rooms after restart: %v", err)
+	}
+	eventsAfterSecondBoot := eventStreamMsgCount(t, second)
+
+	if eventsAfterSecondBoot != eventsAfterFirstBoot {
+		t.Fatalf("expected restart boot to append no events, got %d -> %d", eventsAfterFirstBoot, eventsAfterSecondBoot)
+	}
+}
 
 // TestChattoCore_FullWorkflow tests an end-to-end workflow demonstrating
 // all core functionality working together.

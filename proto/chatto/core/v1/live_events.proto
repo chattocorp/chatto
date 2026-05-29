@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/user_preferences.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// SUBSCRIPTION LIVENESS
+// ============================================================================
+
+// HeartbeatEvent is a synthetic event with no payload. StreamMyEvents
+// emits one every ~25 seconds so clients can detect a dead subscription
+// on an otherwise-healthy WebSocket. It is never persisted and never
+// travels over NATS.
+message HeartbeatEvent {}
+// NotificationLevelChangedEvent is published when a user changes their notification
+// level for the server or a specific room. User-scoped: only delivered to the user
+// who changed it.
+message NotificationLevelChangedEvent {
+  reserved 1;
+  reserved "space_id";
+  // The room whose notification level was changed (empty for server-level changes).
+  string room_id = 2;
+  // The explicitly set level.
+  NotificationLevel level = 3;
+  // The effective level after inheritance resolution.
+  NotificationLevel effective_level = 4;
+}
+
+// ============================================================================
+// SERVER LIFECYCLE EVENTS (deployment-scoped)
+// ============================================================================
+
+message ServerCreatedEvent {
+  string server_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message ServerUpdatedEvent {
+  string server_id = 1;
+  string name = 2;
+  string description = 3;
+  // URL to the server's logo, or empty if no logo is set.
+  string logo_url = 4;
+  // URL to the server's banner, or empty if no banner is set.
+  string banner_url = 5;
+}
+
+message ServerDeletedEvent {
+  string server_id = 1;
+}
+// ============================================================================
+// TYPING INDICATOR EVENTS (room-scoped)
+// ============================================================================
+
+// Notifies clients that a user is typing in a room or thread.
+// Published directly to NATS Core (bypasses JetStream storage).
+// Clients should implement timeout-based clearing (e.g., 6 seconds).
+message UserTypingEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID where the user is typing
+  string room_id = 2;
+
+  // Thread root event ID (optional). If set, the user is typing a reply in this thread.
+  // If empty, the user is typing in the main room view.
+  optional string thread_root_event_id = 3;
+}
+
+// ============================================================================
+// PRESENCE EVENTS (server-scoped, constructed from KV watcher)
+// ============================================================================
+
+// Notifies clients that a user's presence status changed.
+// Published when a user comes online, goes offline, or changes their status.
+// The user whose presence changed is identified by the parent envelope's actor_id.
+// Presence is server-wide; the server context is implicit in the subscription.
+message PresenceChangedEvent {
+  // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
+  string status = 1;
+}
+
+// ============================================================================
+// NOTIFICATION EVENTS (server-scoped — KV tracks persistent state)
+// ============================================================================
+
+// Notifies a user that they were mentioned in a message.
+// Published as a server-scoped live event to the mentioned user.
+// This is a transient notification — the KV bucket tracks persistent state.
+message MentionNotificationEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID where the mention occurred
+  string room_id = 2;
+
+  // User ID of the person who mentioned them (the message author)
+  string mentioned_by_user_id = 3;
+}
+
+// Notifies a user that a new message was posted in a DM conversation they're part of.
+// Published as a server-scoped live event to all participants except the sender.
+// Every DM message triggers this notification (unlike mentions which are opt-in).
+message NewDirectMessageNotificationEvent {
+  // Room ID of the DM conversation
+  string room_id = 1;
+
+  // User ID of the person who sent the message
+  string sender_id = 2;
+}
+
+// ============================================================================
+// NOTIFICATION SYNC EVENTS (server-scoped)
+// ============================================================================
+
+// Published when a new notification is created for a user.
+// Enables real-time notification updates in the UI.
+message NotificationCreatedEvent {
+  // The notification ID
+  string notification_id = 1;
+
+  reserved 2;
+  reserved "space_id";
+
+  // Navigation context (optional fields for routing)
+  string room_id = 3;
+  string event_id = 4;
+  string in_reply_to_id = 5;
+}
+
+// Published when a notification is dismissed by the user.
+// Enables cross-device sync of dismissed notifications.
+message NotificationDismissedEvent {
+  // The dismissed notification ID
+  string notification_id = 1;
+}
+
+// ============================================================================
+// THREAD FOLLOW EVENTS (user-scoped)
+// ============================================================================
+
+// ThreadFollowChangedEvent is published when a user's thread follow state changes
+// (follow or unfollow, including auto-follow on posting). User-scoped: delivered
+// only to the user whose follow state changed, for multi-tab/multi-device sync.
+message ThreadFollowChangedEvent {
+  reserved 1;
+  reserved "space_id";
+  // The room containing the thread.
+  string room_id = 2;
+  // The root event ID of the thread.
+  string thread_root_event_id = 3;
+  // Whether the user is now following (true) or not following (false).
+  bool is_following = 4;
+}
+
+// ============================================================================
+// UNREAD INDICATOR EVENTS (server-scoped)
+// ============================================================================
+
+// Published to the user who marked a room as read. This enables real-time
+// updates to other tabs/devices for the same user.
+message RoomMarkedAsReadEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID that was marked as read
+  string room_id = 2;
+}
+
+// Published to the user whose mention indicator for a room was cleared.
+// Fires whenever the server-side mention KV flag (`room_mention_status.*`) is
+// deleted — that happens when the user marks a room as read (auto on entry or
+// explicit) or dismisses a mention notification on any device. Other devices
+// use this to drop the orange dot for the room without waiting for a refetch.
+message MentionStatusClearedEvent {
+  // Room ID whose mention indicator was cleared
+  string room_id = 1;
+}
+
+// ============================================================================
+// ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
+// ============================================================================
+
+// Notifies clients that the channel-room groups (their ordering, names,
+// or membership) were updated. Clients should refetch `Server.roomGroups`.
+// Published as a live server event (not stored in JetStream).
+message RoomGroupsUpdatedEvent {
+  reserved 1;
+  reserved "space_id";
+}
+
+// ============================================================================
+// SESSION TERMINATION EVENTS (user-scoped)
+// ============================================================================
+
+// Notifies a user that their session has been terminated.
+// Published as a user-scoped event on logout or admin boot.
+// The subscription handler closes the stream after forwarding this event,
+// ensuring the WebSocket connection is torn down server-side.
+message SessionTerminatedEvent {
+  // Reason for termination: "logout", "admin_boot", "account_deleted"
+  string reason = 1;
+}
+
+// ============================================================================
+// VIDEO PROCESSING EVENTS (room-scoped)
+// ============================================================================
+
+// Notifies clients that video processing has completed (or failed) for an attachment.
+// Published on the room's live subject so room subscribers receive it.
+message VideoProcessingCompletedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID containing the message with the video
+  string room_id = 2;
+
+  // Attachment ID of the original video
+  string attachment_id = 3;
+
+  // Message body ID (internal, used by core for KV lookups)
+  string message_body_id = 4;
+
+  // Event ID of the message containing the attachment (for GraphQL API consumers).
+  // Populated at publish time from the body key.
+  string message_event_id = 5;
+}
+
+// ============================================================================
+// VOICE CALL EVENTS (room-scoped)
+// ============================================================================
+
+// Notifies room members that a user joined a voice call.
+// Published as a live room event when a user requests a call token.
+message CallParticipantJoinedEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}
+
+// Notifies room members that a user left a voice call.
+// Published as a live room event when a user explicitly leaves.
+message CallParticipantLeftEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}

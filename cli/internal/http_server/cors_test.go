@@ -138,8 +138,9 @@ func TestCORSMiddleware(t *testing.T) {
 		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
 			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
 		}
-		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != "Authorization, Content-Type" {
-			t.Errorf("expected Access-Control-Allow-Headers 'Authorization, Content-Type', got %q", headers)
+		expectedHeaders := "Authorization, Content-Type, Range, If-None-Match, If-Modified-Since"
+		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != expectedHeaders {
+			t.Errorf("expected Access-Control-Allow-Headers %q, got %q", expectedHeaders, headers)
 		}
 		if maxAge := w.Header().Get("Access-Control-Max-Age"); maxAge != "86400" {
 			t.Errorf("expected Access-Control-Max-Age '86400', got %q", maxAge)
