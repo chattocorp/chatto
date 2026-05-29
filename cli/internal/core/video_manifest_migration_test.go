@@ -55,8 +55,8 @@ func TestVideoManifestMigration_CompletedImportsWithoutOriginal(t *testing.T) {
 		t.Fatal("expected processed manifest")
 	}
 	created, ok := core.RoomTimeline.AssetCreation(original.Id)
-	if !ok || created.GetStorageAvailable() {
-		t.Fatal("expected storage_available=false on migrated asset creation")
+	if !ok || created.GetOriginalBinaryAvailable() {
+		t.Fatal("expected original_binary_available=false on migrated asset creation")
 	}
 	video := manifest.Succeeded.GetVideo()
 	if video == nil {

@@ -806,10 +806,10 @@ message AssetCreatedEvent {
   // The asset record (content identity + storage).
   AssetRecord asset = 1;
 
-  // Whether the asset binary was available when the event was written.
-  // New uploads are always true; legacy migrated source assets may be false
-  // because older pipelines deleted originals after transcoding.
-  bool storage_available = 2;
+  // Whether the original uploaded binary was available when the event was
+  // written. New uploads are always true; legacy migrated source assets may
+  // be false because older pipelines deleted originals after transcoding.
+  bool original_binary_available = 2;
 
   // Room scope. Set for room-scoped uploads and their derivatives.
   string room_id = 3;

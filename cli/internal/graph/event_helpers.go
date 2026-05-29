@@ -193,7 +193,7 @@ func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool)
 	if !ok || created == nil {
 		return fallback
 	}
-	return created.GetStorageAvailable()
+	return created.GetOriginalBinaryAvailable()
 }
 
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {

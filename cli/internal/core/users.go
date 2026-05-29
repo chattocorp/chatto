@@ -401,9 +401,9 @@ func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *co
 
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AssetCreated{
 		AssetCreated: &corev1.AssetCreatedEvent{
-			Asset:            asset,
-			StorageAvailable: true,
-			UserId:           userID,
+			Asset:                   asset,
+			OriginalBinaryAvailable: true,
+			UserId:                  userID,
 		},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {

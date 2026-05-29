@@ -4524,10 +4524,10 @@ type AssetCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The asset record (content identity + storage).
 	Asset *AssetRecord `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
-	// Whether the asset binary was available when the event was written.
-	// New uploads are always true; legacy migrated source assets may be false
-	// because older pipelines deleted originals after transcoding.
-	StorageAvailable bool `protobuf:"varint,2,opt,name=storage_available,json=storageAvailable,proto3" json:"storage_available,omitempty"`
+	// Whether the original uploaded binary was available when the event was
+	// written. New uploads are always true; legacy migrated source assets may
+	// be false because older pipelines deleted originals after transcoding.
+	OriginalBinaryAvailable bool `protobuf:"varint,2,opt,name=original_binary_available,json=originalBinaryAvailable,proto3" json:"original_binary_available,omitempty"`
 	// Room scope. Set for room-scoped uploads and their derivatives.
 	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// ID of the parent asset when this asset is a derivative.
@@ -4581,9 +4581,9 @@ func (x *AssetCreatedEvent) GetAsset() *AssetRecord {
 	return nil
 }
 
-func (x *AssetCreatedEvent) GetStorageAvailable() bool {
+func (x *AssetCreatedEvent) GetOriginalBinaryAvailable() bool {
 	if x != nil {
-		return x.StorageAvailable
+		return x.OriginalBinaryAvailable
 	}
 	return false
 }
@@ -6142,10 +6142,10 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x13MessageDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\xb3\x02\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\xc2\x02\n" +
 	"\x11AssetCreatedEvent\x121\n" +
-	"\x05asset\x18\x01 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x05asset\x12+\n" +
-	"\x11storage_available\x18\x02 \x01(\bR\x10storageAvailable\x12\x17\n" +
+	"\x05asset\x18\x01 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x05asset\x12:\n" +
+	"\x19original_binary_available\x18\x02 \x01(\bR\x17originalBinaryAvailable\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fparent_asset_id\x18\x05 \x01(\tR\rparentAssetId\x12L\n" +
 	"\x0fderivative_role\x18\x06 \x01(\x0e2#.chatto.core.v1.AssetDerivativeRoleR\x0ederivativeRole\x12\x17\n" +

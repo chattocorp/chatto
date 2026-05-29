@@ -209,9 +209,9 @@ func (c *ChattoCore) UploadDerivativeAttachment(
 // flat owner fields (user vs derivative).
 func (c *ChattoCore) appendAssetCreatedForUpload(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext) error {
 	created := &corev1.AssetCreatedEvent{
-		Asset:            assetFromAttachment(attachment),
-		StorageAvailable: true,
-		RoomId:           roomID,
+		Asset:                   assetFromAttachment(attachment),
+		OriginalBinaryAvailable: true,
+		RoomId:                  roomID,
 	}
 	if deriv != nil {
 		created.ParentAssetId = deriv.parentAssetID

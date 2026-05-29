@@ -254,7 +254,7 @@ func testAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1.Eve
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				StorageAvailable: true,
+				OriginalBinaryAvailable: true,
 				Asset: &corev1.AssetRecord{
 					Id:          attachmentID,
 					ContentType: contentType,
@@ -271,7 +271,7 @@ func testDerivativeAssetCreatedEvent(assetID, parentAssetID, quality string, wid
 		Id: "ENV-DERIVATIVE-" + assetID,
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				StorageAvailable: true,
+				OriginalBinaryAvailable: true,
 				Asset: &corev1.AssetRecord{
 					Id:          assetID,
 					ContentType: "video/mp4",

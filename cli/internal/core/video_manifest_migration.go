@@ -230,11 +230,11 @@ func (c *ChattoCore) appendDerivativeAssetCreatedMigrationEvent(ctx context.Cont
 	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
-				StorageAvailable: true,
-				Asset:            asset,
-				RoomId:           ref.roomID,
-				ParentAssetId:    sourceAssetID,
-				DerivativeRole:   role,
+				OriginalBinaryAvailable: true,
+				Asset:                   asset,
+				RoomId:                  ref.roomID,
+				ParentAssetId:           sourceAssetID,
+				DerivativeRole:          role,
 			},
 		},
 	})
