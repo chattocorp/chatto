@@ -585,7 +585,7 @@ type NewDirectMessageNotificationEvent {
   "The ID of the DM conversation."
   roomId: ID!
   "The user who sent the message."
-  sender: User! @goField(forceResolver: true)
+  sender: User @goField(forceResolver: true)
   "The name of the conversation (derived from participants)."
   conversationName: String! @goField(forceResolver: true)
 }

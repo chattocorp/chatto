@@ -1624,7 +1624,7 @@ export type NewDirectMessageNotificationEvent = {
   /** The ID of the DM conversation. */
   roomId: Scalars['ID']['output'];
   /** The user who sent the message. */
-  sender: User;
+  sender?: Maybe<User>;
 };
 
 /**
@@ -3874,7 +3874,7 @@ export type MyServerEventsSubscription = { __typename?: 'Subscription', myEvents
         )> }
       | { __typename: 'MessageRetractedEvent', roomId: string, messageEventId: string, retractedReason?: string | null }
       | { __typename: 'MessageUpdatedEvent', roomId: string, messageEventId: string }
-      | { __typename: 'NewDirectMessageNotificationEvent', roomId: string, conversationName: string, sender: { __typename?: 'User', id: string, displayName: string, avatarUrl?: string | null } }
+      | { __typename: 'NewDirectMessageNotificationEvent', roomId: string, conversationName: string, sender?: { __typename?: 'User', id: string, displayName: string, avatarUrl?: string | null } | null }
       | { __typename: 'NotificationCreatedEvent', notificationId: string, roomId: string, eventId?: string | null, inReplyToId?: string | null }
       | { __typename: 'NotificationDismissedEvent', notificationId: string }
       | { __typename: 'NotificationLevelChangedEvent', level: NotificationLevel, effectiveLevel: NotificationLevel, nlcRoomId?: string | null }

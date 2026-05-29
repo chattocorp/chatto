@@ -14609,9 +14609,9 @@ func (ec *executionContext) _NewDirectMessageNotificationEvent_sender(ctx contex
 			return ec.resolvers.NewDirectMessageNotificationEvent().Sender(ctx, obj)
 		},
 		nil,
-		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
+		ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -33339,16 +33339,13 @@ func (ec *executionContext) _NewDirectMessageNotificationEvent(ctx context.Conte
 		case "sender":
 			field := field
 
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._NewDirectMessageNotificationEvent_sender(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
 				return res
 			}
 

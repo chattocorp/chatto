@@ -312,6 +312,13 @@ func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
 			t.Errorf("Expected success for emoji-only message, got: %v", err)
 		}
 	})
+
+	t.Run("attachment-only with unknown asset is rejected", func(t *testing.T) {
+		_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "", []string{"missing-asset"}, "", "", nil, false)
+		if err == nil {
+			t.Error("Expected error for attachment-only message with no resolved attachments")
+		}
+	})
 }
 
 func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {

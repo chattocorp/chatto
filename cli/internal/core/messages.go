@@ -113,6 +113,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		resolvedAssets = append(resolvedAssets, att)
 		resolvedAssetIDs = append(resolvedAssetIDs, id)
 	}
+	if !hasBody && len(resolvedAssetIDs) == 0 {
+		return nil, fmt.Errorf("message must have either body or attachments")
+	}
 
 	// Verify room exists and isn't archived
 	room, err := c.GetRoom(ctx, kind, room_id)

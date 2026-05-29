@@ -14,6 +14,7 @@ import { SvelteSet } from 'svelte/reactivity';
 import { graphql, useFragment } from './gql';
 import {
   RoomEventViewFragmentDoc,
+  UserAvatarUserFragmentDoc,
   type MyServerEventsSubscription,
   type NotificationLevel,
   type PresenceStatus,
@@ -372,11 +373,14 @@ export type MentionNotification = {
 };
 
 export function onMention(handler: (notification: MentionNotification) => void): () => void {
-  return onTypedEvent('MentionNotificationEvent', (_env, e) => {
+  return onTypedEvent('MentionNotificationEvent', (env, e) => {
+    const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
+    const actor = e.actor ?? envelopeActor;
+
     return {
       roomId: e.roomId,
-      actorUserId: e.actor.id,
-      actorDisplayName: e.actor.displayName,
+      actorUserId: actor?.id ?? env.actorId,
+      actorDisplayName: actor?.displayName ?? 'Unknown user',
       spaceName: '',
       roomName: e.room.name
     };
@@ -392,12 +396,15 @@ export type DMNotification = {
 };
 
 export function onNewDM(handler: (notification: DMNotification) => void): () => void {
-  return onTypedEvent('NewDirectMessageNotificationEvent', (_env, e) => {
+  return onTypedEvent('NewDirectMessageNotificationEvent', (env, e) => {
+    const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
+    const sender = e.sender ?? envelopeActor;
+
     return {
       roomId: e.roomId,
-      senderId: e.sender.id,
-      senderDisplayName: e.sender.displayName,
-      senderAvatarUrl: e.sender.avatarUrl ?? '',
+      senderId: sender?.id ?? env.actorId,
+      senderDisplayName: sender?.displayName ?? 'Unknown user',
+      senderAvatarUrl: sender?.avatarUrl ?? '',
       conversationName: e.conversationName
     };
   }, handler);
