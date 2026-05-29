@@ -218,11 +218,7 @@
     });
   }
 
-  async function openDownload(attachment: Attachment, event: MouseEvent) {
-    // Intercept the default navigation so we can swap in a fresh URL.
-    // The `<a>` keeps its original href as a fallback for middle-click /
-    // "Open in new tab", which the browser handles before this runs.
-    event.preventDefault();
+  async function openDownload(attachment: Attachment) {
     const freshUrls = await refreshUrlsForMessage();
     if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
     const fresh = normalizeAssetUrl(freshUrls.get(attachment.id)?.assetUrl)?.url ?? attachment.url;
@@ -365,8 +361,7 @@
               class="h-8 max-w-xs"
               data-testid="audio-player"
             >
-              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- signed asset URL, not an app route -->
-              <a href={attachment.url}>{attachment.filename}</a>
+              {attachment.filename}
             </audio>
             <span class="text-sm text-muted">{attachment.filename}</span>
           </div>
@@ -383,32 +378,33 @@
           {/if}
         </div>
       {:else}
-        <!-- eslint-disable svelte/no-navigation-without-resolve -- signed asset URL, not an app route -->
-        <a
-          href={attachment.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onclick={(e) => openDownload(attachment, e)}
-          aria-label="Download {attachment.filename}"
+        <div
           class="group/attachment relative block overflow-hidden rounded-lg shadow-md transition-transform"
         >
-          <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6 text-muted"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-            <span class="text-sm">{attachment.filename}</span>
-          </div>
+          <button
+            type="button"
+            onclick={() => openDownload(attachment)}
+            aria-label="Download {attachment.filename}"
+            class="block w-full cursor-pointer text-left"
+          >
+            <div class="flex h-16 items-center gap-2 rounded-lg bg-surface px-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6 text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              <span class="text-sm">{attachment.filename}</span>
+            </div>
+          </button>
           {#if canDeleteAttachment}
             <button
               type="button"
@@ -420,8 +416,7 @@
               <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
-        </a>
-        <!-- eslint-enable svelte/no-navigation-without-resolve -->
+        </div>
       {/if}
     {/each}
   </div>

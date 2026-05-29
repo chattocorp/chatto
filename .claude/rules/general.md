@@ -37,6 +37,7 @@ No data migration needed; breaking changes to APIs and storage schemas are accep
 ## Lint, Type, and Vet Errors
 
 - **Fix lint/type/vet errors at the source — do NOT silence them.** Disabling a rule (via `eslint-disable`, ESLint config overrides for specific files, `// @ts-expect-error`, `// @ts-ignore`, `//nolint`, etc.) is almost never the right answer. Find and fix the underlying issue.
+- **Do not add lint-disable directives.** Per-line, block, or file-level disable comments (`eslint-disable`, `svelte-ignore`, `@ts-ignore`, `@ts-expect-error`, `nolint`, etc.) are not acceptable as routine fixes. Restructure the code so the rule is satisfied. If a tool rule is truly impossible to satisfy because of an external runtime contract, stop and discuss a scoped config-level exception with the user first.
 - **Common anti-patterns to avoid:**
   - Adding `eslint-disable-next-line` to make a "stubborn" rule shut up. There is almost always a code restructuring that satisfies the rule properly.
   - Adding rule overrides in `eslint.config.js` to disable a rule for an entire directory without first proving the rule cannot be satisfied. Always investigate proper ways first.

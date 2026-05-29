@@ -203,7 +203,7 @@ For `truncate` to work in flexbox, **every flex ancestor** needs `min-w-0`. (See
 - Prefer Tailwind classes over `<style>` blocks for styling components.
 - Keep Tailwind classes in the `class` attribute directly using array syntax: `class={['base', condition ? 'a' : 'b']}`.
 - Use Svelte 5's `resolve()` from `$app/paths` for typechecked URL paths. (See `frontend.md`'s Navigation section.)
-- **`resolve()` exceptions**: some URLs legitimately cannot use `resolve()`. Use `eslint-disable` comments with clear reasons.
+- **`resolve()` exceptions**: some URLs legitimately cannot use `resolve()` (for example signed asset URLs or third-party URLs). Do not add lint-disable directives for these. Use a non-navigation control such as a `<button>` plus `window.open`, route through a purpose-built helper/component that satisfies the rule, or discuss a scoped config-level exception with the user if neither is viable.
 
 Document components with `@component` in an HTML comment before the `<script>` tag:
 
