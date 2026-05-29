@@ -58,6 +58,21 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	return c
 }
 
+func eventCount(t *testing.T, c *core.ChattoCore) uint64 {
+	t.Helper()
+
+	ctx := context.Background()
+	stream, err := c.EventStreamForDebug(ctx)
+	if err != nil {
+		t.Fatalf("event stream: %v", err)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatalf("event stream info: %v", err)
+	}
+	return info.State.Msgs
+}
+
 func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
@@ -141,7 +156,13 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 	}
 
 	applyBootstrap(ctx, c, cfg)
+	eventsAfterFirstRun := eventCount(t, c)
 	applyBootstrap(ctx, c, cfg) // second run should be a no-op for the same entries
+	eventsAfterSecondRun := eventCount(t, c)
+
+	if eventsAfterSecondRun != eventsAfterFirstRun {
+		t.Fatalf("expected second bootstrap to append no events, got %d -> %d", eventsAfterFirstRun, eventsAfterSecondRun)
+	}
 
 	// Bootstrap is idempotent at the room level: re-running shouldn't
 	// duplicate the default rooms (CreateRoom fails ErrRoomNameExists).
@@ -157,6 +178,32 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 		if count > 1 {
 			t.Errorf("expected exactly one room named %q, got %d", name, count)
 		}
+	}
+}
+
+func TestApplyBootstrap_SkipsWhenServerHasData(t *testing.T) {
+	c := setupCore(t)
+	ctx := context.Background()
+
+	if _, err := c.CreateUser(ctx, "system", "existing", "Existing User", "devpassword"); err != nil {
+		t.Fatalf("create existing user: %v", err)
+	}
+	eventsBeforeBootstrap := eventCount(t, c)
+
+	cfg := config.BootstrapConfig{
+		Users: []config.BootstrapUser{
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword", ServerRole: "owner"},
+		},
+		Server: &config.BootstrapServer{Name: "Should Not Apply", Rooms: []string{"random"}},
+	}
+	applyBootstrap(ctx, c, cfg)
+	eventsAfterBootstrap := eventCount(t, c)
+
+	if eventsAfterBootstrap != eventsBeforeBootstrap {
+		t.Fatalf("expected bootstrap to append no events on non-empty server, got %d -> %d", eventsBeforeBootstrap, eventsAfterBootstrap)
+	}
+	if user, err := c.GetUserByLogin(ctx, "alice"); err == nil && user != nil {
+		t.Fatal("expected bootstrap user not to be created on non-empty server")
 	}
 }
 

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -33,7 +34,15 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, roleName string,
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacPermissionGrantedEvent(ScopeServer, "", roleName, perm),
 	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
+	_, err := c.appendRBACEvent(ctx, event, func() error {
+		if c.RBAC.GetDecision(ScopeServer, "", roleName, perm) == DecisionAllow {
+			return errRBACNoop
+		}
+		return nil
+	})
+	if errors.Is(err, errRBACNoop) {
+		return nil
+	}
 	return err
 }
 

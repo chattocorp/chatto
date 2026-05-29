@@ -208,11 +208,18 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.waitForProjectorsStarted(gctx, 5*time.Second); err != nil {
 			return fmt.Errorf("wait for projectors: %w", err)
 		}
+		// Before issuing boot-time "ensure" mutations, let every
+		// projection replay the durable stream as it exists now. A
+		// started-but-cold projection would otherwise look empty and
+		// append duplicate seed facts on every process restart.
+		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
+			return fmt.Errorf("wait for projections current: %w", err)
+		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
-		// running because it both reads the RoomGroups projection
-		// and depends on WaitForSeq actually waiting.
+		// running and caught up because it reads the RoomGroups
+		// projection and depends on WaitForSeq actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}

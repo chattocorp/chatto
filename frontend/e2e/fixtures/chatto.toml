@@ -46,8 +46,8 @@ data_dir = './data'
 auth_token = '4af4a8a477cea0d613359f4f0546c7b3841bfe613742b4f762b4987e65e955c4'
 
 # Dev-only bootstrap for E2E. Creates the admin user that loginAsAdmin() in
-# fixtures/testUser.ts logs in as. Applied on every server start by the
-# bootstrap-tagged binary (see mise build-e2e-server).
+# fixtures/testUser.ts logs in as. Applied by the bootstrap-tagged binary
+# only when the server is otherwise empty (see mise build-e2e-server).
 [[bootstrap.users]]
 login = 'e2eadmin'
 display_name = 'Admin User'

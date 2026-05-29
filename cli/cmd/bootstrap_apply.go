@@ -13,12 +13,10 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-// applyBootstrap applies the [bootstrap] section from chatto.toml to the
-// running server. Idempotent — entries that already exist (matched by login
-// for users, by presence of the primary space record for the server) are
-// left alone. Errors on individual entries are logged but don't abort the
-// rest, so the section behaves like "ensure this stuff exists" rather than
-// a transactional batch.
+// applyBootstrap applies the [bootstrap] section from chatto.toml to an empty
+// server. It is first-boot provisioning, not a recurring reconciliation loop:
+// once application data exists, the section is ignored on later starts.
+// Errors on individual entries are logged but don't abort the rest.
 //
 // Only compiled into builds with the `bootstrap` tag; release binaries replace
 // this with a no-op so the [bootstrap] section in chatto.toml is parsed but
@@ -37,14 +35,24 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 
 	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "server", hasServer)
 
+	if empty, err := serverDataEmptyForBootstrap(ctx, c); err != nil {
+		logger.Warn("Could not determine whether server is empty; skipping [bootstrap]", "error", err)
+		return
+	} else if !empty {
+		logger.Debug("Server already has data; skipping [bootstrap]")
+		return
+	}
+
 	ownerID := ""
 	firstUserID := ""
+	var bootstrapUserIDs []string
 	usersCreated, usersExisting := 0, 0
 	for _, u := range cfg.Users {
 		userID, created := applyBootstrapUser(ctx, logger, c, u)
 		if userID == "" {
 			continue
 		}
+		bootstrapUserIDs = append(bootstrapUserIDs, userID)
 		if firstUserID == "" {
 			firstUserID = userID
 		}
@@ -68,7 +76,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		if ownerID == "" {
 			logger.Error("[bootstrap] instance requires at least one user; skipping server setup")
 		} else {
-			serverCreated = applyBootstrapServer(ctx, logger, c, *cfg.Server, ownerID)
+			serverCreated = applyBootstrapServer(ctx, logger, c, *cfg.Server, ownerID, bootstrapUserIDs)
 		}
 	}
 
@@ -77,6 +85,53 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		"users_existing", usersExisting,
 		"instance_created", serverCreated,
 	)
+}
+
+// serverDataEmptyForBootstrap returns true when only built-in first-boot
+// scaffolding exists. core.Run creates the seed Lobby group and SeedDefaultRooms
+// creates announcements/general before the dev bootstrap hook fires, so those
+// system-owned defaults do not count as data that should block bootstrap.
+func serverDataEmptyForBootstrap(ctx context.Context, c *core.ChattoCore) (bool, error) {
+	userCount, err := c.CountUsers(ctx)
+	if err != nil {
+		return false, err
+	}
+	if userCount > 0 {
+		return false, nil
+	}
+
+	if cm := c.ConfigManager(); cm != nil {
+		if cfg, configured, err := cm.GetServerConfig(ctx); err != nil {
+			return false, err
+		} else if configured || cfg != nil {
+			return false, nil
+		}
+	}
+
+	rooms, err := c.ListRooms(ctx, core.KindChannel)
+	if err != nil {
+		return false, err
+	}
+	defaultRoomNames := map[string]struct{}{}
+	for _, room := range core.DefaultGlobalRooms {
+		defaultRoomNames[room.Name] = struct{}{}
+	}
+	for _, room := range rooms {
+		if _, ok := defaultRoomNames[room.Name]; !ok {
+			return false, nil
+		}
+	}
+
+	groups, err := c.ListRoomGroupsOrdered(ctx, core.KindChannel)
+	if err != nil {
+		return false, err
+	}
+	for _, group := range groups {
+		if group.Name != core.SeedDefaultRoomGroupName {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // applyBootstrapUser creates the user if missing, sets a verified email if the
@@ -154,7 +209,7 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 // engines) — operators don't configure or see it directly. Returns true if
 // a primary space was newly created, false otherwise (already-existing or
 // skipped).
-func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapServer, ownerID string) bool {
+func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapServer, ownerID string, bootstrapUserIDs []string) bool {
 	if inst.Name == "" {
 		logger.Error("Skipping [bootstrap.instance] with empty name")
 		return false
@@ -164,25 +219,29 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// name field is unset, so an admin-edited server name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
-		if _, err := cm.UpdateServerConfigFunc(ctx, "system:bootstrap", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
-			if current == nil {
-				return &configv1.ServerConfig{ServerName: inst.Name}, nil
+		current, _, err := cm.GetServerConfig(ctx)
+		if err != nil {
+			logger.Warn("Failed to read server config before [bootstrap.instance] seed", "error", err)
+		} else if current == nil || current.ServerName == "" {
+			if _, err := cm.UpdateServerConfigFunc(ctx, "system:bootstrap", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+				if current == nil {
+					return &configv1.ServerConfig{ServerName: inst.Name}, nil
+				}
+				if current.ServerName == "" {
+					current.ServerName = inst.Name
+				}
+				return current, nil
+			}); err != nil {
+				logger.Warn("Failed to seed server config from [bootstrap.instance]", "error", err)
 			}
-			if current.ServerName == "" {
-				current.ServerName = inst.Name
-			}
-			return current, nil
-		}); err != nil {
-			logger.Warn("Failed to seed server config from [bootstrap.instance]", "error", err)
 		}
 	}
 
 	// Create operator-specified extra rooms (if any). The default rooms
 	// (`announcements`, `general`) are seeded by `SeedDefaultRooms` during
 	// startup — bootstrap no longer duplicates that. Owner auto-joins
-	// every existing channel room so the dev/e2e admin lands ready to use
-	// the server (and so e2e tests that count members of `general` see
-	// the admin).
+	// every existing channel room so dev/e2e users land ready to use the
+	// server.
 	for _, name := range inst.Rooms {
 		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", name, ""); err != nil {
 			if !errors.Is(err, core.ErrRoomNameExists) {
@@ -195,10 +254,12 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	if err != nil {
 		logger.Warn("Failed to list rooms for bootstrap owner auto-join", "error", err)
 	}
-	for _, room := range existing {
-		if _, err := c.JoinRoom(ctx, ownerID, core.KindChannel, ownerID, room.Id); err != nil {
-			logger.Warn("Failed to auto-join bootstrap owner to room",
-				"room", room.Name, "error", err)
+	for _, userID := range bootstrapUserIDs {
+		for _, room := range existing {
+			if _, err := c.JoinRoom(ctx, userID, core.KindChannel, userID, room.Id); err != nil {
+				logger.Warn("Failed to auto-join bootstrap user to room",
+					"user_id", userID, "room", room.Name, "error", err)
+			}
 		}
 	}
 
@@ -212,5 +273,3 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	}
 	return true
 }
-
-
