@@ -97,4 +97,63 @@ test.describe('video player', () => {
 			await context2.close();
 		}
 	});
+
+	test('a video that fails to process shows the failure indicator (both users)', async ({
+		page,
+		chatPage,
+		roomPage,
+		browser,
+		serverURL
+	}) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+		const testSpaceName = await chatPage.createSpace();
+		await chatPage.enterRoom('general');
+
+		const context2 = await browser!.newContext({ baseURL: serverURL });
+		const page2 = await context2.newPage();
+		const chatPage2 = new ChatPage(page2);
+
+		try {
+			await createAndLoginTestUser(page2);
+			await chatPage2.goto();
+			const explorePage2 = new ExplorePage(page2);
+			await page2.goto(routes.spaces);
+			await page2.waitForURL(routes.patterns.spaceOrRoom);
+			await explorePage2.joinSpace(testSpaceName);
+			await chatPage2.enterRoom('general');
+
+			// Upload bytes that claim to be a video but aren't — ffprobe rejects
+			// them, so the worker emits a PROCESSING_FAILED outcome. This drives
+			// the failure branch the success tests never exercise.
+			await roomPage.fileInput.setInputFiles({
+				name: 'broken.mp4',
+				mimeType: 'video/mp4',
+				buffer: Buffer.from('this is not a valid video file')
+			});
+			await expect(roomPage.videoAttachmentPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+			await roomPage.messageInput.press('Enter');
+			await expect(roomPage.videoAttachmentPreview).not.toBeVisible({
+				timeout: TIMEOUTS.COMPLEX_OPERATION
+			});
+
+			// User 1 (poster): the failure message renders once the worker gives up.
+			await expect(page.getByText('Video processing failed')).toBeVisible({
+				timeout: VIDEO_PROCESSING_TIMEOUT
+			});
+
+			// User 2: the AssetProcessingFailed event must also arrive over the
+			// subscription so the failure shows without a reload — the live
+			// failure path that carries the owning message id.
+			await expect(page2.getByText('Video processing failed')).toBeVisible({
+				timeout: VIDEO_PROCESSING_TIMEOUT
+			});
+
+			// A Vidstack player must NOT render for a failed video.
+			await expect(roomPage.mediaPlayer).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		} finally {
+			await context2.close();
+		}
+	});
 });
