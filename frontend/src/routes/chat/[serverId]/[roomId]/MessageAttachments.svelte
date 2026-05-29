@@ -365,6 +365,7 @@
               class="h-8 max-w-xs"
               data-testid="audio-player"
             >
+              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- signed asset URL, not an app route -->
               <a href={attachment.url}>{attachment.filename}</a>
             </audio>
             <span class="text-sm text-muted">{attachment.filename}</span>
@@ -382,6 +383,7 @@
           {/if}
         </div>
       {:else}
+        <!-- eslint-disable svelte/no-navigation-without-resolve -- signed asset URL, not an app route -->
         <a
           href={attachment.url}
           target="_blank"
@@ -419,6 +421,7 @@
             </button>
           {/if}
         </a>
+        <!-- eslint-enable svelte/no-navigation-without-resolve -->
       {/if}
     {/each}
   </div>
