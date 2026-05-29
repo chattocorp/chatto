@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/config/v1/config.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// Durable server-config event for the EVT log. Carries the
+// complete ServerConfig snapshot after the change so projections and
+// the audit log can reconstruct state without reaching back to KV.
+// Distinct from the live-only ServerConfigUpdatedEvent at field 1000,
+// which still rides the legacy live broadcast path during the
+// migration window.
+message ServerConfigChangedEvent {
+  // The complete server config after the change.
+  chatto.config.v1.ServerConfig config = 1;
+}
+// Notifies clients that server configuration was updated.
+// Clients should refetch server info to get the new values.
+message ServerConfigUpdatedEvent {
+  // The updated server name
+  string server_name = 1;
+
+  // The updated MOTD (empty if cleared)
+  string motd = 2;
+
+  // The updated welcome message (empty if cleared)
+  string welcome_message = 3;
+
+  // The updated blocked usernames (newline-separated, empty if cleared)
+  string blocked_usernames = 4;
+}

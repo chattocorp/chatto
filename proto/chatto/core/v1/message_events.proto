@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// MESSAGE EVENTS
+// ============================================================================
+
+message MessagePostedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID - identifies which room this message belongs to
+  string room_id = 2;
+
+  // Compound key for body storage in KV: {userId}.{eventId}
+  // The userId prefix enables efficient per-user filtering for GDPR deletion.
+  string message_body_id = 3;
+
+  // Threading: event ID of the message this is replying to (empty = top-level message)
+  string in_reply_to = 4;
+
+  // Threading: event ID of the thread root message (empty = top-level message)
+  // For direct replies to a root, in_thread == in_reply_to.
+  // For nested replies, in_thread references the original root.
+  string in_thread = 5;
+
+  // User IDs of users mentioned via @username in the message body.
+  // Only includes valid, resolved user IDs (invalid mentions are silently ignored).
+  repeated string mentioned_user_ids = 6;
+
+  // Echo fields (empty for regular messages, set for "also send to channel" echoes).
+  // When set, this event is an echo of a thread reply — the message body is shared
+  // with the original thread reply (same message_body_id), so edits/deletions propagate.
+
+  // Event ID of the original thread reply this echoes (empty = not an echo)
+  string echo_of_event_id = 7;
+
+  // Thread root event ID — the thread this echo originates from (empty = not an echo)
+  string echo_from_thread_root_event_id = 8;
+
+  // Embedded message body for the event-sourced (EVT) path.
+  //
+  // Set on every new MessagePostedEvent emitted on the EVT stream. The
+  // body content travels with the event instead of living in a separate
+  // SERVER_BODIES KV bucket, so the projections can rebuild full message
+  // state from EVT alone.
+  //
+  // Empty for events imported from the legacy SERVER_EVENTS stream by
+  // the boot-time importer — those messages still have their bodies in
+  // SERVER_BODIES KV, addressed by `message_body_id` above. Readers
+  // branch on `body == nil`: present → use embedded; absent → look up
+  // SERVER_BODIES via `message_body_id`. See issue #597 phase 3.
+  MessageBody body = 9;
+
+  // Parent event's ID (populated at read time for resolver access)
+  // Used for reactions lookup since reactions are keyed by event ID
+  string event_id = 1001;
+
+  reserved 1000; // was sequence_id (dead field, never read)
+}
+// ============================================================================
+// MESSAGE MUTATION EVENTS (room-scoped)
+// ============================================================================
+//
+// Two flavours coexist during the event-sourcing migration (#597/#629):
+//
+//   - MessageEditedEvent / MessageRetractedEvent — DURABLE, ride the EVT
+//     stream at evt.room.{R}.message_edited / .message_retracted, carry
+//     enough state (body for edits) for projections to replay history
+//     without reaching back to KV. They are also mirrored onto the
+//     live.server.room subject family for the myEvents subscription.
+//
+//   - MessageUpdatedEvent / MessageDeletedEvent — legacy live-only shapes
+//     retained for wire compatibility during the rollout window. New edit
+//     and retract delivery uses the canonical durable names above.
+
+// MessageEditedEvent is the durable event published when a message's body
+// is edited. Carries the full new body envelope; the projection overlays
+// the body onto the existing message entry.
+message MessageEditedEvent {
+  // Room ID — identifies which room this message belongs to.
+  string room_id = 1;
+
+  // Event ID of the message being edited (the original MessagePostedEvent's
+  // ID). The actor performing the edit lives on the Event envelope's
+  // actor_id.
+  string event_id = 2;
+
+  // The new body envelope. Same MessageBody shape as on MessagePostedEvent
+  // — fresh ciphertext + nonce, attachments, link preview, updated_at.
+  MessageBody body = 3;
+}
+
+// MessageRetractedEvent is the durable event published when a message is
+// deleted. The projection marks the message tombstoned; the event log
+// keeps full history for audit. Named "Retracted" rather than "Deleted"
+// because we keep the original event around — only the visible body is
+// dropped.
+message MessageRetractedEvent {
+  // Room ID — identifies which room this message belonged to.
+  string room_id = 1;
+
+  // Event ID of the message being retracted. The actor performing the
+  // retraction lives on the Event envelope's actor_id.
+  string event_id = 2;
+
+  // Optional human-readable reason (e.g. "spam", "user requested",
+  // "moderator action"). May be empty.
+  string reason = 3;
+}
+
+message MessageUpdatedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID - identifies which room this message belongs to
+  string room_id = 2;
+
+  reserved 3; // was sequence_id (dead field, never read)
+
+  // Compound key for body storage in KV: {userId}.{eventId}
+  // The userId prefix enables efficient per-user filtering for GDPR deletion.
+  string message_body_id = 4;
+
+  // Threading: event ID of the message this is replying to (empty = top-level message)
+  string in_reply_to = 5;
+
+  // Threading: event ID of the thread root message (empty = top-level message)
+  string in_thread = 6;
+
+  // Event ID of the updated message (for GraphQL API consumers).
+  // Populated at publish time from the body key.
+  string message_event_id = 7;
+
+  // Parent event's ID (populated at read time for resolver access)
+  // Used for reactions lookup since reactions are keyed by event ID
+  string event_id = 1000;
+}
+
+message MessageDeletedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID - identifies which room the message belonged to
+  string room_id = 2;
+
+  // Compound key for body storage in KV: {userId}.{eventId}
+  // The userId prefix enables efficient per-user filtering for GDPR deletion.
+  string message_body_id = 3;
+
+  // Event ID of the deleted message (for GraphQL API consumers).
+  // Populated at publish time from the body key.
+  string message_event_id = 4;
+}

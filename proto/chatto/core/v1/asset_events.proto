@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// AssetCreatedEvent records durable content identity for one uploaded or
+// generated binary. Emitted at the moment the binary lands in storage, NOT
+// at message-post time — the asset is its own aggregate, and messages
+// reference it via MessageBody.asset_ids.
+//
+// Owner context is carried as flat optional fields:
+//
+//   - room_id is set for room-scoped assets (uploaded into a room context)
+//   - user_id is set for user-scoped assets (e.g. avatars) or, for
+//     room-scoped uploads, the uploader's ID
+//   - parent_asset_id + derivative_role are set for derivatives (e.g. video
+//     thumbnail / variant); inherits room scope from the parent
+//
+// AssetDerivativeRole enumerates the kinds of derivative an asset can be.
+// Only meaningful when an AssetCreatedEvent carries a parent_asset_id.
+enum AssetDerivativeRole {
+  // Not a derivative (the asset is an original upload), or unknown role.
+  ASSET_DERIVATIVE_ROLE_UNSPECIFIED = 0;
+  // A still-image thumbnail generated from the parent asset.
+  ASSET_DERIVATIVE_ROLE_THUMBNAIL = 1;
+  // A transcoded video rendition (e.g. a 480p variant) of the parent.
+  ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT = 2;
+}
+
+// AssetCreatedEvent carries no message linkage: it is emitted at upload
+// time, before any message exists. Message ownership of an asset is derived
+// from MessagePostedEvent.asset_ids in the room-timeline projection.
+message AssetCreatedEvent {
+  // Tag 4 was message_event_id, removed before this event type shipped —
+  // message ownership is derived from MessagePostedEvent.asset_ids instead.
+  reserved 4;
+  reserved "message_event_id";
+
+  // The asset record (content identity + storage).
+  AssetRecord asset = 1;
+
+  // Whether the original uploaded binary was available when the event was
+  // written. New uploads are always true; legacy migrated source assets may
+  // be false because older pipelines deleted originals after transcoding.
+  bool original_binary_available = 2;
+
+  // Room scope. Set for room-scoped uploads and their derivatives.
+  string room_id = 3;
+
+  // ID of the parent asset when this asset is a derivative.
+  // Set together with derivative_role for thumbnails / video variants.
+  string parent_asset_id = 5;
+
+  // Derivative role (thumbnail, video variant, …).
+  // Only meaningful when parent_asset_id is set.
+  AssetDerivativeRole derivative_role = 6;
+
+  // ID of the user that owns or uploaded this asset. Always set on new
+  // events: the uploader for room-scoped uploads, the avatar owner for
+  // avatar assets. Empty only for worker-generated derivatives.
+  string user_id = 7;
+}
+
+// AssetDeletedEvent terminates the asset lifecycle. Subscribers drop the
+// asset from any local projection; storage cleanup is separate.
+message AssetDeletedEvent {
+  string asset_id = 1;
+}
+
+// AssetProcessingStartedEvent signals that derivative processing has been
+// enqueued for an asset. It is the PENDING marker the frontend uses to
+// render a "processing…" placeholder until succeeded/failed lands.
+message AssetProcessingStartedEvent {
+  string asset_id = 1;
+
+  // Event id of the owning message, stamped at publish time by the code that
+  // schedules processing (which already knows it). Carried on the event so
+  // subscribers don't have to look ownership up from the projection — that
+  // lookup would race the owning MessagePostedEvent's own projection. Empty
+  // only for one-shot migration events, which are never delivered live.
+  string message_event_id = 2;
+}
+
+// AssetProcessingSucceededEvent records a durable, displayable processing
+// outcome. Only video-shaped processing exists today; if additional kinds
+// are added in the future they will become new fields on this message.
+message AssetProcessingSucceededEvent {
+  string asset_id = 1;
+
+  // Video/GIF derivative manifest. Set for video and animated-GIF assets.
+  AssetProcessedVideo video = 2;
+
+  // Event id of the owning message, stamped at publish time (see
+  // AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
+  // migration events.
+  string message_event_id = 3;
+}
+
+enum AssetProcessingFailureCode {
+  ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED = 0;
+  ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED = 1;
+  ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING = 2;
+}
+
+// AssetProcessingFailedEvent records a durable failed/unavailable outcome.
+// A later AssetProcessingSucceededEvent for the same asset supersedes it.
+message AssetProcessingFailedEvent {
+  string asset_id = 1;
+  AssetProcessingFailureCode failure_code = 2;
+
+  // Event id of the owning message, stamped at publish time (see
+  // AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
+  // migration events.
+  string message_event_id = 3;
+}
+
+// AssetProcessedVideo is the per-asset video manifest carried by
+// AssetProcessingSucceededEvent. Derivative assets (thumbnail + variants)
+// are referenced by id and have their own AssetCreatedEvent records.
+message AssetProcessedVideo {
+  int64 duration_ms = 1;
+  int32 width = 2;
+  int32 height = 3;
+  string thumbnail_asset_id = 4;
+  repeated AssetVideoVariant variants = 5;
+}
+
+message AssetVideoVariant {
+  string quality = 1;  // e.g., "720p", "480p"
+  string asset_id = 2;
+}

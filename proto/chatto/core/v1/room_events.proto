@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// PERSISTED EVENT MESSAGE DEFINITIONS
+// Changing field numbers or structure below affects JetStream-stored data.
+// ============================================================================
+
+// ============================================================================
+// ROOM LIFECYCLE EVENTS
+// ============================================================================
+
+message RoomCreatedEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+  string name = 3;
+  string description = 4;
+  // Room kind (channel or DM). Added when this event became durable
+  // on the EVT stream — the room-catalog projection needs it to
+  // distinguish DMs (which don't appear in group structures) from
+  // channels.
+  RoomKind kind = 5;
+}
+
+message RoomUpdatedEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+  string name = 3;
+  string description = 4;
+}
+
+message RoomDeletedEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}
+
+// RoomArchivedEvent is published when a room is archived.
+// Archived rooms are hidden from sidebars and Browse Rooms.
+message RoomArchivedEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}
+
+// RoomUnarchivedEvent is published when a room is unarchived.
+// The room becomes visible again in sidebars and Browse Rooms.
+message RoomUnarchivedEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}
+
+// ============================================================================
+// ROOM MEMBERSHIP EVENTS
+// ============================================================================
+
+message UserJoinedRoomEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}
+
+message UserLeftRoomEvent {
+  reserved 1;
+  reserved "space_id";
+  string room_id = 2;
+}
+
+// SpaceMemberDeletedEvent is published when a user's account is deleted.
+// This notifies all server members that the user is gone, so they can:
+// - Update their member lists
+// - Refresh messages to show "Deleted User" and unavailable content
+message SpaceMemberDeletedEvent {
+  reserved 1;
+  reserved "space_id";
+  string user_id = 2;
+}

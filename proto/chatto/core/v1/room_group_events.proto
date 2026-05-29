@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// ROOM GROUP EVENTS (group aggregate, evt.group.{groupId})
+// ============================================================================
+//
+// Groups own their room-membership and room-ordering. Move-room and
+// delete-room cascade across aggregates as per-aggregate events under
+// ADR-034 Approach A (one event per affected aggregate).
+
+message RoomGroupCreatedEvent {
+  string group_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+// Coarse metadata update — matches today's form-based admin UI that
+// submits name + description together. If finer-grained audit becomes
+// useful we can split per the "event granularity follows operation
+// granularity" rule.
+message RoomGroupUpdatedEvent {
+  string group_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message RoomGroupDeletedEvent {
+  string group_id = 1;
+}
+
+// A room was added to this group. The group aggregate's projection
+// appends to its room_ids list. For a move from group A to group B
+// this is the target-side event; the source-side gets a separate
+// RoomRemovedFromGroupEvent.
+message RoomAddedToGroupEvent {
+  string group_id = 1;
+  string room_id = 2;
+}
+
+// A room was removed from this group. Two paths trigger this: an
+// operator move (paired with RoomAddedToGroupEvent on the target
+// group) or a room deletion (paired with RoomDeletedEvent on the
+// room aggregate).
+message RoomRemovedFromGroupEvent {
+  string group_id = 1;
+  string room_id = 2;
+}
+
+// Drag-reorder within a single group. Carries the full new ordering
+// rather than a delta — the operation is "set the order to this",
+// not "swap room X and Y". Projection replaces room_ids wholesale.
+message RoomsInGroupReorderedEvent {
+  string group_id = 1;
+  repeated string room_ids = 2;
+}
+
+// RoomGroupsReorderedEvent is the inter-group ordering update. The
+// layout aggregate is a singleton — there's only one sidebar layout
+// per server — so the event carries no aggregate ID; the publish
+// subject (evt.layout.default) identifies the singleton. The
+// `group_ids` field is the full, operator-validated permutation of
+// existing groups.
+message RoomGroupsReorderedEvent {
+  repeated string group_ids = 1;
+}
