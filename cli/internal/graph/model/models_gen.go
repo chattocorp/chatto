@@ -124,6 +124,14 @@ type ArchiveRoomInput struct {
 	RoomID string `json:"roomId"`
 }
 
+// A protected asset URL and the time its embedded access ticket expires.
+type AssetURL struct {
+	// URL to the asset on the owning host.
+	URL string `json:"url"`
+	// Time after which the embedded access ticket is no longer valid.
+	ExpiresAt *timestamppb.Timestamp `json:"expiresAt"`
+}
+
 // Input for assigning an server role to a user.
 type AssignRoleInput struct {
 	// The ID of the user to assign the role to.

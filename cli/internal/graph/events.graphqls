@@ -705,6 +705,14 @@ enum FitMode {
   EXACT
 }
 
+"A protected asset URL and the time its embedded access ticket expires."
+type AssetURL {
+  "URL to the asset on the owning host."
+  url: String!
+  "Time after which the embedded access ticket is no longer valid."
+  expiresAt: Time!
+}
+
 """
 An attachment to a message (image, video, etc.).
 """
@@ -725,8 +733,12 @@ type Attachment {
   height: Int!
   "URL to download the full attachment. Optional transform parameters for images."
   url(width: Int, height: Int, fit: FitMode): String! @goField(forceResolver: true)
+  "URL and expiry for the full attachment. Optional transform parameters for images."
+  assetUrl(width: Int, height: Int, fit: FitMode): AssetURL! @goField(forceResolver: true)
   "URL to download the thumbnail (null if no thumbnail). Optional transform parameters."
   thumbnailUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
+  "URL and expiry for the thumbnail (null if no thumbnail). Optional transform parameters."
+  thumbnailAssetUrl(width: Int, height: Int, fit: FitMode): AssetURL @goField(forceResolver: true)
   "Video processing state (null for non-video attachments)."
   videoProcessing: VideoProcessing @goField(forceResolver: true)
 }
@@ -743,6 +755,8 @@ type VideoProcessing {
   height: Int
   "URL for the video thumbnail image."
   thumbnailUrl: String @goField(forceResolver: true)
+  "URL and expiry for the video thumbnail image."
+  thumbnailAssetUrl: AssetURL @goField(forceResolver: true)
   "Available quality variants."
   variants: [VideoVariant!]!
   "Stable machine-readable failure reason."
@@ -755,6 +769,8 @@ type VideoProcessing {
 type VideoVariant {
   "URL to stream/download this variant."
   url: String! @goField(forceResolver: true)
+  "URL and expiry for streaming/downloading this variant."
+  assetUrl: AssetURL! @goField(forceResolver: true)
   "Quality label (e.g., '720p', '480p')."
   quality: String!
   "Video width in pixels."

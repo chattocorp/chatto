@@ -40,8 +40,8 @@
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
 
-  // Attachment URLs expire after five minutes; refresh while the lightbox stays open.
-  const IMAGE_MODAL_URL_REFRESH_MS = 4 * 60 * 1000;
+  // Keep the lightbox ahead of the one-hour access ticket expiry.
+  const IMAGE_MODAL_URL_REFRESH_MS = 50 * 60 * 1000;
 
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
@@ -179,7 +179,7 @@
     }
     const imageItems = currentModal.imageItems.map((item) => ({
       ...item,
-      src: item.id ? (freshUrls.get(item.id) ?? item.src) : item.src
+      src: item.id ? (freshUrls.get(item.id)?.assetUrl.url ?? item.src) : item.src
     }));
     replaceState('', {
       ...page.state,
@@ -299,9 +299,5 @@
     Are you sure you want to remove this link preview? This cannot be undone.
   </ConfirmDialog>
 {:else if modalType === 'imageViewer' && imageItems.length > 0}
-  <ImageModal
-    items={imageItems}
-    index={imageIndex}
-    onclose={closeModal}
-  />
+  <ImageModal items={imageItems} index={imageIndex} onclose={closeModal} />
 {/if}

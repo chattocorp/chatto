@@ -14,6 +14,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/textproto"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 // ============================================================================
@@ -630,8 +632,8 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 
 	// Verify caching headers
 	cacheControl := originalResp.Header.Get("Cache-Control")
-	if cacheControl != "public, max-age=31536000, immutable" {
-		t.Errorf("Expected Cache-Control: public, max-age=31536000, immutable, got: %s", cacheControl)
+	if cacheControl != "private, max-age=3600" {
+		t.Errorf("Expected Cache-Control: private, max-age=3600, got: %s", cacheControl)
 	}
 
 	etag := originalResp.Header.Get("ETag")
@@ -640,8 +642,135 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	}
 
 	vary := originalResp.Header.Get("Vary")
-	if vary != "Accept-Encoding" {
-		t.Errorf("Expected Vary: Accept-Encoding, got: %s", vary)
+	if vary != "Accept-Encoding, Authorization, Cookie" {
+		t.Errorf("Expected Vary: Accept-Encoding, Authorization, Cookie, got: %s", vary)
+	}
+}
+
+func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
+	env := setupAssetTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "bearerassetuser", "Bearer Asset User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "bearer-assets", "Bearer Assets")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+
+	env.login(t, "bearerassetuser", "password123")
+	imageData := createAssetTestPNG(t, 120, 90)
+	operations := fmt.Sprintf(`{
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 80, height: 80, fit: CONTAIN) } } } } }",
+		"variables": { "roomId": "%s", "body": "bearer asset", "file": null }
+	}`, room.Id)
+	resp := env.doAssetMultipartUpload(t, operations, imageData, "bearer.png")
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Failed to post message: %v", resp.Errors)
+	}
+
+	var data struct {
+		PostMessage struct {
+			Event struct {
+				Attachments []struct {
+					URL          string `json:"url"`
+					ThumbnailURL string `json:"thumbnailUrl"`
+				} `json:"attachments"`
+			} `json:"event"`
+		} `json:"postMessage"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	if len(data.PostMessage.Event.Attachments) == 0 {
+		t.Fatal("Expected one attachment")
+	}
+
+	attachment := data.PostMessage.Event.Attachments[0]
+	unauthClient := &http.Client{}
+
+	withoutAccess, err := url.Parse(attachment.URL)
+	if err != nil {
+		t.Fatalf("Failed to parse stable URL: %v", err)
+	}
+	withoutAccess.RawQuery = ""
+
+	unauthResp, err := unauthClient.Get(env.server.URL + withoutAccess.String())
+	if err != nil {
+		t.Fatalf("Failed to get stable URL without credentials: %v", err)
+	}
+	unauthResp.Body.Close()
+	if unauthResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Expected stable URL without credentials to return 401, got %d", unauthResp.StatusCode)
+	}
+
+	ticketResp, err := unauthClient.Get(env.server.URL + attachment.URL)
+	if err != nil {
+		t.Fatalf("Failed to get stable URL with access ticket: %v", err)
+	}
+	ticketResp.Body.Close()
+	if ticketResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected stable URL with access ticket to return 200, got %d", ticketResp.StatusCode)
+	}
+
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("Failed to create auth token: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodGet, env.server.URL+withoutAccess.String(), nil)
+	if err != nil {
+		t.Fatalf("Failed to build request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	bearerResp, err := unauthClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to get stable URL with bearer: %v", err)
+	}
+	bearerResp.Body.Close()
+	if bearerResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected bearer stable URL request to return 200, got %d", bearerResp.StatusCode)
+	}
+
+	thumbResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
+	if err != nil {
+		t.Fatalf("Failed to get stable thumbnail URL with access ticket: %v", err)
+	}
+	thumbResp.Body.Close()
+	if thumbResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected stable thumbnail request with access ticket to return 200, got %d", thumbResp.StatusCode)
+	}
+
+	mutatedThumbnailURL := strings.Replace(attachment.ThumbnailURL, "80x80", "81x80", 1)
+	mutatedResp, err := unauthClient.Get(env.server.URL + mutatedThumbnailURL)
+	if err != nil {
+		t.Fatalf("Failed to get mutated stable thumbnail URL: %v", err)
+	}
+	mutatedResp.Body.Close()
+	if mutatedResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("Expected mutated stable thumbnail request to return 403, got %d", mutatedResp.StatusCode)
+	}
+
+	thumbnailWithoutAccess, err := url.Parse(attachment.ThumbnailURL)
+	if err != nil {
+		t.Fatalf("Failed to parse stable thumbnail URL: %v", err)
+	}
+	thumbnailWithoutAccess.RawQuery = ""
+	req, err = http.NewRequest(http.MethodGet, env.server.URL+thumbnailWithoutAccess.String(), nil)
+	if err != nil {
+		t.Fatalf("Failed to build unsigned thumbnail request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	unsignedThumbResp, err := unauthClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to get unsigned stable thumbnail URL with bearer: %v", err)
+	}
+	unsignedThumbResp.Body.Close()
+	if unsignedThumbResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("Expected unsigned stable thumbnail request with bearer to return 403, got %d", unsignedThumbResp.StatusCode)
 	}
 }
 
@@ -697,13 +826,9 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	}
 }
 
-// TestAsset_SignedURLIsCapability documents the post-cross-origin-fix
-// behavior: the signed locator URL is the capability. A client that
-// holds the URL (regardless of cookies/headers) can fetch the
-// attachment as long as the signed user is still a member of the room
-// and the deadline hasn't passed. This is what lets <img> tags on a
-// remote-server SPA load attachments cross-origin — neither cookies
-// nor Authorization headers reach the asset endpoint in that flow.
+// TestAsset_SignedURLIsCapability covers the legacy signed-locator URL
+// compatibility path. GraphQL now emits authenticated stable URLs, but old
+// signed links should continue to work until callers have fully migrated.
 func TestAsset_SignedURLIsCapability(t *testing.T) {
 	env := setupAssetTestServer(t)
 
@@ -738,6 +863,7 @@ func TestAsset_SignedURLIsCapability(t *testing.T) {
 		PostMessage struct {
 			Event struct {
 				Attachments []struct {
+					ID           string `json:"id"`
 					URL          string `json:"url"`
 					ThumbnailURL string `json:"thumbnailUrl"`
 				} `json:"attachments"`
@@ -749,12 +875,15 @@ func TestAsset_SignedURLIsCapability(t *testing.T) {
 	}
 
 	attachment := data.PostMessage.Event.Attachments[0]
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	signedURL := env.core.GetAttachmentURL(loc, user.Id)
+	signedThumbnailURL := env.core.GetTransformedAttachmentURL(loc, user.Id, 200, 200, "contain")
 
 	// A no-cookie / no-header client holding the signed URL should be able
 	// to fetch the binary — this is the cross-origin <img> case.
 	unauthClient := &http.Client{}
 
-	originalResp, err := unauthClient.Get(env.server.URL + attachment.URL)
+	originalResp, err := unauthClient.Get(env.server.URL + signedURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -763,7 +892,7 @@ func TestAsset_SignedURLIsCapability(t *testing.T) {
 		t.Errorf("Signed URL should authorize itself; got status %d", originalResp.StatusCode)
 	}
 
-	transformResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp, err := unauthClient.Get(env.server.URL + signedThumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -773,7 +902,7 @@ func TestAsset_SignedURLIsCapability(t *testing.T) {
 	}
 
 	// A tampered locator must still fail.
-	tampered := strings.TrimSuffix(attachment.URL, "X") + "z"
+	tampered := strings.TrimSuffix(signedURL, "X") + "z"
 	tamperedResp, err := unauthClient.Get(env.server.URL + tampered)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
@@ -821,6 +950,7 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 		PostMessage struct {
 			Event struct {
 				Attachments []struct {
+					ID           string `json:"id"`
 					URL          string `json:"url"`
 					ThumbnailURL string `json:"thumbnailUrl"`
 				} `json:"attachments"`
@@ -834,6 +964,9 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 		t.Fatal("Expected one attachment in S3-backed upload")
 	}
 	attachment := data.PostMessage.Event.Attachments[0]
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	signedURL := env.core.GetAttachmentURL(loc, user.Id)
+	signedThumbnailURL := env.core.GetTransformedAttachmentURL(loc, user.Id, 200, 200, "contain")
 
 	// Anonymous client — the signed URL alone should be enough to fetch.
 	unauthClient := &http.Client{
@@ -842,7 +975,7 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 		},
 	}
 
-	originalResp, err := unauthClient.Get(env.server.URL + attachment.URL)
+	originalResp, err := unauthClient.Get(env.server.URL + signedURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -853,7 +986,7 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 		t.Errorf("S3 attachment URL: expected 200 or 302 with signed URL, got %d", originalResp.StatusCode)
 	}
 
-	transformResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp, err := unauthClient.Get(env.server.URL + signedThumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -897,6 +1030,7 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 		PostMessage struct {
 			Event struct {
 				Attachments []struct {
+					ID  string `json:"id"`
 					URL string `json:"url"`
 				} `json:"attachments"`
 			} `json:"event"`
@@ -908,7 +1042,11 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 	if len(data.PostMessage.Event.Attachments) == 0 {
 		t.Fatal("Expected one attachment")
 	}
-	attachmentURL := data.PostMessage.Event.Attachments[0].URL
+	attachment := data.PostMessage.Event.Attachments[0]
+	attachmentURL := env.core.GetAttachmentURL(signedurl.AttachmentLocator{
+		RoomID:       room.Id,
+		AttachmentID: attachment.ID,
+	}, owner.Id)
 
 	// Sanity check: owner can fetch their own URL (cookie not required —
 	// the signed URL is the capability).

@@ -72,29 +72,42 @@ func (r *attachmentResolver) Size(ctx context.Context, obj *corev1.Attachment) (
 }
 
 // URL is the resolver for the url field.
-// Emits a signed locator URL the HTTP handler can verify and serve from
-// directly. The attachment's `MessageBodyId` is required (populated
-// either at PostMessage time or on-read by messagePostedEventResolver).
-// The URL is signed for the calling user — see core.GetAttachmentURL.
+// Emits the stable asset URL. The path identifies the binary; the access query
+// parameter authorizes direct browser/standalone-client loads.
 func (r *attachmentResolver) URL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (string, error) {
+	assetURL, err := r.AssetURL(ctx, obj, width, height, fit)
+	if err != nil {
+		return "", err
+	}
+	return assetURL.URL, nil
+}
+
+// AssetURL is the resolver for the assetUrl field.
+func (r *attachmentResolver) AssetURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*model.AssetURL, error) {
 	userID := callerID(ctx)
-	loc := core.LocatorForBodyAttachment(obj, "")
 	if width != nil && height != nil && fit != nil {
 		fitLower := strings.ToLower(string(*fit))
-		return r.core.GetTransformedAttachmentURL(loc, userID, int(*width), int(*height), fitLower), nil
+		return stableAssetURLModel(r.core.GetStableTransformedAttachmentAssetURL(obj.GetId(), userID, int(*width), int(*height), fitLower)), nil
 	}
-	return r.core.GetAttachmentURL(loc, userID), nil
+	return stableAssetURLModel(r.core.GetStableAttachmentAssetURL(obj.GetId(), userID)), nil
 }
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
-// Returns a signed transform URL when width, height, and fit are provided.
+// Returns a stable transform URL with an access ticket when width, height, and fit are provided.
 // Returns nil when no transform parameters are provided (caller must specify dimensions).
 func (r *attachmentResolver) ThumbnailURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*string, error) {
+	assetURL, err := r.ThumbnailAssetURL(ctx, obj, width, height, fit)
+	if err != nil || assetURL == nil {
+		return nil, err
+	}
+	return &assetURL.URL, nil
+}
+
+// ThumbnailAssetURL is the resolver for the thumbnailAssetUrl field.
+func (r *attachmentResolver) ThumbnailAssetURL(ctx context.Context, obj *corev1.Attachment, width *int32, height *int32, fit *model.FitMode) (*model.AssetURL, error) {
 	if width != nil && height != nil && fit != nil {
 		fitLower := strings.ToLower(string(*fit))
-		loc := core.LocatorForBodyAttachment(obj, "")
-		url := r.core.GetTransformedAttachmentURL(loc, callerID(ctx), int(*width), int(*height), fitLower)
-		return &url, nil
+		return stableAssetURLModel(r.core.GetStableTransformedAttachmentAssetURL(obj.GetId(), callerID(ctx), int(*width), int(*height), fitLower)), nil
 	}
 	return nil, nil
 }
@@ -668,12 +681,19 @@ func (r *serverUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Conte
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
 func (r *videoProcessingResolver) ThumbnailURL(ctx context.Context, obj *model.VideoProcessing) (*string, error) {
+	assetURL, err := r.ThumbnailAssetURL(ctx, obj)
+	if err != nil || assetURL == nil {
+		return nil, err
+	}
+	return &assetURL.URL, nil
+}
+
+// ThumbnailAssetURL is the resolver for the thumbnailAssetUrl field.
+func (r *videoProcessingResolver) ThumbnailAssetURL(ctx context.Context, obj *model.VideoProcessing) (*model.AssetURL, error) {
 	if obj.ThumbnailAttachmentID == "" {
 		return nil, nil
 	}
-	loc := core.LocatorForVideoOriginAttachment(obj.RoomID, obj.OriginAttachmentID, obj.ThumbnailAttachmentID)
-	url := r.core.GetAttachmentURL(loc, callerID(ctx))
-	return &url, nil
+	return stableAssetURLModel(r.core.GetStableAttachmentAssetURL(obj.ThumbnailAttachmentID, callerID(ctx))), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -688,8 +708,16 @@ func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Conte
 
 // URL is the resolver for the url field.
 func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant) (string, error) {
-	loc := core.LocatorForVideoOriginAttachment(obj.RoomID, obj.OriginAttachmentID, obj.AttachmentID)
-	return r.core.GetAttachmentURL(loc, callerID(ctx)), nil
+	assetURL, err := r.AssetURL(ctx, obj)
+	if err != nil {
+		return "", err
+	}
+	return assetURL.URL, nil
+}
+
+// AssetURL is the resolver for the assetUrl field.
+func (r *videoVariantResolver) AssetURL(ctx context.Context, obj *model.VideoVariant) (*model.AssetURL, error) {
+	return stableAssetURLModel(r.core.GetStableAttachmentAssetURL(obj.AttachmentID, callerID(ctx))), nil
 }
 
 // AssetDeletedEvent returns AssetDeletedEventResolver implementation.

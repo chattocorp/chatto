@@ -125,6 +125,94 @@ func ParseSignedAttachmentLocator(secret, signed string) (*AttachmentLocator, er
 	return &loc, nil
 }
 
+// AssetAccessTicket authorizes a viewer to read one asset. The asset identity
+// still lives in the URL path; the ticket is only an access credential.
+type AssetAccessTicket struct {
+	AssetID   string `json:"a"`
+	UserID    string `json:"u"`
+	ExpiresAt int64  `json:"e"`
+	Width     int    `json:"w,omitempty"`
+	Height    int    `json:"h,omitempty"`
+	Fit       string `json:"f,omitempty"`
+}
+
+func (t AssetAccessTicket) Validate() error {
+	if t.AssetID == "" {
+		return errors.New("asset ticket: missing asset id")
+	}
+	if t.UserID == "" {
+		return errors.New("asset ticket: missing user id")
+	}
+	if t.ExpiresAt == 0 {
+		return errors.New("asset ticket: missing expiry")
+	}
+	hasTransform := t.Width != 0 || t.Height != 0 || t.Fit != ""
+	if hasTransform {
+		if err := validateTransformParams(t.Width, t.Height, t.Fit); err != nil {
+			return fmt.Errorf("asset ticket: %w", err)
+		}
+	}
+	return nil
+}
+
+func (t AssetAccessTicket) MatchesTransform(params *TransformParams) bool {
+	if params == nil {
+		return t.Width == 0 && t.Height == 0 && t.Fit == ""
+	}
+	return t.Width == params.Width && t.Height == params.Height && t.Fit == params.Fit
+}
+
+func (t AssetAccessTicket) Expired(now int64) bool {
+	return t.ExpiresAt <= now
+}
+
+// SignedAssetAccessTicket encodes an asset access ticket as
+// `{base64payload}.{hexHMAC}`. It is intended for the `access` query parameter
+// on stable asset URLs.
+func SignedAssetAccessTicket(secret string, ticket AssetAccessTicket) (string, error) {
+	if err := ticket.Validate(); err != nil {
+		return "", err
+	}
+	payloadJSON, err := json.Marshal(ticket)
+	if err != nil {
+		return "", fmt.Errorf("marshal asset ticket: %w", err)
+	}
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(payloadB64))
+	signature := hex.EncodeToString(h.Sum(nil)[:16])
+	return payloadB64 + "." + signature, nil
+}
+
+// ParseSignedAssetAccessTicket verifies and decodes an asset access ticket.
+func ParseSignedAssetAccessTicket(secret, signed string) (*AssetAccessTicket, error) {
+	parts := strings.SplitN(signed, ".", 2)
+	if len(parts) != 2 {
+		return nil, errors.New("invalid signed asset ticket format")
+	}
+	payloadB64, signature := parts[0], parts[1]
+
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(payloadB64))
+	expectedSig := hex.EncodeToString(h.Sum(nil)[:16])
+	if !hmac.Equal([]byte(expectedSig), []byte(signature)) {
+		return nil, errors.New("invalid signature")
+	}
+
+	payloadJSON, err := base64.RawURLEncoding.DecodeString(payloadB64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base64 payload: %w", err)
+	}
+	var ticket AssetAccessTicket
+	if err := json.Unmarshal(payloadJSON, &ticket); err != nil {
+		return nil, fmt.Errorf("invalid payload JSON: %w", err)
+	}
+	if err := ticket.Validate(); err != nil {
+		return nil, err
+	}
+	return &ticket, nil
+}
+
 // TransformParams holds the parameters for an image transformation.
 type TransformParams struct {
 	Width  int    `json:"w"`
@@ -190,16 +278,22 @@ func ParseSignedTransformPath(secret, resourceID1, resourceID2, signedPath strin
 		return nil, fmt.Errorf("invalid params JSON: %w", err)
 	}
 
-	// Validate params
-	if params.Width < 1 || params.Width > 2048 {
-		return nil, fmt.Errorf("width out of range [1, 2048]: %d", params.Width)
-	}
-	if params.Height < 1 || params.Height > 2048 {
-		return nil, fmt.Errorf("height out of range [1, 2048]: %d", params.Height)
-	}
-	if params.Fit != "contain" && params.Fit != "cover" && params.Fit != "exact" {
-		return nil, fmt.Errorf("invalid fit mode: %s", params.Fit)
+	if err := validateTransformParams(params.Width, params.Height, params.Fit); err != nil {
+		return nil, err
 	}
 
 	return &params, nil
+}
+
+func validateTransformParams(width, height int, fit string) error {
+	if width < 1 || width > 2048 {
+		return fmt.Errorf("width out of range [1, 2048]: %d", width)
+	}
+	if height < 1 || height > 2048 {
+		return fmt.Errorf("height out of range [1, 2048]: %d", height)
+	}
+	if fit != "contain" && fit != "cover" && fit != "exact" {
+		return fmt.Errorf("invalid fit mode: %s", fit)
+	}
+	return nil
 }

@@ -3,20 +3,23 @@ package graph
 import (
 	"context"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
+	"hmans.de/chatto/internal/graph/model"
 )
 
-// callerID returns the authenticated user's ID from the GraphQL
-// context, or "" if no user is attached. Used by attachment URL
-// resolvers to bake the caller's identity into the signed URL.
-//
-// Lives outside events.resolvers.go so gqlgen's regeneration of
-// resolver files doesn't strip it — the codegen rewrites resolver
-// files and drops free-standing helpers that don't match its
-// expected shape.
-func callerID(ctx context.Context) string {
-	if u := auth.ForContext(ctx); u != nil {
-		return u.Id
+func stableAssetURLModel(assetURL core.StableAssetURL) *model.AssetURL {
+	return &model.AssetURL{
+		URL:       assetURL.URL,
+		ExpiresAt: timestamppb.New(assetURL.ExpiresAt),
 	}
-	return ""
+}
+
+func callerID(ctx context.Context) string {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return ""
+	}
+	return user.Id
 }

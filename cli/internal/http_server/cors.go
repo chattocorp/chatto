@@ -45,9 +45,9 @@ func (s *HTTPServer) buildAllowedOrigins() []string {
 type originMatchType int
 
 const (
-	originNotAllowed  originMatchType = iota
-	originExplicit                    // Matched a specific origin in the allow list
-	originWildcard                    // Matched because "*" is in the allow list
+	originNotAllowed originMatchType = iota
+	originExplicit                   // Matched a specific origin in the allow list
+	originWildcard                   // Matched because "*" is in the allow list
 )
 
 // matchOrigin checks whether an origin is in the allowed list and how it matched.
@@ -86,7 +86,7 @@ func (s *HTTPServer) corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 		match := s.matchOrigin(origin, allowedOrigins)
 		if match != originNotAllowed {
 			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Range, If-None-Match, If-Modified-Since")
 			c.Header("Access-Control-Max-Age", "86400")
 
 			if match == originWildcard {
