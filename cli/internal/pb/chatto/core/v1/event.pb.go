@@ -38,13 +38,17 @@ const (
 // field number is part of the on-disk wire format. **Don't change
 // or reuse these numbers** — old stream bytes have to decode.
 //
-// - **>= 1000**: live-only variants. NATS Core only, never written
-// to disk. Field numbers are less durable than persisted tags, but
-// still shouldn't be reused casually because mixed-version processes
-// can coexist during deploys.
+// - **1050-1051**: durable reaction variants that kept their legacy
+// live tags during the EVT cutover. Treat them like persisted tags.
 //
-// The numeric boundary makes it obvious at a glance whether a given
-// variant is durable or ephemeral.
+// - **>= 1000, except 1050-1051**: live-only variants. NATS Core only,
+// never written to disk. Field numbers are less durable than persisted
+// tags, but still shouldn't be reused casually because mixed-version
+// processes can coexist during deploys.
+//
+// Category ownership for the top-level oneof tags is documented in the
+// sibling *_events.proto files. The top-level tag is the durable/event
+// envelope ID; message-internal field numbers remain local to that message.
 //
 // Authorization is determined by NATS subject, not by the wrapper:
 // - Room-scoped: server.room.{kind}.{roomId}.> (JetStream) or
@@ -1140,7 +1144,10 @@ type Event_MessageDeleted struct {
 }
 
 type Event_ReactionAdded struct {
-	// ----- Reactions (1050-1059) — EVT/projection is source of truth -----
+	// ----- Reactions (1050-1059) — durable legacy-tag exception -----
+	// Reaction events are stored on EVT today. They kept the legacy
+	// 1050/1051 tags during the cutover, so treat these two tags as
+	// frozen durable IDs even though they sit in the >=1000 range.
 	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,1050,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
 }
 

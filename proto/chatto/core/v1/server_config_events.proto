@@ -6,6 +6,17 @@ import "chatto/config/v1/config.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
+// ============================================================================
+// SERVER CONFIG EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 500: durable config snapshot event on evt.config.server
+//   - 1000: legacy live-only config broadcast
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
 // Durable server-config event for the EVT log. Carries the
 // complete ServerConfig snapshot after the change so projections and
 // the audit log can reconstruct state without reaching back to KV.

@@ -8,6 +8,13 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
 // MESSAGE EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 400-402: durable message timeline events on evt.room.{roomId}.*
+//   - 1040-1041: legacy live-only message mutation events
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
 // ============================================================================
 
 message MessagePostedEvent {
