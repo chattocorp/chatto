@@ -839,6 +839,13 @@ message AssetDeletedEvent {
 // render a "processing…" placeholder until succeeded/failed lands.
 message AssetProcessingStartedEvent {
   string asset_id = 1;
+
+  // Event id of the owning message, stamped at publish time by the code that
+  // schedules processing (which already knows it). Carried on the event so
+  // subscribers don't have to look ownership up from the projection — that
+  // lookup would race the owning MessagePostedEvent's own projection. Empty
+  // only for one-shot migration events, which are never delivered live.
+  string message_event_id = 2;
 }
 
 // AssetProcessingSucceededEvent records a durable, displayable processing
@@ -849,6 +856,11 @@ message AssetProcessingSucceededEvent {
 
   // Video/GIF derivative manifest. Set for video and animated-GIF assets.
   AssetProcessedVideo video = 2;
+
+  // Event id of the owning message, stamped at publish time (see
+  // AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
+  // migration events.
+  string message_event_id = 3;
 }
 
 enum AssetProcessingFailureCode {
@@ -862,6 +874,11 @@ enum AssetProcessingFailureCode {
 message AssetProcessingFailedEvent {
   string asset_id = 1;
   AssetProcessingFailureCode failure_code = 2;
+
+  // Event id of the owning message, stamped at publish time (see
+  // AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
+  // migration events.
+  string message_event_id = 3;
 }
 
 // AssetProcessedVideo is the per-asset video manifest carried by

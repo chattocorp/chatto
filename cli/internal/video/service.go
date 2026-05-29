@@ -28,10 +28,11 @@ import (
 // processRequest is the in-process shape passed to the worker after the
 // asset has been resolved from the projection.
 type processRequest struct {
-	RoomID      string
-	AssetID     string
-	ContentType string
-	Attachment  *corev1.Attachment
+	RoomID         string
+	AssetID        string
+	MessageEventID string
+	ContentType    string
+	Attachment     *corev1.Attachment
 }
 
 // Service processes video attachments asynchronously off a NATS queue.
@@ -95,7 +96,7 @@ func (s *Service) Run(ctx context.Context) error {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			if err := s.processAsset(ctx, req.AssetID); err != nil {
+			if err := s.processAsset(ctx, req.AssetID, req.MessageEventID); err != nil {
 				s.logger.Error("Video processing failed", "asset_id", req.AssetID, "error", err)
 			}
 		}()
@@ -145,7 +146,11 @@ func (s *Service) resolveTools() error {
 // durably appended, so message ownership may not be visible yet. We don't
 // re-check message ownership here — a request only exists because PostMessage
 // (or boot recovery) scheduled it for a message-owned video attachment.
-func (s *Service) processAsset(ctx context.Context, assetID string) error {
+//
+// messageEventID is carried on the request (it's the owning message, known to
+// the scheduler) and stamped onto the terminal event so subscribers resolve
+// it off the event rather than via a projection lookup that would race.
+func (s *Service) processAsset(ctx context.Context, assetID, messageEventID string) error {
 	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
 	if !ok || declared.GetAsset() == nil {
 		return fmt.Errorf("asset %s is not declared", assetID)
@@ -154,10 +159,11 @@ func (s *Service) processAsset(ctx context.Context, assetID string) error {
 		return fmt.Errorf("asset %s has no room scope", assetID)
 	}
 	req := processRequest{
-		RoomID:      declared.GetRoomId(),
-		AssetID:     assetID,
-		ContentType: declared.GetAsset().GetContentType(),
-		Attachment:  core.AttachmentFromAsset(declared.GetAsset()),
+		RoomID:         declared.GetRoomId(),
+		AssetID:        assetID,
+		MessageEventID: messageEventID,
+		ContentType:    declared.GetAsset().GetContentType(),
+		Attachment:     core.AttachmentFromAsset(declared.GetAsset()),
 	}
 	return s.processVideo(ctx, req)
 }

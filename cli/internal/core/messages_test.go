@@ -81,7 +81,7 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 
-	_, err = core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []string{attachment.Id}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
+	roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []string{attachment.Id}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
@@ -90,6 +90,11 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	case req := <-requests:
 		if req.AssetID != attachment.Id {
 			t.Fatalf("queued asset id = %q, want %q", req.AssetID, attachment.Id)
+		}
+		// The owning message id must ride along on the request so the worker
+		// can stamp it onto the terminal event without a racy projection lookup.
+		if req.MessageEventID != roomEvent.Id {
+			t.Fatalf("queued message event id = %q, want %q", req.MessageEventID, roomEvent.Id)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected video process request on NATS subject")
@@ -540,7 +545,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 	}
 	postedMessage := roomEvent.GetMessagePosted()
 
-	if err := core.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
+	if err := core.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, roomEvent.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
 		{
 			AttachmentId: variantAttachment.Id,
 			Quality:      "720p",

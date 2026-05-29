@@ -964,6 +964,10 @@ const SubjectVideoProcess = "chatto.video.process"
 // VideoProcessRequest is the payload carried on SubjectVideoProcess.
 type VideoProcessRequest struct {
 	AssetID string `json:"asset_id"`
+	// MessageEventID is the owning message's event id, carried so the worker
+	// can stamp it onto the terminal AssetProcessing event without a
+	// projection lookup that would race the message's own projection.
+	MessageEventID string `json:"message_event_id"`
 }
 
 // ScheduleVideoProcessingForMessageAttachment enqueues async processing for a
@@ -989,12 +993,12 @@ func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 	// can't complete. Burning SOURCE_MISSING on a transient failure would
 	// permanently tombstone the asset.
 	if c.attachmentBinaryStatus(ctx, attachment) == AttachmentBinaryMissing {
-		return c.RecordAssetProcessingFailed(ctx, actorID, kind, roomID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
+		return c.RecordAssetProcessingFailed(ctx, actorID, kind, roomID, messageEventID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
-	if err := c.RecordAssetProcessingStarted(ctx, actorID, kind, roomID, attachment.GetId()); err != nil {
+	if err := c.RecordAssetProcessingStarted(ctx, actorID, kind, roomID, messageEventID, attachment.GetId()); err != nil {
 		return err
 	}
-	if err := c.PublishVideoProcessRequest(ctx, attachment.GetId()); err != nil {
+	if err := c.PublishVideoProcessRequest(ctx, messageEventID, attachment.GetId()); err != nil {
 		c.logger.Warn("Failed to publish video process request", "asset_id", attachment.GetId(), "error", err)
 	}
 	return nil
@@ -1002,11 +1006,14 @@ func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 
 // PublishVideoProcessRequest fans a process request to the video-worker
 // queue group via NATS Core. Workers consume from SubjectVideoProcess.
-func (c *ChattoCore) PublishVideoProcessRequest(ctx context.Context, assetID string) error {
+// messageEventID is the owning message; the worker stamps it onto the
+// terminal AssetProcessing{Succeeded,Failed} event so subscribers never
+// have to resolve ownership from the projection.
+func (c *ChattoCore) PublishVideoProcessRequest(ctx context.Context, messageEventID, assetID string) error {
 	if assetID == "" {
 		return fmt.Errorf("video process request missing asset id")
 	}
-	payload, err := json.Marshal(VideoProcessRequest{AssetID: assetID})
+	payload, err := json.Marshal(VideoProcessRequest{AssetID: assetID, MessageEventID: messageEventID})
 	if err != nil {
 		return fmt.Errorf("marshal video process request: %w", err)
 	}
@@ -1023,14 +1030,15 @@ func (c *ChattoCore) PublishVideoProcessRequest(ctx context.Context, assetID str
 // actorID is the user who triggered processing (typically the message
 // poster). Use SystemActorID when the action is driven by boot recovery or
 // other background work with no user actor.
-func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
+func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, assetID string) error {
 	if roomID == "" || assetID == "" {
 		return fmt.Errorf("asset processing started missing room or asset id")
 	}
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingStarted{
 			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
-				AssetId: assetID,
+				AssetId:        assetID,
+				MessageEventId: messageEventID,
 			},
 		},
 	})
@@ -1105,7 +1113,7 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 //
 // actorID is typically SystemActorID — processing outcomes are produced by
 // the video worker, not by a user action.
-func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	thumbnailAssetID := ""
 	if thumbnail != nil {
 		thumbnailAssetID = thumbnail.GetId()
@@ -1123,7 +1131,8 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, k
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingSucceeded{
 			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId: attachmentID,
+				AssetId:        attachmentID,
+				MessageEventId: messageEventID,
 				Video: &corev1.AssetProcessedVideo{
 					DurationMs:       durationMs,
 					Width:            width,
@@ -1160,12 +1169,13 @@ func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kin
 //
 // actorID is typically SystemActorID for worker-emitted failures, or the
 // posting user for "source missing" emitted at schedule time.
-func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
+func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:     attachmentID,
-				FailureCode: failureCode,
+				AssetId:        attachmentID,
+				MessageEventId: messageEventID,
+				FailureCode:    failureCode,
 			},
 		},
 	})

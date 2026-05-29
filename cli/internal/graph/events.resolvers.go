@@ -37,7 +37,7 @@ func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *co
 
 // MessageEventID is the resolver for the messageEventId field.
 func (r *assetProcessingFailedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
-	return r.assetMessageEventID(obj.GetAssetId()), nil
+	return obj.GetMessageEventId(), nil
 }
 
 // ReasonCode is the resolver for the reasonCode field.
@@ -52,7 +52,7 @@ func (r *assetProcessingStartedEventResolver) RoomID(ctx context.Context, obj *c
 
 // MessageEventID is the resolver for the messageEventId field.
 func (r *assetProcessingStartedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (string, error) {
-	return r.assetMessageEventID(obj.GetAssetId()), nil
+	return obj.GetMessageEventId(), nil
 }
 
 // RoomID is the resolver for the roomId field.
@@ -62,7 +62,7 @@ func (r *assetProcessingSucceededEventResolver) RoomID(ctx context.Context, obj 
 
 // MessageEventID is the resolver for the messageEventId field.
 func (r *assetProcessingSucceededEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
-	return r.assetMessageEventID(obj.GetAssetId()), nil
+	return obj.GetMessageEventId(), nil
 }
 
 // Size is the resolver for the size field.

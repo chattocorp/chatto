@@ -4666,10 +4666,16 @@ func (x *AssetDeletedEvent) GetAssetId() string {
 // enqueued for an asset. It is the PENDING marker the frontend uses to
 // render a "processing…" placeholder until succeeded/failed lands.
 type AssetProcessingStartedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	AssetId string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Event id of the owning message, stamped at publish time by the code that
+	// schedules processing (which already knows it). Carried on the event so
+	// subscribers don't have to look ownership up from the projection — that
+	// lookup would race the owning MessagePostedEvent's own projection. Empty
+	// only for one-shot migration events, which are never delivered live.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AssetProcessingStartedEvent) Reset() {
@@ -4709,6 +4715,13 @@ func (x *AssetProcessingStartedEvent) GetAssetId() string {
 	return ""
 }
 
+func (x *AssetProcessingStartedEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
 // AssetProcessingSucceededEvent records a durable, displayable processing
 // outcome. Only video-shaped processing exists today; if additional kinds
 // are added in the future they will become new fields on this message.
@@ -4716,9 +4729,13 @@ type AssetProcessingSucceededEvent struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	AssetId string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Video/GIF derivative manifest. Set for video and animated-GIF assets.
-	Video         *AssetProcessedVideo `protobuf:"bytes,2,opt,name=video,proto3" json:"video,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Video *AssetProcessedVideo `protobuf:"bytes,2,opt,name=video,proto3" json:"video,omitempty"`
+	// Event id of the owning message, stamped at publish time (see
+	// AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
+	// migration events.
+	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AssetProcessingSucceededEvent) Reset() {
@@ -4765,14 +4782,25 @@ func (x *AssetProcessingSucceededEvent) GetVideo() *AssetProcessedVideo {
 	return nil
 }
 
+func (x *AssetProcessingSucceededEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
 // AssetProcessingFailedEvent records a durable failed/unavailable outcome.
 // A later AssetProcessingSucceededEvent for the same asset supersedes it.
 type AssetProcessingFailedEvent struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	AssetId       string                     `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	FailureCode   AssetProcessingFailureCode `protobuf:"varint,2,opt,name=failure_code,json=failureCode,proto3,enum=chatto.core.v1.AssetProcessingFailureCode" json:"failure_code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState     `protogen:"open.v1"`
+	AssetId     string                     `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	FailureCode AssetProcessingFailureCode `protobuf:"varint,2,opt,name=failure_code,json=failureCode,proto3,enum=chatto.core.v1.AssetProcessingFailureCode" json:"failure_code,omitempty"`
+	// Event id of the owning message, stamped at publish time (see
+	// AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
+	// migration events.
+	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AssetProcessingFailedEvent) Reset() {
@@ -4817,6 +4845,13 @@ func (x *AssetProcessingFailedEvent) GetFailureCode() AssetProcessingFailureCode
 		return x.FailureCode
 	}
 	return AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED
+}
+
+func (x *AssetProcessingFailedEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
 }
 
 // AssetProcessedVideo is the per-asset video manifest carried by
@@ -6116,15 +6151,18 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x0fderivative_role\x18\x06 \x01(\x0e2#.chatto.core.v1.AssetDerivativeRoleR\x0ederivativeRole\x12\x17\n" +
 	"\auser_id\x18\a \x01(\tR\x06userIdJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
 	"\x11AssetDeletedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\"8\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\"b\n" +
 	"\x1bAssetProcessingStartedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\"u\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"\x9f\x01\n" +
 	"\x1dAssetProcessingSucceededEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x129\n" +
-	"\x05video\x18\x02 \x01(\v2#.chatto.core.v1.AssetProcessedVideoR\x05video\"\x86\x01\n" +
+	"\x05video\x18\x02 \x01(\v2#.chatto.core.v1.AssetProcessedVideoR\x05video\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\xb0\x01\n" +
 	"\x1aAssetProcessingFailedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12M\n" +
-	"\ffailure_code\x18\x02 \x01(\x0e2*.chatto.core.v1.AssetProcessingFailureCodeR\vfailureCode\"\xd1\x01\n" +
+	"\ffailure_code\x18\x02 \x01(\x0e2*.chatto.core.v1.AssetProcessingFailureCodeR\vfailureCode\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\xd1\x01\n" +
 	"\x13AssetProcessedVideo\x12\x1f\n" +
 	"\vduration_ms\x18\x01 \x01(\x03R\n" +
 	"durationMs\x12\x14\n" +

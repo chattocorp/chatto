@@ -224,48 +224,28 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 }
 
 // TestAssetProcessingSucceededEventResolver_MessageEventID verifies the
-// messageEventId is derived from the owning MessagePostedEvent's asset_ids,
-// NOT from the deprecated AssetCreatedEvent.message_event_id (which new
-// uploads never set). The frontend keys its refetch on this field.
+// messageEventId is read directly off the event (stamped at publish time by
+// the scheduler/worker), not resolved via a projection lookup that would race
+// the owning message's own projection. The frontend keys its refetch on it.
 func TestAssetProcessingSucceededEventResolver_MessageEventID(t *testing.T) {
 	env := setupTestResolver(t)
 	resolver := env.resolver.AssetProcessingSucceededEvent()
-	succeeded := &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"}
 
-	// Before the owning message is projected, ownership is unknown and the
-	// resolver yields the empty string. (Only the started event is delivered
-	// in that window, and the frontend doesn't refetch on it.)
-	created := testAssetCreatedEvent(env.testRoom.Id, "A-video", "video/mp4")
-	if err := env.core.RoomTimeline.Apply(created, 1); err != nil {
-		t.Fatalf("Apply asset creation: %v", err)
-	}
-	if got, err := resolver.MessageEventID(env.authContext(), succeeded); err != nil {
-		t.Fatalf("MessageEventID returned error: %v", err)
-	} else if got != "" {
-		t.Fatalf("MessageEventID before message projected = %q, want empty", got)
-	}
-
-	// Once the owning message lands, ownership is derived from its asset_ids
-	// (NOT the deprecated AssetCreatedEvent.message_event_id).
-	posted := &corev1.Event{
-		Id: "ENV-M1",
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:  env.testRoom.Id,
-				EventId: "M1",
-				Body:    &corev1.MessageBody{AssetIds: []string{"A-video"}},
-			},
-		},
-	}
-	if err := env.core.RoomTimeline.Apply(posted, 2); err != nil {
-		t.Fatalf("Apply message: %v", err)
-	}
-	got, err := resolver.MessageEventID(env.authContext(), succeeded)
+	// The owning message id is carried on the event — the resolver returns it
+	// without consulting the projection.
+	got, err := resolver.MessageEventID(env.authContext(), &corev1.AssetProcessingSucceededEvent{AssetId: "A-video", MessageEventId: "M1"})
 	if err != nil {
 		t.Fatalf("MessageEventID returned error: %v", err)
 	}
 	if got != "M1" {
-		t.Fatalf("MessageEventID = %q, want M1 (derived from MessagePostedEvent.asset_ids)", got)
+		t.Fatalf("MessageEventID = %q, want M1 (read off the event)", got)
+	}
+
+	// One-shot migration events don't carry it; the resolver yields empty.
+	if got, err := resolver.MessageEventID(env.authContext(), &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"}); err != nil {
+		t.Fatalf("MessageEventID returned error: %v", err)
+	} else if got != "" {
+		t.Fatalf("MessageEventID without stamp = %q, want empty", got)
 	}
 }
 
