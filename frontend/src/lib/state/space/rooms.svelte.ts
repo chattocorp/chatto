@@ -57,6 +57,15 @@ const MyRoomsQuery = graphql(`
   }
 `);
 
+function uniqueById<T extends { id: string }>(items: T[]): T[] {
+  const seen: Record<string, true> = Object.create(null);
+  return items.filter((item) => {
+    if (seen[item.id]) return false;
+    seen[item.id] = true;
+    return true;
+  });
+}
+
 /**
  * Reactive store for a server's joined-room list, layout, and per-room
  * unread/mention state. One instance per registered server, owned by
@@ -103,7 +112,7 @@ export class RoomsStore {
 
     if (result.data?.viewer?.user) {
       this.currentUserId = result.data.viewer.user.id;
-      const allRooms = result.data.viewer.user.rooms;
+      const allRooms = uniqueById(result.data.viewer.user.rooms);
 
       for (const room of allRooms) {
         const pref = room.viewerNotificationPreference;
@@ -128,7 +137,7 @@ export class RoomsStore {
       this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
         id: s.id,
         name: s.name,
-        roomIds: s.rooms.map((r: SetT['rooms'][number]) => r.id)
+        roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id)
       }));
     } else {
       this.roomGroups = null;

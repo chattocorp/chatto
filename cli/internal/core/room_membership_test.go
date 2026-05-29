@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -77,6 +78,53 @@ func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
 	// Both should have the same data
 	if first.UserId != second.UserId || first.RoomId != second.RoomId {
 		t.Error("Repeated CreateOrUpdate should return same membership data")
+	}
+}
+
+func TestRoomMemberships_ConcurrentJoinPublishesSingleEvent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
+
+	const joiners = 12
+	start := make(chan struct{})
+	errs := make(chan error, joiners)
+	var wg sync.WaitGroup
+	wg.Add(joiners)
+	for range joiners {
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+			errs <- err
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+
+	eventsResult, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+
+	joinCount := 0
+	for _, event := range eventsResult.Events {
+		if event.GetUserJoinedRoom() != nil && event.ActorId == user.Id {
+			joinCount++
+		}
+	}
+	if joinCount != 1 {
+		t.Fatalf("expected exactly one UserJoinedRoom event, got %d", joinCount)
 	}
 }
 
