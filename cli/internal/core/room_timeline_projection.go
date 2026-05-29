@@ -427,6 +427,11 @@ func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessin
 		if owner.roomID == "" || owner.messageEventID == "" {
 			continue
 		}
+		// Don't recover processing for a retracted message — its video is
+		// no longer visible, so transcoding it again is wasted work.
+		if _, retracted := p.retractedFlags[owner.messageEventID]; retracted {
+			continue
+		}
 		declared := p.assetCreations[assetID]
 		if declared == nil {
 			continue
@@ -614,14 +619,26 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	return event.GetRoomId()
 }
 
+// roomIDOfAssetCreatedLocked resolves an asset's room, walking up the
+// derivative chain to a parent when the event carries no room of its own.
+// The walk is bounded and cycle-guarded: legitimate chains are one level
+// deep, but corrupt/replayed EVT data could otherwise loop forever while
+// holding the projection mutex.
 func (p *RoomTimelineProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetCreatedEvent) string {
-	if roomID := event.GetRoomId(); roomID != "" {
-		return roomID
-	}
-	if parentID := event.GetParentAssetId(); parentID != "" {
-		if declared := p.assetCreations[parentID]; declared != nil {
-			return p.roomIDOfAssetCreatedLocked(declared)
+	seen := map[string]struct{}{}
+	for event != nil {
+		if roomID := event.GetRoomId(); roomID != "" {
+			return roomID
 		}
+		parentID := event.GetParentAssetId()
+		if parentID == "" {
+			return ""
+		}
+		if _, looped := seen[parentID]; looped {
+			return ""
+		}
+		seen[parentID] = struct{}{}
+		event = p.assetCreations[parentID]
 	}
 	return ""
 }

@@ -361,6 +361,63 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 	}
 }
 
+// A retracted message's video must not be re-enqueued by boot recovery —
+// it's no longer visible, so transcoding it again is wasted work.
+func TestRoomTimeline_UnmanifestedVideoAttachments_SkipsRetracted(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
+	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{{Id: "A-video", ContentType: "video/mp4"}}
+
+	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "video/mp4")})
+	if got := p.UnmanifestedVideoAttachments(); len(got) != 1 {
+		t.Fatalf("UnmanifestedVideoAttachments before retract = %+v, want A-video", got)
+	}
+
+	retract := &corev1.Event{
+		Id: "ENV-RETRACT",
+		Event: &corev1.Event_MessageRetracted{
+			MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"},
+		},
+	}
+	applyAll(t, p, []*corev1.Event{retract})
+	if got := p.UnmanifestedVideoAttachments(); len(got) != 0 {
+		t.Fatalf("UnmanifestedVideoAttachments after retract = %+v, want none", got)
+	}
+}
+
+// A cyclic derivative parent chain in (corrupt/replayed) EVT data must not
+// loop forever while the projection mutex is held — the room walk is
+// cycle-guarded.
+func TestRoomTimeline_RoomIDOfAssetCreated_CycleGuardDoesNotHang(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	// Two roomless derivatives that name each other as parent. Applying the
+	// second triggers the full A→B→A walk; without the guard this recurses
+	// forever. The test simply has to return.
+	cyclicAsset := func(id, parentID string) *corev1.Event {
+		return &corev1.Event{
+			Id: "ENV-" + id,
+			Event: &corev1.Event_AssetCreated{
+				AssetCreated: &corev1.AssetCreatedEvent{
+					Asset:         &corev1.AssetRecord{Id: id, ContentType: "video/mp4"},
+					ParentAssetId: parentID,
+				},
+			},
+		}
+	}
+	applyAll(t, p, []*corev1.Event{cyclicAsset("A", "B"), cyclicAsset("B", "A")})
+	// A processing event for the cyclic asset resolves its room via the walk;
+	// the guard yields "" and the event is dropped rather than hanging.
+	started := &corev1.Event{
+		Id: "ENV-START",
+		Event: &corev1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: "A"},
+		},
+	}
+	if err := p.Apply(started, 3); err != nil {
+		t.Fatalf("Apply started: %v", err)
+	}
+}
+
 func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	// SpaceMemberDeletedEvent is in the proto's "Room membership" block
 	// (oneof tag 320) but carries no room_id. It's published to
