@@ -18,9 +18,8 @@ import (
 const videoManifestESMigrationKey = "video_manifest_es.migrated"
 
 type legacyVideoAttachmentRef struct {
-	roomID         string
-	messageEventID string
-	attachment     *corev1.Attachment
+	roomID     string
+	attachment *corev1.Attachment
 }
 
 // migrateVideoManifestsToES imports legacy SERVER_RUNTIME video.{attachment}
@@ -307,8 +306,10 @@ func (c *ChattoCore) indexVideoAttachmentsFromEVT(ctx context.Context) (map[stri
 	if err := c.scanEVT(ctx, []string{"evt.room.*.asset_created"}, func(event *corev1.Event) {
 		declared := event.GetAssetCreated()
 		roomID := assetCreatedRoomID(declared)
-		messageEventID := assetCreatedMessageEventID(declared)
-		if declared == nil || roomID == "" || messageEventID == "" {
+		// Only original message attachments are candidates for legacy video
+		// state — skip derivatives (thumbnails / transcoded variants), which
+		// carry a parent_asset_id and have no standalone legacy state.
+		if declared == nil || roomID == "" || declared.GetParentAssetId() != "" {
 			return
 		}
 		att := attachmentFromAsset(declared.GetAsset())
@@ -319,9 +320,8 @@ func (c *ChattoCore) indexVideoAttachmentsFromEVT(ctx context.Context) (map[stri
 			return
 		}
 		out[att.GetId()] = &legacyVideoAttachmentRef{
-			roomID:         roomID,
-			messageEventID: messageEventID,
-			attachment:     proto.Clone(att).(*corev1.Attachment),
+			roomID:     roomID,
+			attachment: proto.Clone(att).(*corev1.Attachment),
 		}
 	}); err != nil {
 		return nil, err

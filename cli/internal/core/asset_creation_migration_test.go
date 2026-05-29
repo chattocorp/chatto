@@ -66,8 +66,14 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 	if !ok {
 		t.Fatal("expected projected asset creation")
 	}
-	if assetCreatedRoomID(declared) != room.Id || assetCreatedMessageEventID(declared) != legacyPost.Id {
-		t.Fatalf("asset creation = %+v, want room/message owner", declared)
+	if assetCreatedRoomID(declared) != room.Id {
+		t.Fatalf("asset creation room = %q, want %q", assetCreatedRoomID(declared), room.Id)
+	}
+	// Message ownership is derived from the posting message, not stored on
+	// the AssetCreatedEvent.
+	ownerRoom, ownerMessage, owned := core.RoomTimeline.AssetMessageOwner(attachment.Id)
+	if !owned || ownerRoom != room.Id || ownerMessage != legacyPost.Id {
+		t.Fatalf("asset message owner = (%q, %q, %v), want (%q, %q, true)", ownerRoom, ownerMessage, owned, room.Id, legacyPost.Id)
 	}
 	if got := declared.GetAsset().GetId(); got != attachment.Id {
 		t.Fatalf("created asset id = %q, want %q", got, attachment.Id)

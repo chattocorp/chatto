@@ -138,13 +138,20 @@ func (s *Service) resolveTools() error {
 }
 
 // processAsset resolves the asset from the projection and runs ffmpeg.
+//
+// The room comes from the upload-time AssetCreatedEvent, which is the only
+// asset fact guaranteed to be projected by the time a request lands: the
+// request is published from PostMessage *before* the MessagePosted event is
+// durably appended, so message ownership may not be visible yet. We don't
+// re-check message ownership here — a request only exists because PostMessage
+// (or boot recovery) scheduled it for a message-owned video attachment.
 func (s *Service) processAsset(ctx context.Context, assetID string) error {
 	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
 	if !ok || declared.GetAsset() == nil {
 		return fmt.Errorf("asset %s is not declared", assetID)
 	}
-	if declared.GetRoomId() == "" || declared.GetMessageEventId() == "" {
-		return fmt.Errorf("asset %s is not a message-owned video asset", assetID)
+	if declared.GetRoomId() == "" {
+		return fmt.Errorf("asset %s has no room scope", assetID)
 	}
 	req := processRequest{
 		RoomID:      declared.GetRoomId(),

@@ -49,6 +49,20 @@ type RoomTimelineProjection struct {
 	// and vice versa; generated asset metadata lives in the event payload.
 	assetCreations map[string]*corev1.AssetCreatedEvent
 	videoManifests map[string]*VideoAttachmentManifest
+	// assetMessageOwner maps an asset ID to the message that references it,
+	// derived from MessagePostedEvent bodies. Upload-time AssetCreatedEvents
+	// don't carry message linkage — the message doesn't exist yet — so the
+	// deprecated AssetCreatedEvent.message_event_id is never set on new
+	// uploads. Message ownership is reconstructed here from the posting
+	// message's asset_ids (or legacy embedded attachments).
+	assetMessageOwner map[string]assetMessageRef
+}
+
+// assetMessageRef is the room + message that owns an asset, captured from
+// the MessagePostedEvent that references it.
+type assetMessageRef struct {
+	roomID         string
+	messageEventID string
 }
 
 // VideoAttachmentManifest is the projection's current processing state for
@@ -87,8 +101,9 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		latestBody:     make(map[string]*corev1.MessageBody),
 		retractedFlags: make(map[string]struct{}),
 		echoLinks:      make(map[string][]string),
-		assetCreations: make(map[string]*corev1.AssetCreatedEvent),
-		videoManifests: make(map[string]*VideoAttachmentManifest),
+		assetCreations:    make(map[string]*corev1.AssetCreatedEvent),
+		videoManifests:    make(map[string]*VideoAttachmentManifest),
+		assetMessageOwner: make(map[string]assetMessageRef),
 	}
 }
 
@@ -143,6 +158,18 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		if targetID != "" {
 			p.latestBody[targetID] = ev.MessagePosted.GetBody()
 			delete(p.retractedFlags, targetID)
+			// Record message ownership of any referenced assets. This is the
+			// source of truth for "which message owns this asset" — the
+			// upload-time AssetCreatedEvent can't carry it (no message yet).
+			for _, assetID := range ownedAssetIDsFromBody(ev.MessagePosted.GetBody()) {
+				if assetID == "" {
+					continue
+				}
+				if _, exists := p.assetMessageOwner[assetID]; exists {
+					continue
+				}
+				p.assetMessageOwner[assetID] = assetMessageRef{roomID: roomID, messageEventID: targetID}
+			}
 		}
 		// Track echo links so edits / retracts on either side can fan
 		// out to the other.
@@ -201,6 +228,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		if assetID != "" {
 			delete(p.assetCreations, assetID)
 			delete(p.videoManifests, assetID)
+			delete(p.assetMessageOwner, assetID)
 		}
 	}
 	return nil
@@ -368,23 +396,46 @@ func (p *RoomTimelineProjection) AssetCreation(attachmentID string) (*corev1.Ass
 	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
 }
 
-// UnmanifestedVideoAttachments returns video/GIF created assets that do
-// not yet have a durable processed/failed manifest.
+// AssetMessageOwner returns the room and message that own an asset, derived
+// from the MessagePostedEvent that referenced it. Reports ok=false when no
+// projected message has claimed the asset yet (e.g. an upload that was never
+// posted, or whose message hasn't been projected). The deprecated
+// AssetCreatedEvent.message_event_id is not consulted — new uploads never
+// set it.
+func (p *RoomTimelineProjection) AssetMessageOwner(assetID string) (roomID, messageEventID string, ok bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return "", "", false
+	}
+	owner, found := p.assetMessageOwner[assetID]
+	if !found {
+		return "", "", false
+	}
+	return owner.roomID, owner.messageEventID, true
+}
+
+// UnmanifestedVideoAttachments returns message-owned video/GIF assets that
+// do not yet have a durable processed/failed manifest. Ownership comes from
+// the posting message (assetMessageOwner), not the deprecated
+// AssetCreatedEvent.message_event_id, which new uploads never set.
 func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessingRequest {
 	p.RLock()
 	defer p.RUnlock()
 	var out []VideoProcessingRequest
-	for _, declared := range p.assetCreations {
-		roomID := assetCreatedRoomID(declared)
-		messageEventID := assetCreatedMessageEventID(declared)
-		if declared == nil || roomID == "" || messageEventID == "" {
+	for assetID, owner := range p.assetMessageOwner {
+		if owner.roomID == "" || owner.messageEventID == "" {
+			continue
+		}
+		declared := p.assetCreations[assetID]
+		if declared == nil {
 			continue
 		}
 		asset := declared.GetAsset()
 		if asset == nil {
 			continue
 		}
-		if _, hasManifest := p.videoManifests[asset.GetId()]; hasManifest {
+		if _, hasManifest := p.videoManifests[assetID]; hasManifest {
 			continue
 		}
 		contentType := asset.GetContentType()
@@ -392,10 +443,30 @@ func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessin
 			continue
 		}
 		out = append(out, VideoProcessingRequest{
-			RoomID:         roomID,
-			MessageEventID: messageEventID,
+			RoomID:         owner.roomID,
+			MessageEventID: owner.messageEventID,
 			Attachment:     attachmentFromAsset(asset),
 		})
+	}
+	return out
+}
+
+// ownedAssetIDsFromBody returns the asset IDs a message body references,
+// preferring the current asset_ids list and falling back to the legacy
+// embedded attachments slice.
+func ownedAssetIDsFromBody(body *corev1.MessageBody) []string {
+	if body == nil {
+		return nil
+	}
+	if ids := body.GetAssetIds(); len(ids) > 0 {
+		return ids
+	}
+	atts := body.GetAttachments()
+	out := make([]string, 0, len(atts))
+	for _, att := range atts {
+		if id := att.GetId(); id != "" {
+			out = append(out, id)
+		}
 	}
 	return out
 }
@@ -541,13 +612,6 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 		return ""
 	}
 	return event.GetRoomId()
-}
-
-func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
-	if event == nil {
-		return ""
-	}
-	return event.GetMessageEventId()
 }
 
 func (p *RoomTimelineProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetCreatedEvent) string {

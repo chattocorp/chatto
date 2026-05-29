@@ -203,11 +203,17 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	return event.GetRoomId()
 }
 
-func assetCreatedMessageEventID(event *corev1.AssetCreatedEvent) string {
-	if event == nil {
+// assetMessageEventID returns the event id of the message that owns an asset,
+// derived from the projection's MessagePostedEvent linkage. New uploads don't
+// stamp message ownership onto the AssetCreatedEvent (the message doesn't
+// exist yet), so the deprecated message_event_id field is not consulted.
+// Returns "" when no projected message has claimed the asset.
+func (r *Resolver) assetMessageEventID(assetID string) string {
+	if assetID == "" {
 		return ""
 	}
-	return event.GetMessageEventId()
+	_, messageEventID, _ := r.core.RoomTimeline.AssetMessageOwner(assetID)
+	return messageEventID
 }
 
 func assetDimensions(asset *corev1.AssetRecord) (int32, int32) {

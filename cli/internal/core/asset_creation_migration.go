@@ -88,7 +88,6 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr erro
 						StorageAvailable: storageAvailable,
 						Asset:            asset,
 						RoomId:           posted.GetRoomId(),
-						MessageEventId:   messageEventID,
 					},
 				},
 			})

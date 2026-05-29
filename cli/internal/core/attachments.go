@@ -1097,41 +1097,6 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 	return nil
 }
 
-// RecordAssetCreated records the durable content identity and message parent for
-// an uploaded asset. Processing outcomes reference this creation by asset id.
-// Asset creation is projection state, so it is not mirrored to the public
-// live.server subscription stream.
-//
-// actorID is the user who introduced the asset (typically the message poster).
-func (c *ChattoCore) RecordAssetCreated(ctx context.Context, actorID string, _ RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
-	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
-		return fmt.Errorf("asset creation missing room, message, or asset id")
-	}
-	if actorID == "" {
-		return fmt.Errorf("asset creation missing actor id (use SystemActorID for non-user paths)")
-	}
-	declaredAttachment := proto.Clone(attachment).(*corev1.Attachment)
-	if declaredAttachment.MessageBodyId == "" {
-		declaredAttachment.MessageBodyId = messageEventID
-	}
-	asset := assetFromAttachment(declaredAttachment)
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
-				StorageAvailable: true,
-				Asset:            asset,
-				RoomId:           roomID,
-				MessageEventId:   messageEventID,
-			},
-		},
-	})
-	agg := events.RoomAggregate(roomID)
-	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
-		return fmt.Errorf("publish asset creation event: %w", err)
-	}
-	return nil
-}
-
 // RecordAssetProcessed builds and publishes a durable processed-video
 // manifest for an original video attachment. The thumbnail and variants
 // were already emitted as AssetCreatedEvents by UploadDerivativeAttachment

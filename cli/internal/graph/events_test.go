@@ -155,7 +155,7 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, "M1", attachment.ContentType), 1); err != nil {
+	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
 	if err := env.core.RoomTimeline.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
@@ -201,7 +201,7 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, "M1", attachment.ContentType), 1); err != nil {
+	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
 	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
@@ -223,7 +223,50 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 	}
 }
 
-func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType string) *corev1.Event {
+// TestAssetProcessingSucceededEventResolver_MessageEventID verifies the
+// messageEventId is derived from the owning MessagePostedEvent's asset_ids,
+// NOT from the deprecated AssetCreatedEvent.message_event_id (which new
+// uploads never set). The frontend keys its refetch on this field, so an
+// empty value leaves video attachments stuck on "Processing…".
+func TestAssetProcessingSucceededEventResolver_MessageEventID(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.AssetProcessingSucceededEvent()
+
+	posted := &corev1.Event{
+		Id: "ENV-M1",
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId:  env.testRoom.Id,
+				EventId: "M1",
+				Body:    &corev1.MessageBody{AssetIds: []string{"A-video"}},
+			},
+		},
+	}
+	// AssetCreatedEvent intentionally carries no message_event_id — that's
+	// the real upload-time shape.
+	created := testAssetCreatedEvent(env.testRoom.Id, "A-video", "video/mp4")
+	succeeded := &corev1.Event{
+		Id: "ENV-VIDEO-OK",
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"},
+		},
+	}
+	for i, e := range []*corev1.Event{posted, created, succeeded} {
+		if err := env.core.RoomTimeline.Apply(e, uint64(i+1)); err != nil {
+			t.Fatalf("Apply event %d: %v", i+1, err)
+		}
+	}
+
+	got, err := resolver.MessageEventID(env.authContext(), succeeded.GetAssetProcessingSucceeded())
+	if err != nil {
+		t.Fatalf("MessageEventID returned error: %v", err)
+	}
+	if got != "M1" {
+		t.Fatalf("MessageEventID = %q, want M1 (derived from MessagePostedEvent.asset_ids)", got)
+	}
+}
+
+func testAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1.Event {
 	return &corev1.Event{
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
@@ -233,8 +276,7 @@ func testAssetCreatedEvent(roomID, attachmentID, messageEventID, contentType str
 					Id:          attachmentID,
 					ContentType: contentType,
 				},
-				RoomId:         roomID,
-				MessageEventId: messageEventID,
+				RoomId: roomID,
 			},
 		},
 	}

@@ -4462,10 +4462,10 @@ func (x *MessageDeletedEvent) GetMessageEventId() string {
 //     room-scoped uploads, the uploader's ID
 //   - parent_asset_id + derivative_role are set for derivatives (e.g. video
 //     thumbnail / variant); inherits room scope from the parent
-//   - message_event_id is legacy-only: pre-Option-1 events set this to the
-//     message that introduced the asset. New events never set it — message
-//     ownership is derived from MessagePostedEvent.asset_ids in the
-//     projection. The field stays so legacy bodies still decode.
+//
+// AssetCreatedEvent carries no message linkage: it is emitted at upload
+// time, before any message exists. Message ownership of an asset is derived
+// from MessagePostedEvent.asset_ids in the room-timeline projection.
 type AssetCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The asset record (content identity + storage).
@@ -4476,11 +4476,6 @@ type AssetCreatedEvent struct {
 	StorageAvailable bool `protobuf:"varint,2,opt,name=storage_available,json=storageAvailable,proto3" json:"storage_available,omitempty"`
 	// Room scope. Set for room-scoped uploads and their derivatives.
 	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Deprecated: legacy field. Pre-Option-1 PostMessage emitted
-	// AssetCreatedEvent inline with the message and stamped its event id
-	// here. New uploads emit AssetCreatedEvent before any message exists;
-	// message ownership is derived from MessagePostedEvent.asset_ids.
-	MessageEventId string `protobuf:"bytes,4,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// ID of the parent asset when this asset is a derivative.
 	// Set together with derivative_role for thumbnails / video variants.
 	ParentAssetId string `protobuf:"bytes,5,opt,name=parent_asset_id,json=parentAssetId,proto3" json:"parent_asset_id,omitempty"`
@@ -4542,13 +4537,6 @@ func (x *AssetCreatedEvent) GetStorageAvailable() bool {
 func (x *AssetCreatedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
-	}
-	return ""
-}
-
-func (x *AssetCreatedEvent) GetMessageEventId() string {
-	if x != nil {
-		return x.MessageEventId
 	}
 	return ""
 }
@@ -6065,15 +6053,14 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x13MessageDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\xa0\x02\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_id\"\x8e\x02\n" +
 	"\x11AssetCreatedEvent\x121\n" +
 	"\x05asset\x18\x01 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x05asset\x12+\n" +
 	"\x11storage_available\x18\x02 \x01(\bR\x10storageAvailable\x12\x17\n" +
-	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventId\x12&\n" +
+	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fparent_asset_id\x18\x05 \x01(\tR\rparentAssetId\x12'\n" +
 	"\x0fderivative_role\x18\x06 \x01(\tR\x0ederivativeRole\x12\x17\n" +
-	"\auser_id\x18\a \x01(\tR\x06userId\".\n" +
+	"\auser_id\x18\a \x01(\tR\x06userIdJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
 	"\x11AssetDeletedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\"8\n" +
 	"\x1bAssetProcessingStartedEvent\x12\x19\n" +

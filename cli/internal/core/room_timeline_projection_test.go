@@ -138,7 +138,7 @@ func applyAll(t *testing.T, p interface {
 	}
 }
 
-func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType string) *corev1.Event {
+func attachmentDeclaredEvent(roomID, attachmentID, contentType string) *corev1.Event {
 	return &corev1.Event{
 		Id: "ENV-DECLARED-" + attachmentID,
 		Event: &corev1.Event_AssetCreated{
@@ -148,8 +148,7 @@ func attachmentDeclaredEvent(roomID, attachmentID, messageEventID, contentType s
 					Id:          attachmentID,
 					ContentType: contentType,
 				},
-				RoomId:         roomID,
-				MessageEventId: messageEventID,
+				RoomId: roomID,
 			},
 		},
 	}
@@ -310,7 +309,7 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 		},
 	}
 
-	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "M1", "video/mp4"), failed, processed})
+	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), failed, processed})
 	manifest, ok := p.VideoAttachmentManifest("A-video")
 	if !ok || manifest.Succeeded == nil {
 		t.Fatalf("VideoAttachmentManifest = %#v, want processed manifest", manifest)
@@ -344,9 +343,17 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 		},
 	}
 
-	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "M1", "video/mp4"), attachmentDeclaredEvent("R1", "A-image", "M1", "image/png")})
-	if got := p.UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
+	// New uploads emit AssetCreatedEvent with an empty message_event_id
+	// (the message doesn't exist yet at upload time). Message ownership is
+	// reconstructed from the posting message's attachments, so recovery must
+	// still find A-video without relying on the deprecated field.
+	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "video/mp4"), attachmentDeclaredEvent("R1", "A-image", "image/png")})
+	got := p.UnmanifestedVideoAttachments()
+	if len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
 		t.Fatalf("UnmanifestedVideoAttachments before manifest = %+v, want A-video", got)
+	}
+	if got[0].RoomID != "R1" || got[0].MessageEventID != "M1" {
+		t.Fatalf("UnmanifestedVideoAttachments ownership = room %q msg %q, want R1/M1", got[0].RoomID, got[0].MessageEventID)
 	}
 	applyAll(t, p, []*corev1.Event{processed})
 	if got := p.UnmanifestedVideoAttachments(); len(got) != 0 {
