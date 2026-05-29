@@ -2,13 +2,11 @@ package core
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -57,7 +55,7 @@ func TestChattoCore_PostMessage(t *testing.T) {
 }
 
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
-	core, nc := setupTestCore(t)
+	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
@@ -69,17 +67,7 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	requests := make(chan VideoProcessRequest, 1)
-	sub, err := nc.Subscribe(SubjectVideoProcess, func(msg *nats.Msg) {
-		var req VideoProcessRequest
-		if err := json.Unmarshal(msg.Data, &req); err == nil {
-			requests <- req
-		}
-	})
-	if err != nil {
-		t.Fatalf("Failed to subscribe to %s: %v", SubjectVideoProcess, err)
-	}
-	defer sub.Unsubscribe()
+	requests := captureVideoProcessingRequests(t, core)
 
 	roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []string{attachment.Id}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
 	if err != nil {
@@ -88,16 +76,16 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 
 	select {
 	case req := <-requests:
-		if req.AssetID != attachment.Id {
-			t.Fatalf("queued asset id = %q, want %q", req.AssetID, attachment.Id)
+		if req.assetID != attachment.Id {
+			t.Fatalf("queued asset id = %q, want %q", req.assetID, attachment.Id)
 		}
-		// The owning message id must ride along on the request so the worker
+		// The owning message id must ride along on the local work item so the worker
 		// can stamp it onto the terminal event without a racy projection lookup.
-		if req.MessageEventID != roomEvent.Id {
-			t.Fatalf("queued message event id = %q, want %q", req.MessageEventID, roomEvent.Id)
+		if req.messageEventID != roomEvent.Id {
+			t.Fatalf("queued message event id = %q, want %q", req.messageEventID, roomEvent.Id)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("expected video process request on NATS subject")
+		t.Fatal("expected local video processing request")
 	}
 
 	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(attachment.Id)

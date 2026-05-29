@@ -146,6 +146,21 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
+	// Start video processing service if enabled before the HTTP server begins
+	// accepting uploads. The service registers a process-local callback on
+	// core, so no transient NATS worker subject is involved.
+	if cfg.Video.Enabled {
+		videoSvc, err := video.NewService(chattoCore, cfg.Video, log.WithPrefix("video"))
+		if err != nil {
+			log.Error("ffmpeg not found — video processing disabled", "error", err)
+			log.Error("Install ffmpeg: brew install ffmpeg (macOS) or apk add ffmpeg (Alpine)")
+		} else {
+			g.Go(func() error {
+				return videoSvc.Run(ctx)
+			})
+		}
+	}
+
 	// Create and run HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Webserver.EffectivePort())
 	httpServer, err := http_server.NewHTTPServer(http_server.HTTPServerConfig{
@@ -161,14 +176,6 @@ func runServer(configPath string) {
 	g.Go(func() error {
 		return httpServer.Run(ctx)
 	})
-
-	// Start video processing service if enabled
-	if cfg.Video.Enabled {
-		videoSvc := video.NewService(chattoCore, nc, cfg.Video, log.WithPrefix("video"))
-		g.Go(func() error {
-			return videoSvc.Run(ctx)
-		})
-	}
 
 	// Wait for all services to complete (or one to fail)
 	if err := g.Wait(); err != nil && err != context.Canceled {

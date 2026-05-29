@@ -61,6 +61,12 @@ type ChattoCore struct {
 	// Set this after ChattoCore is created.
 	OnNotificationDismissed func(ctx context.Context, userID string, notification *corev1.Notification)
 
+	// OnVideoProcessingRequested starts best-effort local video processing for
+	// an already-declared message-owned asset. The video service registers this
+	// callback when enabled; a future durable task queue should replace this
+	// process-local handoff.
+	OnVideoProcessingRequested func(ctx context.Context, assetID, messageEventID string) error
+
 	// AssetBaseURL is prepended to all asset URLs to make them absolute.
 	// When empty, URLs are returned as relative paths (backward compatible).
 	// Set from webserver.url config: scheme + host only (no trailing slash).

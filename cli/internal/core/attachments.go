@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -955,25 +954,10 @@ func videoProcessingKey(attachmentID string) string {
 	return "video." + attachmentID
 }
 
-// SubjectVideoProcess is the NATS Core subject the video worker queue
-// subscribes to. Requests are best-effort fanned through a queue group so
-// multiple worker processes share load; if the worker is unavailable the
-// request is dropped and boot recovery re-enqueues from the projection.
-const SubjectVideoProcess = "chatto.video.process"
-
-// VideoProcessRequest is the payload carried on SubjectVideoProcess.
-type VideoProcessRequest struct {
-	AssetID string `json:"asset_id"`
-	// MessageEventID is the owning message's event id, carried so the worker
-	// can stamp it onto the terminal AssetProcessing event without a
-	// projection lookup that would race the message's own projection.
-	MessageEventID string `json:"message_event_id"`
-}
-
 // ScheduleVideoProcessingForMessageAttachment enqueues async processing for a
 // message-owned video asset. It appends a durable AssetProcessingStartedEvent
-// (the PENDING signal the frontend renders as "Processing…"), then publishes a
-// request onto SubjectVideoProcess. If the source binary is already missing,
+// (the PENDING signal the frontend renders as "Processing…"), then calls the
+// process-local video processing hook. If the source binary is already missing,
 // emits an AssetProcessingFailedEvent with SOURCE_MISSING instead.
 //
 // actorID is the user who triggered processing (the message poster, or
@@ -998,27 +982,17 @@ func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 	if err := c.RecordAssetProcessingStarted(ctx, actorID, kind, roomID, messageEventID, attachment.GetId()); err != nil {
 		return err
 	}
-	if err := c.PublishVideoProcessRequest(ctx, messageEventID, attachment.GetId()); err != nil {
-		c.logger.Warn("Failed to publish video process request", "asset_id", attachment.GetId(), "error", err)
+	if c.OnVideoProcessingRequested == nil {
+		c.logger.Warn("Video processing requested but no local processor is registered",
+			"asset_id", attachment.GetId(),
+			"message_event_id", messageEventID)
+		return nil
 	}
-	return nil
-}
-
-// PublishVideoProcessRequest fans a process request to the video-worker
-// queue group via NATS Core. Workers consume from SubjectVideoProcess.
-// messageEventID is the owning message; the worker stamps it onto the
-// terminal AssetProcessing{Succeeded,Failed} event so subscribers never
-// have to resolve ownership from the projection.
-func (c *ChattoCore) PublishVideoProcessRequest(ctx context.Context, messageEventID, assetID string) error {
-	if assetID == "" {
-		return fmt.Errorf("video process request missing asset id")
-	}
-	payload, err := json.Marshal(VideoProcessRequest{AssetID: assetID, MessageEventID: messageEventID})
-	if err != nil {
-		return fmt.Errorf("marshal video process request: %w", err)
-	}
-	if err := c.nc.Publish(SubjectVideoProcess, payload); err != nil {
-		return fmt.Errorf("publish video process request: %w", err)
+	if err := c.OnVideoProcessingRequested(context.Background(), attachment.GetId(), messageEventID); err != nil {
+		c.logger.Warn("Failed to start local video processing",
+			"asset_id", attachment.GetId(),
+			"message_event_id", messageEventID,
+			"error", err)
 	}
 	return nil
 }

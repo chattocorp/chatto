@@ -2,11 +2,10 @@ package core
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -69,10 +68,10 @@ func TestAttachmentBinaryStatus_TriState(t *testing.T) {
 
 // TestScheduleVideoProcessing_BinaryStateDecision verifies the scheduler only
 // tombstones (SOURCE_MISSING) when the source binary is definitively gone,
-// and otherwise emits a Started marker and dispatches a worker request.
+// and otherwise emits a Started marker and dispatches local work.
 func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
-	t.Run("present binary → started + worker request", func(t *testing.T) {
-		core, nc := setupTestCore(t)
+	t.Run("present binary → started + local work", func(t *testing.T) {
+		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
 		att, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
@@ -80,7 +79,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 			t.Fatalf("UploadAttachment: %v", err)
 		}
 
-		requests := subscribeVideoRequests(t, nc)
+		requests := captureVideoProcessingRequests(t, core)
 
 		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-present", att); err != nil {
 			t.Fatalf("schedule: %v", err)
@@ -95,16 +94,16 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		}
 		select {
 		case req := <-requests:
-			if req.AssetID != att.Id || req.MessageEventID != "M-present" {
+			if req.assetID != att.Id || req.messageEventID != "M-present" {
 				t.Fatalf("request = %+v, want asset %q msg M-present", req, att.Id)
 			}
 		case <-time.After(2 * time.Second):
-			t.Fatal("expected a worker request for a present binary")
+			t.Fatal("expected local work for a present binary")
 		}
 	})
 
-	t.Run("definitively missing binary → SOURCE_MISSING, no worker request", func(t *testing.T) {
-		core, nc := setupTestCore(t)
+	t.Run("definitively missing binary → SOURCE_MISSING, no local work", func(t *testing.T) {
+		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
 		att, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
@@ -116,7 +115,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 			t.Fatalf("delete binary: %v", err)
 		}
 
-		requests := subscribeVideoRequests(t, nc)
+		requests := captureVideoProcessingRequests(t, core)
 
 		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-missing", att); err != nil {
 			t.Fatalf("schedule: %v", err)
@@ -135,7 +134,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		// The SOURCE_MISSING path returns before publishing; nothing was sent.
 		select {
 		case req := <-requests:
-			t.Fatalf("missing binary must not dispatch a worker request, got %+v", req)
+			t.Fatalf("missing binary must not dispatch local work, got %+v", req)
 		default:
 		}
 	})
@@ -147,7 +146,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 // re-discovered and re-dispatched. This path was dead before message ownership
 // was derived correctly, so it carries no other coverage.
 func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.T) {
-	core, nc := setupTestCore(t)
+	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General")
 	user, _ := core.CreateUser(ctx, "system", "recuser", "recuser", "password123")
@@ -171,18 +170,18 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatalf("UnmanifestedVideoAttachments = %+v, want %q", pending, att.Id)
 	}
 
-	requests := subscribeVideoRequests(t, nc)
+	requests := captureVideoProcessingRequests(t, core)
 
 	core.RecoverUnmanifestedVideoAttachments(ctx)
 
-	// Recovery must dispatch a worker request carrying the owning message id.
+	// Recovery must dispatch local work carrying the owning message id.
 	select {
 	case req := <-requests:
-		if req.AssetID != att.Id || req.MessageEventID != posted.Id {
+		if req.assetID != att.Id || req.messageEventID != posted.Id {
 			t.Fatalf("recovered request = %+v, want asset %q msg %q", req, att.Id, posted.Id)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("expected recovery to dispatch a worker request")
+		t.Fatal("expected recovery to dispatch local work")
 	}
 
 	// ...and it must leave a Started marker so a second recovery is a no-op.
@@ -195,25 +194,19 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 	}
 }
 
-// subscribeVideoRequests captures worker requests published to the video
-// process subject.
-func subscribeVideoRequests(t *testing.T, nc *nats.Conn) <-chan VideoProcessRequest {
+type capturedVideoProcessingRequest struct {
+	assetID        string
+	messageEventID string
+}
+
+func captureVideoProcessingRequests(t *testing.T, core *ChattoCore) <-chan capturedVideoProcessingRequest {
 	t.Helper()
-	requests := make(chan VideoProcessRequest, 4)
-	sub, err := nc.Subscribe(SubjectVideoProcess, func(msg *nats.Msg) {
-		var req VideoProcessRequest
-		if err := json.Unmarshal(msg.Data, &req); err == nil {
-			requests <- req
-		}
-	})
-	if err != nil {
-		t.Fatalf("subscribe %s: %v", SubjectVideoProcess, err)
+	requests := make(chan capturedVideoProcessingRequest, 4)
+	previous := core.OnVideoProcessingRequested
+	core.OnVideoProcessingRequested = func(_ context.Context, assetID, messageEventID string) error {
+		requests <- capturedVideoProcessingRequest{assetID: assetID, messageEventID: messageEventID}
+		return nil
 	}
-	t.Cleanup(func() { _ = sub.Unsubscribe() })
-	// A flush makes sure the subscription is registered on the server before
-	// the caller triggers a publish.
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("flush: %v", err)
-	}
+	t.Cleanup(func() { core.OnVideoProcessingRequested = previous })
 	return requests
 }

@@ -1,25 +1,23 @@
 // Package video provides asynchronous video processing.
 //
-// The service consumes process requests off a NATS Core queue group, transcodes
-// uploaded videos to web-friendly MP4 with ffmpeg, generates thumbnails, and
-// emits AssetProcessingSucceeded / AssetProcessingFailed events. It implements
+// The service registers a process-local callback with core, transcodes uploaded
+// videos to web-friendly MP4 with ffmpeg, generates thumbnails, and emits
+// AssetProcessingSucceeded / AssetProcessingFailed events. It implements
 // service.Service for lifecycle management.
 //
-// Architecture: subscriber-side bounded concurrency via semaphore; multi-process
-// deployments share load via the queue group. PostMessage publishes a request
-// onto `chatto.video.process` and returns immediately so the GraphQL mutation
-// never blocks on ffmpeg.
+// Architecture: process-local bounded concurrency via semaphore. PostMessage
+// asks this service to spawn local work and returns immediately so the GraphQL
+// mutation never blocks on ffmpeg. This intentionally remains best-effort until
+// a real durable task queue exists.
 package video
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"sync"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -35,76 +33,50 @@ type processRequest struct {
 	Attachment     *corev1.Attachment
 }
 
-// Service processes video attachments asynchronously off a NATS queue.
+// Service processes video attachments asynchronously inside this process.
 type Service struct {
 	core        *core.ChattoCore
-	nc          *nats.Conn
 	config      config.VideoConfig
 	logger      *log.Logger
 	ffmpegPath  string
 	ffprobePath string
+	sem         chan struct{}
+	ctx         context.Context
+	cancel      context.CancelFunc
+	wg          sync.WaitGroup
+	mu          sync.Mutex
+	stopped     bool
 }
 
-// NewService creates a new video processing service. Pass the NATS connection
-// so the worker can subscribe to the process-request queue group.
-func NewService(chattoCore *core.ChattoCore, nc *nats.Conn, cfg config.VideoConfig, logger *log.Logger) *Service {
-	return &Service{
+// NewService creates a new process-local video processing service and registers
+// it as core's best-effort video processing handler.
+func NewService(chattoCore *core.ChattoCore, cfg config.VideoConfig, logger *log.Logger) (*Service, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &Service{
 		core:   chattoCore,
-		nc:     nc,
 		config: cfg,
 		logger: logger,
+		sem:    make(chan struct{}, cfg.MaxConcurrentOrDefault()),
+		ctx:    ctx,
+		cancel: cancel,
 	}
+	if err := s.resolveTools(); err != nil {
+		cancel()
+		return nil, err
+	}
+	chattoCore.OnVideoProcessingRequested = s.StartProcessing
+	return s, nil
 }
 
 // Run starts the video processing service. Blocks until ctx is cancelled.
 // Implements service.Service.
 func (s *Service) Run(ctx context.Context) error {
-	if err := s.resolveTools(); err != nil {
-		s.logger.Error("ffmpeg not found — video processing disabled", "error", err)
-		s.logger.Error("Install ffmpeg: brew install ffmpeg (macOS) or apk add ffmpeg (Alpine)")
-		return nil // Don't crash the server, just disable video processing
-	}
-
 	maxConcurrent := s.config.MaxConcurrentOrDefault()
 	s.logger.Info("Video processing service started",
 		"ffmpeg", s.ffmpegPath,
 		"ffprobe", s.ffprobePath,
 		"max_concurrent", maxConcurrent,
 	)
-
-	sem := make(chan struct{}, maxConcurrent)
-	var wg sync.WaitGroup
-
-	sub, err := s.nc.QueueSubscribe(core.SubjectVideoProcess, "video-workers", func(msg *nats.Msg) {
-		var req core.VideoProcessRequest
-		if err := json.Unmarshal(msg.Data, &req); err != nil {
-			s.logger.Error("Failed to unmarshal video process request", "error", err)
-			return
-		}
-		if req.AssetID == "" {
-			s.logger.Error("Video process request missing asset_id")
-			return
-		}
-
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			return
-		}
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer func() { <-sem }()
-			if err := s.processAsset(ctx, req.AssetID, req.MessageEventID); err != nil {
-				s.logger.Error("Video processing failed", "asset_id", req.AssetID, "error", err)
-			}
-		}()
-	})
-	if err != nil {
-		return fmt.Errorf("subscribe to %s: %w", core.SubjectVideoProcess, err)
-	}
-	defer sub.Unsubscribe()
 
 	// Recover any in-flight assets that were enqueued by a prior process
 	// but have no terminal manifest yet. The projection has to be caught up
@@ -118,9 +90,46 @@ func (s *Service) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	s.logger.Info("Shutting down video processing service, waiting for in-flight jobs...")
-	wg.Wait()
+
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
+	s.cancel()
+	s.wg.Wait()
+
 	s.logger.Info("Video processing service stopped")
 
+	return nil
+}
+
+// StartProcessing schedules one asset for local processing and returns
+// immediately. The actual ffmpeg work happens in a goroutine under the
+// service's concurrency limit.
+func (s *Service) StartProcessing(_ context.Context, assetID, messageEventID string) error {
+	if assetID == "" {
+		return fmt.Errorf("video processing missing asset id")
+	}
+
+	s.mu.Lock()
+	if s.stopped {
+		s.mu.Unlock()
+		return fmt.Errorf("video processing service stopped")
+	}
+	s.wg.Add(1)
+	s.mu.Unlock()
+
+	go func() {
+		defer s.wg.Done()
+		select {
+		case s.sem <- struct{}{}:
+			defer func() { <-s.sem }()
+		case <-s.ctx.Done():
+			return
+		}
+		if err := s.processAsset(s.ctx, assetID, messageEventID); err != nil {
+			s.logger.Error("Video processing failed", "asset_id", assetID, "error", err)
+		}
+	}()
 	return nil
 }
 
@@ -141,11 +150,11 @@ func (s *Service) resolveTools() error {
 // processAsset resolves the asset from the projection and runs ffmpeg.
 //
 // The room comes from the upload-time AssetCreatedEvent, which is the only
-// asset fact guaranteed to be projected by the time a request lands: the
-// request is published from PostMessage *before* the MessagePosted event is
-// durably appended, so message ownership may not be visible yet. We don't
-// re-check message ownership here — a request only exists because PostMessage
-// (or boot recovery) scheduled it for a message-owned video attachment.
+// asset fact guaranteed to be projected by the time local work starts:
+// PostMessage schedules processing *before* the MessagePosted event is durably
+// appended, so message ownership may not be visible yet. We don't re-check
+// message ownership here — a request only exists because PostMessage (or boot
+// recovery) scheduled it for a message-owned video attachment.
 //
 // messageEventID is carried on the request (it's the owning message, known to
 // the scheduler) and stamped onto the terminal event so subscribers resolve
