@@ -20,8 +20,7 @@ func newServerNameChangedEvent(name string) *corev1.Event {
 func TestServerConfigProjection_FreshState(t *testing.T) {
 	p := NewServerConfigProjection()
 
-	cfg, configured := p.Get()
-	require.False(t, configured)
+	cfg := p.Get()
 	require.Nil(t, cfg)
 
 	// Effective accessors fall back to defaults pre-config.
@@ -43,8 +42,7 @@ func TestServerConfigProjection_AppliesIndependentServerFields(t *testing.T) {
 		ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: "MOTD-1"},
 	}}, 3))
 
-	cfg, configured := p.Get()
-	require.True(t, configured)
+	cfg := p.Get()
 	require.NotNil(t, cfg)
 	require.Equal(t, "First Server", cfg.ServerName)
 	require.Equal(t, "First Server", p.EffectiveServerName())
@@ -68,8 +66,7 @@ func TestServerConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
 		ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: "semantic motd"},
 	}}, 2))
 
-	cfg, configured := p.Get()
-	require.True(t, configured)
+	cfg := p.Get()
 	require.Equal(t, "Semantic Server", cfg.ServerName)
 	require.Equal(t, "semantic motd", cfg.Motd)
 	require.Equal(t, "Semantic Server", p.EffectiveServerName())
@@ -78,8 +75,7 @@ func TestServerConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
 	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerNameChanged{
 		ServerNameChanged: &corev1.ServerNameChangedEvent{Name: ""},
 	}}, 3))
-	cfg, configured = p.Get()
-	require.True(t, configured)
+	cfg = p.Get()
 	require.Equal(t, "", cfg.ServerName)
 	require.Equal(t, "Chatto", p.EffectiveServerName())
 	require.Equal(t, "semantic motd", p.EffectiveMOTD())
@@ -89,14 +85,14 @@ func TestServerConfigProjection_GetReturnsClone(t *testing.T) {
 	p := NewServerConfigProjection()
 	require.NoError(t, p.Apply(newServerNameChangedEvent("Original"), 1))
 
-	cfg, _ := p.Get()
+	cfg := p.Get()
 	require.Equal(t, "Original", cfg.ServerName)
 
 	// Mutate the returned proto — projection's internal copy must not
 	// be affected.
 	cfg.ServerName = "Mutated"
 
-	cfg2, _ := p.Get()
+	cfg2 := p.Get()
 	require.Equal(t, "Original", cfg2.ServerName)
 }
 
@@ -113,8 +109,23 @@ func TestServerConfigProjection_UnknownEventTypesIgnored(t *testing.T) {
 	}
 	require.NoError(t, p.Apply(other, 1))
 
-	_, configured := p.Get()
-	require.False(t, configured)
+	require.Nil(t, p.Get())
+}
+
+func TestServerConfigProjection_BrandingDoesNotCreateServerConfig(t *testing.T) {
+	p := NewServerConfigProjection()
+
+	logo := &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}}}
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerLogoSet{
+		ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: logo},
+	}}, 1))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerBannerCleared{
+		ServerBannerCleared: &corev1.ServerBannerClearedEvent{},
+	}}, 2))
+
+	cfg := p.Get()
+	require.Nil(t, cfg)
+	require.Equal(t, DefaultBlockedUsernames, p.EffectiveBlockedUsernames())
 }
 
 func TestServerConfigProjection_BlockedUsernames(t *testing.T) {
@@ -134,8 +145,8 @@ func TestServerConfigProjection_BlockedUsernames(t *testing.T) {
 	require.True(t, p.IsUsernameBlocked("BAR"))
 	require.False(t, p.IsUsernameBlocked("admin"))
 
-	// Operator explicitly clears the list — empty string after a
-	// known-configured state should be respected (no fallback).
+	// Operator explicitly clears the list. Once there is a blocked-username
+	// event, an empty string is meaningful and should not fall back to defaults.
 	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
 		ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: ""},
 	}}, 2))

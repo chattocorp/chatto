@@ -172,14 +172,26 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 	p.RLock()
 	defer p.RUnlock()
 	var values int64
-	if p.server.configured {
-		values += 5
-		if p.server.logo != nil {
-			values++
-		}
-		if p.server.banner != nil {
-			values++
-		}
+	if p.server.serverName != "" {
+		values++
+	}
+	if p.server.description != "" {
+		values++
+	}
+	if p.server.welcomeMessage != "" {
+		values++
+	}
+	if p.server.motd != "" {
+		values++
+	}
+	if p.server.blockedUsernames != nil {
+		values++
+	}
+	if p.server.logo != nil {
+		values++
+	}
+	if p.server.banner != nil {
+		values++
 	}
 	for _, u := range p.users {
 		if u.timezone != nil {
@@ -194,7 +206,13 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 		values += int64(len(u.roomLevelByRoom))
 	}
 	subjects := int64(len(p.users))
-	if p.server.configured {
+	if p.server.serverName != "" ||
+		p.server.description != "" ||
+		p.server.welcomeMessage != "" ||
+		p.server.motd != "" ||
+		p.server.blockedUsernames != nil ||
+		p.server.logo != nil ||
+		p.server.banner != nil {
 		subjects++
 	}
 	bytes := values * projectionMapEntryOverhead

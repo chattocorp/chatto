@@ -71,8 +71,6 @@ type ServerStats {
 
 "Server configuration section."
 type AdminServerConfig {
-  "Whether this server has been configured (has settings in KV)."
-  isConfigured: Boolean!
   "Welcome message shown on the login page (markdown supported)."
   welcomeMessage: String
   "Server name, displayed in page titles. Defaults to 'Chatto' if not set."

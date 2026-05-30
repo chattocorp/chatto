@@ -22,15 +22,13 @@ type ConfigProjection struct {
 }
 
 type serverConfigState struct {
-	configured        bool
-	serverName        string
-	description       string
-	welcomeMessage    string
-	motd              string
-	blockedUsernames  string
-	blockedConfigured bool
-	logo              *corev1.DeprecatedAsset
-	banner            *corev1.DeprecatedAsset
+	serverName       string
+	description      string
+	welcomeMessage   string
+	motd             string
+	blockedUsernames *string
+	logo             *corev1.DeprecatedAsset
+	banner           *corev1.DeprecatedAsset
 }
 
 type userConfigState struct {
@@ -67,32 +65,23 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_ServerConfigChanged:
 		p.applyLegacyServerConfigLocked(e.ServerConfigChanged.GetConfig())
 	case *corev1.Event_ServerNameChanged:
-		p.server.configured = true
 		p.server.serverName = e.ServerNameChanged.GetName()
 	case *corev1.Event_ServerDescriptionChanged:
-		p.server.configured = true
 		p.server.description = e.ServerDescriptionChanged.GetDescription()
 	case *corev1.Event_ServerWelcomeMessageChanged:
-		p.server.configured = true
 		p.server.welcomeMessage = e.ServerWelcomeMessageChanged.GetWelcomeMessage()
 	case *corev1.Event_ServerMotdChanged:
-		p.server.configured = true
 		p.server.motd = e.ServerMotdChanged.GetMotd()
 	case *corev1.Event_ServerBlockedUsernamesChanged:
-		p.server.configured = true
-		p.server.blockedConfigured = true
-		p.server.blockedUsernames = e.ServerBlockedUsernamesChanged.GetBlockedUsernames()
+		blocked := e.ServerBlockedUsernamesChanged.GetBlockedUsernames()
+		p.server.blockedUsernames = &blocked
 	case *corev1.Event_ServerLogoSet:
-		p.server.configured = true
 		p.server.logo = cloneDeprecatedAsset(e.ServerLogoSet.GetAsset())
 	case *corev1.Event_ServerLogoCleared:
-		p.server.configured = true
 		p.server.logo = nil
 	case *corev1.Event_ServerBannerSet:
-		p.server.configured = true
 		p.server.banner = cloneDeprecatedAsset(e.ServerBannerSet.GetAsset())
 	case *corev1.Event_ServerBannerCleared:
-		p.server.configured = true
 		p.server.banner = nil
 	case *corev1.Event_UserTimezoneChanged:
 		u := p.ensureUserLocked(e.UserTimezoneChanged.GetUserId())
@@ -143,22 +132,21 @@ func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {
 }
 
 func (p *ConfigProjection) applyLegacyServerConfigLocked(cfg *configv1.ServerConfig) {
-	p.server.configured = true
 	if cfg == nil {
 		p.server.serverName = ""
 		p.server.description = ""
 		p.server.welcomeMessage = ""
 		p.server.motd = ""
-		p.server.blockedUsernames = ""
-		p.server.blockedConfigured = true
+		blocked := ""
+		p.server.blockedUsernames = &blocked
 		return
 	}
+	blocked := cfg.GetBlockedUsernames()
 	p.server.serverName = cfg.GetServerName()
 	p.server.description = cfg.GetDescription()
 	p.server.welcomeMessage = cfg.GetWelcomeMessage()
 	p.server.motd = cfg.GetMotd()
-	p.server.blockedUsernames = cfg.GetBlockedUsernames()
-	p.server.blockedConfigured = true
+	p.server.blockedUsernames = &blocked
 }
 
 func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServerPreferencesChangedEvent) {
@@ -182,28 +170,26 @@ func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServer
 	u.timeFormat = &tf
 }
 
-func (p *ConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured bool) {
+func (p *ConfigProjection) Get() *configv1.ServerConfig {
 	p.RLock()
 	defer p.RUnlock()
-	if !p.server.configured {
-		return nil, false
+	if p.server.serverName == "" &&
+		p.server.description == "" &&
+		p.server.welcomeMessage == "" &&
+		p.server.motd == "" &&
+		p.server.blockedUsernames == nil {
+		return nil
 	}
-	return &configv1.ServerConfig{
-		ServerName:       p.server.serverName,
-		Description:      p.server.description,
-		WelcomeMessage:   p.server.welcomeMessage,
-		Motd:             p.server.motd,
-		BlockedUsernames: p.server.blockedUsernames,
-	}, true
-}
-
-func (p *ConfigProjection) SubjectConfigured(subject string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	if subject == ConfigSubjectServer {
-		return p.server.configured
+	cfg := &configv1.ServerConfig{
+		ServerName:     p.server.serverName,
+		Description:    p.server.description,
+		WelcomeMessage: p.server.welcomeMessage,
+		Motd:           p.server.motd,
 	}
-	return p.users[subject] != nil
+	if p.server.blockedUsernames != nil {
+		cfg.BlockedUsernames = *p.server.blockedUsernames
+	}
+	return cfg
 }
 
 func (p *ConfigProjection) ServerLogo() (*corev1.DeprecatedAsset, bool, error) {
@@ -275,10 +261,10 @@ func (p *ConfigProjection) EffectiveDescription() string {
 func (p *ConfigProjection) EffectiveBlockedUsernames() string {
 	p.RLock()
 	defer p.RUnlock()
-	if !p.server.blockedConfigured {
+	if p.server.blockedUsernames == nil {
 		return DefaultBlockedUsernames
 	}
-	return p.server.blockedUsernames
+	return *p.server.blockedUsernames
 }
 
 func (p *ConfigProjection) BlockedUsernamesList() []string {

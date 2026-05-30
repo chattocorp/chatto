@@ -313,7 +313,7 @@ func (r *serverConfigResolver) Description(ctx context.Context, obj *model.Serve
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
-	cfg, _, err := r.core.ConfigManager().GetServerConfig(ctx)
+	cfg, err := r.core.ConfigManager().GetServerConfig(ctx)
 	if err != nil {
 		return nil, err
 	}

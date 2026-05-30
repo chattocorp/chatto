@@ -101,9 +101,9 @@ func serverDataEmptyForBootstrap(ctx context.Context, c *core.ChattoCore) (bool,
 	}
 
 	if cm := c.ConfigManager(); cm != nil {
-		if cfg, configured, err := cm.GetServerConfig(ctx); err != nil {
+		if cfg, err := cm.GetServerConfig(ctx); err != nil {
 			return false, err
-		} else if configured || cfg != nil {
+		} else if cfg != nil {
 			return false, nil
 		}
 	}
@@ -219,7 +219,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// name field is unset, so an admin-edited server name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
-		current, _, err := cm.GetServerConfig(ctx)
+		current, err := cm.GetServerConfig(ctx)
 		if err != nil {
 			logger.Warn("Failed to read server config before [bootstrap.instance] seed", "error", err)
 		} else if current == nil || current.ServerName == "" {

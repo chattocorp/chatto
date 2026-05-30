@@ -50,18 +50,15 @@ func NewConfigManager(
 // Instance Config
 // =============================================================================
 
-// GetServerConfig returns the current server configuration from the
-// projection. The second return value indicates whether a
-// server config value has ever applied — i.e. whether the projection holds
-// real config values vs. a cold "no config yet" state.
+// GetServerConfig returns the raw server configuration values currently held
+// by the projection, or nil when no server config fields have been set.
 // The error return is preserved for signature compatibility; the
 // projection is in-memory and cannot fail to read.
-func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, bool, error) {
+func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, error) {
 	if cm.projection == nil {
-		return nil, false, nil
+		return nil, nil
 	}
-	cfg, isConfigured := cm.projection.Get()
-	return cfg, isConfigured, nil
+	return cm.projection.Get(), nil
 }
 
 // SetServerConfig stores the server configuration by publishing semantic config
@@ -94,9 +91,8 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 		if err != nil {
 			return nil, err
 		}
-		current, isConfigured := cm.projection.Get()
-		baseline := cloneServerConfig(current)
-		updated, err := updateFn(cloneServerConfig(current))
+		baseline := cm.effectiveConfigForUpdate()
+		updated, err := updateFn(cloneServerConfig(baseline))
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +100,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 			return nil, fmt.Errorf("update function returned nil config")
 		}
 
-		err = cm.service.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated, !isConfigured))
+		err = cm.service.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
 		if err == nil {
 			return updated, nil
 		}
@@ -124,9 +120,17 @@ func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *confi
 	}
 
 	return cm.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current, configured := cm.projection.Get()
-		return serverConfigEvents(actorID, current, cfg, !configured), nil
+		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
+}
+
+func (cm *ConfigManager) effectiveConfigForUpdate() *configv1.ServerConfig {
+	cfg := cloneServerConfig(cm.projection.Get())
+	if cfg == nil {
+		cfg = &configv1.ServerConfig{}
+	}
+	cfg.BlockedUsernames = cm.projection.EffectiveBlockedUsernames()
+	return cfg
 }
 
 func cloneServerConfig(cfg *configv1.ServerConfig) *configv1.ServerConfig {
@@ -136,32 +140,32 @@ func cloneServerConfig(cfg *configv1.ServerConfig) *configv1.ServerConfig {
 	return proto.Clone(cfg).(*configv1.ServerConfig)
 }
 
-func serverConfigEvents(actorID string, current, next *configv1.ServerConfig, forceAll bool) []*corev1.Event {
+func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []*corev1.Event {
 	if next == nil {
 		next = &configv1.ServerConfig{}
 	}
 	var evs []*corev1.Event
-	if forceAll || current.GetServerName() != next.GetServerName() {
+	if current.GetServerName() != next.GetServerName() {
 		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerNameChanged{
 			ServerNameChanged: &corev1.ServerNameChangedEvent{Name: next.GetServerName()},
 		}}))
 	}
-	if forceAll || current.GetDescription() != next.GetDescription() {
+	if current.GetDescription() != next.GetDescription() {
 		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerDescriptionChanged{
 			ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: next.GetDescription()},
 		}}))
 	}
-	if forceAll || current.GetWelcomeMessage() != next.GetWelcomeMessage() {
+	if current.GetWelcomeMessage() != next.GetWelcomeMessage() {
 		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerWelcomeMessageChanged{
 			ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: next.GetWelcomeMessage()},
 		}}))
 	}
-	if forceAll || current.GetMotd() != next.GetMotd() {
+	if current.GetMotd() != next.GetMotd() {
 		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerMotdChanged{
 			ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: next.GetMotd()},
 		}}))
 	}
-	if forceAll || current.GetBlockedUsernames() != next.GetBlockedUsernames() {
+	if current.GetBlockedUsernames() != next.GetBlockedUsernames() {
 		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
 			ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: next.GetBlockedUsernames()},
 		}}))

@@ -29,6 +29,20 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	if _, err := core.storage.serverKV.Get(ctx, serverLogoKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("legacy logo KV key exists or failed unexpectedly: %v", err)
 	}
+	cfg, err := core.ConfigManager().GetServerConfig(ctx)
+	if err != nil {
+		t.Fatalf("GetServerConfig after logo failed: %v", err)
+	}
+	if cfg != nil {
+		t.Fatalf("logo-only update wrote server config: cfg=%+v", cfg)
+	}
+	blocked, err := core.ConfigManager().GetEffectiveBlockedUsernames(ctx)
+	if err != nil {
+		t.Fatalf("GetEffectiveBlockedUsernames after logo failed: %v", err)
+	}
+	if blocked != DefaultBlockedUsernames {
+		t.Fatalf("logo-only update changed effective blocked usernames: got %q", blocked)
+	}
 
 	msgs := eventStreamMsgCount(t, core)
 	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
