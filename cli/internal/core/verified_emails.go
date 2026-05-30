@@ -281,6 +281,40 @@ func (c *ChattoCore) ListUsersWithVerifiedEmail(ctx context.Context) ([]string, 
 	return c.Users.VerifiedUserIDs(), nil
 }
 
+// applyConfigOwners materializes owners.emails as durable owner-role
+// assignments for users who already have matching verified emails. It is
+// intentionally additive: config cannot distinguish owner roles it granted
+// from owner roles assigned manually, so removed config emails are not revoked
+// here.
+func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
+	if len(c.config.Owners.Emails) == 0 {
+		return nil
+	}
+
+	promoted := 0
+	for _, userID := range c.Users.VerifiedUserIDs() {
+		emails := c.Users.VerifiedEmails(userID)
+		for _, ve := range emails {
+			if !c.config.Owners.IsServerOwnerEmail(ve.Email) {
+				continue
+			}
+			if c.RBAC.HasRole(userID, RoleOwner) {
+				break
+			}
+			if err := c.AssignServerRole(ctx, SystemActorID, userID, RoleOwner); err != nil {
+				return fmt.Errorf("assign owner role to %s: %w", userID, err)
+			}
+			promoted++
+			c.logger.Info("Applied owners.emails owner role", "user_id", userID, "email", ve.Email)
+			break
+		}
+	}
+	if promoted > 0 {
+		c.logger.Info("Applied config owners", "owners_promoted", promoted)
+	}
+	return nil
+}
+
 // AddVerifiedEmailDirect adds an email as verified without requiring token verification.
 // Used for OAuth flows where the email is already verified by the provider.
 func (c *ChattoCore) AddVerifiedEmailDirect(ctx context.Context, userID, email string) error {

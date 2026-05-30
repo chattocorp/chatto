@@ -221,6 +221,13 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 			return fmt.Errorf("wait for projections current: %w", err)
 		}
+		// Apply config-designated owners to already-verified users on every
+		// boot. Changing owners.emails requires a process restart, so this
+		// is the natural point to materialize new config owners as RBAC
+		// assignments. The assignment path is idempotent.
+		if err := c.applyConfigOwners(gctx); err != nil {
+			return fmt.Errorf("apply config owners: %w", err)
+		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
