@@ -2,22 +2,10 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
-import "chatto/config/v1/config.proto";
 import "chatto/core/v1/models.proto";
 import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
-
-// Durable configuration event for the EVT log. Carries the
-// complete ServerConfig snapshot after the change so projections and
-// the audit log can reconstruct state without reaching back to KV.
-// Distinct from the live-only ServerConfigUpdatedEvent at field 1000,
-// which still rides the legacy live broadcast path during the
-// migration window.
-message ServerConfigChangedEvent {
-  // The complete server config after the change.
-  chatto.config.v1.ServerConfig config = 1;
-}
 
 message ServerNameChangedEvent {
   string name = 1;

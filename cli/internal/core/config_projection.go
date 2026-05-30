@@ -13,8 +13,8 @@ const ConfigSubjectServer = "server"
 
 // ConfigProjection consumes first-party configuration/preference events from
 // EVT and keeps the current server/user settings in memory. It also understands
-// legacy ServerConfigChangedEvent and UserServerPreferencesChangedEvent events
-// so older EVT streams keep projecting correctly.
+// legacy UserServerPreferencesChangedEvent events so older EVT streams keep
+// projecting correctly.
 type ConfigProjection struct {
 	events.MemoryProjection
 	server serverConfigState
@@ -64,8 +64,6 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	defer p.Unlock()
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_ServerConfigChanged:
-		p.applyLegacyServerConfigLocked(e.ServerConfigChanged.GetConfig())
 	case *corev1.Event_ServerNameChanged:
 		p.server.configured = true
 		p.server.serverName = e.ServerNameChanged.GetName()
@@ -140,19 +138,6 @@ func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {
 		p.users[userID] = u
 	}
 	return u
-}
-
-func (p *ConfigProjection) applyLegacyServerConfigLocked(cfg *configv1.ServerConfig) {
-	if cfg == nil {
-		return
-	}
-	p.server.configured = true
-	p.server.serverName = cfg.GetServerName()
-	p.server.description = cfg.GetDescription()
-	p.server.welcomeMessage = cfg.GetWelcomeMessage()
-	p.server.motd = cfg.GetMotd()
-	p.server.blockedConfigured = true
-	p.server.blockedUsernames = cfg.GetBlockedUsernames()
 }
 
 func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServerPreferencesChangedEvent) {

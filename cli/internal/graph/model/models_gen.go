@@ -349,7 +349,7 @@ type EventLogEntry struct {
 	AggregateType string `json:"aggregateType"`
 	// Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons).
 	AggregateID string `json:"aggregateId"`
-	// Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant.
+	// Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerNameChangedEvent'. Empty if the event has no recognised payload variant.
 	EventType string `json:"eventType"`
 	// Per-event unique identifier from event.id.
 	EventID string `json:"eventId"`

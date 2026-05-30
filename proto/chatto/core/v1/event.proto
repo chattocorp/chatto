@@ -57,6 +57,7 @@ message Event {
   string actor_id = 3;
 
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
+  reserved 500; // was server_config_changed, the abandoned whole-snapshot config event.
 
   // The concrete event payload.
   oneof event {
@@ -106,9 +107,8 @@ message Event {
     // ----- Config / preferences (500-599, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
     // legacy live-only broadcast on the SERVER_EVENTS path. The
-    // durable variant below lives on the EVT stream (subject
-    // evt.config.server) per ADRs 033/034/035.
-    ServerConfigChangedEvent server_config_changed = 500;
+    // durable variants below live on the EVT stream (subjects under
+    // evt.config.>) per ADRs 033/034/035.
     ServerNameChangedEvent server_name_changed = 501;
     ServerDescriptionChangedEvent server_description_changed = 502;
     ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;

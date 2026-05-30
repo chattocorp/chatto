@@ -5,17 +5,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func newConfigChangedEvent(cfg *configv1.ServerConfig) *corev1.Event {
+func newServerNameChangedEvent(name string) *corev1.Event {
 	return &corev1.Event{
 		Id: "test-event",
-		Event: &corev1.Event_ServerConfigChanged{
-			ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-				Config: cfg,
-			},
+		Event: &corev1.Event_ServerNameChanged{
+			ServerNameChanged: &corev1.ServerNameChangedEvent{Name: name},
 		},
 	}
 }
@@ -35,15 +32,16 @@ func TestServerConfigProjection_FreshState(t *testing.T) {
 	require.Equal(t, DefaultBlockedUsernames, p.EffectiveBlockedUsernames())
 }
 
-func TestServerConfigProjection_ApplyReplacesSnapshot(t *testing.T) {
+func TestServerConfigProjection_AppliesIndependentServerFields(t *testing.T) {
 	p := NewServerConfigProjection()
 
-	first := &configv1.ServerConfig{
-		ServerName:     "First Server",
-		WelcomeMessage: "Welcome!",
-		Motd:           "MOTD-1",
-	}
-	require.NoError(t, p.Apply(newConfigChangedEvent(first), 1))
+	require.NoError(t, p.Apply(newServerNameChangedEvent("First Server"), 1))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerWelcomeMessageChanged{
+		ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: "Welcome!"},
+	}}, 2))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerMotdChanged{
+		ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: "MOTD-1"},
+	}}, 3))
 
 	cfg, configured := p.Get()
 	require.True(t, configured)
@@ -53,17 +51,11 @@ func TestServerConfigProjection_ApplyReplacesSnapshot(t *testing.T) {
 	require.Equal(t, "Welcome!", p.EffectiveWelcomeMessage())
 	require.Equal(t, "MOTD-1", p.EffectiveMOTD())
 
-	// A subsequent event REPLACES (not merges) — empty fields go back
-	// to defaults via the effective accessors.
-	second := &configv1.ServerConfig{
-		ServerName: "Second Server",
-		// MOTD intentionally empty
-	}
-	require.NoError(t, p.Apply(newConfigChangedEvent(second), 2))
+	require.NoError(t, p.Apply(newServerNameChangedEvent("Second Server"), 4))
 
 	require.Equal(t, "Second Server", p.EffectiveServerName())
-	require.Equal(t, "", p.EffectiveMOTD())
-	require.Equal(t, "", p.EffectiveWelcomeMessage())
+	require.Equal(t, "MOTD-1", p.EffectiveMOTD())
+	require.Equal(t, "Welcome!", p.EffectiveWelcomeMessage())
 }
 
 func TestServerConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
@@ -95,7 +87,7 @@ func TestServerConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
 
 func TestServerConfigProjection_GetReturnsClone(t *testing.T) {
 	p := NewServerConfigProjection()
-	require.NoError(t, p.Apply(newConfigChangedEvent(&configv1.ServerConfig{ServerName: "Original"}), 1))
+	require.NoError(t, p.Apply(newServerNameChangedEvent("Original"), 1))
 
 	cfg, _ := p.Get()
 	require.Equal(t, "Original", cfg.ServerName)
@@ -133,9 +125,9 @@ func TestServerConfigProjection_BlockedUsernames(t *testing.T) {
 	require.False(t, p.IsUsernameBlocked("alice"))
 
 	// Operator sets a custom list.
-	require.NoError(t, p.Apply(newConfigChangedEvent(&configv1.ServerConfig{
-		BlockedUsernames: "foo\nBAR\nbaz",
-	}), 1))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
+		ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: "foo\nBAR\nbaz"},
+	}}, 1))
 
 	require.True(t, p.IsUsernameBlocked("foo"))
 	require.True(t, p.IsUsernameBlocked("bar"))
@@ -144,9 +136,9 @@ func TestServerConfigProjection_BlockedUsernames(t *testing.T) {
 
 	// Operator explicitly clears the list — empty string after a
 	// known-configured state should be respected (no fallback).
-	require.NoError(t, p.Apply(newConfigChangedEvent(&configv1.ServerConfig{
-		BlockedUsernames: "",
-	}), 2))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
+		ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: ""},
+	}}, 2))
 
 	require.False(t, p.IsUsernameBlocked("foo"))
 	require.False(t, p.IsUsernameBlocked("admin"))
