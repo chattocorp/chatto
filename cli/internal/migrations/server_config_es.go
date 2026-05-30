@@ -43,25 +43,35 @@ func MigrateServerConfigToES(
 	publisher *events.Publisher,
 	logger *log.Logger,
 ) error {
-	entry, err := runtimeConfigKV.Get(ctx, "config.instance")
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil
-		}
-		return fmt.Errorf("read legacy server config: %w", err)
-	}
-
-	cfg := &configv1.ServerConfig{}
-	if err := proto.Unmarshal(entry.Value(), cfg); err != nil {
-		return fmt.Errorf("unmarshal legacy server config: %w", err)
-	}
-
-	agg := events.ConfigAggregate()
-	seen, lastSeq, err := seenConfigEventTypes(ctx, publisher, events.ConfigSingletonID)
+	existingEvents, lastSeq, err := configSubjectEvents(ctx, publisher, events.ConfigSingletonID)
 	if err != nil {
 		return fmt.Errorf("read existing server config events: %w", err)
 	}
-	createdAt := timestamppb.New(entry.Created())
+	seen := make(map[string]struct{})
+	for _, event := range existingEvents {
+		if typ := events.EventTypeOf(event); typ != "" {
+			seen[typ] = struct{}{}
+		}
+	}
+
+	cfg, createdAt := latestLegacyServerConfigSnapshot(existingEvents)
+	if cfg == nil {
+		entry, err := runtimeConfigKV.Get(ctx, "config.instance")
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				return nil
+			}
+			return fmt.Errorf("read legacy server config: %w", err)
+		}
+
+		cfg = &configv1.ServerConfig{}
+		if err := proto.Unmarshal(entry.Value(), cfg); err != nil {
+			return fmt.Errorf("unmarshal legacy server config: %w", err)
+		}
+		createdAt = timestamppb.New(entry.Created())
+	}
+
+	agg := events.ConfigAggregate()
 	legacyEvents := []*corev1.Event{
 		{
 			Id:        newMigrationEventID(),
@@ -135,4 +145,24 @@ func MigrateServerConfigToES(
 		return nil
 	}
 	return fmt.Errorf("seed semantic server config events: %w", err)
+}
+
+func latestLegacyServerConfigSnapshot(existingEvents []*corev1.Event) (*configv1.ServerConfig, *timestamppb.Timestamp) {
+	for i := len(existingEvents) - 1; i >= 0; i-- {
+		event := existingEvents[i]
+		change := event.GetServerConfigChanged()
+		if change == nil {
+			continue
+		}
+		createdAt := event.GetCreatedAt()
+		if createdAt == nil {
+			createdAt = timestamppb.Now()
+		}
+		cfg := change.GetConfig()
+		if cfg == nil {
+			cfg = &configv1.ServerConfig{}
+		}
+		return proto.Clone(cfg).(*configv1.ServerConfig), createdAt
+	}
+	return nil, nil
 }

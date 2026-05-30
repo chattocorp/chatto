@@ -85,3 +85,41 @@ func TestMigrateServerConfigToES_SeedsAndReplays(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 5, infoReplay.State.Msgs)
 }
+
+func TestMigrateServerConfigToES_PrefersLegacyEVTSnapshotOverStaleKV(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+
+	putProtoKV(t, ctx, kv, "config.instance", &configv1.ServerConfig{
+		ServerName: "Stale KV",
+		Motd:       "old motd",
+	})
+
+	agg := events.ConfigAggregate()
+	_, err := publisher.AppendAt(ctx, agg.Subject(events.EventServerConfigChanged), &corev1.Event{
+		Id:      newMigrationEventID(),
+		ActorId: "system:test",
+		Event: &corev1.Event_ServerConfigChanged{
+			ServerConfigChanged: &corev1.ServerConfigChangedEvent{
+				Config: &configv1.ServerConfig{
+					ServerName:     "Latest EVT",
+					Motd:           "new motd",
+					WelcomeMessage: "new welcome",
+				},
+			},
+		},
+	}, 0)
+	require.NoError(t, err)
+
+	require.NoError(t, MigrateServerConfigToES(ctx, kv, publisher, testLogger()))
+
+	msg, err := stream.GetLastMsgForSubject(ctx, agg.Subject(events.EventServerNameChanged))
+	require.NoError(t, err)
+	var got corev1.Event
+	require.NoError(t, proto.Unmarshal(msg.Data, &got))
+	require.Equal(t, "Latest EVT", got.GetServerNameChanged().GetName())
+
+	msg, err = stream.GetLastMsgForSubject(ctx, agg.Subject(events.EventServerMotdChanged))
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(msg.Data, &got))
+	require.Equal(t, "new motd", got.GetServerMotdChanged().GetMotd())
+}

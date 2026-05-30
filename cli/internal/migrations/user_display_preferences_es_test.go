@@ -63,6 +63,44 @@ func TestMigrateUserDisplayPreferencesToES_SeedsAndReplays(t *testing.T) {
 	require.EqualValues(t, msgsAfterFirstRun, infoReplay.State.Msgs)
 }
 
+func TestMigrateUserDisplayPreferencesToES_SkipsStaleKVWhenUserPreferenceEventExists(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+
+	staleTZ := "Europe/Berlin"
+	putProtoKV(t, ctx, kv, "user_preferences.U1", &corev1.ServerUserPreferences{
+		Timezone:   proto.String(staleTZ),
+		TimeFormat: corev1.TimeFormat_TIME_FORMAT_24H,
+	})
+
+	latestTZ := "America/New_York"
+	userAgg := events.UserAggregate("U1")
+	_, err := publisher.AppendAt(ctx, userAgg.Subject(events.EventUserServerPreferencesChanged), &corev1.Event{
+		Id:      newMigrationEventID(),
+		ActorId: "U1",
+		Event: &corev1.Event_UserServerPreferencesChanged{
+			UserServerPreferencesChanged: &corev1.UserServerPreferencesChangedEvent{
+				UserId: "U1",
+				Preferences: &corev1.ServerUserPreferences{
+					Timezone:   proto.String(latestTZ),
+					TimeFormat: corev1.TimeFormat_TIME_FORMAT_12H,
+				},
+			},
+		},
+	}, 0)
+	require.NoError(t, err)
+
+	require.NoError(t, MigrateUserDisplayPreferencesToES(ctx, kv, publisher, testLogger()))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, info.State.Msgs)
+
+	_, _, err = configSubjectEvents(ctx, publisher, "U1")
+	require.NoError(t, err)
+	_, err = stream.GetLastMsgForSubject(ctx, events.ConfigSubjectAggregate("U1").Subject(events.EventUserTimezoneChanged))
+	require.Error(t, err)
+}
+
 func TestMigrateUserDisplayPreferencesToES_NoLegacyState(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
 

@@ -67,6 +67,12 @@ func migrateOneUserDisplayPreferences(
 	prefs *corev1.ServerUserPreferences,
 	createdAt time.Time,
 ) (int, error) {
+	if ok, err := legacyUserPreferenceEventExists(ctx, publisher, userID); err != nil {
+		return 0, err
+	} else if ok {
+		return 0, nil
+	}
+
 	seen, lastSeq, err := seenConfigEventTypes(ctx, publisher, userID)
 	if err != nil {
 		return 0, fmt.Errorf("read existing config events for %s: %w", userID, err)
@@ -109,4 +115,17 @@ func migrateOneUserDisplayPreferences(
 		return 0, fmt.Errorf("publish user display preferences for %s: %w", userID, err)
 	}
 	return len(batch), nil
+}
+
+func legacyUserPreferenceEventExists(ctx context.Context, publisher *events.Publisher, userID string) (bool, error) {
+	existing, _, err := publisher.SubjectEvents(ctx, events.UserAggregate(userID).AllEventsFilter())
+	if err != nil {
+		return false, fmt.Errorf("read existing user preference events for %s: %w", userID, err)
+	}
+	for _, event := range existing {
+		if event.GetUserServerPreferencesChanged() != nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }
