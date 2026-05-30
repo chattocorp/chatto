@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-05-26
+**Last reviewed:** 2026-05-30
 
 ## Overview
 
@@ -15,7 +15,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Permission grants/denies can be configured at three scopes: per-server (the role default), per room-group, and per room. The most specific scope wins.
 - Server admins can drag-and-drop to reorder custom roles. System roles are fixed in rank.
 - Owners pass every permission check because the `owner` role is seeded with every server-scope permission — not because the resolver special-cases them. Owners are not above the rules; they hold the rules.
-- Operators can designate owners via `owners.emails` in `chatto.toml`. On email verification, matching users are auto-assigned the `owner` role.
+- Operators can designate owners via `owners.emails` in `chatto.toml`. Matching users are auto-assigned the `owner` role when their email is verified, and already-verified matching users are assigned the role on server boot.
 
 ## Design Decisions
 
@@ -45,8 +45,8 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 5. Config-designated owners materialize as real role assignments
 
-**Decision:** `owners.emails` in `chatto.toml` triggers an `owner` role assignment on email verification, rather than being checked at permission time.
-**Why:** Avoids a config-vs-role drift class of bug. Once assigned, the role is the source of truth. Fresh deployments work without restart because verification triggers the assignment.
+**Decision:** `owners.emails` in `chatto.toml` materializes durable `owner` role assignments, rather than being checked at permission time. Verification applies the role immediately for newly verified users; server boot applies it to already-verified matching users after config changes.
+**Why:** Avoids a config-vs-role drift class of bug. Once assigned, the role is the source of truth. Fresh deployments work without restart because verification triggers the assignment, and retroactive config changes need only a process restart.
 **Tradeoff:** Removing an email from `owners.emails` doesn't automatically demote that user — operators must revoke the role explicitly. This is intentional: removing the config shouldn't silently change live authorization.
 
 ### 6. Rank gates target-user mutations, in addition to permissions
