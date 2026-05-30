@@ -171,23 +171,35 @@ func (p *RoomMembershipProjection) adminProjectionEstimate() (int64, int64, []Pr
 func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.RLock()
 	defer p.RUnlock()
-	if len(p.values) == 0 {
-		return 0, 0, []ProjectionAdminMetric{{Name: "configured", Value: 0}}
-	}
-	var bytes int64
 	var values int64
-	for subject, byPath := range p.values {
-		bytes += projectionMapEntryOverhead + int64(len(subject))
-		for path, value := range byPath {
+	if p.server.configured {
+		values += 5
+		if p.server.logo != nil {
 			values++
-			bytes += projectionMapEntryOverhead + int64(len(path))
-			if value != nil {
-				bytes += int64(proto.Size(value))
-			}
+		}
+		if p.server.banner != nil {
+			values++
 		}
 	}
+	for _, u := range p.users {
+		if u.timezone != nil {
+			values++
+		}
+		if u.timeFormat != nil {
+			values++
+		}
+		if u.serverLevel != nil {
+			values++
+		}
+		values += int64(len(u.roomLevelByRoom))
+	}
+	subjects := int64(len(p.users))
+	if p.server.configured {
+		subjects++
+	}
+	bytes := values * projectionMapEntryOverhead
 	return values, bytes, []ProjectionAdminMetric{
-		{Name: "subjects", Value: int64(len(p.values)), Bytes: 0},
+		{Name: "subjects", Value: subjects, Bytes: 0},
 		{Name: "values", Value: values, Bytes: bytes},
 	}
 }

@@ -13,17 +13,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const legacyUserDisplayPreferencesPrefix = "user_preferences."
 
 // MigrateUserDisplayPreferencesToES imports legacy per-user display settings
-// from INSTANCE KV into each user's generic config subject:
-//
-//   - user_preferences.{userId}.timezone → preferences.timezone
-//   - user_preferences.{userId}.time_format → preferences.time_format
+// from INSTANCE KV into each user's semantic config subject.
 func MigrateUserDisplayPreferencesToES(
 	ctx context.Context,
 	serverKV jetstream.KeyValue,
@@ -59,7 +55,7 @@ func MigrateUserDisplayPreferencesToES(
 		imported += count
 	}
 	if imported > 0 {
-		logger.Info("user_display_preferences ES migration: seeded generic config events from legacy KV", "values", imported, "duration_ms", time.Since(startedAt).Milliseconds())
+		logger.Info("user_display_preferences ES migration: seeded semantic config events from legacy KV", "values", imported, "duration_ms", time.Since(startedAt).Milliseconds())
 	}
 	return nil
 }
@@ -71,43 +67,34 @@ func migrateOneUserDisplayPreferences(
 	prefs *corev1.ServerUserPreferences,
 	createdAt time.Time,
 ) (int, error) {
-	seen, lastSeq, err := seenConfigPaths(ctx, publisher, userID)
+	seen, lastSeq, err := seenConfigEventTypes(ctx, publisher, userID)
 	if err != nil {
-		return 0, fmt.Errorf("read existing config paths for %s: %w", userID, err)
+		return 0, fmt.Errorf("read existing config events for %s: %w", userID, err)
 	}
 	agg := events.ConfigSubjectAggregate(userID)
 	batch := make([]events.BatchEntry, 0, 2)
-	add := func(path string, value *configv1.ConfigValue) {
-		if _, ok := seen[path]; ok {
+	add := func(eventType string, event *corev1.Event) {
+		if _, ok := seen[eventType]; ok {
 			return
 		}
-		event := &corev1.Event{
-			Id:        newMigrationEventID(),
-			ActorId:   "system:migration",
-			CreatedAt: timestamppb.New(createdAt),
-			Event: &corev1.Event_ConfigValueSet{
-				ConfigValueSet: &corev1.ConfigValueSetEvent{
-					Subject: userID,
-					Path:    path,
-					Value:   value,
-				},
-			},
-		}
+		event.Id = newMigrationEventID()
+		event.ActorId = "system:migration"
+		event.CreatedAt = timestamppb.New(createdAt)
 		batch = append(batch, events.BatchEntry{
-			Subject: agg.Subject(events.EventConfigValueSet),
+			Subject: agg.SubjectFor(event),
 			Event:   event,
 		})
 	}
 
 	if prefs.GetTimezone() != "" {
-		add("preferences.timezone", &configv1.ConfigValue{
-			Value: &configv1.ConfigValue_StringValue{StringValue: prefs.GetTimezone()},
-		})
+		add(events.EventUserTimezoneChanged, &corev1.Event{Event: &corev1.Event_UserTimezoneChanged{
+			UserTimezoneChanged: &corev1.UserTimezoneChangedEvent{UserId: userID, Timezone: prefs.GetTimezone()},
+		}})
 	}
 	if prefs.GetTimeFormat() != corev1.TimeFormat_TIME_FORMAT_UNSPECIFIED {
-		add("preferences.time_format", &configv1.ConfigValue{
-			Value: &configv1.ConfigValue_IntValue{IntValue: int64(prefs.GetTimeFormat())},
-		})
+		add(events.EventUserTimeFormatChanged, &corev1.Event{Event: &corev1.Event_UserTimeFormatChanged{
+			UserTimeFormatChanged: &corev1.UserTimeFormatChangedEvent{UserId: userID, TimeFormat: prefs.GetTimeFormat()},
+		}})
 	}
 	if len(batch) == 0 {
 		return 0, nil

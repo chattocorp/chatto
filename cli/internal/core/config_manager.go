@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ErrConfigConflict is returned when a config update fails due to
@@ -32,7 +35,7 @@ type ConfigManager struct {
 }
 
 // NewConfigManager creates a server-config compatibility facade over the
-// generic ConfigService / ConfigProjection.
+// semantic ConfigService / ConfigProjection.
 func NewConfigManager(
 	service *ConfigService,
 	projection *ConfigProjection,
@@ -61,8 +64,8 @@ func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerCon
 	return cfg, isConfigured, nil
 }
 
-// SetServerConfig stores the server configuration by publishing generic config
-// value events and waiting for the projection to apply.
+// SetServerConfig stores the server configuration by publishing semantic config
+// events and waiting for the projection to apply.
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
@@ -91,8 +94,9 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 		if err != nil {
 			return nil, err
 		}
-		current, _ := cm.projection.Get()
-		updated, err := updateFn(current)
+		current, isConfigured := cm.projection.Get()
+		baseline := cloneServerConfig(current)
+		updated, err := updateFn(cloneServerConfig(current))
 		if err != nil {
 			return nil, err
 		}
@@ -100,10 +104,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 			return nil, fmt.Errorf("update function returned nil config")
 		}
 
-		if err := validateConfigWrites(serverConfigWrites(updated)); err != nil {
-			return nil, err
-		}
-		err = cm.service.appendValuesAt(ctx, actorID, agg, filter, expectedSeq, serverConfigWrites(updated))
+		err = cm.service.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated, !isConfigured))
 		if err == nil {
 			return updated, nil
 		}
@@ -114,7 +115,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 	return nil, ErrConfigConflict
 }
 
-// publish writes the server config by emitting generic config events on the
+// publish writes the server config by emitting semantic config events on the
 // config aggregate and waiting for the projection to apply, giving the caller
 // read-your-writes.
 func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
@@ -122,20 +123,50 @@ func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *confi
 		return fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
-	return cm.service.setValues(ctx, actorID, ConfigSubjectServer, serverConfigWrites(cfg))
+	return cm.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		current, configured := cm.projection.Get()
+		return serverConfigEvents(actorID, current, cfg, !configured), nil
+	})
 }
 
-func serverConfigWrites(cfg *configv1.ServerConfig) []configWrite {
+func cloneServerConfig(cfg *configv1.ServerConfig) *configv1.ServerConfig {
 	if cfg == nil {
-		cfg = &configv1.ServerConfig{}
+		return nil
 	}
-	return []configWrite{
-		{path: ConfigPathServerName.Name, value: configStringValue(cfg.GetServerName())},
-		{path: ConfigPathServerDescription.Name, value: configStringValue(cfg.GetDescription())},
-		{path: ConfigPathServerWelcomeMessage.Name, value: configStringValue(cfg.GetWelcomeMessage())},
-		{path: ConfigPathServerMOTD.Name, value: configStringValue(cfg.GetMotd())},
-		{path: ConfigPathBlockedUsernames.Name, value: configStringValue(cfg.GetBlockedUsernames())},
+	return proto.Clone(cfg).(*configv1.ServerConfig)
+}
+
+func serverConfigEvents(actorID string, current, next *configv1.ServerConfig, forceAll bool) []*corev1.Event {
+	if next == nil {
+		next = &configv1.ServerConfig{}
 	}
+	var evs []*corev1.Event
+	if forceAll || current.GetServerName() != next.GetServerName() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerNameChanged{
+			ServerNameChanged: &corev1.ServerNameChangedEvent{Name: next.GetServerName()},
+		}}))
+	}
+	if forceAll || current.GetDescription() != next.GetDescription() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerDescriptionChanged{
+			ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: next.GetDescription()},
+		}}))
+	}
+	if forceAll || current.GetWelcomeMessage() != next.GetWelcomeMessage() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerWelcomeMessageChanged{
+			ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: next.GetWelcomeMessage()},
+		}}))
+	}
+	if forceAll || current.GetMotd() != next.GetMotd() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerMotdChanged{
+			ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: next.GetMotd()},
+		}}))
+	}
+	if forceAll || current.GetBlockedUsernames() != next.GetBlockedUsernames() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
+			ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: next.GetBlockedUsernames()},
+		}}))
+	}
+	return evs
 }
 
 // =============================================================================

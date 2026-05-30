@@ -12,7 +12,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -22,27 +21,23 @@ const (
 )
 
 // MigrateServerBrandingToES imports legacy server logo/banner asset pointers
-// from INSTANCE KV into the generic config aggregate:
-//
-//   - instance.logo → server.logo
-//   - instance.banner → server.banner
-//
-// The pointed-to asset bytes remain in object storage; only the pointer moves.
+// from INSTANCE KV into semantic config events. The pointed-to asset bytes
+// remain in object storage; only the pointer moves.
 func MigrateServerBrandingToES(
 	ctx context.Context,
 	serverKV jetstream.KeyValue,
 	publisher *events.Publisher,
 	logger *log.Logger,
 ) error {
-	seen, lastSeq, err := seenConfigPaths(ctx, publisher, events.ConfigSingletonID)
+	seen, lastSeq, err := seenConfigEventTypes(ctx, publisher, events.ConfigSingletonID)
 	if err != nil {
-		return fmt.Errorf("read existing server config paths: %w", err)
+		return fmt.Errorf("read existing server config events: %w", err)
 	}
 
 	agg := events.ConfigAggregate()
 	batch := make([]events.BatchEntry, 0, 2)
-	add := func(kvKey, path string) error {
-		if _, ok := seen[path]; ok {
+	add := func(kvKey, eventType string, build func(*corev1.DeprecatedAsset) *corev1.Event) error {
+		if _, ok := seen[eventType]; ok {
 			return nil
 		}
 		entry, err := serverKV.Get(ctx, kvKey)
@@ -56,31 +51,29 @@ func MigrateServerBrandingToES(
 		if err := proto.Unmarshal(entry.Value(), asset); err != nil {
 			return fmt.Errorf("unmarshal legacy server branding %q: %w", kvKey, err)
 		}
-		event := &corev1.Event{
-			Id:        newMigrationEventID(),
-			ActorId:   "system:migration",
-			CreatedAt: timestamppb.New(entry.Created()),
-			Event: &corev1.Event_ConfigValueSet{
-				ConfigValueSet: &corev1.ConfigValueSetEvent{
-					Subject: events.ConfigSingletonID,
-					Path:    path,
-					Value: &configv1.ConfigValue{
-						Value: &configv1.ConfigValue_BytesValue{BytesValue: append([]byte(nil), entry.Value()...)},
-					},
-				},
-			},
-		}
+		event := build(asset)
+		event.Id = newMigrationEventID()
+		event.ActorId = "system:migration"
+		event.CreatedAt = timestamppb.New(entry.Created())
 		batch = append(batch, events.BatchEntry{
-			Subject: agg.Subject(events.EventConfigValueSet),
+			Subject: agg.SubjectFor(event),
 			Event:   event,
 		})
 		return nil
 	}
 
-	if err := add(legacyServerLogoKey, "server.logo"); err != nil {
+	if err := add(legacyServerLogoKey, events.EventServerLogoSet, func(asset *corev1.DeprecatedAsset) *corev1.Event {
+		return &corev1.Event{Event: &corev1.Event_ServerLogoSet{
+			ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: asset},
+		}}
+	}); err != nil {
 		return err
 	}
-	if err := add(legacyServerBannerKey, "server.banner"); err != nil {
+	if err := add(legacyServerBannerKey, events.EventServerBannerSet, func(asset *corev1.DeprecatedAsset) *corev1.Event {
+		return &corev1.Event{Event: &corev1.Event_ServerBannerSet{
+			ServerBannerSet: &corev1.ServerBannerSetEvent{Asset: asset},
+		}}
+	}); err != nil {
 		return err
 	}
 	if len(batch) == 0 {
@@ -98,6 +91,6 @@ func MigrateServerBrandingToES(
 		}
 		return err
 	}
-	logger.Info("server_branding ES migration: seeded generic config events from legacy KV", "values", len(batch), "duration_ms", time.Since(startedAt).Milliseconds())
+	logger.Info("server_branding ES migration: seeded semantic config events from legacy KV", "values", len(batch), "duration_ms", time.Since(startedAt).Milliseconds())
 	return nil
 }

@@ -3,10 +3,8 @@ package core
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -104,86 +102,87 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 // SetServerLogo atomically points the instance at a new logo asset using
 // optimistic locking, and cleans up the prior asset on success.
 func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *corev1.DeprecatedAsset) error {
-	return c.setServerBrandingAsset(ctx, actorID, ConfigPathServerLogo, "logo", asset)
+	return c.setServerBrandingAsset(ctx, actorID, "logo", asset)
 }
 
 // SetServerBanner atomically points the instance at a new banner asset
 // using optimistic locking, and cleans up the prior asset on success.
 func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *corev1.DeprecatedAsset) error {
-	return c.setServerBrandingAsset(ctx, actorID, ConfigPathServerBanner, "banner", asset)
+	return c.setServerBrandingAsset(ctx, actorID, "banner", asset)
 }
 
 // setServerBrandingAsset is the shared OCC swap implementation backing
 // SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
-func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID string, path ConfigPath[*corev1.DeprecatedAsset], kind string, asset *corev1.DeprecatedAsset) error {
+func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *corev1.DeprecatedAsset) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config service not configured")
 	}
-	encoded, err := path.encode(ConfigSubjectServer, asset)
-	if err != nil {
-		return fmt.Errorf("failed to encode %s asset: %w", kind, err)
+	if asset == nil {
+		return c.deleteServerBrandingAsset(ctx, actorID, kind)
 	}
 
-	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		agg, filter, expectedSeq, err := c.configManager.service.prepareSubject(ctx, ConfigSubjectServer)
-		if err != nil {
-			return err
-		}
-		oldAsset, _, err := getProjectedConfig(c.ServerConfig, ConfigSubjectServer, path)
-		if err != nil {
-			return fmt.Errorf("failed to read current %s: %w", kind, err)
-		}
+	var oldAsset *corev1.DeprecatedAsset
+	changed := false
+	err := c.configManager.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		oldAsset = c.projectedServerBrandingAsset(kind)
 		if deprecatedAssetsEqual(oldAsset, asset) {
-			return nil
+			changed = false
+			return nil, nil
 		}
-		err = c.configManager.service.appendValuesAt(ctx, actorID, agg, filter, expectedSeq, []configWrite{{
-			path:  path.Name,
-			value: encoded,
-		}})
-		if err == nil {
-			if oldAsset != nil {
-				c.deleteAsset(ctx, oldAsset, kind, "server")
-			}
-			c.PublishServerBrandingUpdate(ctx, actorID)
-			c.logger.Info("Updated server "+kind, "asset_id", assetIDFromAsset(asset))
-			return nil
+		changed = true
+		if kind == "logo" {
+			return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerLogoSet{
+				ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: cloneDeprecatedAsset(asset)},
+			}})}, nil
 		}
-		if !errors.Is(err, events.ErrConflict) {
-			return fmt.Errorf("failed to store %s: %w", kind, err)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
+		return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBannerSet{
+			ServerBannerSet: &corev1.ServerBannerSetEvent{Asset: cloneDeprecatedAsset(asset)},
+		}})}, nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store %s: %w", kind, err)
 	}
-
-	return fmt.Errorf("failed to update %s after %d retries due to concurrent modifications", kind, maxConfigUpdateRetries)
+	if !changed {
+		return nil
+	}
+	if oldAsset != nil {
+		c.deleteAsset(ctx, oldAsset, kind, "server")
+	}
+	c.PublishServerBrandingUpdate(ctx, actorID)
+	c.logger.Info("Updated server "+kind, "asset_id", assetIDFromAsset(asset))
+	return nil
 }
 
 // GetServerLogo returns the asset reference for the server's current
 // logo, or (nil, nil) if no logo is set.
 func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.DeprecatedAsset, error) {
-	return c.getServerBrandingAsset(ctx, ConfigPathServerLogo, "logo")
+	return c.getServerBrandingAsset(ctx, "logo")
 }
 
 // GetServerBanner returns the asset reference for the server's current
 // banner, or (nil, nil) if no banner is set.
 func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.DeprecatedAsset, error) {
-	return c.getServerBrandingAsset(ctx, ConfigPathServerBanner, "banner")
+	return c.getServerBrandingAsset(ctx, "banner")
 }
 
-func (c *ChattoCore) getServerBrandingAsset(_ context.Context, path ConfigPath[*corev1.DeprecatedAsset], kind string) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) getServerBrandingAsset(_ context.Context, kind string) (*corev1.DeprecatedAsset, error) {
 	if c.ServerConfig == nil {
 		return nil, nil
 	}
-	asset, _, err := getProjectedConfig(c.ServerConfig, ConfigSubjectServer, path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s: %w", kind, err)
+	return c.projectedServerBrandingAsset(kind), nil
+}
+
+func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.DeprecatedAsset {
+	if c.ServerConfig == nil {
+		return nil
 	}
-	return asset, nil
+	if kind == "logo" {
+		asset, _, _ := c.ServerConfig.ServerLogo()
+		return asset
+	}
+	asset, _, _ := c.ServerConfig.ServerBanner()
+	return asset
 }
 
 // GetServerLogoURL returns the URL for the server's logo, optionally
@@ -224,52 +223,48 @@ func (c *ChattoCore) serverAssetURL(asset *corev1.DeprecatedAsset, width, height
 // DeleteServerLogo clears the server's logo pointer and object-store asset.
 // No-op when no logo is set.
 func (c *ChattoCore) DeleteServerLogo(ctx context.Context, actorID string) error {
-	return c.deleteServerBrandingAsset(ctx, actorID, ConfigPathServerLogo, "logo")
+	return c.deleteServerBrandingAsset(ctx, actorID, "logo")
 }
 
 // DeleteServerBanner clears the server's banner. No-op when no banner
 // is set.
 func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) error {
-	return c.deleteServerBrandingAsset(ctx, actorID, ConfigPathServerBanner, "banner")
+	return c.deleteServerBrandingAsset(ctx, actorID, "banner")
 }
 
-func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID string, path ConfigPath[*corev1.DeprecatedAsset], kind string) error {
+func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kind string) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config service not configured")
 	}
 
-	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		agg, filter, expectedSeq, err := c.configManager.service.prepareSubject(ctx, ConfigSubjectServer)
-		if err != nil {
-			return err
-		}
-		asset, _, err := getProjectedConfig(c.ServerConfig, ConfigSubjectServer, path)
-		if err != nil {
-			return fmt.Errorf("failed to read current %s: %w", kind, err)
-		}
+	var asset *corev1.DeprecatedAsset
+	changed := false
+	err := c.configManager.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		asset = c.projectedServerBrandingAsset(kind)
 		if asset == nil {
-			return nil
+			changed = false
+			return nil, nil
 		}
-
-		err = c.configManager.service.appendClearsAt(ctx, actorID, agg, filter, expectedSeq, []string{path.Name})
-		if err == nil {
-			c.deleteAsset(ctx, asset, kind, "server")
-			c.PublishServerBrandingUpdate(ctx, actorID)
-			c.logger.Info("Deleted server " + kind)
-			return nil
+		changed = true
+		if kind == "logo" {
+			return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerLogoCleared{
+				ServerLogoCleared: &corev1.ServerLogoClearedEvent{},
+			}})}, nil
 		}
-		if !errors.Is(err, events.ErrConflict) {
-			return fmt.Errorf("failed to delete %s: %w", kind, err)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
+		return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBannerCleared{
+			ServerBannerCleared: &corev1.ServerBannerClearedEvent{},
+		}})}, nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete %s: %w", kind, err)
 	}
-
-	return fmt.Errorf("failed to delete %s after %d retries due to concurrent modifications", kind, maxConfigUpdateRetries)
+	if !changed {
+		return nil
+	}
+	c.deleteAsset(ctx, asset, kind, "server")
+	c.PublishServerBrandingUpdate(ctx, actorID)
+	c.logger.Info("Deleted server " + kind)
+	return nil
 }
 
 // PublishServerBrandingUpdate publishes a ServerUpdatedEvent carrying the

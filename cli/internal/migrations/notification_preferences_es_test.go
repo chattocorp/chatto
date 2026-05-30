@@ -35,26 +35,32 @@ func TestMigrateNotificationPreferencesToES_SeedsPerUserConfig(t *testing.T) {
 
 	require.NoError(t, MigrateNotificationPreferencesToES(ctx, kv, publisher, testLogger()))
 
-	subject := events.ConfigSubjectAggregate("U1").Subject(events.EventConfigValueSet)
-	require.Equal(t, "evt.config.U1.value_set", subject)
+	subject := events.ConfigSubjectAggregate("U1").Subject(events.EventUserServerNotificationLevelSet)
+	require.Equal(t, "evt.config.U1.user_server_notification_level_set", subject)
 	last, err := stream.GetLastMsgForSubject(ctx, subject)
 	require.NoError(t, err)
 	require.NotZero(t, last.Sequence)
 
-	gotValues := map[string]int64{}
+	gotValues := map[string]corev1.NotificationLevel{}
 	for seq := uint64(1); seq <= 2; seq++ {
 		msg, err := stream.GetMsg(ctx, seq)
 		require.NoError(t, err)
 		var got corev1.Event
 		require.NoError(t, proto.Unmarshal(msg.Data, &got))
-		change, ok := got.GetEvent().(*corev1.Event_ConfigValueSet)
-		require.True(t, ok, "expected ConfigValueSet variant")
-		require.Equal(t, "U1", change.ConfigValueSet.GetSubject())
 		require.Equal(t, "system:migration", got.GetActorId())
-		gotValues[change.ConfigValueSet.GetPath()] = change.ConfigValueSet.GetValue().GetIntValue()
+		switch change := got.GetEvent().(type) {
+		case *corev1.Event_UserServerNotificationLevelSet:
+			require.Equal(t, "U1", change.UserServerNotificationLevelSet.GetUserId())
+			gotValues["notifications.server.level"] = change.UserServerNotificationLevelSet.GetLevel()
+		case *corev1.Event_UserRoomNotificationLevelSet:
+			require.Equal(t, "U1", change.UserRoomNotificationLevelSet.GetUserId())
+			gotValues["notifications.rooms."+change.UserRoomNotificationLevelSet.GetRoomId()+".level"] = change.UserRoomNotificationLevelSet.GetLevel()
+		default:
+			t.Fatalf("unexpected event variant %T", change)
+		}
 	}
-	require.EqualValues(t, int64(corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED), gotValues["notifications.server.level"])
-	require.EqualValues(t, int64(corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES), gotValues["notifications.rooms.R1.level"])
+	require.Equal(t, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, gotValues["notifications.server.level"])
+	require.Equal(t, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, gotValues["notifications.rooms.R1.level"])
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)

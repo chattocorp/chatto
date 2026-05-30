@@ -20,18 +20,17 @@ import (
 // server-config aggregate).
 //
 // On a deployment that has at least one operator-saved config, this emits
-// generic ConfigValueSetEvent entries on evt.config.server.value_set. The KV
-// entry's Created() timestamp is preserved as each event's created_at so the
-// audit log dates the seed events correctly.
+// semantic server config events. The KV entry's Created() timestamp is
+// preserved as each event's created_at so the audit log dates the seed events
+// correctly.
 //
 // On a fresh deployment with no INSTANCE_CONFIG entry, this is a
 // no-op (returns nil without emitting anything).
 //
 // # Idempotency
 //
-// Replay-safe via wildcard OCC: the batch expects evt.config.server.> to be
-// empty. If the aggregate already has events, events.ErrConflict is treated as
-// a deliberate skip.
+// Replay-safe by event type: already-seen semantic fields are skipped, while
+// missing fields are appended with wildcard OCC against evt.config.server.>.
 //
 // # When this can be removed
 //
@@ -58,48 +57,76 @@ func MigrateServerConfigToES(
 	}
 
 	agg := events.ConfigAggregate()
-	createdAt := timestamppb.New(entry.Created())
-	writes := []struct {
-		path  string
-		value string
-	}{
-		{path: "server.name", value: cfg.GetServerName()},
-		{path: "server.description", value: cfg.GetDescription()},
-		{path: "server.welcome_message", value: cfg.GetWelcomeMessage()},
-		{path: "server.motd", value: cfg.GetMotd()},
-		{path: "auth.blocked_usernames", value: cfg.GetBlockedUsernames()},
+	seen, lastSeq, err := seenConfigEventTypes(ctx, publisher, events.ConfigSingletonID)
+	if err != nil {
+		return fmt.Errorf("read existing server config events: %w", err)
 	}
-	batch := make([]events.BatchEntry, 0, len(writes))
-	for i, write := range writes {
-		event := &corev1.Event{
+	createdAt := timestamppb.New(entry.Created())
+	legacyEvents := []*corev1.Event{
+		{
 			Id:        newMigrationEventID(),
 			ActorId:   "system:migration",
 			CreatedAt: createdAt,
-			Event: &corev1.Event_ConfigValueSet{
-				ConfigValueSet: &corev1.ConfigValueSetEvent{
-					Subject: events.ConfigSingletonID,
-					Path:    write.path,
-					Value: &configv1.ConfigValue{
-						Value: &configv1.ConfigValue_StringValue{StringValue: write.value},
-					},
-				},
+			Event: &corev1.Event_ServerNameChanged{
+				ServerNameChanged: &corev1.ServerNameChangedEvent{Name: cfg.GetServerName()},
 			},
+		},
+		{
+			Id:        newMigrationEventID(),
+			ActorId:   "system:migration",
+			CreatedAt: createdAt,
+			Event: &corev1.Event_ServerDescriptionChanged{
+				ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: cfg.GetDescription()},
+			},
+		},
+		{
+			Id:        newMigrationEventID(),
+			ActorId:   "system:migration",
+			CreatedAt: createdAt,
+			Event: &corev1.Event_ServerWelcomeMessageChanged{
+				ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: cfg.GetWelcomeMessage()},
+			},
+		},
+		{
+			Id:        newMigrationEventID(),
+			ActorId:   "system:migration",
+			CreatedAt: createdAt,
+			Event: &corev1.Event_ServerMotdChanged{
+				ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: cfg.GetMotd()},
+			},
+		},
+		{
+			Id:        newMigrationEventID(),
+			ActorId:   "system:migration",
+			CreatedAt: createdAt,
+			Event: &corev1.Event_ServerBlockedUsernamesChanged{
+				ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: cfg.GetBlockedUsernames()},
+			},
+		},
+	}
+	batch := make([]events.BatchEntry, 0, len(legacyEvents))
+	for _, event := range legacyEvents {
+		if _, ok := seen[events.EventTypeOf(event)]; ok {
+			continue
 		}
 		batchEntry := events.BatchEntry{
-			Subject: agg.Subject(events.EventConfigValueSet),
+			Subject: agg.SubjectFor(event),
 			Event:   event,
 		}
-		if i == 0 {
-			batchEntry.ExpectedSeq = 0
+		if len(batch) == 0 {
+			batchEntry.ExpectedSeq = lastSeq
 			batchEntry.FilterSubject = agg.AllEventsFilter()
 			batchEntry.HasOCC = true
 		}
 		batch = append(batch, batchEntry)
 	}
+	if len(batch) == 0 {
+		return nil
+	}
 
 	_, err = publisher.AppendBatch(ctx, batch)
 	if err == nil {
-		logger.Info("server_config ES migration: seeded generic config events from legacy KV", "subject", agg.Subject(events.EventConfigValueSet), "values", len(batch))
+		logger.Info("server_config ES migration: seeded semantic config events from legacy KV", "values", len(batch))
 		return nil
 	}
 	if errors.Is(err, events.ErrConflict) {
@@ -107,5 +134,5 @@ func MigrateServerConfigToES(
 		// migration run (or a runtime publish) populated it. Skip.
 		return nil
 	}
-	return fmt.Errorf("seed generic server config events: %w", err)
+	return fmt.Errorf("seed semantic server config events: %w", err)
 }

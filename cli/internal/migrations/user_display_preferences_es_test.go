@@ -7,7 +7,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -24,38 +23,35 @@ func TestMigrateUserDisplayPreferencesToES_SeedsAndReplays(t *testing.T) {
 	// Existing notification config on the same user subject must not block
 	// importing display preference paths.
 	agg := events.ConfigSubjectAggregate("U1")
-	_, err := publisher.AppendAt(ctx, agg.Subject(events.EventConfigValueSet), &corev1.Event{
+	_, err := publisher.AppendAt(ctx, agg.Subject(events.EventUserServerNotificationLevelSet), &corev1.Event{
 		Id:      newMigrationEventID(),
 		ActorId: "system:test",
-		Event: &corev1.Event_ConfigValueSet{ConfigValueSet: &corev1.ConfigValueSetEvent{
-			Subject: "U1",
-			Path:    "notifications.server.level",
-			Value:   &configv1.ConfigValue{Value: &configv1.ConfigValue_IntValue{IntValue: 2}},
+		Event: &corev1.Event_UserServerNotificationLevelSet{UserServerNotificationLevelSet: &corev1.UserServerNotificationLevelSetEvent{
+			UserId: "U1",
+			Level:  corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		}},
 	}, 0)
 	require.NoError(t, err)
 
 	require.NoError(t, MigrateUserDisplayPreferencesToES(ctx, kv, publisher, testLogger()))
 
-	gotValues := map[string]int64{}
+	gotValues := map[string]any{}
 	gotStrings := map[string]string{}
 	eventsForU1, _, err := publisher.SubjectEvents(ctx, agg.AllEventsFilter())
 	require.NoError(t, err)
 	for _, got := range eventsForU1 {
-		change, ok := got.GetEvent().(*corev1.Event_ConfigValueSet)
-		if !ok {
-			continue
-		}
-		switch value := change.ConfigValueSet.GetValue().GetValue().(type) {
-		case *configv1.ConfigValue_StringValue:
-			gotStrings[change.ConfigValueSet.GetPath()] = value.StringValue
-		case *configv1.ConfigValue_IntValue:
-			gotValues[change.ConfigValueSet.GetPath()] = value.IntValue
+		switch change := got.GetEvent().(type) {
+		case *corev1.Event_UserTimezoneChanged:
+			gotStrings["preferences.timezone"] = change.UserTimezoneChanged.GetTimezone()
+		case *corev1.Event_UserTimeFormatChanged:
+			gotValues["preferences.time_format"] = change.UserTimeFormatChanged.GetTimeFormat()
+		case *corev1.Event_UserServerNotificationLevelSet:
+			gotValues["notifications.server.level"] = change.UserServerNotificationLevelSet.GetLevel()
 		}
 	}
 	require.Equal(t, "Europe/Berlin", gotStrings["preferences.timezone"])
-	require.EqualValues(t, corev1.TimeFormat_TIME_FORMAT_24H, gotValues["preferences.time_format"])
-	require.EqualValues(t, 2, gotValues["notifications.server.level"])
+	require.Equal(t, corev1.TimeFormat_TIME_FORMAT_24H, gotValues["preferences.time_format"])
+	require.Equal(t, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, gotValues["notifications.server.level"])
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)

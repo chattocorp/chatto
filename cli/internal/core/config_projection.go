@@ -1,10 +1,8 @@
 package core
 
 import (
-	"fmt"
+	"sort"
 	"strings"
-
-	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -13,13 +11,33 @@ import (
 
 const ConfigSubjectServer = "server"
 
-// ConfigProjection consumes dynamic configuration events from EVT and keeps the
-// current latest-value map in memory. Legacy ServerConfigChangedEvent snapshots
-// are also applied so old migration events remain readable while the generic
-// config model rolls out.
+// ConfigProjection consumes first-party configuration/preference events from
+// EVT and keeps the current server/user settings in memory. It also understands
+// legacy ServerConfigChangedEvent and UserServerPreferencesChangedEvent events
+// so older EVT streams keep projecting correctly.
 type ConfigProjection struct {
 	events.MemoryProjection
-	values map[string]map[string]*configv1.ConfigValue
+	server serverConfigState
+	users  map[string]*userConfigState
+}
+
+type serverConfigState struct {
+	configured        bool
+	serverName        string
+	description       string
+	welcomeMessage    string
+	motd              string
+	blockedUsernames  string
+	blockedConfigured bool
+	logo              *corev1.DeprecatedAsset
+	banner            *corev1.DeprecatedAsset
+}
+
+type userConfigState struct {
+	timezone        *string
+	timeFormat      *corev1.TimeFormat
+	serverLevel     *corev1.NotificationLevel
+	roomLevelByRoom map[string]corev1.NotificationLevel
 }
 
 // ServerConfigProjection is kept as a compatibility alias while callers and
@@ -27,7 +45,7 @@ type ConfigProjection struct {
 type ServerConfigProjection = ConfigProjection
 
 func NewConfigProjection() *ConfigProjection {
-	return &ConfigProjection{values: make(map[string]map[string]*configv1.ConfigValue)}
+	return &ConfigProjection{users: make(map[string]*userConfigState)}
 }
 
 func NewServerConfigProjection() *ConfigProjection {
@@ -42,234 +60,219 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
+	p.Lock()
+	defer p.Unlock()
+
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_ConfigValueSet:
-		if e.ConfigValueSet == nil {
-			return nil
-		}
-		return p.set(e.ConfigValueSet.GetSubject(), e.ConfigValueSet.GetPath(), e.ConfigValueSet.GetValue())
-	case *corev1.Event_ConfigValueCleared:
-		if e.ConfigValueCleared == nil {
-			return nil
-		}
-		p.clear(e.ConfigValueCleared.GetSubject(), e.ConfigValueCleared.GetPath())
 	case *corev1.Event_ServerConfigChanged:
-		if e.ServerConfigChanged != nil {
-			return p.applyLegacyServerConfig(e.ServerConfigChanged.GetConfig())
+		p.applyLegacyServerConfigLocked(e.ServerConfigChanged.GetConfig())
+	case *corev1.Event_ServerNameChanged:
+		p.server.configured = true
+		p.server.serverName = e.ServerNameChanged.GetName()
+	case *corev1.Event_ServerDescriptionChanged:
+		p.server.configured = true
+		p.server.description = e.ServerDescriptionChanged.GetDescription()
+	case *corev1.Event_ServerWelcomeMessageChanged:
+		p.server.configured = true
+		p.server.welcomeMessage = e.ServerWelcomeMessageChanged.GetWelcomeMessage()
+	case *corev1.Event_ServerMotdChanged:
+		p.server.configured = true
+		p.server.motd = e.ServerMotdChanged.GetMotd()
+	case *corev1.Event_ServerBlockedUsernamesChanged:
+		p.server.configured = true
+		p.server.blockedConfigured = true
+		p.server.blockedUsernames = e.ServerBlockedUsernamesChanged.GetBlockedUsernames()
+	case *corev1.Event_ServerLogoSet:
+		p.server.configured = true
+		p.server.logo = cloneDeprecatedAsset(e.ServerLogoSet.GetAsset())
+	case *corev1.Event_ServerLogoCleared:
+		p.server.configured = true
+		p.server.logo = nil
+	case *corev1.Event_ServerBannerSet:
+		p.server.configured = true
+		p.server.banner = cloneDeprecatedAsset(e.ServerBannerSet.GetAsset())
+	case *corev1.Event_ServerBannerCleared:
+		p.server.configured = true
+		p.server.banner = nil
+	case *corev1.Event_UserTimezoneChanged:
+		u := p.ensureUserLocked(e.UserTimezoneChanged.GetUserId())
+		tz := e.UserTimezoneChanged.GetTimezone()
+		u.timezone = &tz
+	case *corev1.Event_UserTimezoneCleared:
+		p.ensureUserLocked(e.UserTimezoneCleared.GetUserId()).timezone = nil
+	case *corev1.Event_UserTimeFormatChanged:
+		u := p.ensureUserLocked(e.UserTimeFormatChanged.GetUserId())
+		tf := e.UserTimeFormatChanged.GetTimeFormat()
+		u.timeFormat = &tf
+	case *corev1.Event_UserTimeFormatCleared:
+		p.ensureUserLocked(e.UserTimeFormatCleared.GetUserId()).timeFormat = nil
+	case *corev1.Event_UserServerNotificationLevelSet:
+		u := p.ensureUserLocked(e.UserServerNotificationLevelSet.GetUserId())
+		level := e.UserServerNotificationLevelSet.GetLevel()
+		u.serverLevel = &level
+	case *corev1.Event_UserServerNotificationLevelCleared:
+		p.ensureUserLocked(e.UserServerNotificationLevelCleared.GetUserId()).serverLevel = nil
+	case *corev1.Event_UserRoomNotificationLevelSet:
+		u := p.ensureUserLocked(e.UserRoomNotificationLevelSet.GetUserId())
+		if u.roomLevelByRoom == nil {
+			u.roomLevelByRoom = make(map[string]corev1.NotificationLevel)
+		}
+		u.roomLevelByRoom[e.UserRoomNotificationLevelSet.GetRoomId()] = e.UserRoomNotificationLevelSet.GetLevel()
+	case *corev1.Event_UserRoomNotificationLevelCleared:
+		if u := p.users[e.UserRoomNotificationLevelCleared.GetUserId()]; u != nil {
+			delete(u.roomLevelByRoom, e.UserRoomNotificationLevelCleared.GetRoomId())
 		}
 	case *corev1.Event_UserServerPreferencesChanged:
-		if e.UserServerPreferencesChanged != nil {
-			return p.applyLegacyUserPreferences(e.UserServerPreferencesChanged)
-		}
+		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
-		if e.UserAccountDeleted != nil {
-			p.clearSubject(e.UserAccountDeleted.GetUserId())
-		}
+		delete(p.users, e.UserAccountDeleted.GetUserId())
 	}
 	return nil
 }
 
-func (p *ConfigProjection) set(subject, path string, value *configv1.ConfigValue) error {
-	if subject == "" || path == "" || value == nil {
-		return nil
+func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {
+	if p.users == nil {
+		p.users = make(map[string]*userConfigState)
 	}
-	p.Lock()
-	defer p.Unlock()
-	if p.values == nil {
-		p.values = make(map[string]map[string]*configv1.ConfigValue)
+	u := p.users[userID]
+	if u == nil {
+		u = &userConfigState{}
+		p.users[userID] = u
 	}
-	byPath := p.values[subject]
-	if byPath == nil {
-		byPath = make(map[string]*configv1.ConfigValue)
-		p.values[subject] = byPath
-	}
-	byPath[path] = proto.Clone(value).(*configv1.ConfigValue)
-	return nil
+	return u
 }
 
-func (p *ConfigProjection) clear(subject, path string) {
-	if subject == "" || path == "" {
-		return
-	}
-	p.Lock()
-	defer p.Unlock()
-	if byPath := p.values[subject]; byPath != nil {
-		delete(byPath, path)
-		if len(byPath) == 0 {
-			delete(p.values, subject)
-		}
-	}
-}
-
-func (p *ConfigProjection) clearSubject(subject string) {
-	if subject == "" {
-		return
-	}
-	p.Lock()
-	defer p.Unlock()
-	delete(p.values, subject)
-}
-
-func (p *ConfigProjection) Value(subject, path string) (*configv1.ConfigValue, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	byPath := p.values[subject]
-	if byPath == nil {
-		return nil, false
-	}
-	value := byPath[path]
-	if value == nil {
-		return nil, false
-	}
-	return proto.Clone(value).(*configv1.ConfigValue), true
-}
-
-func (p *ConfigProjection) SubjectConfigured(subject string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	return len(p.values[subject]) > 0
-}
-
-func (p *ConfigProjection) PathsWithPrefix(subject, prefix string) []string {
-	p.RLock()
-	defer p.RUnlock()
-	byPath := p.values[subject]
-	if len(byPath) == 0 {
-		return nil
-	}
-	paths := make([]string, 0)
-	for path := range byPath {
-		if strings.HasPrefix(path, prefix) {
-			paths = append(paths, path)
-		}
-	}
-	return paths
-}
-
-func (p *ConfigProjection) applyLegacyServerConfig(cfg *configv1.ServerConfig) error {
+func (p *ConfigProjection) applyLegacyServerConfigLocked(cfg *configv1.ServerConfig) {
 	if cfg == nil {
-		return nil
+		return
 	}
-	p.Lock()
-	defer p.Unlock()
-	if p.values == nil {
-		p.values = make(map[string]map[string]*configv1.ConfigValue)
-	}
-	byPath := p.values[ConfigSubjectServer]
-	if byPath == nil {
-		byPath = make(map[string]*configv1.ConfigValue)
-		p.values[ConfigSubjectServer] = byPath
-	}
-	byPath[ConfigPathServerName.Name] = configStringValue(cfg.GetServerName())
-	byPath[ConfigPathServerDescription.Name] = configStringValue(cfg.GetDescription())
-	byPath[ConfigPathServerWelcomeMessage.Name] = configStringValue(cfg.GetWelcomeMessage())
-	byPath[ConfigPathServerMOTD.Name] = configStringValue(cfg.GetMotd())
-	byPath[ConfigPathBlockedUsernames.Name] = configStringValue(cfg.GetBlockedUsernames())
-	return nil
+	p.server.configured = true
+	p.server.serverName = cfg.GetServerName()
+	p.server.description = cfg.GetDescription()
+	p.server.welcomeMessage = cfg.GetWelcomeMessage()
+	p.server.motd = cfg.GetMotd()
+	p.server.blockedConfigured = true
+	p.server.blockedUsernames = cfg.GetBlockedUsernames()
 }
 
-func (p *ConfigProjection) applyLegacyUserPreferences(e *corev1.UserServerPreferencesChangedEvent) error {
+func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServerPreferencesChangedEvent) {
 	if e == nil || e.GetUserId() == "" {
-		return nil
+		return
 	}
-	p.Lock()
-	defer p.Unlock()
-	if p.values == nil {
-		p.values = make(map[string]map[string]*configv1.ConfigValue)
-	}
-	byPath := p.values[e.GetUserId()]
-	if byPath == nil {
-		byPath = make(map[string]*configv1.ConfigValue)
-		p.values[e.GetUserId()] = byPath
-	}
+	u := p.ensureUserLocked(e.GetUserId())
 	prefs := e.GetPreferences()
 	if prefs == nil {
-		delete(byPath, ConfigPathUserTimezone.Name)
-		delete(byPath, ConfigPathUserTimeFormat.Name)
-		return nil
+		u.timezone = nil
+		u.timeFormat = nil
+		return
 	}
-	if prefs.Timezone != nil && prefs.GetTimezone() != "" {
-		byPath[ConfigPathUserTimezone.Name] = configStringValue(prefs.GetTimezone())
+	if prefs.GetTimezone() != "" {
+		tz := prefs.GetTimezone()
+		u.timezone = &tz
 	} else {
-		delete(byPath, ConfigPathUserTimezone.Name)
+		u.timezone = nil
 	}
-	byPath[ConfigPathUserTimeFormat.Name] = configIntValue(int64(prefs.GetTimeFormat()))
-	return nil
+	tf := prefs.GetTimeFormat()
+	u.timeFormat = &tf
 }
 
 func (p *ConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured bool) {
 	p.RLock()
 	defer p.RUnlock()
-	byPath := p.values[ConfigSubjectServer]
-	if len(byPath) == 0 {
+	if !p.server.configured {
 		return nil, false
 	}
 	return &configv1.ServerConfig{
-		ServerName:       configStringFromMap(byPath, ConfigPathServerName.Name),
-		Description:      configStringFromMap(byPath, ConfigPathServerDescription.Name),
-		WelcomeMessage:   configStringFromMap(byPath, ConfigPathServerWelcomeMessage.Name),
-		Motd:             configStringFromMap(byPath, ConfigPathServerMOTD.Name),
-		BlockedUsernames: configStringFromMap(byPath, ConfigPathBlockedUsernames.Name),
+		ServerName:       p.server.serverName,
+		Description:      p.server.description,
+		WelcomeMessage:   p.server.welcomeMessage,
+		Motd:             p.server.motd,
+		BlockedUsernames: p.server.blockedUsernames,
 	}, true
 }
 
+func (p *ConfigProjection) SubjectConfigured(subject string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	if subject == ConfigSubjectServer {
+		return p.server.configured
+	}
+	return p.users[subject] != nil
+}
+
 func (p *ConfigProjection) ServerLogo() (*corev1.DeprecatedAsset, bool, error) {
-	return getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerLogo)
+	p.RLock()
+	defer p.RUnlock()
+	if p.server.logo == nil {
+		return nil, false, nil
+	}
+	return cloneDeprecatedAsset(p.server.logo), true, nil
 }
 
 func (p *ConfigProjection) ServerBanner() (*corev1.DeprecatedAsset, bool, error) {
-	return getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerBanner)
+	p.RLock()
+	defer p.RUnlock()
+	if p.server.banner == nil {
+		return nil, false, nil
+	}
+	return cloneDeprecatedAsset(p.server.banner), true, nil
 }
 
 func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPreferences, bool, error) {
-	timezone, hasTimezone, err := getProjectedConfig(p, userID, ConfigPathUserTimezone)
-	if err != nil {
-		return nil, false, err
-	}
-	timeFormat, hasTimeFormat, err := getProjectedConfig(p, userID, ConfigPathUserTimeFormat)
-	if err != nil {
-		return nil, false, err
-	}
-	if !hasTimezone && !hasTimeFormat {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
 		return nil, false, nil
 	}
-	prefs := &corev1.ServerUserPreferences{TimeFormat: timeFormat}
-	if hasTimezone && timezone != "" {
-		prefs.Timezone = &timezone
+	prefs := &corev1.ServerUserPreferences{}
+	if u.timezone != nil {
+		tz := *u.timezone
+		prefs.Timezone = &tz
+	}
+	if u.timeFormat != nil {
+		prefs.TimeFormat = *u.timeFormat
 	}
 	return prefs, true, nil
 }
 
 func (p *ConfigProjection) EffectiveServerName() string {
-	if value, ok, _ := getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerName); ok && value != "" {
-		return value
+	p.RLock()
+	defer p.RUnlock()
+	if p.server.serverName != "" {
+		return p.server.serverName
 	}
 	return "Chatto"
 }
 
 func (p *ConfigProjection) EffectiveWelcomeMessage() string {
-	value, _, _ := getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerWelcomeMessage)
-	return value
+	p.RLock()
+	defer p.RUnlock()
+	return p.server.welcomeMessage
 }
 
 func (p *ConfigProjection) EffectiveMOTD() string {
-	value, _, _ := getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerMOTD)
-	return value
+	p.RLock()
+	defer p.RUnlock()
+	return p.server.motd
 }
 
 func (p *ConfigProjection) EffectiveDescription() string {
-	if value, ok, _ := getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerDescription); ok && value != "" {
-		return value
+	p.RLock()
+	defer p.RUnlock()
+	if p.server.description != "" {
+		return p.server.description
 	}
 	return DefaultDescription
 }
 
 func (p *ConfigProjection) EffectiveBlockedUsernames() string {
-	value, ok, _ := getProjectedConfig(p, ConfigSubjectServer, ConfigPathBlockedUsernames)
-	if !ok {
+	p.RLock()
+	defer p.RUnlock()
+	if !p.server.blockedConfigured {
 		return DefaultBlockedUsernames
 	}
-	return value
+	return p.server.blockedUsernames
 }
 
 func (p *ConfigProjection) BlockedUsernamesList() []string {
@@ -287,65 +290,39 @@ func (p *ConfigProjection) IsUsernameBlocked(login string) bool {
 }
 
 func (p *ConfigProjection) NotificationServerLevel(userID string) corev1.NotificationLevel {
-	level, ok, _ := getProjectedConfig(p, userID, ConfigPathNotificationServerLevel)
-	if !ok {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.serverLevel == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 	}
-	return level
+	return *u.serverLevel
 }
 
 func (p *ConfigProjection) NotificationRoomLevel(userID, roomID string) corev1.NotificationLevel {
-	level, ok, _ := getProjectedConfig(p, userID, ConfigPathNotificationRoomLevel(roomID))
-	if !ok {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.roomLevelByRoom == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 	}
-	return level
+	if level, ok := u.roomLevelByRoom[roomID]; ok {
+		return level
+	}
+	return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 }
 
-func getProjectedConfig[T any](p *ConfigProjection, subject string, path ConfigPath[T]) (T, bool, error) {
-	var zero T
-	value, ok := p.Value(subject, path.Name)
-	if !ok {
-		if path.Default != nil {
-			if def, hasDefault := path.Default(subject); hasDefault {
-				return def, false, nil
-			}
-		}
-		return zero, false, nil
+func (p *ConfigProjection) NotificationRoomIDs(userID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || len(u.roomLevelByRoom) == 0 {
+		return nil
 	}
-	decoded, err := path.Decode(value)
-	if err != nil {
-		return zero, true, err
+	ids := make([]string, 0, len(u.roomLevelByRoom))
+	for roomID := range u.roomLevelByRoom {
+		ids = append(ids, roomID)
 	}
-	return decoded, true, nil
-}
-
-func configStringFromMap(values map[string]*configv1.ConfigValue, path string) string {
-	value := values[path]
-	if value == nil {
-		return ""
-	}
-	return value.GetStringValue()
-}
-
-func validateConfigSubject(subject string) error {
-	if subject == "" {
-		return fmt.Errorf("config subject is empty")
-	}
-	if strings.ContainsAny(subject, ". \t\r\n") || subject == "*" || subject == ">" {
-		return fmt.Errorf("invalid config subject %q", subject)
-	}
-	return nil
-}
-
-func validateConfigPath(path string) error {
-	if path == "" {
-		return fmt.Errorf("config path is empty")
-	}
-	for _, token := range strings.Split(path, ".") {
-		if token == "" || token == "*" || token == ">" || strings.ContainsAny(token, " \t\r\n") {
-			return fmt.Errorf("invalid config path %q", path)
-		}
-	}
-	return nil
+	sort.Strings(ids)
+	return ids
 }

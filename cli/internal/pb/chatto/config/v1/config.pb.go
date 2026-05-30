@@ -106,140 +106,6 @@ func (x *ServerConfig) GetDescription() string {
 	return ""
 }
 
-// ConfigValue is the typed value envelope for event-sourced dynamic
-// configuration. The Go API exposes typed Path[T] helpers; this proto keeps the
-// durable wire shape explicit and reviewable. Structured config values should
-// be added as concrete oneof arms when they become real, not hidden in Any.
-type ConfigValue struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Value:
-	//
-	//	*ConfigValue_StringValue
-	//	*ConfigValue_IntValue
-	//	*ConfigValue_FloatValue
-	//	*ConfigValue_BoolValue
-	//	*ConfigValue_BytesValue
-	Value         isConfigValue_Value `protobuf_oneof:"value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ConfigValue) Reset() {
-	*x = ConfigValue{}
-	mi := &file_chatto_config_v1_config_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConfigValue) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConfigValue) ProtoMessage() {}
-
-func (x *ConfigValue) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_config_v1_config_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConfigValue.ProtoReflect.Descriptor instead.
-func (*ConfigValue) Descriptor() ([]byte, []int) {
-	return file_chatto_config_v1_config_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ConfigValue) GetValue() isConfigValue_Value {
-	if x != nil {
-		return x.Value
-	}
-	return nil
-}
-
-func (x *ConfigValue) GetStringValue() string {
-	if x != nil {
-		if x, ok := x.Value.(*ConfigValue_StringValue); ok {
-			return x.StringValue
-		}
-	}
-	return ""
-}
-
-func (x *ConfigValue) GetIntValue() int64 {
-	if x != nil {
-		if x, ok := x.Value.(*ConfigValue_IntValue); ok {
-			return x.IntValue
-		}
-	}
-	return 0
-}
-
-func (x *ConfigValue) GetFloatValue() float64 {
-	if x != nil {
-		if x, ok := x.Value.(*ConfigValue_FloatValue); ok {
-			return x.FloatValue
-		}
-	}
-	return 0
-}
-
-func (x *ConfigValue) GetBoolValue() bool {
-	if x != nil {
-		if x, ok := x.Value.(*ConfigValue_BoolValue); ok {
-			return x.BoolValue
-		}
-	}
-	return false
-}
-
-func (x *ConfigValue) GetBytesValue() []byte {
-	if x != nil {
-		if x, ok := x.Value.(*ConfigValue_BytesValue); ok {
-			return x.BytesValue
-		}
-	}
-	return nil
-}
-
-type isConfigValue_Value interface {
-	isConfigValue_Value()
-}
-
-type ConfigValue_StringValue struct {
-	StringValue string `protobuf:"bytes,1,opt,name=string_value,json=stringValue,proto3,oneof"`
-}
-
-type ConfigValue_IntValue struct {
-	IntValue int64 `protobuf:"varint,2,opt,name=int_value,json=intValue,proto3,oneof"`
-}
-
-type ConfigValue_FloatValue struct {
-	FloatValue float64 `protobuf:"fixed64,3,opt,name=float_value,json=floatValue,proto3,oneof"`
-}
-
-type ConfigValue_BoolValue struct {
-	BoolValue bool `protobuf:"varint,4,opt,name=bool_value,json=boolValue,proto3,oneof"`
-}
-
-type ConfigValue_BytesValue struct {
-	BytesValue []byte `protobuf:"bytes,5,opt,name=bytes_value,json=bytesValue,proto3,oneof"`
-}
-
-func (*ConfigValue_StringValue) isConfigValue_Value() {}
-
-func (*ConfigValue_IntValue) isConfigValue_Value() {}
-
-func (*ConfigValue_FloatValue) isConfigValue_Value() {}
-
-func (*ConfigValue_BoolValue) isConfigValue_Value() {}
-
-func (*ConfigValue_BytesValue) isConfigValue_Value() {}
-
 var File_chatto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_chatto_config_v1_config_proto_rawDesc = "" +
@@ -251,17 +117,7 @@ const file_chatto_config_v1_config_proto_rawDesc = "" +
 	"serverName\x12\x12\n" +
 	"\x04motd\x18\x03 \x01(\tR\x04motd\x12+\n" +
 	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernames\x12 \n" +
-	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_description\"\xc1\x01\n" +
-	"\vConfigValue\x12#\n" +
-	"\fstring_value\x18\x01 \x01(\tH\x00R\vstringValue\x12\x1d\n" +
-	"\tint_value\x18\x02 \x01(\x03H\x00R\bintValue\x12!\n" +
-	"\vfloat_value\x18\x03 \x01(\x01H\x00R\n" +
-	"floatValue\x12\x1f\n" +
-	"\n" +
-	"bool_value\x18\x04 \x01(\bH\x00R\tboolValue\x12!\n" +
-	"\vbytes_value\x18\x05 \x01(\fH\x00R\n" +
-	"bytesValueB\a\n" +
-	"\x05valueB\xbc\x01\n" +
+	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xbc\x01\n" +
 	"\x14com.chatto.config.v1B\vConfigProtoP\x01Z5hmans.de/chatto/internal/pb/chatto/config/v1;configv1\xa2\x02\x03CCX\xaa\x02\x10Chatto.Config.V1\xca\x02\x10Chatto\\Config\\V1\xe2\x02\x1cChatto\\Config\\V1\\GPBMetadata\xea\x02\x12Chatto::Config::V1b\x06proto3"
 
 var (
@@ -276,10 +132,9 @@ func file_chatto_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_chatto_config_v1_config_proto_rawDescData
 }
 
-var file_chatto_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_chatto_config_v1_config_proto_goTypes = []any{
 	(*ServerConfig)(nil), // 0: chatto.config.v1.ServerConfig
-	(*ConfigValue)(nil),  // 1: chatto.config.v1.ConfigValue
 }
 var file_chatto_config_v1_config_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -294,20 +149,13 @@ func file_chatto_config_v1_config_proto_init() {
 	if File_chatto_config_v1_config_proto != nil {
 		return
 	}
-	file_chatto_config_v1_config_proto_msgTypes[1].OneofWrappers = []any{
-		(*ConfigValue_StringValue)(nil),
-		(*ConfigValue_IntValue)(nil),
-		(*ConfigValue_FloatValue)(nil),
-		(*ConfigValue_BoolValue)(nil),
-		(*ConfigValue_BytesValue)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_config_v1_config_proto_rawDesc), len(file_chatto_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -25,24 +25,25 @@ func TestMigrateServerBrandingToES_SeedsAndReplays(t *testing.T) {
 	require.NoError(t, MigrateServerConfigToES(ctx, kv, publisher, testLogger()))
 	require.NoError(t, MigrateServerBrandingToES(ctx, kv, publisher, testLogger()))
 
-	subject := events.ConfigAggregate().Subject(events.EventConfigValueSet)
+	subject := events.ConfigAggregate().Subject(events.EventServerLogoSet)
 	msg, err := stream.GetLastMsgForSubject(ctx, subject)
 	require.NoError(t, err)
 	require.NotZero(t, msg.Sequence)
 
 	gotValues := map[string]*corev1.DeprecatedAsset{}
-	for seq := uint64(1); seq <= msg.Sequence; seq++ {
+	for seq := uint64(1); seq <= msg.Sequence+5; seq++ {
 		msg, err := stream.GetMsg(ctx, seq)
-		require.NoError(t, err)
-		var got corev1.Event
-		require.NoError(t, proto.Unmarshal(msg.Data, &got))
-		change, ok := got.GetEvent().(*corev1.Event_ConfigValueSet)
-		if !ok || change.ConfigValueSet.GetValue().GetBytesValue() == nil {
+		if err != nil {
 			continue
 		}
-		asset := &corev1.DeprecatedAsset{}
-		require.NoError(t, proto.Unmarshal(change.ConfigValueSet.GetValue().GetBytesValue(), asset))
-		gotValues[change.ConfigValueSet.GetPath()] = asset
+		var got corev1.Event
+		require.NoError(t, proto.Unmarshal(msg.Data, &got))
+		switch change := got.GetEvent().(type) {
+		case *corev1.Event_ServerLogoSet:
+			gotValues["server.logo"] = change.ServerLogoSet.GetAsset()
+		case *corev1.Event_ServerBannerSet:
+			gotValues["server.banner"] = change.ServerBannerSet.GetAsset()
+		}
 	}
 	require.True(t, proto.Equal(logo, gotValues["server.logo"]))
 	require.True(t, proto.Equal(banner, gotValues["server.banner"]))

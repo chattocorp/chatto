@@ -73,32 +73,27 @@ func (x *ServerConfigChangedEvent) GetConfig() *v1.ServerConfig {
 	return nil
 }
 
-// ConfigValueSetEvent records one dynamic configuration value. `subject` is
-// the raw config target ID/sentinel (for example `server`, a user ID, or a
-// room ID), while `path` names the setting inside that subject.
-type ConfigValueSetEvent struct {
+type ServerNameChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Subject       string                 `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Value         *v1.ConfigValue        `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ConfigValueSetEvent) Reset() {
-	*x = ConfigValueSetEvent{}
+func (x *ServerNameChangedEvent) Reset() {
+	*x = ServerNameChangedEvent{}
 	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ConfigValueSetEvent) String() string {
+func (x *ServerNameChangedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ConfigValueSetEvent) ProtoMessage() {}
+func (*ServerNameChangedEvent) ProtoMessage() {}
 
-func (x *ConfigValueSetEvent) ProtoReflect() protoreflect.Message {
+func (x *ServerNameChangedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -110,57 +105,259 @@ func (x *ConfigValueSetEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ConfigValueSetEvent.ProtoReflect.Descriptor instead.
-func (*ConfigValueSetEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerNameChangedEvent.ProtoReflect.Descriptor instead.
+func (*ServerNameChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ConfigValueSetEvent) GetSubject() string {
+func (x *ServerNameChangedEvent) GetName() string {
 	if x != nil {
-		return x.Subject
+		return x.Name
 	}
 	return ""
 }
 
-func (x *ConfigValueSetEvent) GetPath() string {
+type ServerDescriptionChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Description   string                 `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerDescriptionChangedEvent) Reset() {
+	*x = ServerDescriptionChangedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerDescriptionChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerDescriptionChangedEvent) ProtoMessage() {}
+
+func (x *ServerDescriptionChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[2]
 	if x != nil {
-		return x.Path
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerDescriptionChangedEvent.ProtoReflect.Descriptor instead.
+func (*ServerDescriptionChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ServerDescriptionChangedEvent) GetDescription() string {
+	if x != nil {
+		return x.Description
 	}
 	return ""
 }
 
-func (x *ConfigValueSetEvent) GetValue() *v1.ConfigValue {
+type ServerWelcomeMessageChangedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	WelcomeMessage string                 `protobuf:"bytes,1,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ServerWelcomeMessageChangedEvent) Reset() {
+	*x = ServerWelcomeMessageChangedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerWelcomeMessageChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerWelcomeMessageChangedEvent) ProtoMessage() {}
+
+func (x *ServerWelcomeMessageChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[3]
 	if x != nil {
-		return x.Value
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerWelcomeMessageChangedEvent.ProtoReflect.Descriptor instead.
+func (*ServerWelcomeMessageChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ServerWelcomeMessageChangedEvent) GetWelcomeMessage() string {
+	if x != nil {
+		return x.WelcomeMessage
+	}
+	return ""
+}
+
+type ServerMotdChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Motd          string                 `protobuf:"bytes,1,opt,name=motd,proto3" json:"motd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerMotdChangedEvent) Reset() {
+	*x = ServerMotdChangedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerMotdChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerMotdChangedEvent) ProtoMessage() {}
+
+func (x *ServerMotdChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerMotdChangedEvent.ProtoReflect.Descriptor instead.
+func (*ServerMotdChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ServerMotdChangedEvent) GetMotd() string {
+	if x != nil {
+		return x.Motd
+	}
+	return ""
+}
+
+type ServerBlockedUsernamesChangedEvent struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BlockedUsernames string                 `protobuf:"bytes,1,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ServerBlockedUsernamesChangedEvent) Reset() {
+	*x = ServerBlockedUsernamesChangedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerBlockedUsernamesChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerBlockedUsernamesChangedEvent) ProtoMessage() {}
+
+func (x *ServerBlockedUsernamesChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerBlockedUsernamesChangedEvent.ProtoReflect.Descriptor instead.
+func (*ServerBlockedUsernamesChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ServerBlockedUsernamesChangedEvent) GetBlockedUsernames() string {
+	if x != nil {
+		return x.BlockedUsernames
+	}
+	return ""
+}
+
+type ServerLogoSetEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Asset         *DeprecatedAsset       `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerLogoSetEvent) Reset() {
+	*x = ServerLogoSetEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerLogoSetEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerLogoSetEvent) ProtoMessage() {}
+
+func (x *ServerLogoSetEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerLogoSetEvent.ProtoReflect.Descriptor instead.
+func (*ServerLogoSetEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ServerLogoSetEvent) GetAsset() *DeprecatedAsset {
+	if x != nil {
+		return x.Asset
 	}
 	return nil
 }
 
-// ConfigValueClearedEvent removes one dynamic configuration override. Reads
-// fall back to defaults or broader subjects when applicable.
-type ConfigValueClearedEvent struct {
+type ServerLogoClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Subject       string                 `protobuf:"bytes,1,opt,name=subject,proto3" json:"subject,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ConfigValueClearedEvent) Reset() {
-	*x = ConfigValueClearedEvent{}
-	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[2]
+func (x *ServerLogoClearedEvent) Reset() {
+	*x = ServerLogoClearedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ConfigValueClearedEvent) String() string {
+func (x *ServerLogoClearedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ConfigValueClearedEvent) ProtoMessage() {}
+func (*ServerLogoClearedEvent) ProtoMessage() {}
 
-func (x *ConfigValueClearedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[2]
+func (x *ServerLogoClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,21 +368,487 @@ func (x *ConfigValueClearedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ConfigValueClearedEvent.ProtoReflect.Descriptor instead.
-func (*ConfigValueClearedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use ServerLogoClearedEvent.ProtoReflect.Descriptor instead.
+func (*ServerLogoClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ConfigValueClearedEvent) GetSubject() string {
+type ServerBannerSetEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Asset         *DeprecatedAsset       `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerBannerSetEvent) Reset() {
+	*x = ServerBannerSetEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerBannerSetEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerBannerSetEvent) ProtoMessage() {}
+
+func (x *ServerBannerSetEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[8]
 	if x != nil {
-		return x.Subject
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerBannerSetEvent.ProtoReflect.Descriptor instead.
+func (*ServerBannerSetEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ServerBannerSetEvent) GetAsset() *DeprecatedAsset {
+	if x != nil {
+		return x.Asset
+	}
+	return nil
+}
+
+type ServerBannerClearedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerBannerClearedEvent) Reset() {
+	*x = ServerBannerClearedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerBannerClearedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerBannerClearedEvent) ProtoMessage() {}
+
+func (x *ServerBannerClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerBannerClearedEvent.ProtoReflect.Descriptor instead.
+func (*ServerBannerClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{9}
+}
+
+type UserTimezoneChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Timezone      string                 `protobuf:"bytes,2,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserTimezoneChangedEvent) Reset() {
+	*x = UserTimezoneChangedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserTimezoneChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserTimezoneChangedEvent) ProtoMessage() {}
+
+func (x *UserTimezoneChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserTimezoneChangedEvent.ProtoReflect.Descriptor instead.
+func (*UserTimezoneChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *UserTimezoneChangedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
 	}
 	return ""
 }
 
-func (x *ConfigValueClearedEvent) GetPath() string {
+func (x *UserTimezoneChangedEvent) GetTimezone() string {
 	if x != nil {
-		return x.Path
+		return x.Timezone
+	}
+	return ""
+}
+
+type UserTimezoneClearedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserTimezoneClearedEvent) Reset() {
+	*x = UserTimezoneClearedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserTimezoneClearedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserTimezoneClearedEvent) ProtoMessage() {}
+
+func (x *UserTimezoneClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserTimezoneClearedEvent.ProtoReflect.Descriptor instead.
+func (*UserTimezoneClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UserTimezoneClearedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type UserTimeFormatChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TimeFormat    TimeFormat             `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.v1.TimeFormat" json:"time_format,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserTimeFormatChangedEvent) Reset() {
+	*x = UserTimeFormatChangedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserTimeFormatChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserTimeFormatChangedEvent) ProtoMessage() {}
+
+func (x *UserTimeFormatChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserTimeFormatChangedEvent.ProtoReflect.Descriptor instead.
+func (*UserTimeFormatChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UserTimeFormatChangedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserTimeFormatChangedEvent) GetTimeFormat() TimeFormat {
+	if x != nil {
+		return x.TimeFormat
+	}
+	return TimeFormat_TIME_FORMAT_UNSPECIFIED
+}
+
+type UserTimeFormatClearedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserTimeFormatClearedEvent) Reset() {
+	*x = UserTimeFormatClearedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserTimeFormatClearedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserTimeFormatClearedEvent) ProtoMessage() {}
+
+func (x *UserTimeFormatClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserTimeFormatClearedEvent.ProtoReflect.Descriptor instead.
+func (*UserTimeFormatClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UserTimeFormatClearedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type UserServerNotificationLevelSetEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Level         NotificationLevel      `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserServerNotificationLevelSetEvent) Reset() {
+	*x = UserServerNotificationLevelSetEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserServerNotificationLevelSetEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserServerNotificationLevelSetEvent) ProtoMessage() {}
+
+func (x *UserServerNotificationLevelSetEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserServerNotificationLevelSetEvent.ProtoReflect.Descriptor instead.
+func (*UserServerNotificationLevelSetEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UserServerNotificationLevelSetEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserServerNotificationLevelSetEvent) GetLevel() NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+}
+
+type UserServerNotificationLevelClearedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserServerNotificationLevelClearedEvent) Reset() {
+	*x = UserServerNotificationLevelClearedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserServerNotificationLevelClearedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserServerNotificationLevelClearedEvent) ProtoMessage() {}
+
+func (x *UserServerNotificationLevelClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserServerNotificationLevelClearedEvent.ProtoReflect.Descriptor instead.
+func (*UserServerNotificationLevelClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *UserServerNotificationLevelClearedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type UserRoomNotificationLevelSetEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Level         NotificationLevel      `protobuf:"varint,3,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserRoomNotificationLevelSetEvent) Reset() {
+	*x = UserRoomNotificationLevelSetEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserRoomNotificationLevelSetEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserRoomNotificationLevelSetEvent) ProtoMessage() {}
+
+func (x *UserRoomNotificationLevelSetEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserRoomNotificationLevelSetEvent.ProtoReflect.Descriptor instead.
+func (*UserRoomNotificationLevelSetEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *UserRoomNotificationLevelSetEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserRoomNotificationLevelSetEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UserRoomNotificationLevelSetEvent) GetLevel() NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+}
+
+type UserRoomNotificationLevelClearedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserRoomNotificationLevelClearedEvent) Reset() {
+	*x = UserRoomNotificationLevelClearedEvent{}
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserRoomNotificationLevelClearedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserRoomNotificationLevelClearedEvent) ProtoMessage() {}
+
+func (x *UserRoomNotificationLevelClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserRoomNotificationLevelClearedEvent.ProtoReflect.Descriptor instead.
+func (*UserRoomNotificationLevelClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UserRoomNotificationLevelClearedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
 	}
 	return ""
 }
@@ -208,7 +871,7 @@ type ServerConfigUpdatedEvent struct {
 
 func (x *ServerConfigUpdatedEvent) Reset() {
 	*x = ServerConfigUpdatedEvent{}
-	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +883,7 @@ func (x *ServerConfigUpdatedEvent) String() string {
 func (*ServerConfigUpdatedEvent) ProtoMessage() {}
 
 func (x *ServerConfigUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_server_config_events_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +896,7 @@ func (x *ServerConfigUpdatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerConfigUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*ServerConfigUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{3}
+	return file_chatto_core_v1_server_config_events_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ServerConfigUpdatedEvent) GetServerName() string {
@@ -268,16 +931,48 @@ var File_chatto_core_v1_server_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_server_config_events_proto_rawDesc = "" +
 	"\n" +
-	")chatto/core/v1/server_config_events.proto\x12\x0echatto.core.v1\x1a\x1dchatto/config/v1/config.proto\"R\n" +
+	")chatto/core/v1/server_config_events.proto\x12\x0echatto.core.v1\x1a\x1dchatto/config/v1/config.proto\x1a\x1bchatto/core/v1/models.proto\x1a%chatto/core/v1/user_preferences.proto\"R\n" +
 	"\x18ServerConfigChangedEvent\x126\n" +
-	"\x06config\x18\x01 \x01(\v2\x1e.chatto.config.v1.ServerConfigR\x06config\"x\n" +
-	"\x13ConfigValueSetEvent\x12\x18\n" +
-	"\asubject\x18\x01 \x01(\tR\asubject\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x123\n" +
-	"\x05value\x18\x03 \x01(\v2\x1d.chatto.config.v1.ConfigValueR\x05value\"G\n" +
-	"\x17ConfigValueClearedEvent\x12\x18\n" +
-	"\asubject\x18\x01 \x01(\tR\asubject\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\xa5\x01\n" +
+	"\x06config\x18\x01 \x01(\v2\x1e.chatto.config.v1.ServerConfigR\x06config\",\n" +
+	"\x16ServerNameChangedEvent\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"A\n" +
+	"\x1dServerDescriptionChangedEvent\x12 \n" +
+	"\vdescription\x18\x01 \x01(\tR\vdescription\"K\n" +
+	" ServerWelcomeMessageChangedEvent\x12'\n" +
+	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\",\n" +
+	"\x16ServerMotdChangedEvent\x12\x12\n" +
+	"\x04motd\x18\x01 \x01(\tR\x04motd\"Q\n" +
+	"\"ServerBlockedUsernamesChangedEvent\x12+\n" +
+	"\x11blocked_usernames\x18\x01 \x01(\tR\x10blockedUsernames\"K\n" +
+	"\x12ServerLogoSetEvent\x125\n" +
+	"\x05asset\x18\x01 \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\x05asset\"\x18\n" +
+	"\x16ServerLogoClearedEvent\"M\n" +
+	"\x14ServerBannerSetEvent\x125\n" +
+	"\x05asset\x18\x01 \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\x05asset\"\x1a\n" +
+	"\x18ServerBannerClearedEvent\"O\n" +
+	"\x18UserTimezoneChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
+	"\btimezone\x18\x02 \x01(\tR\btimezone\"3\n" +
+	"\x18UserTimezoneClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"r\n" +
+	"\x1aUserTimeFormatChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12;\n" +
+	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatR\n" +
+	"timeFormat\"5\n" +
+	"\x1aUserTimeFormatClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"w\n" +
+	"#UserServerNotificationLevelSetEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x127\n" +
+	"\x05level\x18\x02 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"B\n" +
+	"'UserServerNotificationLevelClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x8e\x01\n" +
+	"!UserRoomNotificationLevelSetEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x127\n" +
+	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"Y\n" +
+	"%UserRoomNotificationLevelClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xa5\x01\n" +
 	"\x18ServerConfigUpdatedEvent\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12\x12\n" +
@@ -298,23 +993,44 @@ func file_chatto_core_v1_server_config_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_server_config_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_server_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_core_v1_server_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chatto_core_v1_server_config_events_proto_goTypes = []any{
-	(*ServerConfigChangedEvent)(nil), // 0: chatto.core.v1.ServerConfigChangedEvent
-	(*ConfigValueSetEvent)(nil),      // 1: chatto.core.v1.ConfigValueSetEvent
-	(*ConfigValueClearedEvent)(nil),  // 2: chatto.core.v1.ConfigValueClearedEvent
-	(*ServerConfigUpdatedEvent)(nil), // 3: chatto.core.v1.ServerConfigUpdatedEvent
-	(*v1.ServerConfig)(nil),          // 4: chatto.config.v1.ServerConfig
-	(*v1.ConfigValue)(nil),           // 5: chatto.config.v1.ConfigValue
+	(*ServerConfigChangedEvent)(nil),                // 0: chatto.core.v1.ServerConfigChangedEvent
+	(*ServerNameChangedEvent)(nil),                  // 1: chatto.core.v1.ServerNameChangedEvent
+	(*ServerDescriptionChangedEvent)(nil),           // 2: chatto.core.v1.ServerDescriptionChangedEvent
+	(*ServerWelcomeMessageChangedEvent)(nil),        // 3: chatto.core.v1.ServerWelcomeMessageChangedEvent
+	(*ServerMotdChangedEvent)(nil),                  // 4: chatto.core.v1.ServerMotdChangedEvent
+	(*ServerBlockedUsernamesChangedEvent)(nil),      // 5: chatto.core.v1.ServerBlockedUsernamesChangedEvent
+	(*ServerLogoSetEvent)(nil),                      // 6: chatto.core.v1.ServerLogoSetEvent
+	(*ServerLogoClearedEvent)(nil),                  // 7: chatto.core.v1.ServerLogoClearedEvent
+	(*ServerBannerSetEvent)(nil),                    // 8: chatto.core.v1.ServerBannerSetEvent
+	(*ServerBannerClearedEvent)(nil),                // 9: chatto.core.v1.ServerBannerClearedEvent
+	(*UserTimezoneChangedEvent)(nil),                // 10: chatto.core.v1.UserTimezoneChangedEvent
+	(*UserTimezoneClearedEvent)(nil),                // 11: chatto.core.v1.UserTimezoneClearedEvent
+	(*UserTimeFormatChangedEvent)(nil),              // 12: chatto.core.v1.UserTimeFormatChangedEvent
+	(*UserTimeFormatClearedEvent)(nil),              // 13: chatto.core.v1.UserTimeFormatClearedEvent
+	(*UserServerNotificationLevelSetEvent)(nil),     // 14: chatto.core.v1.UserServerNotificationLevelSetEvent
+	(*UserServerNotificationLevelClearedEvent)(nil), // 15: chatto.core.v1.UserServerNotificationLevelClearedEvent
+	(*UserRoomNotificationLevelSetEvent)(nil),       // 16: chatto.core.v1.UserRoomNotificationLevelSetEvent
+	(*UserRoomNotificationLevelClearedEvent)(nil),   // 17: chatto.core.v1.UserRoomNotificationLevelClearedEvent
+	(*ServerConfigUpdatedEvent)(nil),                // 18: chatto.core.v1.ServerConfigUpdatedEvent
+	(*v1.ServerConfig)(nil),                         // 19: chatto.config.v1.ServerConfig
+	(*DeprecatedAsset)(nil),                         // 20: chatto.core.v1.DeprecatedAsset
+	(TimeFormat)(0),                                 // 21: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                          // 22: chatto.core.v1.NotificationLevel
 }
 var file_chatto_core_v1_server_config_events_proto_depIdxs = []int32{
-	4, // 0: chatto.core.v1.ServerConfigChangedEvent.config:type_name -> chatto.config.v1.ServerConfig
-	5, // 1: chatto.core.v1.ConfigValueSetEvent.value:type_name -> chatto.config.v1.ConfigValue
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	19, // 0: chatto.core.v1.ServerConfigChangedEvent.config:type_name -> chatto.config.v1.ServerConfig
+	20, // 1: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.DeprecatedAsset
+	20, // 2: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.DeprecatedAsset
+	21, // 3: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	22, // 4: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	22, // 5: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_server_config_events_proto_init() }
@@ -322,13 +1038,15 @@ func file_chatto_core_v1_server_config_events_proto_init() {
 	if File_chatto_core_v1_server_config_events_proto != nil {
 		return
 	}
+	file_chatto_core_v1_models_proto_init()
+	file_chatto_core_v1_user_preferences_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_server_config_events_proto_rawDesc), len(file_chatto_core_v1_server_config_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

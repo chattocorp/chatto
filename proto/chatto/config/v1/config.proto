@@ -27,17 +27,3 @@ message ServerConfig {
   // Server description, used for OG link-preview metadata and the welcome card.
   string description = 7;
 }
-
-// ConfigValue is the typed value envelope for event-sourced dynamic
-// configuration. The Go API exposes typed Path[T] helpers; this proto keeps the
-// durable wire shape explicit and reviewable. Structured config values should
-// be added as concrete oneof arms when they become real, not hidden in Any.
-message ConfigValue {
-  oneof value {
-    string string_value = 1;
-    int64 int_value = 2;
-    double float_value = 3;
-    bool bool_value = 4;
-    bytes bytes_value = 5;
-  }
-}

@@ -37,11 +37,11 @@ func TestMigrateServerConfigToES_SeedsAndReplays(t *testing.T) {
 	_, err = kv.Put(ctx, "config.instance", data)
 	require.NoError(t, err)
 
-	// First run: one event per generic config path lands on evt.config.server.
+	// First run: one semantic event per legacy config field lands on evt.config.server.
 	require.NoError(t, MigrateServerConfigToES(ctx, kv, publisher, testLogger()))
 
-	subject := events.ConfigAggregate().Subject(events.EventConfigValueSet)
-	require.Equal(t, "evt.config.server.value_set", subject)
+	subject := events.ConfigAggregate().Subject(events.EventServerNameChanged)
+	require.Equal(t, "evt.config.server.server_name_changed", subject)
 	msg, err := stream.GetLastMsgForSubject(ctx, subject)
 	require.NoError(t, err)
 	require.NotZero(t, msg.Sequence)
@@ -52,11 +52,21 @@ func TestMigrateServerConfigToES_SeedsAndReplays(t *testing.T) {
 		require.NoError(t, err)
 		var got corev1.Event
 		require.NoError(t, proto.Unmarshal(msg.Data, &got))
-		change, ok := got.GetEvent().(*corev1.Event_ConfigValueSet)
-		require.True(t, ok, "expected ConfigValueSet variant")
-		require.Equal(t, "server", change.ConfigValueSet.GetSubject())
 		require.Equal(t, "system:migration", got.GetActorId())
-		gotValues[change.ConfigValueSet.GetPath()] = change.ConfigValueSet.GetValue().GetStringValue()
+		switch change := got.GetEvent().(type) {
+		case *corev1.Event_ServerNameChanged:
+			gotValues["server.name"] = change.ServerNameChanged.GetName()
+		case *corev1.Event_ServerWelcomeMessageChanged:
+			gotValues["server.welcome_message"] = change.ServerWelcomeMessageChanged.GetWelcomeMessage()
+		case *corev1.Event_ServerMotdChanged:
+			gotValues["server.motd"] = change.ServerMotdChanged.GetMotd()
+		case *corev1.Event_ServerBlockedUsernamesChanged:
+			gotValues["auth.blocked_usernames"] = change.ServerBlockedUsernamesChanged.GetBlockedUsernames()
+		case *corev1.Event_ServerDescriptionChanged:
+			gotValues["server.description"] = change.ServerDescriptionChanged.GetDescription()
+		default:
+			t.Fatalf("unexpected event variant %T", change)
+		}
 	}
 	require.Equal(t, "Legacy Server", gotValues["server.name"])
 	require.Equal(t, "old welcome", gotValues["server.welcome_message"])

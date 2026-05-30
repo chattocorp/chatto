@@ -103,14 +103,30 @@ message Event {
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
 
-    // ----- Server config (500-509, durable) -----
+    // ----- Config / preferences (500-529, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
     // legacy live-only broadcast on the SERVER_EVENTS path. The
     // durable variant below lives on the EVT stream (subject
     // evt.config.server) per ADRs 033/034/035.
     ServerConfigChangedEvent server_config_changed = 500;
-    ConfigValueSetEvent config_value_set = 501;
-    ConfigValueClearedEvent config_value_cleared = 502;
+    ServerNameChangedEvent server_name_changed = 501;
+    ServerDescriptionChangedEvent server_description_changed = 502;
+    ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;
+    ServerMotdChangedEvent server_motd_changed = 504;
+    ServerBlockedUsernamesChangedEvent server_blocked_usernames_changed = 505;
+    ServerLogoSetEvent server_logo_set = 506;
+    ServerLogoClearedEvent server_logo_cleared = 507;
+    ServerBannerSetEvent server_banner_set = 508;
+    ServerBannerClearedEvent server_banner_cleared = 509;
+
+    UserTimezoneChangedEvent user_timezone_changed = 510;
+    UserTimezoneClearedEvent user_timezone_cleared = 511;
+    UserTimeFormatChangedEvent user_time_format_changed = 512;
+    UserTimeFormatClearedEvent user_time_format_cleared = 513;
+    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514;
+    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
+    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
+    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.

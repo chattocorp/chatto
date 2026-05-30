@@ -3,6 +3,8 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "chatto/config/v1/config.proto";
+import "chatto/core/v1/models.proto";
+import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -17,20 +19,74 @@ message ServerConfigChangedEvent {
   chatto.config.v1.ServerConfig config = 1;
 }
 
-// ConfigValueSetEvent records one dynamic configuration value. `subject` is
-// the raw config target ID/sentinel (for example `server`, a user ID, or a
-// room ID), while `path` names the setting inside that subject.
-message ConfigValueSetEvent {
-  string subject = 1;
-  string path = 2;
-  chatto.config.v1.ConfigValue value = 3;
+message ServerNameChangedEvent {
+  string name = 1;
 }
 
-// ConfigValueClearedEvent removes one dynamic configuration override. Reads
-// fall back to defaults or broader subjects when applicable.
-message ConfigValueClearedEvent {
-  string subject = 1;
-  string path = 2;
+message ServerDescriptionChangedEvent {
+  string description = 1;
+}
+
+message ServerWelcomeMessageChangedEvent {
+  string welcome_message = 1;
+}
+
+message ServerMotdChangedEvent {
+  string motd = 1;
+}
+
+message ServerBlockedUsernamesChangedEvent {
+  string blocked_usernames = 1;
+}
+
+message ServerLogoSetEvent {
+  DeprecatedAsset asset = 1;
+}
+
+message ServerLogoClearedEvent {}
+
+message ServerBannerSetEvent {
+  DeprecatedAsset asset = 1;
+}
+
+message ServerBannerClearedEvent {}
+
+message UserTimezoneChangedEvent {
+  string user_id = 1;
+  string timezone = 2;
+}
+
+message UserTimezoneClearedEvent {
+  string user_id = 1;
+}
+
+message UserTimeFormatChangedEvent {
+  string user_id = 1;
+  TimeFormat time_format = 2;
+}
+
+message UserTimeFormatClearedEvent {
+  string user_id = 1;
+}
+
+message UserServerNotificationLevelSetEvent {
+  string user_id = 1;
+  NotificationLevel level = 2;
+}
+
+message UserServerNotificationLevelClearedEvent {
+  string user_id = 1;
+}
+
+message UserRoomNotificationLevelSetEvent {
+  string user_id = 1;
+  string room_id = 2;
+  NotificationLevel level = 3;
+}
+
+message UserRoomNotificationLevelClearedEvent {
+  string user_id = 1;
+  string room_id = 2;
 }
 
 // Notifies clients that server configuration was updated.

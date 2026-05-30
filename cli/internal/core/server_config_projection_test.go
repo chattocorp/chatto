@@ -20,33 +20,6 @@ func newConfigChangedEvent(cfg *configv1.ServerConfig) *corev1.Event {
 	}
 }
 
-func newConfigValueSetEvent(path, value string) *corev1.Event {
-	return &corev1.Event{
-		Id: "test-config-value-set",
-		Event: &corev1.Event_ConfigValueSet{
-			ConfigValueSet: &corev1.ConfigValueSetEvent{
-				Subject: ConfigSubjectServer,
-				Path:    path,
-				Value: &configv1.ConfigValue{
-					Value: &configv1.ConfigValue_StringValue{StringValue: value},
-				},
-			},
-		},
-	}
-}
-
-func newConfigValueClearedEvent(path string) *corev1.Event {
-	return &corev1.Event{
-		Id: "test-config-value-cleared",
-		Event: &corev1.Event_ConfigValueCleared{
-			ConfigValueCleared: &corev1.ConfigValueClearedEvent{
-				Subject: ConfigSubjectServer,
-				Path:    path,
-			},
-		},
-	}
-}
-
 func TestServerConfigProjection_FreshState(t *testing.T) {
 	p := NewServerConfigProjection()
 
@@ -93,25 +66,31 @@ func TestServerConfigProjection_ApplyReplacesSnapshot(t *testing.T) {
 	require.Equal(t, "", p.EffectiveWelcomeMessage())
 }
 
-func TestServerConfigProjection_AppliesGenericConfigValues(t *testing.T) {
+func TestServerConfigProjection_AppliesSemanticConfigEvents(t *testing.T) {
 	p := NewServerConfigProjection()
 
-	require.NoError(t, p.Apply(newConfigValueSetEvent(ConfigPathServerName.Name, "Generic Server"), 1))
-	require.NoError(t, p.Apply(newConfigValueSetEvent(ConfigPathServerMOTD.Name, "generic motd"), 2))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerNameChanged{
+		ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "Semantic Server"},
+	}}, 1))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerMotdChanged{
+		ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: "semantic motd"},
+	}}, 2))
 
 	cfg, configured := p.Get()
 	require.True(t, configured)
-	require.Equal(t, "Generic Server", cfg.ServerName)
-	require.Equal(t, "generic motd", cfg.Motd)
-	require.Equal(t, "Generic Server", p.EffectiveServerName())
-	require.Equal(t, "generic motd", p.EffectiveMOTD())
+	require.Equal(t, "Semantic Server", cfg.ServerName)
+	require.Equal(t, "semantic motd", cfg.Motd)
+	require.Equal(t, "Semantic Server", p.EffectiveServerName())
+	require.Equal(t, "semantic motd", p.EffectiveMOTD())
 
-	require.NoError(t, p.Apply(newConfigValueClearedEvent(ConfigPathServerName.Name), 3))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerNameChanged{
+		ServerNameChanged: &corev1.ServerNameChangedEvent{Name: ""},
+	}}, 3))
 	cfg, configured = p.Get()
 	require.True(t, configured)
 	require.Equal(t, "", cfg.ServerName)
 	require.Equal(t, "Chatto", p.EffectiveServerName())
-	require.Equal(t, "generic motd", p.EffectiveMOTD())
+	require.Equal(t, "semantic motd", p.EffectiveMOTD())
 }
 
 func TestServerConfigProjection_GetReturnsClone(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -48,6 +48,47 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 		return nil, fmt.Errorf("config service not configured")
 	}
 
+	if input.Timezone != nil {
+		tz := *input.Timezone
+		if tz != "" {
+			if _, err := time.LoadLocation(tz); err != nil {
+				return nil, fmt.Errorf("invalid timezone %q: %w", tz, err)
+			}
+		}
+	}
+
+	changed := false
+	if err := c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		current, _, err := c.ServerConfig.UserSettings(userID)
+		if err != nil {
+			return nil, err
+		}
+		var evs []*corev1.Event
+		if input.Timezone != nil {
+			tz := *input.Timezone
+			if tz == "" {
+				if current != nil && current.Timezone != nil {
+					evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
+						UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
+					}}))
+				}
+			} else if current == nil || current.GetTimezone() != tz {
+				evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneChanged{
+					UserTimezoneChanged: &corev1.UserTimezoneChangedEvent{UserId: userID, Timezone: tz},
+				}}))
+			}
+		}
+		if input.TimeFormat != nil && (current == nil || current.GetTimeFormat() != *input.TimeFormat) {
+			evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimeFormatChanged{
+				UserTimeFormatChanged: &corev1.UserTimeFormatChangedEvent{UserId: userID, TimeFormat: *input.TimeFormat},
+			}}))
+		}
+		changed = len(evs) > 0
+		return evs, nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to store user settings: %w", err)
+	}
+
 	settings, err := c.GetUserSettings(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -55,43 +96,11 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	if settings == nil {
 		settings = &corev1.ServerUserPreferences{}
 	}
-
-	var writes []configWrite
-	var clears []string
-
-	if input.Timezone != nil {
-		tz := *input.Timezone
-		if tz != "" {
-			if _, err := time.LoadLocation(tz); err != nil {
-				return nil, fmt.Errorf("invalid timezone %q: %w", tz, err)
-			}
-			settings.Timezone = &tz
-			writes = append(writes, mustConfigWrite(ConfigPathUserTimezone.Name, configStringValue(tz)))
-		} else {
-			settings.Timezone = nil
-			clears = append(clears, ConfigPathUserTimezone.Name)
-		}
-	}
-
-	if input.TimeFormat != nil {
-		settings.TimeFormat = *input.TimeFormat
-		writes = append(writes, mustConfigWrite(ConfigPathUserTimeFormat.Name, configIntValue(int64(*input.TimeFormat))))
-	}
-
-	if len(writes) > 0 {
-		if err := c.configManager.service.setValues(ctx, userID, userID, writes); err != nil {
-			return nil, fmt.Errorf("failed to store user settings: %w", err)
-		}
-	}
-	if len(clears) > 0 {
-		if err := c.configManager.service.clearPaths(ctx, userID, userID, clears); err != nil {
-			return nil, fmt.Errorf("failed to clear user settings: %w", err)
-		}
+	if !changed {
+		return settings, nil
 	}
 
 	c.logger.Info("Updated user settings", "user_id", userID)
-
-	// Publish live event for multi-tab/multi-device sync
 	c.publishServerUserPreferencesUpdatedEvent(ctx, userID, settings)
 
 	return settings, nil
@@ -122,15 +131,22 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 
 // deleteUserSettings removes a user's settings. Called during account deletion.
 func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) error {
-	if c.configManager == nil || c.configManager.service == nil {
+	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
 		return nil
 	}
-	return c.configManager.service.clearPaths(ctx, SystemActorID, userID, []string{
-		ConfigPathUserTimezone.Name,
-		ConfigPathUserTimeFormat.Name,
+	return c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		current, _, err := c.ServerConfig.UserSettings(userID)
+		if err != nil || current == nil {
+			return nil, err
+		}
+		evs := []*corev1.Event{
+			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
+				UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
+			}}),
+			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimeFormatCleared{
+				UserTimeFormatCleared: &corev1.UserTimeFormatClearedEvent{UserId: userID},
+			}}),
+		}
+		return evs, nil
 	})
-}
-
-func mustConfigWrite(path string, value *configv1.ConfigValue) configWrite {
-	return configWrite{path: path, value: value}
 }
