@@ -2,6 +2,8 @@ package core
 
 import (
 	"testing"
+
+	"hmans.de/chatto/internal/config"
 )
 
 // ============================================================================
@@ -159,6 +161,45 @@ func TestChattoCore_ListUsersWithVerifiedEmail(t *testing.T) {
 	})
 }
 
+func TestChattoCore_ApplyConfigOwners(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, err := core.CreateVerifiedUser(ctx, SystemActorID, "config-owner", "Config Owner", "password123", "Owner@Example.com")
+	if err != nil {
+		t.Fatalf("create owner candidate: %v", err)
+	}
+	regular, err := core.CreateVerifiedUser(ctx, SystemActorID, "config-regular", "Config Regular", "password123", "regular@example.com")
+	if err != nil {
+		t.Fatalf("create regular user: %v", err)
+	}
+
+	if isOwner, err := core.IsServerOwner(ctx, owner.Id); err != nil || isOwner {
+		t.Fatalf("owner candidate should not start as owner, owner=%v err=%v", isOwner, err)
+	}
+
+	core.config.Owners = config.OwnersConfig{Emails: []string{" owner@example.com "}}
+	if err := core.applyConfigOwners(ctx); err != nil {
+		t.Fatalf("apply config owners: %v", err)
+	}
+
+	if isOwner, err := core.IsServerOwner(ctx, owner.Id); err != nil || !isOwner {
+		t.Fatalf("matching verified email should get owner role, owner=%v err=%v", isOwner, err)
+	}
+	if isOwner, err := core.IsServerOwner(ctx, regular.Id); err != nil || isOwner {
+		t.Fatalf("non-matching verified email should not get owner role, owner=%v err=%v", isOwner, err)
+	}
+
+	eventsAfterApply := eventStreamMsgCount(t, core)
+	if err := core.applyConfigOwners(ctx); err != nil {
+		t.Fatalf("second apply config owners: %v", err)
+	}
+	eventsAfterSecondApply := eventStreamMsgCount(t, core)
+	if eventsAfterSecondApply != eventsAfterApply {
+		t.Fatalf("expected applyConfigOwners to be idempotent, got %d -> %d events", eventsAfterApply, eventsAfterSecondApply)
+	}
+}
+
 func TestChattoCore_AddVerifiedEmailDirect(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -272,4 +313,3 @@ func TestChattoCore_GetUserByVerifiedEmail(t *testing.T) {
 		}
 	})
 }
-

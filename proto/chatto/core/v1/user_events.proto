@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-711: durable user aggregate events on evt.user.{userId}.*
+//   - 700-712: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -120,5 +120,13 @@ message UserLoginCooldownClearedEvent {
 }
 
 message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+// UserKeyShreddedEvent is the durable audit signal that the user's
+// encryption key was destroyed. Projections use it to tombstone authored
+// messages before attempting decryption; asset cleanup is triggered from the
+// same command path.
+message UserKeyShreddedEvent {
   string user_id = 1;
 }

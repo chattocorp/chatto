@@ -1,13 +1,17 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 // setupTestCoreWithEncryption creates a ChattoCore for encryption tests.
@@ -100,6 +104,73 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	fullBody, err := core.GetFullMessageBody(ctx, KindChannel, event.GetMessagePosted().MessageBodyId)
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message should be nil after crypto-shredding (treated same as deleted)")
+}
+
+func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "shredauthor", "Shred Author", "password123")
+	require.NoError(t, err)
+	viewer, err := core.CreateUser(ctx, "system", "shredviewer", "Shred Viewer", "password123")
+	require.NoError(t, err)
+
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "General", "General chat")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id)
+	require.NoError(t, err)
+
+	original, err := core.UploadAttachment(ctx, author.Id, room.Id, "secret.txt", "text/plain", bytes.NewReader([]byte("secret original")))
+	require.NoError(t, err)
+	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(16, 16)))
+	require.NoError(t, err)
+	variant, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("secret variant")))
+	require.NoError(t, err)
+
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "message with secret asset", []string{original.Id}, "", "", nil, false)
+	require.NoError(t, err)
+
+	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+		_, _, err := core.GetAttachmentReader(ctx, att)
+		require.NoError(t, err, "precondition: %s should be readable before shred", att.Id)
+	}
+
+	require.NoError(t, core.DeleteUser(ctx, author.Id, author.Id))
+
+	shredEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(author.Id).Subject(events.EventUserKeyShredded))
+	require.NoError(t, err)
+	require.Len(t, shredEvents, 1)
+	require.Equal(t, author.Id, shredEvents[0].GetActorId())
+	require.Equal(t, author.Id, shredEvents[0].GetUserKeyShredded().GetUserId())
+
+	fullBody, err := core.GetFullMessageBodyByEventID(ctx, event.Id)
+	require.NoError(t, err)
+	require.Nil(t, fullBody, "message body should be tombstoned by UserKeyShreddedEvent before decrypt")
+
+	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventAssetDeleted))
+	require.NoError(t, err)
+	require.Len(t, deletedEvents, 3)
+	deletedIDs := map[string]bool{}
+	for _, e := range deletedEvents {
+		deletedIDs[e.GetAssetDeleted().GetAssetId()] = true
+	}
+	require.True(t, deletedIDs[original.Id], "source asset should get AssetDeletedEvent")
+	require.True(t, deletedIDs[thumbnail.Id], "thumbnail derivative should get AssetDeletedEvent")
+	require.True(t, deletedIDs[variant.Id], "variant derivative should get AssetDeletedEvent")
+
+	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+		got, err := core.LookupAttachment(ctx, signedurl.AttachmentLocator{
+			RoomID:       room.Id,
+			AttachmentID: att.Id,
+			UserID:       viewer.Id,
+			ExpiresAt:    time.Now().Add(time.Minute).Unix(),
+		})
+		require.NoError(t, err)
+		require.Nil(t, got, "deleted asset %s should no longer resolve through the serving projection", att.Id)
+
+		_, _, err = core.GetAttachmentReader(ctx, att)
+		require.Error(t, err, "backing bytes for %s should be deleted", att.Id)
+	}
 }
 
 func TestEditMessage_PreservesEncryptionState(t *testing.T) {

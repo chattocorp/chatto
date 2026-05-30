@@ -31,6 +31,7 @@ type ThreadProjection struct {
 	events.MemoryProjection
 	byThread        map[string][]*TimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
+	shreddedUsers   map[string]struct{}
 }
 
 // NewThreadProjection returns an empty projection.
@@ -38,6 +39,7 @@ func NewThreadProjection() *ThreadProjection {
 	return &ThreadProjection{
 		byThread:        make(map[string][]*TimelineEntry),
 		messageToThread: make(map[string]string),
+		shreddedUsers:   make(map[string]struct{}),
 	}
 }
 
@@ -45,7 +47,7 @@ func NewThreadProjection() *ThreadProjection {
 // firehose as RoomTimelineProjection — the apply switch picks out
 // the variants this projection cares about.
 func (p *ThreadProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{events.RoomSubjectFilter(), events.UserSubjectFilter()}
 }
 
 // Apply implements events.Projection.
@@ -78,6 +80,11 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := event.GetEvent().(type) {
+	case *corev1.Event_UserKeyShredded:
+		if userID := e.UserKeyShredded.GetUserId(); userID != "" {
+			p.shreddedUsers[userID] = struct{}{}
+		}
+
 	case *corev1.Event_MessagePosted:
 		m := e.MessagePosted
 		threadRoot := m.GetInThread()
@@ -137,7 +144,10 @@ func (p *ThreadProjection) ReplyCount(rootEventID string) int {
 	defer p.RUnlock()
 	n := 0
 	for _, e := range p.byThread[rootEventID] {
-		if _, ok := e.Event.GetEvent().(*corev1.Event_MessagePosted); ok {
+		if posted := e.Event.GetMessagePosted(); posted != nil {
+			if _, shredded := p.shreddedUsers[messageAuthorID(e.Event, posted)]; shredded {
+				continue
+			}
 			n++
 		}
 	}

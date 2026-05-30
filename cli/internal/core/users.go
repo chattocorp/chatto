@@ -131,7 +131,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		}
 		return nil
 	}); err != nil {
-		_ = c.DeleteUserEncryptionKey(ctx, userID)
+		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, err
 	}
 
@@ -181,7 +181,7 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 // failures are logged but not returned, since the caller is already in an error path.
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
-	if err := c.DeleteUserEncryptionKey(ctx, user.Id); err != nil {
+	if err := c.deleteUserEncryptionKeyOnly(ctx, user.Id); err != nil {
 		c.logger.Warn("rollback encryption key delete failed", "user_id", user.Id, "error", err)
 	}
 	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
@@ -462,6 +462,21 @@ func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error 
 	// Publish profile update event
 	c.publishUserProfileUpdate(ctx, userID)
 
+	return nil
+}
+
+func (c *ChattoCore) RecordUserAssetDeleted(ctx context.Context, actorID, userID, assetID string) error {
+	if userID == "" || assetID == "" {
+		return fmt.Errorf("user asset deletion missing user or asset id")
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_AssetDeleted{
+			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
+		},
+	})
+	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+		return fmt.Errorf("failed to record user asset deletion: %w", err)
+	}
 	return nil
 }
 
@@ -851,10 +866,16 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		}
 	}
 
-	// Delete encryption key (crypto-shreds any remaining encrypted data)
-	if err := c.DeleteUserEncryptionKey(ctx, userID); err != nil {
+	// Delete encryption key (crypto-shreds any remaining encrypted data) and
+	// record the durable shred signal projections use to tombstone messages
+	// before decrypting.
+	if err := c.DeleteUserEncryptionKeyAs(ctx, actorID, userID); err != nil {
 		c.logger.Warn("Failed to delete encryption key", "user_id", userID, "error", err)
 		// Continue - this is best-effort
+	}
+
+	if deleted := c.DeleteMessageOwnedAssetsForUser(ctx, actorID, userID); deleted > 0 {
+		c.logger.Info("Deleted message-owned assets during user deletion", "user_id", userID, "count", deleted)
 	}
 
 	// Delete push notification subscriptions
@@ -866,11 +887,10 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// Delete avatar from object store if it exists
 	avatar, _ := c.GetUserAvatar(ctx, userID)
 	if avatar != nil {
-		if natsAsset := avatar.GetNats(); natsAsset != nil {
-			if err := c.storage.serverStore.Delete(ctx, natsAsset.Key); err != nil {
-				c.logger.Warn("Failed to delete avatar from object store", "user_id", userID, "key", natsAsset.Key, "error", err)
-			}
+		if err := c.RecordUserAssetDeleted(ctx, actorID, userID, avatar.GetId()); err != nil {
+			c.logger.Warn("Failed to publish avatar asset deletion event", "user_id", userID, "asset_id", avatar.GetId(), "error", err)
 		}
+		c.deleteAsset(ctx, assetStorageFromAsset(avatar), "avatar", userID)
 	}
 
 	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{

@@ -442,11 +442,14 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
 	subjects := NewRoomTimelineProjection().Subjects()
-	if len(subjects) != 1 {
-		t.Fatalf("expected 1 subject filter, got %d", len(subjects))
+	want := map[string]bool{"evt.room.>": true, "evt.user.>": true}
+	if len(subjects) != len(want) {
+		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))
 	}
-	if subjects[0] != "evt.room.>" {
-		t.Errorf("subject filter = %q, want evt.room.>", subjects[0])
+	for _, subject := range subjects {
+		if !want[subject] {
+			t.Errorf("unexpected subject filter %q", subject)
+		}
 	}
 }
 

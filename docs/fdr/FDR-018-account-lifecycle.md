@@ -27,8 +27,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 - The user requests deletion via Account Settings.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
-- On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, and revokes all their sessions and bearer tokens.
-- After deletion, all messages the user ever posted are cryptographically unreadable — the bytes are still on disk in JetStream, but without the key they decrypt to noise.
+- On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
+- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
 - The login is freed up for re-use.
 
 ## Design Decisions
@@ -53,9 +53,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 4. Crypto-shredding instead of message deletion
 
-**Decision:** Account deletion destroys the user's encryption key. Encrypted message bodies stay on disk but become permanently unreadable.
-**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying one key destroys all their content atomically. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
-**Tradeoff:** Encrypted-but-unreadable bytes linger forever. Storage cost is small (chat messages are tiny) and the privacy guarantee is stronger than "we tried to delete everything we could find".
+**Decision:** Account deletion destroys the user's encryption key and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
+**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying one key destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
+**Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
 
 ### 5. Per-user keys, not shared keys
 
