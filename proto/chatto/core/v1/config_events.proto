@@ -8,7 +8,7 @@ import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
-// Durable server-config event for the EVT log. Carries the
+// Durable configuration event for the EVT log. Carries the
 // complete ServerConfig snapshot after the change so projections and
 // the audit log can reconstruct state without reaching back to KV.
 // Distinct from the live-only ServerConfigUpdatedEvent at field 1000,

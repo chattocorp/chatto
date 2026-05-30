@@ -1120,7 +1120,7 @@ type Event_AssetDeleted struct {
 }
 
 type Event_ServerConfigChanged struct {
-	// ----- Config / preferences (500-529, durable) -----
+	// ----- Config / preferences (500-599, durable) -----
 	// Distinct from ServerConfigUpdatedEvent at 1000, which is the
 	// legacy live-only broadcast on the SERVER_EVENTS path. The
 	// durable variant below lives on the EVT stream (subject
@@ -1644,7 +1644,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!chatto/core/v1/asset_events.proto\x1a chatto/core/v1/live_events.proto\x1a#chatto/core/v1/message_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a)chatto/core/v1/server_config_events.proto\x1a chatto/core/v1/user_events.proto\"\xddD\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!chatto/core/v1/asset_events.proto\x1a chatto/core/v1/live_events.proto\x1a#chatto/core/v1/message_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a chatto/core/v1/user_events.proto\"\xddD\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1966,7 +1966,7 @@ func file_chatto_core_v1_event_proto_init() {
 	file_chatto_core_v1_reaction_events_proto_init()
 	file_chatto_core_v1_room_events_proto_init()
 	file_chatto_core_v1_room_group_events_proto_init()
-	file_chatto_core_v1_server_config_events_proto_init()
+	file_chatto_core_v1_config_events_proto_init()
 	file_chatto_core_v1_user_events_proto_init()
 	file_chatto_core_v1_event_proto_msgTypes[0].OneofWrappers = []any{
 		(*Event_RoomCreated)(nil),

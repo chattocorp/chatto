@@ -10,7 +10,7 @@ import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/room_group_events.proto";
-import "chatto/core/v1/server_config_events.proto";
+import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/user_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -103,7 +103,7 @@ message Event {
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
 
-    // ----- Config / preferences (500-529, durable) -----
+    // ----- Config / preferences (500-599, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
     // legacy live-only broadcast on the SERVER_EVENTS path. The
     // durable variant below lives on the EVT stream (subject
