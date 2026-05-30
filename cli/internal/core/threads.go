@@ -356,7 +356,15 @@ func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomI
 		// Only MessagePostedEvent entries count as replies — edit /
 		// retract entries land in the thread's bucket but mustn't
 		// inflate the metadata.
-		if r.Event.GetMessagePosted() == nil {
+		posted := r.Event.GetMessagePosted()
+		if posted == nil {
+			continue
+		}
+		eventID := posted.GetEventId()
+		if eventID == "" {
+			eventID = r.Event.GetId()
+		}
+		if c.RoomTimeline.MessageTombstoned(eventID) {
 			continue
 		}
 		metadata.ReplyCount++

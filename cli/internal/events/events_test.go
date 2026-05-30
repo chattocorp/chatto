@@ -657,7 +657,7 @@ func TestSubjectHelpers(t *testing.T) {
 // ============================================================================
 
 // TestEventTypeOf_MessageEvents locks in the subject-token mapping for the
-// three message-related event variants. These tokens become part of NATS
+// durable message and shred event variants. These tokens become part of NATS
 // subjects (evt.room.{R}.message_*) and persist on disk — once shipped,
 // renaming requires a stream migration.
 func TestEventTypeOf_MessageEvents(t *testing.T) {
@@ -693,14 +693,27 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			},
 			want: EventMessageRetracted,
 		},
+		{
+			name: "UserKeyShredded",
+			event: &corev1.Event{
+				Event: &corev1.Event_UserKeyShredded{
+					UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+				},
+			},
+			want: EventUserKeyShredded,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := EventTypeOf(c.event); got != c.want {
 				t.Errorf("EventTypeOf = %q, want %q", got, c.want)
 			}
-			subject := RoomAggregate("ROOM123").SubjectFor(c.event)
-			wantSubject := "evt.room.ROOM123." + c.want
+			agg := RoomAggregate("ROOM123")
+			if c.want == EventUserKeyShredded {
+				agg = UserAggregate("U1")
+			}
+			subject := agg.SubjectFor(c.event)
+			wantSubject := agg.Subject(c.want)
 			if subject != wantSubject {
 				t.Errorf("SubjectFor = %q, want %q", subject, wantSubject)
 			}

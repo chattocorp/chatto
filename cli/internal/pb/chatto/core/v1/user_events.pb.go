@@ -877,6 +877,54 @@ func (x *UserAccountDeletedEvent) GetUserId() string {
 	return ""
 }
 
+// UserKeyShreddedEvent is the durable audit signal that the user's
+// encryption key was destroyed. Projections use it to tombstone authored
+// messages before attempting decryption; asset cleanup is triggered from the
+// same command path.
+type UserKeyShreddedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserKeyShreddedEvent) Reset() {
+	*x = UserKeyShreddedEvent{}
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserKeyShreddedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserKeyShreddedEvent) ProtoMessage() {}
+
+func (x *UserKeyShreddedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserKeyShreddedEvent.ProtoReflect.Descriptor instead.
+func (*UserKeyShreddedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *UserKeyShreddedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 var File_chatto_core_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_user_events_proto_rawDesc = "" +
@@ -932,6 +980,8 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x1dUserLoginCooldownClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"2\n" +
 	"\x17UserAccountDeletedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
+	"\x14UserKeyShreddedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userIdB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fUserEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
@@ -947,7 +997,7 @@ func file_chatto_core_v1_user_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_user_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_chatto_core_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*UserCreatedEvent)(nil),                  // 0: chatto.core.v1.UserCreatedEvent
 	(*UserDeletedEvent)(nil),                  // 1: chatto.core.v1.UserDeletedEvent
@@ -965,14 +1015,15 @@ var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*UserLoginCooldownStartedEvent)(nil),     // 13: chatto.core.v1.UserLoginCooldownStartedEvent
 	(*UserLoginCooldownClearedEvent)(nil),     // 14: chatto.core.v1.UserLoginCooldownClearedEvent
 	(*UserAccountDeletedEvent)(nil),           // 15: chatto.core.v1.UserAccountDeletedEvent
-	(TimeFormat)(0),                           // 16: chatto.core.v1.TimeFormat
-	(*DeprecatedAsset)(nil),                   // 17: chatto.core.v1.DeprecatedAsset
-	(*ServerUserPreferences)(nil),             // 18: chatto.core.v1.ServerUserPreferences
+	(*UserKeyShreddedEvent)(nil),              // 16: chatto.core.v1.UserKeyShreddedEvent
+	(TimeFormat)(0),                           // 17: chatto.core.v1.TimeFormat
+	(*DeprecatedAsset)(nil),                   // 18: chatto.core.v1.DeprecatedAsset
+	(*ServerUserPreferences)(nil),             // 19: chatto.core.v1.ServerUserPreferences
 }
 var file_chatto_core_v1_user_events_proto_depIdxs = []int32{
-	16, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
-	17, // 1: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
-	18, // 2: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	17, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	18, // 1: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
+	19, // 2: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
 	3,  // [3:3] is the sub-list for method output_type
 	3,  // [3:3] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
@@ -993,7 +1044,7 @@ func file_chatto_core_v1_user_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_user_events_proto_rawDesc), len(file_chatto_core_v1_user_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -355,10 +355,46 @@ func (c *ChattoCore) PermResolver() *PermissionResolver {
 // All messages encrypted with this key become permanently unreadable.
 // This is used for GDPR-compliant user deletion.
 func (c *ChattoCore) DeleteUserEncryptionKey(ctx context.Context, userID string) error {
+	return c.DeleteUserEncryptionKeyAs(ctx, userID, userID)
+}
+
+func (c *ChattoCore) deleteUserEncryptionKeyOnly(ctx context.Context, userID string) error {
+	if c.encryption.keyManager == nil {
+		return nil
+	}
+	return c.encryption.keyManager.DeleteUserKey(ctx, userID)
+}
+
+func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, userID string) error {
 	if c.encryption.keyManager == nil {
 		return nil // Encryption not configured
 	}
-	return c.encryption.keyManager.DeleteUserKey(ctx, userID)
+	exists, err := c.encryption.keyManager.UserKeyExists(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	if err := c.encryption.keyManager.DeleteUserKey(ctx, userID); err != nil {
+		return err
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_UserKeyShredded{
+			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: userID},
+		},
+	})
+	seq, err := c.appendUserEvent(ctx, userID, event, "", nil)
+	if err != nil {
+		return fmt.Errorf("failed to record user key shred event: %w", err)
+	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for room timeline projection: %w", err)
+	}
+	if err := c.ThreadsProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for thread projection: %w", err)
+	}
+	return nil
 }
 
 // AssetsConfig returns the assets configuration as an assets.Config.

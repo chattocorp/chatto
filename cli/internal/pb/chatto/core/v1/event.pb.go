@@ -103,6 +103,7 @@ type Event struct {
 	//	*Event_UserLoginCooldownCleared
 	//	*Event_UserAccountDeleted
 	//	*Event_UserLoginCooldownStarted
+	//	*Event_UserKeyShredded
 	//	*Event_RbacRoleCreated
 	//	*Event_RbacRoleDisplayNameChanged
 	//	*Event_RbacRoleDescriptionChanged
@@ -523,6 +524,15 @@ func (x *Event) GetUserLoginCooldownStarted() *UserLoginCooldownStartedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserLoginCooldownStarted); ok {
 			return x.UserLoginCooldownStarted
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetUserKeyShredded() *UserKeyShreddedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_UserKeyShredded); ok {
+			return x.UserKeyShredded
 		}
 	}
 	return nil
@@ -1050,6 +1060,10 @@ type Event_UserLoginCooldownStarted struct {
 	UserLoginCooldownStarted *UserLoginCooldownStartedEvent `protobuf:"bytes,711,opt,name=user_login_cooldown_started,json=userLoginCooldownStarted,proto3,oneof"`
 }
 
+type Event_UserKeyShredded struct {
+	UserKeyShredded *UserKeyShreddedEvent `protobuf:"bytes,712,opt,name=user_key_shredded,json=userKeyShredded,proto3,oneof"`
+}
+
 type Event_RbacRoleCreated struct {
 	// ----- RBAC (800-839, durable, evt.rbac.>) -----
 	RbacRoleCreated *RbacRoleCreatedEvent `protobuf:"bytes,800,opt,name=rbac_role_created,json=rbacRoleCreated,proto3,oneof"`
@@ -1299,6 +1313,8 @@ func (*Event_UserAccountDeleted) isEvent_Event() {}
 
 func (*Event_UserLoginCooldownStarted) isEvent_Event() {}
 
+func (*Event_UserKeyShredded) isEvent_Event() {}
+
 func (*Event_RbacRoleCreated) isEvent_Event() {}
 
 func (*Event_RbacRoleDisplayNameChanged) isEvent_Event() {}
@@ -1379,7 +1395,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!chatto/core/v1/asset_events.proto\x1a chatto/core/v1/live_events.proto\x1a#chatto/core/v1/message_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a)chatto/core/v1/server_config_events.proto\x1a chatto/core/v1/user_events.proto\"\xac6\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!chatto/core/v1/asset_events.proto\x1a chatto/core/v1/live_events.proto\x1a#chatto/core/v1/message_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a)chatto/core/v1/server_config_events.proto\x1a chatto/core/v1/user_events.proto\"\x817\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1421,6 +1437,7 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x1buser_login_cooldown_cleared\x18\xc5\x05 \x01(\v2-.chatto.core.v1.UserLoginCooldownClearedEventH\x00R\x18userLoginCooldownCleared\x12\\\n" +
 	"\x14user_account_deleted\x18\xc6\x05 \x01(\v2'.chatto.core.v1.UserAccountDeletedEventH\x00R\x12userAccountDeleted\x12o\n" +
 	"\x1buser_login_cooldown_started\x18\xc7\x05 \x01(\v2-.chatto.core.v1.UserLoginCooldownStartedEventH\x00R\x18userLoginCooldownStarted\x12S\n" +
+	"\x11user_key_shredded\x18\xc8\x05 \x01(\v2$.chatto.core.v1.UserKeyShreddedEventH\x00R\x0fuserKeyShredded\x12S\n" +
 	"\x11rbac_role_created\x18\xa0\x06 \x01(\v2$.chatto.core.v1.RbacRoleCreatedEventH\x00R\x0frbacRoleCreated\x12v\n" +
 	"\x1erbac_role_display_name_changed\x18\xa1\x06 \x01(\v2/.chatto.core.v1.RbacRoleDisplayNameChangedEventH\x00R\x1arbacRoleDisplayNameChanged\x12u\n" +
 	"\x1drbac_role_description_changed\x18\xa2\x06 \x01(\v2/.chatto.core.v1.RbacRoleDescriptionChangedEventH\x00R\x1arbacRoleDescriptionChanged\x12S\n" +
@@ -1516,44 +1533,45 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*UserLoginCooldownClearedEvent)(nil),     // 35: chatto.core.v1.UserLoginCooldownClearedEvent
 	(*UserAccountDeletedEvent)(nil),           // 36: chatto.core.v1.UserAccountDeletedEvent
 	(*UserLoginCooldownStartedEvent)(nil),     // 37: chatto.core.v1.UserLoginCooldownStartedEvent
-	(*RbacRoleCreatedEvent)(nil),              // 38: chatto.core.v1.RbacRoleCreatedEvent
-	(*RbacRoleDisplayNameChangedEvent)(nil),   // 39: chatto.core.v1.RbacRoleDisplayNameChangedEvent
-	(*RbacRoleDescriptionChangedEvent)(nil),   // 40: chatto.core.v1.RbacRoleDescriptionChangedEvent
-	(*RbacRoleDeletedEvent)(nil),              // 41: chatto.core.v1.RbacRoleDeletedEvent
-	(*RbacRolesReorderedEvent)(nil),           // 42: chatto.core.v1.RbacRolesReorderedEvent
-	(*RbacRoleAssignedEvent)(nil),             // 43: chatto.core.v1.RbacRoleAssignedEvent
-	(*RbacRoleRevokedEvent)(nil),              // 44: chatto.core.v1.RbacRoleRevokedEvent
-	(*RbacPermissionGrantedEvent)(nil),        // 45: chatto.core.v1.RbacPermissionGrantedEvent
-	(*RbacPermissionDeniedEvent)(nil),         // 46: chatto.core.v1.RbacPermissionDeniedEvent
-	(*RbacPermissionClearedEvent)(nil),        // 47: chatto.core.v1.RbacPermissionClearedEvent
-	(*ServerConfigUpdatedEvent)(nil),          // 48: chatto.core.v1.ServerConfigUpdatedEvent
-	(*UserCreatedEvent)(nil),                  // 49: chatto.core.v1.UserCreatedEvent
-	(*UserDeletedEvent)(nil),                  // 50: chatto.core.v1.UserDeletedEvent
-	(*UserProfileUpdatedEvent)(nil),           // 51: chatto.core.v1.UserProfileUpdatedEvent
-	(*ServerUserPreferencesUpdatedEvent)(nil), // 52: chatto.core.v1.ServerUserPreferencesUpdatedEvent
-	(*NotificationLevelChangedEvent)(nil),     // 53: chatto.core.v1.NotificationLevelChangedEvent
-	(*ThreadFollowChangedEvent)(nil),          // 54: chatto.core.v1.ThreadFollowChangedEvent
-	(*ServerCreatedEvent)(nil),                // 55: chatto.core.v1.ServerCreatedEvent
-	(*ServerUpdatedEvent)(nil),                // 56: chatto.core.v1.ServerUpdatedEvent
-	(*ServerDeletedEvent)(nil),                // 57: chatto.core.v1.ServerDeletedEvent
-	(*MessageUpdatedEvent)(nil),               // 58: chatto.core.v1.MessageUpdatedEvent
-	(*MessageDeletedEvent)(nil),               // 59: chatto.core.v1.MessageDeletedEvent
-	(*ReactionAddedEvent)(nil),                // 60: chatto.core.v1.ReactionAddedEvent
-	(*ReactionRemovedEvent)(nil),              // 61: chatto.core.v1.ReactionRemovedEvent
-	(*UserTypingEvent)(nil),                   // 62: chatto.core.v1.UserTypingEvent
-	(*VideoProcessingCompletedEvent)(nil),     // 63: chatto.core.v1.VideoProcessingCompletedEvent
-	(*PresenceChangedEvent)(nil),              // 64: chatto.core.v1.PresenceChangedEvent
-	(*MentionNotificationEvent)(nil),          // 65: chatto.core.v1.MentionNotificationEvent
-	(*NewDirectMessageNotificationEvent)(nil), // 66: chatto.core.v1.NewDirectMessageNotificationEvent
-	(*CallParticipantJoinedEvent)(nil),        // 67: chatto.core.v1.CallParticipantJoinedEvent
-	(*CallParticipantLeftEvent)(nil),          // 68: chatto.core.v1.CallParticipantLeftEvent
-	(*NotificationCreatedEvent)(nil),          // 69: chatto.core.v1.NotificationCreatedEvent
-	(*NotificationDismissedEvent)(nil),        // 70: chatto.core.v1.NotificationDismissedEvent
-	(*RoomMarkedAsReadEvent)(nil),             // 71: chatto.core.v1.RoomMarkedAsReadEvent
-	(*MentionStatusClearedEvent)(nil),         // 72: chatto.core.v1.MentionStatusClearedEvent
-	(*RoomGroupsUpdatedEvent)(nil),            // 73: chatto.core.v1.RoomGroupsUpdatedEvent
-	(*SessionTerminatedEvent)(nil),            // 74: chatto.core.v1.SessionTerminatedEvent
-	(*HeartbeatEvent)(nil),                    // 75: chatto.core.v1.HeartbeatEvent
+	(*UserKeyShreddedEvent)(nil),              // 38: chatto.core.v1.UserKeyShreddedEvent
+	(*RbacRoleCreatedEvent)(nil),              // 39: chatto.core.v1.RbacRoleCreatedEvent
+	(*RbacRoleDisplayNameChangedEvent)(nil),   // 40: chatto.core.v1.RbacRoleDisplayNameChangedEvent
+	(*RbacRoleDescriptionChangedEvent)(nil),   // 41: chatto.core.v1.RbacRoleDescriptionChangedEvent
+	(*RbacRoleDeletedEvent)(nil),              // 42: chatto.core.v1.RbacRoleDeletedEvent
+	(*RbacRolesReorderedEvent)(nil),           // 43: chatto.core.v1.RbacRolesReorderedEvent
+	(*RbacRoleAssignedEvent)(nil),             // 44: chatto.core.v1.RbacRoleAssignedEvent
+	(*RbacRoleRevokedEvent)(nil),              // 45: chatto.core.v1.RbacRoleRevokedEvent
+	(*RbacPermissionGrantedEvent)(nil),        // 46: chatto.core.v1.RbacPermissionGrantedEvent
+	(*RbacPermissionDeniedEvent)(nil),         // 47: chatto.core.v1.RbacPermissionDeniedEvent
+	(*RbacPermissionClearedEvent)(nil),        // 48: chatto.core.v1.RbacPermissionClearedEvent
+	(*ServerConfigUpdatedEvent)(nil),          // 49: chatto.core.v1.ServerConfigUpdatedEvent
+	(*UserCreatedEvent)(nil),                  // 50: chatto.core.v1.UserCreatedEvent
+	(*UserDeletedEvent)(nil),                  // 51: chatto.core.v1.UserDeletedEvent
+	(*UserProfileUpdatedEvent)(nil),           // 52: chatto.core.v1.UserProfileUpdatedEvent
+	(*ServerUserPreferencesUpdatedEvent)(nil), // 53: chatto.core.v1.ServerUserPreferencesUpdatedEvent
+	(*NotificationLevelChangedEvent)(nil),     // 54: chatto.core.v1.NotificationLevelChangedEvent
+	(*ThreadFollowChangedEvent)(nil),          // 55: chatto.core.v1.ThreadFollowChangedEvent
+	(*ServerCreatedEvent)(nil),                // 56: chatto.core.v1.ServerCreatedEvent
+	(*ServerUpdatedEvent)(nil),                // 57: chatto.core.v1.ServerUpdatedEvent
+	(*ServerDeletedEvent)(nil),                // 58: chatto.core.v1.ServerDeletedEvent
+	(*MessageUpdatedEvent)(nil),               // 59: chatto.core.v1.MessageUpdatedEvent
+	(*MessageDeletedEvent)(nil),               // 60: chatto.core.v1.MessageDeletedEvent
+	(*ReactionAddedEvent)(nil),                // 61: chatto.core.v1.ReactionAddedEvent
+	(*ReactionRemovedEvent)(nil),              // 62: chatto.core.v1.ReactionRemovedEvent
+	(*UserTypingEvent)(nil),                   // 63: chatto.core.v1.UserTypingEvent
+	(*VideoProcessingCompletedEvent)(nil),     // 64: chatto.core.v1.VideoProcessingCompletedEvent
+	(*PresenceChangedEvent)(nil),              // 65: chatto.core.v1.PresenceChangedEvent
+	(*MentionNotificationEvent)(nil),          // 66: chatto.core.v1.MentionNotificationEvent
+	(*NewDirectMessageNotificationEvent)(nil), // 67: chatto.core.v1.NewDirectMessageNotificationEvent
+	(*CallParticipantJoinedEvent)(nil),        // 68: chatto.core.v1.CallParticipantJoinedEvent
+	(*CallParticipantLeftEvent)(nil),          // 69: chatto.core.v1.CallParticipantLeftEvent
+	(*NotificationCreatedEvent)(nil),          // 70: chatto.core.v1.NotificationCreatedEvent
+	(*NotificationDismissedEvent)(nil),        // 71: chatto.core.v1.NotificationDismissedEvent
+	(*RoomMarkedAsReadEvent)(nil),             // 72: chatto.core.v1.RoomMarkedAsReadEvent
+	(*MentionStatusClearedEvent)(nil),         // 73: chatto.core.v1.MentionStatusClearedEvent
+	(*RoomGroupsUpdatedEvent)(nil),            // 74: chatto.core.v1.RoomGroupsUpdatedEvent
+	(*SessionTerminatedEvent)(nil),            // 75: chatto.core.v1.SessionTerminatedEvent
+	(*HeartbeatEvent)(nil),                    // 76: chatto.core.v1.HeartbeatEvent
 }
 var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	1,  // 0: chatto.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
@@ -1593,49 +1611,50 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	35, // 34: chatto.core.v1.Event.user_login_cooldown_cleared:type_name -> chatto.core.v1.UserLoginCooldownClearedEvent
 	36, // 35: chatto.core.v1.Event.user_account_deleted:type_name -> chatto.core.v1.UserAccountDeletedEvent
 	37, // 36: chatto.core.v1.Event.user_login_cooldown_started:type_name -> chatto.core.v1.UserLoginCooldownStartedEvent
-	38, // 37: chatto.core.v1.Event.rbac_role_created:type_name -> chatto.core.v1.RbacRoleCreatedEvent
-	39, // 38: chatto.core.v1.Event.rbac_role_display_name_changed:type_name -> chatto.core.v1.RbacRoleDisplayNameChangedEvent
-	40, // 39: chatto.core.v1.Event.rbac_role_description_changed:type_name -> chatto.core.v1.RbacRoleDescriptionChangedEvent
-	41, // 40: chatto.core.v1.Event.rbac_role_deleted:type_name -> chatto.core.v1.RbacRoleDeletedEvent
-	42, // 41: chatto.core.v1.Event.rbac_roles_reordered:type_name -> chatto.core.v1.RbacRolesReorderedEvent
-	43, // 42: chatto.core.v1.Event.rbac_role_assigned:type_name -> chatto.core.v1.RbacRoleAssignedEvent
-	44, // 43: chatto.core.v1.Event.rbac_role_revoked:type_name -> chatto.core.v1.RbacRoleRevokedEvent
-	45, // 44: chatto.core.v1.Event.rbac_permission_granted:type_name -> chatto.core.v1.RbacPermissionGrantedEvent
-	46, // 45: chatto.core.v1.Event.rbac_permission_denied:type_name -> chatto.core.v1.RbacPermissionDeniedEvent
-	47, // 46: chatto.core.v1.Event.rbac_permission_cleared:type_name -> chatto.core.v1.RbacPermissionClearedEvent
-	48, // 47: chatto.core.v1.Event.config_updated:type_name -> chatto.core.v1.ServerConfigUpdatedEvent
-	49, // 48: chatto.core.v1.Event.user_created:type_name -> chatto.core.v1.UserCreatedEvent
-	50, // 49: chatto.core.v1.Event.user_deleted:type_name -> chatto.core.v1.UserDeletedEvent
-	51, // 50: chatto.core.v1.Event.user_profile_updated:type_name -> chatto.core.v1.UserProfileUpdatedEvent
-	52, // 51: chatto.core.v1.Event.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
-	53, // 52: chatto.core.v1.Event.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
-	54, // 53: chatto.core.v1.Event.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
-	55, // 54: chatto.core.v1.Event.server_created:type_name -> chatto.core.v1.ServerCreatedEvent
-	56, // 55: chatto.core.v1.Event.server_updated:type_name -> chatto.core.v1.ServerUpdatedEvent
-	57, // 56: chatto.core.v1.Event.server_deleted:type_name -> chatto.core.v1.ServerDeletedEvent
-	58, // 57: chatto.core.v1.Event.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
-	59, // 58: chatto.core.v1.Event.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
-	60, // 59: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
-	61, // 60: chatto.core.v1.Event.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
-	62, // 61: chatto.core.v1.Event.user_typing:type_name -> chatto.core.v1.UserTypingEvent
-	63, // 62: chatto.core.v1.Event.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
-	64, // 63: chatto.core.v1.Event.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
-	65, // 64: chatto.core.v1.Event.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
-	66, // 65: chatto.core.v1.Event.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
-	67, // 66: chatto.core.v1.Event.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
-	68, // 67: chatto.core.v1.Event.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
-	69, // 68: chatto.core.v1.Event.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
-	70, // 69: chatto.core.v1.Event.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
-	71, // 70: chatto.core.v1.Event.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
-	72, // 71: chatto.core.v1.Event.mention_status_cleared:type_name -> chatto.core.v1.MentionStatusClearedEvent
-	73, // 72: chatto.core.v1.Event.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
-	74, // 73: chatto.core.v1.Event.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
-	75, // 74: chatto.core.v1.Event.heartbeat:type_name -> chatto.core.v1.HeartbeatEvent
-	75, // [75:75] is the sub-list for method output_type
-	75, // [75:75] is the sub-list for method input_type
-	75, // [75:75] is the sub-list for extension type_name
-	75, // [75:75] is the sub-list for extension extendee
-	0,  // [0:75] is the sub-list for field type_name
+	38, // 37: chatto.core.v1.Event.user_key_shredded:type_name -> chatto.core.v1.UserKeyShreddedEvent
+	39, // 38: chatto.core.v1.Event.rbac_role_created:type_name -> chatto.core.v1.RbacRoleCreatedEvent
+	40, // 39: chatto.core.v1.Event.rbac_role_display_name_changed:type_name -> chatto.core.v1.RbacRoleDisplayNameChangedEvent
+	41, // 40: chatto.core.v1.Event.rbac_role_description_changed:type_name -> chatto.core.v1.RbacRoleDescriptionChangedEvent
+	42, // 41: chatto.core.v1.Event.rbac_role_deleted:type_name -> chatto.core.v1.RbacRoleDeletedEvent
+	43, // 42: chatto.core.v1.Event.rbac_roles_reordered:type_name -> chatto.core.v1.RbacRolesReorderedEvent
+	44, // 43: chatto.core.v1.Event.rbac_role_assigned:type_name -> chatto.core.v1.RbacRoleAssignedEvent
+	45, // 44: chatto.core.v1.Event.rbac_role_revoked:type_name -> chatto.core.v1.RbacRoleRevokedEvent
+	46, // 45: chatto.core.v1.Event.rbac_permission_granted:type_name -> chatto.core.v1.RbacPermissionGrantedEvent
+	47, // 46: chatto.core.v1.Event.rbac_permission_denied:type_name -> chatto.core.v1.RbacPermissionDeniedEvent
+	48, // 47: chatto.core.v1.Event.rbac_permission_cleared:type_name -> chatto.core.v1.RbacPermissionClearedEvent
+	49, // 48: chatto.core.v1.Event.config_updated:type_name -> chatto.core.v1.ServerConfigUpdatedEvent
+	50, // 49: chatto.core.v1.Event.user_created:type_name -> chatto.core.v1.UserCreatedEvent
+	51, // 50: chatto.core.v1.Event.user_deleted:type_name -> chatto.core.v1.UserDeletedEvent
+	52, // 51: chatto.core.v1.Event.user_profile_updated:type_name -> chatto.core.v1.UserProfileUpdatedEvent
+	53, // 52: chatto.core.v1.Event.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
+	54, // 53: chatto.core.v1.Event.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
+	55, // 54: chatto.core.v1.Event.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
+	56, // 55: chatto.core.v1.Event.server_created:type_name -> chatto.core.v1.ServerCreatedEvent
+	57, // 56: chatto.core.v1.Event.server_updated:type_name -> chatto.core.v1.ServerUpdatedEvent
+	58, // 57: chatto.core.v1.Event.server_deleted:type_name -> chatto.core.v1.ServerDeletedEvent
+	59, // 58: chatto.core.v1.Event.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
+	60, // 59: chatto.core.v1.Event.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
+	61, // 60: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
+	62, // 61: chatto.core.v1.Event.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
+	63, // 62: chatto.core.v1.Event.user_typing:type_name -> chatto.core.v1.UserTypingEvent
+	64, // 63: chatto.core.v1.Event.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
+	65, // 64: chatto.core.v1.Event.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
+	66, // 65: chatto.core.v1.Event.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
+	67, // 66: chatto.core.v1.Event.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
+	68, // 67: chatto.core.v1.Event.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
+	69, // 68: chatto.core.v1.Event.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
+	70, // 69: chatto.core.v1.Event.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
+	71, // 70: chatto.core.v1.Event.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
+	72, // 71: chatto.core.v1.Event.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
+	73, // 72: chatto.core.v1.Event.mention_status_cleared:type_name -> chatto.core.v1.MentionStatusClearedEvent
+	74, // 73: chatto.core.v1.Event.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
+	75, // 74: chatto.core.v1.Event.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
+	76, // 75: chatto.core.v1.Event.heartbeat:type_name -> chatto.core.v1.HeartbeatEvent
+	76, // [76:76] is the sub-list for method output_type
+	76, // [76:76] is the sub-list for method input_type
+	76, // [76:76] is the sub-list for extension type_name
+	76, // [76:76] is the sub-list for extension extendee
+	0,  // [0:76] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_event_proto_init() }
@@ -1689,6 +1708,7 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_UserLoginCooldownCleared)(nil),
 		(*Event_UserAccountDeleted)(nil),
 		(*Event_UserLoginCooldownStarted)(nil),
+		(*Event_UserKeyShredded)(nil),
 		(*Event_RbacRoleCreated)(nil),
 		(*Event_RbacRoleDisplayNameChanged)(nil),
 		(*Event_RbacRoleDescriptionChanged)(nil),

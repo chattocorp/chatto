@@ -683,6 +683,69 @@ func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, ac
 	}
 }
 
+// DeleteMessageOwnedAssetsForUser removes every currently projected
+// message-owned asset for userID, including derivative children such as video
+// thumbnails and variants. AssetDeletedEvent is appended before the backing
+// bytes are removed so serving paths stop resolving the asset even if storage
+// cleanup is slow or partially fails.
+func (c *ChattoCore) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorID, userID string) int {
+	owned := c.RoomTimeline.MessageAssetsByAuthor(userID)
+	deleted := 0
+	seen := make(map[string]struct{})
+
+	for _, ref := range owned {
+		for _, assetID := range c.RoomTimeline.AssetSubtreeIDs(ref.AssetID) {
+			if assetID == "" {
+				continue
+			}
+			if _, ok := seen[assetID]; ok {
+				continue
+			}
+			seen[assetID] = struct{}{}
+
+			declared, ok := c.RoomTimeline.AssetCreation(assetID)
+			if !ok || declared == nil {
+				continue
+			}
+			roomID := assetCreatedRoomID(declared)
+			if roomID == "" {
+				roomID = ref.RoomID
+			}
+			if roomID == "" {
+				continue
+			}
+			kind, err := c.FindRoomKind(ctx, roomID)
+			if err != nil {
+				c.logger.Warn("Failed to resolve room kind during user asset cleanup",
+					"asset_id", assetID,
+					"room_id", roomID,
+					"user_id", userID,
+					"error", err)
+				continue
+			}
+			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, assetID); err != nil {
+				c.logger.Warn("Failed to publish asset deletion event during user asset cleanup",
+					"asset_id", assetID,
+					"room_id", roomID,
+					"user_id", userID,
+					"error", err)
+				continue
+			}
+			if att := attachmentFromAsset(declared.GetAsset()); att != nil {
+				if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
+					c.logger.Warn("Failed to delete attachment during user asset cleanup",
+						"asset_id", assetID,
+						"room_id", roomID,
+						"user_id", userID,
+						"error", err)
+				}
+			}
+			deleted++
+		}
+	}
+	return deleted
+}
+
 // TryPresignedAttachmentURL generates a presigned S3 URL for an
 // attachment. Returns an error if S3 isn't configured, the attachment
 // isn't stored in S3 (e.g. NATS), or no S3 key can be found (in any of

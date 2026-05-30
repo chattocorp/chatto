@@ -77,6 +77,8 @@ func (p *UserProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyAvatarCleared(e.UserAvatarCleared)
 	case *corev1.Event_AssetCreated:
 		p.applyAssetCreated(e.AssetCreated)
+	case *corev1.Event_AssetDeleted:
+		p.applyAssetDeleted(e.AssetDeleted)
 	case *corev1.Event_UserVerifiedEmailAdded:
 		p.applyVerifiedEmailAdded(e.UserVerifiedEmailAdded, event.GetCreatedAt())
 	case *corev1.Event_UserPasswordHashChanged:
@@ -167,6 +169,17 @@ func (p *UserProjection) applyAssetCreated(e *corev1.AssetCreatedEvent) {
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	u.avatar = proto.Clone(e.GetAsset()).(*corev1.AssetRecord)
+}
+
+func (p *UserProjection) applyAssetDeleted(e *corev1.AssetDeletedEvent) {
+	if e == nil || e.GetAssetId() == "" {
+		return
+	}
+	for _, u := range p.users {
+		if u != nil && u.avatar != nil && u.avatar.GetId() == e.GetAssetId() {
+			u.avatar = nil
+		}
+	}
 }
 
 func (p *UserProjection) applyAvatarCleared(e *corev1.UserAvatarClearedEvent) {

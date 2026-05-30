@@ -147,6 +147,7 @@ message Event {
     UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
     UserAccountDeletedEvent user_account_deleted = 710;
     UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
+    UserKeyShreddedEvent user_key_shredded = 712;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

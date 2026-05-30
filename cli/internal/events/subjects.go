@@ -107,6 +107,7 @@ const (
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
+	EventUserKeyShredded              = "user_key_shredded"
 
 	// RBAC aggregate
 	EventRBACRoleCreated            = "role_created"
@@ -212,6 +213,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *corev1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+	case *corev1.Event_UserKeyShredded:
+		return EventUserKeyShredded
 
 	case *corev1.Event_RbacRoleCreated:
 		return EventRBACRoleCreated
