@@ -6,6 +6,17 @@ import "chatto/core/v1/models.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
+// ============================================================================
+// ASSET EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 450-454: durable asset lifecycle and processing events on evt.room.* or
+//     evt.user.*, depending on owner scope
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
 // AssetCreatedEvent records durable content identity for one uploaded or
 // generated binary. Emitted at the moment the binary lands in storage, NOT
 // at message-post time — the asset is its own aggregate, and messages

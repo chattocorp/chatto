@@ -9,6 +9,14 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // ============================================================================
 // PERSISTED EVENT MESSAGE DEFINITIONS
 // Changing field numbers or structure below affects JetStream-stored data.
+//
+// Top-level Event oneof tags owned by this file:
+//   - 300-304: room lifecycle on evt.room.{roomId}.*
+//   - 310-311: room membership on evt.room.{roomId}.*
+//   - 320: server-wide account deletion fan-out
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
 // ============================================================================
 
 // ============================================================================

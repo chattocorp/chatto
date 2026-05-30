@@ -6,6 +6,12 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
 // DURABLE RBAC EVENTS (evt.rbac.>)
+//
+// Top-level Event oneof tags owned by this file:
+//   - 800-812: durable RBAC role, assignment, and permission events
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
 // ============================================================================
 
 message RbacRoleCreatedEvent {

@@ -7,6 +7,18 @@ import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
+// ============================================================================
+// CONFIG EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 500: reserved tombstone for the abandoned server_config_changed snapshot
+//   - 501-517: durable server/user configuration events on evt.config.*
+//   - 1000: legacy live-only config broadcast
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
 message ServerNameChangedEvent {
   string name = 1;
 }

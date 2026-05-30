@@ -7,6 +7,26 @@ import "chatto/core/v1/user_preferences.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
+// LIVE-ONLY EVENT DEFINITIONS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 1030-1032: live-only server lifecycle broadcasts
+//   - 1060: live-only typing indicator
+//   - 1070: live-only video processing compatibility event
+//   - 1080: live-only presence event
+//   - 1090-1091: live-only notification nudges
+//   - 1100-1101: live-only voice call presence events
+//   - 1110-1111: live-only notification sync events
+//   - 1121-1122: live-only unread/mention sync events
+//   - 1130: live-only room-layout invalidation event
+//   - 1140: live-only session termination event
+//   - 1200: synthetic in-process subscription heartbeat
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+// ============================================================================
 // SUBSCRIPTION LIVENESS
 // ============================================================================
 

@@ -6,6 +6,13 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
 // ROOM GROUP EVENTS (group aggregate, evt.group.{groupId})
+//
+// Top-level Event oneof tags owned by this file:
+//   - 600-605: durable group aggregate events on evt.group.{groupId}.*
+//   - 650: durable singleton room-layout event on evt.layout.default
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
 // ============================================================================
 //
 // Groups own their room-membership and room-ordering. Move-room and
