@@ -29,7 +29,7 @@ See [`.claude/skills/fdr/SKILL.md`](../../.claude/skills/fdr/SKILL.md) for the F
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-05-19 |
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-05-19 |
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-05-19 |
-| [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-05-19 |
+| [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-05-30 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-05-19 |
 | [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-05-19 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-05-19 |

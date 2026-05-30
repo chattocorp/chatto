@@ -256,7 +256,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
 | KV      | `INSTANCE`                    | Users, memberships (bucket name retained from pre-rename) |
-| KV      | `INSTANCE_CONFIG`             | Server runtime configuration overrides      |
+| KV      | `INSTANCE_CONFIG`             | Legacy server configuration import source   |
 | KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | `AUTH_TOKENS`                 | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications |
@@ -482,7 +482,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
-| `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
+| `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source       |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
@@ -512,8 +512,8 @@ All room data — channels and DMs alike — lives in the unified `SERVER_*` buc
 | `password_reset.{token}`               | Password reset token                             |
 | `account_deletion.{token}`             | Account deletion confirmation token              |
 | `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
-| `instance.logo`                        | Server logo asset reference (key retained from pre-rename) |
-| `instance.banner`                      | Server banner asset reference (key retained from pre-rename) |
+| `instance.logo`                        | Legacy server logo asset reference, imported into EVT config events |
+| `instance.banner`                      | Legacy server banner asset reference, imported into EVT config events |
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
@@ -523,9 +523,9 @@ Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NAT
 
 | Key               | Description                                                                  |
 | ----------------- | ---------------------------------------------------------------------------- |
-| `config.instance` | Server configuration (proto message; key + proto name retained) — name, MOTD, welcome message |
+| `config.instance` | Legacy server configuration import source (proto message; key + proto name retained) |
 
-Notes: Stores runtime configuration. Each section is a protobuf-serialized message. Server configuration (name, MOTD, welcome message) lives entirely in KV, not in chatto.toml. The TOML file is reserved for operational settings (ports, secrets, NATS config). Deleting a key reverts to defaults.
+Notes: Server configuration now lives in EVT config events and is served from the in-memory config projection. This bucket is retained as a boot-import source for pre-ES deployments. The TOML file remains reserved for operational settings (ports, secrets, NATS config).
 
 **AUTH_TOKENS keys:**
 
@@ -664,7 +664,7 @@ migration. New code should not write to `attachment.*` keys here.
 | ------------ | ----------------------------------- |
 | `{assetId}`  | User avatars, space icons, etc.     |
 
-Notes: Content-Type stored in object headers. S2 compression enabled. Legacy entity records such as server branding still reference the storage-pointer-only `DeprecatedAsset` proto until their post-migration cleanup.
+Notes: Content-Type stored in object headers. S2 compression enabled. Server logo and banner bytes remain here when backed by the NATS object store; the current logo/banner pointers are imported into and updated through EVT config events.
 
 **ASSET_CACHE keys:**
 
