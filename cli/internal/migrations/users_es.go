@@ -25,7 +25,6 @@ import (
 //   - auth.{id}.password
 //   - user.{id}.avatar
 //   - verified_emails.{id}.{emailHash}
-//   - user_preferences.{id}
 //   - user_login_changed_at.{id}
 //   - user_by_oidc.{issuerSubjectHash}
 //
@@ -183,18 +182,6 @@ func buildUserMigrationEntries(
 		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
 
-	if prefs, ok, err := getLegacyPreferences(ctx, kv, "user_preferences."+user.GetId()); err != nil {
-		return nil, err
-	} else if ok {
-		event := stamp(&corev1.Event{Event: &corev1.Event_UserServerPreferencesChanged{
-			UserServerPreferencesChanged: &corev1.UserServerPreferencesChangedEvent{
-				UserId:      user.GetId(),
-				Preferences: prefs,
-			},
-		}}, "system:migration", createdAt)
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
-	}
-
 	if changedAt, ok, err := getLegacyLoginChangedAt(ctx, kv, "user_login_changed_at."+user.GetId()); err != nil {
 		return nil, err
 	} else if ok {
@@ -230,18 +217,6 @@ func getLegacyAvatar(ctx context.Context, kv jetstream.KeyValue, key string) (*c
 		return nil, false, fmt.Errorf("unmarshal %s: %w", key, err)
 	}
 	return asset, true, nil
-}
-
-func getLegacyPreferences(ctx context.Context, kv jetstream.KeyValue, key string) (*corev1.ServerUserPreferences, bool, error) {
-	value, ok, err := getLegacyBytes(ctx, kv, key)
-	if err != nil || !ok {
-		return nil, ok, err
-	}
-	prefs := &corev1.ServerUserPreferences{}
-	if err := proto.Unmarshal(value, prefs); err != nil {
-		return nil, false, fmt.Errorf("unmarshal %s: %w", key, err)
-	}
-	return prefs, true, nil
 }
 
 func getLegacyLoginChangedAt(ctx context.Context, kv jetstream.KeyValue, key string) (time.Time, bool, error) {

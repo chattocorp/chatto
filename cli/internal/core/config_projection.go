@@ -35,7 +35,7 @@ func NewServerConfigProjection() *ConfigProjection {
 }
 
 func (p *ConfigProjection) Subjects() []string {
-	return []string{events.ConfigSubjectFilter()}
+	return []string{events.ConfigSubjectFilter(), events.UserSubjectFilter()}
 }
 
 func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
@@ -56,6 +56,14 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_ServerConfigChanged:
 		if e.ServerConfigChanged != nil {
 			return p.applyLegacyServerConfig(e.ServerConfigChanged.GetConfig())
+		}
+	case *corev1.Event_UserServerPreferencesChanged:
+		if e.UserServerPreferencesChanged != nil {
+			return p.applyLegacyUserPreferences(e.UserServerPreferencesChanged)
+		}
+	case *corev1.Event_UserAccountDeleted:
+		if e.UserAccountDeleted != nil {
+			p.clearSubject(e.UserAccountDeleted.GetUserId())
 		}
 	}
 	return nil
@@ -91,6 +99,15 @@ func (p *ConfigProjection) clear(subject, path string) {
 			delete(p.values, subject)
 		}
 	}
+}
+
+func (p *ConfigProjection) clearSubject(subject string) {
+	if subject == "" {
+		return
+	}
+	p.Lock()
+	defer p.Unlock()
+	delete(p.values, subject)
 }
 
 func (p *ConfigProjection) Value(subject, path string) (*configv1.ConfigValue, bool) {
@@ -151,6 +168,35 @@ func (p *ConfigProjection) applyLegacyServerConfig(cfg *configv1.ServerConfig) e
 	return nil
 }
 
+func (p *ConfigProjection) applyLegacyUserPreferences(e *corev1.UserServerPreferencesChangedEvent) error {
+	if e == nil || e.GetUserId() == "" {
+		return nil
+	}
+	p.Lock()
+	defer p.Unlock()
+	if p.values == nil {
+		p.values = make(map[string]map[string]*configv1.ConfigValue)
+	}
+	byPath := p.values[e.GetUserId()]
+	if byPath == nil {
+		byPath = make(map[string]*configv1.ConfigValue)
+		p.values[e.GetUserId()] = byPath
+	}
+	prefs := e.GetPreferences()
+	if prefs == nil {
+		delete(byPath, ConfigPathUserTimezone.Name)
+		delete(byPath, ConfigPathUserTimeFormat.Name)
+		return nil
+	}
+	if prefs.Timezone != nil && prefs.GetTimezone() != "" {
+		byPath[ConfigPathUserTimezone.Name] = configStringValue(prefs.GetTimezone())
+	} else {
+		delete(byPath, ConfigPathUserTimezone.Name)
+	}
+	byPath[ConfigPathUserTimeFormat.Name] = configIntValue(int64(prefs.GetTimeFormat()))
+	return nil
+}
+
 func (p *ConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured bool) {
 	p.RLock()
 	defer p.RUnlock()
@@ -165,6 +211,33 @@ func (p *ConfigProjection) Get() (cfg *configv1.ServerConfig, isConfigured bool)
 		Motd:             configStringFromMap(byPath, ConfigPathServerMOTD.Name),
 		BlockedUsernames: configStringFromMap(byPath, ConfigPathBlockedUsernames.Name),
 	}, true
+}
+
+func (p *ConfigProjection) ServerLogo() (*corev1.DeprecatedAsset, bool, error) {
+	return getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerLogo)
+}
+
+func (p *ConfigProjection) ServerBanner() (*corev1.DeprecatedAsset, bool, error) {
+	return getProjectedConfig(p, ConfigSubjectServer, ConfigPathServerBanner)
+}
+
+func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPreferences, bool, error) {
+	timezone, hasTimezone, err := getProjectedConfig(p, userID, ConfigPathUserTimezone)
+	if err != nil {
+		return nil, false, err
+	}
+	timeFormat, hasTimeFormat, err := getProjectedConfig(p, userID, ConfigPathUserTimeFormat)
+	if err != nil {
+		return nil, false, err
+	}
+	if !hasTimezone && !hasTimeFormat {
+		return nil, false, nil
+	}
+	prefs := &corev1.ServerUserPreferences{TimeFormat: timeFormat}
+	if hasTimezone && timezone != "" {
+		prefs.Timezone = &timezone
+	}
+	return prefs, true, nil
 }
 
 func (p *ConfigProjection) EffectiveServerName() string {

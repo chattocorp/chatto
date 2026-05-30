@@ -879,6 +879,9 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
 		return fmt.Errorf("failed to mark user deleted: %w", err)
 	}
+	if err := c.deleteUserSettings(ctx, userID); err != nil {
+		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
+	}
 
 	// Clean per-kind user artifacts AFTER the user projection marks the
 	// account deleted, so SpaceMemberDeletedEvent refetches already see

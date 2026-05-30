@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -27,14 +28,15 @@ type UserSettingsInput struct {
 	TimeFormat *corev1.TimeFormat
 }
 
-// GetUserSettings retrieves a user's settings from the user projection.
+// GetUserSettings retrieves a user's settings from the config projection.
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access (self-only in GraphQL layer).
-func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev1.ServerUserPreferences, error) {
-	if settings, ok := c.Users.Preferences(userID); ok {
-		return settings, nil
+func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.ServerUserPreferences, error) {
+	if c.ServerConfig == nil {
+		return nil, nil
 	}
-	return nil, nil
+	settings, _, err := c.ServerConfig.UserSettings(userID)
+	return settings, err
 }
 
 // UpdateUserSettings merges the provided fields into the user's existing settings.
@@ -42,7 +44,10 @@ func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev
 // To clear the timezone override, pass a pointer to an empty string.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.ServerUserPreferences, error) {
-	// Get current settings (or start fresh if none exist)
+	if c.configManager == nil || c.configManager.service == nil {
+		return nil, fmt.Errorf("config service not configured")
+	}
+
 	settings, err := c.GetUserSettings(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -51,33 +56,37 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 		settings = &corev1.ServerUserPreferences{}
 	}
 
-	// Apply non-nil fields
+	var writes []configWrite
+	var clears []string
+
 	if input.Timezone != nil {
 		tz := *input.Timezone
 		if tz != "" {
-			// Validate IANA timezone name
 			if _, err := time.LoadLocation(tz); err != nil {
 				return nil, fmt.Errorf("invalid timezone %q: %w", tz, err)
 			}
 			settings.Timezone = &tz
+			writes = append(writes, mustConfigWrite(ConfigPathUserTimezone.Name, configStringValue(tz)))
 		} else {
-			// Clear the timezone override
 			settings.Timezone = nil
+			clears = append(clears, ConfigPathUserTimezone.Name)
 		}
 	}
 
 	if input.TimeFormat != nil {
 		settings.TimeFormat = *input.TimeFormat
+		writes = append(writes, mustConfigWrite(ConfigPathUserTimeFormat.Name, configIntValue(int64(*input.TimeFormat))))
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserServerPreferencesChanged{
-		UserServerPreferencesChanged: &corev1.UserServerPreferencesChangedEvent{
-			UserId:      userID,
-			Preferences: settings,
-		},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return nil, fmt.Errorf("failed to store user settings: %w", err)
+	if len(writes) > 0 {
+		if err := c.configManager.service.setValues(ctx, userID, userID, writes); err != nil {
+			return nil, fmt.Errorf("failed to store user settings: %w", err)
+		}
+	}
+	if len(clears) > 0 {
+		if err := c.configManager.service.clearPaths(ctx, userID, userID, clears); err != nil {
+			return nil, fmt.Errorf("failed to clear user settings: %w", err)
+		}
 	}
 
 	c.logger.Info("Updated user settings", "user_id", userID)
@@ -113,5 +122,15 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 
 // deleteUserSettings removes a user's settings. Called during account deletion.
 func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) error {
-	return nil
+	if c.configManager == nil || c.configManager.service == nil {
+		return nil
+	}
+	return c.configManager.service.clearPaths(ctx, SystemActorID, userID, []string{
+		ConfigPathUserTimezone.Name,
+		ConfigPathUserTimeFormat.Name,
+	})
+}
+
+func mustConfigWrite(path string, value *configv1.ConfigValue) configWrite {
+	return configWrite{path: path, value: value}
 }

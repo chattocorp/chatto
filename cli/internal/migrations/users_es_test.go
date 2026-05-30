@@ -55,16 +55,15 @@ func TestMigrateUsersToES_SeedsUserAggregateAndReplays(t *testing.T) {
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
-	require.EqualValues(t, 7, info.State.Msgs)
+	require.EqualValues(t, 6, info.State.Msgs)
 
-	eventsBySeq := readUserMigrationEvents(t, ctx, stream, 7)
+	eventsBySeq := readUserMigrationEvents(t, ctx, stream, 6)
 	require.IsType(t, &corev1.Event_UserAccountCreated{}, eventsBySeq[0].GetEvent())
 	require.IsType(t, &corev1.Event_UserPasswordHashChanged{}, eventsBySeq[1].GetEvent())
 	require.IsType(t, &corev1.Event_UserAvatarSet{}, eventsBySeq[2].GetEvent())
 	require.IsType(t, &corev1.Event_UserVerifiedEmailAdded{}, eventsBySeq[3].GetEvent())
 	require.IsType(t, &corev1.Event_UserOidcSubjectLinked{}, eventsBySeq[4].GetEvent())
-	require.IsType(t, &corev1.Event_UserServerPreferencesChanged{}, eventsBySeq[5].GetEvent())
-	require.IsType(t, &corev1.Event_UserLoginCooldownStarted{}, eventsBySeq[6].GetEvent())
+	require.IsType(t, &corev1.Event_UserLoginCooldownStarted{}, eventsBySeq[5].GetEvent())
 
 	require.Equal(t, "U1", eventsBySeq[0].GetUserAccountCreated().GetUserId())
 	require.Equal(t, "Alice", eventsBySeq[0].GetUserAccountCreated().GetLogin())
@@ -72,17 +71,17 @@ func TestMigrateUsersToES_SeedsUserAggregateAndReplays(t *testing.T) {
 	require.Equal(t, "Alice@Example.com", eventsBySeq[3].GetUserVerifiedEmailAdded().GetEmail())
 	require.True(t, eventsBySeq[3].GetCreatedAt().AsTime().Equal(verifiedAt))
 	require.Equal(t, "subjecthash", eventsBySeq[4].GetUserOidcSubjectLinked().GetSubjectHash())
-	require.Equal(t, "U1", eventsBySeq[6].GetUserLoginCooldownStarted().GetUserId())
-	require.True(t, eventsBySeq[6].GetCreatedAt().AsTime().Equal(loginChangedAt))
+	require.Equal(t, "U1", eventsBySeq[5].GetUserLoginCooldownStarted().GetUserId())
+	require.True(t, eventsBySeq[5].GetCreatedAt().AsTime().Equal(loginChangedAt))
 
 	msg, err := stream.GetLastMsgForSubject(ctx, events.UserAggregate("U1").AllEventsFilter())
 	require.NoError(t, err)
-	require.EqualValues(t, 7, msg.Sequence)
+	require.EqualValues(t, 6, msg.Sequence)
 
 	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, testLogger()))
 	infoReplay, err := stream.Info(ctx)
 	require.NoError(t, err)
-	require.EqualValues(t, 7, infoReplay.State.Msgs)
+	require.EqualValues(t, 6, infoReplay.State.Msgs)
 }
 
 func putProtoKV(t *testing.T, ctx context.Context, kv jetstream.KeyValue, key string, msg proto.Message) {
