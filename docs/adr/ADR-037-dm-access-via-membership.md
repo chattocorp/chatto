@@ -9,7 +9,7 @@ Direct messages used to carry two server-scope permissions:
 - `dm.view` — access and read DMs.
 - `dm.write` — start DMs and send messages.
 
-That split made sense when DMs still had traces of the old hidden-space model: the system needed an answer to "can this user enter the DM space?" Now DMs are rooms with `kind: dm`, membership is an event-sourced room fact, and room membership is already the privacy boundary for live delivery and reads.
+That split made sense when DMs still had traces of the old hidden-space model: the system needed an answer to "can this user access DMs?" Now DMs are rooms with `kind: dm`, membership is an event-sourced room fact, and room membership is already the privacy boundary for live delivery and reads.
 
 `dm.view` no longer describes a useful operator action. If a user is a participant in a private conversation, hiding that conversation from them is surprising and not a meaningful abuse-control tool. `dm.write` also became awkward once it was the only remaining `dm.*` permission: Chatto already has `message.post` for "may send messages", and keeping a separate DM send gate makes DMs look more special than they are.
 

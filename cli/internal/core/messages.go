@@ -367,9 +367,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		// Include DM participants to avoid duplicate notifications
 		// (they were already notified by notifyDMParticipants above)
 		if kind == KindDM {
-			if participants, err := c.GetDMParticipants(ctx, room_id); err == nil {
-				for _, pid := range participants {
-					alreadyNotified[pid] = true
+			if participants, err := c.GetRoomMembersList(ctx, KindDM, room_id); err == nil {
+				for _, participant := range participants {
+					alreadyNotified[participant.UserId] = true
 				}
 			}
 		}

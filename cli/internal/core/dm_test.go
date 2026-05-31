@@ -10,24 +10,24 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 )
 
-func TestIsDMSpace(t *testing.T) {
+func TestKindForLegacySpaceID(t *testing.T) {
 	tests := []struct {
 		spaceID string
-		want    bool
+		want    RoomKind
 	}{
-		{DMSpaceID, true},
-		{"DM", true},
-		{"some-other-space", false},
-		{"", false},
-		{"dm", false},
-		{"__dm__", false},
+		{LegacyDMSpaceID, KindDM},
+		{"DM", KindDM},
+		{"some-other-space", KindChannel},
+		{"", KindChannel},
+		{"dm", KindChannel},
+		{"__dm__", KindChannel},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.spaceID, func(t *testing.T) {
-			got := IsDMSpace(tt.spaceID)
+			got := KindForSpace(tt.spaceID)
 			if got != tt.want {
-				t.Errorf("IsDMSpace(%q) = %v, want %v", tt.spaceID, got, tt.want)
+				t.Errorf("KindForSpace(%q) = %v, want %v", tt.spaceID, got, tt.want)
 			}
 		})
 	}
@@ -154,40 +154,39 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 	}
 }
 
-func TestDMSpacePermissions(t *testing.T) {
+func TestDMRoomPermissionDefaults(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
-	// Test that Can* functions return correct values for DM space
 	userID := "test-user"
 
-	t.Run("CanJoinRoom returns true for DM space", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, KindForSpace(DMSpaceID))
+	t.Run("CanJoinRoom returns true for DM rooms", func(t *testing.T) {
+		can, err := core.CanJoinRoom(ctx, userID, KindDM)
 		if err != nil {
 			t.Fatalf("CanJoinRoom error: %v", err)
 		}
 		if !can {
-			t.Error("CanJoinRoom should return true for DM space")
+			t.Error("CanJoinRoom should return true for DM rooms")
 		}
 	})
 
-	t.Run("CanAdminSpaceManage returns false for DM space", func(t *testing.T) {
+	t.Run("CanManageServer returns false for a regular user", func(t *testing.T) {
 		can, err := core.CanManageServer(ctx, userID)
 		if err != nil {
-			t.Fatalf("CanAdminSpaceManage error: %v", err)
+			t.Fatalf("CanManageServer error: %v", err)
 		}
 		if can {
-			t.Error("CanAdminSpaceManage should return false for DM space")
+			t.Error("CanManageServer should return false for a regular user")
 		}
 	})
 
-	t.Run("CanCreateRoom returns false for DM space", func(t *testing.T) {
-		can, err := core.CanCreateRoom(ctx, userID, KindForSpace(DMSpaceID), "")
+	t.Run("CanCreateRoom returns false for DM rooms", func(t *testing.T) {
+		can, err := core.CanCreateRoom(ctx, userID, KindDM, "")
 		if err != nil {
 			t.Fatalf("CanCreateRoom error: %v", err)
 		}
 		if can {
-			t.Error("CanCreateRoom should return false for DM space (use FindOrCreateDM)")
+			t.Error("CanCreateRoom should return false for DM rooms (use FindOrCreateDM)")
 		}
 	})
 
@@ -195,7 +194,7 @@ func TestDMSpacePermissions(t *testing.T) {
 		// DM rooms aren't surfaced through the channel room-list API; they
 		// use their own listing path (ListDMConversations). CanSeeRoom
 		// short-circuits to false for KindDM.
-		can, err := core.CanSeeRoom(ctx, userID, KindForSpace(DMSpaceID), "R_dm_visibility_test")
+		can, err := core.CanSeeRoom(ctx, userID, KindDM, "R_dm_visibility_test")
 		if err != nil {
 			t.Fatalf("CanSeeRoom error: %v", err)
 		}
@@ -543,7 +542,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 }
 
-func TestGetDMParticipants(t *testing.T) {
+func TestDMRoomParticipants(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -554,9 +553,14 @@ func TestGetDMParticipants(t *testing.T) {
 	t.Run("returns all participants", func(t *testing.T) {
 		room, _, _ := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
 
-		participants, err := core.GetDMParticipants(ctx, room.Id)
+		members, err := core.GetRoomMembersList(ctx, KindDM, room.Id)
 		if err != nil {
-			t.Fatalf("GetDMParticipants error: %v", err)
+			t.Fatalf("GetRoomMembersList error: %v", err)
+		}
+
+		participants := make([]string, len(members))
+		for i, member := range members {
+			participants[i] = member.UserId
 		}
 		if len(participants) != 3 {
 			t.Errorf("Expected 3 participants, got %d", len(participants))
@@ -899,7 +903,7 @@ func TestDMThreadReplyEcho(t *testing.T) {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		metadata, err := core.GetThreadMetadata(ctx, KindForSpace(DMSpaceID), room.Id, rootEvent.Id)
+		metadata, err := core.GetThreadMetadata(ctx, KindDM, room.Id, rootEvent.Id)
 		if err != nil {
 			t.Fatalf("Failed to get metadata: %v", err)
 		}

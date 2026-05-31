@@ -317,8 +317,8 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 
 // TestPerSpaceBucketCache_DeleteAndRecreate verifies that cache deletion works
 // and that a new bucket is created after deletion. Uses a non-server space so
-// the lazycache code path is exercised (the deployment's server space and the
-// DM space both bypass the lazycache).
+// the lazycache code path is exercised (deployment-wide channel and DM room
+// data bypasses the lazycache).
 
 // TestPerSpaceBucketCache_BucketConfigured verifies that storage buckets are correctly configured.
 

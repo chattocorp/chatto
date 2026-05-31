@@ -356,42 +356,40 @@ func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) 
 	})
 }
 
-func TestPermissionResolver_HasSpacePermission_DMSpace(t *testing.T) {
+func TestPermissionResolver_HasSpacePermission_DMKind(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Create user
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	// Use the DMSpaceID constant (which is "DM")
-
-	t.Run("DM space allows message.post", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermMessagePost)
+	t.Run("DM rooms allow message.post", func(t *testing.T) {
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindDM, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected DM space to allow message.post")
+			t.Error("Expected DM rooms to allow message.post")
 		}
 	})
 
-	t.Run("DM space denies space.manage", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermServerManage)
+	t.Run("DM rooms deny server.manage", func(t *testing.T) {
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindDM, PermServerManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
 		if has {
-			t.Error("Expected DM space NOT to allow space.manage")
+			t.Error("Expected DM rooms NOT to allow server.manage")
 		}
 	})
 
-	t.Run("DM space allows room.join", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermRoomJoin)
+	t.Run("DM rooms allow room.join", func(t *testing.T) {
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindDM, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected DM space to allow room.join")
+			t.Error("Expected DM rooms to allow room.join")
 		}
 	})
 }

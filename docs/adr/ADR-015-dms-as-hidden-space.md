@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Status:** Superseded by ADR-027 (instance/space → server consolidation). The hidden DM space was dissolved by Phase 4 of #354 (#373 merged the DM rooms into the unified `SERVER_*` storage with `kind: dm`); `IsDMSpace` and the synthetic `spaceID = "DM"` partition are gone. The decision recorded here is preserved as historical context for the storage shape that came before.
+**Status:** Superseded by ADR-027 (instance/space → server consolidation) and ADR-037 (DM access via membership). The hidden DM space was dissolved by Phase 4 of #354 (#373 merged the DM rooms into the unified `SERVER_*` storage with `kind: dm`); only the legacy wire value `space_id = "DM"` remains for persisted payloads and compatibility APIs. The decision recorded here is preserved as historical context for the storage shape that came before.
 
 ## Context
 

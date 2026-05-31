@@ -78,7 +78,7 @@ Existing servers reset RBAC on upgrade (`chatto reset rbac` already exists for r
 - Any rooms tracked in `unsorted_room_ids` are swept into the seed "Lobby" group.
 - Groups are created with no explicit channel-room grants — the server-tier defaults cascade in via the resolver. Operators add per-group overrides only where they want to differ from the server-wide default. `SeedDefaultRoomGroupPermissions` remains available as an admin-tool affordance (a "Copy server defaults into this group" button) but no automatic path calls it.
 - Server-scope perms migrate untouched.
-- DM rooms and the `dmBoundaryDeniedPermissions` list are untouched; `dm.view` is retired separately by ADR-037.
+- DM rooms and the `dmBoundaryDeniedPermissions` list are untouched; `dm.*` permissions are retired separately by ADR-037.
 
 The three known production-shaped Chatto servers absorb this. Out-of-the-box behavior after migration matches today's defaults.
 

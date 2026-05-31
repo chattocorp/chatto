@@ -480,7 +480,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Cached link preview metadata (48h TTL)          |
 
-All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the hidden DM space are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`.
+All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the old hidden-DM-space storage model are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`.
 
 **INSTANCE keys:**
 

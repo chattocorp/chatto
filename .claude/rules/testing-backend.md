@@ -36,7 +36,7 @@ Use mocks and fakes to isolate components in unit tests. Integration tests can h
 
 ## DM Rooms Need Explicit Test Coverage
 
-The DM space has different initialization (system-created at startup, not user-triggered) and different membership patterns (auto-joined on creation). **Changes to room, message, or space logic should always include DM-specific tests** — unit tests for regular rooms passing doesn't guarantee DM rooms work.
+DM rooms have different creation and membership patterns (participants are auto-joined on creation). **Changes to room or message logic should always include DM-specific tests** — unit tests for channel rooms passing doesn't guarantee DM rooms work.
 
 ## Permission Tests Need Both Positive and Negative Cases
 

@@ -783,9 +783,9 @@ type storage struct {
 	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state
 
 	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
-	// (#330 phase 4d). Shared by the primary and DM spaces; non-primary,
-	// non-DM spaces (test-created only in practice) keep their per-space
-	// lazycaches below.
+	// (#330 phase 4d). Shared by channel and DM rooms after the Space tier
+	// retirement; legacy non-primary spaces (test-created only in practice)
+	// keep their per-space lazycaches below.
 	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
 	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
 	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
@@ -916,7 +916,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}
 
 	// Initialize server-level KV buckets (#330 phase 4a, 4b, 4c). These hold
-	// the deployment-wide primary + DM data. Non-primary, non-DM spaces
+	// deployment-wide channel and DM room data. Legacy non-primary spaces
 	// (test-created only in practice) keep their per-space SPACE_{id}_*
 	// buckets.
 	serverConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
@@ -991,12 +991,12 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}
 
 	// Initialize the deployment-wide events stream (#330 phase 4d). Holds all
-	// JetStream events for the primary space and the DM system space; non-
-	// primary, non-DM spaces (test-created only in production) keep their
-	// per-space SPACE_{id}_EVENTS streams.
+	// JetStream events for channel and DM rooms; legacy non-primary spaces
+	// (test-created only in production) keep their per-space SPACE_{id}_EVENTS
+	// streams.
 	serverEventsStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 		Name:               "SERVER_EVENTS",
-		Description:        "Server-level event stream (primary + DM)",
+		Description:        "Server-level event stream (channel + DM rooms)",
 		Subjects:           []string{"server.>"},
 		Storage:            jetstream.FileStorage,
 		Compression:        jetstream.S2Compression,

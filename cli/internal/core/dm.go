@@ -16,13 +16,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// DMSpaceID is the kind discriminator for direct-message rooms. Stored on
-// Room.SpaceId so room-kind routing (room.dm.* vs room.channel.*) survives
-// the retirement of the Space tier (ADR-030).
-const DMSpaceID = "DM"
-
-// DMSpaceName is the display name for the DM space.
-const DMSpaceName = "Direct Messages"
+// LegacyDMSpaceID is the wire-frozen space_id value that older event payloads
+// and a few compatibility APIs still use to mean "DM room".
+const LegacyDMSpaceID = "DM"
 
 // ServerSpaceID is the kind discriminator for channel (non-DM) rooms.
 // Post-ADR-030 there's no longer a per-deployment Space record; this constant
@@ -46,11 +42,6 @@ const (
 	KindDM RoomKind = "dm"
 )
 
-// IsDMSpace returns true if the given space ID is the DM system space.
-func IsDMSpace(spaceID string) bool {
-	return spaceID == DMSpaceID
-}
-
 // KindForSpace returns the room kind for a legacy wire-frozen
 // `space_id` value ("server" or "DM"). Still used at the proto
 // boundary for messages whose persisted shape (e.g.
@@ -58,7 +49,7 @@ func IsDMSpace(spaceID string) bool {
 // `space_id` as a partition key. New code working with Room records
 // should call KindOfRoom (which reads Room.kind directly).
 func KindForSpace(spaceID string) RoomKind {
-	if IsDMSpace(spaceID) {
+	if spaceID == LegacyDMSpaceID {
 		return KindDM
 	}
 	return KindChannel
@@ -75,7 +66,7 @@ func KindForSpace(spaceID string) RoomKind {
 // site rather than relying on a stamped field.
 func SpaceIDForKind(kind RoomKind) string {
 	if kind == KindDM {
-		return DMSpaceID
+		return LegacyDMSpaceID
 	}
 	return ServerSpaceID
 }
@@ -298,7 +289,6 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 // one message. Empty DM rooms (created but never messaged) are excluded.
 // Rooms are sorted by last message time, newest first.
 func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]*corev1.Room, error) {
-	// Get user's room memberships in DM space
 	memberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DM memberships: %w", err)
@@ -347,21 +337,6 @@ func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]
 	return rooms, nil
 }
 
-// GetDMParticipants returns all participant user IDs for a DM room.
-func (c *ChattoCore) GetDMParticipants(ctx context.Context, roomID string) ([]string, error) {
-	members, err := c.GetRoomMembersList(ctx, KindDM, roomID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DM participants: %w", err)
-	}
-
-	participantIDs := make([]string, len(members))
-	for i, member := range members {
-		participantIDs[i] = member.UserId
-	}
-
-	return participantIDs, nil
-}
-
 // ensureInList ensures the given ID is in the list, adding it if not present.
 func ensureInList(list []string, id string) []string {
 	for _, item := range list {
@@ -376,7 +351,7 @@ func ensureInList(list []string, id string) []string {
 // This creates persistent notifications (for bell icon) and publishes live events.
 // This is best-effort - failures are logged but don't affect message posting.
 func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID, eventID string) {
-	participants, err := c.GetDMParticipants(ctx, roomID)
+	participants, err := c.GetRoomMembersList(ctx, KindDM, roomID)
 	if err != nil {
 		c.logger.Warn("Failed to get DM participants for notification",
 			"room_id", roomID,
@@ -384,7 +359,8 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		return
 	}
 
-	for _, participantID := range participants {
+	for _, participant := range participants {
+		participantID := participant.UserId
 		// Don't notify the sender
 		if participantID == senderID {
 			continue

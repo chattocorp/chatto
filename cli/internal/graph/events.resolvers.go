@@ -556,7 +556,7 @@ func (r *newDirectMessageNotificationEventResolver) ConversationName(ctx context
 		currentUserID = currentUser.Id
 	}
 
-	participantIDs, err := r.core.GetDMParticipants(ctx, obj.RoomId)
+	participants, err := r.core.GetRoomMembersList(ctx, core.KindDM, obj.RoomId)
 	if err != nil {
 		r.logger.Warn("DM notification: failed to load participants for conversation name",
 			"room_id", obj.RoomId, "error", err)
@@ -564,7 +564,8 @@ func (r *newDirectMessageNotificationEventResolver) ConversationName(ctx context
 	}
 
 	var names []string
-	for _, id := range participantIDs {
+	for _, participant := range participants {
+		id := participant.UserId
 		if id == currentUserID {
 			continue // Exclude current user from the name
 		}
