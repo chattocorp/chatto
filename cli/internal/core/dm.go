@@ -152,9 +152,8 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 // this DM (same hashed roomID) is rejected with events.ErrConflict
 // — the caller (FindOrCreateDM) re-fetches.
 //
-// Post-batch side effects (per-participant read markers, legacy
-// live publishes) happen after the batch acks, since they're
-// outside the durable event log.
+// Post-batch side effects (per-participant read markers) happen after the
+// batch acks, since they're outside the durable event log.
 func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*corev1.Room, error) {
 	room := &corev1.Room{
 		Id:   roomID,
@@ -191,14 +190,12 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 			FilterSubject: agg.AllEventsFilter(),
 		},
 	}
-	joinEvents := make(map[string]*corev1.Event, len(participantIDs))
 	for _, pid := range participantIDs {
 		joinEvent := newEvent(pid, &corev1.Event{
 			Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
 			},
 		})
-		joinEvents[pid] = joinEvent
 		entries = append(entries, events.BatchEntry{
 			Subject: agg.SubjectFor(joinEvent),
 			Event:   joinEvent,
@@ -228,17 +225,12 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		c.logger.Warn("DM room timeline projection wait failed", "error", err, "room_id", roomID)
 	}
 
-	// Per-participant non-batched side effects: initialise the
-	// read marker (so HasUnread distinguishes a fresh member from a
-	// deploy-era user; see GetLastReadEventID), and write legacy
-	// SERVER_EVENTS copies for migration/import tooling.
-	legacySubject := subjects.RoomMeta(string(KindDM), roomID)
+	// Per-participant non-batched side effects: initialise the read marker so
+	// HasUnread distinguishes a fresh member from a deploy-era user; see
+	// GetLastReadEventID.
 	for _, pid := range participantIDs {
 		if err := c.SetLastReadEventID(ctx, KindDM, pid, roomID, ""); err != nil {
 			c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", pid, "room_id", roomID)
-		}
-		if err := c.publishServerEvent(ctx, legacySubject, joinEvents[pid]); err != nil {
-			c.logger.Error("failed to publish UserJoinedRoomEvent for DM (legacy)", "error", err, "user_id", pid, "room_id", roomID)
 		}
 	}
 

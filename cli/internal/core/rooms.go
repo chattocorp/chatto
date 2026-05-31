@@ -10,27 +10,10 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
-
-// getRoomLastMessage fetches the last message in a room directly from JetStream.
-// Returns nil if no messages exist for this room yet.
-func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind RoomKind, roomID string) (*jetstream.RawStreamMsg, error) {
-	stream := c.storage.serverEventsStream
-
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomAllMessages(string(kind), roomID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return nil, nil // No messages yet
-		}
-		return nil, fmt.Errorf("failed to get last message for room: %w", err)
-	}
-	return msg, nil
-}
 
 // getRoomLastRootEvent returns the most recent root MessagePostedEvent
 // (excluding thread replies) in a room, or nil if none have been
@@ -71,21 +54,6 @@ func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, ro
 		return time.Time{}, nil
 	}
 	return ev.GetCreatedAt().AsTime(), nil
-}
-
-// rawMsgEventCreatedAt unmarshals a JetStream message as a SpaceEvent and
-// returns its `created_at` time. Returns zero time + nil error if the
-// message has no proto-level timestamp (defensive — every event we
-// publish carries one).
-func rawMsgEventCreatedAt(msg *jetstream.RawStreamMsg) (time.Time, error) {
-	var event corev1.Event
-	if err := proto.Unmarshal(msg.Data, &event); err != nil {
-		return time.Time{}, fmt.Errorf("unmarshal event for timestamp: %w", err)
-	}
-	if event.CreatedAt == nil {
-		return time.Time{}, nil
-	}
-	return event.CreatedAt.AsTime(), nil
 }
 
 // Room name validation constants
@@ -217,13 +185,6 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 			c.logger.Warn("Failed to add new room to set layout",
 				"error", err, "room_id", room_id, "group_id", groupID)
 		}
-	}
-
-	// Legacy SERVER_EVENTS copy retained for migration/import tooling.
-	// SERVER_EVENTS no longer participates in live delivery.
-	subject := subjects.RoomMeta(string(kind), room_id)
-	if _, err := c.publishServerEventWithAck(ctx, subject, createdEvent); err != nil {
-		c.logger.Error("failed to publish room created event (legacy)", "error", err, "room_id", room_id)
 	}
 
 	if strings.EqualFold(name, AnnouncementsRoomName) {
@@ -366,11 +327,6 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	subject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, subject, updatedEvent); err != nil {
-		c.logger.Error("failed to publish room updated event (legacy)", "error", err, "room_id", room_id)
-	}
-
 	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
 
 	if err := c.RoomCatalogProjector.WaitForSeq(ctx, updatedSeq); err != nil {
@@ -425,17 +381,6 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		if err != nil {
 			c.logger.Error("failed to publish RoomRemovedFromGroupEvent for delete cascade", "error", err, "room_id", room_id, "group_id", room.GetGroupId())
 		}
-	}
-
-	subject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room deleted event (legacy)", "error", err, "room_id", room_id)
-	}
-
-	// Purge room events from the space stream (best-effort — orphan
-	// events can be cleaned up manually if this fails).
-	if err := c.purgeRoomEvents(ctx, kind, room_id); err != nil {
-		c.logger.Error("failed to purge room events", "error", err, "kind", kind, "room_id", room_id)
 	}
 
 	// (Phase-6 note: pre-phase-6 we had to walk room_group docs to
@@ -495,10 +440,6 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
 	}
 
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, archivedEvent); err != nil {
-		c.logger.Error("failed to publish room archived event (legacy)", "error", err, "room_id", roomID)
-	}
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
@@ -534,10 +475,6 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
 	}
 
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, unarchivedEvent); err != nil {
-		c.logger.Error("failed to publish room unarchived event (legacy)", "error", err, "room_id", roomID)
-	}
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}

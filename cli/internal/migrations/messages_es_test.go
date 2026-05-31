@@ -86,8 +86,8 @@ func setupMessagesRig(t *testing.T) *messagesTestRig {
 }
 
 // publishLegacy publishes a *corev1.Event onto the legacy
-// SERVER_EVENTS-shaped stream at the given subject. Mirrors what
-// publishServerEventWithAck does in production.
+// SERVER_EVENTS-shaped stream at the given subject. This simulates pre-ES
+// legacy events for the import migration.
 func (r *messagesTestRig) publishLegacy(t *testing.T, subject string, ev *corev1.Event) {
 	t.Helper()
 	data, err := proto.Marshal(ev)

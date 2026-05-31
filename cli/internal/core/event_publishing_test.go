@@ -14,46 +14,57 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	core := &ChattoCore{}
 	ctx := testContext(t)
 
-	t.Run("publishServerEvent rejects nil pointer", func(t *testing.T) {
-		err := core.publishServerEvent(ctx, "space.test", nil)
-		if !errors.Is(err, ErrInvalidEvent) {
-			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
-		}
-	})
-
-	t.Run("publishServerEvent rejects unset oneof payload", func(t *testing.T) {
-		err := core.publishServerEvent(ctx, "space.test", &corev1.Event{})
-		if !errors.Is(err, ErrInvalidEvent) {
-			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
-		}
-	})
-
 	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
 		err := core.publishLiveEvent(ctx, "live.sync.test", &corev1.LiveEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
+}
 
-	t.Run("publishServerEventWithAck rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishServerEventWithAck(ctx, "space.test", &corev1.Event{})
-		if seq != 0 {
-			t.Fatalf("expected sequence 0 on error, got: %d", seq)
-		}
-		if !errors.Is(err, ErrInvalidEvent) {
-			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
-		}
-	})
+func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
 
-	t.Run("publishServerEventWithOCC rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishServerEventWithOCC(ctx, "space.test", &corev1.Event{})
-		if seq != 0 {
-			t.Fatalf("expected sequence 0 on error, got: %d", seq)
-		}
-		if !errors.Is(err, ErrInvalidEvent) {
-			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
-		}
-	})
+	user, err := core.CreateUser(ctx, "system", "serverevents-user", "Server Events User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "system", "serverevents-other", "Server Events Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "serverevents_room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if _, err := core.UpdateRoom(ctx, user.Id, KindChannel, room.Id, "serverevents_room_2", "updated"); err != nil {
+		t.Fatalf("UpdateRoom: %v", err)
+	}
+	if _, err := core.ArchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+	if _, err := core.UnarchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+		t.Fatalf("UnarchiveRoom: %v", err)
+	}
+	if _, _, err := core.FindOrCreateDM(ctx, user.Id, []string{other.Id}); err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := core.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+		t.Fatalf("DeleteRoom: %v", err)
+	}
+
+	count, err := countStreamMessages(ctx, core.storage.serverEventsStream, []string{"server.>"})
+	if err != nil {
+		t.Fatalf("count SERVER_EVENTS messages: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("SERVER_EVENTS got %d runtime messages, want 0", count)
+	}
 }
 
 // setupRoomWithMessage creates a user, a room, joins the user, and posts one

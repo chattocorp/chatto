@@ -268,7 +268,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | `SERVER_ASSETS`               | Message attachments                         |
-| Stream  | `SERVER_EVENTS`               | Room/membership events                      |
+| Stream  | `SERVER_EVENTS`               | Legacy room event import source; no new runtime writes |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -370,7 +370,7 @@ The distinction between stored and live-only events is based on how they're publ
 User-facing live delivery is built from two internal NATS Core subject roots:
 
 1. **Primary Stream** (persistent):
-   - `SERVER_EVENTS` (subjects `server.>`) holds legacy room messages, thread replies, room meta lifecycle, and server-level member events for migration/import tooling. It no longer participates in live delivery.
+   - `SERVER_EVENTS` (subjects `server.>`) holds pre-ES room messages, thread replies, room meta lifecycle, and server-level member events for migration/import tooling. Runtime mutations no longer write it, and it no longer participates in live delivery.
    - `EVT` (subjects `evt.>`) holds event-sourced domain state. Its stream-level `RePublish` config forwards every committed event once onto `live.evt.>`. This is a raw committed-event feed, not a client contract.
 2. **Direct Live Publish** (transient):
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
@@ -381,13 +381,13 @@ The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvent
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | `corev1.Event`   | Server     | JetStream-stored events for the legacy CRUD+log pattern; retained for migration/import tooling and no longer part of live delivery. |
+| `SERVER_EVENTS`              | `corev1.Event`   | Server     | Pre-ES room/member event log retained for boot imports and inspection; no new runtime writes and no live delivery. |
 | `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, users, messages/threads, reactions, RBAC, and auth workflow audit facts. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `myEvents` authorizes and adapts these messages into GraphQL events; they are never projection input. |
 
-**SERVER\_EVENTS subjects:**
+**SERVER\_EVENTS subjects (legacy import source):**
 
-Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both server-space rooms and DM rooms.
+Pre-ES room events included event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. Current runtime reads use `EVT` projections instead; these subjects are documented so migrations and debugging tools can interpret historical data. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both server-space rooms and DM rooms.
 
 | Subject                                                                       | Description                                    |
 | ----------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -396,7 +396,7 @@ Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSub
 | `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`             | Thread reply posted                            |
 | `server.room.{kind}.{roomId}.meta`                                            | Room lifecycle + membership                    |
 
-The event ID in message subjects enables O(1) lookup (52µs) instead of O(n) scanning. Memory overhead is ~500 bytes per unique subject, which is bounded by TTL-based retention.
+The old event ID in message subjects enabled O(1) lookup (52µs) instead of O(n) scanning. Runtime message lookup now comes from `RoomTimelineProjection` rebuilt from `EVT`.
 
 Filtering examples:
 
@@ -428,7 +428,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 - Direct NATS Core publishes (`publishLiveEvent()`): transient `corev1.LiveEvent` messages on `live.sync.>` with no stream storage.
 - `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room events to clients.
 
-`SERVER_EVENTS` no longer has a `RePublish` live path. Remaining legacy `server.>` writes are for storage/import compatibility while aggregates finish migrating to EVT.
+`SERVER_EVENTS` no longer has a `RePublish` live path and runtime code no longer writes legacy `server.>` mirrors. Remaining use is boot-import/read-only inspection of pre-ES data.
 
 **Transient live sync events** (`live.sync.{user,config,room}.>`):
 
@@ -758,28 +758,26 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages use a store-then-publish pattern optimized for reliability and GDPR compliance:
+Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 
-- **Event ID**: NanoID (e.g., `E...`) used for event identification, body storage, and lookups via O(1) subject matching
-- **Body Key**: Compound key `{userId}.{eventId}` stored in `MessagePostedEvent.message_body_id`
+- **Event ID**: NanoID (e.g., `E...`) used for event identification, message-body identity, and projection lookup
+- **Body Key**: `MessagePostedEvent.message_body_id` is now an alias for the event ID; older imported messages may still reference the legacy `{userId}.{eventId}` compound key
 
 **Write Path:**
 
 1. Generate event with event ID
-2. Construct body key as `{userId}.{eventId}` and store body in BODIES bucket
-3. Publish event to room stream
-4. `PublishAck.Sequence` is captured and added to the event for resolvers
-5. Body exists before event is delivered - no race conditions
+2. Encrypt and embed the message body in `MessagePostedEvent.body`
+3. Append the event to `evt.room.{roomId}.message_posted`
+4. Wait for local projections to reach the append sequence before serving read-your-writes
 
 **Threading:**
 
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
-- Thread subject pattern: `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`
-- Enables O(1) lookup of thread replies via wildcard pattern: `msg.*.replies.{eventId}`
-- Thread metadata (reply count, participants) stored in THREADS bucket keyed by `{roomId}.{rootEventId}`
+- Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
+- Thread reply lists, reply counts, participants, and last-reply timestamps are derived from the `ThreadProjection`; `SERVER_THREADS` is legacy import/storage evidence only.
 
 **@Mentions:**
 
@@ -793,15 +791,14 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 
 **GDPR Deletion:**
 
-- Delete only removes the KV entry in BODIES bucket using the compound key
-- Event remains in stream as audit record with empty body
-- `GetMessageBody` returns empty string for deleted messages
+- Delete appends `MessageRetractedEvent` to `EVT`; projections tombstone the message body before rendering.
+- Attachment bytes are deleted from backing object storage best-effort and corresponding asset deletion facts are appended.
 
 ### Key Patterns
 
-- **Unified Event Subscriptions**: The `myEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
-- **Compression**: The `SERVER_EVENTS` stream uses S2 compression to reduce storage costs
-- **GDPR Compliance**: Message bodies stored separately in `SERVER_BODIES` for compliant deletion while preserving audit trail
+- **Unified Event Subscriptions**: The `myEvents` subscription merges EVT republish (`live.evt.>`), transient sync (`live.sync.>`), and PresenceHub updates into one authorized user stream.
+- **Compression**: The `EVT` and legacy `SERVER_EVENTS` streams use S2 compression to reduce storage costs
+- **GDPR Compliance**: Message bodies are encrypted per author; deletion is represented by EVT retraction/shred facts and projections refuse to render shredded or retracted content.
 - **Unified Server Storage**: Channels and DMs share the same `SERVER_*` buckets; the `kind` segment in keys (`room.channel.*` / `room.dm.*`) disambiguates without per-space isolation
 - **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated `SERVER_BODIES` to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
 - **Eager Server Resource Initialization**: The unified `SERVER_*` buckets (stream, KV buckets, object store) are created up-front at boot, not lazily on first use. The Phase 4 migration (#354) retired the legacy lazycache fallback that briefly accommodated the per-space storage shape.

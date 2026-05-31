@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -1146,34 +1145,6 @@ const natsPublishFlushTimeout = 5 * time.Second
 // subscription goroutine forever.
 const liveEVTProjectionWaitTimeout = 2 * time.Second
 
-// publishServerEvent publishes a legacy Event to NATS via the provided
-// server.> subject. Streams automatically capture events based on their
-// subject filters. Uses NATS Core publish (fire-and-forget) rather than
-// JetStream publish (which waits for acks).
-func (c *ChattoCore) publishServerEvent(_ context.Context, subject string, event *corev1.Event) error {
-	if err := validateEvent(event); err != nil {
-		return err
-	}
-
-	eventData, err := proto.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
-
-	err = c.nc.Publish(subject, eventData)
-	if err != nil {
-		return fmt.Errorf("failed to publish event: %w", err)
-	}
-
-	// Flush to ensure the message reaches NATS immediately for stream capture.
-	err = c.nc.FlushTimeout(natsPublishFlushTimeout)
-	if err != nil {
-		return fmt.Errorf("failed to flush connection: %w", err)
-	}
-
-	return nil
-}
-
 // publishLiveEvent publishes a transient LiveEvent directly to a live.sync.>
 // subject, bypassing JetStream storage. The subject should already include
 // the "live.sync." prefix.
@@ -1195,100 +1166,6 @@ func (c *ChattoCore) publishLiveEvent(_ context.Context, subject string, event *
 		return fmt.Errorf("failed to flush live event to %s: %w", subject, err)
 	}
 	return nil
-}
-
-// publishServerEventWithAck publishes a legacy Event using JetStream and returns the sequence ID.
-// This uses synchronous JetStream publish (waits for ack) to get the sequence ID from the PubAck.
-// Use this when you need to know the sequence ID immediately (e.g., for message body storage).
-func (c *ChattoCore) publishServerEventWithAck(ctx context.Context, subject string, event *corev1.Event) (uint64, error) {
-	if err := validateEvent(event); err != nil {
-		return 0, err
-	}
-
-	eventData, err := proto.Marshal(event)
-	if err != nil {
-		return 0, fmt.Errorf("failed to marshal event: %w", err)
-	}
-
-	ack, err := c.js.Publish(ctx, subject, eventData)
-	if err != nil {
-		return 0, fmt.Errorf("failed to publish event: %w", err)
-	}
-
-	return ack.Sequence, nil
-}
-
-const maxOCCRetries = 5
-
-// publishServerEventWithOCC publishes a legacy Event to SERVER_EVENTS using Optimistic Concurrency Control.
-// It uses the Nats-Expected-Last-Subject-Sequence header to ensure that:
-// 1. We know the current state of the subject before publishing
-// 2. Concurrent publishes to the same subject are detected and retried
-//
-// This provides reliable message posting that handles race conditions gracefully.
-// The function retries up to 5 times on sequence mismatch errors with exponential backoff.
-func (c *ChattoCore) publishServerEventWithOCC(ctx context.Context, subject string, event *corev1.Event) (uint64, error) {
-	if err := validateEvent(event); err != nil {
-		return 0, err
-	}
-
-	eventData, err := proto.Marshal(event)
-	if err != nil {
-		return 0, fmt.Errorf("failed to marshal event: %w", err)
-	}
-
-	stream := c.storage.serverEventsStream
-
-	var lastErr error
-	for attempt := 1; attempt <= maxOCCRetries; attempt++ {
-		// Get the current last sequence for this subject
-		var expectedSeq uint64
-		msg, err := stream.GetLastMsgForSubject(ctx, subject)
-		if err != nil {
-			if !errors.Is(err, jetstream.ErrMsgNotFound) {
-				return 0, fmt.Errorf("failed to get last message for subject: %w", err)
-			}
-			// No messages yet for this subject - expect sequence 0
-			expectedSeq = 0
-		} else {
-			expectedSeq = msg.Sequence
-		}
-
-		// Publish with expected last subject sequence
-		ack, err := c.js.Publish(ctx, subject, eventData,
-			jetstream.WithExpectLastSequencePerSubject(expectedSeq))
-		if err == nil {
-			return ack.Sequence, nil
-		}
-
-		// Check if this is a sequence mismatch error (concurrent publish)
-		var jsErr *jetstream.APIError
-		if errors.As(err, &jsErr) && jsErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
-			c.logger.Debug("Sequence mismatch, retrying publish",
-				"subject", subject,
-				"expected_seq", expectedSeq,
-				"attempt", attempt,
-				"max_attempts", maxOCCRetries)
-			lastErr = err
-
-			// Exponential backoff with jitter to avoid thundering herd
-			// Base delay: 1ms, 2ms, 4ms, 8ms, 16ms for attempts 1-5
-			// Plus random jitter of 0-5ms to spread out concurrent retries
-			baseDelay := time.Duration(1<<(attempt-1)) * time.Millisecond
-			jitter := time.Duration(rand.Int63n(int64(5 * time.Millisecond)))
-			select {
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			case <-time.After(baseDelay + jitter):
-			}
-			continue
-		}
-
-		// For any other error, fail immediately
-		return 0, fmt.Errorf("failed to publish event: %w", err)
-	}
-
-	return 0, fmt.Errorf("failed to publish event after %d attempts due to concurrent modifications: %w", maxOCCRetries, lastErr)
 }
 
 func validateEvent(event *corev1.Event) error {
@@ -1409,22 +1286,6 @@ func liveEventAsEvent(live *corev1.LiveEvent) *corev1.Event {
 // SERVER_* buckets (eager-created in newStorage). Kept as a stub so callers
 // don't have to be edited until the broader Space-retirement pass.
 func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
-	return nil
-}
-
-// purgeRoomEvents removes all events for a specific room from the server stream.
-// This is called when a room is deleted to clean up the room's event history.
-func (c *ChattoCore) purgeRoomEvents(ctx context.Context, kind RoomKind, roomID string) error {
-	stream := c.storage.serverEventsStream
-
-	// Purge all events matching the room's subject pattern
-	subjectFilter := subjects.RoomAllEvents(string(kind), roomID)
-	if err := stream.Purge(ctx, jetstream.WithPurgeSubject(subjectFilter)); err != nil {
-		return fmt.Errorf("failed to purge room events for %s (subject: %s): %w", roomID, subjectFilter, err)
-	}
-
-	c.logger.Debug("Purged room events from server stream", "kind", kind, "room_id", roomID, "subject_filter", subjectFilter)
-
 	return nil
 }
 

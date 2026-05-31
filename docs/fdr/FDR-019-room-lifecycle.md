@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -13,16 +13,16 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Edit** — `room.manage` holders can change the name, description, and group of an existing room.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
-- **Delete** — `room.manage` permanently removes the room: the KV record, the name claim, the stream events filtered by the room's subject namespace, and the membership records.
+- **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room, its name claim, and its memberships.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
 
 ## Design Decisions
 
-### 1. Room name uniqueness via atomic KV claim
+### 1. Room name uniqueness via EVT projection and OCC
 
-**Decision:** Room names are unique server-wide (case-insensitive). Uniqueness is enforced by `kv.Create()` on a `room_name_index.*` key — atomic with the room record creation. Read-then-write would race; the create-claim doesn't.
-**Why:** Race-tolerant name claiming is the only way to safely handle two operators creating the same-named room at the same moment. The KV `Create` semantics (fails if key exists) give us atomicity for free.
-**Tradeoff:** Renames are a delete-claim-then-recreate dance — slightly more complex than a simple update. The name index also has to be kept in sync with the room record, but the operations live in one transaction.
+**Decision:** Room names are unique server-wide (case-insensitive). Uniqueness is enforced by checking the room catalog projection and appending name-changing room events with wildcard OCC against the room aggregate event set.
+**Why:** Race-tolerant name claiming is the only way to safely handle two operators creating the same-named room at the same moment. EVT OCC lets the event log remain the source of truth without maintaining a legacy KV name mirror.
+**Tradeoff:** Renames must coordinate through the event log and projection readiness instead of a single KV claim. The payoff is no dual-write divergence.
 
 ### 2. Every channel room belongs to exactly one group
 
@@ -36,11 +36,11 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Why:** Archive's purpose is "stop showing this room everywhere, but don't lose the history". A full archived-rooms-elsewhere migration would mean different code paths for archived rooms, divergent reads, and a hard road back to active state. A flag is enough.
 **Tradeoff:** Every "show me rooms" query needs to remember to filter on `archived`. Centralised in the resolver layer.
 
-### 4. Delete is destructive and scoped to the room's subjects
+### 4. Delete is a durable tombstone
 
-**Decision:** Deleting a room publishes an audit event first, then deletes the room record, releases the name claim, and purges all JetStream events under the room's subject prefix (`server.room.{kind}.{roomId}.*`).
-**Why:** Half-deleted rooms — record gone but events still in the stream — are worse than no deletion at all. They show up in event queries as orphans. Scoped purging is the only way to actually be done.
-**Tradeoff:** The purge is a non-trivial JetStream operation. We log progress and treat partial failure as an incident; in practice it's reliable.
+**Decision:** Deleting a room appends a durable `RoomDeletedEvent` to `EVT`. Projections remove the room from user-visible catalogs and membership state; historical facts remain in the event log.
+**Why:** `EVT` is both source of truth and audit log. Purging the room's event history would destroy the forensic trail and make replay semantics dependent on destructive stream operations.
+**Tradeoff:** Deleted-room history still consumes storage. User-visible reads must consistently respect the tombstone.
 
 ### 5. Membership survives archive
 
@@ -62,5 +62,5 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Related
 
-- **ADRs:** ADR-006 (KV as source of truth), ADR-031 (room-group-centric ACL)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-017 (Room Groups & Sidebar Layout)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -44,11 +43,10 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 // pairs, and we early-out via IsMember).
 // Authorization: Caller must verify CanJoinRoom before calling.
 //
-// ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT, writes
-// a legacy SERVER_EVENTS copy for migration/import tooling, then WaitForSeq
-// on the projections that serve membership and room history reads. The
-// room_membership KV bucket is no longer written to (retained as pre-ES
-// import evidence).
+// ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT, then
+// WaitForSeq on the projections that serve membership and room history reads.
+// The room_membership KV bucket and SERVER_EVENTS mirrors are no longer
+// written to (retained as pre-ES import evidence).
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
@@ -116,13 +114,6 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		return nil, fmt.Errorf("publish UserJoinedRoomEvent retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
-	// Legacy SERVER_EVENTS copy retained for migration/import tooling.
-	// Best-effort; failures are logged but don't roll back the join.
-	legacySubject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, legacySubject, event); err != nil {
-		c.logger.Error("failed to publish UserJoinedRoomEvent (legacy)", "error", err, "user_id", user_id, "room_id", room_id)
-	}
-
 	c.logger.Info("Created room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
 
 	// Initialize the read marker for new members. For non-empty rooms, mark
@@ -152,9 +143,8 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 //   - Global rooms grant implicit membership to every server member and
 //     cannot be left (users can mute them via notification preferences).
 //
-// ADR-035 phase 6: event-only. Publishes UserLeftRoomEvent, legacy
-// mirror, then WaitForSeq on the projections that serve membership
-// and room history reads.
+// ADR-035 phase 6: event-only. Publishes UserLeftRoomEvent, then WaitForSeq on
+// the projections that serve membership and room history reads.
 func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
 	if kind == KindDM {
 		return ErrCannotLeaveDMConversation
@@ -178,11 +168,6 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 	}
 	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
 		return fmt.Errorf("wait for room timeline projection: %w", err)
-	}
-
-	legacySubject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, legacySubject, event); err != nil {
-		c.logger.Error("failed to publish UserLeftRoomEvent (legacy)", "error", err, "user_id", user_id, "room_id", room_id)
 	}
 
 	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
@@ -280,10 +265,6 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 			lastSeq = seq
 		}
 
-		subject := subjects.RoomMeta(string(kind), entry.roomID)
-		if err := c.publishServerEvent(ctx, subject, event); err != nil {
-			c.logger.Warn("Failed to publish UserLeftRoomEvent (legacy)", "room_id", entry.roomID, "error", err)
-		}
 	}
 
 	if len(entries) > 0 {

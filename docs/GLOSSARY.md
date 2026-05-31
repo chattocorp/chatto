@@ -112,7 +112,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **JetStream** — NATS's persistence layer (streams + KV buckets). Chatto's primary data store. See [ADR-001](adr/ADR-001-nats-jetstream-as-primary-data-store.md).
 
-**Stream** — JetStream append-only log. Chatto's event-sourcing stream is `EVT`; the older `SERVER_EVENTS` stream remains during migration for legacy CRUD/log data and import tooling.
+**Stream** — JetStream append-only log. Chatto's event-sourcing stream is `EVT`; the older `SERVER_EVENTS` stream remains as pre-ES import evidence and for legacy restore/debugging tools, but runtime mutations no longer write it.
 
 **KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several (`SERVER_CONFIG`, `SERVER_RBAC`, `KV_INSTANCE`, …). KV is the source of truth; streams are the audit log. See [ADR-006](adr/ADR-006-kv-source-of-truth-streams-audit-log.md).
 
