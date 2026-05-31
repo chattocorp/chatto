@@ -163,6 +163,80 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 	}
 }
 
+func TestChattoCore_RunAppliesConfigOwnersToExistingVerifiedUsers(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	cfg := config.CoreConfig{
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	start := func(t *testing.T, core *ChattoCore) func() {
+		t.Helper()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() { done <- core.Run(ctx) }()
+
+		bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer bootCancel()
+		if err := core.WaitForBoot(bootCtx); err != nil {
+			cancel()
+			t.Fatalf("WaitForBoot: %v", err)
+		}
+
+		return func() {
+			cancel()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("core.Run did not stop within timeout")
+			}
+		}
+	}
+
+	ctx := testContext(t)
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("first core: %v", err)
+	}
+	stopFirst := start(t, first)
+	user, err := first.CreateVerifiedUser(ctx, SystemActorID, "retro-owner", "Retro Owner", "password123", "owner@example.com")
+	if err != nil {
+		stopFirst()
+		t.Fatalf("create verified user: %v", err)
+	}
+	if isOwner, err := first.IsServerOwner(ctx, user.Id); err != nil || isOwner {
+		stopFirst()
+		t.Fatalf("user should not be owner before owners.emails is configured, owner=%v err=%v", isOwner, err)
+	}
+	stopFirst()
+
+	cfg.Owners = config.OwnersConfig{Emails: []string{"OWNER@example.com"}}
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("second core: %v", err)
+	}
+	stopSecond := start(t, second)
+	if isOwner, err := second.IsServerOwner(ctx, user.Id); err != nil || !isOwner {
+		stopSecond()
+		t.Fatalf("user should be owner after owners.emails boot sync, owner=%v err=%v", isOwner, err)
+	}
+	eventsAfterPromotion := eventStreamMsgCount(t, second)
+	stopSecond()
+
+	third, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("third core: %v", err)
+	}
+	stopThird := start(t, third)
+	defer stopThird()
+	eventsAfterRestart := eventStreamMsgCount(t, third)
+	if eventsAfterRestart != eventsAfterPromotion {
+		t.Fatalf("expected owner boot sync to be idempotent, got %d -> %d events", eventsAfterPromotion, eventsAfterRestart)
+	}
+}
+
 // TestChattoCore_FullWorkflow tests an end-to-end workflow demonstrating
 // all core functionality working together.
 func TestChattoCore_FullWorkflow(t *testing.T) {

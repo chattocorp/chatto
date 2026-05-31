@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/models.proto";
+import "chatto/core/v1/user_preferences.proto";
+import "chatto/config/v1/config.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// CONFIG EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 500: reserved tombstone for the abandoned server_config_changed snapshot
+//   - 501-517: durable server/user configuration events on evt.config.*
+//   - 1000: legacy live-only config broadcast
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+// Legacy durable whole-snapshot event written by ADR-035 server-config rollout
+// builds. Kept decode-only so migrations can derive semantic config events from
+// the latest EVT state instead of falling back to stale INSTANCE_CONFIG KV.
+message ServerConfigChangedEvent {
+  chatto.config.v1.ServerConfig config = 1;
+}
+
+message ServerNameChangedEvent {
+  string name = 1;
+}
+
+message ServerDescriptionChangedEvent {
+  string description = 1;
+}
+
+message ServerWelcomeMessageChangedEvent {
+  string welcome_message = 1;
+}
+
+message ServerMotdChangedEvent {
+  string motd = 1;
+}
+
+message ServerBlockedUsernamesChangedEvent {
+  string blocked_usernames = 1;
+}
+
+message ServerLogoSetEvent {
+  DeprecatedAsset asset = 1;
+}
+
+message ServerLogoClearedEvent {}
+
+message ServerBannerSetEvent {
+  DeprecatedAsset asset = 1;
+}
+
+message ServerBannerClearedEvent {}
+
+message UserTimezoneChangedEvent {
+  string user_id = 1;
+  string timezone = 2;
+}
+
+message UserTimezoneClearedEvent {
+  string user_id = 1;
+}
+
+message UserTimeFormatChangedEvent {
+  string user_id = 1;
+  TimeFormat time_format = 2;
+}
+
+message UserTimeFormatClearedEvent {
+  string user_id = 1;
+}
+
+message UserServerNotificationLevelSetEvent {
+  string user_id = 1;
+  NotificationLevel level = 2;
+}
+
+message UserServerNotificationLevelClearedEvent {
+  string user_id = 1;
+}
+
+message UserRoomNotificationLevelSetEvent {
+  string user_id = 1;
+  string room_id = 2;
+  NotificationLevel level = 3;
+}
+
+message UserRoomNotificationLevelClearedEvent {
+  string user_id = 1;
+  string room_id = 2;
+}
+
+// Notifies clients that server configuration was updated.
+// Clients should refetch server info to get the new values.
+message ServerConfigUpdatedEvent {
+  // The updated server name
+  string server_name = 1;
+
+  // The updated MOTD (empty if cleared)
+  string motd = 2;
+
+  // The updated welcome message (empty if cleared)
+  string welcome_message = 3;
+
+  // The updated blocked usernames (newline-separated, empty if cleared)
+  string blocked_usernames = 4;
+}

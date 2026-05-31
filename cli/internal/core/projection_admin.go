@@ -168,17 +168,58 @@ func (p *RoomMembershipProjection) adminProjectionEstimate() (int64, int64, []Pr
 	}
 }
 
-func (p *ServerConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.RLock()
 	defer p.RUnlock()
-	if !p.seen {
-		return 0, 0, []ProjectionAdminMetric{{Name: "configured", Value: 0}}
+	var values int64
+	if p.server.serverName != "" {
+		values++
 	}
-	var bytes int64
-	if p.cfg != nil {
-		bytes = int64(proto.Size(p.cfg)) + projectionMapEntryOverhead
+	if p.server.description != "" {
+		values++
 	}
-	return 1, bytes, []ProjectionAdminMetric{{Name: "configured", Value: 1, Bytes: bytes}}
+	if p.server.welcomeMessage != "" {
+		values++
+	}
+	if p.server.motd != "" {
+		values++
+	}
+	if p.server.blockedUsernames != nil {
+		values++
+	}
+	if p.server.logo != nil {
+		values++
+	}
+	if p.server.banner != nil {
+		values++
+	}
+	for _, u := range p.users {
+		if u.timezone != nil {
+			values++
+		}
+		if u.timeFormat != nil {
+			values++
+		}
+		if u.serverLevel != nil {
+			values++
+		}
+		values += int64(len(u.roomLevelByRoom))
+	}
+	subjects := int64(len(p.users))
+	if p.server.serverName != "" ||
+		p.server.description != "" ||
+		p.server.welcomeMessage != "" ||
+		p.server.motd != "" ||
+		p.server.blockedUsernames != nil ||
+		p.server.logo != nil ||
+		p.server.banner != nil {
+		subjects++
+	}
+	bytes := values * projectionMapEntryOverhead
+	return values, bytes, []ProjectionAdminMetric{
+		{Name: "subjects", Value: subjects, Bytes: 0},
+		{Name: "values", Value: values, Bytes: bytes},
+	}
 }
 
 func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {

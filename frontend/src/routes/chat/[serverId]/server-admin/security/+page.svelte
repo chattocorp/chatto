@@ -16,7 +16,6 @@
       query AdminSecurityConfig {
         admin {
           serverConfig {
-            isConfigured
             blockedUsernames
           }
         }
@@ -38,7 +37,6 @@
       mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {
         admin {
           updateServerConfig(input: $input) {
-            isConfigured
             blockedUsernames
           }
         }

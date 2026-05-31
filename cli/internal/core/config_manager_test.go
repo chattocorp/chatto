@@ -17,13 +17,10 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	t.Run("returns nil and false when not configured", func(t *testing.T) {
-		cfg, isConfigured, err := core.configManager.GetServerConfig(ctx)
+	t.Run("returns nil when no config events exist", func(t *testing.T) {
+		cfg, err := core.configManager.GetServerConfig(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
-		}
-		if isConfigured {
-			t.Error("expected isConfigured to be false for fresh server")
 		}
 		if cfg != nil {
 			t.Error("expected nil config for fresh server")
@@ -42,12 +39,9 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 			t.Fatalf("failed to set config: %v", err)
 		}
 
-		cfg, isConfigured, err := core.configManager.GetServerConfig(ctx)
+		cfg, err := core.configManager.GetServerConfig(ctx)
 		if err != nil {
 			t.Fatalf("failed to get config: %v", err)
-		}
-		if !isConfigured {
-			t.Error("expected isConfigured to be true")
 		}
 		if cfg.ServerName != "Test Instance" {
 			t.Errorf("expected server name 'Test Instance', got '%s'", cfg.ServerName)
@@ -69,11 +63,15 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 		// Reset to ensure clean state
 
 		cfg, err := core.configManager.UpdateServerConfigFunc(ctx, "test", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
-			if current != nil {
-				t.Error("expected nil current config for fresh server")
+			if current == nil {
+				t.Fatal("expected current config")
+			}
+			if current.BlockedUsernames != DefaultBlockedUsernames {
+				t.Errorf("expected default blocked usernames, got %q", current.BlockedUsernames)
 			}
 			return &configv1.ServerConfig{
-				ServerName: "Created via UpdateFunc",
+				ServerName:       "Created via UpdateFunc",
+				BlockedUsernames: current.BlockedUsernames,
 			}, nil
 		})
 
@@ -234,7 +232,7 @@ func TestConfigManager_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing
 		}
 	}
 
-	cfg, _, err := core.configManager.GetServerConfig(ctx)
+	cfg, err := core.configManager.GetServerConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetServerConfig: %v", err)
 	}
@@ -243,6 +241,50 @@ func TestConfigManager_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing
 	}
 	if cfg.GetMotd() != "MOTD B" {
 		t.Fatalf("Motd = %q, want MOTD B", cfg.GetMotd())
+	}
+}
+
+func TestConfigManager_SetServerConfigSkipsUnchangedValues(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	cfg := &configv1.ServerConfig{
+		ServerName:       "No-op Server",
+		Description:      "description",
+		WelcomeMessage:   "welcome",
+		Motd:             "motd",
+		BlockedUsernames: "admin",
+	}
+	if err := core.configManager.SetServerConfig(ctx, "test", cfg); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
+	before, err := core.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream info before: %v", err)
+	}
+
+	if err := core.configManager.SetServerConfig(ctx, "test", cfg); err != nil {
+		t.Fatalf("SetServerConfig same values: %v", err)
+	}
+	afterNoop, err := core.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream info after noop: %v", err)
+	}
+	if afterNoop.State.Msgs != before.State.Msgs {
+		t.Fatalf("unchanged config write appended events: before=%d after=%d", before.State.Msgs, afterNoop.State.Msgs)
+	}
+
+	changed := *cfg
+	changed.Motd = "new motd"
+	if err := core.configManager.SetServerConfig(ctx, "test", &changed); err != nil {
+		t.Fatalf("SetServerConfig changed value: %v", err)
+	}
+	afterChange, err := core.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("stream info after change: %v", err)
+	}
+	if afterChange.State.Msgs != before.State.Msgs+1 {
+		t.Fatalf("single changed config path should append one event: before=%d after=%d", before.State.Msgs, afterChange.State.Msgs)
 	}
 }
 

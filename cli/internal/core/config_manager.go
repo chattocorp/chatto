@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -25,26 +26,22 @@ const maxConfigUpdateRetries = 5
 //
 // ADR-035 phase 6: writes are event-only (publish to EVT +
 // WaitForSeq for read-your-writes). Reads come from the in-memory
-// ServerConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
+// ConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
 // retained as pre-ES import evidence for MigrateServerConfigToES, but
 // is not written by this code anymore.
 type ConfigManager struct {
-	publisher  *events.Publisher
-	projector  *events.Projector
-	projection *ServerConfigProjection
+	service    *ConfigService
+	projection *ConfigProjection
 }
 
-// NewConfigManager creates a new ConfigManager. publisher / projector /
-// projection are required for event-only writes and projection-backed
-// reads.
+// NewConfigManager creates a server-config compatibility facade over the
+// semantic ConfigService / ConfigProjection.
 func NewConfigManager(
-	publisher *events.Publisher,
-	projector *events.Projector,
-	projection *ServerConfigProjection,
+	service *ConfigService,
+	projection *ConfigProjection,
 ) *ConfigManager {
 	return &ConfigManager{
-		publisher:  publisher,
-		projector:  projector,
+		service:    service,
 		projection: projection,
 	}
 }
@@ -53,22 +50,19 @@ func NewConfigManager(
 // Instance Config
 // =============================================================================
 
-// GetServerConfig returns the current server configuration from the
-// projection. The second return value indicates whether a
-// ServerConfigChangedEvent has ever applied — i.e. whether the
-// projection holds a real snapshot vs. a cold "no config yet" state.
+// GetServerConfig returns the raw server configuration values currently held
+// by the projection, or nil when no server config fields have been set.
 // The error return is preserved for signature compatibility; the
 // projection is in-memory and cannot fail to read.
-func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, bool, error) {
+func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, error) {
 	if cm.projection == nil {
-		return nil, false, nil
+		return nil, nil
 	}
-	cfg, isConfigured := cm.projection.Get()
-	return cfg, isConfigured, nil
+	return cm.projection.Get(), nil
 }
 
-// SetServerConfig stores the server configuration by publishing a
-// ServerConfigChangedEvent and waiting for the projection to apply.
+// SetServerConfig stores the server configuration by publishing semantic config
+// events and waiting for the projection to apply.
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
@@ -88,25 +82,17 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 	actorID string,
 	updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error),
 ) (*configv1.ServerConfig, error) {
-	if cm.publisher == nil || cm.projector == nil {
+	if cm.service == nil {
 		return nil, fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
-	agg := events.ConfigAggregate()
-	subject := agg.Subject(events.EventServerConfigChanged)
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		expectedSeq, err := cm.publisher.LastSubjectSeq(ctx, subject)
+		agg, filter, expectedSeq, err := cm.service.prepareSubject(ctx, ConfigSubjectServer)
 		if err != nil {
-			return nil, fmt.Errorf("read config OCC seq: %w", err)
+			return nil, err
 		}
-		if expectedSeq > 0 {
-			if err := cm.projector.WaitForSeq(ctx, expectedSeq); err != nil {
-				return nil, fmt.Errorf("wait for config projection: %w", err)
-			}
-		}
-
-		current, _ := cm.projection.Get()
-		updated, err := updateFn(current)
+		baseline := cm.effectiveConfigForUpdate()
+		updated, err := updateFn(cloneServerConfig(baseline))
 		if err != nil {
 			return nil, err
 		}
@@ -114,54 +100,77 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 			return nil, fmt.Errorf("update function returned nil config")
 		}
 
-		event := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_ServerConfigChanged{
-				ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-					Config: updated,
-				},
-			},
-		})
-		seq, err := cm.publisher.AppendAt(ctx, subject, event, expectedSeq)
+		err = cm.service.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
 		if err == nil {
-			if err := cm.projector.WaitForSeq(ctx, seq); err != nil {
-				return nil, fmt.Errorf("wait for config projection: %w", err)
-			}
 			return updated, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err
 		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
 	}
 	return nil, ErrConfigConflict
 }
 
-// publish writes the server config by emitting a
-// ServerConfigChangedEvent on the config aggregate and waiting for the
-// projection to apply, giving the caller read-your-writes. OCC + retry
-// live inside publisher.Append.
+// publish writes the server config by emitting semantic config events on the
+// config aggregate and waiting for the projection to apply, giving the caller
+// read-your-writes.
 func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
-	if cm.publisher == nil || cm.projector == nil {
+	if cm.service == nil {
 		return fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_ServerConfigChanged{
-			ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-				Config: cfg,
-			},
-		},
+	return cm.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
+}
 
-	if _, err := cm.projector.AppendAndWait(ctx, cm.publisher, events.ConfigAggregate(), event); err != nil {
-		return fmt.Errorf("publish ServerConfigChangedEvent: %w", err)
+func (cm *ConfigManager) effectiveConfigForUpdate() *configv1.ServerConfig {
+	cfg := cloneServerConfig(cm.projection.Get())
+	if cfg == nil {
+		cfg = &configv1.ServerConfig{}
 	}
-	return nil
+	cfg.BlockedUsernames = cm.projection.EffectiveBlockedUsernames()
+	return cfg
+}
+
+func cloneServerConfig(cfg *configv1.ServerConfig) *configv1.ServerConfig {
+	if cfg == nil {
+		return nil
+	}
+	return proto.Clone(cfg).(*configv1.ServerConfig)
+}
+
+func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []*corev1.Event {
+	if next == nil {
+		next = &configv1.ServerConfig{}
+	}
+	var evs []*corev1.Event
+	if current.GetServerName() != next.GetServerName() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerNameChanged{
+			ServerNameChanged: &corev1.ServerNameChangedEvent{Name: next.GetServerName()},
+		}}))
+	}
+	if current.GetDescription() != next.GetDescription() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerDescriptionChanged{
+			ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: next.GetDescription()},
+		}}))
+	}
+	if current.GetWelcomeMessage() != next.GetWelcomeMessage() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerWelcomeMessageChanged{
+			ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: next.GetWelcomeMessage()},
+		}}))
+	}
+	if current.GetMotd() != next.GetMotd() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerMotdChanged{
+			ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: next.GetMotd()},
+		}}))
+	}
+	if current.GetBlockedUsernames() != next.GetBlockedUsernames() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
+			ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: next.GetBlockedUsernames()},
+		}}))
+	}
+	return evs
 }
 
 // =============================================================================

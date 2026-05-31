@@ -1,21 +1,16 @@
 package graph
 
 import (
-	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
 // serverConfigToModel converts a protobuf ServerConfig to the GraphQL model.
-func serverConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model.AdminServerConfig {
-	// Default blocked usernames for unconfigured servers
-	defaultBlocked := core.DefaultBlockedUsernames
-
+func serverConfigToModel(cfg *configv1.ServerConfig, blockedUsernames string) *model.AdminServerConfig {
 	if cfg == nil {
 		return &model.AdminServerConfig{
-			IsConfigured:     false,
-			ServerName: "Chatto", // Default
-			BlockedUsernames: &defaultBlocked,
+			ServerName:       "Chatto",
+			BlockedUsernames: &blockedUsernames,
 		}
 	}
 
@@ -34,28 +29,16 @@ func serverConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model.A
 		motd = &cfg.Motd
 	}
 
-	// For blocked usernames: return the configured value (even if empty, meaning admin cleared it)
-	// But if not configured at all, return the defaults
-	var blockedUsernames *string
-	if isConfigured {
-		// Return what's in config (even if empty string)
-		blockedUsernames = &cfg.BlockedUsernames
-	} else {
-		// Not configured - return defaults
-		blockedUsernames = &defaultBlocked
-	}
-
 	var description *string
 	if cfg.Description != "" {
 		description = &cfg.Description
 	}
 
 	return &model.AdminServerConfig{
-		IsConfigured:     isConfigured,
 		WelcomeMessage:   welcomeMessage,
-		ServerName: serverName,
+		ServerName:       serverName,
 		Motd:             motd,
-		BlockedUsernames: blockedUsernames,
+		BlockedUsernames: &blockedUsernames,
 		Description:      description,
 	}
 }

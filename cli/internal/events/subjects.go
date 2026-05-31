@@ -92,7 +92,24 @@ const (
 	EventRoomGroupsReordered = "groups_reordered"
 
 	// Config aggregate (singleton)
-	EventServerConfigChanged = "config_changed"
+	EventServerConfigChanged                = "config_changed"
+	EventServerNameChanged                  = "server_name_changed"
+	EventServerDescriptionChanged           = "server_description_changed"
+	EventServerWelcomeMessageChanged        = "server_welcome_message_changed"
+	EventServerMotdChanged                  = "server_motd_changed"
+	EventServerBlockedUsernamesChanged      = "server_blocked_usernames_changed"
+	EventServerLogoSet                      = "server_logo_set"
+	EventServerLogoCleared                  = "server_logo_cleared"
+	EventServerBannerSet                    = "server_banner_set"
+	EventServerBannerCleared                = "server_banner_cleared"
+	EventUserTimezoneChanged                = "user_timezone_changed"
+	EventUserTimezoneCleared                = "user_timezone_cleared"
+	EventUserTimeFormatChanged              = "user_time_format_changed"
+	EventUserTimeFormatCleared              = "user_time_format_cleared"
+	EventUserServerNotificationLevelSet     = "user_server_notification_level_set"
+	EventUserServerNotificationLevelCleared = "user_server_notification_level_cleared"
+	EventUserRoomNotificationLevelSet       = "user_room_notification_level_set"
+	EventUserRoomNotificationLevelCleared   = "user_room_notification_level_cleared"
 
 	// User aggregate
 	EventUserAccountCreated           = "account_created"
@@ -107,6 +124,7 @@ const (
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
+	EventUserKeyShredded              = "user_key_shredded"
 
 	// RBAC aggregate
 	EventRBACRoleCreated            = "role_created"
@@ -187,6 +205,40 @@ func EventTypeOf(e *corev1.Event) string {
 
 	case *corev1.Event_ServerConfigChanged:
 		return EventServerConfigChanged
+	case *corev1.Event_ServerNameChanged:
+		return EventServerNameChanged
+	case *corev1.Event_ServerDescriptionChanged:
+		return EventServerDescriptionChanged
+	case *corev1.Event_ServerWelcomeMessageChanged:
+		return EventServerWelcomeMessageChanged
+	case *corev1.Event_ServerMotdChanged:
+		return EventServerMotdChanged
+	case *corev1.Event_ServerBlockedUsernamesChanged:
+		return EventServerBlockedUsernamesChanged
+	case *corev1.Event_ServerLogoSet:
+		return EventServerLogoSet
+	case *corev1.Event_ServerLogoCleared:
+		return EventServerLogoCleared
+	case *corev1.Event_ServerBannerSet:
+		return EventServerBannerSet
+	case *corev1.Event_ServerBannerCleared:
+		return EventServerBannerCleared
+	case *corev1.Event_UserTimezoneChanged:
+		return EventUserTimezoneChanged
+	case *corev1.Event_UserTimezoneCleared:
+		return EventUserTimezoneCleared
+	case *corev1.Event_UserTimeFormatChanged:
+		return EventUserTimeFormatChanged
+	case *corev1.Event_UserTimeFormatCleared:
+		return EventUserTimeFormatCleared
+	case *corev1.Event_UserServerNotificationLevelSet:
+		return EventUserServerNotificationLevelSet
+	case *corev1.Event_UserServerNotificationLevelCleared:
+		return EventUserServerNotificationLevelCleared
+	case *corev1.Event_UserRoomNotificationLevelSet:
+		return EventUserRoomNotificationLevelSet
+	case *corev1.Event_UserRoomNotificationLevelCleared:
+		return EventUserRoomNotificationLevelCleared
 
 	case *corev1.Event_UserAccountCreated:
 		return EventUserAccountCreated
@@ -212,6 +264,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *corev1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+	case *corev1.Event_UserKeyShredded:
+		return EventUserKeyShredded
 
 	case *corev1.Event_RbacRoleCreated:
 		return EventRBACRoleCreated
@@ -300,6 +354,13 @@ func LayoutAggregate() Aggregate {
 // config aggregate.
 func ConfigAggregate() Aggregate {
 	return Aggregate{Type: AggregateConfig, ID: ConfigSingletonID}
+}
+
+// ConfigSubjectAggregate is the typed constructor for dynamic config on any
+// configurable subject. Subjects are canonical IDs/sentinels such as `server`,
+// `U...`, or `R...`; callers should not add redundant type prefixes.
+func ConfigSubjectAggregate(subject string) Aggregate {
+	return Aggregate{Type: AggregateConfig, ID: subject}
 }
 
 // UserAggregate is the typed constructor for a user aggregate. It owns

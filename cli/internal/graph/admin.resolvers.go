@@ -85,8 +85,13 @@ func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *mo
 		r.logger.Warn("Failed to publish server config update event", "error", err)
 	}
 
+	blockedUsernames, err := configMgr.GetEffectiveBlockedUsernames(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blocked usernames: %w", err)
+	}
+
 	// Return the updated config section
-	return serverConfigToModel(cfg, true), nil
+	return serverConfigToModel(cfg, blockedUsernames), nil
 }
 
 // UpdateUser is the resolver for the updateUser field.
@@ -143,12 +148,16 @@ func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj 
 func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error) {
 	configMgr := r.core.ConfigManager()
 
-	cfg, isConfigured, err := configMgr.GetServerConfig(ctx)
+	cfg, err := configMgr.GetServerConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get server config: %w", err)
 	}
+	blockedUsernames, err := configMgr.GetEffectiveBlockedUsernames(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blocked usernames: %w", err)
+	}
 
-	return serverConfigToModel(cfg, isConfigured), nil
+	return serverConfigToModel(cfg, blockedUsernames), nil
 }
 
 // EventLog is the resolver for the eventLog field. The parent

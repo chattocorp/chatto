@@ -41,28 +41,28 @@ type esLegacyCounts struct {
 }
 
 type esProjectedCounts struct {
-	rooms                  int
-	channelRooms           int
-	dmRooms                int
-	membershipRooms        int
-	memberships            int
-	roomGroups             int
-	roomLayoutGroups       int
-	serverConfigConfigured bool
-	timelineRooms          int
-	timelineEntries        int
-	messagePosts           int
-	threads                int
-	threadEntries          int
-	threadReplies          int
-	reactionMessages       int
-	activeReactions        int
-	users                  int
-	verifiedEmails         int
-	oidcSubjects           int
-	rbacRoles              int
-	rbacAssignments        int
-	rbacDecisions          int
+	rooms                 int
+	channelRooms          int
+	dmRooms               int
+	membershipRooms       int
+	memberships           int
+	roomGroups            int
+	roomLayoutGroups      int
+	serverConfigProjected bool
+	timelineRooms         int
+	timelineEntries       int
+	messagePosts          int
+	threads               int
+	threadEntries         int
+	threadReplies         int
+	reactionMessages      int
+	activeReactions       int
+	users                 int
+	verifiedEmails        int
+	oidcSubjects          int
+	rbacRoles             int
+	rbacAssignments       int
+	rbacDecisions         int
 }
 
 // logESBootVerification emits a structured summary of the ES import and
@@ -104,7 +104,7 @@ func (c *ChattoCore) logESBootVerification(ctx context.Context) {
 		"projected_rbac_assignments", report.projected.rbacAssignments,
 		"projected_rbac_decisions", report.projected.rbacDecisions,
 		"server_config_legacy", report.legacy.serverConfigPresent,
-		"server_config_projected", report.projected.serverConfigConfigured,
+		"server_config_projected", report.projected.serverConfigProjected,
 		"room_layout_legacy", report.legacy.roomLayoutPresent,
 		"projected_room_layout_groups", report.projected.roomLayoutGroups,
 		"evt_decode_errors", report.decodeErrors,
@@ -228,31 +228,31 @@ func (c *ChattoCore) collectProjectedESCounts() esProjectedCounts {
 	reactionMessages, activeReactions := c.Reactions.Stats()
 	users, verifiedEmails, oidcSubjects := c.Users.Stats()
 	rbacRoles, rbacAssignments, rbacDecisions := c.RBAC.CountStats()
-	_, serverConfigConfigured := c.ServerConfig.Get()
+	serverConfigProjected := c.ServerConfig.Get() != nil
 
 	return esProjectedCounts{
-		rooms:                  c.RoomCatalog.Count(),
-		channelRooms:           len(c.RoomCatalog.AllByKind(corev1.RoomKind_ROOM_KIND_CHANNEL)),
-		dmRooms:                len(c.RoomCatalog.AllByKind(corev1.RoomKind_ROOM_KIND_DM)),
-		membershipRooms:        membershipRooms,
-		memberships:            memberships,
-		roomGroups:             c.RoomGroups.Count(),
-		roomLayoutGroups:       len(c.RoomLayout.Order()),
-		serverConfigConfigured: serverConfigConfigured,
-		timelineRooms:          timelineRooms,
-		timelineEntries:        timelineEntries,
-		messagePosts:           messagePosts,
-		threads:                threads,
-		threadEntries:          threadEntries,
-		threadReplies:          threadReplies,
-		reactionMessages:       reactionMessages,
-		activeReactions:        activeReactions,
-		users:                  users,
-		verifiedEmails:         verifiedEmails,
-		oidcSubjects:           oidcSubjects,
-		rbacRoles:              rbacRoles,
-		rbacAssignments:        rbacAssignments,
-		rbacDecisions:          rbacDecisions,
+		rooms:                 c.RoomCatalog.Count(),
+		channelRooms:          len(c.RoomCatalog.AllByKind(corev1.RoomKind_ROOM_KIND_CHANNEL)),
+		dmRooms:               len(c.RoomCatalog.AllByKind(corev1.RoomKind_ROOM_KIND_DM)),
+		membershipRooms:       membershipRooms,
+		memberships:           memberships,
+		roomGroups:            c.RoomGroups.Count(),
+		roomLayoutGroups:      len(c.RoomLayout.Order()),
+		serverConfigProjected: serverConfigProjected,
+		timelineRooms:         timelineRooms,
+		timelineEntries:       timelineEntries,
+		messagePosts:          messagePosts,
+		threads:               threads,
+		threadEntries:         threadEntries,
+		threadReplies:         threadReplies,
+		reactionMessages:      reactionMessages,
+		activeReactions:       activeReactions,
+		users:                 users,
+		verifiedEmails:        verifiedEmails,
+		oidcSubjects:          oidcSubjects,
+		rbacRoles:             rbacRoles,
+		rbacAssignments:       rbacAssignments,
+		rbacDecisions:         rbacDecisions,
 	}
 }
 
@@ -272,8 +272,8 @@ func (c *ChattoCore) evaluateESBootVerificationReport(r *esBootVerificationRepor
 	compareAtLeast("verified emails", r.legacy.verifiedEmails, r.projected.verifiedEmails)
 	compareAtLeast("OIDC subjects", r.legacy.oidcSubjects, r.projected.oidcSubjects)
 
-	if r.legacy.serverConfigPresent && !r.projected.serverConfigConfigured {
-		r.problems = append(r.problems, "server config: legacy config.instance exists but projection is not configured")
+	if r.legacy.serverConfigPresent && !r.projected.serverConfigProjected {
+		r.problems = append(r.problems, "server config: legacy config.instance exists but projection has no server config values")
 	}
 	if r.legacy.roomLayoutPresent && r.projected.roomGroups > 0 && r.projected.roomLayoutGroups == 0 {
 		r.problems = append(r.problems, "room layout: legacy room_layout exists but projected layout ordering is empty")

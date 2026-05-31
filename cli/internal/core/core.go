@@ -93,12 +93,11 @@ type ChattoCore struct {
 	// so writers can call WaitForSeq for read-your-writes.
 	RoomMembershipProjector *events.Projector
 
-	// ServerConfig is the projection holding the current server-config
-	// snapshot (ADR-035 phase 5 cutover for the config aggregate).
-	// Reads of "what's the server's MOTD / welcome message / blocked
-	// usernames" go through this projection rather than the legacy
-	// INSTANCE_CONFIG KV.
-	ServerConfig *ServerConfigProjection
+	// ServerConfig is the projection holding current dynamic configuration
+	// rebuilt from EVT. The field name is retained for compatibility with
+	// existing admin/verification code while the projection now stores more
+	// than the old server-config snapshot.
+	ServerConfig *ConfigProjection
 
 	// ServerConfigProjector runs the consumer + apply loop that keeps
 	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
@@ -221,6 +220,13 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// append duplicate seed facts on every process restart.
 		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 			return fmt.Errorf("wait for projections current: %w", err)
+		}
+		// Apply config-designated owners to already-verified users on every
+		// boot. Changing owners.emails requires a process restart, so this
+		// is the natural point to materialize new config owners as RBAC
+		// assignments. The assignment path is idempotent.
+		if err := c.applyConfigOwners(gctx); err != nil {
+			return fmt.Errorf("apply config owners: %w", err)
 		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
@@ -356,10 +362,46 @@ func (c *ChattoCore) PermResolver() *PermissionResolver {
 // All messages encrypted with this key become permanently unreadable.
 // This is used for GDPR-compliant user deletion.
 func (c *ChattoCore) DeleteUserEncryptionKey(ctx context.Context, userID string) error {
+	return c.DeleteUserEncryptionKeyAs(ctx, userID, userID)
+}
+
+func (c *ChattoCore) deleteUserEncryptionKeyOnly(ctx context.Context, userID string) error {
+	if c.encryption.keyManager == nil {
+		return nil
+	}
+	return c.encryption.keyManager.DeleteUserKey(ctx, userID)
+}
+
+func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, userID string) error {
 	if c.encryption.keyManager == nil {
 		return nil // Encryption not configured
 	}
-	return c.encryption.keyManager.DeleteUserKey(ctx, userID)
+	exists, err := c.encryption.keyManager.UserKeyExists(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	if err := c.encryption.keyManager.DeleteUserKey(ctx, userID); err != nil {
+		return err
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_UserKeyShredded{
+			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: userID},
+		},
+	})
+	seq, err := c.appendUserEvent(ctx, userID, event, "", nil)
+	if err != nil {
+		return fmt.Errorf("failed to record user key shred event: %w", err)
+	}
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for room timeline projection: %w", err)
+	}
+	if err := c.ThreadsProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("wait for thread projection: %w", err)
+	}
+	return nil
 }
 
 // AssetsConfig returns the assets configuration as an assets.Config.
@@ -596,7 +638,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomMembership := NewRoomMembershipProjection()
 	roomMembershipProjector := newProjector(roomMembership, "RoomMembershipProjector")
 
-	serverConfigProjection := NewServerConfigProjection()
+	serverConfigProjection := NewConfigProjection()
 	serverConfigProjector := newProjector(serverConfigProjection, "ServerConfigProjector")
 
 	roomCatalog := NewRoomCatalogProjection()
@@ -627,10 +669,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	rbac := NewRBACProjection()
 	rbacProjector := newProjector(rbac, "RBACProjector")
 
-	// ConfigManager owns event-only server-config writes; it needs the
-	// publisher (for ServerConfigChangedEvent), the projector
-	// (WaitForSeq for read-your-writes), and the projection (for reads).
-	configMgr := NewConfigManager(eventPublisher, serverConfigProjector, serverConfigProjection)
+	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
+	configMgr := NewConfigManager(configService, serverConfigProjection)
 
 	core := &ChattoCore{
 		nc:                      nc,

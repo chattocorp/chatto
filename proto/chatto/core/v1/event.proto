@@ -10,7 +10,7 @@ import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/room_group_events.proto";
-import "chatto/core/v1/server_config_events.proto";
+import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/user_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -97,12 +97,30 @@ message Event {
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
 
-    // ----- Server config (500-509, durable) -----
+    // ----- Config / preferences (500-599, durable) -----
     // Distinct from ServerConfigUpdatedEvent at 1000, which is the
-    // legacy live-only GraphQL adapter payload. The durable variant
-    // below lives on the EVT stream (subject evt.config.server) per
+    // legacy live-only GraphQL adapter payload. The durable variants
+    // below live on the EVT stream (subjects under evt.config.>) per
     // ADRs 033/034/035.
-    ServerConfigChangedEvent server_config_changed = 500;
+    ServerConfigChangedEvent server_config_changed = 500; // legacy snapshot event, decode-only.
+    ServerNameChangedEvent server_name_changed = 501;
+    ServerDescriptionChangedEvent server_description_changed = 502;
+    ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;
+    ServerMotdChangedEvent server_motd_changed = 504;
+    ServerBlockedUsernamesChangedEvent server_blocked_usernames_changed = 505;
+    ServerLogoSetEvent server_logo_set = 506;
+    ServerLogoClearedEvent server_logo_cleared = 507;
+    ServerBannerSetEvent server_banner_set = 508;
+    ServerBannerClearedEvent server_banner_cleared = 509;
+
+    UserTimezoneChangedEvent user_timezone_changed = 510;
+    UserTimezoneClearedEvent user_timezone_cleared = 511;
+    UserTimeFormatChangedEvent user_time_format_changed = 512;
+    UserTimeFormatClearedEvent user_time_format_cleared = 513;
+    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514;
+    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
+    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
+    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.
@@ -137,6 +155,7 @@ message Event {
     UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
     UserAccountDeletedEvent user_account_deleted = 710;
     UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
+    UserKeyShreddedEvent user_key_shredded = 712;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

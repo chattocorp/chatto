@@ -3,8 +3,8 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/room_events.proto";
-import "chatto/core/v1/server_config_events.proto";
 import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
 

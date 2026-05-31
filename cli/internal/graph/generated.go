@@ -119,7 +119,6 @@ type ComplexityRoot struct {
 	AdminServerConfig struct {
 		BlockedUsernames func(childComplexity int) int
 		Description      func(childComplexity int) int
-		IsConfigured     func(childComplexity int) int
 		Motd             func(childComplexity int) int
 		ServerName       func(childComplexity int) int
 		WelcomeMessage   func(childComplexity int) int
@@ -1423,12 +1422,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminServerConfig.Description(childComplexity), true
-	case "AdminServerConfig.isConfigured":
-		if e.complexity.AdminServerConfig.IsConfigured == nil {
-			break
-		}
-
-		return e.complexity.AdminServerConfig.IsConfigured(childComplexity), true
 	case "AdminServerConfig.motd":
 		if e.complexity.AdminServerConfig.Motd == nil {
 			break
@@ -6727,8 +6720,6 @@ func (ec *executionContext) fieldContext_AdminMutations_updateServerConfig(ctx c
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "isConfigured":
-				return ec.fieldContext_AdminServerConfig_isConfigured(ctx, field)
 			case "welcomeMessage":
 				return ec.fieldContext_AdminServerConfig_welcomeMessage(ctx, field)
 			case "serverName":
@@ -6930,8 +6921,6 @@ func (ec *executionContext) fieldContext_AdminQueries_serverConfig(_ context.Con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "isConfigured":
-				return ec.fieldContext_AdminServerConfig_isConfigured(ctx, field)
 			case "welcomeMessage":
 				return ec.fieldContext_AdminServerConfig_welcomeMessage(ctx, field)
 			case "serverName":
@@ -7240,35 +7229,6 @@ func (ec *executionContext) fieldContext_AdminQueries_serverPermissions(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminServerConfig_isConfigured(ctx context.Context, field graphql.CollectedField, obj *model.AdminServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminServerConfig_isConfigured,
-		func(ctx context.Context) (any, error) {
-			return obj.IsConfigured, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminServerConfig_isConfigured(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminServerConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -30399,11 +30359,6 @@ func (ec *executionContext) _AdminServerConfig(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AdminServerConfig")
-		case "isConfigured":
-			out.Values[i] = ec._AdminServerConfig_isConfigured(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "welcomeMessage":
 			out.Values[i] = ec._AdminServerConfig_welcomeMessage(ctx, field, obj)
 		case "serverName":

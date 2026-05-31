@@ -256,7 +256,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
 | KV      | `INSTANCE`                    | Users, memberships (bucket name retained from pre-rename) |
-| KV      | `INSTANCE_CONFIG`             | Server runtime configuration overrides      |
+| KV      | `INSTANCE_CONFIG`             | Legacy server configuration import source   |
 | KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | `AUTH_TOKENS`                 | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications |
@@ -382,7 +382,7 @@ The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvent
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `SERVER_EVENTS`              | `corev1.Event`   | Server     | JetStream-stored events for the legacy CRUD+log pattern; retained for migration/import tooling and no longer part of live delivery. |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, reactions, and RBAC. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, users, messages/threads, reactions, and RBAC. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `myEvents` authorizes and adapts these messages into GraphQL events; they are never projection input. |
 
 **SERVER\_EVENTS subjects:**
@@ -466,7 +466,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
-| `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
+| `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source       |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
@@ -496,8 +496,8 @@ All room data — channels and DMs alike — lives in the unified `SERVER_*` buc
 | `password_reset.{token}`               | Password reset token                             |
 | `account_deletion.{token}`             | Account deletion confirmation token              |
 | `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
-| `instance.logo`                        | Server logo asset reference (key retained from pre-rename) |
-| `instance.banner`                      | Server banner asset reference (key retained from pre-rename) |
+| `instance.logo`                        | Legacy server logo asset reference, imported into EVT config events |
+| `instance.banner`                      | Legacy server banner asset reference, imported into EVT config events |
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
@@ -507,9 +507,9 @@ Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NAT
 
 | Key               | Description                                                                  |
 | ----------------- | ---------------------------------------------------------------------------- |
-| `config.instance` | Server configuration (proto message; key + proto name retained) — name, MOTD, welcome message |
+| `config.instance` | Legacy server configuration import source (proto message; key + proto name retained) |
 
-Notes: Stores runtime configuration. Each section is a protobuf-serialized message. Server configuration (name, MOTD, welcome message) lives entirely in KV, not in chatto.toml. The TOML file is reserved for operational settings (ports, secrets, NATS config). Deleting a key reverts to defaults.
+Notes: Server configuration now lives in EVT config events and is served from the in-memory config projection. This bucket is retained as a boot-import source for pre-ES deployments. The TOML file remains reserved for operational settings (ports, secrets, NATS config).
 
 **AUTH_TOKENS keys:**
 
@@ -648,7 +648,7 @@ migration. New code should not write to `attachment.*` keys here.
 | ------------ | ----------------------------------- |
 | `{assetId}`  | User avatars, space icons, etc.     |
 
-Notes: Content-Type stored in object headers. S2 compression enabled. Legacy entity records such as server branding still reference the storage-pointer-only `DeprecatedAsset` proto until their post-migration cleanup.
+Notes: Content-Type stored in object headers. S2 compression enabled. Server logo and banner bytes remain here when backed by the NATS object store; the current logo/banner pointers are imported into and updated through EVT config events.
 
 **ASSET_CACHE keys:**
 
@@ -666,7 +666,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 | `{attachmentId}`      | Original attachment files (images, videos, etc.)|
 | `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
 
-Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`) rather than inside `Asset`. Future room or server asset owners should add explicit owner branches when those features start emitting asset events. Message-owned assets are also embedded as `Attachment` protos inside the owning `MessageBody` for message rendering and signed URL back-pointers. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Boot migrations backfill asset creation events from legacy message attachments and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
+Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`) rather than inside `Asset`. Future room or server asset owners should add explicit owner branches when those features start emitting asset events. Message-owned assets are also embedded as `Attachment` protos inside the owning `MessageBody` for message rendering and signed URL back-pointers. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. Boot migrations backfill asset creation events from legacy message attachments and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 

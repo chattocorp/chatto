@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "simple",
+  "versioning": "prerelease",
   "bump-minor-pre-major": true,
   "include-component-in-tag": false,
   "include-v-in-tag": true,
@@ -10,7 +11,6 @@
       "changelog-path": "CHANGELOG.md",
       "prerelease": true,
       "prerelease-type": "alpha",
-      "release-as": "0.1.0-alpha.0",
       "extra-files": [
         {
           "type": "generic",

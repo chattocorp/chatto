@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -27,14 +28,15 @@ type UserSettingsInput struct {
 	TimeFormat *corev1.TimeFormat
 }
 
-// GetUserSettings retrieves a user's settings from the user projection.
+// GetUserSettings retrieves a user's settings from the config projection.
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access (self-only in GraphQL layer).
-func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev1.ServerUserPreferences, error) {
-	if settings, ok := c.Users.Preferences(userID); ok {
-		return settings, nil
+func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.ServerUserPreferences, error) {
+	if c.ServerConfig == nil {
+		return nil, nil
 	}
-	return nil, nil
+	settings, _, err := c.ServerConfig.UserSettings(userID)
+	return settings, err
 }
 
 // UpdateUserSettings merges the provided fields into the user's existing settings.
@@ -42,7 +44,51 @@ func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev
 // To clear the timezone override, pass a pointer to an empty string.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.ServerUserPreferences, error) {
-	// Get current settings (or start fresh if none exist)
+	if c.configManager == nil || c.configManager.service == nil {
+		return nil, fmt.Errorf("config service not configured")
+	}
+
+	if input.Timezone != nil {
+		tz := *input.Timezone
+		if tz != "" {
+			if _, err := time.LoadLocation(tz); err != nil {
+				return nil, fmt.Errorf("invalid timezone %q: %w", tz, err)
+			}
+		}
+	}
+
+	changed := false
+	if err := c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		current, _, err := c.ServerConfig.UserSettings(userID)
+		if err != nil {
+			return nil, err
+		}
+		var evs []*corev1.Event
+		if input.Timezone != nil {
+			tz := *input.Timezone
+			if tz == "" {
+				if current != nil && current.Timezone != nil {
+					evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
+						UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
+					}}))
+				}
+			} else if current == nil || current.GetTimezone() != tz {
+				evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneChanged{
+					UserTimezoneChanged: &corev1.UserTimezoneChangedEvent{UserId: userID, Timezone: tz},
+				}}))
+			}
+		}
+		if input.TimeFormat != nil && (current == nil || current.GetTimeFormat() != *input.TimeFormat) {
+			evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimeFormatChanged{
+				UserTimeFormatChanged: &corev1.UserTimeFormatChangedEvent{UserId: userID, TimeFormat: *input.TimeFormat},
+			}}))
+		}
+		changed = len(evs) > 0
+		return evs, nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to store user settings: %w", err)
+	}
+
 	settings, err := c.GetUserSettings(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -50,39 +96,11 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	if settings == nil {
 		settings = &corev1.ServerUserPreferences{}
 	}
-
-	// Apply non-nil fields
-	if input.Timezone != nil {
-		tz := *input.Timezone
-		if tz != "" {
-			// Validate IANA timezone name
-			if _, err := time.LoadLocation(tz); err != nil {
-				return nil, fmt.Errorf("invalid timezone %q: %w", tz, err)
-			}
-			settings.Timezone = &tz
-		} else {
-			// Clear the timezone override
-			settings.Timezone = nil
-		}
-	}
-
-	if input.TimeFormat != nil {
-		settings.TimeFormat = *input.TimeFormat
-	}
-
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserServerPreferencesChanged{
-		UserServerPreferencesChanged: &corev1.UserServerPreferencesChangedEvent{
-			UserId:      userID,
-			Preferences: settings,
-		},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return nil, fmt.Errorf("failed to store user settings: %w", err)
+	if !changed {
+		return settings, nil
 	}
 
 	c.logger.Info("Updated user settings", "user_id", userID)
-
-	// Publish live event for multi-tab/multi-device sync
 	c.publishServerUserPreferencesUpdatedEvent(ctx, userID, settings)
 
 	return settings, nil
@@ -113,5 +131,22 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 
 // deleteUserSettings removes a user's settings. Called during account deletion.
 func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) error {
-	return nil
+	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
+		return nil
+	}
+	return c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		current, _, err := c.ServerConfig.UserSettings(userID)
+		if err != nil || current == nil {
+			return nil, err
+		}
+		evs := []*corev1.Event{
+			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
+				UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
+			}}),
+			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimeFormatCleared{
+				UserTimeFormatCleared: &corev1.UserTimeFormatClearedEvent{UserId: userID},
+			}}),
+		}
+		return evs, nil
+	})
 }

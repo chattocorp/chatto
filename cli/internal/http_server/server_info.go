@@ -72,7 +72,7 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 	// Server description (used in the "Add Server" preview alongside name/banner).
 	var description string
 	if s.core != nil && s.core.ConfigManager() != nil {
-		if cfg, _, err := s.core.ConfigManager().GetServerConfig(ctx); err == nil && cfg != nil {
+		if cfg, err := s.core.ConfigManager().GetServerConfig(ctx); err == nil && cfg != nil {
 			description = cfg.Description
 		}
 	}

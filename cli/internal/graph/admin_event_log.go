@@ -133,7 +133,7 @@ func parseAggregateSubject(subject string) (aggregateType, aggregateID string) {
 
 // eventVariantName returns the protobuf message name of the oneof
 // variant set on the event (e.g. "UserJoinedRoomEvent",
-// "ServerConfigChangedEvent"). Empty string if no variant is set
+// "ServerNameChangedEvent"). Empty string if no variant is set
 // (shouldn't happen for events that came off the wire, but we don't
 // trust the input).
 func eventVariantName(event *corev1.Event) string {

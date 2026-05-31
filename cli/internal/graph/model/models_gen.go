@@ -94,8 +94,6 @@ type AdminQueries struct {
 
 // Server configuration section.
 type AdminServerConfig struct {
-	// Whether this server has been configured (has settings in KV).
-	IsConfigured bool `json:"isConfigured"`
 	// Welcome message shown on the login page (markdown supported).
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 	// Server name, displayed in page titles. Defaults to 'Chatto' if not set.
