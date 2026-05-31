@@ -37,7 +37,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       await createAndLoginTestUser(page2);
 
       // User B starts a DM with User A and seeds a message so the DM is in
-      // User A's merged sidebar (ListDMConversations filters empty rooms).
+      // User A's merged sidebar (the active DM-room list filters empty rooms).
       // The conversation ID is deterministic across the two users — pull it
       // from B's URL once the room loads.
       const dmPageB = new DMPage(page2);
@@ -84,8 +84,8 @@ test.describe('Direct Messages (room-shaped)', () => {
     try {
       const userB = await createAndLoginTestUser(page2);
 
-      // User B → User A: start DM and post so the DM survives the
-      // ListDMConversations empty-room filter.
+      // User B → User A: start DM and post so the DM survives the active
+      // DM-room empty-room filter.
       const dmPageB = new DMPage(page2);
       const roomB = await dmPageB.startConversation(userA.login);
       await roomB.sendMessage('seed');
@@ -366,7 +366,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       const regularUser = await createAndLoginTestUser(regularPage);
 
       // Admin starts a DM with the regular user (via API) and seeds it so
-      // the conversation isn't filtered by ListDMConversations.
+      // the conversation isn't filtered by the active DM-room list.
       const startResp = await page.request.post('/api/graphql', {
         headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {

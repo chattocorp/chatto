@@ -24,7 +24,7 @@ func (r *queryResolver) ActiveCallRoomIds(ctx context.Context) ([]string, error)
 		return []string{}, nil
 	}
 
-	activeIDs, err := r.core.GetActiveCallRoomIDs(ctx, core.SpaceIDForKind(kind))
+	activeIDs, err := r.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(kind))
 	if err != nil {
 		r.logger.Warn("Failed to get active call room IDs", "error", err)
 		return []string{}, nil

@@ -158,7 +158,7 @@ func (c *ChattoCore) HandleCallParticipantJoined(ctx context.Context, spaceID, r
 
 		err := c.writeCallState(ctx, key, &entry.state, entry.revision)
 		if err == nil {
-			return c.PublishCallParticipantJoined(ctx, userID, KindForSpace(spaceID), roomID)
+			return c.PublishCallParticipantJoined(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID)
 		}
 		if !errors.Is(err, jetstream.ErrKeyExists) {
 			return fmt.Errorf("write call state: %w", err)
@@ -196,13 +196,13 @@ func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, spaceID, roo
 		if len(filtered) == 0 {
 			// Call is now empty — delete the key
 			_ = c.storage.callStateKV.Delete(ctx, key)
-			return c.PublishCallParticipantLeft(ctx, userID, KindForSpace(spaceID), roomID)
+			return c.PublishCallParticipantLeft(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID)
 		}
 
 		entry.state.Participants = filtered
 		err := c.writeCallState(ctx, key, &entry.state, entry.revision)
 		if err == nil {
-			return c.PublishCallParticipantLeft(ctx, userID, KindForSpace(spaceID), roomID)
+			return c.PublishCallParticipantLeft(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID)
 		}
 		if !errors.Is(err, jetstream.ErrKeyExists) {
 			return fmt.Errorf("write call state: %w", err)
@@ -221,7 +221,7 @@ func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, spaceID, roomID
 
 	// Publish leave events for any remaining participants
 	for _, p := range entry.state.Participants {
-		_ = c.PublishCallParticipantLeft(ctx, p.UserID, KindForSpace(spaceID), roomID)
+		_ = c.PublishCallParticipantLeft(ctx, p.UserID, RoomKindFromLegacySpaceID(spaceID), roomID)
 	}
 
 	// Delete the key

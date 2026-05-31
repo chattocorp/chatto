@@ -8,14 +8,15 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/core/subjects"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestKindForLegacySpaceID(t *testing.T) {
+func TestRoomKindFromLegacySpaceID(t *testing.T) {
 	tests := []struct {
 		spaceID string
 		want    RoomKind
 	}{
-		{LegacyDMSpaceID, KindDM},
+		{LegacyDMRoomSpaceID, KindDM},
 		{"DM", KindDM},
 		{"some-other-space", KindChannel},
 		{"", KindChannel},
@@ -25,9 +26,9 @@ func TestKindForLegacySpaceID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.spaceID, func(t *testing.T) {
-			got := KindForSpace(tt.spaceID)
+			got := RoomKindFromLegacySpaceID(tt.spaceID)
 			if got != tt.want {
-				t.Errorf("KindForSpace(%q) = %v, want %v", tt.spaceID, got, tt.want)
+				t.Errorf("RoomKindFromLegacySpaceID(%q) = %v, want %v", tt.spaceID, got, tt.want)
 			}
 		})
 	}
@@ -192,14 +193,14 @@ func TestDMRoomPermissionDefaults(t *testing.T) {
 
 	t.Run("CanSeeRoom returns false for DM rooms", func(t *testing.T) {
 		// DM rooms aren't surfaced through the channel room-list API; they
-		// use their own listing path (ListDMConversations). CanSeeRoom
+		// use the member-room listing path. CanSeeRoom
 		// short-circuits to false for KindDM.
 		can, err := core.CanSeeRoom(ctx, userID, KindDM, "R_dm_visibility_test")
 		if err != nil {
 			t.Fatalf("CanSeeRoom error: %v", err)
 		}
 		if can {
-			t.Error("CanSeeRoom should return false for DM rooms (use ListDMConversations)")
+			t.Error("CanSeeRoom should return false for DM rooms (use ListMemberRooms)")
 		}
 	})
 }
@@ -369,15 +370,24 @@ func TestFindOrCreateDM(t *testing.T) {
 	})
 }
 
-func TestListDMConversations(t *testing.T) {
+func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*corev1.Room {
+	t.Helper()
+	rooms, err := core.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{
+		RequireLastMessage:    true,
+		SortByLastMessageDesc: true,
+	})
+	if err != nil {
+		t.Fatalf("ListMemberRooms error: %v", err)
+	}
+	return rooms
+}
+
+func TestListMemberRooms_DMConversationPolicy(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	t.Run("returns empty list when no DMs", func(t *testing.T) {
-		rooms, err := core.ListDMConversations(ctx, "no-dms-user")
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms := listActiveDMRoomsForTest(t, core, ctx, "no-dms-user")
 		if len(rooms) != 0 {
 			t.Errorf("Expected 0 DMs, got %d", len(rooms))
 		}
@@ -400,10 +410,7 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Empty DM should NOT appear in the list
-		rooms, err := core.ListDMConversations(ctx, user1.Id)
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms := listActiveDMRoomsForTest(t, core, ctx, user1.Id)
 		if len(rooms) != 0 {
 			t.Errorf("Expected 0 DMs (empty DM should be filtered), got %d", len(rooms))
 		}
@@ -440,10 +447,7 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Only dm1 should appear (dm2 has no messages)
-		rooms, err := core.ListDMConversations(ctx, user1.Id)
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms := listActiveDMRoomsForTest(t, core, ctx, user1.Id)
 		if len(rooms) != 1 {
 			t.Fatalf("Expected 1 DM, got %d", len(rooms))
 		}
@@ -458,17 +462,14 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Both should now appear
-		rooms, err = core.ListDMConversations(ctx, user1.Id)
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms = listActiveDMRoomsForTest(t, core, ctx, user1.Id)
 		if len(rooms) != 2 {
 			t.Errorf("Expected 2 DMs after both have messages, got %d", len(rooms))
 		}
 	})
 }
 
-func TestListDMConversationsSortedByLastMessage(t *testing.T) {
+func TestListMemberRooms_DMConversationPolicySortedByLastMessage(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -509,10 +510,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 
 	// List should have A-C first (more recent)
-	rooms, err := core.ListDMConversations(ctx, userA.Id)
-	if err != nil {
-		t.Fatalf("ListDMConversations error: %v", err)
-	}
+	rooms := listActiveDMRoomsForTest(t, core, ctx, userA.Id)
 	if len(rooms) != 2 {
 		t.Fatalf("Expected 2 DMs, got %d", len(rooms))
 	}
@@ -530,10 +528,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 
 	// Now A-B should be first
-	rooms, err = core.ListDMConversations(ctx, userA.Id)
-	if err != nil {
-		t.Fatalf("ListDMConversations error: %v", err)
-	}
+	rooms = listActiveDMRoomsForTest(t, core, ctx, userA.Id)
 	if rooms[0].Id != dmAB.Id {
 		t.Errorf("Expected A-B first after new message, got %s", rooms[0].Id)
 	}

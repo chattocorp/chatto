@@ -26,7 +26,7 @@ func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, space
 	if spaceID == "" {
 		return r.requireServerAdminOrErr(ctx, viewerID)
 	}
-	kind := core.KindForSpace(spaceID)
+	kind := core.RoomKindFromLegacySpaceID(spaceID)
 	if err := r.requireServerAdminOrErr(ctx, viewerID); err != nil {
 		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
 		if hpErr != nil {

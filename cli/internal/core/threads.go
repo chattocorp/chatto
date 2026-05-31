@@ -621,7 +621,7 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 	var allThreads []*FollowedThread
 
 	for _, spaceID := range spaceIDs {
-		threads, err := c.listFollowedThreadsInSpace(ctx, userID, KindForSpace(spaceID))
+		threads, err := c.listFollowedThreadsInSpace(ctx, userID, RoomKindFromLegacySpaceID(spaceID))
 		if err != nil {
 			c.logger.Warn("Failed to list followed threads for space", "space_id", spaceID, "error", err)
 			continue
@@ -687,7 +687,7 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 		}
 
 		result = append(result, &FollowedThread{
-			SpaceID:           SpaceIDForKind(kind),
+			SpaceID:           LegacySpaceIDForRoomKind(kind),
 			RoomID:            roomID,
 			ThreadRootEventID: threadRootEventID,
 			ReplyCount:        metadata.ReplyCount,

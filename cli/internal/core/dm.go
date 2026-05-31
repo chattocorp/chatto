@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -15,16 +14,6 @@ import (
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
-
-// LegacyDMSpaceID is the wire-frozen space_id value that older event payloads
-// and a few compatibility APIs still use to mean "DM room".
-const LegacyDMSpaceID = "DM"
-
-// ServerSpaceID is the kind discriminator for channel (non-DM) rooms.
-// Post-ADR-030 there's no longer a per-deployment Space record; this constant
-// is what every channel-scoped core call feeds into `KindForSpace` (which
-// returns "channel" for any non-DM value).
-const ServerSpaceID = "server"
 
 // MaxDMParticipants is the maximum number of participants allowed in a DM.
 // Beyond this, users should create a proper space/room with moderation.
@@ -41,35 +30,6 @@ const (
 	// KindDM is a direct-message room.
 	KindDM RoomKind = "dm"
 )
-
-// KindForSpace returns the room kind for a legacy wire-frozen
-// `space_id` value ("server" or "DM"). Still used at the proto
-// boundary for messages whose persisted shape (e.g.
-// MessagePostedEvent on the legacy SERVER_EVENTS stream) carries
-// `space_id` as a partition key. New code working with Room records
-// should call KindOfRoom (which reads Room.kind directly).
-func KindForSpace(spaceID string) RoomKind {
-	if spaceID == LegacyDMSpaceID {
-		return KindDM
-	}
-	return KindChannel
-}
-
-// SpaceIDForKind returns the legacy `space_id` string for a kind.
-// Used at the proto boundary where wire-format-frozen `space_id`
-// fields (still present on a handful of message-event payloads and
-// LiveKit/threads partition keys) need a value derived from kind.
-//
-// Not used by Room records anymore — Room.space_id was removed in
-// favor of Room.kind. Callers that previously read room.SpaceId
-// should now call SpaceIDForKind(room.kind) directly at the use
-// site rather than relying on a stamped field.
-func SpaceIDForKind(kind RoomKind) string {
-	if kind == KindDM {
-		return LegacyDMSpaceID
-	}
-	return ServerSpaceID
-}
 
 // ProtoKindForRoomKind maps the Go-side RoomKind string to the proto
 // enum stored on Room.kind.
@@ -283,58 +243,6 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	}
 
 	return room, nil
-}
-
-// ListDMConversations returns DM rooms the user is a member of that have at least
-// one message. Empty DM rooms (created but never messaged) are excluded.
-// Rooms are sorted by last message time, newest first.
-func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]*corev1.Room, error) {
-	memberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DM memberships: %w", err)
-	}
-
-	// Collect rooms with their last message timestamps
-	type roomWithTime struct {
-		room      *corev1.Room
-		lastMsgAt time.Time
-	}
-	roomsWithTime := make([]roomWithTime, 0, len(memberships))
-
-	for _, membership := range memberships {
-		room, err := c.GetRoom(ctx, KindDM, membership.RoomId)
-		if err != nil {
-			// Skip rooms that no longer exist (eventual consistency)
-			c.logger.Warn("DM room not found for membership", "room_id", membership.RoomId, "user_id", userID)
-			continue
-		}
-
-		lastMsgAt, err := c.GetRoomLastMessageAt(ctx, KindDM, room.Id)
-		if err != nil {
-			c.logger.Debug("No messages in DM room, skipping", "room_id", room.Id)
-			continue
-		}
-
-		// Skip empty conversations (no messages ever posted)
-		if lastMsgAt.IsZero() {
-			continue
-		}
-
-		roomsWithTime = append(roomsWithTime, roomWithTime{room: room, lastMsgAt: lastMsgAt})
-	}
-
-	// Sort by last message time, newest first
-	sort.Slice(roomsWithTime, func(i, j int) bool {
-		return roomsWithTime[i].lastMsgAt.After(roomsWithTime[j].lastMsgAt)
-	})
-
-	// Extract sorted rooms
-	rooms := make([]*corev1.Room, len(roomsWithTime))
-	for i, rwt := range roomsWithTime {
-		rooms[i] = rwt.room
-	}
-
-	return rooms, nil
 }
 
 // ensureInList ensures the given ID is in the list, adding it if not present.

@@ -34,12 +34,12 @@ export class ChatPage {
 
   }
 
-  /**
-   * Return the kind-discriminator constant used as a spaceID by core methods.
-   * Post-ADR-030 every channel-scoped call uses this single deployment-wide
-   * value (`core.ServerSpaceID = "server"` on the backend).
-   */
-  async getSpaceId(): Promise<string> {
+	/**
+	 * Return the kind-discriminator constant used as a spaceID by core methods.
+	 * Post-ADR-030 every channel-scoped call uses this single deployment-wide
+	 * value (`core.LegacyServerSpaceID = "server"` on the backend).
+	 */
+	async getSpaceId(): Promise<string> {
     return 'server';
   }
 

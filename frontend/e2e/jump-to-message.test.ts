@@ -65,7 +65,7 @@ async function postMessageAndGetId(
 
 /**
  * Extract roomId from the current URL. Post-ADR-030 the spaceId is just the
- * kind discriminator constant (`core.ServerSpaceID`).
+ * kind discriminator constant (`core.LegacyServerSpaceID`).
  */
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
   const match = page.url().match(/\/chat\/-\/([^/]+)/);

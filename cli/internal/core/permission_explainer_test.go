@@ -79,7 +79,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 			s := s
 			t.Run(s.name, func(t *testing.T) {
 				for _, meta := range PermissionsForScope(ScopeRoom) {
-					assertAgreement(t, ctx, core, s.id, ServerSpaceID, room.Id, meta.Permission, ScopeRoom)
+					assertAgreement(t, ctx, core, s.id, LegacyServerSpaceID, room.Id, meta.Permission, ScopeRoom)
 				}
 			})
 		}
@@ -139,8 +139,8 @@ func assertAgreement(
 		hasResult, hasErr = core.permissionResolver.HasServerPermission(ctx, userID, perm)
 		exp, expErr = core.permissionResolver.ExplainServerPermission(ctx, userID, perm)
 	case ScopeRoom:
-		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
-		exp, expErr = core.permissionResolver.ExplainRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
+		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID, perm)
+		exp, expErr = core.permissionResolver.ExplainRoomPermission(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID, perm)
 	default:
 		t.Fatalf("unknown scope %v", scope)
 	}

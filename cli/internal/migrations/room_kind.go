@@ -23,7 +23,7 @@ import (
 // discriminator. Pre-existing rooms still have the field zero-valued
 // (ROOM_KIND_UNSPECIFIED). Backfilling at boot lets all read sites
 // assume `room.Kind != UNSPECIFIED` instead of falling back to
-// `KindForSpace(room.SpaceId)` on every access.
+// `RoomKindFromLegacySpaceID(room.SpaceId)` on every access.
 //
 // # Idempotency
 //
@@ -34,8 +34,7 @@ import (
 // # When this can be removed
 //
 // Once every live deployment has booted at least once on a version
-// that includes this migration AND the wire-compat fallback in
-// `KindOfRoom` has been removed.
+// that includes this migration.
 func BackfillRoomKind(ctx context.Context, configKV jetstream.KeyValue, logger *log.Logger) error {
 	keyLister, err := configKV.ListKeysFiltered(ctx, "room.channel.*", "room.dm.*")
 	if err != nil {

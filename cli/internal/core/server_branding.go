@@ -296,7 +296,7 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_ServerUpdated{
 			ServerUpdated: &corev1.ServerUpdatedEvent{
-				ServerId:    ServerSpaceID,
+				ServerId:    LegacyServerSpaceID,
 				Name:        name,
 				Description: description,
 				LogoUrl:     logoURL,

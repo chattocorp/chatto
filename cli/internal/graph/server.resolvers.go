@@ -216,12 +216,12 @@ func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Se
 		return false, nil
 	}
 	kind := core.KindChannel
-	memberships, err := r.core.GetUserRoomMemberships(ctx, kind, user.Id)
+	rooms, err := r.core.ListMemberRooms(ctx, kind, user.Id, core.MemberRoomListOptions{})
 	if err != nil {
 		return false, err
 	}
-	for _, membership := range memberships {
-		hasUnread, err := r.core.HasUnread(ctx, kind, user.Id, membership.RoomId)
+	for _, room := range rooms {
+		hasUnread, err := r.core.HasUnread(ctx, kind, user.Id, room.Id)
 		if err != nil {
 			continue
 		}

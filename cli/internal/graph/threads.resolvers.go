@@ -16,12 +16,12 @@ import (
 
 // Room is the resolver for the room field.
 func (r *followedThreadResolver) Room(ctx context.Context, obj *model.FollowedThread) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID)
+	return r.core.GetRoom(ctx, core.RoomKindFromLegacySpaceID(obj.SpaceID), obj.RoomID)
 }
 
 // RootMessage is the resolver for the rootMessage field.
 func (r *followedThreadResolver) RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.Event, error) {
-	return r.core.GetRoomEventByEventID(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID, obj.ThreadRootEventID)
+	return r.core.GetRoomEventByEventID(ctx, core.RoomKindFromLegacySpaceID(obj.SpaceID), obj.RoomID, obj.ThreadRootEventID)
 }
 
 // ThreadParticipants is the resolver for the threadParticipants field.
@@ -65,7 +65,7 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer)
 		return nil, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.SpaceIDForKind(kind)})
+	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.LegacySpaceIDForRoomKind(kind)})
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (r *viewerResolver) HasUnreadFollowedThreads(ctx context.Context, obj *mode
 		return false, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.SpaceIDForKind(kind)})
+	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.LegacySpaceIDForRoomKind(kind)})
 	if err != nil {
 		return false, err
 	}

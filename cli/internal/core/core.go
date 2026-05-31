@@ -1670,22 +1670,22 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 	// whether they could re-join today (e.g. they joined while the room
 	// was open, then `room.join` was denied for everyone). The
 	// "leave the room" mutation is the only way to lose live events.
-	channelMemberships, err := c.GetUserRoomMemberships(ctx, KindChannel, userID)
+	channelRooms, err := c.ListMemberRooms(ctx, KindChannel, userID, MemberRoomListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get channel room memberships: %w", err)
+		return fmt.Errorf("failed to list channel member rooms: %w", err)
 	}
-	for _, m := range channelMemberships {
-		memberRooms[m.RoomId] = struct{}{}
+	for _, room := range channelRooms {
+		memberRooms[room.Id] = struct{}{}
 	}
 
-	dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
+	dmRooms, err := c.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get DM room memberships: %w", err)
+		return fmt.Errorf("failed to list DM member rooms: %w", err)
 	}
 	// DM rooms surface via their own listing path; explicit
 	// membership is the visibility gate.
-	for _, m := range dmMemberships {
-		memberRooms[m.RoomId] = struct{}{}
+	for _, room := range dmRooms {
+		memberRooms[room.Id] = struct{}{}
 	}
 
 	return nil

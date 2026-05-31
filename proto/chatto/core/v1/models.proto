@@ -26,7 +26,7 @@ message Room {
   // removed post-ADR-030 (replaced by `kind`), and the field was
   // kept around as a deprecated wire-compat hack longer than needed.
   // Removed entirely; callers that need the legacy partition key
-  // compute it on-demand via `core.SpaceIDForKind(kind)`.
+  // compute it on-demand via `core.LegacySpaceIDForRoomKind(kind)`.
   reserved 2;
   reserved "space_id";
   string name = 3;

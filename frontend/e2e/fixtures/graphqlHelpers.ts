@@ -208,8 +208,9 @@ export async function postThreadReplyViaAPI(
 
 /**
  * Extract roomId from the current URL (`/chat/-/{roomId}`). Post-ADR-030
- * the spaceId is just the kind discriminator constant — `core.ServerSpaceID`
- * on the backend, `SERVER_SPACE_ID` on the frontend.
+ * the spaceId is just the legacy kind discriminator constant —
+ * `core.LegacyServerSpaceID` on the backend, `SERVER_SPACE_ID` on the
+ * frontend.
  */
 export async function getIdsFromUrl(
   page: Page

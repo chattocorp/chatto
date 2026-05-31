@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -601,6 +602,63 @@ func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Ro
 		if gid := c.RoomGroups.GroupForRoom(r.Id); gid != "" {
 			r.GroupId = gid
 		}
+	}
+	return rooms, nil
+}
+
+// MemberRoomListOptions controls optional filtering/sorting for ListMemberRooms.
+type MemberRoomListOptions struct {
+	// RequireLastMessage excludes rooms that have never received a message.
+	RequireLastMessage bool
+	// SortByLastMessageDesc sorts rooms by latest message time, newest first.
+	// Rooms without messages sort last when RequireLastMessage is false.
+	SortByLastMessageDesc bool
+}
+
+// ListMemberRooms retrieves rooms of the given kind that the user participates
+// in. It is the shared room-list primitive for member-scoped room surfaces;
+// callers layer product policy on top with MemberRoomListOptions.
+func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*corev1.Room, error) {
+	roomIDs := c.RoomMembership.Rooms(userID)
+
+	type listedRoom struct {
+		room          *corev1.Room
+		lastMessageAt time.Time
+	}
+	listed := make([]listedRoom, 0, len(roomIDs))
+
+	for _, roomID := range roomIDs {
+		room, err := c.GetRoom(ctx, kind, roomID)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return nil, fmt.Errorf("lookup room %s: %w", roomID, err)
+		}
+
+		var lastMessageAt time.Time
+		if opts.RequireLastMessage || opts.SortByLastMessageDesc {
+			lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+			if err != nil {
+				return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
+			}
+			if opts.RequireLastMessage && lastMessageAt.IsZero() {
+				continue
+			}
+		}
+
+		listed = append(listed, listedRoom{room: room, lastMessageAt: lastMessageAt})
+	}
+
+	if opts.SortByLastMessageDesc {
+		sort.SliceStable(listed, func(i, j int) bool {
+			return listed[i].lastMessageAt.After(listed[j].lastMessageAt)
+		})
+	}
+
+	rooms := make([]*corev1.Room, len(listed))
+	for i, r := range listed {
+		rooms[i] = r.room
 	}
 	return rooms, nil
 }

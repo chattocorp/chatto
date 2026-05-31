@@ -570,7 +570,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	core.JoinRoom(ctx, userB.Id, KindChannel, userB.Id, room2.Id)
 
 	t.Run("returns empty list when no threads are followed", func(t *testing.T) {
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -593,7 +593,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 	t.Run("returns followed threads sorted by last activity", func(t *testing.T) {
 		// User A auto-follows both threads (root author auto-follow on first reply)
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -611,7 +611,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("includes correct metadata", func(t *testing.T) {
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -624,7 +624,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		if thread2.RoomID != room2.Id {
 			t.Errorf("Expected room2 ID, got %s", thread2.RoomID)
 		}
-		if thread2.SpaceID != SpaceIDForKind(KindChannel) {
+		if thread2.SpaceID != LegacySpaceIDForRoomKind(KindChannel) {
 			t.Errorf("Expected canonical space ID, got %s", thread2.SpaceID)
 		}
 		if thread2.LastReplyAt == nil {
@@ -639,7 +639,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("hasUnread is true when thread has activity after last opened", func(t *testing.T) {
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -662,7 +662,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// User A opens thread 2
 		core.SetThreadLastOpened(ctx, KindChannel, userA.Id, room2.Id, rootMsg2.Id)
 
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -684,7 +684,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// User A unfollows thread 1
 		core.UnfollowThread(ctx, KindChannel, userA.Id, room1.Id, rootMsg1.Id)
 
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -698,7 +698,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 	t.Run("only returns threads for the specified user", func(t *testing.T) {
 		// User B followed both threads (auto-follow from posting replies)
-		threadsB, err := core.ListFollowedThreads(ctx, userB.Id, []string{ServerSpaceID})
+		threadsB, err := core.ListFollowedThreads(ctx, userB.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads for user B: %v", err)
 		}
@@ -707,7 +707,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 
 		// User A should still only have 1 (unfollowed thread 1 above)
-		threadsA, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threadsA, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads for user A: %v", err)
 		}
@@ -720,7 +720,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// Manually follow a thread that has no metadata (orphaned)
 		core.FollowThread(ctx, KindChannel, userA.Id, room1.Id, "nonexistent-thread-id")
 
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
