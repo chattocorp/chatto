@@ -807,7 +807,7 @@ test.describe('Instance Role Permission Denials', () => {
     await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
 
     const cell = page.locator(
-      `button[aria-label*="${displayName}"][aria-label*="message.post"]`
+      `td[data-role="${roleName}"][data-permission="message.post"] button`
     );
     await expect(cell).toHaveAttribute('aria-pressed', 'false');
 
@@ -825,7 +825,7 @@ test.describe('Instance Role Permission Denials', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
     const cellAfterReload = page.locator(
-      `button[aria-label*="${displayName}"][aria-label*="message.post"]`
+      `td[data-role="${roleName}"][data-permission="message.post"] button`
     );
     await expect(cellAfterReload).toHaveAttribute('aria-label', /Override deny/);
     await expect(cellAfterReload).toHaveAttribute('aria-pressed', 'true');
@@ -939,4 +939,3 @@ test.describe('Identity Editing', () => {
     await regularContext.close();
   });
 });
-
