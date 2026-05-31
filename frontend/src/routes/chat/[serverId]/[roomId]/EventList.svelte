@@ -238,7 +238,7 @@
         if (scrollContainer && shouldScrollToBottom) {
           startScrollCorrection();
           scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          refreshScrollFader();
+          scrollFader?.refresh();
         }
       });
     }
@@ -312,11 +312,7 @@
   // Scroll container and virtualizer handle
   let scrollContainer = $state<HTMLDivElement>();
   let virtualizerHandle = $state<VirtualizerHandle>();
-  let scrollFaderRefreshKey = $state(0);
-
-  function refreshScrollFader() {
-    scrollFaderRefreshKey++;
-  }
+  let scrollFader = $state<{ refresh: () => void }>();
 
   // Safely call scrollToIndex on the virtualizer. After a {#key roomId} transition,
   // the new Virtualizer's bind:this fires immediately but its onMount → tick() →
@@ -368,14 +364,14 @@
           if (!untrack(() => alwaysScrollToBottom || shouldScrollToBottom)) return;
           startScrollCorrection();
           safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-          refreshScrollFader();
+          scrollFader?.refresh();
           if (!untrack(() => initialScrollDone)) {
             // Give virtua time to measure actual item heights and settle the
             // scroll position. The skeleton overlay hides the content during
             // this window, so there's no visual cost to waiting.
             setTimeout(() => {
               safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-              refreshScrollFader();
+              scrollFader?.refresh();
               initialScrollDone = true;
             }, 80);
           }
@@ -390,7 +386,7 @@
     hasNewMessages = false;
     if (virtualizerHandle) {
       safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-      refreshScrollFader();
+      scrollFader?.refresh();
     }
   }
 
@@ -502,7 +498,7 @@
       scrollContainer
     ) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      refreshScrollFader();
+      scrollFader?.refresh();
     }
 
     previousOffset = offset;
@@ -597,8 +593,8 @@
   <ScrollFader
     top
     bottom
+    bind:this={scrollFader}
     bind:scrollEl={scrollContainer}
-    refreshKey={scrollFaderRefreshKey}
     scrollClass="overscroll-y-contain"
     data-testid="messages-container"
     onwheel={markUserScrollIntent}

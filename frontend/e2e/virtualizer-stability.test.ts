@@ -9,11 +9,7 @@ import * as routes from './routes';
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
  */
-async function postMessagesViaAPI(
-  page: Page,
-  roomId: string,
-  messages: string[]
-): Promise<void> {
+async function postMessagesViaAPI(page: Page, roomId: string, messages: string[]): Promise<void> {
   for (const body of messages) {
     await page.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
@@ -35,7 +31,67 @@ function getRoomIdFromUrl(page: Page): string {
   return match[1];
 }
 
+async function getScrollFadeOpacities(page: Page): Promise<{ top: number; bottom: number }> {
+  return page.getByTestId('messages-container').evaluate((el) => {
+    const fades = Array.from(el.parentElement?.querySelectorAll('[aria-hidden="true"]') ?? []);
+    const topFade = fades[0];
+    const bottomFade = fades[1];
+    if (!(topFade instanceof HTMLElement) || !(bottomFade instanceof HTMLElement)) {
+      throw new Error('Scroll fades not found');
+    }
+    return {
+      top: Number(getComputedStyle(topFade).opacity),
+      bottom: Number(getComputedStyle(bottomFade).opacity)
+    };
+  });
+}
+
 test.describe('Virtualizer stability', () => {
+  test('scroll fades reset when switching from overflowing room to sparse room', async ({
+    page,
+    chatPage
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+
+    await chatPage.enterRoom('general');
+    const generalRoomId = getRoomIdFromUrl(page);
+    const timestamp = Date.now();
+    const longText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+    const messages = Array.from(
+      { length: 25 },
+      (_, i) => `Fade reset message ${i + 1} - ${timestamp} - ${longText}`
+    );
+    await postMessagesViaAPI(page, generalRoomId, messages);
+    await expect(page.getByText(`Fade reset message 25 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    await expect
+      .poll(() => getScrollFadeOpacities(page), { timeout: TIMEOUTS.UI_STANDARD })
+      .toMatchObject({ top: 1 });
+
+    const sparseRoomName = await chatPage.createRoom(`fade-sparse-${timestamp}`);
+    await expect(chatPage.getRoomHeader(sparseRoomName)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    await expect
+      .poll(
+        () =>
+          page.getByTestId('messages-container').evaluate((el) => ({
+            overflows: el.scrollHeight > el.clientHeight + 1,
+            fades: Array.from(el.parentElement?.querySelectorAll('[aria-hidden="true"]') ?? []).map(
+              (fade) => Number(getComputedStyle(fade).opacity)
+            )
+          })),
+        { timeout: TIMEOUTS.UI_STANDARD }
+      )
+      .toEqual({ overflows: false, fades: [0, 0] });
+  });
+
   test('rapid room switching with different message counts does not cause JS errors', async ({
     page,
     chatPage,

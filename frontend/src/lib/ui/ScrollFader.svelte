@@ -9,6 +9,8 @@ scroll container; children render inside the scroll container.
 - The scroll element is exposed via `bind:scrollEl` so callers can wire
   things that need it (virtua `scrollRef`, scroll-to-bottom logic,
   etc.).
+- A `refresh()` component method is exposed via `bind:this` for callers
+  that make external layout changes and need edge re-measurement.
 - Extra props (e.g. `data-testid`, `onwheel`, `ontouchmove`) are
   forwarded to the scroll container.
 -->
@@ -29,8 +31,6 @@ scroll container; children render inside the scroll container.
     scrollClass?: string;
     /** Bound to the inner scroll container so callers can reference it. */
     scrollEl?: HTMLDivElement;
-    /** Bump when external layout work should force edge re-measurement. */
-    refreshKey?: unknown;
     [key: string]: unknown;
   };
 
@@ -42,7 +42,6 @@ scroll container; children render inside the scroll container.
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
-    refreshKey,
     ...rest
   }: Props = $props();
 
@@ -50,8 +49,12 @@ scroll container; children render inside the scroll container.
   let scrolledFromBottom = $state(false);
 
   function updateScrollEdges(el: HTMLElement) {
-    scrolledFromTop = el.scrollTop > 1;
-    scrolledFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight > 1;
+    const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+    const scrollTop = Math.min(Math.max(el.scrollTop, 0), maxScrollTop);
+    const canScroll = maxScrollTop > 1;
+
+    scrolledFromTop = canScroll && scrollTop > 1;
+    scrolledFromBottom = canScroll && maxScrollTop - scrollTop > 1;
   }
 
   function trackScrollEdges(el: HTMLElement) {
@@ -63,22 +66,32 @@ scroll container; children render inside the scroll container.
     el.addEventListener('scroll', update, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
+    for (const child of el.children) {
+      if (child instanceof HTMLElement) ro.observe(child);
+    }
+    const mo = new MutationObserver(() => {
+      ro.disconnect();
+      ro.observe(el);
+      for (const child of el.children) {
+        if (child instanceof HTMLElement) ro.observe(child);
+      }
+      update();
+    });
+    mo.observe(el, { childList: true });
     return () => {
       el.removeEventListener('scroll', update);
+      mo.disconnect();
       ro.disconnect();
     };
   }
 
-  $effect(() => {
-    void refreshKey;
+  export function refresh() {
     if (!scrollEl) return;
 
-    const frame = requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       if (scrollEl) updateScrollEdges(scrollEl);
     });
-
-    return () => cancelAnimationFrame(frame);
-  });
+  }
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}>

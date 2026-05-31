@@ -1,11 +1,16 @@
 <script lang="ts">
   import ScrollFader from './ScrollFader.svelte';
 
-  let refreshKey = $state(0);
   let scrollEl = $state<HTMLDivElement>();
+  let scrollFader = $state<{ refresh: () => void }>();
+  let showExtraChild = $state(false);
 
   export function refresh() {
-    refreshKey++;
+    scrollFader?.refresh();
+  }
+
+  export function toggleExtraChild() {
+    showExtraChild = !showExtraChild;
   }
 
   export function setScrollMetrics(metrics: {
@@ -37,6 +42,9 @@
   }
 </script>
 
-<ScrollFader top bottom bind:scrollEl {refreshKey} data-testid="scroll">
+<ScrollFader top bottom bind:this={scrollFader} bind:scrollEl data-testid="scroll">
   <div data-testid="content">Message</div>
+  {#if showExtraChild}
+    <div data-testid="extra-content">Extra message</div>
+  {/if}
 </ScrollFader>
