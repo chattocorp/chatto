@@ -30,6 +30,13 @@ func TestChattoCore_CreateAuthCode(t *testing.T) {
 	if len(code) != 20 {
 		t.Errorf("Code length is %d, want 20", len(code))
 	}
+
+	key := core.authCodeKey(code)
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
+		t.Fatalf("expected auth code in RUNTIME_STATE: %v", err)
+	}
+	assertRuntimeKVHasTTL(t, core, key)
+	assertRawRuntimeTokenKeyAbsent(t, core, authCodeKeyPrefix+code)
 }
 
 func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {

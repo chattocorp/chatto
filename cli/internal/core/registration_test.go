@@ -143,14 +143,14 @@ func TestChattoCore_RegistrationTokenExpiration(t *testing.T) {
 			t.Fatalf("Failed to create token: %v", err)
 		}
 
-		entry, err := core.storage.serverKV.Get(ctx, registrationTokenKey(token))
+		entry, err := core.storage.runtimeStateKV.Get(ctx, core.registrationTokenKey(token))
 		if err != nil {
 			t.Fatalf("Failed to fetch entry: %v", err)
 		}
 
 		// Verify the underlying KV message carries a per-key TTL header.
 		// The Nats-TTL header is what NATS uses to enforce per-message expiry.
-		rawMsg, err := core.js.Stream(ctx, "KV_INSTANCE")
+		rawMsg, err := core.js.Stream(ctx, "KV_RUNTIME_STATE")
 		if err != nil {
 			t.Fatalf("Failed to get stream: %v", err)
 		}

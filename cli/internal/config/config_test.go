@@ -23,6 +23,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	// Set required env vars
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
 
 	// ReadConfig should succeed even without chatto.toml
@@ -37,6 +38,9 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 	if cfg.Webserver.CookieSigningSecret != "test-cookie-secret" {
 		t.Errorf("expected cookie secret to be set from env var")
+	}
+	if cfg.Core.SecretKey != "test-core-secret" {
+		t.Errorf("expected core secret to be set from env var")
 	}
 }
 
@@ -57,6 +61,9 @@ func TestReadConfig_WithConfigFile(t *testing.T) {
 [webserver]
 port = 5000
 cookie_signing_secret = "file-cookie-secret"
+
+[core]
+secret_key = "file-core-secret"
 
 [core.assets]
 signing_secret = "file-assets-secret"
@@ -94,6 +101,9 @@ func TestReadConfig_EnvOverridesFile(t *testing.T) {
 [webserver]
 port = 5000
 cookie_signing_secret = "file-cookie-secret"
+
+[core]
+secret_key = "file-core-secret"
 
 [core.assets]
 signing_secret = "file-assets-secret"
@@ -259,6 +269,55 @@ func intPtr(i int) *int {
 	return &i
 }
 
+func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
+	base := ChattoConfig{
+		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
+		Core: CoreConfig{
+			SecretKey: "core-secret",
+			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		modify   func(*ChattoConfig)
+		errorMsg string
+	}{
+		{
+			name: "missing core secret",
+			modify: func(c *ChattoConfig) {
+				c.Core.SecretKey = ""
+			},
+			errorMsg: "core.secret_key is required",
+		},
+		{
+			name: "missing webserver cookie secret",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.CookieSigningSecret = ""
+			},
+			errorMsg: "webserver.cookie_signing_secret is required",
+		},
+		{
+			name: "missing asset signing secret",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.SigningSecret = ""
+			},
+			errorMsg: "core.assets.signing_secret is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := base
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if err == nil || !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.errorMsg)
+			}
+		})
+	}
+}
+
 func TestLimitsConfig_Defaults(t *testing.T) {
 	c := &LimitsConfig{}
 	if got := c.MaxUsersOrDefault(); got != -1 {
@@ -290,6 +349,9 @@ func TestReadConfig_LimitsFromTOML(t *testing.T) {
 port = 4000
 cookie_signing_secret = "x"
 
+[core]
+secret_key = "z"
+
 [core.assets]
 signing_secret = "y"
 
@@ -319,6 +381,7 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "x")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "z")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "y")
 	t.Setenv("CHATTO_LIMITS_MAX_USERS", "0")
 
@@ -335,7 +398,7 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 	base := func() ChattoConfig {
 		return ChattoConfig{
 			Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "x"},
-			Core:      CoreConfig{Assets: AssetsConfig{SigningSecret: "y"}},
+			Core:      CoreConfig{SecretKey: "z", Assets: AssetsConfig{SigningSecret: "y"}},
 		}
 	}
 
@@ -366,6 +429,7 @@ func TestChattoConfig_Validate_TLS(t *testing.T) {
 				CookieSigningSecret: "test-secret",
 			},
 			Core: CoreConfig{
+				SecretKey: "test-core-secret",
 				Assets: AssetsConfig{
 					SigningSecret: "test-asset-secret",
 				},
@@ -488,6 +552,7 @@ func TestChattoConfig_Validate_EmbeddedNATS(t *testing.T) {
 				CookieSigningSecret: "test-secret",
 			},
 			Core: CoreConfig{
+				SecretKey: "test-core-secret",
 				Assets: AssetsConfig{
 					SigningSecret: "test-asset-secret",
 				},
@@ -615,6 +680,7 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 				CookieSigningSecret: "test-secret",
 			},
 			Core: CoreConfig{
+				SecretKey: "test-core-secret",
 				Assets: AssetsConfig{
 					SigningSecret: "test-asset-secret",
 				},
@@ -715,6 +781,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 				CookieSigningSecret: "test-secret",
 			},
 			Core: CoreConfig{
+				SecretKey: "test-core-secret",
 				Assets: AssetsConfig{
 					SigningSecret: "test-asset-secret",
 				},
@@ -955,6 +1022,7 @@ func TestChattoConfig_Validate_Push(t *testing.T) {
 				CookieSigningSecret: "test-secret",
 			},
 			Core: CoreConfig{
+				SecretKey: "test-core-secret",
 				Assets: AssetsConfig{
 					SigningSecret: "test-asset-secret",
 				},

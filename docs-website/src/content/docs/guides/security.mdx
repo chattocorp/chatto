@@ -21,7 +21,7 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 
 ### Sessions and tokens
 
-Chatto issues **opaque bearer tokens**, not JWTs. Tokens are stored in a NATS KV bucket with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete — there is no signed-but-still-valid window to worry about.
+Chatto issues **opaque bearer tokens**, not JWTs. Token verifiers are stored in `RUNTIME_STATE` under HMAC-derived keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete — there is no signed-but-still-valid window to worry about.
 
 Browser sessions use signed cookies with the following options:
 
@@ -109,10 +109,11 @@ TLS is **not required**. Chatto can also run plain HTTP, which is useful for loc
 
 ## Backup security
 
-Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. Two buckets are **deliberately excluded** from backups for security reasons:
+Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. `KV_ENCRYPTION_KEYS` is **deliberately excluded** from backups for security reasons:
 
 - `KV_ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies if leaked.
-- `KV_AUTH_TOKENS` — prevents session-token exfiltration via stolen backup files.
+
+`RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
 Encryption keys are exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
@@ -168,7 +169,9 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Secret                              | Storage                                     | Backed up?     |
 | ----------------------------------- | ------------------------------------------- | -------------- |
 | User encryption keys                | `KV_ENCRYPTION_KEYS` (NATS KV)              | No (export separately) |
-| Bearer auth tokens                  | `KV_AUTH_TOKENS` (NATS KV, with TTL)        | No             |
+| Bearer/session token verifiers      | `KV_RUNTIME_STATE` (HMAC-keyed, with TTL)   | Yes (not raw tokens) |
+| Account-flow link/code verifiers    | `KV_RUNTIME_STATE` (HMAC-keyed, with TTL)   | Yes (not raw links/codes) |
+| Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |
 | Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |
 | Cookie encryption secret (optional) | `chatto.toml` (`webserver.cookie_encryption_secret`) | n/a    |
 | TLS certificates                    | Disk cache directory (`autocert`)           | n/a            |

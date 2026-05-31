@@ -36,6 +36,7 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 	// Create ChattoCore
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
@@ -105,6 +106,7 @@ func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {
 func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
@@ -166,6 +168,7 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 func TestChattoCore_RunAppliesConfigOwnersToExistingVerifiedUsers(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

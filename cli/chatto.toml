@@ -9,6 +9,9 @@ port = 4000
 allowed_origins = []
 cookie_signing_secret = '3ad5f5f911b6865b1a729335f4544d102a99a2847a3d5076431ed43877dd6bd9'
 
+[core]
+secret_key = '7f3e0d39031f4ee7e2078aafc785f1969b8f1d4a4ea178a4732cb2096fe7f3bb'
+
 [core.assets]
 signing_secret = 'd4fac8f5c710d419dbb05c00381ca1d0fbbeb007d8da4367d00cbfa212758fc1'
 max_upload_size = '25MB'

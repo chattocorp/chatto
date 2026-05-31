@@ -29,6 +29,13 @@ func TestChattoCore_CreateAuthToken(t *testing.T) {
 	if userID != user.Id {
 		t.Errorf("ValidateAuthToken returned userID %q, want %q", userID, user.Id)
 	}
+
+	key := core.authTokenKey(token)
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
+		t.Fatalf("expected auth token in RUNTIME_STATE: %v", err)
+	}
+	assertRuntimeKVHasTTL(t, core, key)
+	assertRawRuntimeTokenKeyAbsent(t, core, authTokenKeyPrefix+token)
 }
 
 func TestChattoCore_ValidateAuthToken_NotFound(t *testing.T) {

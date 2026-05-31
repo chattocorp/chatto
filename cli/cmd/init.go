@@ -53,6 +53,13 @@ var initCmd = &cobra.Command{
 		}
 		signingSecretString := hex.EncodeToString(signingSecret)
 
+		// Generate a random server-wide core secret for token verifiers.
+		coreSecret := make([]byte, 32)
+		if _, err := rand.Read(coreSecret); err != nil {
+			log.Fatal("Failed to generate core secret", "error", err)
+		}
+		coreSecretString := hex.EncodeToString(coreSecret)
+
 		// Generate a random auth token for NATS connections (32 bytes = 256 bits)
 		authToken := make([]byte, 32)
 		if _, err := rand.Read(authToken); err != nil {
@@ -80,6 +87,7 @@ var initCmd = &cobra.Command{
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
 			Core: config.CoreConfig{
+				SecretKey: coreSecretString,
 				Assets: config.AssetsConfig{
 					SigningSecret: signingSecretString,
 					MaxUploadSize: 25 * datasize.MB,

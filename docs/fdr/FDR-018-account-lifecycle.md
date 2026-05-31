@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -13,6 +13,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 - A user signs up with a login, email, and password. The login must pass uniqueness and format checks; emails are checked against the server's blocked-usernames list.
 - After signup, an email is sent to the address with a verification link.
+- Registration and verification links are backed by `RUNTIME_STATE` HMAC-derived token records with 24-hour per-key TTLs. Raw token/link values are never written to `EVT` or backup archives.
 - Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
 - Clicking the verification link marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
 - If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
@@ -29,6 +30,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - The user requests deletion via Account Settings.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
+- The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
 - On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
 - The login is freed up for re-use.
@@ -46,6 +48,12 @@ This FDR covers the user account from registration through deletion: signup, ema
 **Decision:** A user can attach multiple verified email addresses. Any of them count for owner-email matching, password resets, and identity correlation.
 **Why:** People have work and personal addresses, change jobs, or have an alias. Single-email accounts force needless friction during transitions. Multiple-emails also helps the `owners.emails` config — operators can list either an old or new email and the right user gets owner status.
 **Tradeoff:** The data model and resolvers have to handle a list, not a scalar. Minor extra complexity in exchange for real flexibility.
+
+### 2a. Workflow tokens in runtime state
+
+**Decision:** Registration, email-verification, password-reset, and account-deletion confirmation tokens are stored in `RUNTIME_STATE` under HMAC-derived keys with per-key TTLs. The HMAC input is scoped by workflow and keyed by `[core].secret_key`.
+**Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
+**Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending links should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion links.
 
 ### 3. Two-step deletion confirmation
 

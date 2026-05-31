@@ -75,7 +75,6 @@ Excluded from backups by default:
 - User presence (ephemeral, memory-only)
 - Link preview cache (regeneratable)
 - Asset cache (regeneratable)
-- Auth tokens (security: prevents token leakage via backups)
 
 Pass --include-keys to include KV_ENCRYPTION_KEYS in the archive. This
 makes the backup self-contained (encrypted message bodies become

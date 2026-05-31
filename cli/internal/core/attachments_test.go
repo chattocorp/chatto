@@ -801,6 +801,7 @@ func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
 	pathStyle := true
 
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret:  "test-signing-secret",
 			StorageBackend: config.StorageBackendS3,
@@ -841,6 +842,7 @@ func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 	// Create ChattoCore with caching enabled
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 			Cache: config.AssetsCacheConfig{

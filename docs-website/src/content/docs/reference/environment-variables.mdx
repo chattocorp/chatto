@@ -63,6 +63,12 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   Port for the HTTP server (ACME challenges and HTTPS redirect). Use a higher port if running without elevated privileges.
 </EnvVar>
 
+## Core
+
+<EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
+  256-bit hex secret for HMAC-derived bearer-token and account-flow link verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending links to survive.
+</EnvVar>
+
 ## Assets
 
 <EnvVar name="CHATTO_CORE_ASSETS_SIGNING_SECRET" toml="core.assets.signing_secret" required>

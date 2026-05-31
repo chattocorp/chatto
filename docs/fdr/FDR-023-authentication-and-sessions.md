@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -12,10 +12,11 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 - **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
 - **OAuth login** — operators can configure OAuth providers (e.g., Google). The login page shows provider buttons; clicking takes the user through the standard authorization-code flow.
 - **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries the user ID; the server loads the user from KV per request.
-- **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades.
+- **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL.
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
 - **Logout** — for cookie sessions: the server clears the session and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
-- **Session refresh** — the cookie TTL gets refreshed as the user actively uses the app (including on static file requests). Bearer tokens follow a sliding-window TTL — each successful validation re-puts the KV entry to extend the TTL.
+- **Session refresh** — the cookie TTL gets refreshed as the user actively uses the app (including on static file requests). Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
+- **Password reset tokens** — reset links are backed by `RUNTIME_STATE` HMAC-derived `password_reset.{hmac}` records with a 1-hour per-key TTL. Raw reset tokens and links are never written to `EVT` or backup archives.
 - **Server version handshake** — the WebSocket `connection_ack` payload includes the server's version. The frontend uses this to detect deployed-version drift and prompt the user to refresh.
 - **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, registration-link issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
 
@@ -29,13 +30,13 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 2. Bearer tokens for cross-origin
 
-**Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in NATS KV. Tokens are validated by KV lookup; revocation is one delete.
+**Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys. Tokens are validated by KV lookup; revocation is one delete.
 **Why:** Cookies are scoped to one origin and `SameSite=Lax` blocks them on cross-origin requests. Tokens are origin-agnostic. We chose opaque tokens over JWTs because Chatto already does a per-request KV lookup to load the user — JWT's "stateless validation" advantage gives nothing here, while opaque tokens give instant revocation and natural TTL via KV's built-in expiry. See ADR-024.
-**Tradeoff:** Tokens stored in `localStorage` are vulnerable to XSS; cookie sessions are not. Cross-origin clients accept this tradeoff in exchange for being able to authenticate at all.
+**Tradeoff:** Tokens stored in `localStorage` are vulnerable to XSS; cookie sessions are not. Cross-origin clients accept this tradeoff in exchange for being able to authenticate at all. Operators must keep `[core].secret_key` stable across restores to preserve active bearer-token sessions.
 
 ### 3. Sliding-window TTL for tokens (and cookies)
 
-**Decision:** Each successful token validation re-puts the KV entry to refresh its TTL (default 90 days). Cookies are similarly refreshed on every static-file request.
+**Decision:** Each successful token validation rewrites the runtime-state entry with a fresh per-key TTL (default 90 days). Cookies are similarly refreshed on every static-file request.
 **Why:** Time-from-creation expiry would surprise users — "you've been logged in for 90 days, time to re-auth, even though you've been using the app daily". Sliding-window means active users stay logged in indefinitely; only genuinely inactive sessions expire.
 **Tradeoff:** A long-stolen token stays valid until it lapses or gets explicitly revoked. Operators concerned about this can lower the TTL or implement a "revoke all tokens for user" action (not currently exposed — see ADR-024).
 
@@ -74,6 +75,12 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Decision:** Authentication workflows append durable audit facts to `EVT`, but token bodies, links, passwords, auth codes, raw IP addresses, and raw login/email identifiers stay out of the event log. Successful user-scoped facts live on `evt.user.{userId}`; anonymous/server-wide facts such as registration-link issuance and failed login attempts live on `evt.auth.server`.
 **Why:** `EVT` is Chatto's durable audit trail as well as the event-sourcing stream. Operators need to answer "what happened?" for sensitive workflows, but the audit log must not become a secondary secret store.
 **Tradeoff:** Failed-login events intentionally do not reveal whether the submitted identifier matched an account. Admins get timing, request metadata, and a stable identifier hash for correlation, not raw credential guesses.
+
+### 10. Short-lived auth codes in runtime state
+
+**Decision:** OAuth authorization codes live in `RUNTIME_STATE` as HMAC-derived `grant.{hmac}` records with a 5-minute per-key TTL and are deleted on exchange attempt.
+**Why:** Authorization codes are short-lived, single-use runtime credentials. They need restart survival and TTL enforcement, but they are not domain history and must not be copied into `EVT`.
+**Tradeoff:** The returned authorization code remains opaque and unchanged for clients, but the stored key is not human-recoverable from a backup without `[core].secret_key`.
 
 ## Permissions
 

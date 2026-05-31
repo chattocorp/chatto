@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -26,7 +27,7 @@ const authTokenKeyPrefix = "session."
 // Auth Token Types
 // ============================================================================
 
-// AuthTokenData is the JSON value stored in the AUTH_TOKENS KV bucket.
+// AuthTokenData is the JSON value stored in RUNTIME_STATE for bearer tokens.
 type AuthTokenData struct {
 	UserID    string    `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -36,8 +37,19 @@ type AuthTokenData struct {
 // Auth Token Operations
 // ============================================================================
 
+func (c *ChattoCore) authTokenTTL() time.Duration {
+	if c.config.AuthTokenTTL != 0 {
+		return c.config.AuthTokenTTL
+	}
+	return 90 * 24 * time.Hour
+}
+
+func (c *ChattoCore) authTokenKey(token string) string {
+	return c.runtimeTokenKey(authTokenKeyPrefix, token)
+}
+
 // CreateAuthToken creates a new opaque bearer token for the given user.
-// The token is stored in the AUTH_TOKENS KV bucket and can be used for API authentication.
+// The token is stored in RUNTIME_STATE and can be used for API authentication.
 // Token expiry is handled by NATS KV TTL.
 func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string, error) {
 	token := NewAuthToken()
@@ -50,7 +62,7 @@ func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string
 		return "", fmt.Errorf("failed to marshal auth token: %w", err)
 	}
 
-	_, err = c.storage.authTokensKV.Put(ctx, authTokenKeyPrefix+token, data)
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), data, jetstream.KeyTTL(c.authTokenTTL()))
 	if err != nil {
 		return "", fmt.Errorf("failed to store auth token: %w", err)
 	}
@@ -61,20 +73,15 @@ func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string
 // ValidateAuthToken checks if a bearer token is valid and returns the associated user ID.
 // Returns ErrAuthTokenNotFound if the token doesn't exist (or has expired via NATS TTL).
 //
-// Sliding window: each successful validation re-puts the entry to reset the NATS KV TTL.
+// Sliding window: each successful validation rewrites the entry to reset the NATS KV TTL.
 // This means the token only expires after the configured TTL of *inactivity* — active
 // users are never logged out.
 func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (string, error) {
-	key := authTokenKeyPrefix + token
-	entry, err := c.storage.authTokensKV.Get(ctx, key)
+	key := c.authTokenKey(token)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			// MIGRATION: Try the legacy unprefixed key for tokens created before
-			// the "session." prefix was added. On success, migrate the token to the
-			// new key format so subsequent validations use the prefixed key.
-			// TODO: Remove this fallback once all active sessions have expired or
-			// after a reasonable migration window (e.g. 2 releases).
-			return c.validateLegacyToken(ctx, token)
+			return "", ErrAuthTokenNotFound
 		}
 		return "", fmt.Errorf("failed to get auth token: %w", err)
 	}
@@ -84,36 +91,9 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
 	}
 
-	// Re-put to reset TTL (sliding window expiry).
+	// Rewrite to reset TTL (sliding window expiry).
 	// Fire-and-forget — validation succeeds even if the re-put fails.
-	_, _ = c.storage.authTokensKV.Put(ctx, key, entry.Value())
-
-	return tokenData.UserID, nil
-}
-
-// validateLegacyToken checks for a token stored under the old unprefixed key format.
-// If found, it migrates the token to the new "session." prefixed key and deletes the old one.
-//
-// MIGRATION: Added when bearer tokens moved from raw keys to "session." prefixed keys.
-// TODO: Remove after all active sessions have naturally expired (controlled by KV TTL).
-func (c *ChattoCore) validateLegacyToken(ctx context.Context, token string) (string, error) {
-	entry, err := c.storage.authTokensKV.Get(ctx, token)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return "", ErrAuthTokenNotFound
-		}
-		return "", fmt.Errorf("failed to get legacy auth token: %w", err)
-	}
-
-	var tokenData AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		return "", fmt.Errorf("failed to unmarshal legacy auth token: %w", err)
-	}
-
-	// Migrate: write to new prefixed key and delete the old one.
-	// Both are fire-and-forget — validation succeeds even if migration fails.
-	_, _ = c.storage.authTokensKV.Put(ctx, authTokenKeyPrefix+token, entry.Value())
-	_ = c.storage.authTokensKV.Delete(ctx, token)
+	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.authTokenTTL())
 
 	return tokenData.UserID, nil
 }
@@ -121,9 +101,22 @@ func (c *ChattoCore) validateLegacyToken(ctx context.Context, token string) (str
 // RevokeAuthToken deletes a bearer token, immediately invalidating it.
 // This is idempotent — revoking a non-existent token is not an error.
 func (c *ChattoCore) RevokeAuthToken(ctx context.Context, token string) error {
-	err := c.storage.authTokensKV.Delete(ctx, authTokenKeyPrefix+token)
+	err := c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(token))
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to revoke auth token: %w", err)
 	}
 	return nil
+}
+
+func (c *ChattoCore) updateRuntimeStateTokenTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {
+	msg := nats.NewMsg("$KV.RUNTIME_STATE." + key)
+	msg.Data = value
+	ack, err := c.js.PublishMsg(ctx, msg,
+		jetstream.WithExpectLastSequencePerSubject(revision),
+		jetstream.WithMsgTTL(ttl),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ack.Sequence, nil
 }

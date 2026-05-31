@@ -19,6 +19,7 @@ cookie_signing_secret = '327201ce7e1a01980daac57c941f754a0fde9f08180d5e72599054d
 
 # Core service configuration.
 [core]
+secret_key = 'e2e-test-core-secret-do-not-use-in-production'
 
 [core.assets]
 signing_secret = 'e2e-test-signing-secret-do-not-use-in-production'

@@ -248,7 +248,7 @@ func TestChattoCore_AuditAppendFailureCleansNewRegistrationToken(t *testing.T) {
 	if token != "" {
 		t.Fatalf("expected no token on failure, got %q", token)
 	}
-	count, err := countKVKeys(ctx, core.storage.serverKV, "registration.*")
+	count, err := countKVKeys(ctx, core.storage.runtimeStateKV, "registration.*")
 	if err != nil {
 		t.Fatalf("count registration keys: %v", err)
 	}

@@ -26,7 +26,7 @@ Because there's no local state, any server process can handle any request. No se
 
 - An **external NATS cluster** (embedded NATS only supports a single server process)
 - A **load balancer** in front of the Chatto replicas (Caddy, nginx, Traefik, etc.)
-- The **same secrets** across all server processes (cookie signing, asset signing)
+- The **same secrets** across all server processes (cookie signing, core token verifier key, asset signing)
 
 ## Configuring Chatto for Multiple Replicas
 
@@ -45,6 +45,7 @@ CHATTO_NATS_CLIENT_TOKEN=your-shared-token
 
 # These MUST be identical across all server processes
 CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET=your-cookie-secret
+CHATTO_CORE_SECRET_KEY=your-core-secret
 CHATTO_CORE_ASSETS_SIGNING_SECRET=your-assets-secret
 ```
 </TabItem>
@@ -62,7 +63,7 @@ token = "your-shared-token"
 </Tabs>
 
 <Aside type="caution">
-  All server processes **must** share the same `cookie_signing_secret` and `assets_signing_secret`. If they differ, cookies and asset URLs signed by one server process won't validate on another.
+  All server processes **must** share the same `cookie_signing_secret`, `core.secret_key`, and `core.assets.signing_secret`. If they differ, cookies, bearer tokens, account-flow links, or asset URLs created by one server process won't validate on another.
 </Aside>
 
 ## Health Checks
@@ -143,7 +144,8 @@ The [Docker Compose deployment guide](/guides/dockercompose/) includes a Caddy c
 |---------|-------------------------------------|-------|
 | NATS client URL & credentials | Yes | All connect to the same cluster |
 | `cookie_signing_secret` | Yes | Cookie validation |
-| `assets_signing_secret` | Yes | Asset URL signing |
+| `core.secret_key` | Yes | Bearer-token and account-flow verifier keys |
+| `core.assets.signing_secret` | Yes | Asset URL signing |
 | `webserver.url` | Yes | Public URL for absolute links |
 | `livekit.instance_id` | **No** — must be unique | Webhook routing |
 

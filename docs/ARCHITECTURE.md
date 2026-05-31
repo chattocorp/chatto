@@ -258,8 +258,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `INSTANCE`                    | Users, memberships (bucket name retained from pre-rename) |
 | KV      | `INSTANCE_CONFIG`             | Legacy server configuration import source   |
 | KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
-| KV      | `AUTH_TOKENS`                 | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
-| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications and push subscriptions |
+| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
 | KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
 | KV      | `SERVER_RBAC`                 | Legacy RBAC seed data read by the `EVT` boot migration |
 | KV      | `SERVER_RUNTIME`              | Legacy runtime state pending cleanup        |
@@ -468,14 +467,13 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
 | `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source       |
-| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications and push subscriptions |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
 | `SERVER_RUNTIME`              | File    | Yes      | Legacy runtime state pending cleanup            |
 | `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions, read only by the EVT boot migration |
 | `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
-| `AUTH_TOKENS`                 | File    | No       | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
 | `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
 | `CALL_STATE`                  | Memory  | No       | Active voice call participants, keyed `{spaceId}.{roomId}` (repopulated by LiveKit webhooks after restart) |
 | `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
@@ -492,17 +490,14 @@ All room data — channels and DMs alike — lives in the unified `SERVER_*` buc
 | `auth.{userId}.password`               | Password hash (stored separately)                |
 | `user.{userId}.avatar`                 | User avatar asset reference                      |
 | `verified_emails.{userId}.{sha256(email)}` | One verified email per entry (proto `VerifiedEmail`) |
-| `email_verification.{token}`           | Verification token with userId/email (24h TTL)   |
 | `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
-| `password_reset.{token}`               | Password reset token                             |
-| `account_deletion.{token}`             | Account deletion confirmation token              |
 | `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
 | `instance.logo`                        | Legacy server logo asset reference, imported into EVT config events |
 | `instance.banner`                      | Legacy server banner asset reference, imported into EVT config events |
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
+Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys.
 
 **EVT auth audit subjects:**
 
@@ -525,14 +520,6 @@ These audit payloads include only safe request metadata: capped user agent and a
 | `config.instance` | Legacy server configuration import source (proto message; key + proto name retained) |
 
 Notes: Server configuration now lives in EVT config events and is served from the in-memory config projection. This bucket is retained as a boot-import source for pre-ES deployments. The TOML file remains reserved for operational settings (ports, secrets, NATS config).
-
-**AUTH_TOKENS keys:**
-
-| Key       | Description                                           |
-| --------- | ----------------------------------------------------- |
-| `{token}` | JSON with user ID and creation time                   |
-
-Notes: Tokens are opaque strings (`cht_AT` + 14-char NanoID). Used for `Authorization: Bearer <token>` header authentication, enabling cross-origin clients. TTL-based auto-expiry (default 90 days, configurable via `auth.token_ttl`). Excluded from backups in the legacy `AUTH_TOKENS` bucket since tokens are ephemeral credentials; ADR-036 targets durable token state for `RUNTIME_STATE` so TTL policy can be managed through the shared runtime-state bucket. Tokens are issued on login, registration, bootstrap, and OAuth callback.
 
 **ENCRYPTION_KEYS keys:**
 
@@ -596,6 +583,14 @@ survives restart but is not content/domain history. See
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
 | `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
 | `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. Legacy `INSTANCE` keys are copied here at boot; the endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
+| `registration.{hmac}` | Email-first registration token JSON. Uses per-key 24-hour TTL. |
+| `email_verification.{hmac}` | Email verification token JSON with user ID and email. Uses per-key 24-hour TTL. |
+| `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
+| `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
+| `session.{hmac}` | Opaque bearer auth token JSON. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. |
+| `grant.{hmac}` | OAuth authorization code JSON. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
+
+Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens or raw link/code values.
 
 **SERVER\_RUNTIME keys:**
 

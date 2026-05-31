@@ -24,6 +24,7 @@ func setupTestCoreWithEncryption(t *testing.T) *ChattoCore {
 	t.Cleanup(cancel)
 
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

@@ -22,7 +22,10 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
-	cfg := config.CoreConfig{Assets: config.AssetsConfig{SigningSecret: "test-secret"}}
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-secret"},
+	}
 	c, err := core.NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("new core: %v", err)

@@ -35,21 +35,25 @@ var (
 // exchanged within this window are automatically purged by NATS KV per-key TTL.
 const authCodeTTL = 5 * time.Minute
 
-// authCodeKeyPrefix is the KV key prefix that distinguishes authorization codes
-// from bearer tokens in the shared AUTH_TOKENS bucket.
+// authCodeKeyPrefix is the RUNTIME_STATE key prefix that distinguishes
+// authorization codes from bearer tokens.
 const authCodeKeyPrefix = "grant."
+
+func (c *ChattoCore) authCodeKey(code string) string {
+	return c.runtimeTokenKey(authCodeKeyPrefix, code)
+}
 
 // ============================================================================
 // Auth Code Types
 // ============================================================================
 
-// AuthCodeData is the JSON value stored in the AUTH_TOKENS KV bucket for authorization codes.
+// AuthCodeData is the JSON value stored in RUNTIME_STATE for authorization codes.
 type AuthCodeData struct {
-	UserID               string    `json:"user_id"`
-	RedirectURI          string    `json:"redirect_uri"`
-	CodeChallenge        string    `json:"code_challenge"`
-	CodeChallengeMethod  string    `json:"code_challenge_method"`
-	CreatedAt            time.Time `json:"created_at"`
+	UserID              string    `json:"user_id"`
+	RedirectURI         string    `json:"redirect_uri"`
+	CodeChallenge       string    `json:"code_challenge"`
+	CodeChallengeMethod string    `json:"code_challenge_method"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // ============================================================================
@@ -57,7 +61,7 @@ type AuthCodeData struct {
 // ============================================================================
 
 // CreateAuthCode generates a new OAuth authorization code for the given user.
-// The code is stored in the AUTH_TOKENS KV bucket with a "grant." key prefix
+// The code is stored in RUNTIME_STATE with a "grant." key prefix
 // and a 5-minute per-key TTL. The code is single-use — it must be exchanged
 // via ExchangeAuthCode and is deleted on successful exchange.
 func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string) (string, error) {
@@ -78,7 +82,7 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
 	}
 
-	_, err = c.storage.authTokensKV.Create(ctx, authCodeKeyPrefix+code, data, jetstream.KeyTTL(authCodeTTL))
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store auth code: %w", err)
 	}
@@ -94,9 +98,9 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 //  2. redirect_uri matches the one used during authorization
 //  3. SHA256(code_verifier) == code_challenge (PKCE S256)
 func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, redirectURI string) (string, string, error) {
-	key := authCodeKeyPrefix + code
+	key := c.authCodeKey(code)
 
-	entry, err := c.storage.authTokensKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return "", "", ErrAuthCodeNotFound
@@ -106,7 +110,7 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 
 	// Delete immediately (single-use). Even if subsequent validation fails,
 	// the code should not be reusable.
-	_ = c.storage.authTokensKV.Delete(ctx, key)
+	_ = c.storage.runtimeStateKV.Delete(ctx, key)
 
 	var codeData AuthCodeData
 	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {

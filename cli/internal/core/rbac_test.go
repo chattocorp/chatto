@@ -139,6 +139,7 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

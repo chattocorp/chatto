@@ -31,15 +31,17 @@ To enable a multi-instance client — where a single frontend connects to multip
 
 ## Decision
 
-Use opaque bearer tokens stored in a `AUTH_TOKENS` NATS KV bucket. Tokens are issued alongside existing cookie sessions (not replacing them) on all authentication endpoints. Clients authenticate via the `Authorization: Bearer <token>` HTTP header for GraphQL queries/mutations, and via `connectionParams.token` in the graphql-ws `connection_init` payload for WebSocket subscriptions.
+Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing cookie sessions (not replacing them) on all authentication endpoints. Clients authenticate via the `Authorization: Bearer <token>` HTTP header for GraphQL queries/mutations, and via `connectionParams.token` in the graphql-ws `connection_init` payload for WebSocket subscriptions.
+
+**2026-05 update:** bearer token records now live in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys with per-key TTL. The HMAC input is `session\0{token}` keyed by `[core].secret_key`, so backups can preserve sessions without containing raw bearer-token values.
 
 **Token format:** `cht_AT` prefix + 14-character NanoID (20 characters total, e.g. `cht_ATa1B2c3D4e5F6G7`). The `cht_` prefix makes tokens recognizable in logs and password managers; the `AT` type prefix follows the existing NanoID convention from ADR-022.
 
 **Token lifecycle:**
 - Created on login, registration, bootstrap, and OAuth callback
-- Validated by looking up the token key in `AUTH_TOKENS` KV and reading the stored user ID
+- Validated by looking up the HMAC-derived `session.{hmac}` key in `RUNTIME_STATE` and reading the stored user ID
 - Revoked by deleting the key (idempotent)
-- Auto-expired via NATS KV TTL (default 90 days, configurable via `auth.token_ttl`)
+- Auto-expired via NATS KV per-key TTL (default 90 days, configurable via `auth.token_ttl`)
 
 **Auth middleware priority:**
 1. Check `Authorization: Bearer <token>` header → validate token → load user
@@ -51,6 +53,6 @@ Use opaque bearer tokens stored in a `AUTH_TOKENS` NATS KV bucket. Tokens are is
 - **Cookie auth is unchanged**: The embedded SPA continues to work exactly as before. No migration needed for existing deployments.
 - **No token refresh complexity**: Long-lived tokens with server-side TTL are simple. If a token expires, the client re-authenticates. No refresh token dance.
 - **Instant revocation**: Deleting a KV key immediately invalidates the token. No blocklist management or "wait for JWT expiry" window.
-- **One KV lookup per request**: Token validation requires a `Get` on the `AUTH_TOKENS` bucket, but this is negligible given we already do a `Get` on `INSTANCE` to load the user.
+- **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
 - **No reverse index**: v1 does not support "revoke all tokens for user". This keeps the implementation simple. If needed later, a prefix-scan or secondary index can be added.
 - **OAuth token delivery**: OAuth callbacks append `?token=...` to the redirect URL. This is simple but means the token briefly appears in browser history and server logs. For v1 this is acceptable; a more secure code-exchange flow can be added later if needed.

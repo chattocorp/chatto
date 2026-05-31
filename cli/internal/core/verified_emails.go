@@ -63,10 +63,11 @@ type VerifiedEmail struct {
 // KV Key Functions
 // ============================================================================
 
-// emailVerificationTokenKey returns the KV key for an email verification token.
-// Format: email_verification.{token}
-func emailVerificationTokenKey(token string) string {
-	return fmt.Sprintf("email_verification.%s", token)
+const emailVerificationTokenKeyPrefix = "email_verification."
+
+// emailVerificationTokenKey returns the HMAC-derived KV key for an email verification token.
+func (c *ChattoCore) emailVerificationTokenKey(token string) string {
+	return c.runtimeTokenKey(emailVerificationTokenKeyPrefix, token)
 }
 
 // emailHash returns the stable lowercase-SHA256 hex digest used in both
@@ -121,7 +122,7 @@ func (c *ChattoCore) CreateEmailVerificationToken(ctx context.Context, userID, e
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.serverKV.Create(ctx, emailVerificationTokenKey(token), data, jetstream.KeyTTL(EmailVerificationTokenTTL))
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.emailVerificationTokenKey(token), data, jetstream.KeyTTL(EmailVerificationTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store verification token: %w", err)
 	}
@@ -137,7 +138,8 @@ func (c *ChattoCore) CreateEmailVerificationToken(ctx context.Context, userID, e
 // getEmailVerificationToken retrieves and validates a verification token.
 // Returns the token data including userID and email.
 func (c *ChattoCore) getEmailVerificationToken(ctx context.Context, token string) (*EmailVerificationToken, error) {
-	entry, err := c.storage.serverKV.Get(ctx, emailVerificationTokenKey(token))
+	key := c.emailVerificationTokenKey(token)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrTokenNotFound
@@ -153,7 +155,7 @@ func (c *ChattoCore) getEmailVerificationToken(ctx context.Context, token string
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > EmailVerificationTokenTTL {
 		// Clean up expired token
-		c.storage.serverKV.Delete(ctx, emailVerificationTokenKey(token))
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrTokenExpired
 	}
 
@@ -162,7 +164,8 @@ func (c *ChattoCore) getEmailVerificationToken(ctx context.Context, token string
 
 // deleteEmailVerificationToken removes a verification token.
 func (c *ChattoCore) deleteEmailVerificationToken(ctx context.Context, token string) error {
-	err := c.storage.serverKV.Delete(ctx, emailVerificationTokenKey(token))
+	key := c.emailVerificationTokenKey(token)
+	err := c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to delete verification token: %w", err)
 	}

@@ -765,9 +765,11 @@ func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string
 // Account Deletion Token Operations
 // ============================================================================
 
-// accountDeletionTokenKey returns the KV key for an account deletion token.
-func accountDeletionTokenKey(token string) string {
-	return "account_deletion_token." + token
+const accountDeletionTokenKeyPrefix = "account_deletion_token."
+
+// accountDeletionTokenKey returns the HMAC-derived KV key for an account deletion token.
+func (c *ChattoCore) accountDeletionTokenKey(token string) string {
+	return c.runtimeTokenKey(accountDeletionTokenKeyPrefix, token)
 }
 
 // AccountDeletionTokenTTL is how long an account deletion token is valid.
@@ -780,7 +782,7 @@ type AccountDeletionToken struct {
 }
 
 // CreateAccountDeletionToken generates a confirmation token for account deletion.
-// The token is stored in KV and must be provided to DeleteUser within the TTL.
+// The token is stored in RUNTIME_STATE and must be provided to DeleteUser within the TTL.
 func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID string) (string, error) {
 	token := NewAccountDeletionToken()
 	createdAt := time.Now()
@@ -795,13 +797,13 @@ func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID stri
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.serverKV.Put(ctx, accountDeletionTokenKey(token), data)
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.accountDeletionTokenKey(token), data, jetstream.KeyTTL(AccountDeletionTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store account deletion token: %w", err)
 	}
 
 	if err := c.recordAccountDeletionConfirmationIssued(ctx, userID, createdAt); err != nil {
-		_ = c.storage.serverKV.Delete(ctx, accountDeletionTokenKey(token))
+		_ = c.storage.runtimeStateKV.Delete(ctx, c.accountDeletionTokenKey(token))
 		return "", err
 	}
 
@@ -813,9 +815,9 @@ func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID stri
 // If valid, the token is consumed (deleted) to prevent reuse.
 // Returns an error if the token is invalid, expired, or doesn't belong to the user.
 func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, userID string) error {
-	key := accountDeletionTokenKey(token)
+	key := c.accountDeletionTokenKey(token)
 
-	entry, err := c.storage.serverKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ErrTokenNotFound
@@ -830,7 +832,7 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > AccountDeletionTokenTTL {
-		c.storage.serverKV.Delete(ctx, key) // Clean up expired token
+		_ = c.storage.runtimeStateKV.Delete(ctx, key) // Clean up expired token
 		return ErrTokenExpired
 	}
 
@@ -840,7 +842,7 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 	}
 
 	// Consume the token (delete it)
-	if err := c.storage.serverKV.Delete(ctx, key); err != nil {
+	if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
 		c.logger.Warn("Failed to delete consumed account deletion token", "error", err)
 		// Continue anyway - the token was valid
 	}

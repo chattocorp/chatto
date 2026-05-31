@@ -159,6 +159,7 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
+	SecretKey    string        `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow links. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code links become invalid."`
 	Assets       AssetsConfig  `toml:"assets"`
 	ESBootVerify bool          `toml:"es_boot_verify,commented" env:"CHATTO_CORE_ES_BOOT_VERIFY" comment:"Log event-sourcing import/projection verification during boot. Intended for local rollout dry-runs; scans EVT and legacy stores."`
 	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
@@ -396,7 +397,7 @@ type LiveKitConfig struct {
 	APIKey           string `toml:"api_key" env:"CHATTO_LIVEKIT_API_KEY" comment:"LiveKit API key."`
 	APISecret        string `toml:"api_secret" env:"CHATTO_LIVEKIT_API_SECRET" comment:"LiveKit API secret. NEVER SHARE THIS!"`
 	WebhookURL       string `toml:"webhook_url" env:"CHATTO_LIVEKIT_WEBHOOK_URL" comment:"URL where LiveKit sends webhook events. Defaults to {webserver.url}/webhooks/livekit."`
-	ServerID       string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Unique identifier for this instance, prefixed to LiveKit room names. Required when multiple Chatto instances share the same LiveKit cluster."`
+	ServerID         string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Unique identifier for this instance, prefixed to LiveKit room names. Required when multiple Chatto instances share the same LiveKit cluster."`
 	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-instance API key."`
 	WebhookAPISecret string `toml:"webhook_api_secret,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_SECRET" comment:"API secret for webhook signature validation. Falls back to api_secret if not set."`
 }
@@ -423,17 +424,17 @@ func (c *LiveKitConfig) IsConfigured() bool {
 // binaries parse the section but ignore its contents. Plaintext passwords
 // are fine here for the same reason.
 type BootstrapConfig struct {
-	Users    []BootstrapUser    `toml:"users"`
+	Users  []BootstrapUser  `toml:"users"`
 	Server *BootstrapServer `toml:"instance,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
 type BootstrapUser struct {
-	Login        string `toml:"login" comment:"Required. The user's login (username)."`
-	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
-	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
-	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
-	ServerRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
+	Login       string `toml:"login" comment:"Required. The user's login (username)."`
+	DisplayName string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	Email       string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
+	Password    string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
+	ServerRole  string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
 }
 
 // BootstrapServer describes the instance to seed on startup in bootstrap-tag
@@ -447,18 +448,18 @@ type BootstrapServer struct {
 }
 
 type ChattoConfig struct {
-	General      GeneralConfig      `toml:"general"`
-	Webserver    WebserverConfig    `toml:"webserver"`
-	Core         CoreConfig         `toml:"core" comment:"Core service configuration."`
-	Auth         AuthConfig         `toml:"auth" comment:"Authentication configuration."`
-	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer owner status."`
-	Limits       LimitsConfig       `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
-	SMTP         SMTPConfig         `toml:"smtp" comment:"SMTP configuration for transactional emails."`
-	Push         PushConfig         `toml:"push,commented" comment:"Web Push notification configuration."`
-	Video        VideoConfig        `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
-	LiveKit      LiveKitConfig      `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
-	NATS         NATSConfig         `toml:"nats"`
-	Bootstrap    BootstrapConfig    `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+	General   GeneralConfig   `toml:"general"`
+	Webserver WebserverConfig `toml:"webserver"`
+	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
+	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
+	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
+	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	SMTP      SMTPConfig      `toml:"smtp" comment:"SMTP configuration for transactional emails."`
+	Push      PushConfig      `toml:"push,commented" comment:"Web Push notification configuration."`
+	Video     VideoConfig     `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
+	LiveKit   LiveKitConfig   `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
+	NATS      NATSConfig      `toml:"nats"`
+	Bootstrap BootstrapConfig `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
@@ -471,6 +472,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if c.Core.Assets.SigningSecret == "" {
 		errs = append(errs, "core.assets.signing_secret is required")
+	}
+	if c.Core.SecretKey == "" {
+		errs = append(errs, "core.secret_key is required")
 	}
 
 	// Port ranges (port 0 is allowed when TLS is enabled, as it defaults to 443)

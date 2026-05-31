@@ -800,7 +800,6 @@ type storage struct {
 	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
 	callStateKV     jetstream.KeyValue    // Active voice call participants (ephemeral, memory-backed)
-	authTokensKV    jetstream.KeyValue    // Bearer auth tokens with TTL
 }
 
 // newStorage initializes all JetStream KV buckets and streams.
@@ -808,14 +807,10 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// Initialize INSTANCE KV bucket for all server-level data
 	// Uses subject-based keys: user.{userId}, space.{spaceId}, space_membership.{spaceId}.{userId}, etc.
 	serverKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "INSTANCE",
-		Description: "Instance-level data (users, spaces, memberships)",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-		// Enables per-key TTL via jetstream.KeyTTL(...) on Create. Used for short-lived
-		// entries like registration tokens and email-verification tokens so they leave
-		// the bucket automatically. The duration is how long delete markers from
-		// TTL-expiry are kept before purging.
+		Bucket:         "INSTANCE",
+		Description:    "Instance-level data (users, spaces, memberships)",
+		Storage:        jetstream.FileStorage,
+		Replicas:       cfg.Replicas,
 		LimitMarkerTTL: 24 * time.Hour,
 	})
 	if err != nil {
@@ -1041,25 +1036,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
 	}
 
-	// Initialize auth tokens KV bucket with configurable TTL
-	// Stores opaque bearer tokens for cross-origin API authentication.
-	// NATS TTL handles automatic token expiry.
-	authTokenTTL := cfg.AuthTokenTTL
-	if authTokenTTL == 0 {
-		authTokenTTL = 90 * 24 * time.Hour // Default 90 days
-	}
-	authTokensKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:         "AUTH_TOKENS",
-		Description:    "Bearer tokens and OAuth authorization codes",
-		Storage:        jetstream.FileStorage,
-		TTL:            authTokenTTL,
-		Replicas:       cfg.Replicas,
-		LimitMarkerTTL: time.Minute, // Required for per-key TTL (used by authorization codes)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AUTH_TOKENS KV bucket: %w", err)
-	}
-
 	// Return initialized storage and whether RBAC bucket was newly created
 	return &storage{
 		serverKV:           serverKV,
@@ -1081,7 +1057,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		presenceKV:      presenceKV,
 		imageCacheStore: imageCacheStore,
 		callStateKV:     callStateKV,
-		authTokensKV:    authTokensKV,
 	}, nil
 }
 

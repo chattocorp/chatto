@@ -42,10 +42,11 @@ type RegistrationToken struct {
 // KV Key Functions
 // ============================================================================
 
-// registrationTokenKey returns the KV key for a registration token.
-// Format: registration.{token}
-func registrationTokenKey(token string) string {
-	return fmt.Sprintf("registration.%s", token)
+const registrationTokenKeyPrefix = "registration."
+
+// registrationTokenKey returns the HMAC-derived KV key for a registration token.
+func (c *ChattoCore) registrationTokenKey(token string) string {
+	return c.runtimeTokenKey(registrationTokenKeyPrefix, token)
 }
 
 // ============================================================================
@@ -53,7 +54,7 @@ func registrationTokenKey(token string) string {
 // ============================================================================
 
 // CreateRegistrationToken creates a new registration token for an email address.
-// The token is stored in serverKV and can be used to complete account creation.
+// The token is stored in RUNTIME_STATE and can be used to complete account creation.
 //
 // Email is expected to already be normalized (trimmed, lowercased) by the caller —
 // the HTTP handlers do this at the request boundary.
@@ -75,7 +76,7 @@ func (c *ChattoCore) CreateRegistrationToken(ctx context.Context, email string) 
 		return "", fmt.Errorf("failed to marshal registration token: %w", err)
 	}
 
-	_, err = c.storage.serverKV.Create(ctx, registrationTokenKey(token), data, jetstream.KeyTTL(RegistrationTokenTTL))
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.registrationTokenKey(token), data, jetstream.KeyTTL(RegistrationTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store registration token: %w", err)
 	}
@@ -91,7 +92,8 @@ func (c *ChattoCore) CreateRegistrationToken(ctx context.Context, email string) 
 // GetRegistrationToken retrieves and validates a registration token.
 // Returns the token data including the email address.
 func (c *ChattoCore) GetRegistrationToken(ctx context.Context, token string) (*RegistrationToken, error) {
-	entry, err := c.storage.serverKV.Get(ctx, registrationTokenKey(token))
+	key := c.registrationTokenKey(token)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrRegistrationTokenNotFound
@@ -107,7 +109,7 @@ func (c *ChattoCore) GetRegistrationToken(ctx context.Context, token string) (*R
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > RegistrationTokenTTL {
 		// Clean up expired token
-		c.storage.serverKV.Delete(ctx, registrationTokenKey(token))
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrRegistrationTokenExpired
 	}
 
@@ -116,7 +118,8 @@ func (c *ChattoCore) GetRegistrationToken(ctx context.Context, token string) (*R
 
 // DeleteRegistrationToken removes a registration token after successful account creation.
 func (c *ChattoCore) DeleteRegistrationToken(ctx context.Context, token string) error {
-	err := c.storage.serverKV.Delete(ctx, registrationTokenKey(token))
+	key := c.registrationTokenKey(token)
+	err := c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to delete registration token: %w", err)
 	}

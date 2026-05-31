@@ -50,15 +50,28 @@ The storage boundary is:
 - Compression enabled.
 - Per-key TTL support enabled via a limit-marker TTL; no global TTL is applied.
 
-Initial and planned occupants include:
+Current occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
 - Pending notifications: `notification.{userId}.{notificationId}`, with per-key
   90-day TTL.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
-- Auth, verification, reset, and revocation tokens after their migration from
-  token-specific buckets.
+- Bearer auth token verifiers: `session.{hmac}`, with per-key
+  `auth.token_ttl` sliding-window expiry.
+- OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
+  TTL.
+- Account workflow token verifiers: `registration.{hmac}`,
+  `email_verification.{hmac}`, `password_reset.{hmac}`, and
+  `account_deletion_token.{hmac}`, with per-key TTLs appropriate to each
+  workflow.
+
+The HMAC keys for bearer tokens, OAuth codes, and account workflow tokens are
+derived with `[core].secret_key` from the raw token/code plus a per-flow scope
+string. `RUNTIME_STATE` is included in backups, so active sessions and pending
+flows survive restore when the same secret is used; restoring with a different
+secret intentionally invalidates those credentials. Backup archives do not
+contain raw bearer tokens, links, or OAuth codes.
 
 Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
 target. Uploaded assets are content and are declared with `AssetCreatedEvent`;
@@ -81,6 +94,8 @@ canonical state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and
   restore procedures must include this bucket when preserving user/runtime
   continuity matters.
+- Runtime credential records can be backed up without storing redeemable raw
+  tokens, because their keys are HMAC-derived from `[core].secret_key`.
 - Per-key TTL becomes available for tokens and similar runtime values without
   splitting each feature into its own bucket.
 - Security-sensitive exceptions remain explicit. In particular,

@@ -48,7 +48,7 @@ import (
 // error.
 //
 // KV buckets:
-//   - `serverKV`: INSTANCE bucket (user data, auth tokens, etc.).
+//   - `serverKV`: INSTANCE bucket (user data).
 //   - `serverConfigKV`: SERVER_CONFIG (rooms, room memberships,
 //     notification levels, …).
 //   - `serverBodiesKV`: SERVER_BODIES (message content + standalone
@@ -58,7 +58,8 @@ import (
 //   - `runtimeConfigKV`: INSTANCE_CONFIG (operator-editable server
 //     settings — name, MOTD, blocked usernames, etc.).
 //   - `runtimeStateKV`: RUNTIME_STATE (persisted latest-value runtime/user
-//     state such as read markers, thread follows, and push subscriptions).
+//     state such as read markers, thread follows, push subscriptions, and
+//     HMAC-keyed auth/workflow tokens).
 //   - `serverReactionsKV`: SERVER_REACTIONS (legacy current reaction
 //     state; retained until reaction ES migration cleanup).
 //
