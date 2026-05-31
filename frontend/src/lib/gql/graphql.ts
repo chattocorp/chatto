@@ -2229,7 +2229,7 @@ export type Room = {
   callParticipants: Array<CallParticipant>;
   /** Optional description of the room's purpose. */
   description?: Maybe<Scalars['String']['output']>;
-  /** Fetch a single event in this room by event ID (O(1) subject lookup). Returns null if not found. */
+  /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<RoomEvent>;
   /**
    * Fetch historical events for this room (default limit: 50). Use the
@@ -2353,17 +2353,9 @@ export type RoomDeletedEvent = {
 /**
  * RoomEvent wraps all room-scoped events.
  *
- * Events are either:
- * - Stored in JetStream streams — persisted events
- * - Published to NATS Core for real-time updates — live events
- *
- * Authorization is determined by NATS subject:
- * - Persisted room events: `server.room.{kind}.{roomId}.>` (JetStream)
- * - Live room events: `live.server.room.{kind}.{roomId}.>` (NATS Core; the
- *   `SERVER_EVENTS` stream's RePublish also forwards persisted events here).
- *
- * `{kind}` is `channel` or `dm`. See `.claude/rules/nats-subjects.md` for the
- * full subject taxonomy.
+ * Room events describe activity inside a channel or direct-message room, such as
+ * messages, edits, reactions, membership changes, typing indicators, and calls.
+ * Access is scoped to rooms the current user is allowed to see.
  */
 export type RoomEvent = {
   __typename?: 'RoomEvent';
@@ -2481,8 +2473,7 @@ export type RoomGroupUserPermissions = {
 
 /**
  * Event: The channel-room groups (ordering, names, or membership) were updated.
- * Clients should refetch `Server.roomGroups` to get the new shape. This is a
- * live-only event (not stored in JetStream).
+ * Clients should refetch `Server.roomGroups` to get the new shape.
  */
 export type RoomGroupsUpdatedEvent = {
   __typename?: 'RoomGroupsUpdatedEvent';
@@ -2816,14 +2807,13 @@ export type ServerConfigUpdatedEvent = {
 
 /**
  * ServerEvent wraps any event delivered through the `myEvents` subscription.
- * Two backend streams flow into this single envelope:
  *
  * - Room-scoped events (messages, room lifecycle, typing, presence, reactions,
- *   video processing, voice calls) — sourced from the `SERVER_EVENTS` JetStream
- *   and the `live.server.room.>` / `live.server.member.>` NATS-Core subjects.
+ *   video processing, voice calls) are delivered only when the current user can
+ *   see the affected room.
  * - Deployment-scoped events (config changes, notifications, server lifecycle,
- *   thread-follow sync, session termination) — sourced from
- *   `live.server.{user,config,member}.>`.
+ *   thread-follow sync, session termination) are delivered according to their
+ *   audience: everyone, the affected room members, or the target user.
  */
 export type ServerEvent = {
   __typename?: 'ServerEvent';
@@ -2937,8 +2927,6 @@ export type Subscription = {
   /**
    * Subscribe to every event the current user is authorised to see on this
    * deployment.
-   *
-   * Two backend streams are multiplexed into a single envelope:
    *
    * - **Room events** (messages, room lifecycle, typing indicators, reactions,
    *   video processing, voice calls) — delivered only for rooms the user is a
@@ -3430,7 +3418,7 @@ export type UserSettings = {
 
 /**
  * Event: A user is typing in a room or thread.
- * This is a live-only event (not stored in JetStream).
+ * This is a transient event.
  * Clients should implement timeout-based clearing (e.g., 6 seconds of inactivity).
  * The user who is typing is identified by the parent RoomEvent's actorId/actor.
  */

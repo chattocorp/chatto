@@ -161,6 +161,64 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_DoesNotCacheDMJoinWhenDMViewDenied(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	creator, err := core.CreateUser(ctx, "system", "dm-creator", "DM Creator", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser creator: %v", err)
+	}
+	target, err := core.CreateUser(ctx, "system", "dm-target", "DM Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	if err := core.DenyServerPermission(ctx, RoleEveryone, PermDMView); err != nil {
+		t.Fatalf("DenyServerPermission dm.view: %v", err)
+	}
+	canDM, err := core.HasServerPermission(ctx, target.Id, PermDMView)
+	if err != nil {
+		t.Fatalf("HasServerPermission dm.view: %v", err)
+	}
+	if canDM {
+		t.Fatal("target should not have dm.view")
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, target.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	room, created, err := core.FindOrCreateDM(ctx, creator.Id, []string{target.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if !created {
+		t.Fatal("expected new DM room")
+	}
+	if _, err := core.PostMessage(ctx, KindDM, room.Id, creator.Id, "private hello", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	timeout := time.After(500 * time.Millisecond)
+	for {
+		select {
+		case ev, ok := <-eventChan:
+			if !ok {
+				t.Fatal("event stream closed unexpectedly")
+			}
+			if liveEventRoomID(ev) == room.Id {
+				t.Fatalf("target received DM event without dm.view: %T", ev.GetEvent())
+			}
+		case <-timeout:
+			return
+		}
+	}
+}
+
 func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -223,5 +281,36 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 		case <-timeout:
 			t.Fatal("viewer never received MessageEditedEvent from live.evt republish")
 		}
+	}
+}
+
+func liveEventRoomID(event *corev1.Event) string {
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_RoomCreated:
+		return e.RoomCreated.GetRoomId()
+	case *corev1.Event_RoomUpdated:
+		return e.RoomUpdated.GetRoomId()
+	case *corev1.Event_RoomDeleted:
+		return e.RoomDeleted.GetRoomId()
+	case *corev1.Event_RoomArchived:
+		return e.RoomArchived.GetRoomId()
+	case *corev1.Event_RoomUnarchived:
+		return e.RoomUnarchived.GetRoomId()
+	case *corev1.Event_UserJoinedRoom:
+		return e.UserJoinedRoom.GetRoomId()
+	case *corev1.Event_UserLeftRoom:
+		return e.UserLeftRoom.GetRoomId()
+	case *corev1.Event_MessagePosted:
+		return e.MessagePosted.GetRoomId()
+	case *corev1.Event_MessageEdited:
+		return e.MessageEdited.GetRoomId()
+	case *corev1.Event_MessageRetracted:
+		return e.MessageRetracted.GetRoomId()
+	case *corev1.Event_ReactionAdded:
+		return e.ReactionAdded.GetRoomId()
+	case *corev1.Event_ReactionRemoved:
+		return e.ReactionRemoved.GetRoomId()
+	default:
+		return ""
 	}
 }

@@ -1735,7 +1735,7 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return nil, false
 	}
 
-	return c.filterLiveEVTEvent(ctx, userID, memberRooms, msg, &event)
+	return c.filterLiveEVTEvent(ctx, userID, canDM, memberRooms, msg, &event)
 }
 
 func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
@@ -1794,7 +1794,7 @@ func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string,
 	return event, true
 }
 
-func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
 	roomID, ok := events.ParseRoomSubject(msg.Subject)
 	if !ok {
 		return nil, false
@@ -1819,6 +1819,16 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	switch event.Event.(type) {
 	case *corev1.Event_UserJoinedRoom:
 		if event.ActorId == userID {
+			if !canDM {
+				kind, err := c.FindRoomKind(ctx, roomID)
+				if err != nil {
+					c.logger.Warn("Failed to resolve live EVT self-join room kind", "subject", msg.Subject, "room_id", roomID, "error", err)
+					return nil, false
+				}
+				if kind == KindDM {
+					return nil, false
+				}
+			}
 			memberRooms[roomID] = struct{}{}
 			isMember = true
 		}
