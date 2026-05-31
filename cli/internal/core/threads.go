@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -70,130 +68,6 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 		events = append(events, r.Event)
 	}
 	return events, nil
-}
-
-// threadMetadataKey returns the KV key for thread metadata: {roomId}.{rootEventId}
-func threadMetadataKey(roomID string, rootEventId string) string {
-	return fmt.Sprintf("%s.%s", roomID, rootEventId)
-}
-
-// updateThreadMetadata updates the thread metadata in KV with optimistic locking.
-// Called when a reply is posted to a thread. Tracks reply count, last reply time, and participants.
-// The rootAuthorID is the author of the thread root message - they're included as the first participant.
-func (c *ChattoCore) updateThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string, rootAuthorID, replyAuthorID string, replyTime time.Time) error {
-	const maxRetries = 5
-
-	bucket := c.storage.serverThreadsKV
-
-	key := threadMetadataKey(roomID, rootEventId)
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Get current entry (if any) with its revision
-		var revision uint64
-		var metadata *corev1.ThreadMetadata
-
-		entry, err := bucket.Get(ctx, key)
-		if err == nil {
-			// Key exists - unmarshal and get revision
-			revision = entry.Revision()
-			metadata = &corev1.ThreadMetadata{}
-			if unmarshalErr := proto.Unmarshal(entry.Value(), metadata); unmarshalErr != nil {
-				c.logger.Warn("Failed to unmarshal thread metadata, creating new", "error", unmarshalErr)
-				metadata = nil
-			}
-		} else if !errors.Is(err, jetstream.ErrKeyNotFound) {
-			return fmt.Errorf("failed to get thread metadata: %w", err)
-		}
-
-		// Create or update metadata
-		if metadata == nil {
-			// First reply to this thread - initialize participant list with root author first
-			participants := []string{}
-			if rootAuthorID != "" {
-				participants = append(participants, rootAuthorID)
-			}
-			// Add reply author if different from root author
-			if replyAuthorID != rootAuthorID {
-				participants = append(participants, replyAuthorID)
-			}
-			metadata = &corev1.ThreadMetadata{
-				RootEventId:    rootEventId,
-				ReplyCount:     1,
-				LastReplyAt:    timestamppb.New(replyTime),
-				ParticipantIds: participants,
-			}
-		} else {
-			metadata.ReplyCount++
-			metadata.LastReplyAt = timestamppb.New(replyTime)
-
-			// Ensure root author is in participants (for backward compatibility with existing threads)
-			if rootAuthorID != "" {
-				rootAuthorExists := false
-				for _, pid := range metadata.ParticipantIds {
-					if pid == rootAuthorID {
-						rootAuthorExists = true
-						break
-					}
-				}
-				if !rootAuthorExists && len(metadata.ParticipantIds) < maxThreadParticipants {
-					// Insert root author at the beginning
-					metadata.ParticipantIds = append([]string{rootAuthorID}, metadata.ParticipantIds...)
-				}
-			}
-
-			// Add reply author if not already present and under cap
-			replyAuthorExists := false
-			for _, pid := range metadata.ParticipantIds {
-				if pid == replyAuthorID {
-					replyAuthorExists = true
-					break
-				}
-			}
-			if !replyAuthorExists && len(metadata.ParticipantIds) < maxThreadParticipants {
-				metadata.ParticipantIds = append(metadata.ParticipantIds, replyAuthorID)
-			}
-		}
-
-		// Marshal and store
-		data, err := proto.Marshal(metadata)
-		if err != nil {
-			return fmt.Errorf("failed to marshal thread metadata: %w", err)
-		}
-
-		// Try atomic update
-		var updateErr error
-		if revision == 0 {
-			// No existing key - use Create for atomic insert
-			_, updateErr = bucket.Create(ctx, key, data)
-		} else {
-			// Existing key - use Update with revision check
-			_, updateErr = bucket.Update(ctx, key, data, revision)
-		}
-
-		if updateErr == nil {
-			c.logger.Debug("Updated thread metadata",
-				"kind", kind,
-				"room_id", roomID,
-				"root_event_id", rootEventId,
-				"reply_count", metadata.ReplyCount,
-				"participants", len(metadata.ParticipantIds))
-			return nil
-		}
-
-		// Check if it's a revision conflict (concurrent update)
-		if errors.Is(updateErr, jetstream.ErrKeyExists) {
-			c.logger.Debug("Thread metadata revision conflict, retrying",
-				"room_id", roomID,
-				"root_event_id", rootEventId,
-				"attempt", attempt+1)
-			continue
-		}
-
-		// Some other error
-		return fmt.Errorf("failed to store thread metadata: %w", updateErr)
-	}
-
-	return fmt.Errorf("failed to update thread metadata after %d retries due to concurrent modifications", maxRetries)
 }
 
 // notifyThreadFollowers creates persistent notifications for all thread followers when someone replies.

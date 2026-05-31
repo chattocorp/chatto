@@ -791,7 +791,6 @@ type storage struct {
 	serverRBACEngine   *Engine               // Engine wrapping serverRBACKV
 	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies + attachment metadata records (#330 phase 4c). TODO: rename → SERVER_CONTENT now that it hosts more than bodies.
 	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
-	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
 	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
 	serverEvtStream    jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034). Coexists with SERVER_EVENTS during migration.
@@ -963,16 +962,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_REACTIONS KV bucket: %w", err)
 	}
 
-	serverThreadsKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "SERVER_THREADS",
-		Description: "Server-level thread metadata",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_THREADS KV bucket: %w", err)
-	}
-
 	serverAttachments, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
 		Bucket:      "SERVER_ASSETS",
 		Description: "Server-level message attachments",
@@ -1047,7 +1036,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverRuntimeKV:    serverRuntimeKV,
 		serverBodiesKV:     serverBodiesKV,
 		serverReactionsKV:  serverReactionsKV,
-		serverThreadsKV:    serverThreadsKV,
 		serverAttachments:  serverAttachments,
 		serverEventsStream: serverEventsStream,
 		serverEvtStream:    serverEvtStream,

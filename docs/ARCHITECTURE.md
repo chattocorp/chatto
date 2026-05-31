@@ -264,7 +264,6 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `SERVER_RUNTIME`              | Legacy runtime state pending cleanup        |
 | KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | KV      | `SERVER_REACTIONS`            | Legacy emoji reactions source for boot migration only |
-| KV      | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
 | Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | `SERVER_ASSETS`               | Message attachments                         |
@@ -473,7 +472,6 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `SERVER_RUNTIME`              | File    | Yes      | Legacy runtime state pending cleanup            |
 | `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant) + standalone attachment metadata records — TODO: rename → `SERVER_CONTENT` |
 | `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions, read only by the EVT boot migration |
-| `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
 | `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
 | `CALL_STATE`                  | Memory  | No       | Active voice call participants, keyed `{spaceId}.{roomId}` (repopulated by LiveKit webhooks after restart) |
 | `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
@@ -616,8 +614,15 @@ Notes: Memory-based storage (not persisted). 60-second TTL with 30-second client
 | Key                    | Description                                              |
 | ---------------------- | -------------------------------------------------------- |
 | `{userId}.{eventId}`   | Message body keyed by user ID and event ID               |
+| `{userId}.{bodyId}`    | Older naming for the same legacy body record shape       |
 
 Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility. No `kind` segment — both IDs are globally unique NanoIDs.
+
+A transitional `attachment.{roomId}.{attachmentId}` key shape existed
+in this bucket between #575 and #581 as a per-attachment authz index;
+it was retired by the signed-locator URL scheme (ADR-032) and any
+leftover entries are swept at boot by the `DropLegacyAttachmentRecords`
+migration. New code should not write to `attachment.*` keys here.
 
 **SERVER\_REACTIONS keys:**
 
@@ -626,24 +631,6 @@ Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-bas
 | `{messageEventId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted; value stores nanosecond timestamp for "added at" ordering) |
 
 Notes: Legacy source for `MigrateReactionsToES`. Current reaction writes append durable `ReactionAdded` / `ReactionRemoved` events to `evt.room.{roomId}.reaction_added` and `evt.room.{roomId}.reaction_removed`; current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. The bucket remains so old deployments can be imported and will be removed in the later cleanup phase.
-
-**SERVER\_THREADS keys:**
-
-| Key                       | Description                                              |
-| ------------------------- | -------------------------------------------------------- |
-| `{roomId}.{rootEventId}`  | ThreadMetadata proto (reply count, last reply, participants) |
-
-Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 participant IDs. Used for thread previews in channel view.
-
-| Key                                          | Description                                                                              |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `{userId}.{bodyId}`                          | Marshaled `corev1.MessageBody` proto (encrypted text, attachments slice, link preview)   |
-
-A transitional `attachment.{roomId}.{attachmentId}` key shape existed
-in this bucket between #575 and #581 as a per-attachment authz index;
-it was retired by the signed-locator URL scheme (ADR-032) and any
-leftover entries are swept at boot by the `DropLegacyAttachmentRecords`
-migration. New code should not write to `attachment.*` keys here.
 
 ### Object Store Buckets
 
@@ -777,7 +764,7 @@ Messages are persisted as durable `EVT` facts with encrypted message bodies embe
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
-- Thread reply lists, reply counts, participants, and last-reply timestamps are derived from the `ThreadProjection`; `SERVER_THREADS` is legacy import/storage evidence only.
+- Thread reply lists, reply counts, participants, and last-reply timestamps are derived from the `ThreadProjection`.
 
 **@Mentions:**
 
