@@ -800,5 +800,5 @@ Messages are persisted as durable `EVT` facts with encrypted message bodies embe
 - **Compression**: The `EVT` and legacy `SERVER_EVENTS` streams use S2 compression to reduce storage costs
 - **GDPR Compliance**: Message bodies are encrypted per author; deletion is represented by EVT retraction/shred facts and projections refuse to render shredded or retracted content.
 - **Unified Server Storage**: Channels and DMs share the same `SERVER_*` buckets; the `kind` segment in keys (`room.channel.*` / `room.dm.*`) disambiguates without per-space isolation
-- **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated `SERVER_BODIES` to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
+- **Legacy Body Store**: `SERVER_BODIES` is retained for pre-ES imports and legacy backup restores; new message bodies are encrypted into `MessagePostedEvent.body` and projected from `EVT`.
 - **Eager Server Resource Initialization**: The unified `SERVER_*` buckets (stream, KV buckets, object store) are created up-front at boot, not lazily on first use. The Phase 4 migration (#354) retired the legacy lazycache fallback that briefly accommodated the per-space storage shape.

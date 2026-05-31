@@ -344,8 +344,8 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 // ADR-035 phase 6: event-only. Publishes RoomDeletedEvent (which both
 // the catalog and membership projections apply as a drop) and, for
 // channel rooms in a group, a RoomRemovedFromGroupEvent cascade per
-// ADR-034 Approach A. Stream events are purged after the projections
-// catch up; the legacy KV room record is no longer touched here.
+// ADR-034 Approach A. Historical room events are retained in EVT; the
+// legacy KV room record is no longer touched here.
 func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
