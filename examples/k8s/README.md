@@ -109,6 +109,7 @@ Update these values (generate secrets with `openssl rand -hex 32`):
 - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` - Must match
 - `CHATTO_WEBSERVER_URL` - Your domain (e.g., `https://chat.example.com`)
 - `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` - Session signing secret
+- `CHATTO_CORE_SECRET_KEY` - Bearer-token and account-flow verifier key
 - `CHATTO_CORE_ASSETS_SIGNING_SECRET` - Asset URL signing secret
 
 ### ingress.local.yaml
