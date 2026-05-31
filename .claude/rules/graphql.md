@@ -166,7 +166,7 @@ Backend `viewer*` fields are still useful for:
 
 When the same resolver-side merge appears in two places that ought to behave identically (e.g. unified room lists that append the caller's DM rooms), extract the shared behavior into a helper in `*_helpers.go`. Each resolver is then a one-liner; membership-filtered DM listing can't drift between GraphQL entry points.
 
-This bit us once in #330 phase 3 when two room-list resolvers had subtly different DM gates. Since ADR-037, DMs do not have a read permission: room membership is the read boundary, and `dm.write` only gates starting/sending DMs. Keep resolver helpers aligned with that split.
+This bit us once in #330 phase 3 when two room-list resolvers had subtly different DM gates. Since ADR-037, DMs do not have a read permission: room membership is the read boundary, and message permissions gate starting/sending DMs. Keep resolver helpers aligned with that split.
 
 General principle: if you find yourself copy-pasting an authorization branch between resolvers, that's the moment to extract — before the copies drift.
 

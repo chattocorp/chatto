@@ -50,7 +50,7 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 ### 5. Well-known destinations gated by access
 
 **Decision:** Browse Spaces only appears if at least one connected server allows listing spaces. Direct Messages appears if the user has DM conversations on a connected server or can start DMs there. Notifications always appears.
-**Why:** Showing a destination the user can't reach is a worse experience than hiding it. DMs no longer have a read permission; membership in an existing DM is enough to make the destination useful, while `dm.write` means the user can start a new conversation. See ADR-037.
+**Why:** Showing a destination the user can't reach is a worse experience than hiding it. DMs have no read permission; membership in an existing DM is enough to make the destination useful, while `message.post` means the user can start a new conversation. See ADR-037.
 **Tradeoff:** The palette's "Go to" list changes depending on the user's permissions in connected servers. Considered correct behavior.
 
 ## Permissions

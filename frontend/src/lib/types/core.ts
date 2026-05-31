@@ -23,7 +23,6 @@ export const CategoryRoom: PermissionCategory = "room";
 export const CategoryMessage: PermissionCategory = "message";
 export const CategoryRole: PermissionCategory = "role";
 export const CategoryAdmin: PermissionCategory = "admin";
-export const CategoryDM: PermissionCategory = "dm";
 export const CategoryUser: PermissionCategory = "user";
 /**
  * Permission represents a permission in the permission model.
@@ -57,7 +56,7 @@ export const PermRoomList: Permission = "room.list";
  */
 export const PermRoomManage: Permission = "room.manage";
 /**
- * PermMessagePost allows posting new root messages in a room.
+ * PermMessagePost allows posting new root messages in rooms and starting DMs.
  */
 export const PermMessagePost: Permission = "message.post";
 /**
@@ -109,10 +108,6 @@ export const PermAdminSystemView: Permission = "admin.view-system";
  * PermAdminAuditView allows viewing the audit log in admin.
  */
 export const PermAdminAuditView: Permission = "admin.view-audit";
-/**
- * PermDMWrite allows starting DM conversations and sending messages.
- */
-export const PermDMWrite: Permission = "dm.write";
 /**
  * PermUserDeleteAny allows admins to delete any user's account.
  * Mirrors message.delete-any: the actor needs the permission AND

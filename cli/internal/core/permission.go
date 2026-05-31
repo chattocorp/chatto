@@ -28,7 +28,6 @@ const (
 	CategoryMessage PermissionCategory = "message"
 	CategoryRole    PermissionCategory = "role"
 	CategoryAdmin   PermissionCategory = "admin"
-	CategoryDM      PermissionCategory = "dm"
 	CategoryUser    PermissionCategory = "user"
 )
 
@@ -64,7 +63,7 @@ const (
 
 	// ===== Message Permissions =====
 
-	// PermMessagePost allows posting new root messages in a room.
+	// PermMessagePost allows posting new root messages in rooms and starting DMs.
 	PermMessagePost Permission = "message.post"
 
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
@@ -110,9 +109,6 @@ const (
 	// PermAdminAuditView allows viewing the audit log in admin.
 	PermAdminAuditView Permission = "admin.view-audit"
 
-	// PermDMWrite allows starting DM conversations and sending messages.
-	PermDMWrite Permission = "dm.write"
-
 	// ===== User Management Permissions =====
 	//
 	// "User" is the canonical namespace for user-administration actions.
@@ -152,7 +148,7 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
-	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages (subject to outranking the author)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -167,9 +163,6 @@ var allPermissions = []PermissionMetadata{
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminSystemView, "View System", "View system and data pages in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-
-	// DM
-	{PermDMWrite, "Send DMs", "Start DM conversations and send messages", CategoryDM, []PermissionScope{ScopeServer}},
 
 	// User management
 	{PermUserDeleteAny, "Delete Any User", "Delete any user's account. Subject to the rank check — actors can only delete users they outrank.", CategoryUser, []PermissionScope{ScopeServer}},
@@ -251,7 +244,6 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 func DefaultEveryonePermissions() []Permission {
 	return []Permission{
 		PermUserDeleteSelf,
-		PermDMWrite,
 		PermRoomList,
 		PermRoomJoin,
 		PermMessagePost,

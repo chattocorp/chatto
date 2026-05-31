@@ -887,8 +887,8 @@ type ComplexityRoot struct {
 		CanAdminViewRoles        func(childComplexity int) int
 		CanAdminViewSystem       func(childComplexity int) int
 		CanAdminViewUsers        func(childComplexity int) int
+		CanStartDMs              func(childComplexity int) int
 		CanViewAdmin             func(childComplexity int) int
-		CanWriteDMs              func(childComplexity int) int
 		FollowedThreads          func(childComplexity int) int
 		HasNotifications         func(childComplexity int) int
 		HasUnreadFollowedThreads func(childComplexity int) int
@@ -1224,7 +1224,7 @@ type VideoVariantResolver interface {
 type ViewerResolver interface {
 	User(ctx context.Context, obj *model.Viewer) (*corev1.User, error)
 	CanViewAdmin(ctx context.Context, obj *model.Viewer) (bool, error)
-	CanWriteDMs(ctx context.Context, obj *model.Viewer) (bool, error)
+	CanStartDMs(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewUsers(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminManageUsers(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewRoles(ctx context.Context, obj *model.Viewer) (bool, error)
@@ -4914,18 +4914,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Viewer.CanAdminViewUsers(childComplexity), true
+	case "Viewer.canStartDMs":
+		if e.complexity.Viewer.CanStartDMs == nil {
+			break
+		}
+
+		return e.complexity.Viewer.CanStartDMs(childComplexity), true
 	case "Viewer.canViewAdmin":
 		if e.complexity.Viewer.CanViewAdmin == nil {
 			break
 		}
 
 		return e.complexity.Viewer.CanViewAdmin(childComplexity), true
-	case "Viewer.canWriteDMs":
-		if e.complexity.Viewer.CanWriteDMs == nil {
-			break
-		}
-
-		return e.complexity.Viewer.CanWriteDMs(childComplexity), true
 	case "Viewer.followedThreads":
 		if e.complexity.Viewer.FollowedThreads == nil {
 			break
@@ -16582,8 +16582,8 @@ func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field g
 				return ec.fieldContext_Viewer_user(ctx, field)
 			case "canViewAdmin":
 				return ec.fieldContext_Viewer_canViewAdmin(ctx, field)
-			case "canWriteDMs":
-				return ec.fieldContext_Viewer_canWriteDMs(ctx, field)
+			case "canStartDMs":
+				return ec.fieldContext_Viewer_canStartDMs(ctx, field)
 			case "canAdminViewUsers":
 				return ec.fieldContext_Viewer_canAdminViewUsers(ctx, field)
 			case "canAdminManageUsers":
@@ -25338,14 +25338,14 @@ func (ec *executionContext) fieldContext_Viewer_canViewAdmin(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Viewer_canWriteDMs(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+func (ec *executionContext) _Viewer_canStartDMs(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Viewer_canWriteDMs,
+		ec.fieldContext_Viewer_canStartDMs,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Viewer().CanWriteDMs(ctx, obj)
+			return ec.resolvers.Viewer().CanStartDMs(ctx, obj)
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -25354,7 +25354,7 @@ func (ec *executionContext) _Viewer_canWriteDMs(ctx context.Context, field graph
 	)
 }
 
-func (ec *executionContext) fieldContext_Viewer_canWriteDMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Viewer_canStartDMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Viewer",
 		Field:      field,
@@ -40417,7 +40417,7 @@ func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "canWriteDMs":
+		case "canStartDMs":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -40426,7 +40426,7 @@ func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, o
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Viewer_canWriteDMs(ctx, field, obj)
+				res = ec._Viewer_canStartDMs(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

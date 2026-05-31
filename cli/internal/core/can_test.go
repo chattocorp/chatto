@@ -35,7 +35,7 @@ func TestServerCanHelpers(t *testing.T) {
 			name  string
 			check func() (bool, error)
 		}{
-			{"CanDMWrite", func() (bool, error) { return core.CanDMWrite(ctx, regularUser.Id) }},
+			{"CanStartDM", func() (bool, error) { return core.CanStartDM(ctx, regularUser.Id) }},
 			{"CanDeleteUserSelf", func() (bool, error) { return core.CanDeleteUser(ctx, regularUser.Id, regularUser.Id) }},
 		}
 		for _, tc := range tests {

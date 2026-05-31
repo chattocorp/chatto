@@ -68,4 +68,3 @@ func TestUserResolver_PresenceStatus(t *testing.T) {
 		}
 	})
 }
-

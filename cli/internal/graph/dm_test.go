@@ -75,17 +75,17 @@ func TestMutationResolver_StartDM(t *testing.T) {
 		}
 	})
 
-	t.Run("user with denied dms.write permission cannot start DM", func(t *testing.T) {
+	t.Run("user with denied message.post permission cannot start DM", func(t *testing.T) {
 		blockedUser, err := env.core.CreateUser(env.ctx, "system", "dm-blocked", "Blocked DM", "password123")
 		if err != nil {
 			t.Fatalf("failed to create blocked user: %v", err)
 		}
 
-		// Create a restriction role, deny dms.write on it, and assign to user
+		// Create a restriction role, deny message.post on it, and assign to user
 		if _, err := env.core.CreateServerRole(env.ctx, "dmblocked", "DM Blocked", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := env.core.DenyServerPermission(env.ctx, "dmblocked", core.PermDMWrite); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, "dmblocked", core.PermMessagePost); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, blockedUser.Id, "dmblocked"); err != nil {

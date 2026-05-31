@@ -181,9 +181,9 @@ buttons differ. This prevents layout shift when joining/leaving a call.
     return () => clearInterval(interval);
   });
 
-  // DM permissions
+  // DM start capability
   const serverPerms = getServerPermissions();
-  const canWriteDMs = $derived(serverPerms.current.canWriteDMs);
+  const canStartDMs = $derived(serverPerms.current.canStartDMs);
 
   // User context menu popover
   let popoverParticipant = $state<DisplayParticipant | null>(null);
@@ -357,7 +357,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
     <UserContextMenu
       user={popoverParticipant.avatarUser}
       anchorRect={popoverAnchorRect}
-      canSendMessage={canWriteDMs}
+      canSendMessage={canStartDMs}
       onSendMessage={() => startDMWith(getActiveServer(), popoverParticipant!.avatarUser.id)}
       onClose={closeUserMenu}
     />

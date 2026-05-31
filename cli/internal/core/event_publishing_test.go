@@ -161,7 +161,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
-func TestStreamMyEvents_DeliversDMEventsWhenDMWriteDenied(t *testing.T) {
+func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -173,15 +173,15 @@ func TestStreamMyEvents_DeliversDMEventsWhenDMWriteDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermDMWrite); err != nil {
-		t.Fatalf("DenyServerPermission dm.write: %v", err)
+	if err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost); err != nil {
+		t.Fatalf("DenyServerPermission message.post: %v", err)
 	}
-	canWriteDM, err := core.HasServerPermission(ctx, target.Id, PermDMWrite)
+	canPostMessage, err := core.HasServerPermission(ctx, target.Id, PermMessagePost)
 	if err != nil {
-		t.Fatalf("HasServerPermission dm.write: %v", err)
+		t.Fatalf("HasServerPermission message.post: %v", err)
 	}
-	if canWriteDM {
-		t.Fatal("target should not have dm.write")
+	if canPostMessage {
+		t.Fatal("target should not have message.post")
 	}
 
 	subCtx, cancel := context.WithCancel(ctx)
@@ -214,7 +214,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenDMWriteDenied(t *testing.T) {
 				return
 			}
 		case <-timeout:
-			t.Fatal("target did not receive DM message after dm.write was denied")
+			t.Fatal("target did not receive DM message after message.post was denied")
 		}
 	}
 }

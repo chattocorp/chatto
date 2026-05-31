@@ -5,7 +5,7 @@ conversations, both of which can appear in a server's room list.
 enum RoomType {
   "A regular channel — has a name, optional layout placement, and is governed by the server's RBAC roles."
   CHANNEL
-  "A direct-message conversation — derives its display name from its participants and uses fixed DM permissions instead of RBAC."
+  "A direct-message conversation — derives its display name from its participants and uses membership plus message permissions."
   DM
 }
 

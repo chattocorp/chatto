@@ -32,9 +32,9 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   const membersState = $derived(getRoomMembersState());
   const members = $derived(membersState.members);
 
-  // Check if user can write DMs (from centralized instance permissions)
+  // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
-  let canWriteDMs = $derived(serverPerms.current.canWriteDMs);
+  let canStartDMs = $derived(serverPerms.current.canStartDMs);
 
   // Track which member's popover is open
   let popoverMemberId = $state<string | null>(null);
@@ -149,7 +149,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
       <UserContextMenu
         user={popoverMember}
         anchorRect={popoverAnchorRect}
-        canSendMessage={canWriteDMs}
+        canSendMessage={canStartDMs}
         onSendMessage={() => startDMWith(getActiveServer(), popoverMember!.id)}
         onClose={closePopover}
       />

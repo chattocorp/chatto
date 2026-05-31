@@ -225,7 +225,7 @@ func (r *Resolver) buildTierRole(
 			}
 		}
 		// Filter server perms to those applicable at room scope so we
-		// don't fold server-only perms (admin.*, dm.*, etc.) into a
+		// don't fold server-only perms (admin.*, user.*, etc.) into a
 		// room-scope baseline.
 		filteredServerGrants := scopedPerms(serverGrants, core.ScopeRoom)
 		filteredServerDenials := scopedPerms(serverDenials, core.ScopeRoom)

@@ -68,7 +68,7 @@ describe('setRolePermission dispatch', () => {
       await setRolePermission(
         client,
         { tier: 'server', roleName: 'admin' },
-        'dm.write',
+        'message.post',
         state
       );
       expect(operationName(lastDoc(mutation))).toBe(expected);
@@ -80,7 +80,7 @@ describe('setRolePermission dispatch', () => {
     const result = await setRolePermission(
       client,
       { tier: 'server', roleName: 'admin' },
-      'dm.write',
+      'message.post',
       'allow'
     );
     expect(result.error).toBe('boom');
@@ -91,7 +91,7 @@ describe('setRolePermission dispatch', () => {
     const result = await setRolePermission(
       client,
       { tier: 'server', roleName: 'admin' },
-      'dm.write',
+      'message.post',
       'allow'
     );
     expect(result.error).toBeUndefined();

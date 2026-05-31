@@ -233,7 +233,6 @@ func TestValidateLogin(t *testing.T) {
 	}
 }
 
-
 func TestHasVisibleContent(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -194,17 +194,9 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Authorization: check posting permissions
-	if kind == core.KindDM {
-		// DM space: check dm.write permission (skip message.* checks)
-		can, err := r.core.CanDMWrite(ctx, user.Id)
-		if err != nil {
-			return nil, err
-		}
-		if !can {
-			return nil, core.ErrPermissionDenied
-		}
-	} else if input.ThreadRootEventID != nil && *input.ThreadRootEventID != "" {
+	// Authorization: check posting permissions. DM rooms use the same
+	// message.post / message.post-in-thread gates as channel rooms.
+	if input.ThreadRootEventID != nil && *input.ThreadRootEventID != "" {
 		// Thread reply: check message.post-in-thread
 		can, err := r.core.CanPostInThread(ctx, user.Id, kind, input.RoomID)
 		if err != nil {

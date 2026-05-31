@@ -349,7 +349,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
-  test('user with denied dm.write still sees existing DM conversations', async ({
+  test('user with denied message.post still sees existing DM conversations', async ({
     page,
     browser,
     serverURL
@@ -378,9 +378,9 @@ test.describe('Direct Messages (room-shaped)', () => {
       const dmRoomId = (await startResp.json()).data.startDM.id as string;
       await postMessageViaAPI(page, dmRoomId, 'seed');
 
-      // Deny dm.write BEFORE the regular user navigates. This should stop
+      // Deny message.post BEFORE the regular user navigates. This should stop
       // starting/sending DMs, not reading an existing DM.
-      const denyRole = await denyUserPermission(page, regularUser.id!, 'dm.write');
+      const denyRole = await denyUserPermission(page, regularUser.id!, 'message.post');
       try {
         await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);
@@ -394,7 +394,7 @@ test.describe('Direct Messages (room-shaped)', () => {
         ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
         // DM read access is membership-based, so the seeded conversation still
-        // appears even while dm.write is denied.
+        // appears even while message.post is denied.
         await expect(
           regularPage.getByRole('button', { name: /direct messages/i })
         ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -402,7 +402,7 @@ test.describe('Direct Messages (room-shaped)', () => {
         await clearUserPermissionOverride(
           page,
           regularUser.id!,
-          'dm.write',
+          'message.post',
           denyRole
         );
       }

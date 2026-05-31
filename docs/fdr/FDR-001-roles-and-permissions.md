@@ -13,7 +13,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - The system roles, highest rank first, are `owner`, `admin`, `moderator`, `everyone`. Custom roles can be created and positioned anywhere between `moderator` and `everyone`.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - Permission grants/denies can be configured at three scopes: per-server (the role default), per room-group, and per room. The most specific scope wins.
-- Permissions gate capabilities, not every form of visibility. For example, DM read access comes from room membership, while `dm.write` gates starting/sending DMs.
+- Permissions gate capabilities, not every form of visibility. For example, DM read access comes from room membership, while `message.post` gates starting DMs and sending root DM messages.
 - Server admins can drag-and-drop to reorder custom roles. System roles are fixed in rank.
 - Owners pass every permission check because the `owner` role is seeded with every server-scope permission — not because the resolver special-cases them. Owners are not above the rules; they hold the rules.
 - Operators can designate owners via `owners.emails` in `chatto.toml`. Matching users are auto-assigned the `owner` role when their email is verified, and already-verified matching users are assigned the role on server boot.
@@ -69,7 +69,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `role.manage` — create, edit, delete roles and the permissions attached to them.
 - `role.assign` — assign roles to users.
 - `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate access to the admin UI and its sub-views.
-- `dm.write` — start DMs and send messages in DM rooms. Reading DMs is not permission-gated; it follows room membership.
+- `message.post` — post root messages in rooms and start DMs. Reading DMs is not permission-gated; it follows room membership.
 
 ## Related
 

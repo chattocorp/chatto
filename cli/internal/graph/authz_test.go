@@ -206,16 +206,16 @@ func TestRequireServerPermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Everyone should have dm.write by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMWrite)
+		// Everyone should have message.post by default
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermMessagePost)
 		if err != nil {
-			t.Errorf("Expected user to have dm.write, got error: %v", err)
+			t.Errorf("Expected user to have message.post, got error: %v", err)
 		}
 
-		// Everyone should have dm.write by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMWrite)
+		// Everyone should have message.post by default
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermMessagePost)
 		if err != nil {
-			t.Errorf("Expected user to have dm.write, got error: %v", err)
+			t.Errorf("Expected user to have message.post, got error: %v", err)
 		}
 	})
 
@@ -225,13 +225,13 @@ func TestRequireServerPermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Deny dm.write for everyone role
-		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
+		// Deny message.post for everyone role
+		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
 		// Permission should be denied
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMWrite)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermMessagePost)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied (everyone role denial), got %v", err)
 		}
@@ -262,7 +262,7 @@ func TestRequireServerPermission(t *testing.T) {
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireServerPermission(env.unauthContext(), env.core, core.PermDMWrite)
+		_, err := requireServerPermission(env.unauthContext(), env.core, core.PermMessagePost)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -369,7 +369,7 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		for _, c := range callers {
 			_, err := mutation.GrantUserPermission(env.authContextForUser(c.user), model.GrantUserPermissionInput{
 				UserID:     c.user.Id,
-				Permission: string(core.PermDMWrite),
+				Permission: string(core.PermMessagePost),
 			})
 			if !errors.Is(err, core.ErrPermissionDenied) {
 				t.Errorf("%s self-grant: expected ErrPermissionDenied, got %v", c.name, err)
@@ -399,24 +399,24 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		// End-to-end roundtrip via GraphQL.
 		_, err := mutation.DenyUserPermission(env.authContextForUser(admin), model.DenyUserPermissionInput{
 			UserID:     regular.Id,
-			Permission: string(core.PermDMWrite),
+			Permission: string(core.PermMessagePost),
 		})
 		if err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
-		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermDMWrite)
+		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessagePost)
 		if decision != core.DecisionDeny {
 			t.Fatalf("expected DecisionDeny after admin deny, got %s", decision)
 		}
 
 		_, err = mutation.ClearUserPermissionState(env.authContextForUser(admin), model.ClearUserPermissionStateInput{
 			UserID:     regular.Id,
-			Permission: string(core.PermDMWrite),
+			Permission: string(core.PermMessagePost),
 		})
 		if err != nil {
 			t.Fatalf("ClearUserPermissionState: %v", err)
 		}
-		decision, _ = env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermDMWrite)
+		decision, _ = env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessagePost)
 		if decision != core.DecisionAllow {
 			t.Errorf("expected DecisionAllow after clear (everyone default), got %s", decision)
 		}

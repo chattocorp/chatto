@@ -1475,7 +1475,7 @@ type RoomType string
 const (
 	// A regular channel — has a name, optional layout placement, and is governed by the server's RBAC roles.
 	RoomTypeChannel RoomType = "CHANNEL"
-	// A direct-message conversation — derives its display name from its participants and uses fixed DM permissions instead of RBAC.
+	// A direct-message conversation — derives its display name from its participants and uses membership plus message permissions.
 	RoomTypeDm RoomType = "DM"
 )
 

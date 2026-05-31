@@ -14,13 +14,13 @@ import (
 // either side may be empty) that are easier to assert directly.
 func TestMergeInheritedDecisions(t *testing.T) {
 	cases := []struct {
-		name           string
-		overrideAllow  []core.Permission
-		overrideDeny   []core.Permission
-		parentAllow    []core.Permission
-		parentDeny     []core.Permission
-		wantAllow      []string
-		wantDeny       []string
+		name          string
+		overrideAllow []core.Permission
+		overrideDeny  []core.Permission
+		parentAllow   []core.Permission
+		parentDeny    []core.Permission
+		wantAllow     []string
+		wantDeny      []string
 	}{
 		{
 			name: "both empty",

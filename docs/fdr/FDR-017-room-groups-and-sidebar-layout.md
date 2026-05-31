@@ -51,7 +51,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 6. DMs are outside the group system
 
-**Decision:** DM rooms don't belong to any group. Reading is governed by DM room membership; sending and starting DMs are governed by `dm.write`; the hardcoded `dmBoundaryDeniedPermissions` list still prevents channel-style moderation inside DMs. Group concepts don't apply.
+**Decision:** DM rooms don't belong to any group. Reading is governed by DM room membership; sending and starting DMs use message permissions; the hardcoded `dmBoundaryDeniedPermissions` list still prevents channel-style moderation inside DMs. Group concepts don't apply.
 **Why:** DMs don't fit a "category of rooms" model — every DM is its own conversation. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-031 and ADR-037.
 **Tradeoff:** DMs keep a small policy branch outside the room-group model. That branch is about DM privacy and creation, not about read visibility.
 

@@ -75,11 +75,6 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     description: 'View the audit log in admin'
   },
 
-  // DM
-  'dm.write': {
-    description: 'Start DM conversations and send messages'
-  },
-
   // User management
   'user.delete-any': {
     description: "Delete another user's account. The actor must outrank the target user."

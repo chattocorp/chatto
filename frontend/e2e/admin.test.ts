@@ -728,7 +728,7 @@ test.describe('Instance Role Permission Denials', () => {
 					mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
 					}
 				`,
-        variables: { input: { roleName, permission: 'dm.write' } }
+        variables: { input: { roleName, permission: 'message.post' } }
       }
     });
     expect(denyResponse.ok()).toBeTruthy();
@@ -756,7 +756,7 @@ test.describe('Instance Role Permission Denials', () => {
     expect(queryRoleResponse.ok()).toBeTruthy();
     const queryRoleData = await queryRoleResponse.json();
     expect(queryRoleData.data?.server?.role).toBeTruthy();
-    expect(queryRoleData.data.server.role.permissionDenials).toContain('dm.write');
+    expect(queryRoleData.data.server.role.permissionDenials).toContain('message.post');
 
     // Clean up - delete the role
     await page.request.post('/api/graphql', {
@@ -807,7 +807,7 @@ test.describe('Instance Role Permission Denials', () => {
     await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
 
     const cell = page.locator(
-      `button[aria-label*="${displayName}"][aria-label*="dm.write"]`
+      `button[aria-label*="${displayName}"][aria-label*="message.post"]`
     );
     await expect(cell).toHaveAttribute('aria-pressed', 'false');
 
@@ -825,7 +825,7 @@ test.describe('Instance Role Permission Denials', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
     const cellAfterReload = page.locator(
-      `button[aria-label*="${displayName}"][aria-label*="dm.write"]`
+      `button[aria-label*="${displayName}"][aria-label*="message.post"]`
     );
     await expect(cellAfterReload).toHaveAttribute('aria-label', /Override deny/);
     await expect(cellAfterReload).toHaveAttribute('aria-pressed', 'true');

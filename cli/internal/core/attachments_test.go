@@ -156,9 +156,9 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
-			ctx,
-			SystemActorID,
-			room.Id,
+		ctx,
+		SystemActorID,
+		room.Id,
 		"test-file.txt",
 		"text/plain",
 		bytes.NewReader(originalData),
@@ -218,9 +218,9 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
-			ctx,
-			SystemActorID,
-			room.Id,
+		ctx,
+		SystemActorID,
+		room.Id,
 		"test-file.txt",
 		"text/plain",
 		bytes.NewReader([]byte("Content to delete")),
@@ -582,9 +582,9 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 
 	// 1. Upload
 	attachment, err := core.UploadAttachment(
-			ctx,
-			SystemActorID,
-			room.Id,
+		ctx,
+		SystemActorID,
+		room.Id,
 		"lifecycle-test.txt",
 		"text/plain",
 		bytes.NewReader(originalContent),
@@ -691,9 +691,9 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 			imageData := createTestPNG(tc.width, tc.height)
 
 			attachment, err := core.UploadAttachment(
-			ctx,
-			SystemActorID,
-			room.Id,
+				ctx,
+				SystemActorID,
+				room.Id,
 				tc.name+".png",
 				"image/png",
 				bytes.NewReader(imageData),
@@ -877,9 +877,9 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 
 	imageData := createTestPNG(100, 100)
 	attachment, err := core.UploadAttachment(
-			ctx,
-			SystemActorID,
-			room.Id,
+		ctx,
+		SystemActorID,
+		room.Id,
 		"test-image.png",
 		"image/png",
 		bytes.NewReader(imageData),

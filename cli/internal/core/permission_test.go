@@ -56,7 +56,7 @@ func TestValidatePermission(t *testing.T) {
 		validPerms := []Permission{
 			PermMessagePost,
 			PermAdminAccess,
-			PermDMWrite,
+			PermUserDeleteSelf,
 		}
 
 		for _, perm := range validPerms {
@@ -84,7 +84,7 @@ func TestValidatePermission(t *testing.T) {
 
 func TestValidatePermissionString(t *testing.T) {
 	t.Run("accepts valid permission string", func(t *testing.T) {
-		if err := ValidatePermissionString("dm.write"); err != nil {
+		if err := ValidatePermissionString("message.post"); err != nil {
 			t.Errorf("ValidatePermissionString returned error: %v", err)
 		}
 	})
@@ -110,8 +110,6 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		// Server-only permissions
 		{"admin.access at server", PermAdminAccess, ScopeServer, true},
 		{"admin.access at room", PermAdminAccess, ScopeRoom, false},
-		{"dm.write at server", PermDMWrite, ScopeServer, true},
-		{"dm.write at room", PermDMWrite, ScopeRoom, false},
 		{"server.manage at server", PermServerManage, ScopeServer, true},
 		{"server.manage at room", PermServerManage, ScopeRoom, false},
 		{"role.manage at server", PermRoleManage, ScopeServer, true},
@@ -256,7 +254,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 
 	mustInclude := []Permission{
 		PermUserDeleteSelf,
-		PermDMWrite,
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,

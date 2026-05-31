@@ -41,18 +41,17 @@ There is no "skip the rules" shortcut. Owners pass permission checks because the
 
 ## Permissions
 
-Permissions are named capabilities like `message.post`, `room.manage`, `admin.view-users`. There are around 30 of them grouped into categories (room, message, member, role, admin, DM, user). Each one is either granted or denied to a role (or a specific user) at server scope, or — for room-relevant permissions — at a specific room.
+Permissions are named capabilities like `message.post`, `room.manage`, `admin.view-users`. They are grouped into categories (room, message, role, admin, user). Each one is either granted or denied to a role (or a specific user) at server scope, or — for room-relevant permissions — at a specific room.
 
 A few worth knowing:
 
 | Permission         | Meaning                                                       |
 | ------------------ | ------------------------------------------------------------- |
-| `message.post`     | Post new messages in a channel                                |
+| `message.post`     | Post root messages and start DMs                              |
 | `room.list`        | See a room in the room list (per-room → hide channels)        |
 | `room.join`        | Join a channel                                                |
 | `room.manage`      | Rename, archive, or delete any room                           |
-| `message.edit-any` / `message.delete-any` | Moderate other users' messages (rank-aware) |
-| `dm.view` / `dm.write` | Access DMs and send direct messages                       |
+| `message.manage`   | Moderate other users' messages (rank-aware)                   |
 | `role.manage`      | Create, edit, or delete roles                                 |
 | `role.assign`      | Assign roles to users (administer them)                       |
 | `user.delete-any`  | Delete any user's account (rank-aware; admin power)           |

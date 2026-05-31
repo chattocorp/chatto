@@ -20,8 +20,8 @@ func (r *mutationResolver) StartDm(ctx context.Context, input model.StartDMInput
 		return nil, err
 	}
 
-	// Authorization: check dm.write permission
-	can, err := r.core.CanDMWrite(ctx, user.Id)
+	// Authorization: DMs piggyback on message.post.
+	can, err := r.core.CanStartDM(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}

@@ -122,7 +122,6 @@ func TestChattoCore_SetSpaceNotificationLevel(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	tests := []struct {
 		name     string
 		level    corev1.NotificationLevel
@@ -195,7 +194,6 @@ func TestChattoCore_GetRoomNotificationLevel_NoPreference(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
 	level, err := core.GetRoomNotificationLevel(ctx, "test-user", "room123")
 	if err != nil {
 		t.Fatalf("GetRoomNotificationLevel failed: %v", err)
@@ -208,7 +206,6 @@ func TestChattoCore_GetRoomNotificationLevel_NoPreference(t *testing.T) {
 func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "")
 	if err != nil {
@@ -250,7 +247,6 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 func TestChattoCore_GetEffectiveNotificationLevel_Inheritance(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "")
 	if err != nil {
@@ -364,7 +360,6 @@ func TestChattoCore_NotificationLevel_UserIsolation(t *testing.T) {
 func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
 
 	room1, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-1", "")
 	if err != nil {

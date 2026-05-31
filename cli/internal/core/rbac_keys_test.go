@@ -286,7 +286,7 @@ func TestParseDenyKey(t *testing.T) {
 func TestSetAllowKey(t *testing.T) {
 	tests := []struct {
 		name       string
-		groupId      string
+		groupId    string
 		subject    string
 		verb       string
 		objectType string

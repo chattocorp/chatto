@@ -14,7 +14,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
 - Maximum 10 participants per DM.
 - A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
-- Operators can prevent a user from starting new DMs or sending messages in existing DMs by revoking `dm.write`.
+- Operators can prevent a user from starting new DMs or sending root messages in existing DMs by revoking `message.post`; thread replies follow `message.post-in-thread`.
 - Inside a DM room, ordinary message-related features apply: posting, replies, threads, reactions, edits, deletes, mentions, attachments.
 - Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
 
@@ -26,11 +26,11 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 **Why:** Room infrastructure already models the hard parts: membership, messages, threads, reactions, attachments, unread state, live delivery, and notification fan-out. Reusing the room aggregate keeps DMs boring and makes the event-sourced room model apply uniformly. See ADR-033, ADR-034, and ADR-037.
 **Tradeoff:** Some room code still has to branch on `kind` for DM-only policy, but those branches should be about behavior (creation, privacy boundary, presentation), not storage or delivery plumbing.
 
-### 2. Reading is membership-based, writing is permission-gated
+### 2. Reading is membership-based, writing uses message permissions
 
-**Decision:** DM read access comes only from room membership. The only DM-specific permission is `dm.write`, which gates starting DMs and sending messages in them.
-**Why:** A user who is a participant in a private conversation should be able to read that conversation. The useful moderation control is preventing an abusive user from initiating or continuing DM conversations, not hiding conversations they already belong to. See ADR-037.
-**Tradeoff:** There is no soft "hide DMs from this user" switch. Operators who need to stop harm revoke `dm.write` or suspend/remove the user at the account level.
+**Decision:** DM read access comes only from room membership. Starting DMs and posting root messages in them use `message.post`; thread replies use `message.post-in-thread`.
+**Why:** A user who is a participant in a private conversation should be able to read that conversation, and sending a DM is still just sending a message. Reusing the message permissions avoids a lonely DM-only permission while preserving the abuse-control lever. See ADR-037.
+**Tradeoff:** There is no soft "hide DMs from this user" switch, and revoking `message.post` blocks channel posting as well as DM starts / root posts. Operators who need a total messaging timeout can use that; finer abuse controls should be modeled separately if needed.
 
 ### 3. Deterministic room IDs
 
@@ -52,9 +52,11 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 
 ## Permissions
 
-- `dm.write` — start DMs and send messages in DM rooms.
+- `message.post` — start DMs and send root messages in DM rooms.
+- `message.post-in-thread` — send thread replies in DM rooms.
+- `message.react` — add and remove reactions in DM rooms.
 
-(All other permissions like `message.post`, `message.react`, etc. apply inside DM rooms just like in channel rooms, subject to the moderation deny-list above.)
+DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM rooms subject to the moderation deny-list above.
 
 ## Related
 

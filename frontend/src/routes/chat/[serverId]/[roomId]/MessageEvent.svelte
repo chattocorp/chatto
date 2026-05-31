@@ -412,7 +412,7 @@
 
   // User profile popover state
   const serverPerms = getServerPermissions();
-  const canWriteDMs = $derived(serverPerms.current.canWriteDMs);
+  const canStartDMs = $derived(serverPerms.current.canStartDMs);
   let popoverUser = $state<RoomMember | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);
 
@@ -733,7 +733,7 @@
     <UserContextMenu
       user={popoverUser}
       anchorRect={popoverAnchorRect}
-      canSendMessage={canWriteDMs}
+      canSendMessage={canStartDMs}
       onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}
       onClose={closePopover}
     />

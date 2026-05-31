@@ -20,17 +20,17 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	// Three subjects with distinct role configurations:
 	//   regular: just everyone
 	//   adminUser: admin role
-	//   denyUser: custom role denying dm.write
+	//   denyUser: custom role denying message.post
 	regular, _ := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
 	adminUser, _ := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateServerRole(ctx, "denytest", "Deny dm.write", "Test deny role"); err != nil {
+	if _, err := core.CreateServerRole(ctx, "denytest", "Deny message.post", "Test deny role"); err != nil {
 		t.Fatalf("create deny role: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, "denytest", PermDMWrite); err != nil {
+	if err := core.DenyServerPermission(ctx, "denytest", PermMessagePost); err != nil {
 		t.Fatalf("deny perm: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {

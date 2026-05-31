@@ -73,7 +73,7 @@ DM rooms use the same hierarchy walker as channels, with one extra rule: a stati
 - **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.edit-any`, `message.delete-any`, `room.manage`, `message.echo`).
 - **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.create` / `member.invite` / `member.remove` don't apply.
 
-Access *to* DM rooms is gated by participation (`requireRoomMember`). There is no DM read permission; `dm.write` gates starting DMs and sending messages in DM rooms. The deny-list only constrains what a participant can do once inside.
+Access *to* DM rooms is gated by participation (`requireRoomMember`). There are no `dm.*` permissions; `message.post` gates starting DMs and root DM messages, while `message.post-in-thread` gates thread replies. The deny-list only constrains what a participant can do once inside.
 
 ### Rank vs Permission: the two-step rule
 
@@ -119,11 +119,8 @@ Permission constants follow the pattern `InstPerm{Category}{Action}` (singular n
 |---------|---------|-------|
 | `InstPerm{Category}{Action}` | `InstPermSpaceCreate` | Singular category |
 | `InstPermAdmin{Area}{Action}` | `InstPermAdminUsersView` | Admin permissions |
-| `InstPermDM{Action}` | `InstPermDMWrite` | DM permissions |
-
 **Common mistakes** (avoid these):
 - `InstPermSpacesCreate` → Use `InstPermSpaceCreate` (singular)
-- `InstPermDMsWrite` → Use `InstPermDMWrite` (no plural 's')
 - `InstPermAdminAccessUsersView` → Use `InstPermAdminUsersView`
 
 The Go constants in `cli/internal/core/permissions.go` are the source of truth. Frontend TypeScript types are generated via `mise codegen-types`.
@@ -151,7 +148,7 @@ at. Examples after the message-perms consolidation:
 
 | Permission | Scopes |
 |------------|--------|
-| `server.manage`, `role.manage`, `role.assign`, `admin.*`, `dm.*`, `user.*` | `server` only |
+| `server.manage`, `role.manage`, `role.assign`, `admin.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
 | `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
 
@@ -175,7 +172,6 @@ the ability to create rooms only in specific groups.
 | `message.react` | Add and remove reactions on messages |
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
-| `dm.write` | Start DMs and send direct messages |
 | `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
 | `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel access tiers |
 

@@ -9,11 +9,11 @@ import (
 
 func TestLiveKitRoomName(t *testing.T) {
 	tests := []struct {
-		name       string
+		name     string
 		serverID string
-		spaceID    string
-		roomID     string
-		want       string
+		spaceID  string
+		roomID   string
+		want     string
 	}{
 		{
 			name:    "no server ID",
@@ -22,11 +22,11 @@ func TestLiveKitRoomName(t *testing.T) {
 			want:    "space123_room456",
 		},
 		{
-			name:       "with server ID",
+			name:     "with server ID",
 			serverID: "my-instance",
-			spaceID:    "space123",
-			roomID:     "room456",
-			want:       "my-instance.space123_room456",
+			spaceID:  "space123",
+			roomID:   "room456",
+			want:     "my-instance.space123_room456",
 		},
 		{
 			name:    "nanoid-style IDs without instance",
@@ -35,18 +35,18 @@ func TestLiveKitRoomName(t *testing.T) {
 			want:    "V1StGXR8_Z5jdHi6B-myT_xYz9Abc_def",
 		},
 		{
-			name:       "nanoid-style IDs with instance",
+			name:     "nanoid-style IDs with instance",
 			serverID: "prod-tenant-1",
-			spaceID:    "V1StGXR8_Z5jdHi6B-myT",
-			roomID:     "xYz9Abc_def",
-			want:       "prod-tenant-1.V1StGXR8_Z5jdHi6B-myT_xYz9Abc_def",
+			spaceID:  "V1StGXR8_Z5jdHi6B-myT",
+			roomID:   "xYz9Abc_def",
+			want:     "prod-tenant-1.V1StGXR8_Z5jdHi6B-myT_xYz9Abc_def",
 		},
 		{
-			name:       "empty server ID treated as no prefix",
+			name:     "empty server ID treated as no prefix",
 			serverID: "",
-			spaceID:    "space123",
-			roomID:     "room456",
-			want:       "space123_room456",
+			spaceID:  "space123",
+			roomID:   "room456",
+			want:     "space123_room456",
 		},
 	}
 
