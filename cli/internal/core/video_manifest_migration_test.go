@@ -129,12 +129,10 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 	t.Helper()
 	ctx := testContext(t)
 
-	if err := core.storage.serverRuntimeKV.Delete(ctx, videoManifestESMigrationKey); err != nil {
-		t.Fatalf("delete migration sentinel: %v", err)
-	}
-	if err := core.storage.serverRuntimeKV.Delete(ctx, assetCreationESMigrationKey); err != nil {
-		t.Fatalf("delete asset creation migration sentinel: %v", err)
-	}
+	_ = core.storage.runtimeStateKV.Delete(ctx, videoManifestESMigrationKey)
+	_ = core.storage.runtimeStateKV.Delete(ctx, assetCreationESMigrationKey)
+	_ = core.storage.serverRuntimeKV.Delete(ctx, videoManifestESMigrationKey)
+	_ = core.storage.serverRuntimeKV.Delete(ctx, assetCreationESMigrationKey)
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Video", "Video room")
 	if err != nil {
 		t.Fatalf("create room: %v", err)

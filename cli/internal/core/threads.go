@@ -530,10 +530,10 @@ func threadFollowKey(userID, roomID, threadRootEventID string) string {
 }
 
 // FollowThread marks a user as following a thread so they receive reply notifications.
-// Stores a single byte in the RUNTIME KV bucket. Idempotent.
+// Stores a single byte in RUNTIME_STATE. Idempotent.
 // Publishes a ThreadFollowChangedEvent for multi-tab sync.
 func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 
 	if _, err := bucket.Put(ctx, threadFollowKey(userID, roomID, threadRootEventID), []byte{0x01}); err != nil {
 		return fmt.Errorf("failed to follow thread: %w", err)
@@ -547,7 +547,7 @@ func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, ro
 // Idempotent - calling when not following is a no-op.
 // Publishes a ThreadFollowChangedEvent for multi-tab sync.
 func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 
 	if err := bucket.Delete(ctx, threadFollowKey(userID, roomID, threadRootEventID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to unfollow thread: %w", err)
@@ -578,7 +578,7 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 
 // IsFollowingThread checks if a user is following a thread.
 func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (bool, error) {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 
 	if _, err := bucket.Get(ctx, threadFollowKey(userID, roomID, threadRootEventID)); err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -592,7 +592,7 @@ func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind RoomKind, userI
 // GetThreadFollowers returns all user IDs following a specific thread.
 // Uses ListKeysFiltered to scan for thread_follow.*.{roomID}.{threadRootEventID} keys.
 func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) ([]string, error) {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 
 	pattern := fmt.Sprintf("thread_follow.*.%s.%s", roomID, threadRootEventID)
 	lister, err := bucket.ListKeysFiltered(ctx, pattern)
@@ -645,7 +645,7 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 
 // listFollowedThreadsInSpace returns all threads followed by the user in a single space.
 func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID string, kind RoomKind) ([]*FollowedThread, error) {
-	bucket := c.storage.serverRuntimeKV
+	bucket := c.storage.runtimeStateKV
 
 	// List all thread_follow keys for this user across all rooms
 	// Use ">" to match remaining parts: thread_follow.{userId}.{roomId}.{threadRootEventId}

@@ -64,6 +64,53 @@ func TestMigrateReadMarkersToRuntimeState_DoesNotOverwriteRuntimeState(t *testin
 	}
 }
 
+func TestMigrateThreadFollowsToRuntimeState(t *testing.T) {
+	ctx, legacy, runtimeState := setupReadMarkerMigrationKV(t)
+
+	if _, err := legacy.Put(ctx, "thread_follow.U1.R1.Ethread1", []byte{0x01}); err != nil {
+		t.Fatalf("put legacy follow: %v", err)
+	}
+
+	if err := MigrateThreadFollowsToRuntimeState(ctx, legacy, runtimeState, testLogger()); err != nil {
+		t.Fatalf("migrate thread follows: %v", err)
+	}
+
+	entry, err := runtimeState.Get(ctx, "thread_follow.U1.R1.Ethread1")
+	if err != nil {
+		t.Fatalf("get migrated follow: %v", err)
+	}
+	if got := entry.Value(); string(got) != string([]byte{0x01}) {
+		t.Fatalf("thread follow bytes = %v, want [1]", got)
+	}
+
+	if _, err := legacy.Get(ctx, "thread_follow.U1.R1.Ethread1"); err != nil {
+		t.Fatalf("legacy follow should be retained for rollback: %v", err)
+	}
+}
+
+func TestMigrateThreadFollowsToRuntimeState_DoesNotOverwriteRuntimeState(t *testing.T) {
+	ctx, legacy, runtimeState := setupReadMarkerMigrationKV(t)
+
+	if _, err := legacy.Put(ctx, "thread_follow.U1.R1.Ethread1", []byte{0x01}); err != nil {
+		t.Fatalf("put legacy follow: %v", err)
+	}
+	if _, err := runtimeState.Put(ctx, "thread_follow.U1.R1.Ethread1", []byte{0x02}); err != nil {
+		t.Fatalf("put runtime follow: %v", err)
+	}
+
+	if err := MigrateThreadFollowsToRuntimeState(ctx, legacy, runtimeState, testLogger()); err != nil {
+		t.Fatalf("migrate thread follows: %v", err)
+	}
+
+	entry, err := runtimeState.Get(ctx, "thread_follow.U1.R1.Ethread1")
+	if err != nil {
+		t.Fatalf("get runtime follow: %v", err)
+	}
+	if got := entry.Value(); string(got) != string([]byte{0x02}) {
+		t.Fatalf("runtime follow bytes = %v, want [2]", got)
+	}
+}
+
 func setupReadMarkerMigrationKV(t *testing.T) (context.Context, jetstream.KeyValue, jetstream.KeyValue) {
 	t.Helper()
 

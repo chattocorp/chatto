@@ -13,6 +13,7 @@ import (
 const (
 	legacyRoomReadPrefix     = "room_read_event."
 	legacyThreadOpenedPrefix = "thread_last_opened."
+	legacyThreadFollowPrefix = "thread_follow."
 )
 
 // MigrateReadMarkersToRuntimeState copies legacy read cursors from
@@ -27,11 +28,11 @@ const (
 // Destination writes use Create so this migration never overwrites newer
 // RUNTIME_STATE markers written by a previous boot or a live process.
 func MigrateReadMarkersToRuntimeState(ctx context.Context, legacyRuntime, runtimeState jetstream.KeyValue, logger *log.Logger) error {
-	roomCopied, roomSkipped, err := copyReadMarkerPrefix(ctx, legacyRuntime, runtimeState, legacyRoomReadPrefix, "read.room.")
+	roomCopied, roomSkipped, err := copyRuntimeStatePrefix(ctx, legacyRuntime, runtimeState, legacyRoomReadPrefix, "read.room.")
 	if err != nil {
 		return fmt.Errorf("room read markers: %w", err)
 	}
-	threadCopied, threadSkipped, err := copyReadMarkerPrefix(ctx, legacyRuntime, runtimeState, legacyThreadOpenedPrefix, "read.thread.")
+	threadCopied, threadSkipped, err := copyRuntimeStatePrefix(ctx, legacyRuntime, runtimeState, legacyThreadOpenedPrefix, "read.thread.")
 	if err != nil {
 		return fmt.Errorf("thread read markers: %w", err)
 	}
@@ -46,7 +47,30 @@ func MigrateReadMarkersToRuntimeState(ctx context.Context, legacyRuntime, runtim
 	return nil
 }
 
-func copyReadMarkerPrefix(ctx context.Context, src, dst jetstream.KeyValue, oldPrefix, newPrefix string) (copied, skipped int, err error) {
+// MigrateThreadFollowsToRuntimeState copies legacy thread follow state from
+// SERVER_RUNTIME into RUNTIME_STATE.
+//
+// Legacy and new keys use the same shape:
+//
+//	thread_follow.{userId}.{roomId}.{threadRootEventId}
+//
+// The old keys are intentionally retained for rollback and phase-7 cleanup.
+// Destination writes use Create so this migration never overwrites newer
+// RUNTIME_STATE follows written by a previous boot or a live process.
+func MigrateThreadFollowsToRuntimeState(ctx context.Context, legacyRuntime, runtimeState jetstream.KeyValue, logger *log.Logger) error {
+	copied, skipped, err := copyRuntimeStatePrefix(ctx, legacyRuntime, runtimeState, legacyThreadFollowPrefix, legacyThreadFollowPrefix)
+	if err != nil {
+		return fmt.Errorf("thread follows: %w", err)
+	}
+	if copied+skipped > 0 {
+		logger.Info("thread follow migration: copied legacy follows into RUNTIME_STATE",
+			"copied", copied,
+			"skipped", skipped)
+	}
+	return nil
+}
+
+func copyRuntimeStatePrefix(ctx context.Context, src, dst jetstream.KeyValue, oldPrefix, newPrefix string) (copied, skipped int, err error) {
 	lister, err := src.ListKeysFiltered(ctx, oldPrefix+">")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {

@@ -127,7 +127,11 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr erro
 }
 
 func (c *ChattoCore) claimRuntimeMigration(ctx context.Context, key string) (uint64, bool, error) {
-	revision, err := c.storage.serverRuntimeKV.Create(ctx, key, []byte(runtimeMigrationRunning))
+	if err := c.adoptLegacyRuntimeMigrationSentinel(ctx, key); err != nil {
+		return 0, false, err
+	}
+
+	revision, err := c.storage.runtimeStateKV.Create(ctx, key, []byte(runtimeMigrationRunning))
 	if err == nil {
 		return revision, true, nil
 	}
@@ -141,7 +145,7 @@ func (c *ChattoCore) claimRuntimeMigration(ctx context.Context, key string) (uin
 }
 
 func (c *ChattoCore) completeRuntimeMigration(ctx context.Context, key string, revision uint64) error {
-	if _, err := c.storage.serverRuntimeKV.Update(ctx, key, []byte(runtimeMigrationDone), revision); err != nil {
+	if _, err := c.storage.runtimeStateKV.Update(ctx, key, []byte(runtimeMigrationDone), revision); err != nil {
 		return fmt.Errorf("complete migration sentinel %s: %w", key, err)
 	}
 	return nil
@@ -154,7 +158,7 @@ func (c *ChattoCore) completeRuntimeMigration(ctx context.Context, key string, r
 func (c *ChattoCore) releaseRuntimeMigrationOnFailure(key string, revision uint64, cause error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := c.storage.serverRuntimeKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
+	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
 		c.logger.Warn("Failed to release migration sentinel after failure",
 			"key", key,
 			"original_error", cause,
@@ -163,12 +167,41 @@ func (c *ChattoCore) releaseRuntimeMigrationOnFailure(key string, revision uint6
 }
 
 func (c *ChattoCore) waitRuntimeMigrationDone(ctx context.Context, key string) error {
+	return c.waitRuntimeMigrationDoneIn(ctx, c.storage.runtimeStateKV, key)
+}
+
+func (c *ChattoCore) adoptLegacyRuntimeMigrationSentinel(ctx context.Context, key string) error {
+	if _, err := c.storage.runtimeStateKV.Get(ctx, key); err == nil {
+		return nil
+	} else if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("get migration sentinel %s: %w", key, err)
+	}
+
+	entry, err := c.storage.serverRuntimeKV.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		return fmt.Errorf("get legacy migration sentinel %s: %w", key, err)
+	}
+	if string(entry.Value()) == runtimeMigrationRunning {
+		if err := c.waitRuntimeMigrationDoneIn(ctx, c.storage.serverRuntimeKV, key); err != nil {
+			return err
+		}
+	}
+	if _, err := c.storage.runtimeStateKV.Create(ctx, key, []byte(runtimeMigrationDone)); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
+		return fmt.Errorf("adopt legacy migration sentinel %s: %w", key, err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) waitRuntimeMigrationDoneIn(ctx context.Context, bucket jetstream.KeyValue, key string) error {
 	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		entry, err := c.storage.serverRuntimeKV.Get(waitCtx, key)
+		entry, err := bucket.Get(waitCtx, key)
 		if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 			return fmt.Errorf("wait for migration sentinel %s: %w", key, err)
 		}
