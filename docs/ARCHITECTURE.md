@@ -367,22 +367,23 @@ The distinction between stored and live-only events is based on how they're publ
 
 **Event Publishing Strategy:**
 
-Every event eventually lands on `live.server.>` so a subscriber needs only one NATS Core subscription to see all of them:
+User-facing live delivery is built from two internal NATS Core subject roots:
 
 1. **Primary Stream** (persistent):
-   - `SERVER_EVENTS` (subjects `server.>`) holds room messages, thread replies, room meta lifecycle, and server-level member events. A stream-level `RePublish` config forwards every accepted message onto `live.server.>` (same suffix, new prefix). The republish fires after persistence, so a subscriber cannot observe an event that didn't durably store.
-2. **Direct Live Publish** (transient/mirror):
-   - Typing, legacy message edits/deletes, user/space/config notifications publish directly via NATS Core to `live.server.>` — no stream storage. EVT-backed messages and reactions also publish non-durable mirrors on `live.server.>` so the existing `myEvents` subscription path keeps one subject root while the durable source lives in EVT.
+   - `SERVER_EVENTS` (subjects `server.>`) holds legacy room messages, thread replies, room meta lifecycle, and server-level member events for migration/import tooling. It no longer participates in live delivery.
+   - `EVT` (subjects `evt.>`) holds event-sourced domain state. Its stream-level `RePublish` config forwards every committed event once onto `live.evt.>`. This is a raw committed-event feed, not a client contract.
+2. **Direct Live Publish** (transient):
+   - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
-The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`, `.meta`, `.{verb}` for republished stream events; `.reaction_added`, `.user_typing`, `.profile_updated`, etc. for direct publishes). The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that wraps a single `ChanSubscribe("live.server.>")` plus per-event authorization. There is no per-connection JetStream consumer.
+The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that subscribes to `live.sync.>` and `live.evt.>`. For deliverable raw EVT room messages, it reads the republished `Nats-Sequence` header, waits for the local projections needed by authorization and follow-up resolvers, filters by the subscribing user, and then emits the GraphQL event. Transient `LiveEvent` messages are adapted at this API boundary into the public GraphQL event shape. There is no per-connection JetStream consumer.
 
 ### Event Streams
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events for the legacy CRUD+log pattern; republishes onto `live.server.>` |
-| `EVT`                 | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` for future/direct consumers. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, reactions, and RBAC. |
-| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` is the active GraphQL subscription root. `SERVER_EVENTS` republishes into it, and migrated `EVT` aggregates publish non-durable compatibility mirrors into it. `live.evt.>` is fed by `EVT` republish but is not the active `myEvents` path during the migration window. |
+| `SERVER_EVENTS`              | `corev1.Event`   | Server     | JetStream-stored events for the legacy CRUD+log pattern; retained for migration/import tooling and no longer part of live delivery. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, messages/threads, reactions, and RBAC. |
+| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `myEvents` authorizes and adapts these messages into GraphQL events; they are never projection input. |
 
 **SERVER\_EVENTS subjects:**
 
@@ -422,58 +423,41 @@ Note: Event type (created, joined, etc.) is determined by the event payload, not
 
 **Live Subject Space**:
 
-Pattern: `live.server.{scope}.{subject}` — the single subscription root for real-time delivery. Two publishers feed it:
+Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
-- `SERVER_EVENTS` RePublish (`server.>` → `live.server.>`): every accepted stream message is re-emitted onto a NATS Core subject after persistence. Subscribers don't need a JetStream consumer to receive room messages, thread replies, room meta, or server-level member events.
-- Direct NATS Core publishes (`publishLiveUserEvent()`, `publishLiveDeploymentEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, `publishLiveMemberEvent()`): transient events with no stream storage.
+- Direct NATS Core publishes (`publishLiveEvent()`): transient `corev1.LiveEvent` messages on `live.sync.>` with no stream storage.
+- `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room events to clients.
 
-Subject leaf tokens never collide between the two paths — republished legacy events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.). For EVT-backed messages and reactions, live message edit/delete and reaction add/remove events are mirrors of durable `evt.room.{roomId}.message_*` / `reaction_*` events.
+`SERVER_EVENTS` no longer has a `RePublish` live path. Remaining legacy `server.>` writes are for storage/import compatibility while aggregates finish migrating to EVT.
 
-**Deployment-wide live events** (`live.server.{user,config}.>`):
-
-| Subject                                                  | Description                  |
-| -------------------------------------------------------- | ---------------------------- |
-| `live.server.user.{userId}.created`                      | User registration completed  |
-| `live.server.user.{userId}.profile_updated`              | User profile changed (broadcast) |
-| `live.server.user.{userId}.user_deleted`                 | User account deleted         |
-| `live.server.config.updated`                             | Server config (name/MOTD/welcome) changed |
-| `live.server.config.server_updated`                      | Server branding (name/logo/banner/description) changed |
-| `live.server.config.room_groups_updated`                 | Admin reordered the room sidebar / room-group layout |
-| `live.server.user.{userId}.mentioned`                    | User was @mentioned          |
-| `live.server.user.{userId}.dm_message`                   | New DM message received      |
-| `live.server.user.{userId}.notification_created`         | New notification created     |
-| `live.server.user.{userId}.notification_dismissed`       | Notification dismissed       |
-| `live.server.user.{userId}.notification_level_changed`   | Viewer's server/room notification level changed |
-| `live.server.user.{userId}.thread_follow_changed`        | Viewer's thread follow/unfollow toggled |
-| `live.server.user.{userId}.settings_updated`             | User preferences changed     |
-| `live.server.user.{userId}.room_read`                    | Room marked as read          |
-| `live.server.user.{userId}.session_terminated`           | Active session revoked (logout-other-devices, account deletion) |
-
-**Republished from `SERVER_EVENTS`** (durable, available via `live.server.>` after stream write):
-
-| Subject                                                                       | Description                  |
-| ----------------------------------------------------------------------------- | ---------------------------- |
-| `live.server.room.{kind}.{roomId}.msg.{eventId}`                              | Root message posted          |
-| `live.server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`        | Thread reply posted          |
-| `live.server.room.{kind}.{roomId}.meta`                                       | Room lifecycle + membership  |
-| `live.server.member.joined` / `.left` / `.deleted`                            | Server-level membership      |
-
-**Direct live publishes** (transient, never stored):
+**Transient live sync events** (`live.sync.{user,config,room}.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.server.room.{kind}.{roomId}.reaction_added`        | Reaction added to message    |
-| `live.server.room.{kind}.{roomId}.reaction_removed`      | Reaction removed from message|
-| `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
-| `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
-| `live.server.room.{kind}.{roomId}.user_typing`           | User typing in a room        |
-| `live.server.room.{kind}.{roomId}.call_joined`           | Participant joined the LiveKit voice call |
-| `live.server.room.{kind}.{roomId}.call_left`             | Participant left the LiveKit voice call |
-| `live.server.room.{kind}.{roomId}.video_processed`       | Video attachment finished transcoding |
+| `live.sync.user.{userId}.created`                        | User registration completed  |
+| `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast) |
+| `live.sync.user.{userId}.user_deleted`                   | User account deleted         |
+| `live.sync.config.updated`                               | Server config (name/MOTD/welcome) changed |
+| `live.sync.config.server_updated`                        | Server branding (name/logo/banner/description) changed |
+| `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
+| `live.sync.user.{userId}.mentioned`                      | User was @mentioned          |
+| `live.sync.user.{userId}.dm_message`                     | New DM message received      |
+| `live.sync.user.{userId}.notification_created`           | New notification created     |
+| `live.sync.user.{userId}.notification_dismissed`         | Notification dismissed       |
+| `live.sync.user.{userId}.notification_level_changed`     | Viewer's server/room notification level changed |
+| `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
+| `live.sync.user.{userId}.settings_updated`               | User preferences changed     |
+| `live.sync.user.{userId}.room_read`                      | Room marked as read          |
+| `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
+| `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
+| `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
+| `live.sync.room.{kind}.{roomId}.call_joined`             | Participant joined the LiveKit voice call |
+| `live.sync.room.{kind}.{roomId}.call_left`               | Participant left the LiveKit voice call |
+| `live.sync.room.{kind}.{roomId}.video_processed`         | Video attachment finished transcoding |
 
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
-- One `ChanSubscribe("live.server.>")` (covers republished stream events and direct live publishes alike) with authorization applied per event: room membership for `live.server.room.>`, `isAuthorizedForLiveEvent` for everything else.
+- One `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages, and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Authorization is applied per event: room membership for room subjects, `isAuthorizedForLiveEvent` for user/config/member subjects, and projection readiness before deliverable `live.evt.>` events.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
 
@@ -595,7 +579,7 @@ survives restart but is not content/domain history. See
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Legacy `SERVER_RUNTIME` `room_read_event.*` keys are copied here at boot; older `room_read_status.*` sequence keys are orphaned and ignored. |
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
-| `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.server.user.{userId}.*`. |
+| `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
 
 **SERVER\_RUNTIME keys:**
 
@@ -792,7 +776,7 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 - Usernames are resolved to user IDs; only space members are included (non-members silently ignored)
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
 - Pending mention state is a notification record in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`); sidebar orange dots derive from pending notifications, not a separate mention flag.
-- Live notification published to `live.server.user.{userId}.mentioned` for toast display
+- Live notification published to `live.sync.user.{userId}.mentioned` for toast display
 - Mention notifications are dismissed when the user views the relevant room or thread, or explicitly dismisses them from the notification center.
 - Self-mentions are filtered out (no notification to message author)
 

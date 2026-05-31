@@ -292,11 +292,9 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 		inReplyToID = n.Reply.InReplyToId
 	}
 
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   notif.ActorId,
+	event := newLiveEvent(notif.ActorId, &corev1.LiveEvent{
 		CreatedAt: notif.CreatedAt,
-		Event: &corev1.Event_NotificationCreated{
+		Event: &corev1.LiveEvent_NotificationCreated{
 			NotificationCreated: &corev1.NotificationCreatedEvent{
 				NotificationId: notif.Id,
 				RoomId:         roomID,
@@ -304,9 +302,9 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 				InReplyToId:    inReplyToID,
 			},
 		},
-	}
+	})
 
-	subject := subjects.LiveUserEvent(notif.RecipientId, "notification_created")
+	subject := subjects.LiveSyncUserEvent(notif.RecipientId, "notification_created")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification created event",
 			"notification_id", notif.Id,
@@ -316,18 +314,15 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 
 // publishNotificationDismissedEvent publishes a live event for cross-device sync.
 func (c *ChattoCore) publishNotificationDismissedEvent(ctx context.Context, userID, notificationID string) {
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   userID,
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_NotificationDismissed{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_NotificationDismissed{
 			NotificationDismissed: &corev1.NotificationDismissedEvent{
 				NotificationId: notificationID,
 			},
 		},
-	}
+	})
 
-	subject := subjects.LiveUserEvent(userID, "notification_dismissed")
+	subject := subjects.LiveSyncUserEvent(userID, "notification_dismissed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification dismissed event",
 			"notification_id", notificationID,

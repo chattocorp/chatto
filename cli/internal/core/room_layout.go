@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -21,14 +19,12 @@ const roomLayoutKey = "room_layout"
 // Authorization: published to the deployment-scoped config subject, delivered
 // to all authenticated users via the existing live-event authorization filter.
 func (c *ChattoCore) PublishRoomGroupsUpdated(ctx context.Context, actorID string, kind RoomKind) error {
-	event := &corev1.Event{
-		CreatedAt: timestamppb.Now(),
-		ActorId:   actorID,
-		Event: &corev1.Event_RoomGroupsUpdated{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_RoomGroupsUpdated{
 			RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{},
 		},
-	}
+	})
 
-	subject := subjects.LiveConfigEvent("room_groups_updated")
+	subject := subjects.LiveSyncConfigEvent("room_groups_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }

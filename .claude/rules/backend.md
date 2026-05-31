@@ -51,37 +51,44 @@ NATS JetStream KV buckets and event streams hold the source-of-truth state for C
 
 ## Event Patterns
 
-All event subscriptions are unified onto `live.server.>`. The `SERVER_EVENTS` stream's `RePublish` config forwards every accepted message from `server.>` to `live.server.>` after persistence, so `StreamMyEvents` in `core.go` only needs one `nc.ChanSubscribe("live.server.>")` to receive both durable (stream-stored) and transient (NATS Core) events. There is no per-connection JetStream consumer.
+Event subscriptions are unified in `StreamMyEvents`, which consumes NATS Core subjects rather than holding per-connection JetStream consumers. There are two internal roots:
 
-- **Durable events**: For data needing audit trail, ordering, or replay (messages, thread replies, room meta, server-level member events). Publish to `server.>` via `publishServerEvent()` / `publishServerEventWithAck()` / `publishServerEventWithOCC()`. JetStream republish automatically wires them into `live.server.>` for live delivery.
-- **Transient events**: For real-time UI updates where KV/runtime state is source of truth (typing, notification sync, preference sync, user/config notifications). Publish directly via NATS Core through `publishLiveServerEvent()` or `publishLiveEvent()`. No stream storage.
-- **Event-sourced room edits/retracts**: Message edits and retractions use the canonical durable `MessageEditedEvent` / `MessageRetractedEvent` shapes. During the migration window they are mirrored to `live.server.room.{kind}.{room}.message_{edited,retracted}` for `myEvents`; do not synthesize legacy `MessageUpdatedEvent` / `MessageDeletedEvent` for new delivery.
-- **Do not double-publish.** Publishing the same conceptual event via BOTH `publishServerEvent` and `publishLiveServerEvent` will deliver it twice to every subscriber, because the stream-republish already covers the live path.
+- `live.sync.>` — transient `corev1.LiveEvent` pubsub signals with no stream storage.
+- `live.evt.>` — raw singleton republish of committed EVT facts.
+
+`live.evt.>` is not UI-safe by itself. `StreamMyEvents` reads the republished JetStream sequence, waits for the relevant local projections, applies per-user authorization, and only then emits the GraphQL event.
+
+- **Durable legacy events**: For aggregates that have not moved to EVT yet, publish to `server.>` via `publishServerEvent()` / `publishServerEventWithAck()` / `publishServerEventWithOCC()`. `SERVER_EVENTS` is legacy storage/import infrastructure only and does not participate in live delivery.
+- **Durable EVT events**: For event-sourced aggregates, publish to `evt.>` via `EventPublisher`. JetStream republish automatically wires them into `live.evt.>`; `StreamMyEvents` is responsible for projection catch-up and authorization before GraphQL delivery.
+- **Transient events**: For real-time UI updates where KV/runtime state is source of truth (typing, notification sync, preference sync, user/config notifications). Publish a `corev1.LiveEvent` directly via NATS Core through `publishLiveEvent()` on `live.sync.>`. No stream storage.
+- **Event-sourced room edits/retracts**: Message edits and retractions use the canonical durable `MessageEditedEvent` / `MessageRetractedEvent` shapes. `myEvents` receives them from `live.evt.>` after projection catch-up; do not synthesize legacy `MessageUpdatedEvent` / `MessageDeletedEvent` for new delivery.
+- **Do not publish from projectors**: Projectors run locally in every Chatto replica. Publishing live events from `Projection.Apply` would multiply one committed EVT event by the number of replicas. Use stream `RePublish` for the raw EVT feed and let `StreamMyEvents` handle readiness/auth.
+- **Do not double-publish.** Publishing the same conceptual event via BOTH `EventPublisher` and `publishLiveEvent` will deliver it twice to subscribers if the event is deliverable from `live.evt.>`. Durable facts belong in EVT; transient sync signals belong in LiveEvent.
 - **Adding new event types** requires:
-  1. Core: choose durable vs transient and publish to the appropriate subject family. No `StreamMyEvents` change needed — the unified `live.server.>` subscription delivers it automatically.
-  2. Authorization: room events are gated by membership in `filterLiveEvent`; user/config/member events go through `isAuthorizedForLiveEvent`. If your new event type fits neither, extend the appropriate switch.
+  1. Core: choose durable legacy, durable EVT, or transient and publish to the appropriate subject family.
+  2. Authorization: room events are gated by membership in `filterLiveEvent`; user/config/member events go through `isAuthorizedForLiveEvent`. New EVT room event variants must be added to the live-EVT deliverability/readiness switch if they should reach `myEvents`.
   3. GraphQL: add a case to `unwrapEvent` in `event_helpers.go` so the typed variant flows through `myEvents`. Missing this case causes the event to silently fail at the GraphQL layer.
-- **Avoid fan-out on publish**: When broadcasting to many users, do NOT iterate and publish per-recipient. Publish once to a scoped subject (e.g., `live.server.config.server_updated`) and let `isAuthorizedForLiveEvent` filter on the subscriber side.
+- **Avoid fan-out on publish**: When broadcasting to many users, do NOT iterate and publish per-recipient. Publish once to a scoped subject (e.g., `live.sync.config.server_updated`) and let `isAuthorizedForLiveEvent` filter on the subscriber side.
 
 ## Live Event Authorization
 
-Non-room live events use subject pattern `live.server.{scope}.…` and are filtered by `isAuthorizedForLiveEvent` in `core.go`:
+Non-room live events use subject pattern `live.sync.{scope}.…` and are filtered by `isAuthorizedForLiveEvent` in `core.go`:
 
-| Scope    | Subject Pattern                  | Delivered To                                                       |
-| -------- | -------------------------------- | ------------------------------------------------------------------ |
-| `user`   | `live.server.user.{userId}.*`    | Only that user (private events; `profile_updated` is broadcast)    |
-| `config` | `live.server.config.*`           | All authenticated users (server config, branding, room layout — public to every member) |
-| `member` | `live.server.member.{verb}`      | All authenticated users (server-level membership lifecycle)        |
+| Scope    | Subject Pattern                         | Delivered To                                                       |
+| -------- | --------------------------------------- | ------------------------------------------------------------------ |
+| `user`   | `live.sync.user.{userId}.*`             | Only that user (private events; `profile_updated` is broadcast)    |
+| `config` | `live.sync.config.*`                    | All authenticated users (server config, branding, room layout — public to every member) |
+| `member` | `live.sync.member.{verb}`               | All authenticated users (server-level membership lifecycle)        |
 
-Room events (`live.server.room.{kind}.{roomId}.…`) are filtered separately in `filterLiveEvent` using the per-subscription `memberRooms` cache — they never reach `isAuthorizedForLiveEvent`.
+Room events (`live.sync.room.{kind}.{roomId}.…` plus deliverable EVT room facts from `live.evt.>`) are filtered separately in `filterLiveEvent` using the per-subscription `memberRooms` cache — they never reach `isAuthorizedForLiveEvent`.
 
 **Adding a new event type:**
 
-1. Add protobuf message to the appropriate `*.proto` file and a oneof case to `event.proto` (`corev1.Event`)
+1. Add protobuf message to the appropriate `*.proto` file and a oneof case to `event.proto` (`corev1.Event`) for durable facts, or to `live_events.proto` (`corev1.LiveEvent`) for transient pubsub signals
 2. Add to GraphQL schema in `events.graphqls` (type + `ServerEventType` union)
 3. Add `IsServerEventType()` method in `pb/chatto/core/v1/graphql.go`
 4. Add case in `unwrapEvent()` in `event_helpers.go`
-5. Publish via one of `publishServerEvent` (durable) or `publishLiveEvent` / `publishLiveServerEvent` (transient) — choose ONE
+5. Publish via `EventPublisher` for durable EVT facts, `publishServerEvent` only for remaining legacy storage/import paths, or `publishLiveEvent` for transient LiveEvent signals — choose ONE conceptual delivery path
 6. Subscribe in frontend via `eventBus.svelte.ts` (or a handler registered through `useEvent`)
 
 **When to create a live event:** Any time a user action changes state that other tabs/devices or other UI components need to reflect in real-time. Common triggers:

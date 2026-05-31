@@ -138,8 +138,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	// Create and publish audit event (best-effort)
 	// UserCreated goes to INSTANCE stream
 	// The actor is the newly created user (not the caller/system)
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_UserCreated{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_UserCreated{
 			UserCreated: &corev1.UserCreatedEvent{
 				UserId:      userID,
 				Login:       login,
@@ -147,7 +147,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 			},
 		},
 	})
-	subject := subjects.LiveUserEvent(userID, "created")
+	subject := subjects.LiveSyncUserEvent(userID, "created")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
@@ -482,8 +482,8 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		avatarURL = ""
 	}
 
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_UserProfileUpdated{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_UserProfileUpdated{
 			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
@@ -493,9 +493,9 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		},
 	})
 
-	// Publish to live.server.user.{userId}.profile_updated for real-time delivery
+	// Publish to live.sync.user.{userId}.profile_updated for real-time delivery.
 	// Profile updates are transient (no need for JetStream storage/replay)
-	subject := subjects.LiveUserEvent(userID, "profile_updated")
+	subject := subjects.LiveSyncUserEvent(userID, "profile_updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
 	}
@@ -895,14 +895,14 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Publish server-level UserDeletedEvent for audit logging and admin UI updates
-	serverEvent := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_UserDeleted{
+	serverEvent := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_UserDeleted{
 			UserDeleted: &corev1.UserDeletedEvent{
 				UserId: userID,
 			},
 		},
 	})
-	serverSubject := subjects.LiveUserEvent(userID, "user_deleted")
+	serverSubject := subjects.LiveSyncUserEvent(userID, "user_deleted")
 	if err := c.publishLiveEvent(ctx, serverSubject, serverEvent); err != nil {
 		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
 	}

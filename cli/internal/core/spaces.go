@@ -65,7 +65,7 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 // ============================================================================
 
 // CleanupUserState removes a user's per-kind artifacts: room memberships,
-// notification levels, and (during account deletion) emits a
+// notification levels, and (during account deletion) emits a live
 // SpaceMemberDeletedEvent so clients can re-render messages as "Deleted User".
 // Idempotent; safe to call for kinds the user never interacted with.
 //
@@ -81,18 +81,15 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	}
 
 	if isAccountDeletion {
-		memberDeletedEvent := newEvent(userID, &corev1.Event{
-			Event: &corev1.Event_SpaceMemberDeleted{
+		memberDeletedEvent := newLiveEvent(userID, &corev1.LiveEvent{
+			Event: &corev1.LiveEvent_SpaceMemberDeleted{
 				SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{
 					UserId: userID,
 				},
 			},
 		})
-		// SERVER_EVENTS' RePublish forwards the persisted event onto
-		// live.server.member.deleted automatically — no manual live
-		// publish needed.
-		subject := subjects.Member("member_deleted")
-		if err := c.publishServerEvent(ctx, subject, memberDeletedEvent); err != nil {
+		subject := subjects.LiveSyncMember("member_deleted")
+		if err := c.publishLiveEvent(ctx, subject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", userID, "kind", kind, "error", err)
 		}
 	}

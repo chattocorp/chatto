@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance → Server rename) and ADR-030 (Space tier retired), the equivalents are `server.>` / `live.server.>` and `StreamMyEvents`, and the `SERVER_EVENTS` stream's `RePublish` config now forwards every accepted message onto `live.server.>` so a subscriber needs only one NATS Core sub to receive both durable and transient events. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
+**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance → Server rename), ADR-030 (Space tier retired), and ADR-034 (EVT), the live equivalents are `live.evt.>` for republished durable EVT facts, `live.sync.>` for transient `LiveEvent` signals, and `StreamMyEvents` for the GraphQL fan-in. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
 
 ## Context
 

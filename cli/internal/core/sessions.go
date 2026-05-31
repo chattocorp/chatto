@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/core/subjects"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PublishSessionTerminated publishes a SessionTerminatedEvent for the given user.
@@ -14,13 +14,13 @@ import (
 //
 // Reasons: "logout", "admin_boot", "account_deleted"
 func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reason string) error {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_SessionTerminated{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_SessionTerminated{
 			SessionTerminated: &corev1.SessionTerminatedEvent{
 				Reason: reason,
 			},
 		},
 	})
-	subject := subjects.LiveUserEvent(userID, "session_terminated")
+	subject := subjects.LiveSyncUserEvent(userID, "session_terminated")
 	return c.publishLiveEvent(ctx, subject, event)
 }

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -32,19 +31,16 @@ import (
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   userID,
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_RoomMarkedAsRead{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_RoomMarkedAsRead{
 			RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{
 				RoomId: roomID,
 			},
 		},
-	}
+	})
 
 	// Publish to user's server event stream (only they need to know)
-	subject := subjects.LiveUserEvent(userID, "room_read")
+	subject := subjects.LiveSyncUserEvent(userID, "room_read")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,

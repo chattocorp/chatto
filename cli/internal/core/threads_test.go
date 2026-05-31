@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -1084,7 +1085,7 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
 		// Subscribe to live mention events for the target user
 		mentionCount := 0
-		sub, err := nc.Subscribe("live.server.user."+target.Id+".mentioned", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(target.Id, "mentioned"), func(msg *nats.Msg) {
 			mentionCount++
 		})
 		if err != nil {

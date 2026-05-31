@@ -4,7 +4,6 @@ import (
 	"context"
 	"regexp"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -86,18 +85,15 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 
 		// Publish live mention event for room-level indicator real-time update
 		// (Space/room/user names are resolved by GraphQL resolvers)
-		mentionEvent := &corev1.Event{
-			Id:        NewEventID(),
-			ActorId:   authorID,
-			CreatedAt: timestamppb.Now(),
-			Event: &corev1.Event_MentionNotification{
+		mentionEvent := newLiveEvent(authorID, &corev1.LiveEvent{
+			Event: &corev1.LiveEvent_MentionNotification{
 				MentionNotification: &corev1.MentionNotificationEvent{
 					RoomId:            roomID,
 					MentionedByUserId: authorID,
 				},
 			},
-		}
-		subject := subjects.LiveUserEvent(mentionedUserID, "mentioned")
+		})
+		subject := subjects.LiveSyncUserEvent(mentionedUserID, "mentioned")
 		if err := c.publishLiveEvent(ctx, subject, mentionEvent); err != nil {
 			c.logger.Warn("Failed to publish mention live event",
 				"mentioned_user_id", mentionedUserID,

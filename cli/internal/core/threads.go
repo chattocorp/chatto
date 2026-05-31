@@ -552,20 +552,17 @@ func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, 
 // publishThreadFollowChangedEvent publishes a live event when a user's thread follow state changes.
 // User-scoped: only delivered to the user who changed their follow state.
 func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   userID,
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_ThreadFollowChanged{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_ThreadFollowChanged{
 			ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,
 			},
 		},
-	}
+	})
 
-	subject := subjects.LiveUserEvent(userID, "thread_follow_changed")
+	subject := subjects.LiveSyncUserEvent(userID, "thread_follow_changed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish thread follow changed event", "error", err, "user_id", userID, "thread_root_event_id", threadRootEventID)
 	}

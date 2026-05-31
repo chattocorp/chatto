@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -232,7 +231,6 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 			if err := c.ReactionsProjector.WaitForSeq(ctx, seq); err != nil {
 				return false, fmt.Errorf("wait for reactions projection: %w", err)
 			}
-			c.publishReactionLiveMirror(ctx, kind, roomID, event)
 			return true, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -246,20 +244,4 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 		}
 	}
 	return false, fmt.Errorf("reaction OCC retry exhausted after %d attempts: %w", maxReactionMutationRetries, events.ErrConflict)
-}
-
-func (c *ChattoCore) publishReactionLiveMirror(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) {
-	var eventType string
-	switch event.GetEvent().(type) {
-	case *corev1.Event_ReactionAdded:
-		eventType = "reaction_added"
-	case *corev1.Event_ReactionRemoved:
-		eventType = "reaction_removed"
-	default:
-		return
-	}
-	subject := subjects.LiveRoomEvent(string(kind), roomID, eventType)
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish reaction live mirror", "error", err, "subject", subject)
-	}
 }

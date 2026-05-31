@@ -1,17 +1,9 @@
 """
 RoomEvent wraps all room-scoped events.
 
-Events are either:
-- Stored in JetStream streams — persisted events
-- Published to NATS Core for real-time updates — live events
-
-Authorization is determined by NATS subject:
-- Persisted room events: `server.room.{kind}.{roomId}.>` (JetStream)
-- Live room events: `live.server.room.{kind}.{roomId}.>` (NATS Core; the
-  `SERVER_EVENTS` stream's RePublish also forwards persisted events here).
-
-`{kind}` is `channel` or `dm`. See `.claude/rules/nats-subjects.md` for the
-full subject taxonomy.
+Room events describe activity inside a channel or direct-message room, such as
+messages, edits, reactions, membership changes, typing indicators, and calls.
+Access is scoped to rooms the current user is allowed to see.
 """
 type RoomEvent {
   "Universal event identifier."
@@ -72,14 +64,13 @@ union RoomEventType =
 
 """
 ServerEvent wraps any event delivered through the `myEvents` subscription.
-Two backend streams flow into this single envelope:
 
 - Room-scoped events (messages, room lifecycle, typing, presence, reactions,
-  video processing, voice calls) — sourced from the `SERVER_EVENTS` JetStream
-  and the `live.server.room.>` / `live.server.member.>` NATS-Core subjects.
+  video processing, voice calls) are delivered only when the current user can
+  see the affected room.
 - Deployment-scoped events (config changes, notifications, server lifecycle,
-  thread-follow sync, session termination) — sourced from
-  `live.server.{user,config,member}.>`.
+  thread-follow sync, session termination) are delivered according to their
+  audience: everyone, the affected room members, or the target user.
 """
 type ServerEvent {
   "Universal event identifier."
@@ -433,7 +424,7 @@ type MessageDeletedEvent {
 }
 
 # ==============================================================================
-# REACTION EVENTS (durable in EVT; delivered live via live.server mirror)
+# REACTION EVENTS
 # ==============================================================================
 
 """
@@ -466,7 +457,7 @@ type ReactionRemovedEvent {
 
 """
 Event: A user is typing in a room or thread.
-This is a live-only event (not stored in JetStream).
+This is a transient event.
 Clients should implement timeout-based clearing (e.g., 6 seconds of inactivity).
 The user who is typing is identified by the parent RoomEvent's actorId/actor.
 """
@@ -632,13 +623,12 @@ type MentionStatusClearedEvent {
 }
 
 # ==============================================================================
-# ROOM LAYOUT EVENTS (Live-only - KV bucket is source of truth)
+# ROOM LAYOUT EVENTS
 # ==============================================================================
 
 """
 Event: The channel-room groups (ordering, names, or membership) were updated.
-Clients should refetch `Server.roomGroups` to get the new shape. This is a
-live-only event (not stored in JetStream).
+Clients should refetch `Server.roomGroups` to get the new shape.
 """
 type RoomGroupsUpdatedEvent {
   "Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets."

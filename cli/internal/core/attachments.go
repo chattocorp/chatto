@@ -1130,8 +1130,8 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 // PublishVideoProcessingCompleted publishes a live event indicating video processing is done.
 // The frontend subscription receives this and refreshes the affected message.
 func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind RoomKind, roomID, attachmentID, messageBodyID string) error {
-	event := newEvent("", &corev1.Event{
-		Event: &corev1.Event_VideoProcessingCompleted{
+	event := newLiveEvent("", &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_VideoProcessingCompleted{
 			VideoProcessingCompleted: &corev1.VideoProcessingCompletedEvent{
 				RoomId:         roomID,
 				AttachmentId:   attachmentID,
@@ -1141,14 +1141,13 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind R
 		},
 	})
 
-	subject := subjects.LiveRoomEvent(string(kind), roomID, "video_processed")
-	return c.publishLiveServerEvent(ctx, subject, event)
+	subject := subjects.LiveSyncRoomEvent(string(kind), roomID, "video_processed")
+	return c.publishLiveEvent(ctx, subject, event)
 }
 
-// PublishAssetProcessing appends a durable asset-processing event to EVT and
-// mirrors the same payload onto the legacy live room subject. Refuses events
-// with an empty ActorId — every asset lifecycle event must be attributable to
-// a user (or SystemActorID for worker/migration paths).
+// PublishAssetProcessing appends a durable asset-processing event to EVT.
+// Refuses events with an empty ActorId — every asset lifecycle event must be
+// attributable to a user (or SystemActorID for worker/migration paths).
 func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
 	if roomID == "" {
 		return fmt.Errorf("asset processing event missing room id")
@@ -1159,10 +1158,6 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 	agg := events.RoomAggregate(roomID)
 	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish asset processing event: %w", err)
-	}
-	subject := subjects.LiveRoomEvent(string(kind), roomID, events.EventTypeOf(event))
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish asset processing live mirror", "error", err)
 	}
 	return nil
 }

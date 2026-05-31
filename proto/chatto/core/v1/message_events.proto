@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 400-402: durable message timeline events on evt.room.{roomId}.*
-//   - 1040-1041: legacy live-only message mutation events
+//   - 1040-1041: legacy live-only GraphQL adapter payloads
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -79,12 +79,12 @@ message MessagePostedEvent {
 //   - MessageEditedEvent / MessageRetractedEvent — DURABLE, ride the EVT
 //     stream at evt.room.{R}.message_edited / .message_retracted, carry
 //     enough state (body for edits) for projections to replay history
-//     without reaching back to KV. They are also mirrored onto the
-//     live.server.room subject family for the myEvents subscription.
+//     without reaching back to KV, and reach live subscribers through
+//     the EVT stream's live.evt.> republish path.
 //
-//   - MessageUpdatedEvent / MessageDeletedEvent — legacy live-only shapes
-//     retained for wire compatibility during the rollout window. New edit
-//     and retract delivery uses the canonical durable names above.
+//   - MessageUpdatedEvent / MessageDeletedEvent — legacy live-only GraphQL
+//     adapter shapes retained during the rollout window. New edit and
+//     retract delivery uses the canonical durable names above.
 
 // MessageEditedEvent is the durable event published when a message's body
 // is edited. Carries the full new body envelope; the projection overlays

@@ -9,8 +9,8 @@ package corev1
 // instance is persisted in JetStream or published live to NATS Core is a
 // publisher-side choice, not part of the wrapper type.
 
-// Room-scoped events. These flow through the SERVER_EVENTS JetStream + the
-// live.server.room.>/live.server.member.> NATS-Core subjects.
+// Room-scoped events. Durable variants reach subscriptions through EVT's
+// live.evt.> republish path; transient variants use LiveEvent on live.sync.>.
 
 func (*RoomCreatedEvent) IsServerEventType()              {}
 func (*RoomUpdatedEvent) IsServerEventType()              {}
@@ -37,8 +37,7 @@ func (*VideoProcessingCompletedEvent) IsServerEventType() {}
 func (*CallParticipantJoinedEvent) IsServerEventType()    {}
 func (*CallParticipantLeftEvent) IsServerEventType()      {}
 
-// Deployment-scoped events. These ride the live.server.{user,space,config}.>
-// NATS-Core subjects.
+// Deployment-scoped transient events ride LiveEvent on live.sync.>.
 
 func (*ServerConfigUpdatedEvent) IsServerEventType()          {}
 func (*UserCreatedEvent) IsServerEventType()                  {}

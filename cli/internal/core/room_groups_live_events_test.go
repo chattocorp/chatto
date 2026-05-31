@@ -11,14 +11,14 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// subscribeRoomGroupsUpdated installs a NATS Core subscriber on the live
+// subscribeRoomGroupsUpdated installs a NATS Core subscriber on the live sync
 // config subject that carries RoomGroupsUpdatedEvent and returns a
 // channel that drains incoming messages plus a cleanup function. Tests
 // fail loudly on subscribe errors — a silently-missing publish would
 // look identical to a silently-missing subscriber.
 func subscribeRoomGroupsUpdated(t *testing.T, nc *nats.Conn) (<-chan *nats.Msg, func()) {
 	t.Helper()
-	subject := subjects.LiveConfigEvent("room_groups_updated")
+	subject := subjects.LiveSyncConfigEvent("room_groups_updated")
 	received := make(chan *nats.Msg, 16)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -54,7 +54,7 @@ func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID stri
 	t.Helper()
 	select {
 	case msg := <-ch:
-		var got corev1.Event
+		var got corev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}

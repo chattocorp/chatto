@@ -60,7 +60,7 @@ The N+1 events are emitted by the actor code (`DeleteUser` calls into the existi
 
 Rationale:
 
-- **Room-scoped delivery stays mechanically derivable.** Every per-room event is present on that room aggregate's history and can be surfaced through either `EVT` republish (`live.evt.>`) or the migration-window compatibility mirror on `live.server.>`. With a single "user deleted" event, room subscribers would not see the room-level effect unless we built derived live-event machinery.
+- **Room-scoped delivery stays mechanically derivable.** Every per-room event is present on that room aggregate's history and can be surfaced through `EVT` republish (`live.evt.>`). With a single "user deleted" event, room subscribers would not see the room-level effect unless we built derived live-event machinery.
 - **Per-room audit moments.** Each room's history records exactly when each member was removed and by which action. Derivable from a single upstream event is not the same as a recorded fact.
 - **Projections stay decoupled.** A projection consuming `evt.room.>` doesn't have to know about user-deletion semantics; it just reacts to membership events. Cross-aggregate coupling lives in actor code, where the cascade *originates*.
 
@@ -68,21 +68,15 @@ When *not* to use per-aggregate fan-out: pure internal-state cleanup that no oth
 
 ### Live delivery
 
-The stream's `RePublish` config forwards every accepted event from `evt.>` to `live.evt.>`. This keeps the option open for subscribers to consume persisted ES events directly from a NATS Core live subject without holding JetStream consumers.
+The stream's `RePublish` config forwards every accepted event from `evt.>` to `live.evt.>`. This is Chatto's raw committed-event feed: it means "an EVT fact durably landed," not "every local projection on every app replica has applied it."
 
-During the migration window, however, Chatto's GraphQL `myEvents`
-subscription continues to consume `live.server.>` only. Migrated
-aggregates append durable events to `EVT` and then publish a
-non-durable compatibility mirror on the existing `live.server.>`
-subject family after the relevant projection has caught up. This avoids
-double delivery while the legacy stream and `EVT` coexist, and it keeps
-frontend event routing stable during the storage migration.
+GraphQL `myEvents` consumes `live.evt.>` server-side and turns it into the user-facing live feed. For EVT-backed room events, the subscription reads JetStream's `Nats-Sequence` header from the republished message, waits for the local projections that serve follow-up reads to reach that sequence, then applies per-user authorization before emitting the event. This preserves the useful singleton property of stream republish — one committed event produces one raw pubsub event no matter how many Chatto replicas are running — while keeping authorization at the API boundary.
 
-The earlier design goal was "the event stream is also the live event
-stream." That remains a possible future simplification, but it is not
-the active migration behavior. Re-examining whether to switch
-subscribers to `live.evt.>` or keep projector/mutator-driven live
-mirrors is follow-up work, not part of the initial cutover.
+Ordinary projectors must not publish live events from `Apply`. Every app replica has its own local projectors, so projector-side publish effects would multiply one committed EVT event by the number of Chatto replicas.
+
+Transient UI sync signals that are not durable facts use a separate `corev1.LiveEvent` wrapper on `live.sync.>`. `myEvents` consumes these server-side, applies the same room/user/config authorization gates, and adapts them into the public GraphQL event shape. This keeps the durable `Event` wrapper centered on EVT facts while still allowing non-durable signals such as typing, voice-call presence, notification sync, preferences, and config invalidations.
+
+`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct Event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only live delivery roots for `myEvents`: durable facts reach the subscription through EVT republish, and transient UI sync signals reach it through LiveEvent.
 
 ### Replication and retention
 
@@ -103,7 +97,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream conti
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}`. The framework wraps consumer creation around the projection's declared subjects.
 - **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
 - **Two streams during migration.** `EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
-- **Live delivery has a compatibility layer.** Until the live-event follow-up is resolved, storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.server.>` mirrors keep existing subscribers working.
+- **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.
 
 ## Out of scope for this ADR
 

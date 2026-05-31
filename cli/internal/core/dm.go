@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
@@ -280,9 +279,8 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 
 	// Per-participant non-batched side effects: initialise the
 	// read marker (so HasUnread distinguishes a fresh member from a
-	// deploy-era user; see GetLastReadEventID), and mirror the join
-	// to the legacy live subject so the frontend's myEvents stream
-	// sees it.
+	// deploy-era user; see GetLastReadEventID), and write legacy
+	// SERVER_EVENTS copies for migration/import tooling.
 	legacySubject := subjects.RoomMeta(string(KindDM), roomID)
 	for _, pid := range participantIDs {
 		if err := c.SetLastReadEventID(ctx, KindDM, pid, roomID, ""); err != nil {
@@ -402,19 +400,16 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		// Publish live DM notification event for unread indicator real-time update
-		event := &corev1.Event{
-			Id:        NewEventID(),
-			ActorId:   senderID,
-			CreatedAt: timestamppb.Now(),
-			Event: &corev1.Event_NewDirectMessageNotification{
+		event := newLiveEvent(senderID, &corev1.LiveEvent{
+			Event: &corev1.LiveEvent_NewDirectMessageNotification{
 				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
 					RoomId:   roomID,
 					SenderId: senderID,
 				},
 			},
-		}
+		})
 
-		subject := subjects.LiveUserEvent(participantID, "dm_message")
+		subject := subjects.LiveSyncUserEvent(participantID, "dm_message")
 		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish DM live event",
 				"participant_id", participantID,

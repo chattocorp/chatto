@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -257,22 +256,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Legacy live mirror. Same pattern as RoomMembership / RoomGroups
-	// after their ES migration — the durable event lives on EVT, but
-	// frontend subscribers consume from live.server.>. We mirror onto
-	// the legacy subject family so the existing myEvents pipeline
-	// keeps working unchanged. publishLiveServerEvent is fire-and-
-	// forget over NATS Core; no second durable copy.
-	var liveSubject string
-	if inThread == "" {
-		liveSubject = subjects.RoomMessage(string(kind), room_id, event.Id)
-	} else {
-		liveSubject = subjects.RoomThread(string(kind), room_id, inThread, event.Id)
-	}
-	if err := c.publishLiveServerEvent(ctx, liveSubject, event); err != nil {
-		c.logger.Warn("Failed to publish message live mirror", "error", err, "subject", liveSubject)
-	}
-
 	// messageBodyKey retained as a label for log lines and downstream
 	// notifications that historically logged the compound key — the
 	// projection-keyed event_id is the new canonical identifier.
@@ -418,10 +401,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else {
-			echoLiveSubject := subjects.RoomMessage(string(kind), room_id, echoEvent.Id)
-			if err := c.publishLiveServerEvent(ctx, echoLiveSubject, echoEvent); err != nil {
-				c.logger.Warn("Failed to publish echo live mirror", "error", err)
-			}
 			c.logger.Info("Thread reply echo posted",
 				"kind", kind, "room_id", room_id,
 				"echo_event_id", echoEvent.Id, "original_event_id", event.Id,
@@ -651,10 +630,9 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	return nil
 }
 
-// publishMessageRetract emits a MessageRetractedEvent on EVT and mirrors the
-// same canonical payload onto live.server.room.{kind}.{r}.message_retracted
-// for the myEvents subscription. Factored out so DeleteMessage can fan to
-// linked messages.
+// publishMessageRetract emits a MessageRetractedEvent on EVT. StreamMyEvents
+// receives the canonical live.evt.> republish directly. Factored out so
+// DeleteMessage can fan to linked messages.
 func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageRetracted{
@@ -668,28 +646,12 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
 
-	// Live mirror for StreamMyEvents. Fire-and-forget over NATS Core, no
-	// durable duplicate; EVT's live.evt.> republish is intentionally not
-	// subscribed by StreamMyEvents during the migration window.
-	liveEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageRetracted{
-			MessageRetracted: &corev1.MessageRetractedEvent{
-				RoomId:  roomID,
-				EventId: eventID,
-			},
-		},
-	})
-	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_retracted")
-	if err := c.publishLiveServerEvent(ctx, liveSubject, liveEvent); err != nil {
-		c.logger.Warn("Failed to publish retract live mirror", "error", err)
-	}
 	return nil
 }
 
-// publishMessageEdit emits a MessageEditedEvent on EVT and mirrors the same
-// canonical payload onto live.server.room.{kind}.{r}.message_edited for the
-// myEvents subscription. Factored out so EditMessage / editEmbeddedBody can
-// fan the same payload to linked messages.
+// publishMessageEdit emits a MessageEditedEvent on EVT. StreamMyEvents
+// receives the canonical live.evt.> republish directly. Factored out so
+// EditMessage / editEmbeddedBody can fan the same payload to linked messages.
 func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageEdited{
@@ -704,19 +666,6 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 		return fmt.Errorf("publish MessageEditedEvent: %w", err)
 	}
 
-	liveEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageEdited{
-			MessageEdited: &corev1.MessageEditedEvent{
-				RoomId:  roomID,
-				EventId: eventID,
-				Body:    body,
-			},
-		},
-	})
-	liveSubject := subjects.LiveRoomEvent(string(kind), roomID, "message_edited")
-	if err := c.publishLiveServerEvent(ctx, liveSubject, liveEvent); err != nil {
-		c.logger.Warn("Failed to publish edit live mirror", "error", err)
-	}
 	return nil
 }
 

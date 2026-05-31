@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
-	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -30,15 +28,8 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 		}
 	})
 
-	t.Run("publishLiveServerEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveServerEvent(ctx, "live.space.test", &corev1.Event{})
-		if !errors.Is(err, ErrInvalidEvent) {
-			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
-		}
-	})
-
 	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.server.test", &corev1.Event{})
+		err := core.publishLiveEvent(ctx, "live.sync.test", &corev1.LiveEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
@@ -92,124 +83,6 @@ func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, b
 	user.Id = createdUser.Id
 	event = posted
 	return
-}
-
-// TestDeleteMessage_PublishesLiveEvent verifies that calling DeleteMessage on
-// the core publishes a MessageRetractedEvent on the live room subject. This is
-// the publish side of the chain — without it, no client receives the
-// deletion. A future refactor that drops the publish would silently break the
-// frontend's ability to update.
-func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
-	core, nc := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, user, event := setupRoomWithMessage(t, core, ctx, "delete me")
-	posted := event.GetMessagePosted()
-	if posted == nil {
-		t.Fatal("expected MessagePostedEvent")
-	}
-
-	// StreamMyEvents deliberately ignores live.evt.> during the migration
-	// window, so DeleteMessage mirrors the canonical MessageRetractedEvent
-	// onto the live.server.room subject family.
-	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_retracted")
-	received := make(chan *nats.Msg, 1)
-	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
-		select {
-		case received <- msg:
-		default:
-		}
-	})
-	if err != nil {
-		t.Fatalf("Subscribe: %v", err)
-	}
-	defer sub.Unsubscribe()
-
-	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, posted.MessageBodyId); err != nil {
-		t.Fatalf("DeleteMessage: %v", err)
-	}
-	_ = nc.Flush()
-
-	select {
-	case msg := <-received:
-		var got corev1.Event
-		if err := proto.Unmarshal(msg.Data, &got); err != nil {
-			t.Fatalf("unmarshal published event: %v", err)
-		}
-		retracted := got.GetMessageRetracted()
-		if retracted == nil {
-			t.Fatalf("expected MessageRetractedEvent, got %T", got.Event)
-		}
-		if retracted.RoomId != room.Id {
-			t.Errorf("RoomId = %q, want %q", retracted.RoomId, room.Id)
-		}
-		if retracted.EventId != event.Id {
-			t.Errorf("EventId = %q, want %q", retracted.EventId, event.Id)
-		}
-		if got.ActorId != user.Id {
-			t.Errorf("ActorId = %q, want %q", got.ActorId, user.Id)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for MessageRetractedEvent on live mirror subject")
-	}
-}
-
-// TestEditMessage_PublishesLiveEvent verifies that calling EditMessage
-// publishes a MessageEditedEvent on the live room subject — same contract as
-// the deletion path.
-func TestEditMessage_PublishesLiveEvent(t *testing.T) {
-	core, nc := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, user, event := setupRoomWithMessage(t, core, ctx, "original")
-	posted := event.GetMessagePosted()
-	if posted == nil {
-		t.Fatal("expected MessagePostedEvent")
-	}
-
-	// StreamMyEvents deliberately ignores live.evt.> during the migration
-	// window, so EditMessage mirrors the canonical MessageEditedEvent onto
-	// the live.server.room subject family.
-	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_edited")
-	received := make(chan *nats.Msg, 1)
-	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
-		select {
-		case received <- msg:
-		default:
-		}
-	})
-	if err != nil {
-		t.Fatalf("Subscribe: %v", err)
-	}
-	defer sub.Unsubscribe()
-
-	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.MessageBodyId, "edited"); err != nil {
-		t.Fatalf("EditMessage: %v", err)
-	}
-	_ = nc.Flush()
-
-	select {
-	case msg := <-received:
-		var got corev1.Event
-		if err := proto.Unmarshal(msg.Data, &got); err != nil {
-			t.Fatalf("unmarshal published event: %v", err)
-		}
-		edited := got.GetMessageEdited()
-		if edited == nil {
-			t.Fatalf("expected MessageEditedEvent, got %T", got.Event)
-		}
-		if edited.RoomId != room.Id {
-			t.Errorf("RoomId = %q, want %q", edited.RoomId, room.Id)
-		}
-		if edited.EventId != event.Id {
-			t.Errorf("EventId = %q, want %q", edited.EventId, event.Id)
-		}
-		if edited.Body == nil {
-			t.Fatal("expected edited body payload")
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for MessageEditedEvent on live mirror subject")
-	}
 }
 
 // TestStreamMyEvents_DeliversMessageRetracted is the integration test for
@@ -266,8 +139,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 
-	// StreamMyEvents subscribes to live.server.> only — the canonical
-	// live mirror is what reaches the viewer during the migration window.
+	// StreamMyEvents receives the canonical live.evt.> republish.
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
@@ -284,7 +156,72 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 			}
 			return
 		case <-timeout:
-			t.Fatal("viewer never received MessageRetractedEvent — live mirror / filterLiveEvent regressed")
+			t.Fatal("viewer never received MessageRetractedEvent from live.evt republish")
+		}
+	}
+}
+
+func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "evt-author", "EVT Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "evt-viewer", "EVT Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "evt-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	event := newEvent(author.Id, &corev1.Event{
+		Event: &corev1.Event_MessageEdited{
+			MessageEdited: &corev1.MessageEditedEvent{
+				RoomId:  room.Id,
+				EventId: "E-raw-evt",
+				Body: &corev1.MessageBody{
+					AuthorId:      author.Id,
+					EncryptedBody: []byte("edited through raw EVT"),
+				},
+			},
+		},
+	})
+	if _, err := core.RoomTimelineProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(room.Id), event); err != nil {
+		t.Fatalf("append raw EVT event: %v", err)
+	}
+
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case ev := <-eventChan:
+			edited := ev.GetMessageEdited()
+			if edited == nil {
+				continue
+			}
+			if edited.EventId != "E-raw-evt" {
+				t.Errorf("EventId = %q, want E-raw-evt", edited.EventId)
+			}
+			return
+		case <-timeout:
+			t.Fatal("viewer never received MessageEditedEvent from live.evt republish")
 		}
 	}
 }

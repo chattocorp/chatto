@@ -14,10 +14,9 @@ import (
 
 // MyEvents is the resolver for the myServerEvents field.
 //
-// Backed by a single core stream (StreamMyEvents) that consumes the
-// unified `live.server.>` subject root — room events from the
-// SERVER_EVENTS republish, transient room/user/space/config events from
-// direct NATS Core publishes, plus presence and heartbeats.
+// Backed by a single core stream (StreamMyEvents) that consumes
+// `live.sync.>` transient LiveEvent messages and `live.evt.>` raw EVT
+// republish messages, plus presence and heartbeats.
 func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan *corev1.Event, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {

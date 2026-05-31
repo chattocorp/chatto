@@ -272,25 +272,25 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 		{
 			name:       "user event - same user receives their own registration_completed",
 			userID:     userA.Id,
-			subject:    "live.server.user." + userA.Id + ".registration_completed",
+			subject:    "live.sync.user." + userA.Id + ".registration_completed",
 			wantResult: true,
 		},
 		{
 			name:       "user event - other user does NOT receive registration_completed",
 			userID:     userB.Id,
-			subject:    "live.server.user." + userA.Id + ".registration_completed",
+			subject:    "live.sync.user." + userA.Id + ".registration_completed",
 			wantResult: false,
 		},
 		{
 			name:       "user event - same user receives their own user_deleted",
 			userID:     userA.Id,
-			subject:    "live.server.user." + userA.Id + ".user_deleted",
+			subject:    "live.sync.user." + userA.Id + ".user_deleted",
 			wantResult: true,
 		},
 		{
 			name:       "user event - other user does NOT receive user_deleted",
 			userID:     userB.Id,
-			subject:    "live.server.user." + userA.Id + ".user_deleted",
+			subject:    "live.sync.user." + userA.Id + ".user_deleted",
 			wantResult: false,
 		},
 
@@ -298,13 +298,13 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 		{
 			name:       "profile_updated - same user receives it",
 			userID:     userA.Id,
-			subject:    "live.server.user." + userA.Id + ".profile_updated",
+			subject:    "live.sync.user." + userA.Id + ".profile_updated",
 			wantResult: true,
 		},
 		{
 			name:       "profile_updated - other user ALSO receives it (broadcast)",
 			userID:     userB.Id,
-			subject:    "live.server.user." + userA.Id + ".profile_updated",
+			subject:    "live.sync.user." + userA.Id + ".profile_updated",
 			wantResult: true,
 		},
 
@@ -313,13 +313,13 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 		{
 			name:       "config event - user A receives it",
 			userID:     userA.Id,
-			subject:    "live.server.config.server_updated",
+			subject:    "live.sync.config.server_updated",
 			wantResult: true,
 		},
 		{
 			name:       "config event - user B also receives it",
 			userID:     userB.Id,
-			subject:    "live.server.config.server_updated",
+			subject:    "live.sync.config.server_updated",
 			wantResult: true,
 		},
 
@@ -327,7 +327,7 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 		{
 			name:       "invalid subject format - too few parts",
 			userID:     userA.Id,
-			subject:    "live.server.user",
+			subject:    "live.sync.user",
 			wantResult: false,
 		},
 		{
@@ -339,7 +339,7 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 		{
 			name:       "unknown scope",
 			userID:     userA.Id,
-			subject:    "live.server.unknown.someid.event",
+			subject:    "live.sync.unknown.someid.event",
 			wantResult: false,
 		},
 	}

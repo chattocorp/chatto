@@ -9,7 +9,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 1050-1051: durable reaction events on evt.room.{roomId}.* that kept
-//     their legacy live-event tags during the EVT cutover
+//     their pre-EVT field numbers during the cutover
 //
 // These tags are the exception to the usual "<1000 is durable" convention.
 // Treat them as frozen persisted tags, not reusable live-only space.

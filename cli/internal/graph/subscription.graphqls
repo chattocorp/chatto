@@ -6,8 +6,6 @@ type Subscription {
   Subscribe to every event the current user is authorised to see on this
   deployment.
 
-  Two backend streams are multiplexed into a single envelope:
-
   - **Room events** (messages, room lifecycle, typing indicators, reactions,
     video processing, voice calls) — delivered only for rooms the user is a
     member of. The membership set is tracked in real time; joining or

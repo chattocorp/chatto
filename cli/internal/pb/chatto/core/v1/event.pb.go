@@ -22,15 +22,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Event is the wire-format envelope for every event a user can receive.
-// Both the room-scoped events that ride the SERVER_EVENTS JetStream and
-// the `live.server.room.*` / `live.server.member.*` subjects, and the
-// deployment-scoped events that ride the `live.server.{user,space,
-// config}.*` subjects, all travel as Event messages.
-//
-// The split into two wrappers (ServerEvent + LiveEvent) was retired in
-// favour of this single union — storage decisions (JetStream vs. NATS
-// Core) belong to the publisher path, not the message type.
+// Event is the wire-format envelope for durable domain facts. New writes
+// to the event-sourced EVT stream use this wrapper; projections consume it
+// as source-of-truth input.
 //
 // Field-number convention for the `event` oneof:
 //
@@ -41,19 +35,15 @@ const (
 // - **1050-1051**: durable reaction variants that kept their legacy
 // live tags during the EVT cutover. Treat them like persisted tags.
 //
-// - **>= 1000, except 1050-1051**: live-only variants. NATS Core only,
-// never written to disk. Field numbers are less durable than persisted
-// tags, but still shouldn't be reused casually because mixed-version
-// processes can coexist during deploys.
+// - **>= 1000, except 1050-1051**: legacy live-only variants retained
+// temporarily for the GraphQL adapter and older decoded envelopes. New
+// transient pubsub signals belong in LiveEvent, not Event.
 //
 // Category ownership for the top-level oneof tags is documented in the
 // sibling *_events.proto files. The top-level tag is the durable/event
 // envelope ID; message-internal field numbers remain local to that message.
 //
-// Authorization is determined by NATS subject, not by the wrapper:
-// - Room-scoped: server.room.{kind}.{roomId}.> (JetStream) or
-// live.server.room.{kind}.{roomId}.> (NATS Core)
-// - Deployment-scoped: live.server.{user,space,config}.>
+// Authorization is handled by the API boundary, not this wrapper.
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Universal event identifier (NanoID) for forward-compatibility with
@@ -956,9 +946,9 @@ type Event_AssetDeleted struct {
 type Event_ServerConfigChanged struct {
 	// ----- Server config (500-509, durable) -----
 	// Distinct from ServerConfigUpdatedEvent at 1000, which is the
-	// legacy live-only broadcast on the SERVER_EVENTS path. The
-	// durable variant below lives on the EVT stream (subject
-	// evt.config.server) per ADRs 033/034/035.
+	// legacy live-only GraphQL adapter payload. The durable variant
+	// below lives on the EVT stream (subject evt.config.server) per
+	// ADRs 033/034/035.
 	ServerConfigChanged *ServerConfigChangedEvent `protobuf:"bytes,500,opt,name=server_config_changed,json=serverConfigChanged,proto3,oneof"`
 }
 

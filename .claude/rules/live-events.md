@@ -20,9 +20,10 @@ resolves `Attachment.videoProcessing`, the KV entry already exists.
 
 ## Common Pitfall: Double-Publishing
 
-The `SERVER_EVENTS` stream's RePublish config wires every accepted
-message from `server.>` to `live.server.>` automatically. So if you
-publish a durable event via `publishServerEvent(...)` AND also publish
-the same conceptual event via `publishLiveEvent(...)` / a
-`publishLive*Event` helper, subscribers will receive it twice. Pick one
-path per event type.
+EVT already republishes committed facts once onto `live.evt.>`. If that
+fact is deliverable to `myEvents`, do not also publish a `LiveEvent` for
+the same conceptual UI update. Pick one path per event type: durable facts
+go through EVT, transient sync goes through `live.sync.>`.
+
+`SERVER_EVENTS` no longer has a live-delivery role. Do not add new
+`live.server.>` subjects or direct Event-envelope mirrors.

@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
+import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/room_events.proto";
+import "chatto/core/v1/server_config_events.proto";
+import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -9,22 +13,75 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // ============================================================================
 // LIVE-ONLY EVENT DEFINITIONS
 //
-// Top-level Event oneof tags owned by this file:
-//   - 1030-1032: live-only server lifecycle broadcasts
-//   - 1060: live-only typing indicator
-//   - 1070: live-only video processing compatibility event
-//   - 1080: live-only presence event
-//   - 1090-1091: live-only notification nudges
-//   - 1100-1101: live-only voice call presence events
-//   - 1110-1111: live-only notification sync events
-//   - 1121-1122: live-only unread/mention sync events
-//   - 1130: live-only room-layout invalidation event
-//   - 1140: live-only session termination event
-//   - 1200: synthetic in-process subscription heartbeat
-//
-// Keep these tags coordinated with event.proto. Message-internal field numbers
-// are local to each message and do not consume top-level Event tag space.
+// LiveEvent oneof tags are local to this envelope. They do not need to match
+// Event oneof numbers because LiveEvent is never stored in EVT and never
+// decoded as Event directly.
 // ============================================================================
+
+// ============================================================================
+
+/*
+   LiveEvent is the wire-format envelope for transient pubsub signals.
+   These events are never stored in EVT and are not projection input. They
+   are delivered over the live.sync.> subject family and adapted by myEvents
+   into the public GraphQL ServerEvent shape.
+
+   Durable facts belong in Event on the EVT stream. Do not add new transient
+   variants to Event.
+*/
+message LiveEvent {
+  // Universal event identifier (NanoID) for dedupe and client-side idempotency.
+  string id = 1;
+
+  // When this live signal was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  // ID of the user or system actor that triggered this signal.
+  string actor_id = 3;
+
+  oneof event {
+    // ----- Server config -----
+    ServerConfigUpdatedEvent config_updated = 10;
+
+    // ----- User lifecycle / preferences -----
+    UserCreatedEvent user_created = 20;
+    UserDeletedEvent user_deleted = 21;
+    UserProfileUpdatedEvent user_profile_updated = 22;
+    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 23;
+    NotificationLevelChangedEvent notification_level_changed = 24;
+    ThreadFollowChangedEvent thread_follow_changed = 25;
+
+    // ----- Server membership / lifecycle -----
+    SpaceMemberDeletedEvent space_member_deleted = 30;
+    ServerUpdatedEvent server_updated = 31;
+
+    // ----- Typing / processing -----
+    UserTypingEvent user_typing = 40;
+    VideoProcessingCompletedEvent video_processing_completed = 41;
+
+    // ----- Notifications -----
+    MentionNotificationEvent mention_notification = 50;
+    NewDirectMessageNotificationEvent new_direct_message_notification = 51;
+
+    // ----- Voice calls -----
+    CallParticipantJoinedEvent call_participant_joined = 60;
+    CallParticipantLeftEvent call_participant_left = 61;
+
+    // ----- Notification sync -----
+    NotificationCreatedEvent notification_created = 70;
+    NotificationDismissedEvent notification_dismissed = 71;
+
+    // ----- Unread indicators -----
+    RoomMarkedAsReadEvent room_marked_as_read = 80;
+    MentionStatusClearedEvent mention_status_cleared = 81;
+
+    // ----- Room layout -----
+    RoomGroupsUpdatedEvent room_groups_updated = 90;
+
+    // ----- Session termination -----
+    SessionTerminatedEvent session_terminated = 100;
+  }
+}
 
 // ============================================================================
 // SUBSCRIPTION LIVENESS

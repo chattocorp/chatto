@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"hmans.de/chatto/internal/core/subjects"
 )
 
 func TestIsDMSpace(t *testing.T) {
@@ -755,7 +756,7 @@ func TestDMNotifications(t *testing.T) {
 	t.Run("DM message triggers notification to other participants", func(t *testing.T) {
 		// Subscribe to user2's notification subject
 		notificationReceived := make(chan bool, 1)
-		sub, err := nc.Subscribe("live.server.user."+user2.Id+".dm_message", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user2.Id, "dm_message"), func(msg *nats.Msg) {
 			notificationReceived <- true
 		})
 		if err != nil {
@@ -781,7 +782,7 @@ func TestDMNotifications(t *testing.T) {
 	t.Run("DM message does not notify sender", func(t *testing.T) {
 		// Subscribe to user1's notification subject (the sender)
 		notificationReceived := make(chan bool, 1)
-		sub, err := nc.Subscribe("live.server.user."+user1.Id+".dm_message", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user1.Id, "dm_message"), func(msg *nats.Msg) {
 			notificationReceived <- true
 		})
 		if err != nil {

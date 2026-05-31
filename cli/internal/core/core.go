@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -961,15 +962,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		Compression:        jetstream.S2Compression,
 		AllowAtomicPublish: true,
 		Replicas:           cfg.Replicas,
-		// Republish every accepted stream message onto a NATS Core
-		// subject so subscribers can listen for room events without
-		// holding a per-connection JetStream consumer. The republish
-		// fires after persistence, so consumers cannot observe an
-		// event that didn't durably land on the stream.
-		RePublish: &jetstream.RePublish{
-			Source:      "server.>",
-			Destination: "live.server.>",
-		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SERVER_EVENTS stream: %w", err)
@@ -1132,10 +1124,17 @@ func eventIDFromBodyKey(bodyKey string) string {
 // indefinitely instead of surfacing as a normal error.
 const natsPublishFlushTimeout = 5 * time.Second
 
-// publishServerEvent publishes a SpaceEvent to NATS via the provided subject.
-// Streams automatically capture events based on their subject filters.
-// Uses NATS Core publish (fire-and-forget) rather than JetStream publish (which waits for acks).
-// Handles marshaling internally for consistent error handling.
+// liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
+// raw EVT republish and GraphQL delivery. In the normal case the local
+// projectors have already advanced and WaitForSeq returns immediately; the
+// timeout covers replica lag or a stuck projector without wedging a
+// subscription goroutine forever.
+const liveEVTProjectionWaitTimeout = 2 * time.Second
+
+// publishServerEvent publishes a legacy Event to NATS via the provided
+// server.> subject. Streams automatically capture events based on their
+// subject filters. Uses NATS Core publish (fire-and-forget) rather than
+// JetStream publish (which waits for acks).
 func (c *ChattoCore) publishServerEvent(_ context.Context, subject string, event *corev1.Event) error {
 	if err := validateEvent(event); err != nil {
 		return err
@@ -1151,8 +1150,7 @@ func (c *ChattoCore) publishServerEvent(_ context.Context, subject string, event
 		return fmt.Errorf("failed to publish event: %w", err)
 	}
 
-	// Flush to ensure message is sent to server immediately
-	// This is important for stream capture and republishing to work correctly
+	// Flush to ensure the message reaches NATS immediately for stream capture.
 	err = c.nc.FlushTimeout(natsPublishFlushTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to flush connection: %w", err)
@@ -1161,11 +1159,11 @@ func (c *ChattoCore) publishServerEvent(_ context.Context, subject string, event
 	return nil
 }
 
-// publishLiveServerEvent publishes a SpaceEvent directly to a live.> subject, bypassing JetStream storage.
-// Use this for transient space-scoped notifications that don't need to be stored or replayed.
-// The subject should already include the "live." prefix.
-func (c *ChattoCore) publishLiveServerEvent(_ context.Context, subject string, event *corev1.Event) error {
-	if err := validateEvent(event); err != nil {
+// publishLiveEvent publishes a transient LiveEvent directly to a live.sync.>
+// subject, bypassing JetStream storage. The subject should already include
+// the "live.sync." prefix.
+func (c *ChattoCore) publishLiveEvent(_ context.Context, subject string, event *corev1.LiveEvent) error {
+	if err := validateLiveEvent(event); err != nil {
 		return err
 	}
 
@@ -1184,31 +1182,7 @@ func (c *ChattoCore) publishLiveServerEvent(_ context.Context, subject string, e
 	return nil
 }
 
-// publishLiveEvent publishes a LiveEvent directly to a live.server.> subject,
-// bypassing JetStream storage. Use this for deployment-wide notifications
-// (user events, space lifecycle, config updates). The subject should already
-// include the "live.server." prefix.
-func (c *ChattoCore) publishLiveEvent(_ context.Context, subject string, event *corev1.Event) error {
-	if err := validateEvent(event); err != nil {
-		return err
-	}
-
-	eventData, err := proto.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal live event: %w", err)
-	}
-
-	if err := c.nc.Publish(subject, eventData); err != nil {
-		return fmt.Errorf("failed to publish live event to %s: %w", subject, err)
-	}
-
-	if err := c.nc.FlushTimeout(natsPublishFlushTimeout); err != nil {
-		return fmt.Errorf("failed to flush live event to %s: %w", subject, err)
-	}
-	return nil
-}
-
-// publishServerEventWithAck publishes a SpaceEvent using JetStream and returns the sequence ID.
+// publishServerEventWithAck publishes a legacy Event using JetStream and returns the sequence ID.
 // This uses synchronous JetStream publish (waits for ack) to get the sequence ID from the PubAck.
 // Use this when you need to know the sequence ID immediately (e.g., for message body storage).
 func (c *ChattoCore) publishServerEventWithAck(ctx context.Context, subject string, event *corev1.Event) (uint64, error) {
@@ -1231,7 +1205,7 @@ func (c *ChattoCore) publishServerEventWithAck(ctx context.Context, subject stri
 
 const maxOCCRetries = 5
 
-// publishServerEventWithOCC publishes a SpaceEvent to a space stream using Optimistic Concurrency Control.
+// publishServerEventWithOCC publishes a legacy Event to SERVER_EVENTS using Optimistic Concurrency Control.
 // It uses the Nats-Expected-Last-Subject-Sequence header to ensure that:
 // 1. We know the current state of the subject before publishing
 // 2. Concurrent publishes to the same subject are detected and retried
@@ -1309,6 +1283,13 @@ func validateEvent(event *corev1.Event) error {
 	return nil
 }
 
+func validateLiveEvent(event *corev1.LiveEvent) error {
+	if event == nil || event.Event == nil {
+		return fmt.Errorf("%w: live event payload is nil or oneof field is unset", ErrInvalidEvent)
+	}
+	return nil
+}
+
 // newEvent fills in the Id, ActorID, and CreatedAt fields of an Event
 // envelope if they're not already set. The caller provides the event
 // with the concrete oneof variant already populated.
@@ -1322,6 +1303,86 @@ func newEvent(actorID string, event *corev1.Event) *corev1.Event {
 	if event.CreatedAt == nil {
 		event.CreatedAt = timestamppb.New(time.Now())
 	}
+	return event
+}
+
+// newLiveEvent fills in the Id, ActorID, and CreatedAt fields of a LiveEvent
+// envelope if they're not already set. The caller provides the event with the
+// concrete oneof variant already populated.
+func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
+	if event.Id == "" {
+		event.Id = NewEventID()
+	}
+	if event.ActorId == "" {
+		event.ActorId = actorID
+	}
+	if event.CreatedAt == nil {
+		event.CreatedAt = timestamppb.New(time.Now())
+	}
+	return event
+}
+
+// liveEventAsEvent adapts the transient LiveEvent wire envelope into the
+// legacy Event envelope consumed by GraphQL resolvers. This is intentionally
+// a boundary adapter; durable EVT facts should not use LiveEvent.
+func liveEventAsEvent(live *corev1.LiveEvent) *corev1.Event {
+	if live == nil || live.Event == nil {
+		return nil
+	}
+
+	event := &corev1.Event{
+		Id:        live.Id,
+		CreatedAt: live.CreatedAt,
+		ActorId:   live.ActorId,
+	}
+
+	switch e := live.Event.(type) {
+	case *corev1.LiveEvent_ConfigUpdated:
+		event.Event = &corev1.Event_ConfigUpdated{ConfigUpdated: e.ConfigUpdated}
+	case *corev1.LiveEvent_UserCreated:
+		event.Event = &corev1.Event_UserCreated{UserCreated: e.UserCreated}
+	case *corev1.LiveEvent_UserDeleted:
+		event.Event = &corev1.Event_UserDeleted{UserDeleted: e.UserDeleted}
+	case *corev1.LiveEvent_UserProfileUpdated:
+		event.Event = &corev1.Event_UserProfileUpdated{UserProfileUpdated: e.UserProfileUpdated}
+	case *corev1.LiveEvent_ServerUserPreferencesUpdated:
+		event.Event = &corev1.Event_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: e.ServerUserPreferencesUpdated}
+	case *corev1.LiveEvent_NotificationLevelChanged:
+		event.Event = &corev1.Event_NotificationLevelChanged{NotificationLevelChanged: e.NotificationLevelChanged}
+	case *corev1.LiveEvent_ThreadFollowChanged:
+		event.Event = &corev1.Event_ThreadFollowChanged{ThreadFollowChanged: e.ThreadFollowChanged}
+	case *corev1.LiveEvent_SpaceMemberDeleted:
+		event.Event = &corev1.Event_SpaceMemberDeleted{SpaceMemberDeleted: e.SpaceMemberDeleted}
+	case *corev1.LiveEvent_ServerUpdated:
+		event.Event = &corev1.Event_ServerUpdated{ServerUpdated: e.ServerUpdated}
+	case *corev1.LiveEvent_UserTyping:
+		event.Event = &corev1.Event_UserTyping{UserTyping: e.UserTyping}
+	case *corev1.LiveEvent_VideoProcessingCompleted:
+		event.Event = &corev1.Event_VideoProcessingCompleted{VideoProcessingCompleted: e.VideoProcessingCompleted}
+	case *corev1.LiveEvent_MentionNotification:
+		event.Event = &corev1.Event_MentionNotification{MentionNotification: e.MentionNotification}
+	case *corev1.LiveEvent_NewDirectMessageNotification:
+		event.Event = &corev1.Event_NewDirectMessageNotification{NewDirectMessageNotification: e.NewDirectMessageNotification}
+	case *corev1.LiveEvent_CallParticipantJoined:
+		event.Event = &corev1.Event_CallParticipantJoined{CallParticipantJoined: e.CallParticipantJoined}
+	case *corev1.LiveEvent_CallParticipantLeft:
+		event.Event = &corev1.Event_CallParticipantLeft{CallParticipantLeft: e.CallParticipantLeft}
+	case *corev1.LiveEvent_NotificationCreated:
+		event.Event = &corev1.Event_NotificationCreated{NotificationCreated: e.NotificationCreated}
+	case *corev1.LiveEvent_NotificationDismissed:
+		event.Event = &corev1.Event_NotificationDismissed{NotificationDismissed: e.NotificationDismissed}
+	case *corev1.LiveEvent_RoomMarkedAsRead:
+		event.Event = &corev1.Event_RoomMarkedAsRead{RoomMarkedAsRead: e.RoomMarkedAsRead}
+	case *corev1.LiveEvent_MentionStatusCleared:
+		event.Event = &corev1.Event_MentionStatusCleared{MentionStatusCleared: e.MentionStatusCleared}
+	case *corev1.LiveEvent_RoomGroupsUpdated:
+		event.Event = &corev1.Event_RoomGroupsUpdated{RoomGroupsUpdated: e.RoomGroupsUpdated}
+	case *corev1.LiveEvent_SessionTerminated:
+		event.Event = &corev1.Event_SessionTerminated{SessionTerminated: e.SessionTerminated}
+	default:
+		return nil
+	}
+
 	return event
 }
 
@@ -1376,17 +1437,15 @@ func isTerminalIteratorError(err error) bool {
 // StreamMyEvents creates a unified stream of every event on this
 // deployment that is relevant to a specific user.
 //
-// All events arrive via a single NATS Core subscription on
-// `live.server.>`. JetStream-stored events (room messages, thread
-// replies, meta lifecycle, server-level member events) are republished
-// onto the same subject root by the SERVER_EVENTS stream's RePublish
-// config; transient events (reactions, typing, edits, deletes, user/
-// space/config notifications) publish directly via NATS Core. The
-// subject prefix is what disambiguates the two — payload-wise they're
-// identical `corev1.Event` wire protos.
+// Events arrive via NATS Core subscriptions on two internal subject roots:
+// `live.sync.>` carries transient LiveEvent messages and `live.evt.>` is the
+// raw singleton republish of committed EVT facts. EVT delivery is not UI-safe
+// by itself: filterLiveEvent waits for the relevant local projection(s) to
+// reach the republished stream sequence, then applies this user's
+// authorization before forwarding the event through GraphQL.
 //
 // Authorization:
-//   - Room events (live.server.room.>) are delivered only for rooms
+//   - Room events (live.sync.room.> and deliverable live.evt.room.>) are delivered only for rooms
 //     where the user is a member. The membership set is pre-loaded
 //     across both kinds (channel + dm) and updated as join/leave/
 //     room-deleted events arrive.
@@ -1420,16 +1479,9 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		return nil, err
 	}
 
-	// Single live-subject subscription on live.server.>. Aggregates
-	// that have already been migrated to EVT (room memberships, room
-	// groups, server config, room/thread messages from #614) still
-	// emit legacy mirrors on the live.server.> subject family, the
-	// same way RoomMembership and friends have done since #595. We
-	// deliberately do NOT subscribe to live.evt.> here even though the
-	// EVT stream's RePublish puts events on that subject root —
-	// subscribing to both would deliver every migrated event twice
-	// (once from each subject), flood the per-subscription channel
-	// under load, and tip subscriptions into SlowConsumer state.
+	// live.sync.> is the transient LiveEvent subject root. live.evt.> is
+	// the raw committed-event feed from the EVT stream. SERVER_EVENTS no
+	// longer participates in live delivery.
 	//
 	// The 256-message buffer absorbs reaction/typing bursts; on
 	// overflow NATS Core drops messages and transitions the
@@ -1438,15 +1490,23 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	// re-subscribe (and pick up missed history via the GraphQL
 	// catch-up path) rather than silently miss events.
 	msgChan := make(chan *nats.Msg, 256)
-	liveSub, err := c.nc.ChanSubscribe(subjects.LiveAllEvents(), msgChan)
+	liveSyncSub, err := c.nc.ChanSubscribe(subjects.LiveSyncAllEvents(), msgChan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live events: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to live sync events: %w", err)
 	}
-	slowConsumerCh := liveSub.StatusChanged(nats.SubscriptionSlowConsumer)
+	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
+
+	liveEVTSub, err := c.nc.ChanSubscribe(events.LiveSubjectRoot+">", msgChan)
+	if err != nil {
+		liveSyncSub.Unsubscribe()
+		return nil, fmt.Errorf("failed to subscribe to live EVT events: %w", err)
+	}
+	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
 
 	presenceSub, err := c.PresenceHub.Subscribe(ctx)
 	if err != nil {
-		liveSub.Unsubscribe()
+		liveSyncSub.Unsubscribe()
+		liveEVTSub.Unsubscribe()
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
@@ -1473,7 +1533,8 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 
 		defer func() {
 			c.logger.Debug("Server event stream closed", "user_id", userID)
-			liveSub.Unsubscribe()
+			liveSyncSub.Unsubscribe()
+			liveEVTSub.Unsubscribe()
 			c.PresenceHub.Unsubscribe(presenceSub)
 			close(eventChan)
 		}()
@@ -1492,15 +1553,15 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 			case <-ctx.Done():
 				return
 
-			case <-slowConsumerCh:
-				// The NATS Core subscription's buffer overflowed and
-				// messages were dropped. Continuing would silently
-				// hide missing events, so tear down — the client's
-				// eventBus watchdog will re-subscribe (and any UI
-				// state that depends on missed messages will be
-				// repaired via the usual GraphQL refetch paths).
-				dropped, _ := liveSub.Dropped()
-				c.logger.Warn("Slow consumer on live events subscription — tearing down",
+			case <-slowEVTConsumerCh:
+				dropped, _ := liveEVTSub.Dropped()
+				c.logger.Warn("Slow consumer on live EVT subscription — tearing down",
+					"user_id", userID, "dropped", dropped)
+				return
+
+			case <-slowSyncConsumerCh:
+				dropped, _ := liveSyncSub.Dropped()
+				c.logger.Warn("Slow consumer on live sync subscription — tearing down",
 					"user_id", userID, "dropped", dropped)
 				return
 
@@ -1598,29 +1659,47 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 	return nil
 }
 
-// filterLiveEvent unmarshals a message from the unified live.> stream
+// filterLiveEvent unmarshals a message from one of the live delivery roots
 // and applies per-user authorization. Returns the event and true if it
 // should be delivered. Mutates memberRooms when the subscriber
 // themselves joins/leaves a room or when a room is deleted.
 //
 // Two routing paths:
 //
-//  1. Room subjects (live.server.room.{kind}.{roomId}.…):
+//  1. Room subjects (live.sync.room.{kind}.{roomId}.…):
 //     gated on room membership and (for DM-kind) dm.view permission.
 //  2. Everything else: delegated to isAuthorizedForLiveEvent.
 func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg) (*corev1.Event, bool) {
+	if strings.HasPrefix(msg.Subject, "live.sync.") {
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			c.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
+			return nil, false
+		}
+		event := liveEventAsEvent(&live)
+		if event == nil {
+			c.logger.Warn("Failed to adapt live sync event", "subject", msg.Subject, "event_id", live.GetId())
+			return nil, false
+		}
+		return c.filterLiveEventEnvelope(ctx, userID, canDM, memberRooms, msg, event)
+	}
+
+	if !strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
+		c.logger.Warn("Unknown live event subject root", "subject", msg.Subject)
+		return nil, false
+	}
+
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		c.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
 		return nil, false
 	}
 
-	// Path 1: room-scoped events on live.server.room.{kind}.{roomId}.…
-	// (both the legacy SERVER_EVENTS republish and ephemeral direct
-	// publishes from publishLiveServerEvent). EVT events that need to
-	// reach the frontend are mirrored to this same subject family by
-	// the producer (see room_membership.go, messages.go, etc.), so
-	// only one subject shape arrives here.
+	return c.filterLiveEVTEvent(ctx, userID, memberRooms, msg, &event)
+}
+
+func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+	// Path 1: room-scoped transient events on live.sync.room.{kind}.{roomId}.…
 	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
 		roomKind := kind
 		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
@@ -1664,7 +1743,7 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		if !isMember {
 			return nil, false
 		}
-		return &event, true
+		return event, true
 	}
 
 	// Path 2: user/config/member subjects.
@@ -1672,23 +1751,118 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return nil, false
 	}
 
-	return &event, true
+	return event, true
+}
+
+func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+	roomID, ok := events.ParseRoomSubject(msg.Subject)
+	if !ok {
+		return nil, false
+	}
+	if !isDeliverableLiveEVTRoomEvent(event) {
+		return nil, false
+	}
+
+	seq, err := strconv.ParseUint(msg.Header.Get(nats.JSSequence), 10, 64)
+	if err != nil || seq == 0 {
+		c.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence), "error", err)
+		return nil, false
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+	defer cancel()
+	if err := c.waitForLiveEVTRoomEvent(waitCtx, event, seq); err != nil {
+		c.logger.Warn("Timed out waiting for live EVT projection readiness", "subject", msg.Subject, "sequence", seq, "error", err)
+		return nil, false
+	}
+
+	_, isMember := memberRooms[roomID]
+	switch event.Event.(type) {
+	case *corev1.Event_UserJoinedRoom:
+		if event.ActorId == userID {
+			memberRooms[roomID] = struct{}{}
+			isMember = true
+		}
+	case *corev1.Event_UserLeftRoom:
+		if event.ActorId == userID {
+			delete(memberRooms, roomID)
+		}
+	case *corev1.Event_RoomDeleted:
+		delete(memberRooms, roomID)
+	}
+	if !isMember {
+		return nil, false
+	}
+	return event, true
+}
+
+func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
+	switch event.GetEvent().(type) {
+	case *corev1.Event_RoomCreated,
+		*corev1.Event_RoomUpdated,
+		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomArchived,
+		*corev1.Event_RoomUnarchived,
+		*corev1.Event_UserJoinedRoom,
+		*corev1.Event_UserLeftRoom,
+		*corev1.Event_MessagePosted,
+		*corev1.Event_MessageEdited,
+		*corev1.Event_MessageRetracted,
+		*corev1.Event_ReactionAdded,
+		*corev1.Event_ReactionRemoved,
+		*corev1.Event_AssetProcessingStarted,
+		*corev1.Event_AssetProcessingSucceeded,
+		*corev1.Event_AssetProcessingFailed,
+		*corev1.Event_AssetDeleted:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.Event, seq uint64) error {
+	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("room timeline: %w", err)
+	}
+	if err := c.ThreadsProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("threads: %w", err)
+	}
+	if err := c.ReactionsProjector.WaitForSeq(ctx, seq); err != nil {
+		return fmt.Errorf("reactions: %w", err)
+	}
+
+	switch event.GetEvent().(type) {
+	case *corev1.Event_UserJoinedRoom, *corev1.Event_UserLeftRoom, *corev1.Event_RoomDeleted:
+		if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
+			return fmt.Errorf("room membership: %w", err)
+		}
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_RoomCreated,
+		*corev1.Event_RoomUpdated,
+		*corev1.Event_RoomArchived,
+		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomDeleted:
+		if err := c.RoomCatalogProjector.WaitForSeq(ctx, seq); err != nil {
+			return fmt.Errorf("room catalog: %w", err)
+		}
+	}
+	return nil
 }
 
 // isAuthorizedForLiveEvent checks if a user is authorized to receive a
 // non-room live event based on the subject pattern:
 //
-//   - live.server.config.* → all authenticated users (server config /
+//   - live.sync.config.* → all authenticated users (server config /
 //     branding / room-layout updates — public to every member)
-//   - live.server.member.* → all authenticated users (single-server membership)
-//   - live.server.user.{userId}.* → only the target user, except
-//     live.server.user.{userId}.profile_updated which is broadcast.
+//   - live.sync.member.* → all authenticated users (single-server membership)
+//   - live.sync.user.{userId}.* → only the target user, except
+//     live.sync.user.{userId}.profile_updated which is broadcast.
 //
-// Room events (`live.server.room.>`) are filtered separately via the
-// per-user room-membership cache and never reach this function.
+// Room events (`live.sync.room.>`) are filtered separately via the per-user
+// room-membership cache and never reach this function.
 func (c *ChattoCore) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {
 	parts := strings.Split(subject, ".")
-	if len(parts) < 3 || parts[0] != "live" || parts[1] != "server" {
+	if len(parts) < 3 || parts[0] != "live" || parts[1] != "sync" {
 		c.logger.Warn("Invalid live event subject format", "subject", subject)
 		return false
 	}
@@ -1717,8 +1891,8 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(_ context.Context, userID, subject
 // PublishServerConfigUpdated publishes an server config update event.
 // This notifies all connected clients that the server configuration has changed.
 func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID string, serverName, motd, welcomeMessage, blockedUsernames string) error {
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_ConfigUpdated{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_ConfigUpdated{
 			ConfigUpdated: &corev1.ServerConfigUpdatedEvent{
 				ServerName:       serverName,
 				Motd:             motd,
@@ -1728,7 +1902,7 @@ func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID str
 		},
 	})
 
-	return c.publishLiveEvent(ctx, subjects.LiveConfigEvent("updated"), event)
+	return c.publishLiveEvent(ctx, subjects.LiveSyncConfigEvent("updated"), event)
 }
 
 // ============================================================================

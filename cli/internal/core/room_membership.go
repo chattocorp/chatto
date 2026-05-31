@@ -44,11 +44,11 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 // pairs, and we early-out via IsMember).
 // Authorization: Caller must verify CanJoinRoom before calling.
 //
-// ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT,
-// mirrors to the legacy live subject for frontend myEvents delivery,
-// then WaitForSeq on the projections that serve membership and room
-// history reads. The room_membership KV bucket is no longer written
-// to (retained as pre-ES import evidence).
+// ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT, writes
+// a legacy SERVER_EVENTS copy for migration/import tooling, then WaitForSeq
+// on the projections that serve membership and room history reads. The
+// room_membership KV bucket is no longer written to (retained as pre-ES
+// import evidence).
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
@@ -116,9 +116,8 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		return nil, fmt.Errorf("publish UserJoinedRoomEvent retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
-	// Legacy publish — feeds live.server.> for the frontend's
-	// myEvents subscription. Best-effort; failures are logged but
-	// don't roll back the join.
+	// Legacy SERVER_EVENTS copy retained for migration/import tooling.
+	// Best-effort; failures are logged but don't roll back the join.
 	legacySubject := subjects.RoomMeta(string(kind), room_id)
 	if err := c.publishServerEvent(ctx, legacySubject, event); err != nil {
 		c.logger.Error("failed to publish UserJoinedRoomEvent (legacy)", "error", err, "user_id", user_id, "room_id", room_id)
@@ -235,8 +234,7 @@ func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id stri
 
 // deleteUserRoomMembershipsInSpace removes all of a user's memberships of
 // the given kind. Called when a user is deleted or leaves a space.
-// Publishes UserLeftRoomEvent for each affected room (which the
-// projection applies; clients update via the legacy live subject).
+// Publishes UserLeftRoomEvent for each affected room, which projections apply.
 //
 // ADR-035 phase 6: event-only. The list of rooms to leave is read
 // from the projection rather than scanning the KV bucket. The kind

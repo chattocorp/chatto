@@ -96,8 +96,8 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 		tz = *settings.Timezone
 	}
 
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_ServerUserPreferencesUpdated{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{
 			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{
 				Timezone:   tz,
 				TimeFormat: settings.TimeFormat,
@@ -105,7 +105,7 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 		},
 	})
 
-	subject := subjects.LiveUserEvent(userID, "settings_updated")
+	subject := subjects.LiveSyncUserEvent(userID, "settings_updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
 	}

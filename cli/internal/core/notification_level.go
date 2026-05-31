@@ -299,8 +299,8 @@ func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, userID st
 // publishNotificationLevelChangedEvent publishes a live event when a notification level changes.
 // User-scoped: only delivered to the user who changed their preference.
 func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, userID, roomID string, level, effectiveLevel corev1.NotificationLevel) {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_NotificationLevelChanged{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_NotificationLevelChanged{
 			NotificationLevelChanged: &corev1.NotificationLevelChangedEvent{
 				RoomId:         roomID,
 				Level:          level,
@@ -309,7 +309,7 @@ func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, u
 		},
 	})
 
-	subject := subjects.LiveUserEvent(userID, "notification_level_changed")
+	subject := subjects.LiveSyncUserEvent(userID, "notification_level_changed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification level changed event", "error", err, "user_id", userID)
 	}

@@ -218,9 +218,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	// Legacy live broadcast on the SERVER_EVENTS path — keeps the
-	// frontend's myEvents subscription working until that pipe is
-	// retired.
+	// Legacy SERVER_EVENTS copy retained for migration/import tooling.
+	// SERVER_EVENTS no longer participates in live delivery.
 	subject := subjects.RoomMeta(string(kind), room_id)
 	if _, err := c.publishServerEventWithAck(ctx, subject, createdEvent); err != nil {
 		c.logger.Error("failed to publish room created event (legacy)", "error", err, "room_id", room_id)

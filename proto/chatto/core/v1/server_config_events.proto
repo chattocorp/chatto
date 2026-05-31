@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: durable config snapshot event on evt.config.server
-//   - 1000: legacy live-only config broadcast
+//   - 1000: live-only GraphQL adapter payload
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -21,8 +21,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // complete ServerConfig snapshot after the change so projections and
 // the audit log can reconstruct state without reaching back to KV.
 // Distinct from the live-only ServerConfigUpdatedEvent at field 1000,
-// which still rides the legacy live broadcast path during the
-// migration window.
+// which is adapted from LiveEvent for the public GraphQL subscription.
 message ServerConfigChangedEvent {
   // The complete server config after the change.
   chatto.config.v1.ServerConfig config = 1;

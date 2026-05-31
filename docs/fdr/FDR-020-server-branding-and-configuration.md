@@ -27,7 +27,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ### 2. Config changes broadcast as public live events
 
-**Decision:** Changes publish to `live.server.config.*` and are delivered to every authenticated user.
+**Decision:** Changes publish transient `LiveEvent` messages to `live.sync.config.*` and are delivered to every authenticated user.
 **Why:** Server name, MOTD, logo — these are visible everywhere in the UI. Without live delivery, every member would see stale branding until refresh. The events have no privacy concern (everyone sees branding equally) so a broad broadcast is correct. See ADR-012.
 **Tradeoff:** Every connected client gets every config change event, including ones for fields they may not render. Volume is low (operators don't tweak branding constantly) so this is fine.
 

@@ -43,30 +43,40 @@ msg.{rootId}.replies.{eventId}
 thread.{rootId}.{eventId}
 ```
 
-### 4. One Pipe for Live Delivery — Republish Durable Subjects
+### 4. Live Delivery Uses Raw EVT Republish Plus an Authorized API Gate
 
-The `SERVER_EVENTS` stream's `RePublish` config rewrites every accepted message from `server.>` to `live.server.>` after persistence. Subscribers wanting room messages, thread replies, room meta, or server-level member events do not hold a JetStream consumer — they take a NATS Core sub on `live.server.>` and the stream feeds them automatically.
+The legacy `SERVER_EVENTS` stream is storage/import infrastructure during the
+event-sourcing migration. It does not republish to a live subject, and new live
+delivery must not use `live.server.>`.
 
-This gives one logical pipe (`live.server.>`) with two physical publishers:
+Transient signals publish as `corev1.LiveEvent` on `live.sync.>` through
+`publishLiveEvent`. This root is for live UI sync where runtime/KV state is
+source of truth (typing, voice-call presence, notifications, preferences,
+server/config invalidations) and has no stream storage.
 
-- Persistent events (room messages, thread replies, room meta, server member lifecycle) write to `server.>` via `publishServerEvent` / `publishServerEventWithAck` / `publishServerEventWithOCC`, then republish onto `live.server.>` automatically.
-- Transient events (reactions, typing, edits, deletes, user/space/config notifications) publish directly via NATS Core on `live.server.>` through `publishLiveServerEvent` / `publishLiveEvent`.
+Event-sourced aggregates write durable state to `EVT`
+(`evt.{aggregateType}.{aggregateId}.{eventType}`). The stream's
+`RePublish` config forwards committed events once onto `live.evt.>`.
+Treat `live.evt.>` as a raw internal committed-event feed, not a
+browser/client contract: GraphQL `myEvents` consumes it server-side, waits
+for the local projections needed by authorization and follow-up resolvers,
+then filters by the subscribing user before emitting the event.
 
-Subject leaf tokens disambiguate the two paths so a subscriber on `live.server.>` cannot receive the same event twice. Republished events always end in `.msg.{id}`, `.meta`, or `.{member_verb}` (mirroring the stream subject shape); direct publishes use event-type tokens like `.reaction_added`, `.user_typing`, `.profile_updated`.
+Do not publish live events from ordinary projection `Apply` methods. Every
+Chatto replica maintains its own local projectors, so projector-side publish
+effects multiply one committed EVT event by the replica count.
 
-Event-sourced aggregates are the exception to the old "durable stream
-republish is the live path" rule during the ES migration. They write durable
-state to `EVT` (`evt.{aggregateType}.{aggregateId}.{eventType}`) and, when
-the frontend still expects an event, publish a non-durable compatibility
-mirror on `live.server.>` after the write/projection catch-up succeeds.
-`EVT` still republishes to `live.evt.>`, but `myEvents` does not subscribe
-to that root during the migration window. Do not add a second `live.evt.>`
-subscription to `myEvents` unless the live-routing design is deliberately
-changed; doing so can double-deliver migrated aggregate events.
+During the remaining ES migration window, some EVT-backed mutations still
+may have legacy Event-envelope adapter shapes in protobuf/GraphQL, but live
+delivery should come from either `live.evt.>` or `live.sync.>`.
 
-**Anti-pattern: do not double-publish.** Calling both `publishServerEvent(..., subjects.X(...))` *and* `publishLiveServerEvent(..., subjects.LiveX(...))` for the same conceptual event will deliver it twice to every subscriber, because the stream-republish already covers the live path. Choose one based on whether the event is part of durable history.
+**Anti-pattern: do not double-publish.** Calling both `EventPublisher.Append(...)` *and* `publishLiveEvent(...)` for the same conceptual UI event can deliver it twice if that EVT fact is deliverable from `live.evt.>`. Choose one based on whether the event is durable history or transient sync.
 
-When extending the subject parsers (`subjects.go`), accept both shapes via the `stripLivePrefix` helper so durable (`server.>`) and republished/live (`live.server.>`) subjects share one canonical form. New parsers should follow the existing pattern (`ParseRoomIDFromSubject`, `IsThreadSubject`, etc.).
+When extending the subject parsers (`subjects.go`), accept durable (`server.>`)
+and transient sync (`live.sync.>`) room shapes via the shared normalization
+helper so they share one canonical form. `live.evt.>` has its own parser in the
+events package. New parsers should follow the existing pattern
+(`ParseRoomIDFromSubject`, `IsThreadSubject`, etc.).
 
 ### 5. Encode Filter Discriminators in the Key Prefix
 

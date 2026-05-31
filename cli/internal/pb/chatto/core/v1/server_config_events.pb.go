@@ -26,8 +26,7 @@ const (
 // complete ServerConfig snapshot after the change so projections and
 // the audit log can reconstruct state without reaching back to KV.
 // Distinct from the live-only ServerConfigUpdatedEvent at field 1000,
-// which still rides the legacy live broadcast path during the
-// migration window.
+// which is adapted from LiveEvent for the public GraphQL subscription.
 type ServerConfigChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The complete server config after the change.
