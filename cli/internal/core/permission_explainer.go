@@ -78,7 +78,6 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return nil
 	}
-	kv := r.core.storage.serverRBACEngine.KV()
 	useChannelRoomPath := kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
 
 	// For channel rooms, look up the set once.
@@ -94,16 +93,16 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 
 	// User-level probes.
 	if useChannelRoomPath {
-		if _, _, err := r.probeRoom(ctx, kv, userSubj, parts, roomID, visit); err != nil {
+		if _, _, err := r.probeRoom(ctx, userSubj, parts, roomID, visit); err != nil {
 			return err
 		}
 		if groupID != "" {
-			if _, _, err := r.probeSet(ctx, kv, userSubj, parts, groupID, visit); err != nil {
+			if _, _, err := r.probeSet(ctx, userSubj, parts, groupID, visit); err != nil {
 				return err
 			}
 		}
 	} else {
-		if _, _, err := r.probeServer(ctx, kv, userSubj, parts, visit); err != nil {
+		if _, _, err := r.probeServer(ctx, userSubj, parts, visit); err != nil {
 			return err
 		}
 	}
