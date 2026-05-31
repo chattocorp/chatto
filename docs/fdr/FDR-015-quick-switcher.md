@@ -1,7 +1,7 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -14,7 +14,7 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 - Typing filters results with a fuzzy matcher. Items match on both label and detail (e.g., the containing space name); label matches score higher.
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
 - When the search field is empty, results group as: a "Recent" section first (if any), then by kind — "Go to" (well-known destinations), "Space", "Room", "DM" — each section alphabetical.
-- "Go to" destinations are: **Browse Spaces** (shown only if any connected server grants `room.create` or equivalent listing access), **Direct Messages** (shown only if any server grants `dm.view`), **Notifications** (always shown).
+- "Go to" destinations are: **Browse Spaces** (shown only if any connected server grants `room.create` or equivalent listing access), **Direct Messages** (shown if any connected server has visible DM conversations or allows starting DMs), **Notifications** (always shown).
 - DMs show participants' avatars (up to two for the "other" participants, or the self-avatar for self-DMs) and display names; spaces and rooms show the space logo.
 - Multi-server setups show the server name as a detail label so destinations with similar names disambiguate.
 - Arrow keys move selection; Enter navigates; the selected item scrolls into view.
@@ -49,8 +49,8 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 
 ### 5. Well-known destinations gated by access
 
-**Decision:** Browse Spaces only appears if at least one connected server allows listing spaces. Direct Messages only appears if at least one server grants `dm.view`. Notifications always appears.
-**Why:** Showing a destination the user can't reach is a worse experience than hiding it. The gating is cheap because the permission state is already loaded.
+**Decision:** Browse Spaces only appears if at least one connected server allows listing spaces. Direct Messages appears if the user has DM conversations on a connected server or can start DMs there. Notifications always appears.
+**Why:** Showing a destination the user can't reach is a worse experience than hiding it. DMs no longer have a read permission; membership in an existing DM is enough to make the destination useful, while `dm.write` means the user can start a new conversation. See ADR-037.
 **Tradeoff:** The palette's "Go to" list changes depending on the user's permissions in connected servers. Considered correct behavior.
 
 ## Permissions

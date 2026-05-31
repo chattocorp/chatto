@@ -76,9 +76,6 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // DM
-  'dm.view': {
-    description: 'Access DMs and read direct messages'
-  },
   'dm.write': {
     description: 'Start DM conversations and send messages'
   },

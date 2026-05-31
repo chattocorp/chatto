@@ -161,7 +161,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
-func TestStreamMyEvents_DoesNotCacheDMJoinWhenDMViewDenied(t *testing.T) {
+func TestStreamMyEvents_DeliversDMEventsWhenDMWriteDenied(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -173,15 +173,15 @@ func TestStreamMyEvents_DoesNotCacheDMJoinWhenDMViewDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermDMView); err != nil {
-		t.Fatalf("DenyServerPermission dm.view: %v", err)
+	if err := core.DenyServerPermission(ctx, RoleEveryone, PermDMWrite); err != nil {
+		t.Fatalf("DenyServerPermission dm.write: %v", err)
 	}
-	canDM, err := core.HasServerPermission(ctx, target.Id, PermDMView)
+	canWriteDM, err := core.HasServerPermission(ctx, target.Id, PermDMWrite)
 	if err != nil {
-		t.Fatalf("HasServerPermission dm.view: %v", err)
+		t.Fatalf("HasServerPermission dm.write: %v", err)
 	}
-	if canDM {
-		t.Fatal("target should not have dm.view")
+	if canWriteDM {
+		t.Fatal("target should not have dm.write")
 	}
 
 	subCtx, cancel := context.WithCancel(ctx)
@@ -203,18 +203,18 @@ func TestStreamMyEvents_DoesNotCacheDMJoinWhenDMViewDenied(t *testing.T) {
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	timeout := time.After(500 * time.Millisecond)
+	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case ev, ok := <-eventChan:
 			if !ok {
 				t.Fatal("event stream closed unexpectedly")
 			}
-			if liveEventRoomID(ev) == room.Id {
-				t.Fatalf("target received DM event without dm.view: %T", ev.GetEvent())
+			if liveEventRoomID(ev) == room.Id && ev.GetMessagePosted() != nil {
+				return
 			}
 		case <-timeout:
-			return
+			t.Fatal("target did not receive DM message after dm.write was denied")
 		}
 	}
 }

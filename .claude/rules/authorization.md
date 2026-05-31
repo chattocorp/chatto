@@ -73,7 +73,7 @@ DM rooms use the same hierarchy walker as channels, with one extra rule: a stati
 - **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.edit-any`, `message.delete-any`, `room.manage`, `message.echo`).
 - **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.create` / `member.invite` / `member.remove` don't apply.
 
-Access *to* DM rooms is gated separately by participation (`requireRoomMember`) and the `dm.view` permission at the server boundary. The deny-list only constrains what a participant can do once inside.
+Access *to* DM rooms is gated by participation (`requireRoomMember`). There is no DM read permission; `dm.write` gates starting DMs and sending messages in DM rooms. The deny-list only constrains what a participant can do once inside.
 
 ### Rank vs Permission: the two-step rule
 
@@ -175,7 +175,7 @@ the ability to create rooms only in specific groups.
 | `message.react` | Add and remove reactions on messages |
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
-| `dm.view`, `dm.write` | Access DMs and send direct messages |
+| `dm.write` | Start DMs and send direct messages |
 | `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
 | `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel access tiers |
 
@@ -219,7 +219,7 @@ the ability to create rooms only in specific groups.
 
 | Subscription | Auth Required | Additional Check |
 |--------------|---------------|------------------|
-| `myEvents` | Yes | None at gateway; per-event scoping is enforced inside the resolver (room membership for room events, dm.view for DM rooms, target-user filtering for private user events, etc.) |
+| `myEvents` | Yes | None at gateway; per-event scoping is enforced inside the resolver (room membership for room events, target-user filtering for private user events, etc.) |
 
 ### Field Resolvers
 

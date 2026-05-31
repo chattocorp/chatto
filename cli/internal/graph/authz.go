@@ -31,7 +31,7 @@ var (
 	ErrNotSpaceMember   = core.ErrNotSpaceMember
 	ErrNotRoomMember    = core.ErrNotRoomMember
 	ErrNotSelf          = errors.New("access denied: cannot access other users' data")
-	ErrNotServerAdmin = errors.New("access denied: server admin required")
+	ErrNotServerAdmin   = errors.New("access denied: server admin required")
 )
 
 // requireAuth extracts the authenticated user from context.
@@ -60,22 +60,12 @@ func requireSelf(ctx context.Context, targetUserID string) (*corev1.User, error)
 // requireSpaceMember verifies the caller can access the given room kind.
 //
 // Post-consolidation every authenticated user is implicitly a server member,
-// so for channel rooms the check collapses to `requireAuth`. The DM kind is
-// still a real gate — callers without `dm.view` are rejected here.
+// so this check collapses to `requireAuth`. DM read access is room membership,
+// not a server-scope read permission.
 func requireSpaceMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKind) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if kind == core.KindDM {
-		can, err := c.HasServerPermission(ctx, user.Id, core.PermDMView)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check DM permission: %w", err)
-		}
-		if !can {
-			return nil, core.ErrPermissionDenied
-		}
 	}
 
 	return user, nil

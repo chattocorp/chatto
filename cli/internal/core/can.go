@@ -57,12 +57,6 @@ func (c *ChattoCore) CanAdminAuditView(ctx context.Context, userID string) (bool
 	return c.HasServerPermission(ctx, userID, PermAdminAuditView)
 }
 
-// CanDMView checks if a user can access the DM space and read DMs.
-// Verified users have this permission by default.
-func (c *ChattoCore) CanDMView(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermDMView)
-}
-
 // CanDMWrite checks if a user can start DM conversations and send messages.
 // Verified users have this permission by default.
 func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error) {

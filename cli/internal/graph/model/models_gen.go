@@ -837,10 +837,9 @@ type Server struct {
 	//
 	// When `type` is null or `CHANNEL`, the result includes regular channels. When
 	// `type` is null or `DM`, the caller's direct-message conversations are merged
-	// in (subject to `dm.view`); the unified sidebar uses the null default to
-	// render channels and DMs together. Pass `type: CHANNEL` for channels-only
-	// consumers (e.g. the admin room-management UI); pass `type: DM` for DMs-only
-	// consumers.
+	// in through membership; the unified sidebar uses the null default to render
+	// channels and DMs together. Pass `type: CHANNEL` for channels-only consumers
+	// (e.g. the admin room-management UI); pass `type: DM` for DMs-only consumers.
 	Rooms []*corev1.Room `json:"rooms"`
 	// Ordered list of channel-room groups (ADR-031). Every server boots with at
 	// least the seed "Lobby" group; the list is never empty for a configured

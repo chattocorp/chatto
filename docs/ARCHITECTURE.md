@@ -229,7 +229,7 @@ Like `Query.admin`, the `admin: AdminMutations` field returns `null` for non-adm
 
 | Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ---- |
-| `myEvents`            | The single subscription. Multiplexes room events (messages, reactions, typing, edits, deletes, mention notifications, video processing, voice call lifecycle) and deployment-scoped events (server config, profile updates, room CRUD, room-layout changes, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events are additionally gated by `dm.view`. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
+| `myEvents`            | The single subscription. Multiplexes room events (messages, reactions, typing, edits, deletes, mention notifications, video processing, voice call lifecycle) and deployment-scoped events (server config, profile updates, room CRUD, room-layout changes, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
 
 There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
 
@@ -322,7 +322,7 @@ These sections previously described the RBAC model and DM behavior in detail. Th
 
 - **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, [`/.claude/rules/authorization.md`](../.claude/rules/authorization.md) for the full resolver semantics (DM boundary, user-level overrides, scope cascade), and [`/.claude/rules/admin.md`](../.claude/rules/admin.md) for the admin-side picture.
 - **Permission constants and `Can*` functions** — see [`cli/internal/core/permission.go`](../cli/internal/core/permission.go) and [`cli/internal/core/can.go`](../cli/internal/core/can.go).
-- **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-015 (DMs as a Hidden Space)](adr/ADR-015-dms-as-hidden-space.md).
+- **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-037 (DM Access via Membership)](adr/ADR-037-dm-access-via-membership.md).
 - **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below alongside the rest of the KV.
 
 ## NATS Resource Inventory

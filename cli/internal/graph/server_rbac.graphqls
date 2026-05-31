@@ -47,8 +47,6 @@ type Viewer {
   user: User! @goField(forceResolver: true)
   "Whether the viewer can access the admin panel (includes config-admin check)."
   canViewAdmin: Boolean! @goField(forceResolver: true)
-  "Whether the viewer can access direct messages."
-  canViewDMs: Boolean! @goField(forceResolver: true)
   "Whether the viewer can start DM conversations and send messages."
   canWriteDMs: Boolean! @goField(forceResolver: true)
   "Whether the viewer can view the admin users page."

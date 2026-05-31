@@ -1489,7 +1489,6 @@ func isTerminalIteratorError(err error) bool {
 //     where the user is a member. The membership set is pre-loaded
 //     across both kinds (channel + dm) and updated as join/leave/
 //     room-deleted events arrive.
-//   - DM-kind events are additionally gated on `dm.view`.
 //   - User/config/member subjects are filtered by
 //     isAuthorizedForLiveEvent.
 //   - Presence updates from the per-process PresenceHub are deployment-
@@ -1504,18 +1503,13 @@ func isTerminalIteratorError(err error) bool {
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
 func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
-	canDM, err := c.HasServerPermission(ctx, userID, PermDMView)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check dm.view permission: %w", err)
-	}
-
 	// memberRooms is the per-subscription visibility cache: the user
 	// receives live events for rooms they are an explicit member of.
 	// Seeded from `room_membership.*` records and mutated on
 	// `UserJoinedRoom` / `UserLeftRoom` / `RoomDeleted`, and re-seeded
 	// on `RoomGroupsUpdated` to absorb admin-driven membership changes.
 	memberRooms := make(map[string]struct{})
-	if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
+	if err := c.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
 		return nil, err
 	}
 
@@ -1553,7 +1547,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	eventChan := make(chan *corev1.Event)
 
 	go func() {
-		c.logger.Debug("Server event stream started", "user_id", userID, "can_dm", canDM, "member_rooms", len(memberRooms))
+		c.logger.Debug("Server event stream started", "user_id", userID, "member_rooms", len(memberRooms))
 
 		// Subscribing implies the user is online; refresh on a ticker
 		// so the KV TTL doesn't expire while the connection is open.
@@ -1620,7 +1614,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 				}
 
 			case msg := <-msgChan:
-				event, ok := c.filterLiveEvent(ctx, userID, canDM, memberRooms, msg)
+				event, ok := c.filterLiveEvent(ctx, userID, memberRooms, msg)
 				if !ok {
 					continue
 				}
@@ -1662,11 +1656,11 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 
 // populateMemberRoomsCache (re)builds the per-subscription room
 // visibility set in place. The cache contains every channel room the
-// user is an explicit member of, plus DM rooms when canDM. Used at
+// user is an explicit member of, plus every DM room they participate in. Used at
 // subscription start and on `RoomGroupsUpdatedEvent` to re-seed after
 // admin-driven membership changes (e.g. a user gaining access to a
 // room via a group-scope permission edit, then joining).
-func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}) error {
+func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string, memberRooms map[string]struct{}) error {
 	for k := range memberRooms {
 		delete(memberRooms, k)
 	}
@@ -1684,16 +1678,14 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 		memberRooms[m.RoomId] = struct{}{}
 	}
 
-	if canDM {
-		dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
-		if err != nil {
-			return fmt.Errorf("failed to get DM room memberships: %w", err)
-		}
-		// DM rooms surface via their own listing path; explicit
-		// membership is the visibility gate.
-		for _, m := range dmMemberships {
-			memberRooms[m.RoomId] = struct{}{}
-		}
+	dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get DM room memberships: %w", err)
+	}
+	// DM rooms surface via their own listing path; explicit
+	// membership is the visibility gate.
+	for _, m := range dmMemberships {
+		memberRooms[m.RoomId] = struct{}{}
 	}
 
 	return nil
@@ -1707,9 +1699,9 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 // Two routing paths:
 //
 //  1. Room subjects (live.sync.room.{kind}.{roomId}.…):
-//     gated on room membership and (for DM-kind) dm.view permission.
+//     gated on room membership.
 //  2. Everything else: delegated to isAuthorizedForLiveEvent.
-func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (*corev1.Event, bool) {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
 		var live corev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
@@ -1721,7 +1713,7 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 			c.logger.Warn("Failed to adapt live sync event", "subject", msg.Subject, "event_id", live.GetId())
 			return nil, false
 		}
-		return c.filterLiveEventEnvelope(ctx, userID, canDM, memberRooms, msg, event)
+		return c.filterLiveEventEnvelope(ctx, userID, memberRooms, msg, event)
 	}
 
 	if !strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
@@ -1735,17 +1727,13 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return nil, false
 	}
 
-	return c.filterLiveEVTEvent(ctx, userID, canDM, memberRooms, msg, &event)
+	return c.filterLiveEVTEvent(ctx, userID, memberRooms, msg, &event)
 }
 
-func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
 	// Path 1: room-scoped transient events on live.sync.room.{kind}.{roomId}.…
 	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
-		roomKind := kind
 		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
-		if !canDM && roomKind == string(KindDM) {
-			return nil, false
-		}
 		if roomID == "" {
 			return nil, false
 		}
@@ -1794,7 +1782,7 @@ func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string,
 	return event, true
 }
 
-func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
 	roomID, ok := events.ParseRoomSubject(msg.Subject)
 	if !ok {
 		return nil, false
@@ -1819,16 +1807,6 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, canD
 	switch event.Event.(type) {
 	case *corev1.Event_UserJoinedRoom:
 		if event.ActorId == userID {
-			if !canDM {
-				kind, err := c.FindRoomKind(ctx, roomID)
-				if err != nil {
-					c.logger.Warn("Failed to resolve live EVT self-join room kind", "subject", msg.Subject, "room_id", roomID, "error", err)
-					return nil, false
-				}
-				if kind == KindDM {
-					return nil, false
-				}
-			}
 			memberRooms[roomID] = struct{}{}
 			isMember = true
 		}

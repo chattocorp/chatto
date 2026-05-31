@@ -206,10 +206,10 @@ func TestRequireServerPermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Everyone should have dm.view by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMView)
+		// Everyone should have dm.write by default
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMWrite)
 		if err != nil {
-			t.Errorf("Expected user to have dm.view, got error: %v", err)
+			t.Errorf("Expected user to have dm.write, got error: %v", err)
 		}
 
 		// Everyone should have dm.write by default
@@ -262,7 +262,7 @@ func TestRequireServerPermission(t *testing.T) {
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireServerPermission(env.unauthContext(), env.core, core.PermDMView)
+		_, err := requireServerPermission(env.unauthContext(), env.core, core.PermDMWrite)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -369,7 +369,7 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		for _, c := range callers {
 			_, err := mutation.GrantUserPermission(env.authContextForUser(c.user), model.GrantUserPermissionInput{
 				UserID:     c.user.Id,
-				Permission: string(core.PermDMView),
+				Permission: string(core.PermDMWrite),
 			})
 			if !errors.Is(err, core.ErrPermissionDenied) {
 				t.Errorf("%s self-grant: expected ErrPermissionDenied, got %v", c.name, err)

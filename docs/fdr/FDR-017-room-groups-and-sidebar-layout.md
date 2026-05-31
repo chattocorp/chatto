@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -51,9 +51,9 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 6. DMs are outside the group system
 
-**Decision:** DM rooms don't belong to any group. Their permission resolution uses server scope plus the hardcoded `dmBoundaryDeniedPermissions` list; group concepts don't apply.
-**Why:** DMs don't fit a "category of rooms" model — every DM is its own thing. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-015 and ADR-031.
-**Tradeoff:** Two parallel resolution paths in code. The DM path is small and well-isolated.
+**Decision:** DM rooms don't belong to any group. Reading is governed by DM room membership; sending and starting DMs are governed by `dm.write`; the hardcoded `dmBoundaryDeniedPermissions` list still prevents channel-style moderation inside DMs. Group concepts don't apply.
+**Why:** DMs don't fit a "category of rooms" model — every DM is its own conversation. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-031 and ADR-037.
+**Tradeoff:** DMs keep a small policy branch outside the room-group model. That branch is about DM privacy and creation, not about read visibility.
 
 ## Permissions
 
@@ -63,5 +63,5 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Related
 
-- **ADRs:** ADR-005 (hierarchy-wins RBAC), ADR-015 (DMs as a hidden space), ADR-031 (room-group-centric ACL)
+- **ADRs:** ADR-005 (hierarchy-wins RBAC), ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

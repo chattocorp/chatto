@@ -1,11 +1,11 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
-Users can start a direct conversation (1-to-1 or small group, up to 10 participants) with anyone they can see in a server. DMs appear in the same per-server room sidebar as channel rooms, distinguished by a `kind: dm` discriminator. Each Chatto server has its own DM scope; there is currently no cross-server "unified DM inbox".
+Users can start a direct conversation (1-to-1 or small group, up to 10 participants) with anyone they can see in a server. DMs are rooms with `kind: dm`: they use the same message, thread, reaction, attachment, notification, unread, and live-delivery machinery as channel rooms, while applying a smaller DM-specific creation and privacy policy. Each Chatto server has its own DM scope; there is currently no cross-server "unified DM inbox".
 
 ## Behavior
 
@@ -13,22 +13,24 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 - Starting a DM with a user (or set of users) navigates to the resulting DM room. If a DM with the same participant set already exists, the user lands in that room rather than creating a duplicate.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
 - Maximum 10 participants per DM.
+- A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
+- Operators can prevent a user from starting new DMs or sending messages in existing DMs by revoking `dm.write`.
 - Inside a DM room, ordinary message-related features apply: posting, replies, threads, reactions, edits, deletes, mentions, attachments.
 - Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
 
 ## Design Decisions
 
-### 1. DMs live in a hidden "DM space"
+### 1. DMs are rooms, not a parallel messaging model
 
-**Decision:** All DM rooms hang off a single system space with ID `"DM"`, created automatically at startup. DM rooms appear in the unified `SERVER_*` buckets alongside channel rooms, distinguished by `kind` segment in KV keys.
-**Why:** Modelling DMs as their own top-level concept would duplicate room infrastructure (membership, messaging, events, notifications). Treating them as rooms in a hidden space reuses all of that for free. See ADR-015.
-**Tradeoff:** A few code paths (space-membership checks, room listing APIs) have to special-case the DM space. The `IsDMSpace()` helper centralizes this.
+**Decision:** A DM is a room with `kind: dm`, not a separate entity type, inbox stream, or hidden space.
+**Why:** Room infrastructure already models the hard parts: membership, messages, threads, reactions, attachments, unread state, live delivery, and notification fan-out. Reusing the room aggregate keeps DMs boring and makes the event-sourced room model apply uniformly. See ADR-033, ADR-034, and ADR-037.
+**Tradeoff:** Some room code still has to branch on `kind` for DM-only policy, but those branches should be about behavior (creation, privacy boundary, presentation), not storage or delivery plumbing.
 
-### 2. Permission-based access, not space membership
+### 2. Reading is membership-based, writing is permission-gated
 
-**Decision:** Access to DMs is gated by `dm.view` / `dm.write`, not by joining the DM space. There's no concept of "leave the DM space"; users have the permissions or they don't.
-**Why:** Space-membership semantics ("join to see rooms") don't fit DMs — you don't join DM-as-a-space, you just have DM conversations. Permission gating models intent without forcing an awkward membership lifecycle.
-**Tradeoff:** Operators who want to globally disable DMs do it by revoking `dm.view` from `everyone`. Not as intuitive as "no one is a member of the DM space", but consistent with the rest of the permission model.
+**Decision:** DM read access comes only from room membership. The only DM-specific permission is `dm.write`, which gates starting DMs and sending messages in them.
+**Why:** A user who is a participant in a private conversation should be able to read that conversation. The useful moderation control is preventing an abusive user from initiating or continuing DM conversations, not hiding conversations they already belong to. See ADR-037.
+**Tradeoff:** There is no soft "hide DMs from this user" switch. Operators who need to stop harm revoke `dm.write` or suspend/remove the user at the account level.
 
 ### 3. Deterministic room IDs
 
@@ -50,12 +52,11 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 
 ## Permissions
 
-- `dm.view` — see DM rooms and read DM messages.
-- `dm.write` — start DMs and post messages in them.
+- `dm.write` — start DMs and send messages in DM rooms.
 
 (All other permissions like `message.post`, `message.react`, etc. apply inside DM rooms just like in channel rooms, subject to the moderation deny-list above.)
 
 ## Related
 
-- **ADRs:** ADR-015 (DMs as a hidden space)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications)

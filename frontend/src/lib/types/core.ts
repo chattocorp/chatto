@@ -110,10 +110,6 @@ export const PermAdminSystemView: Permission = "admin.view-system";
  */
 export const PermAdminAuditView: Permission = "admin.view-audit";
 /**
- * PermDMView allows accessing DMs and reading direct messages.
- */
-export const PermDMView: Permission = "dm.view";
-/**
  * PermDMWrite allows starting DM conversations and sending messages.
  */
 export const PermDMWrite: Permission = "dm.write";

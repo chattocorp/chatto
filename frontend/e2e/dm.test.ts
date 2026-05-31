@@ -349,7 +349,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
-  test('user with denied dm.view sees no Direct Messages section', async ({
+  test('user with denied dm.write still sees existing DM conversations', async ({
     page,
     browser,
     serverURL
@@ -378,10 +378,9 @@ test.describe('Direct Messages (room-shaped)', () => {
       const dmRoomId = (await startResp.json()).data.startDM.id as string;
       await postMessageViaAPI(page, dmRoomId, 'seed');
 
-      // Deny dm.view BEFORE the regular user navigates, so their first sidebar
-      // load already reflects the deny. (Reloading after a deny works too but
-      // double-loads the page; keeping the test short.)
-      const denyRole = await denyUserPermission(page, regularUser.id!, 'dm.view');
+      // Deny dm.write BEFORE the regular user navigates. This should stop
+      // starting/sending DMs, not reading an existing DM.
+      const denyRole = await denyUserPermission(page, regularUser.id!, 'dm.write');
       try {
         await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);
@@ -394,16 +393,16 @@ test.describe('Direct Messages (room-shaped)', () => {
           regularPage.getByRole('link', { name: /overview/i })
         ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-        // dm.view denied → backend short-circuits the DM merge in Space.rooms,
-        // the rooms store has no DMs, the sidebar header never renders.
+        // DM read access is membership-based, so the seeded conversation still
+        // appears even while dm.write is denied.
         await expect(
           regularPage.getByRole('button', { name: /direct messages/i })
-        ).not.toBeVisible();
+        ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
       } finally {
         await clearUserPermissionOverride(
           page,
           regularUser.id!,
-          'dm.view',
+          'dm.write',
           denyRole
         );
       }

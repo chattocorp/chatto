@@ -8,7 +8,6 @@ import { serverRegistry } from './registry.svelte';
  */
 export type ViewerData = {
   canViewAdmin: boolean;
-  canViewDMs: boolean;
   canWriteDMs: boolean;
   canAdminViewUsers: boolean;
   canAdminManageUsers: boolean;
@@ -30,7 +29,6 @@ export type ServerPermissions = ViewerData & {
 const EMPTY_PERMISSIONS: ServerPermissions = {
   loaded: false,
   canViewAdmin: false,
-  canViewDMs: false,
   canWriteDMs: false,
   canAdminViewUsers: false,
   canAdminManageUsers: false,
@@ -72,7 +70,6 @@ export function getServerPermissions(
  */
 const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'admin.access': 'canViewAdmin',
-  'dm.view': 'canViewDMs',
   'dm.write': 'canWriteDMs',
   'admin.view-users': 'canAdminViewUsers',
   'role.assign': 'canAdminManageUsers',

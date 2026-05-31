@@ -15,25 +15,23 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 	// Create a user
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("returns true when user has permission via instance-everyone role", func(t *testing.T) {
-		// instance-everyone gets space.list by default
-		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMView)
+	t.Run("returns true when user has user.delete-self via everyone role", func(t *testing.T) {
+		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermUserDeleteSelf)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected user to have space.list via instance-everyone role")
+			t.Error("Expected user to have user.delete-self via everyone role")
 		}
 	})
 
-	t.Run("returns true when user has space.join via instance-everyone role", func(t *testing.T) {
-		// instance-everyone gets space.join by default
+	t.Run("returns true when user has dm.write via everyone role", func(t *testing.T) {
 		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected user to have space.join via instance-everyone role")
+			t.Error("Expected user to have dm.write via everyone role")
 		}
 	})
 
@@ -58,19 +56,19 @@ func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
 
 	t.Run("same-role denial replaces grant", func(t *testing.T) {
 		// Grant permission via instance-everyone role
-		err := core.GrantServerPermission(ctx, RoleEveryone, PermDMView)
+		err := core.GrantServerPermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
 
 		// Deny same permission for the same role (replaces the grant)
-		err = core.DenyServerPermission(ctx, RoleEveryone, PermDMView)
+		err = core.DenyServerPermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
 		// User should NOT have the permission (denial replaced grant)
-		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMView)
+		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
@@ -79,7 +77,7 @@ func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
 		}
 
 		// Restore for other tests
-		core.GrantServerPermission(ctx, RoleEveryone, PermDMView)
+		core.GrantServerPermission(ctx, RoleEveryone, PermDMWrite)
 	})
 }
 
@@ -90,24 +88,24 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 	// Create a user (has everyone role)
 	user, _ := core.CreateUser(ctx, "system", "testuser-denyrole", "Test User", "password123")
 
-	// Verify user initially has space.list (via everyone role default)
-	has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMView)
+	// Verify user initially has dm.write (via everyone role default)
+	has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMWrite)
 	if err != nil {
 		t.Fatalf("HasServerPermission() error = %v", err)
 	}
 	if !has {
-		t.Fatal("Expected user to have space.list initially via everyone role")
+		t.Fatal("Expected user to have dm.write initially via everyone role")
 	}
 
 	// Create a custom deny role (replicates the e2e test scenario)
-	denyRole, err := core.CreateServerRole(ctx, "denytest", "Deny space.list", "Test deny role")
+	denyRole, err := core.CreateServerRole(ctx, "denytest", "Deny dm.write", "Test deny role")
 	if err != nil {
 		t.Fatalf("Failed to create deny role: %v", err)
 	}
 	t.Logf("Created deny role with position: %d", denyRole.Position)
 
-	// Deny space.list on the deny role
-	err = core.DenyServerPermission(ctx, "denytest", PermDMView)
+	// Deny dm.write on the deny role
+	err = core.DenyServerPermission(ctx, "denytest", PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
@@ -118,14 +116,14 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 		t.Fatalf("Failed to assign deny role: %v", err)
 	}
 
-	// User now has: instance-denytest (deny space.list), everyone (grant space.list)
+	// User now has: instance-denytest (deny dm.write), everyone (grant dm.write)
 	// The deny role has the highest rank (lowest position), so its deny should win.
-	has, err = core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMView)
+	has, err = core.permissionResolver.HasServerPermission(ctx, user.Id, PermDMWrite)
 	if err != nil {
 		t.Fatalf("HasServerPermission() error = %v", err)
 	}
 	if has {
-		t.Error("Expected custom deny role to block space.list despite everyone granting it")
+		t.Error("Expected custom deny role to block dm.write despite everyone granting it")
 	}
 
 	// Also verify GetUserServerPermissions (the old path) agrees
@@ -134,8 +132,8 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 		t.Fatalf("GetUserServerPermissions() error = %v", err)
 	}
 	for _, p := range perms {
-		if p == PermDMView {
-			t.Error("Expected space.list to NOT be in GetUserServerPermissions result")
+		if p == PermDMWrite {
+			t.Error("Expected dm.write to NOT be in GetUserServerPermissions result")
 			break
 		}
 	}

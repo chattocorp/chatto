@@ -110,11 +110,6 @@ const (
 	// PermAdminAuditView allows viewing the audit log in admin.
 	PermAdminAuditView Permission = "admin.view-audit"
 
-	// ===== DM Permissions =====
-
-	// PermDMView allows accessing DMs and reading direct messages.
-	PermDMView Permission = "dm.view"
-
 	// PermDMWrite allows starting DM conversations and sending messages.
 	PermDMWrite Permission = "dm.write"
 
@@ -174,7 +169,6 @@ var allPermissions = []PermissionMetadata{
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
 	// DM
-	{PermDMView, "View DMs", "Access DMs and read direct messages", CategoryDM, []PermissionScope{ScopeServer}},
 	{PermDMWrite, "Send DMs", "Start DM conversations and send messages", CategoryDM, []PermissionScope{ScopeServer}},
 
 	// User management
@@ -257,7 +251,6 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 func DefaultEveryonePermissions() []Permission {
 	return []Permission{
 		PermUserDeleteSelf,
-		PermDMView,
 		PermDMWrite,
 		PermRoomList,
 		PermRoomJoin,

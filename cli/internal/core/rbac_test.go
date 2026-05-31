@@ -69,7 +69,7 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 	}
 
 	// Should contain all base permissions
-	expected := []Permission{PermUserDeleteSelf, PermDMView, PermDMWrite}
+	expected := []Permission{PermUserDeleteSelf, PermDMWrite}
 	permSet := make(map[Permission]bool)
 	for _, p := range perms {
 		permSet[p] = true
@@ -91,13 +91,13 @@ func TestChattoCore_initServerRBAC(t *testing.T) {
 
 	// initServerRBAC is called during NewChattoCore, so just verify the state
 
-	// Check that everyone has dm.view permission
-	hasPerm, err := core.HasServerPermission(ctx, "any-user", PermDMView)
+	// Check that everyone can delete their own account.
+	hasPerm, err := core.HasServerPermission(ctx, "any-user", PermUserDeleteSelf)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
 	if !hasPerm {
-		t.Error("Expected everyone to have dm.view permission")
+		t.Error("Expected everyone to have user.delete-self permission")
 	}
 
 	// Check that everyone has dm.write permission
@@ -338,8 +338,8 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 
 	userID := "regular-user"
 
-	// Everyone should have spaces.browse
-	hasPerm, err := core.HasServerPermission(ctx, userID, PermDMView)
+	// Everyone should have dm.write by default.
+	hasPerm, err := core.HasServerPermission(ctx, userID, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -432,8 +432,8 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 	t.Run("returns true for member role permissions", func(t *testing.T) {
 		userID := "member-role-check"
 
-		// spaces.browse is in default member permissions
-		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermDMView)
+		// dm.write is in default member permissions
+		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermDMWrite)
 		if err != nil {
 			t.Fatalf("Failed to check: %v", err)
 		}

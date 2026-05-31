@@ -15,16 +15,11 @@ func roomTypeIs(filter *model.RoomType, want model.RoomType) bool {
 }
 
 // appendDMRoomsForServer appends the user's DM conversations to a channel
-// rooms list (issue #330 / ADR-027 phase 3). Storage stays in the hidden DM
-// space (ADR-015); only the API surface merges. The caller's dm.view
-// permission is checked — without it the original list is returned
-// unchanged. No-op when the caller asked for channels only (`type: CHANNEL`).
+// rooms list. No-op when the caller asked for channels only (`type: CHANNEL`).
+// The DM listing path is membership-filtered; there is no separate DM read
+// permission.
 func (r *Resolver) appendDMRoomsForServer(ctx context.Context, userID string, rooms []*corev1.Room, roomType *model.RoomType) ([]*corev1.Room, error) {
 	if !roomTypeIs(roomType, model.RoomTypeDm) {
-		return rooms, nil
-	}
-	canDM, err := r.core.CanDMView(ctx, userID)
-	if err != nil || !canDM {
 		return rooms, nil
 	}
 	dms, err := r.core.ListDMConversations(ctx, userID)

@@ -23,7 +23,6 @@ function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer
 function makeViewer(overrides: Partial<ViewerData> = {}): ViewerData {
   return {
     canViewAdmin: false,
-    canViewDMs: false,
     canWriteDMs: false,
     canAdminViewUsers: false,
     canAdminManageUsers: false,

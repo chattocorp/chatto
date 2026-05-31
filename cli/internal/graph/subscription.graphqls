@@ -10,7 +10,6 @@ type Subscription {
     video processing, voice calls) — delivered only for rooms the user is a
     member of. The membership set is tracked in real time; joining or
     leaving a room updates filtering immediately without reconnecting.
-    DM-room events are additionally gated by `dm.view`.
   - **Server events** (config updates, profile updates, server lifecycle,
     notifications, thread-follow sync, server membership, room layout
     changes, session termination) — scoped per event type:

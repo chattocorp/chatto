@@ -50,18 +50,18 @@ func TestGrantServerPermission(t *testing.T) {
 
 	t.Run("removes existing denial when granting", func(t *testing.T) {
 		// First deny the permission
-		err := core.DenyServerPermission(ctx, RoleModerator, PermDMView)
+		err := core.DenyServerPermission(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
 		// Now grant it - should remove the denial
-		err = core.GrantServerPermission(ctx, RoleModerator, PermDMView)
+		err = core.GrantServerPermission(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermDMView); got != DecisionAllow {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermDMWrite); got != DecisionAllow {
 			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
@@ -121,18 +121,18 @@ func TestClearServerPermissionState(t *testing.T) {
 
 	t.Run("clears both grant and denial", func(t *testing.T) {
 		// Grant a permission
-		err := core.GrantServerPermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantServerPermission(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
 			t.Fatalf("Failed to grant: %v", err)
 		}
 
 		// Clear it
-		err = core.ClearServerPermissionState(ctx, RoleModerator, PermDMView)
+		err = core.ClearServerPermissionState(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
 			t.Fatalf("ClearServerPermissionState() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermDMView); got != DecisionNone {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermDMWrite); got != DecisionNone {
 			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
@@ -310,12 +310,12 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("granting same permission twice succeeds", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantServerPermission(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
 			t.Fatalf("First grant failed: %v", err)
 		}
 
-		err = core.GrantServerPermission(ctx, RoleModerator, PermDMView)
+		err = core.GrantServerPermission(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
 			t.Errorf("Second grant should succeed (idempotent), got: %v", err)
 		}
@@ -376,14 +376,14 @@ func TestInitServerDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("everyone has dm.view permission", func(t *testing.T) {
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermDMView); got != DecisionAllow {
-			t.Errorf("everyone decision for %s = %s, want %s", PermDMView, got, DecisionAllow)
+	t.Run("everyone has dm.write permission", func(t *testing.T) {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermDMWrite); got != DecisionAllow {
+			t.Errorf("everyone decision for %s = %s, want %s", PermDMWrite, got, DecisionAllow)
 		}
 	})
 
 	t.Run("everyone has expected permissions", func(t *testing.T) {
-		expectedPerms := []Permission{PermDMView, PermDMWrite, PermUserDeleteSelf}
+		expectedPerms := []Permission{PermDMWrite, PermUserDeleteSelf}
 		for _, perm := range expectedPerms {
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
 				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
@@ -464,7 +464,7 @@ func TestPermissionOpsWithCancelledContext(t *testing.T) {
 	cancel() // Cancel immediately
 
 	t.Run("grant fails with cancelled context", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantServerPermission(ctx, RoleModerator, PermDMWrite)
 		if err == nil {
 			t.Error("Expected error with cancelled context")
 		}

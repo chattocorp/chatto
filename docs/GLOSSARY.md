@@ -100,7 +100,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **User-level override** — Permission grant or deny attached directly to a user, not via a role. Outranks every role grant. Used for suspensions and ad-hoc grants.
 
-**DM Privacy Boundary** — Static set of permissions (`message.manage`, `message.echo`, `room.manage`, …) unconditionally denied inside DM rooms regardless of role grants. Owners can't moderate DM contents.
+**DM Privacy Boundary** — Static set of permissions (`message.manage`, `message.echo`, `room.manage`, …) unconditionally denied inside DM rooms regardless of role grants. Owners can't moderate DM contents; DM read access comes from room membership, not a separate read permission. See [ADR-037](adr/ADR-037-dm-access-via-membership.md).
 
 ## Backend
 

@@ -22,13 +22,13 @@ Adopt a **channel-centric ACL** model for channel-room permissions with **room g
 
 | Container | Configures | Examples |
 |---|---|---|
-| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.access`, `admin.view-users`, `dm.view`, `dm.write`, `user.delete-any`, `user.delete-self` |
+| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.access`, `admin.view-users`, `dm.write`, `user.delete-any`, `user.delete-self` |
 | **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo` |
 | **Room** | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
 Subjects are unchanged: **roles** (with rank, RBAC-style) and **users** (for direct overrides). Every authenticated user implicitly carries `everyone`.
 
-**DMs are out of scope for this ADR.** DM rooms are not part of any room group; their permission shape (including the existing hardcoded `dmBoundaryDeniedPermissions` list in the resolver) stays as it is today. Room groups are a feature on top of channel rooms only. If we want to make DM permissions data-driven later, that's a separate concern.
+**DMs are out of scope for this ADR.** DM rooms are not part of any room group; their permission shape is captured separately in ADR-037. Room groups are a feature on top of channel rooms only.
 
 This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`proto/chatto/core/v1/models.proto`) — sections become groups. The atomic-OCC update pattern in `UpdateRoomLayout` and the live `RoomLayoutUpdatedEvent` are preserved; what changes is the section type's fields (gains `displayName`, `description`) and the disappearance of `unsorted_room_ids` (every channel room is now in a group).
 
@@ -46,7 +46,7 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 
 For **server-scope** permissions: unchanged from current model. Standard hierarchy-wins RBAC walker over server-scope role grants, with user-level overrides outranking roles (Phase 1 of the current resolver).
 
-For **DM rooms**: unchanged. The existing resolver path (membership check + `dmBoundaryDeniedPermissions` deny-list + server-scope grants for permitted actions) stays as-is. Room groups do not apply.
+For **DM rooms**: room groups do not apply. Reading is membership-based, `dm.write` gates starting/sending DMs, and the `dmBoundaryDeniedPermissions` deny-list still applies inside DM rooms.
 
 For **channel-room-scope** permissions in room R (belonging to group G):
 
@@ -78,7 +78,7 @@ Existing servers reset RBAC on upgrade (`chatto reset rbac` already exists for r
 - Any rooms tracked in `unsorted_room_ids` are swept into the seed "Lobby" group.
 - Groups are created with no explicit channel-room grants — the server-tier defaults cascade in via the resolver. Operators add per-group overrides only where they want to differ from the server-wide default. `SeedDefaultRoomGroupPermissions` remains available as an admin-tool affordance (a "Copy server defaults into this group" button) but no automatic path calls it.
 - Server-scope perms migrate untouched.
-- DM rooms and the `dmBoundaryDeniedPermissions` list are untouched.
+- DM rooms and the `dmBoundaryDeniedPermissions` list are untouched; `dm.view` is retired separately by ADR-037.
 
 The three known production-shaped Chatto servers absorb this. Out-of-the-box behavior after migration matches today's defaults.
 
@@ -104,7 +104,8 @@ The three known production-shaped Chatto servers absorb this. Out-of-the-box beh
 
 - **Supersedes ADR-005 for channel-room permissions only.** Hierarchy-wins RBAC still governs server-scope resolution; the room-scope cascade described in ADR-005 ("deny on `everyone` overridden by higher role's grant") is replaced by the room+group per-role walk. ADR-005's announcements example moves from "server-scope grant on everyone, room-scope deny on everyone" to "group-scope grant on everyone, room-scope deny on everyone" — same shape, just scoped to a group instead of cascading from the server.
 - **Builds on ADR-004** (authorization at the API boundary). Core remains pure; GraphQL gates remain the enforcement layer.
-- **Leaves ADR-015 (DMs as a Hidden Space) untouched.** DMs are not part of any room group; their hardcoded `dmBoundaryDeniedPermissions` list stays as today. Room groups are a channel-rooms-only feature.
+- **Leaves DM room policy outside room groups.** DMs are not part of any room group; their membership-based read access, `dm.write` send gate, and hardcoded `dmBoundaryDeniedPermissions` list are covered by ADR-037. Room groups are a channel-rooms-only feature.
+- **Compatible with ADR-037.** Removing the DM read permission does not change the group model because DM rooms never inherit group permissions.
 - **Compatible with ADR-027 and ADR-030.** Server consolidation and the retirement of the space tier are preserved; this ADR introduces a *new* container (room group) below the server, not a return to two tiers.
 
 ### Out of scope for this ADR

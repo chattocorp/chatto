@@ -527,7 +527,7 @@ func (r *PermissionResolver) probeSet(
 //
 // Everything else resolves through the standard hierarchy walk. Access to
 // DM rooms is gated by participation at the API boundary (`requireRoomMember`
-// / `dm.view`); this set only governs *what* a participant can do once
+// / `dm.write`); this set only governs *what* a participant can do once
 // inside, and *what* the DM space refuses to answer for channel-style
 // operations.
 var dmBoundaryDeniedPermissions = map[Permission]bool{
