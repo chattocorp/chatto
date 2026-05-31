@@ -23,6 +23,10 @@ var (
 
 func (s *HTTPServer) setupAuthRoutes() {
 	auth := s.router.Group("/auth")
+	auth.Use(func(c *gin.Context) {
+		s.requestContextWithAuditMetadata(c)
+		c.Next()
+	})
 
 	auth.POST("logout", func(c *gin.Context) {
 		ctx := c.Request.Context()
@@ -48,6 +52,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if userID != "" {
 			if err := s.core.PublishSessionTerminated(ctx, userID, "logout"); err != nil {
 				log.Warn("Failed to publish session terminated event", "error", err)
+			}
+			if err := s.core.RecordLogoutSucceeded(ctx, userID); err != nil {
+				log.Warn("Failed to append logout audit event", "error", err, "userId", userID)
 			}
 		}
 
@@ -115,6 +122,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 		ctx := c.Request.Context()
 		user, err := s.core.VerifyPassword(ctx, login, loginRequest.Password)
 		if err != nil {
+			if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
+				log.Warn("Failed to append failed-login audit event", "error", auditErr)
+			}
 			log.Error("Login failed", "login", login, "error", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
@@ -126,6 +136,13 @@ func (s *HTTPServer) setupAuthRoutes() {
 		err = session.Save()
 		if err != nil {
 			log.Error("Failed to save session", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
+		}
+		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
+			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
+			session.Clear()
+			_ = session.Save()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
@@ -473,7 +490,6 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Register test endpoints if built with -tags test_endpoints
 	registerTestEndpoints(auth, s)
 }
-
 
 // isValidLogin validates that a login name meets the requirements:
 // 2-32 characters, alphanumeric with dots, dashes, or underscores.

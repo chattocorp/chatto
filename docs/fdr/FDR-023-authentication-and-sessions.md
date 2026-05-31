@@ -17,6 +17,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 - **Logout** — for cookie sessions: the server clears the session and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
 - **Session refresh** — the cookie TTL gets refreshed as the user actively uses the app (including on static file requests). Bearer tokens follow a sliding-window TTL — each successful validation re-puts the KV entry to extend the TTL.
 - **Server version handshake** — the WebSocket `connection_ack` payload includes the server's version. The frontend uses this to detect deployed-version drift and prompt the user to refresh.
+- **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, registration-link issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
 
 ## Design Decisions
 
@@ -67,6 +68,12 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Decision:** OAuth callbacks redirect to the frontend with `?token=…` in the URL.
 **Why:** The simplest delivery mechanism. The browser hands the token to the frontend; the frontend stores it (or sets up its cookie session) and replaces the URL to drop the parameter from history.
 **Tradeoff:** The token briefly appears in browser history and server access logs. Acceptable for v1; a code-exchange flow can be added later if needed. See ADR-024.
+
+### 9. EVT audit facts without raw secrets
+
+**Decision:** Authentication workflows append durable audit facts to `EVT`, but token bodies, links, passwords, auth codes, raw IP addresses, and raw login/email identifiers stay out of the event log. Successful user-scoped facts live on `evt.user.{userId}`; anonymous/server-wide facts such as registration-link issuance and failed login attempts live on `evt.auth.server`.
+**Why:** `EVT` is Chatto's durable audit trail as well as the event-sourcing stream. Operators need to answer "what happened?" for sensitive workflows, but the audit log must not become a secondary secret store.
+**Tradeoff:** Failed-login events intentionally do not reveal whether the submitted identifier matched an account. Admins get timing, request metadata, and a stable identifier hash for correlation, not raw credential guesses.
 
 ## Permissions
 

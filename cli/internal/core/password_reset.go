@@ -10,6 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -75,11 +76,12 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 
 	// Generate token
 	token := NewPasswordResetToken()
+	createdAt := time.Now()
 
 	tokenData := PasswordResetToken{
 		UserID:    user.Id,
 		Email:     normalizedEmail,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	}
 
 	data, err := json.Marshal(tokenData)
@@ -90,6 +92,11 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 	_, err = c.storage.serverKV.Put(ctx, passwordResetTokenKey(token), data)
 	if err != nil {
 		return "", fmt.Errorf("failed to store password reset token: %w", err)
+	}
+
+	if err := c.recordPasswordResetLinkIssued(ctx, user.Id, normalizedEmail, createdAt); err != nil {
+		_ = c.deletePasswordResetToken(ctx, token)
+		return "", err
 	}
 
 	return token, nil
@@ -153,13 +160,24 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	// Delete token immediately to prevent reuse (even if password update fails)
 	defer c.deletePasswordResetToken(ctx, token)
 
-	event := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+	passwordChanged := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
 			UserId:       tokenData.UserID,
 			PasswordHash: []byte(newPasswordHash),
 		},
 	}})
-	if _, err := c.appendUserEvent(ctx, tokenData.UserID, event, "", nil); err != nil {
+	agg := events.UserAggregate(tokenData.UserID)
+	entries := []events.BatchEntry{
+		{
+			Subject: agg.SubjectFor(passwordChanged),
+			Event:   passwordChanged,
+		},
+		{
+			Subject: agg.Subject(events.EventPasswordResetCompleted),
+			Event:   passwordResetCompletedEvent(ctx, tokenData.UserID),
+		},
+	}
+	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", nil); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
 

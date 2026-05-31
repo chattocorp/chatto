@@ -702,6 +702,78 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			},
 			want: EventUserKeyShredded,
 		},
+		{
+			name: "RegistrationLinkIssued",
+			event: &corev1.Event{
+				Event: &corev1.Event_RegistrationLinkIssued{
+					RegistrationLinkIssued: &corev1.RegistrationLinkIssuedEvent{EmailHash: "hash"},
+				},
+			},
+			want: EventRegistrationLinkIssued,
+		},
+		{
+			name: "EmailVerificationLinkIssued",
+			event: &corev1.Event{
+				Event: &corev1.Event_EmailVerificationLinkIssued{
+					EmailVerificationLinkIssued: &corev1.EmailVerificationLinkIssuedEvent{UserId: "U1", EmailHash: "hash"},
+				},
+			},
+			want: EventEmailVerificationLinkIssued,
+		},
+		{
+			name: "PasswordResetLinkIssued",
+			event: &corev1.Event{
+				Event: &corev1.Event_PasswordResetLinkIssued{
+					PasswordResetLinkIssued: &corev1.PasswordResetLinkIssuedEvent{UserId: "U1", EmailHash: "hash"},
+				},
+			},
+			want: EventPasswordResetLinkIssued,
+		},
+		{
+			name: "AccountDeletionConfirmationIssued",
+			event: &corev1.Event{
+				Event: &corev1.Event_AccountDeletionConfirmationIssued{
+					AccountDeletionConfirmationIssued: &corev1.AccountDeletionConfirmationIssuedEvent{UserId: "U1"},
+				},
+			},
+			want: EventAccountDeletionConfirmationIssued,
+		},
+		{
+			name: "PasswordResetCompleted",
+			event: &corev1.Event{
+				Event: &corev1.Event_PasswordResetCompleted{
+					PasswordResetCompleted: &corev1.PasswordResetCompletedEvent{UserId: "U1"},
+				},
+			},
+			want: EventPasswordResetCompleted,
+		},
+		{
+			name: "LoginSucceeded",
+			event: &corev1.Event{
+				Event: &corev1.Event_LoginSucceeded{
+					LoginSucceeded: &corev1.LoginSucceededEvent{UserId: "U1"},
+				},
+			},
+			want: EventLoginSucceeded,
+		},
+		{
+			name: "LoginFailed",
+			event: &corev1.Event{
+				Event: &corev1.Event_LoginFailed{
+					LoginFailed: &corev1.LoginFailedEvent{IdentifierHash: "hash"},
+				},
+			},
+			want: EventLoginFailed,
+		},
+		{
+			name: "LogoutSucceeded",
+			event: &corev1.Event{
+				Event: &corev1.Event_LogoutSucceeded{
+					LogoutSucceeded: &corev1.LogoutSucceededEvent{UserId: "U1"},
+				},
+			},
+			want: EventLogoutSucceeded,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -712,12 +784,37 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			if c.want == EventUserKeyShredded {
 				agg = UserAggregate("U1")
 			}
+			if c.want == EventRegistrationLinkIssued {
+				agg = AuthAggregate()
+			}
+			if c.want == EventEmailVerificationLinkIssued ||
+				c.want == EventPasswordResetLinkIssued ||
+				c.want == EventAccountDeletionConfirmationIssued ||
+				c.want == EventPasswordResetCompleted ||
+				c.want == EventLoginSucceeded ||
+				c.want == EventLogoutSucceeded {
+				agg = UserAggregate("U1")
+			}
+			if c.want == EventLoginFailed {
+				agg = AuthAggregate()
+			}
 			subject := agg.SubjectFor(c.event)
 			wantSubject := agg.Subject(c.want)
 			if subject != wantSubject {
 				t.Errorf("SubjectFor = %q, want %q", subject, wantSubject)
 			}
 		})
+	}
+}
+
+func TestAuthAggregate_Subject(t *testing.T) {
+	got := AuthAggregate().Subject(EventRegistrationLinkIssued)
+	want := "evt.auth.server.registration_link_issued"
+	if got != want {
+		t.Fatalf("AuthAggregate subject = %q, want %q", got, want)
+	}
+	if AuthSubjectFilter() != "evt.auth.>" {
+		t.Fatalf("AuthSubjectFilter = %q", AuthSubjectFilter())
 	}
 }
 

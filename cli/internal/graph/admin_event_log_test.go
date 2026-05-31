@@ -5,9 +5,13 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // TestEventLog_BrowseNewestFirst exercises the EventLog resolver
@@ -122,4 +126,26 @@ func TestEventLog_AuthorizationDenied(t *testing.T) {
 
 	_, err = adminQ.EventLogEntry(ctx, nil, "1")
 	require.True(t, errors.Is(err, core.ErrPermissionDenied), "EventLogEntry should deny non-auditor, got: %v", err)
+}
+
+func TestStreamMsgToEventLogEntryParsesAuthAggregate(t *testing.T) {
+	event := &corev1.Event{
+		Id:      "E1",
+		ActorId: "system",
+		Event: &corev1.Event_RegistrationLinkIssued{
+			RegistrationLinkIssued: &corev1.RegistrationLinkIssuedEvent{EmailHash: "hash"},
+		},
+	}
+	data, err := proto.Marshal(event)
+	require.NoError(t, err)
+
+	entry, err := streamMsgToEventLogEntry(&jetstream.RawStreamMsg{
+		Subject:  events.AuthAggregate().Subject(events.EventRegistrationLinkIssued),
+		Sequence: 7,
+		Data:     data,
+	})
+	require.NoError(t, err)
+	require.Equal(t, events.AggregateAuth, entry.AggregateType)
+	require.Equal(t, events.AuthServerID, entry.AggregateID)
+	require.Equal(t, "RegistrationLinkIssuedEvent", entry.EventType)
 }

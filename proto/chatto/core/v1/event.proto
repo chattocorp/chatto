@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/auth_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/live_events.proto";
 import "chatto/core/v1/message_events.proto";
@@ -168,6 +169,18 @@ message Event {
     RbacPermissionGrantedEvent rbac_permission_granted = 810;
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
+
+    // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
+    // These facts are intentionally minimal: no raw token, link, IP address,
+    // password, auth code, or unhashed email is persisted in EVT.
+    RegistrationLinkIssuedEvent registration_link_issued = 900;
+    EmailVerificationLinkIssuedEvent email_verification_link_issued = 901;
+    PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
+    AccountDeletionConfirmationIssuedEvent account_deletion_confirmation_issued = 903;
+    PasswordResetCompletedEvent password_reset_completed = 904;
+    LoginSucceededEvent login_succeeded = 905;
+    LoginFailedEvent login_failed = 906;
+    LogoutSucceededEvent logout_succeeded = 907;
 
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted, except the

@@ -282,7 +282,8 @@ of truth and the event is additive.
 `EVT` publishing because `EVT` is their source of truth and reads come
 from in-memory projections. If event publishing fails, the write fails.
 Current migrated aggregates include room membership/metadata,
-room groups/layout, server config, messages/threads, reactions, and RBAC.
+room groups/layout, server config, users, messages/threads, reactions, RBAC,
+and auth workflow audit facts.
 
 ### Consistency Model
 
@@ -382,7 +383,7 @@ The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvent
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `SERVER_EVENTS`              | `corev1.Event`   | Server     | JetStream-stored events for the legacy CRUD+log pattern; retained for migration/import tooling and no longer part of live delivery. |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, users, messages/threads, reactions, and RBAC. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, users, messages/threads, reactions, RBAC, and auth workflow audit facts. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `myEvents` authorizes and adapts these messages into GraphQL events; they are never projection input. |
 
 **SERVER\_EVENTS subjects:**
@@ -502,6 +503,20 @@ All room data — channels and DMs alike — lives in the unified `SERVER_*` buc
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
+
+**EVT auth audit subjects:**
+
+| Subject                                                                  | Description |
+| ------------------------------------------------------------------------ | ----------- |
+| `evt.auth.server.registration_link_issued`                               | Registration link issued before a user exists. |
+| `evt.auth.server.login_failed`                                           | Failed password login attempt, with hashed identifier only. |
+| `evt.user.{userId}.email_verification_link_issued`                       | Email verification link issued. |
+| `evt.user.{userId}.password_reset_link_issued`                           | Password reset link issued. |
+| `evt.user.{userId}.account_deletion_confirmation_issued`                 | Account deletion confirmation token issued. |
+| `evt.user.{userId}.password_reset_completed`                             | Password reset completed. |
+| `evt.user.{userId}.login_succeeded` / `.logout_succeeded`                | Cookie-session login/logout completed. |
+
+These audit payloads include only safe request metadata: capped user agent and an HMAC-SHA256 IP hash when request metadata is available. Raw tokens, links, passwords, auth codes, raw IP addresses, and raw email/login identifiers are not persisted in EVT audit payloads.
 
 **INSTANCE_CONFIG keys:**
 

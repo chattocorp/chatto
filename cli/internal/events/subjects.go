@@ -27,6 +27,7 @@ const (
 	AggregateLayout = "layout"
 	AggregateUser   = "user"
 	AggregateRBAC   = "rbac"
+	AggregateAuth   = "auth"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -42,6 +43,10 @@ const LayoutSingletonID = "default"
 // role order, assignments, and server-scoped permission decisions. Room and
 // group scoped decisions use their room/group ID directly as the aggregate ID.
 const RBACServerID = "server"
+
+// AuthServerID is the singleton aggregate ID for anonymous/server-wide auth
+// audit facts, such as registration link issuance before a user exists.
+const AuthServerID = "server"
 
 // Event-type tokens. NATS-idiomatic snake_case; the trailing segment of
 // every event subject. Stable identifiers — once written, never renamed.
@@ -137,6 +142,16 @@ const (
 	EventRBACPermissionGranted      = "permission_granted"
 	EventRBACPermissionDenied       = "permission_denied"
 	EventRBACPermissionCleared      = "permission_cleared"
+
+	// Auth/security audit
+	EventRegistrationLinkIssued            = "registration_link_issued"
+	EventEmailVerificationLinkIssued       = "email_verification_link_issued"
+	EventPasswordResetLinkIssued           = "password_reset_link_issued"
+	EventAccountDeletionConfirmationIssued = "account_deletion_confirmation_issued"
+	EventPasswordResetCompleted            = "password_reset_completed"
+	EventLoginSucceeded                    = "login_succeeded"
+	EventLoginFailed                       = "login_failed"
+	EventLogoutSucceeded                   = "logout_succeeded"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -287,6 +302,23 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACPermissionDenied
 	case *corev1.Event_RbacPermissionCleared:
 		return EventRBACPermissionCleared
+
+	case *corev1.Event_RegistrationLinkIssued:
+		return EventRegistrationLinkIssued
+	case *corev1.Event_EmailVerificationLinkIssued:
+		return EventEmailVerificationLinkIssued
+	case *corev1.Event_PasswordResetLinkIssued:
+		return EventPasswordResetLinkIssued
+	case *corev1.Event_AccountDeletionConfirmationIssued:
+		return EventAccountDeletionConfirmationIssued
+	case *corev1.Event_PasswordResetCompleted:
+		return EventPasswordResetCompleted
+	case *corev1.Event_LoginSucceeded:
+		return EventLoginSucceeded
+	case *corev1.Event_LoginFailed:
+		return EventLoginFailed
+	case *corev1.Event_LogoutSucceeded:
+		return EventLogoutSucceeded
 	}
 	return ""
 }
@@ -391,6 +423,11 @@ func RBACScopedAggregate(scopeID string) Aggregate {
 	return Aggregate{Type: AggregateRBAC, ID: scopeID}
 }
 
+// AuthAggregate is the typed constructor for server-wide auth audit facts.
+func AuthAggregate() Aggregate {
+	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
+}
+
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.
 // Pattern: evt.room.>
@@ -420,6 +457,11 @@ func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
 // event.
 // Pattern: evt.rbac.>
 func RBACSubjectFilter() string { return SubjectRoot + AggregateRBAC + ".>" }
+
+// AuthSubjectFilter returns the wildcard filter matching server-wide auth
+// audit facts.
+// Pattern: evt.auth.>
+func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
 
 // RoomEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every room. Used by

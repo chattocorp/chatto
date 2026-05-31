@@ -22,11 +22,13 @@ This FDR covers the user account from registration through deletion: signup, ema
 - A user can have multiple verified email addresses on file.
 - Adding a new email triggers a verification mail to the new address; the email is added in pending state until the link is clicked.
 - A user can delete one of their verified emails as long as at least one verified email remains.
+- Email verification link issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw token/link is not recorded.
 
 ### Account deletion
 
 - The user requests deletion via Account Settings.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
+- Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
 - The login is freed up for re-use.

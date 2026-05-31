@@ -783,10 +783,11 @@ type AccountDeletionToken struct {
 // The token is stored in KV and must be provided to DeleteUser within the TTL.
 func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID string) (string, error) {
 	token := NewAccountDeletionToken()
+	createdAt := time.Now()
 
 	tokenData := AccountDeletionToken{
 		UserID:    userID,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	}
 
 	data, err := json.Marshal(tokenData)
@@ -797,6 +798,11 @@ func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID stri
 	_, err = c.storage.serverKV.Put(ctx, accountDeletionTokenKey(token), data)
 	if err != nil {
 		return "", fmt.Errorf("failed to store account deletion token: %w", err)
+	}
+
+	if err := c.recordAccountDeletionConfirmationIssued(ctx, userID, createdAt); err != nil {
+		_ = c.storage.serverKV.Delete(ctx, accountDeletionTokenKey(token))
+		return "", err
 	}
 
 	c.logger.Debug("Created account deletion token", "user_id", userID)

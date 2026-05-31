@@ -194,6 +194,8 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	})
 
 	s.router.Any("/api/graphql", func(c *gin.Context) {
+		s.requestContextWithAuditMetadata(c)
+
 		// Refresh session cookie for authenticated users to prevent expiration.
 		// Note: We must call Set() before Save() because gin-contrib/sessions only saves
 		// if the session has been "written" to. Get() alone doesn't mark it as modified.

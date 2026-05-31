@@ -108,11 +108,12 @@ func userByEmailKey(email string) string {
 // The token contains all info needed for verification (userID, email).
 func (c *ChattoCore) CreateEmailVerificationToken(ctx context.Context, userID, email string) (string, error) {
 	token := NewEmailVerificationToken()
+	createdAt := time.Now()
 
 	tokenData := EmailVerificationToken{
 		UserID:    userID,
 		Email:     email,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	}
 
 	data, err := json.Marshal(tokenData)
@@ -123,6 +124,11 @@ func (c *ChattoCore) CreateEmailVerificationToken(ctx context.Context, userID, e
 	_, err = c.storage.serverKV.Create(ctx, emailVerificationTokenKey(token), data, jetstream.KeyTTL(EmailVerificationTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store verification token: %w", err)
+	}
+
+	if err := c.recordEmailVerificationLinkIssued(ctx, userID, email, createdAt); err != nil {
+		_ = c.deleteEmailVerificationToken(ctx, token)
+		return "", err
 	}
 
 	return token, nil

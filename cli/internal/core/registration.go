@@ -63,10 +63,11 @@ func (c *ChattoCore) CreateRegistrationToken(ctx context.Context, email string) 
 	}
 
 	token := NewRegistrationToken()
+	createdAt := time.Now()
 
 	tokenData := RegistrationToken{
 		Email:     email,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	}
 
 	data, err := json.Marshal(tokenData)
@@ -77,6 +78,11 @@ func (c *ChattoCore) CreateRegistrationToken(ctx context.Context, email string) 
 	_, err = c.storage.serverKV.Create(ctx, registrationTokenKey(token), data, jetstream.KeyTTL(RegistrationTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store registration token: %w", err)
+	}
+
+	if err := c.recordRegistrationLinkIssued(ctx, email, createdAt); err != nil {
+		_ = c.DeleteRegistrationToken(ctx, token)
+		return "", err
 	}
 
 	return token, nil
