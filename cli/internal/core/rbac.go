@@ -596,8 +596,8 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, name string) error {
 
 // ReorderServerRoles reorders custom roles.
 // System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
-// Positions are assigned based on array index (first role = position 3, second = 4, etc).
-// Note: Position 0 = owner, 1 = admin, 2 = moderator, position MAX = everyone.
+// Positions are assigned from PositionCustomFirst upward while skipping system-role positions.
+// Note: everyone=0, moderator=100, admin=900, owner=1000.
 // Returns all roles sorted by position.
 func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string) ([]RoleWithPermissions, error) {
 	for _, name := range roleNames {

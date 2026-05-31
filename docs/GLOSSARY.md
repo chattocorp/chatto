@@ -114,7 +114,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Stream** — JetStream append-only log. Chatto's event-sourcing stream is `EVT`; the older `SERVER_EVENTS` stream remains as pre-ES import evidence and for legacy restore/debugging tools, but runtime mutations no longer write it.
 
-**KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several (`SERVER_CONFIG`, `SERVER_RBAC`, `KV_INSTANCE`, …). KV is the source of truth; streams are the audit log. See [ADR-006](adr/ADR-006-kv-source-of-truth-streams-audit-log.md).
+**KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several (`RUNTIME_STATE`, `SERVER_CONFIG`, `SERVER_RBAC`, `INSTANCE`, …). Some buckets still hold latest-value runtime or legacy import state; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state.md).
 
 **Subject** — NATS message topic. Chatto's subject conventions (`server.room.{kind}.{r}.msg.{id}`, `evt.room.{r}.{type}`, `live.sync.…`) are documented in `.claude/rules/nats-subjects.md`.
 

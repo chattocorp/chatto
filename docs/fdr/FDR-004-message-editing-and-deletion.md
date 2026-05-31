@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-05-19 (refreshed alongside FDR-020)
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -24,11 +24,11 @@ Authors can edit and delete their own messages; moderators with the right permis
 **Why:** Edits long after the fact (days or weeks later) damage the integrity of the conversation log — readers who already responded would be reacting to text that no longer exists. A short window covers genuine typo-fix cases; the moderation perm covers everything else. Exposing the constant via GraphQL (rather than hardcoding it in the frontend) lets the UI align countdown timers and disable-edit thresholds with the server's actual enforcement.
 **Tradeoff:** Authors who notice a mistake a day later can't fix it themselves. They have to ask a moderator, or live with it. Operators who want a different window currently have to recompile — promoting it to a tunable server config is cheap if demand emerges.
 
-### 2. Edit/delete events are live-only, not stored
+### 2. Edit/delete changes are durable facts
 
-**Decision:** Edit and delete notifications publish as transient live events. The persistent message body is mutated in KV; no edit history is stored.
-**Why:** The KV is the source of truth for message state; the live event is just a "refetch me" signal to connected clients. Keeping an edit history would multiply storage and complicate GDPR delete. See ADR-006 and ADR-012.
-**Tradeoff:** No "edited" audit trail visible to users. Moderation tools can't show prior versions.
+**Decision:** Edits and deletions append durable message facts. The room timeline projection exposes the latest body, or a retracted placeholder after deletion.
+**Why:** Message state is now event-sourced, so connected clients and rebuilt projections consume the same committed facts. This keeps edit/delete behavior consistent with the room event log. See ADR-033 and ADR-034.
+**Tradeoff:** The user-facing timeline still exposes only the latest visible state. Showing prior versions would require a separate product decision and careful privacy handling.
 
 ### 3. Optimistic concurrency for edits
 
@@ -55,5 +55,5 @@ Authors can edit and delete their own messages; moderators with the right permis
 
 ## Related
 
-- **ADRs:** ADR-006 (KV as source of truth), ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-012 (two-tier real-time events), ADR-016 (OCC for message publishing)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo)

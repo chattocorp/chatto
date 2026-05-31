@@ -13,7 +13,7 @@ See [`.claude/skills/fdr/SKILL.md`](../../.claude/skills/fdr/SKILL.md) for the F
 | [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-05-31 |
 | [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-05-19 |
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-05-19 |
-| [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-05-19 |
+| [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-05-31 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-05-19 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-05-19 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-05-31 |

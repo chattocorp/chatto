@@ -2,10 +2,11 @@
 
 ## Server roles
 
-After Phase 5 of #330, RBAC is a single flat tier of server roles in the
-`SERVER_RBAC` bucket. The system roles are `owner`, `admin`, `moderator`,
-and the virtual `everyone`. There is no longer an instance-vs-space tier
-split, and the legacy `instance-` prefix on role names is gone.
+RBAC is a single flat tier of server roles, stored as durable facts in the
+`EVT` stream and served from an in-memory projection. The system roles are
+`owner`, `admin`, `moderator`, and the virtual `everyone`. There is no longer
+an instance-vs-space tier split, and the legacy `instance-` prefix on role
+names is gone.
 
 - **`owner`** — full server control. Top of the hierarchy. Holders pass
   every permission check, can edit every user, and can never be
@@ -30,9 +31,9 @@ config-owner short-circuit in the permission resolver:
   verifies their email, and immediately has owner permissions without
   needing a server restart.
 - For existing deployments, run `chatto reset rbac` after upgrading.
-  The command wipes `SERVER_RBAC`, re-seeds the system roles plus
-  default permissions from code, and assigns the `owner` role to every
-  user whose verified email matches `owners.emails`.
+  The command appends reset facts, re-seeds the system roles plus default
+  permissions from code, and assigns the `owner` role to every user whose
+  verified email matches `owners.emails`.
 
 ## Privacy Boundary
 

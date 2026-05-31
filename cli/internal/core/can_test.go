@@ -360,7 +360,7 @@ func TestCanHelpers(t *testing.T) {
 
 // TestCanHelpers_RevokedMemberPermission verifies that revoking a permission
 // from the member role actually prevents members from using that permission.
-// This tests the fix for the fast path that was bypassing the RBAC engine.
+// This tests the fix for the fast path that was bypassing RBAC resolution.
 func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

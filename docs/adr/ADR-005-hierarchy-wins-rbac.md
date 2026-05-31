@@ -14,9 +14,9 @@ Common resolution strategies:
 
 ## Decision
 
-Use hierarchy-wins resolution. Roles have a `position` field (lower number = higher rank). When checking a permission for a user:
+Use hierarchy-wins resolution. Roles have a `position` field (higher number = higher rank). When checking a permission for a user:
 
-1. Get the user's roles, sorted by position (ascending = highest rank first)
+1. Get the user's roles, sorted by position (descending = highest rank first)
 2. For each role, check if it has an explicit grant or deny for the permission
 3. The first explicit decision found wins
 4. If no role has an opinion, the permission is denied (default-deny)

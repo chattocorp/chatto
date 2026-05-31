@@ -18,7 +18,7 @@ Implement DMs as rooms within a well-known hidden space with `spaceID = "DM"`. K
 
 - **Deterministic room IDs**: DM room IDs are computed as the first 14 hex characters of `SHA-256(sorted participant IDs joined by ".")`. This enables find-or-create semantics without a lookup table — any process computes the same ID from the same participants.
 - **No space membership**: Users have room-level memberships within the DM space but no DM space membership. The space itself is hidden from discovery.
-- **Hardcoded permissions**: DM permissions bypass the RBAC engine entirely. A dedicated `resolveDMPermission` function returns fixed grants for the small set of applicable permissions (`message.post`, `message.edit-own`, `message.delete-own`, etc.).
+- **Hardcoded permissions**: DM permissions bypassed the RBAC resolver entirely. A dedicated `resolveDMPermission` function returned fixed grants for the small set of applicable permissions (`message.post`, `message.edit-own`, `message.delete-own`, etc.).
 
 ## Consequences
 

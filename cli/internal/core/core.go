@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -583,23 +582,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		keyManager: encryption.NewKeyManager(storage.encryptionKV),
 	}
 
-	// Phase 5 of #330 collapsed the dual instance-/space-RBAC engines into a
-	// single server-RBAC engine wrapping SERVER_RBAC. All permission checks
-	// go through here.
-	storage.serverRBACEngine = NewEngine(storage.serverRBACKV, Config{
-		SystemRoles:  []string{RoleOwner, RoleAdmin, RoleModerator, RoleEveryone},
-		AdminRole:    RoleOwner,
-		VirtualRoles: VirtualRoles(),
-		ValidateVerbObjectType: func(verb, objectType string) error {
-			perm := ReconstructPermission(verb, objectType)
-			if perm == "" {
-				return fmt.Errorf("%w: verb=%s, objectType=%s", ErrInvalidPermission, verb, objectType)
-			}
-			return nil
-		},
-		Logger: slog.Default().With("component", "server-rbac"),
-	})
-
 	// Initialize S3 client if S3 storage is configured
 	var s3Client *S3Client
 	if cfg.Assets.StorageBackend == config.StorageBackendS3 {
@@ -787,8 +769,7 @@ type storage struct {
 	// keep their per-space lazycaches below.
 	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
 	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
-	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
-	serverRBACEngine   *Engine               // Engine wrapping serverRBACKV
+	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - legacy RBAC import source
 	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies + attachment metadata records (#330 phase 4c). TODO: rename → SERVER_CONTENT now that it hosts more than bodies.
 	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
@@ -1039,11 +1020,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverAttachments:  serverAttachments,
 		serverEventsStream: serverEventsStream,
 		serverEvtStream:    serverEvtStream,
-		// serverRBACEngine is constructed below (after the storage value
-		// exists) and assigned in NewChattoCore.
-		presenceKV:      presenceKV,
-		imageCacheStore: imageCacheStore,
-		callStateKV:     callStateKV,
+		presenceKV:         presenceKV,
+		imageCacheStore:    imageCacheStore,
+		callStateKV:        callStateKV,
 	}, nil
 }
 

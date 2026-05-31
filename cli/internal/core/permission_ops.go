@@ -12,11 +12,10 @@ import (
 // Permission Operations
 // ============================================================================
 //
-// These ChattoCore methods are thin wrappers around the RBAC engine's
-// scope-aware Grant / Deny / Clear primitives. They apply scope-validity
-// checks (PermissionAppliesAtScope) and permission-shape validation
-// (ValidatePermission), then delegate to engine.Grant / engine.Deny /
-// engine.Clear with the appropriate scope tag.
+// These ChattoCore methods append scoped RBAC Grant / Deny / Clear facts.
+// They apply scope-validity checks (PermissionAppliesAtScope) and
+// permission-shape validation (ValidatePermission), then wait for the local
+// RBAC projection to catch up before returning.
 //
 // Subject disambiguation by naming convention:
 //   - Role: lowercase word (e.g., "owner", "admin", "moderator")

@@ -496,8 +496,8 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 // and GetUserServerPermissions use the hierarchy-wins model (matching the actual
 // authorizer PermissionResolver.walkPermission), NOT the deny-override model.
 //
-// The critical scenario: admin role (position 1) grants a permission, but the
-// everyone role (position MAX) denies it. Hierarchy-wins says admin's grant wins
+// The critical scenario: admin role (position 900) grants a permission, but the
+// everyone role (position 0) denies it. Hierarchy-wins says admin's grant wins
 // because admin is checked first. Deny-override would incorrectly say everyone's
 // deny wins.
 
@@ -1631,11 +1631,9 @@ func TestChattoCore_GrantRolePermission_Idempotent(t *testing.T) {
 	}
 }
 
-// GrantServerPermission no longer validates that the role exists post-#330:
-// permission grants land in the same SERVER_RBAC bucket regardless. Role
-// existence is enforced when CRUD operations against the role itself are made.
-// (Previously TestChattoCore_GrantRolePermission_RoleNotFound covered the
-// engine-level pre-check; that path is gone.)
+// GrantServerPermission does not validate that the role exists. Role
+// existence is enforced when CRUD operations against the role itself are made;
+// standalone permission decisions can be appended before the subject exists.
 
 func TestChattoCore_GrantRolePermission_InvalidPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -1849,7 +1847,7 @@ func TestChattoCore_RevokeRole_AdminCannotDemotePeerAdmin(t *testing.T) {
 
 	// Admin A should NOT be able to revoke admin role from Admin B (peer)
 	// Owner can manage the owner role (role hierarchy passes), but can't demote a peer
-	// (user hierarchy blocks it since both are at position 0)
+	// (user hierarchy blocks it since both are at position 1000)
 	err := core.RevokeServerRole(ctx, adminA, adminB, RoleOwner)
 	if !errors.Is(err, ErrCannotManageHigherUser) {
 		t.Errorf("Expected ErrCannotManageHigherUser when owner tries to revoke peer's owner role, got: %v", err)
@@ -1877,7 +1875,7 @@ func TestChattoCore_RevokeRole_AdminCanDemoteLowerRankedUser(t *testing.T) {
 	admin := "admin-user"
 	mod := "mod-user"
 	core.AssignServerRole(ctx, SystemActorID, admin, RoleOwner)
-	// moderator role is created by default with position 1
+	// moderator role is created by default with position 100
 
 	// Assign moderator role to mod user
 	core.AssignServerRole(ctx, SystemActorID, mod, "moderator")
@@ -2085,9 +2083,7 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	}
 
 	everyonePerms, _ := core.GetServerRolePermissions(ctx, RoleEveryone)
-	// Post-Phase-5: instance + space defaults both seed against the same
-	// SERVER_RBAC bucket, so `everyone` ends up with the union of both
-	// default sets. We just sanity-check it's non-empty rather than pinning
+	// Sanity-check that the event-sourced defaults are present without pinning
 	// a specific count that drifts whenever defaults change.
 	if len(everyonePerms) == 0 {
 		t.Errorf("Expected everyone to have default permissions, got 0")
@@ -2427,16 +2423,16 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 	mod := "mod-user"
 	regular := "regular-user"
 
-	// Give owner the owner role (position 0) - owners have all permissions
+	// Give owner the owner role (position 1000) - owners have all permissions
 	core.AssignServerRole(ctx, SystemActorID, owner, RoleOwner)
-	// Give mod the moderator role (position ~1)
+	// Give mod the moderator role (position 100)
 	core.AssignServerRole(ctx, SystemActorID, mod, RoleModerator)
 
 	// Grant role assignment permission to moderator so we can test hierarchy
 	core.GrantServerPermission(ctx, RoleModerator, PermRoleAssign)
 
 	t.Run("owner can assign moderator role", func(t *testing.T) {
-		// Owner (position 0) can assign moderator
+		// Owner (position 1000) can assign moderator
 		err := core.AssignServerRole(ctx, owner, regular, RoleModerator)
 		if err != nil {
 			t.Errorf("Owner should be able to assign moderator role: %v", err)
@@ -2457,7 +2453,7 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 		// Create a custom role
 		core.CreateServerRole(ctx, "helper", "Helper", "Can help")
 
-		// Regular member only has the implicit "everyone" role (max position),
+		// Regular member only has the implicit "everyone" role (position 0),
 		// which cannot manage any concrete role.
 		err := core.AssignServerRole(ctx, regular, mod, "helper")
 		if !errors.Is(err, ErrCannotAssignHigherRole) {
@@ -2469,9 +2465,9 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 		// Create a custom role (will be lower rank than moderator)
 		role, _ := core.CreateServerRole(ctx, "editor", "Editor", "Can edit")
 		// Verify the custom role has a position lower than moderator
-		// (position is higher number = lower rank)
-		if role.Position <= 2 { // moderator is at 2
-			t.Skipf("Custom role position %d is not lower than moderator position 2", role.Position)
+		// (position is lower number = lower rank)
+		if role.Position >= PositionModerator {
+			t.Skipf("Custom role position %d is not lower than moderator position %d", role.Position, PositionModerator)
 		}
 
 		// Mod should be able to assign editor (lower rank)
@@ -2573,14 +2569,12 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("first custom role gets position after system roles", func(t *testing.T) {
-		// System roles: owner (0), moderator (2), member (MAX)
+		// System roles: everyone (0), moderator (100), admin (900), owner (1000)
 		role, err := core.CreateServerRole(ctx, "editor", "Editor", "Can edit")
 		if err != nil {
 			t.Fatalf("CreateRole failed: %v", err)
 		}
-		// Custom roles should get a position > moderator (position 2)
-		// Note: Current implementation may use MaxInt32 for custom roles,
-		// which is the same as PositionEveryone. This is tracked as a known issue.
+		// Custom roles should slot between everyone and moderator by default.
 		t.Logf("Custom role 'editor' assigned position %d", role.Position)
 		if role.Position <= 0 {
 			t.Errorf("Custom role position = %d, should be positive", role.Position)
@@ -2639,8 +2633,7 @@ func TestChattoCore_OutranksUser(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup hierarchy using system roles: owner > moderator > member
-	// Note: Custom roles currently get position MaxInt32 (same as member),
-	// so we test with system roles that have defined positions.
+	// Use system roles here so the hierarchy is explicit.
 	owner := "owner-user"
 	mod := "mod-user"
 	member := "member-user"

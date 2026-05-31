@@ -283,27 +283,26 @@ if caller.Id != obj.Id {
 
 Default member permissions (`rooms.browse`, `rooms.create`, `rooms.join`) can be revoked from the member role. When implementing or modifying permission checks:
 
-1. **Always use the RBAC engine** - Never hardcode permission grants based on role names or "default" lists
+1. **Always use RBAC resolution** - Never hardcode permission grants based on role names or "default" lists
 2. **Test both grant and revoke** - Permissions must work when granted AND when revoked
-3. **Follow the server RBAC pattern** - Use `engine.RoleHasPermission(ctx, RoleMember, permStr)` to check actual KV state
+3. **Follow the server RBAC pattern** - Use the `Can*` helpers or permission resolver to check projected RBAC state
 
 **Anti-pattern (avoid):**
 ```go
 // BAD: Hardcoded bypass that ignores actual role permissions
 if isMember && isDefaultPermission(perm) {
-    return true, nil  // Bypasses RBAC engine!
+    return true, nil  // Bypasses RBAC resolution!
 }
 ```
 
 **Correct pattern:**
 ```go
-// GOOD: Always check actual role permissions via RBAC engine
-if isMember {
-    hasPerm, err := engine.RoleHasPermission(ctx, RoleMember, string(perm))
-    if hasPerm {
-        return true, nil
-    }
+// GOOD: Ask the permission resolver / Can helper for the actual decision
+canPost, err := core.CanPostMessage(ctx, userID)
+if err != nil {
+    return false, err
 }
+return canPost, nil
 ```
 
 ## Server Owner via Config
@@ -317,12 +316,12 @@ resolver — the config flow materialises a real `owner` role assignment:
   auto-assigns the `owner` role if it matches. Fresh deployments work
   without a restart.
 - For existing deployments, run `chatto reset rbac` after upgrading
-  the binary. The command wipes `SERVER_RBAC`, re-seeds the system
-  roles plus default permissions, and assigns `owner` to every user
-  whose verified email matches `owners.emails`.
+  the binary. The command appends reset facts, re-seeds the system roles plus
+  default permissions, and assigns `owner` to every user whose verified email
+  matches `owners.emails`.
 
 Owners pass every permission check through the standard hierarchy
-walk (owner is rank 0). They have access to:
+walk (owner is position 1000, the highest rank). They have access to:
 
 - `/admin` routes in the frontend
 - `Query.admin` and `Query.users` in GraphQL

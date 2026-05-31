@@ -116,8 +116,8 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 		t.Fatalf("Failed to assign deny role: %v", err)
 	}
 
-	// User now has: instance-denytest (deny message.post), everyone (grant message.post)
-	// The deny role has the highest rank (lowest position), so its deny should win.
+	// User now has: denytest (deny message.post), everyone (grant message.post).
+	// The custom deny role outranks everyone, so its deny should win.
 	has, err = core.permissionResolver.HasServerPermission(ctx, user.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("HasServerPermission() error = %v", err)
@@ -148,20 +148,20 @@ func TestPermissionResolver_HasServerPermission_Hierarchy(t *testing.T) {
 	_ = core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin)
 
 	t.Run("higher-ranked role grant beats lower-ranked role denial", func(t *testing.T) {
-		// Deny space.join for everyone (low rank, position MaxInt32)
+		// Deny message.post for everyone (low rank, position 0)
 		err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
-		// Grant space.join for admin (high rank, position 1)
+		// Grant message.post for admin (high rank, position 900)
 		err = core.GrantServerPermission(ctx, RoleAdmin, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
 
 		// User has both admin (grant) and everyone (deny) roles.
-		// Admin is higher rank (position 1 < MaxInt32), so admin's grant should win.
+		// Admin is higher rank (position 900 > 0), so admin's grant should win.
 		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
@@ -176,19 +176,19 @@ func TestPermissionResolver_HasServerPermission_Hierarchy(t *testing.T) {
 	})
 
 	t.Run("higher-ranked role denial beats lower-ranked role grant", func(t *testing.T) {
-		// Grant space.join for everyone (low rank)
+		// Grant message.post for everyone (low rank)
 		err := core.GrantServerPermission(ctx, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
 
-		// Deny space.join for admin (high rank)
+		// Deny message.post for admin (high rank)
 		err = core.DenyServerPermission(ctx, RoleAdmin, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
-		// Admin denial (position 1) should be checked before everyone grant (position MaxInt32)
+		// Admin denial (position 900) should be checked before everyone grant (position 0).
 		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
@@ -621,7 +621,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "", "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "conflictrolemember", "Member", "password123")
-	// Create a custom role (gets position 3, higher rank than everyone at MaxInt32)
+	// Create a custom role (gets a positive custom position, higher rank than everyone).
 	core.CreateServerRole(ctx, "poster", "Poster", "Can post")
 
 	// Grant message.post to poster role at room level
@@ -633,8 +633,8 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	// Assign poster role to member (member now has: everyone + poster)
 	core.AssignServerRole(ctx, admin.Id, member.Id, "poster")
 
-	// Room-level uses hierarchy-wins: poster (position 3, higher rank) grant beats
-	// everyone (position MaxInt32, lower rank) deny. This enables patterns like
+	// Room-level uses hierarchy-wins: poster (higher rank) grant beats
+	// everyone (position 0, lower rank) deny. This enables patterns like
 	// #announcements where higher-ranked roles can override lower-ranked denials.
 	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, PermMessagePost)
 	if err != nil {

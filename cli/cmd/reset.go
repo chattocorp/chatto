@@ -29,19 +29,17 @@ var resetCmd = &cobra.Command{
 
 var resetRBACCmd = &cobra.Command{
 	Use:   "rbac",
-	Short: "Wipe and re-seed the RBAC store",
-	Long: `Wipes the SERVER_RBAC bucket, re-creates the system roles
-(owner / admin / moderator) with their default permission grants,
-and assigns the 'owner' role to every user whose verified email
-matches the 'owners.emails' list in chatto.toml.
+	Short: "Reset and re-seed the RBAC aggregate",
+	Long: `Appends reset facts to the event-sourced RBAC aggregate, re-creates
+the system roles (owner / admin / moderator) with their default permission
+grants, and assigns the 'owner' role to every user whose verified email matches
+the 'owners.emails' list in chatto.toml.
 
-This is the upgrade tool for moving an existing deployment onto the
-unified Phase-5 server-RBAC layout (see ADR-027 / #357), and the
+This is the repair tool for the event-sourced RBAC layout and the
 operator escape hatch for misconfigured / drifted RBAC state.
 
-DESTRUCTIVE: every key in SERVER_RBAC is deleted, including custom
-roles and any room-level permission overrides. Rebuild those after
-the reset.`,
+DESTRUCTIVE: custom roles, explicit role assignments, and permission overrides
+are cleared by reset events. Rebuild those after the reset.`,
 	Run: runResetRBAC,
 }
 
@@ -60,7 +58,7 @@ func runResetRBAC(cmd *cobra.Command, args []string) {
 	}
 
 	if !resetYes {
-		fmt.Fprintln(os.Stderr, "This will wipe SERVER_RBAC and re-seed it from code.")
+		fmt.Fprintln(os.Stderr, "This will reset the event-sourced RBAC aggregate and re-seed it from code.")
 		fmt.Fprintln(os.Stderr, "Custom roles, role assignments, and room-level overrides will be lost.")
 		fmt.Fprint(os.Stderr, "Type 'reset' to continue: ")
 		var reply string
