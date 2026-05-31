@@ -259,7 +259,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | KV      | `INSTANCE_CONFIG`             | Legacy server configuration import source   |
 | KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | `AUTH_TOKENS`                 | Legacy bearer auth tokens pending `RUNTIME_STATE` migration |
-| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications |
+| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications and push subscriptions |
 | KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
 | KV      | `SERVER_RBAC`                 | Legacy RBAC seed data read by the `EVT` boot migration |
 | KV      | `SERVER_RUNTIME`              | Legacy runtime state pending cleanup        |
@@ -467,7 +467,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
 | `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source       |
-| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications and push subscriptions |
 | `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data read by the `EVT` boot migration |
 | `SERVER_RUNTIME`              | File    | Yes      | Legacy runtime state pending cleanup            |
@@ -580,6 +580,7 @@ survives restart but is not content/domain history. See
 | `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Legacy `SERVER_RUNTIME` `room_read_event.*` keys are copied here at boot; older `room_read_status.*` sequence keys are orphaned and ignored. |
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
 | `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
+| `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. Legacy `INSTANCE` keys are copied here at boot; the endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
 
 **SERVER\_RUNTIME keys:**
 

@@ -58,7 +58,7 @@ import (
 //   - `runtimeConfigKV`: INSTANCE_CONFIG (operator-editable server
 //     settings — name, MOTD, blocked usernames, etc.).
 //   - `runtimeStateKV`: RUNTIME_STATE (persisted latest-value runtime/user
-//     state such as read markers and thread follows).
+//     state such as read markers, thread follows, and push subscriptions).
 //   - `serverReactionsKV`: SERVER_REACTIONS (legacy current reaction
 //     state; retained until reaction ES migration cleanup).
 //
@@ -91,6 +91,9 @@ func RunAll(
 	}
 	if err := MigrateThreadFollowsToRuntimeState(ctx, serverRuntimeKV, runtimeStateKV, logger); err != nil {
 		return fmt.Errorf("thread_follows_runtime_state: %w", err)
+	}
+	if err := MigratePushSubscriptionsToRuntimeState(ctx, serverKV, runtimeStateKV, logger); err != nil {
+		return fmt.Errorf("push_subscriptions_runtime_state: %w", err)
 	}
 	// Room metadata + memberships share the evt.room.{R} subject and
 	// must seed together — a RoomCreatedEvent first, then the

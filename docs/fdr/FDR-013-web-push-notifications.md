@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-31
 
 ## Overview
 
@@ -29,7 +29,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 ### 2. Per-device subscriptions, identified by endpoint hash
 
-**Decision:** Each browser subscription is stored as its own record, identified by a hash of the push endpoint URL.
+**Decision:** Each browser subscription is stored in `RUNTIME_STATE` as its own record, identified by a hash of the push endpoint URL.
 **Why:** The same user might be subscribed from a laptop and a phone, and pushing to both is the expected behavior. Hashing the endpoint URL avoids storing the raw URL as a key (which can be long and contains provider-specific structure).
 **Tradeoff:** No de-duplication if a single device somehow ends up with two subscriptions. Browsers don't typically allow that, so it's a non-issue in practice.
 

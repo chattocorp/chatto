@@ -56,6 +56,7 @@ Initial and planned occupants include:
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
 - Pending notifications: `notification.{userId}.{notificationId}`, with per-key
   90-day TTL.
+- Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Auth, verification, reset, and revocation tokens after their migration from
   token-specific buckets.
 
