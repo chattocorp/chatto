@@ -432,7 +432,7 @@ var File_chatto_core_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xee\x02\n" +
+	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\x83\x03\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
@@ -440,7 +440,7 @@ const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12/\n" +
-	"\x04body\x18\t \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04bodyJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x06\b\xe9\a\x10\xea\aR\bspace_idR\x0fmessage_body_idR\bevent_id\"y\n" +
+	"\x04body\x18\t \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04bodyJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xe9\a\x10\xea\aR\bspace_idR\x0fmessage_body_idR\vsequence_idR\bevent_id\"y\n" +
 	"\x12MessageEditedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12/\n" +
