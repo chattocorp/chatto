@@ -18,8 +18,8 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // ============================================================================
 
 message MessagePostedEvent {
-  reserved 1, 3, 1001;
-  reserved "space_id", "message_body_id", "event_id";
+  reserved 1, 3;
+  reserved "space_id", "message_body_id";
 
   // Room ID - identifies which room this message belongs to
   string room_id = 2;
