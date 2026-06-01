@@ -197,6 +197,9 @@ models:
   ServerMemberDeletedEvent:
     model:
       - hmans.de/chatto/internal/pb/chatto/core/v1.SpaceMemberDeletedEvent
+  MessagePostedEvent:
+    model:
+      - hmans.de/chatto/internal/graph/model.MessagePostedEvent
   NotificationLevel:
     model:
       - hmans.de/chatto/internal/graph/model.NotificationLevel

@@ -6,16 +6,13 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // unwrapEvent extracts the concrete event payload from the proto
 // Event oneof wrapper. Returns nil for an empty envelope or an
 // unknown variant.
-//
-// For message events the wrapper's `Id` is copied into the payload's
-// `EventId` field so nested resolvers (reactions, thread metadata) can
-// reach it without re-traversing the envelope.
 func unwrapEvent(event *corev1.Event) any {
 	if event == nil || event.Event == nil {
 		return nil
@@ -44,9 +41,7 @@ func unwrapEvent(event *corev1.Event) any {
 
 	// ---- Messages ----
 	case *corev1.Event_MessagePosted:
-		// Populate EventId from wrapper for nested resolvers (reactions, thread metadata).
-		e.MessagePosted.EventId = event.Id
-		return e.MessagePosted
+		return &model.MessagePostedEvent{Envelope: event, Payload: e.MessagePosted, RoomID: e.MessagePosted.GetRoomId()}
 	case *corev1.Event_MessageEdited:
 		return e.MessageEdited
 	case *corev1.Event_MessageRetracted:

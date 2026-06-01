@@ -42,8 +42,6 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 			},
 		},
 	})
-	legacyPost.GetMessagePosted().MessageBodyId = legacyPost.Id
-	legacyPost.GetMessagePosted().EventId = legacyPost.Id
 	attachment.MessageBodyId = legacyPost.Id
 	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyPost), legacyPost); err != nil {
 		t.Fatalf("append legacy message: %v", err)

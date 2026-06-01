@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -283,13 +284,14 @@ func legacyMessageRooms(ctx context.Context, stream jetstream.Stream, logger *lo
 		if posted == nil || posted.GetRoomId() == "" {
 			continue
 		}
-		eventID := posted.GetEventId()
+		eventID := event.GetId()
 		if eventID == "" {
-			eventID = event.GetId()
+			eventID = subjects.ParseEventIDFromSubject(msg.Subject())
 		}
-		if eventID != "" {
-			messageRooms[eventID] = posted.GetRoomId()
+		if eventID == "" {
+			continue
 		}
+		messageRooms[eventID] = posted.GetRoomId()
 	}
 	return messageRooms, nil
 }

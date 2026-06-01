@@ -164,8 +164,6 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 			},
 		},
 	})
-	legacyPost.GetMessagePosted().MessageBodyId = legacyPost.Id
-	legacyPost.GetMessagePosted().EventId = legacyPost.Id
 	original.MessageBodyId = legacyPost.Id
 	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyPost), legacyPost); err != nil {
 		t.Fatalf("append legacy message: %v", err)

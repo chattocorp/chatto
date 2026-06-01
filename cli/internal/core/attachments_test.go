@@ -1032,7 +1032,7 @@ func TestFindBodyAttachment_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
-	bodyKey := event.GetMessagePosted().MessageBodyId
+	bodyKey := event.Id
 
 	got, err := core.FindBodyAttachment(ctx, bodyKey, attachment.Id)
 	if err != nil {
@@ -1092,7 +1092,7 @@ func TestLookupAttachment_BodyDispatch(t *testing.T) {
 
 	loc := signedurl.AttachmentLocator{
 		RoomID:       room.Id,
-		BodyKey:      event.GetMessagePosted().MessageBodyId,
+		BodyKey:      event.Id,
 		AttachmentID: attachment.Id,
 		UserID:       user.Id,
 		ExpiresAt:    1,

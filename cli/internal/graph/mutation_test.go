@@ -1126,7 +1126,7 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 		}
 
 		// Verify message body is deleted
-		messageBodyKey := newEvent.GetMessagePosted().MessageBodyId
+		messageBodyKey := newEvent.Id
 		body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, messageBodyKey)
 		if err != nil {
 			t.Fatalf("failed to get message body: %v", err)

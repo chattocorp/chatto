@@ -40,7 +40,7 @@ func TestMigrateReactionsToES_ImportsCurrentStateAndReplays(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	})
 	putReaction(t, rig.ctx, reactionsKV, "M1.thumbsup.U2", time.Unix(1700000000, 123))
@@ -87,7 +87,7 @@ func TestMigrateReactionsToES_ChunksLargeRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	})
 
@@ -118,7 +118,7 @@ func TestMigrateReactionsToES_ResumesPartiallyImportedRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	})
 	putReaction(t, rig.ctx, reactionsKV, "M1.heart.U2", time.Unix(1700000000, 0))

@@ -45,9 +45,8 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 			t.Error("Expected MessagePosted event")
 		}
 
-		// Body is lazy-loaded, fetch it separately using messageBodyId
-		messagePosted := event.GetMessagePosted()
-		fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
+		// Body lookup is keyed by the durable event envelope id.
+		fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
 		if err != nil {
 			t.Fatalf("Failed to fetch message body: %v", err)
 		}

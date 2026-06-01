@@ -123,19 +123,26 @@ func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*mod
 	return reactions, nil
 }
 
-// bodyKeyForLookup picks the right key for looking up the body of a
-// MessagePostedEvent. Post-#597 cutover, bodies are embedded in the
-// event and identified by event_id; the legacy MessageBodyId compound
-// key is no longer populated on new posts. We coalesce so any in-
-// flight pre-cutover objects still resolve.
-func bodyKeyForLookup(obj *corev1.MessagePostedEvent) string {
+func messagePostedPayload(obj *model.MessagePostedEvent) *corev1.MessagePostedEvent {
 	if obj == nil {
+		return nil
+	}
+	return obj.Payload
+}
+
+// messagePostedEventID returns the durable message event ID from the GraphQL
+// event wrapper. MessagePostedEvent itself is payload-only.
+func messagePostedEventID(obj *model.MessagePostedEvent) string {
+	if obj == nil || obj.Envelope == nil {
 		return ""
 	}
-	if k := obj.GetMessageBodyId(); k != "" {
-		return k
-	}
-	return obj.GetEventId()
+	return obj.Envelope.GetId()
+}
+
+// bodyKeyForLookup uses the canonical envelope event ID. The core body lookup
+// still accepts this through its legacy "body key" parameter name.
+func bodyKeyForLookup(obj *model.MessagePostedEvent) string {
+	return messagePostedEventID(obj)
 }
 
 // getMessageBody loads a message body, using per-request caching if available.
@@ -181,7 +188,7 @@ func (r *Resolver) resolveMessageBodyKey(ctx context.Context, kind core.RoomKind
 	}
 
 	if msg := event.GetMessagePosted(); msg != nil {
-		return msg.MessageBodyId, nil
+		return event.GetId(), nil
 	}
 
 	return "", fmt.Errorf("event %s is not a message event", eventID)

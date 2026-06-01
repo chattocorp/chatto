@@ -91,10 +91,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		if threadRoot == "" {
 			return nil // root-level message; not in any thread bucket
 		}
-		replyID := m.GetEventId()
-		if replyID == "" {
-			replyID = event.GetId()
-		}
+		replyID := event.GetId()
 		if replyID == "" {
 			return nil
 		}

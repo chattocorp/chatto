@@ -25,9 +25,6 @@ type MessagePostedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room ID - identifies which room this message belongs to
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Compound key for body storage in KV: {userId}.{eventId}
-	// The userId prefix enables efficient per-user filtering for GDPR deletion.
-	MessageBodyId string `protobuf:"bytes,3,opt,name=message_body_id,json=messageBodyId,proto3" json:"message_body_id,omitempty"`
 	// Threading: event ID of the message this is replying to (empty = top-level message)
 	InReplyTo string `protobuf:"bytes,4,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
 	// Threading: event ID of the thread root message (empty = top-level message)
@@ -48,15 +45,9 @@ type MessagePostedEvent struct {
 	// SERVER_BODIES KV bucket, so the projections can rebuild full message
 	// state from EVT alone.
 	//
-	// Empty for events imported from the legacy SERVER_EVENTS stream by
-	// the boot-time importer — those messages still have their bodies in
-	// SERVER_BODIES KV, addressed by `message_body_id` above. Readers
-	// branch on `body == nil`: present → use embedded; absent → look up
-	// SERVER_BODIES via `message_body_id`. See issue #597 phase 3.
-	Body *MessageBody `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
-	// Parent event's ID (populated at read time for resolver access)
-	// Used for reactions lookup since reactions are keyed by event ID
-	EventId       string `protobuf:"bytes,1001,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Empty only for legacy SERVER_EVENTS records whose SERVER_BODIES entry
+	// had already been removed before the boot-time importer ran.
+	Body          *MessageBody `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -94,13 +85,6 @@ func (*MessagePostedEvent) Descriptor() ([]byte, []int) {
 func (x *MessagePostedEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
-	}
-	return ""
-}
-
-func (x *MessagePostedEvent) GetMessageBodyId() string {
-	if x != nil {
-		return x.MessageBodyId
 	}
 	return ""
 }
@@ -145,13 +129,6 @@ func (x *MessagePostedEvent) GetBody() *MessageBody {
 		return x.Body
 	}
 	return nil
-}
-
-func (x *MessagePostedEvent) GetEventId() string {
-	if x != nil {
-		return x.EventId
-	}
-	return ""
 }
 
 // MessageEditedEvent is the durable event published when a message's body
@@ -455,17 +432,15 @@ var File_chatto_core_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\x91\x03\n" +
+	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xee\x02\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
-	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12\x1e\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
 	"\tin_thread\x18\x05 \x01(\tR\binThread\x12,\n" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12/\n" +
-	"\x04body\x18\t \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04body\x12\x1a\n" +
-	"\bevent_id\x18\xe9\a \x01(\tR\aeventIdJ\x04\b\x01\x10\x02J\x06\b\xe8\a\x10\xe9\aR\bspace_id\"y\n" +
+	"\x04body\x18\t \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04bodyJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x06\b\xe9\a\x10\xea\aR\bspace_idR\x0fmessage_body_idR\bevent_id\"y\n" +
 	"\x12MessageEditedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12/\n" +

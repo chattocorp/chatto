@@ -8,6 +8,23 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+func graphMessagePostedEvent(event *corev1.Event) *model.MessagePostedEvent {
+	payload := event.GetMessagePosted()
+	return &model.MessagePostedEvent{
+		Envelope: event,
+		Payload:  payload,
+		RoomID:   payload.GetRoomId(),
+	}
+}
+
+func graphMessagePostedPayload(id string, payload *corev1.MessagePostedEvent) *model.MessagePostedEvent {
+	return &model.MessagePostedEvent{
+		Envelope: &corev1.Event{Id: id},
+		Payload:  payload,
+		RoomID:   payload.GetRoomId(),
+	}
+}
+
 // ============================================================================
 // MessagePostedEvent.Reactions Field Resolver Tests
 // ============================================================================
@@ -22,10 +39,7 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		t.Fatalf("failed to post message: %v", err)
 	}
 
-	msgEvent := event.Event.(*corev1.Event_MessagePosted).MessagePosted
-	// PostMessage doesn't set EventId on the inner event; it's on the SpaceEvent wrapper.
-	// Set it manually so resolvers can use it for reactions lookups.
-	msgEvent.EventId = event.Id
+	msgEvent := graphMessagePostedEvent(event)
 
 	t.Run("no reactions returns empty list", func(t *testing.T) {
 		reactions, err := resolver.Reactions(env.authContext(), msgEvent)
@@ -103,7 +117,7 @@ func TestMessagePostedEventResolver_Body(t *testing.T) {
 		t.Fatalf("failed to post message: %v", err)
 	}
 
-	msgEvent := event.Event.(*corev1.Event_MessagePosted).MessagePosted
+	msgEvent := graphMessagePostedEvent(event)
 
 	t.Run("resolves message body", func(t *testing.T) {
 		body, err := resolver.Body(env.ctx, msgEvent)
@@ -295,9 +309,9 @@ func TestMessagePostedEventResolver_InReplyTo(t *testing.T) {
 	resolver := env.resolver.MessagePostedEvent()
 
 	t.Run("returns nil for root message", func(t *testing.T) {
-		msgEvent := &corev1.MessagePostedEvent{
+		msgEvent := graphMessagePostedPayload("", &corev1.MessagePostedEvent{
 			InReplyTo: "",
-		}
+		})
 		result, err := resolver.InReplyTo(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -308,9 +322,9 @@ func TestMessagePostedEventResolver_InReplyTo(t *testing.T) {
 	})
 
 	t.Run("returns event ID for reply", func(t *testing.T) {
-		msgEvent := &corev1.MessagePostedEvent{
+		msgEvent := graphMessagePostedPayload("", &corev1.MessagePostedEvent{
 			InReplyTo: "some-event-id",
-		}
+		})
 		result, err := resolver.InReplyTo(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -333,9 +347,9 @@ func TestMessagePostedEventResolver_ThreadRootEventID(t *testing.T) {
 	resolver := env.resolver.MessagePostedEvent()
 
 	t.Run("returns nil for root message", func(t *testing.T) {
-		msgEvent := &corev1.MessagePostedEvent{
+		msgEvent := graphMessagePostedPayload("", &corev1.MessagePostedEvent{
 			InThread: "",
-		}
+		})
 		result, err := resolver.ThreadRootEventID(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -346,9 +360,9 @@ func TestMessagePostedEventResolver_ThreadRootEventID(t *testing.T) {
 	})
 
 	t.Run("returns thread root ID for thread reply", func(t *testing.T) {
-		msgEvent := &corev1.MessagePostedEvent{
+		msgEvent := graphMessagePostedPayload("", &corev1.MessagePostedEvent{
 			InThread: "thread-root-id",
-		}
+		})
 		result, err := resolver.ThreadRootEventID(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -371,9 +385,9 @@ func TestMessagePostedEventResolver_ReplyCount(t *testing.T) {
 	resolver := env.resolver.MessagePostedEvent()
 
 	t.Run("thread reply returns 0", func(t *testing.T) {
-		msgEvent := &corev1.MessagePostedEvent{
+		msgEvent := graphMessagePostedPayload("", &corev1.MessagePostedEvent{
 			InThread: "some-thread-root",
-		}
+		})
 		count, err := resolver.ReplyCount(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -388,8 +402,7 @@ func TestMessagePostedEventResolver_ReplyCount(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
-		msgEvent := event.Event.(*corev1.Event_MessagePosted).MessagePosted
-		msgEvent.EventId = event.Id
+		msgEvent := graphMessagePostedEvent(event)
 
 		count, err := resolver.ReplyCount(env.ctx, msgEvent)
 		if err != nil {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -27,8 +28,9 @@ import (
 //     `server.room.{kind}.{R}.msg.{eventID}` (root posts) and
 //     `server.room.{kind}.{R}.msg.{rootID}.replies.{eventID}` (thread
 //     replies). Encrypted message bodies live in the SERVER_BODIES KV
-//     bucket, addressable by the MessagePostedEvent's
-//     message_body_id field ({userID}.{bodyID} compound key).
+//     bucket, addressable by the legacy MessagePostedEvent.message_body_id
+//     field ({userID}.{bodyID} compound key). The current proto reserves
+//     that field, so the importer reads it from protobuf unknown fields.
 //
 //   - Historical edits and deletes are NOT durable in SERVER_EVENTS —
 //     they only fired as live-only events. Edits mutated SERVER_BODIES
@@ -42,10 +44,8 @@ import (
 //
 //   - Each MessagePostedEvent is re-emitted on EVT at
 //     `evt.room.{R}.message_posted` with the body content embedded in
-//     the event payload (the MessagePostedEvent.body field added in
-//     #597 phase 1). The legacy message_body_id field is left empty
-//     on imported events — the embedded body is the only source of
-//     truth post-migration.
+//     the event payload. The embedded body and the Event envelope ID are the
+//     only message identity/content source of truth post-migration.
 //
 //   - Posts whose body has been deleted from SERVER_BODIES (legacy
 //     hard-delete) are imported with body=nil. The projection holds
@@ -150,12 +150,13 @@ func MigrateMessagesToES(
 			continue
 		}
 
-		// Look up the body from SERVER_BODIES via the legacy
-		// message_body_id pointer. Missing bodies are not fatal —
-		// historic deletes wiped the body but left the post event.
-		// Import with body=nil.
+		// Look up the body from SERVER_BODIES via the legacy message_body_id
+		// pointer. The field is now reserved on MessagePostedEvent, so it
+		// decodes into protobuf unknown fields. Missing bodies are not fatal:
+		// historic deletes wiped the body but left the post event. Import with
+		// body=nil.
 		var body *corev1.MessageBody
-		if bodyKey := posted.GetMessageBodyId(); bodyKey != "" {
+		if bodyKey := legacyMessageBodyID(posted); bodyKey != "" {
 			if serverBodiesKV == nil {
 				bodyMissing++
 			} else {
@@ -178,19 +179,13 @@ func MigrateMessagesToES(
 
 		// Build the migrated event. Preserve the original envelope
 		// metadata (id, actor, created_at) so the timeline order and
-		// audit trail are preserved. Body is embedded; message_body_id
-		// is repurposed post-cutover as an alias for the envelope id,
-		// so legacy resolver code paths
-		// that pass MessageBodyId around continue to resolve through
-		// eventIDFromBodyKey.
+		// audit trail are preserved. Body is embedded; the message's durable
+		// identity remains the Event envelope ID.
 		//
-		// Legacy MessagePostedEvent.event_id was a read-time helper, not
-		// persisted by PostMessage. Recover it from the envelope id or,
-		// as a last resort, the legacy subject.
-		eventID := posted.GetEventId()
-		if eventID == "" {
-			eventID = legacyEvent.GetId()
-		}
+		// Message identity lives on the envelope. Recover it from the
+		// envelope id or, as a last resort for old payloads, the legacy
+		// subject.
+		eventID := legacyEvent.GetId()
 		if eventID == "" {
 			eventID = subjects.ParseEventIDFromSubject(msg.Subject())
 		}
@@ -218,7 +213,6 @@ func MigrateMessagesToES(
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
 					RoomId:                    roomID,
-					MessageBodyId:             eventID,
 					InReplyTo:                 posted.GetInReplyTo(),
 					InThread:                  inThread,
 					MentionedUserIds:          posted.GetMentionedUserIds(),
@@ -346,6 +340,33 @@ func preserveTimestamp(ts *timestamppb.Timestamp) *timestamppb.Timestamp {
 		return ts
 	}
 	return timestamppb.Now()
+}
+
+func legacyMessageBodyID(posted *corev1.MessagePostedEvent) string {
+	if posted == nil {
+		return ""
+	}
+	unknown := posted.ProtoReflect().GetUnknown()
+	for len(unknown) > 0 {
+		num, typ, n := protowire.ConsumeTag(unknown)
+		if n < 0 {
+			return ""
+		}
+		unknown = unknown[n:]
+		if num == 3 && typ == protowire.BytesType {
+			value, m := protowire.ConsumeString(unknown)
+			if m < 0 {
+				return ""
+			}
+			return value
+		}
+		m := protowire.ConsumeFieldValue(num, typ, unknown)
+		if m < 0 {
+			return ""
+		}
+		unknown = unknown[m:]
+	}
+	return ""
 }
 
 // SubjectPrefixServerRoomMsg is the subject prefix this migration

@@ -1549,20 +1549,20 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message 1: %v", err)
 	}
-	msg1ID := event1.GetMessagePosted().MessageBodyId
+	msg1ID := event1.Id
 
 	event2, err := core.PostMessage(ctx, KindChannel, room.Id, user1.Id, "Message 2 from user1", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 2: %v", err)
 	}
-	msg2ID := event2.GetMessagePosted().MessageBodyId
+	msg2ID := event2.Id
 
 	// User 2 posts one message
 	event3, err := core.PostMessage(ctx, KindChannel, room.Id, user2.Id, "Message from user2", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 3: %v", err)
 	}
-	msg3ID := event3.GetMessagePosted().MessageBodyId
+	msg3ID := event3.Id
 
 	// Verify all message bodies exist
 	_, err = core.GetMessageBody(ctx, KindChannel, msg1ID)

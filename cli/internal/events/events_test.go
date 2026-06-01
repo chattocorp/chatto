@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -171,6 +172,26 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 				t.Errorf("want ErrInvalidEvent, got %v", err)
 			}
 		})
+	}
+}
+
+func TestPublisher_Append_RejectsLiveOnlyEventVariant(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	event := &corev1.Event{
+		Id:        "EVT-live-only",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_ServerUpdated{
+			ServerUpdated: &corev1.ServerUpdatedEvent{},
+		},
+	}
+
+	_, err := pub.Append(ctx, ConfigAggregate().Subject("server_updated"), event)
+	if !errors.Is(err, ErrInvalidEvent) {
+		t.Fatalf("want ErrInvalidEvent, got %v", err)
 	}
 }
 
@@ -818,35 +839,26 @@ func TestAuthAggregate_Subject(t *testing.T) {
 	}
 }
 
-// TestMessagePostedEvent_BodyBackwardCompat verifies that a MessagePostedEvent
-// marshaled before the `body` field existed (i.e. only `message_body_id`
-// populated) still round-trips cleanly under the new schema. Proto3 makes
-// this automatic — the test exists to make the intent explicit and to fail
-// loudly if anyone reuses field number 9 or makes `body` required.
-func TestMessagePostedEvent_BodyBackwardCompat(t *testing.T) {
-	// Construct an event as the legacy publisher would: message_body_id
-	// set, body unset.
-	legacy := &corev1.MessagePostedEvent{
-		RoomId:        "R1",
-		MessageBodyId: "U1.M1",
-		EventId:       "M1",
-	}
-
-	bytes, err := proto.Marshal(legacy)
-	if err != nil {
-		t.Fatalf("marshal legacy: %v", err)
-	}
+func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testing.T) {
+	var legacyBytes []byte
+	legacyBytes = protowire.AppendTag(legacyBytes, 2, protowire.BytesType)
+	legacyBytes = protowire.AppendString(legacyBytes, "R1")
+	legacyBytes = protowire.AppendTag(legacyBytes, 3, protowire.BytesType)
+	legacyBytes = protowire.AppendString(legacyBytes, "U1.M1")
 
 	var decoded corev1.MessagePostedEvent
-	if err := proto.Unmarshal(bytes, &decoded); err != nil {
+	if err := proto.Unmarshal(legacyBytes, &decoded); err != nil {
 		t.Fatalf("unmarshal legacy under new schema: %v", err)
 	}
 
-	if decoded.GetMessageBodyId() != "U1.M1" {
-		t.Errorf("MessageBodyId roundtrip mismatch: got %q", decoded.GetMessageBodyId())
+	if decoded.GetRoomId() != "R1" {
+		t.Errorf("RoomId = %q, want R1", decoded.GetRoomId())
 	}
 	if decoded.GetBody() != nil {
 		t.Errorf("expected Body to be nil for legacy payload, got %+v", decoded.GetBody())
+	}
+	if got := decoded.ProtoReflect().GetUnknown(); len(got) == 0 {
+		t.Fatal("expected legacy message_body_id to remain in unknown fields")
 	}
 }
 

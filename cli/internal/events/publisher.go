@@ -516,5 +516,8 @@ func validateEvent(event *corev1.Event) error {
 	if event.GetId() == "" {
 		return fmt.Errorf("%w: event id is empty", ErrInvalidEvent)
 	}
+	if EventTypeOf(event) == "" {
+		return fmt.Errorf("%w: %T is not a durable EVT event type", ErrInvalidEvent, event.GetEvent())
+	}
 	return nil
 }

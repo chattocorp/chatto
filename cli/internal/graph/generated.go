@@ -299,7 +299,7 @@ type ComplexityRoot struct {
 		LinkPreview               func(childComplexity int) int
 		Reactions                 func(childComplexity int) int
 		ReplyCount                func(childComplexity int) int
-		RoomId                    func(childComplexity int) int
+		RoomID                    func(childComplexity int) int
 		ThreadParticipants        func(childComplexity int, first *int32) int
 		ThreadRootEventID         func(childComplexity int) int
 		UpdatedAt                 func(childComplexity int) int
@@ -985,19 +985,19 @@ type MessageEditedEventResolver interface {
 	UpdatedAt(ctx context.Context, obj *corev1.MessageEditedEvent) (*timestamppb.Timestamp, error)
 }
 type MessagePostedEventResolver interface {
-	Body(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
-	Attachments(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*corev1.Attachment, error)
-	InReplyTo(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
-	ThreadRootEventID(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
-	Reactions(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*model.Reaction, error)
-	UpdatedAt(ctx context.Context, obj *corev1.MessagePostedEvent) (*timestamppb.Timestamp, error)
-	EchoOfEventID(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
-	EchoFromThreadRootEventID(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
-	ReplyCount(ctx context.Context, obj *corev1.MessagePostedEvent) (int32, error)
-	LastReplyAt(ctx context.Context, obj *corev1.MessagePostedEvent) (*timestamppb.Timestamp, error)
-	ThreadParticipants(ctx context.Context, obj *corev1.MessagePostedEvent, first *int32) ([]*corev1.User, error)
-	ViewerIsFollowingThread(ctx context.Context, obj *corev1.MessagePostedEvent) (*bool, error)
-	LinkPreview(ctx context.Context, obj *corev1.MessagePostedEvent) (*corev1.LinkPreview, error)
+	Body(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	Attachments(ctx context.Context, obj *model.MessagePostedEvent) ([]*corev1.Attachment, error)
+	InReplyTo(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	ThreadRootEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*model.Reaction, error)
+	UpdatedAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
+	EchoOfEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	EchoFromThreadRootEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	ReplyCount(ctx context.Context, obj *model.MessagePostedEvent) (int32, error)
+	LastReplyAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
+	ThreadParticipants(ctx context.Context, obj *model.MessagePostedEvent, first *int32) ([]*corev1.User, error)
+	ViewerIsFollowingThread(ctx context.Context, obj *model.MessagePostedEvent) (*bool, error)
+	LinkPreview(ctx context.Context, obj *model.MessagePostedEvent) (*corev1.LinkPreview, error)
 }
 type MessageRetractedEventResolver interface {
 	MessageEventID(ctx context.Context, obj *corev1.MessageRetractedEvent) (string, error)
@@ -2123,11 +2123,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.MessagePostedEvent.ReplyCount(childComplexity), true
 	case "MessagePostedEvent.roomId":
-		if e.complexity.MessagePostedEvent.RoomId == nil {
+		if e.complexity.MessagePostedEvent.RoomID == nil {
 			break
 		}
 
-		return e.complexity.MessagePostedEvent.RoomId(childComplexity), true
+		return e.complexity.MessagePostedEvent.RoomID(childComplexity), true
 	case "MessagePostedEvent.threadParticipants":
 		if e.complexity.MessagePostedEvent.ThreadParticipants == nil {
 			break
@@ -10657,14 +10657,14 @@ func (ec *executionContext) fieldContext_MessageEditedEvent_updatedAt(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		ec.fieldContext_MessagePostedEvent_roomId,
 		func(ctx context.Context) (any, error) {
-			return obj.RoomId, nil
+			return obj.RoomID, nil
 		},
 		nil,
 		ec.marshalNID2string,
@@ -10686,7 +10686,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_roomId(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_body(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_body(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10715,7 +10715,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_body(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_attachments(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_attachments(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10770,7 +10770,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_attachments(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_inReplyTo(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_inReplyTo(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10799,7 +10799,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_inReplyTo(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_threadRootEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_threadRootEventId(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10828,7 +10828,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_threadRootEventId(_ 
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_reactions(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_reactions(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10867,7 +10867,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_reactions(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_updatedAt(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10896,7 +10896,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_updatedAt(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_echoOfEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_echoOfEventId(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10925,7 +10925,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_echoOfEventId(_ cont
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_echoFromThreadRootEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_echoFromThreadRootEventId(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10954,7 +10954,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_echoFromThreadRootEv
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_replyCount(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_replyCount(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -10983,7 +10983,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_replyCount(_ context
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_lastReplyAt(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_lastReplyAt(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -11012,7 +11012,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_lastReplyAt(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_threadParticipants(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_threadParticipants(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -11083,7 +11083,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_threadParticipants(c
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_viewerIsFollowingThread(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_viewerIsFollowingThread(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -11112,7 +11112,7 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_viewerIsFollowingThr
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_linkPreview(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_linkPreview(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -29560,7 +29560,7 @@ func (ec *executionContext) _RoomEventType(ctx context.Context, sel ast.Selectio
 			return graphql.Null
 		}
 		return ec._MessageRetractedEvent(ctx, sel, obj)
-	case *corev1.MessagePostedEvent:
+	case *model.MessagePostedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
@@ -29763,7 +29763,7 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._MessageRetractedEvent(ctx, sel, obj)
-	case *corev1.MessagePostedEvent:
+	case *model.MessagePostedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
@@ -32568,7 +32568,7 @@ func (ec *executionContext) _MessageEditedEvent(ctx context.Context, sel ast.Sel
 
 var messagePostedEventImplementors = []string{"MessagePostedEvent", "RoomEventType", "ServerEventType"}
 
-func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessagePostedEvent) graphql.Marshaler {
+func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.SelectionSet, obj *model.MessagePostedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, messagePostedEventImplementors)
 
 	out := graphql.NewFieldSet(fields)

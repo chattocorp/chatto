@@ -211,13 +211,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		},
 	})
-	// Set MessageBodyId to the envelope id. Post-#597 cutover,
-	// MessageBodyId is no longer a {userId}.{bodyId} compound
-	// key — it's just an alias for event_id, kept on the proto so
-	// legacy code paths that pass MessageBodyId around (resolvers,
-	// attachment signed URLs) keep working without changes.
-	event.GetMessagePosted().MessageBodyId = event.Id
-
 	// Schedule any video processing before MessagePosted so AssetProcessing-
 	// Started fires before subscribers see the message; the frontend uses
 	// the started marker to render the "Processing…" placeholder.
@@ -395,8 +388,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				},
 			},
 		})
-		echoEvent.GetMessagePosted().MessageBodyId = echoEvent.Id
-
 		echoSequenceID, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, echoEvent)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)

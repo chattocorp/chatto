@@ -68,8 +68,7 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 }
 
 // setupRoomWithMessage creates a user, a room, joins the user, and posts one
-// message. Returns the resulting MessagePostedEvent so the test can pull
-// MessageBodyId / event id off it.
+// message. Returns the resulting event so the test can use the durable envelope id.
 func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (room, user struct{ Id string }, event *corev1.Event) {
 	t.Helper()
 
@@ -146,7 +145,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	// Let subscription establish before publishing.
 	time.Sleep(100 * time.Millisecond)
 
-	if err := core.DeleteMessage(ctx, author.Id, KindChannel, room.Id, postedMsg.MessageBodyId); err != nil {
+	if err := core.DeleteMessage(ctx, author.Id, KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 

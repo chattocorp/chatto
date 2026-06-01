@@ -42,7 +42,6 @@ func postedEvent(o postedOpts) *corev1.Event {
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
 				RoomId:                    o.roomID,
-				EventId:                   o.eventID,
 				InReplyTo:                 o.inReplyTo,
 				InThread:                  o.inThread,
 				EchoOfEventId:             o.echoOfEventID,
@@ -177,10 +176,10 @@ func TestRoomTimeline_AppendsAllEventKinds(t *testing.T) {
 		roomCreatedTimelineEvent("ENV-CREATE", "R1", "general", 1),
 		joinedEvent("ENV-JOIN-U1", "R1", "U1", 2),
 		postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", body: "hello", at: 3}),
-		editedEvent("ENV-EDIT-M1", "M1", "R1", "U1", "hello (edited)", 4),
+		editedEvent("ENV-EDIT-M1", "ENV-M1", "R1", "U1", "hello (edited)", 4),
 		joinedEvent("ENV-JOIN-U2", "R1", "U2", 5),
 		postedEvent(postedOpts{envelopeID: "ENV-M2", eventID: "M2", roomID: "R1", actorID: "U2", body: "hi", at: 6}),
-		retractedEvent("ENV-RETRACT-M2", "M2", "R1", "MOD", "spam", 7),
+		retractedEvent("ENV-RETRACT-M2", "ENV-M2", "R1", "MOD", "spam", 7),
 		leftEvent("ENV-LEFT-U2", "R1", "U2", 8),
 	})
 
@@ -247,17 +246,17 @@ func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*corev1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", body: "hello", at: 1}),
-		editedEvent("ENV-EDIT-M1", "M1", "R1", "U1", "hello (edited)", 2),
+		editedEvent("ENV-EDIT-M1", "ENV-M1", "R1", "U1", "hello (edited)", 2),
 	})
 
 	// Original post lookup.
 	entry, ok := p.Get("ENV-M1")
-	if !ok || entry.Event.GetMessagePosted().GetEventId() != "M1" {
+	if !ok || entry.Event.GetId() != "ENV-M1" || entry.Event.GetMessagePosted() == nil {
 		t.Errorf("Get(ENV-M1) = %v, want the post", entry)
 	}
 	// Edit also indexed.
 	entry, ok = p.Get("ENV-EDIT-M1")
-	if !ok || entry.Event.GetMessageEdited().GetEventId() != "M1" {
+	if !ok || entry.Event.GetMessageEdited().GetEventId() != "ENV-M1" {
 		t.Errorf("Get(ENV-EDIT-M1) = %v, want the edit", entry)
 	}
 	// Unknown.
@@ -352,8 +351,8 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 	if len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
 		t.Fatalf("UnmanifestedVideoAttachments before manifest = %+v, want A-video", got)
 	}
-	if got[0].RoomID != "R1" || got[0].MessageEventID != "M1" {
-		t.Fatalf("UnmanifestedVideoAttachments ownership = room %q msg %q, want R1/M1", got[0].RoomID, got[0].MessageEventID)
+	if got[0].RoomID != "R1" || got[0].MessageEventID != "ENV-M1" {
+		t.Fatalf("UnmanifestedVideoAttachments ownership = room %q msg %q, want R1/ENV-M1", got[0].RoomID, got[0].MessageEventID)
 	}
 	applyAll(t, p, []*corev1.Event{processed})
 	if got := p.UnmanifestedVideoAttachments(); len(got) != 0 {
@@ -376,7 +375,7 @@ func TestRoomTimeline_UnmanifestedVideoAttachments_SkipsRetracted(t *testing.T) 
 	retract := &corev1.Event{
 		Id: "ENV-RETRACT",
 		Event: &corev1.Event_MessageRetracted{
-			MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"},
+			MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "ENV-M1"},
 		},
 	}
 	applyAll(t, p, []*corev1.Event{retract})

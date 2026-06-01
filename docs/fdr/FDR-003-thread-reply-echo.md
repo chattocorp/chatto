@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-01
 
 ## Overview
 
@@ -14,7 +14,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 - The checkbox resets to unchecked after each successful send.
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
 - If the original reply was attributed to a specific message, the echo shows the same reply-attribution byline. Clicking the byline on the echo opens the thread and highlights the referenced message inside it.
-- Editing or deleting the original reply automatically affects the echo too — they share the same message body.
+- Editing or deleting the original reply automatically affects the echo too — edit/delete events target the original reply, and read models apply the change to the linked echo.
 - Reactions on the original and the echo are independent — they're different events as far as reactions are concerned.
 - The thread's reply count is not incremented by the echo; the echo represents the same reply, not an additional one.
 - Mention notifications fire once for the reply, not twice (the echo doesn't re-notify).
@@ -22,11 +22,11 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 
 ## Design Decisions
 
-### 1. Echo shares the message body, not the event identity
+### 1. Echo links by event identity, not payload aliases
 
-**Decision:** The echo and the original thread reply are two different events but point at the same `messageBodyId`. The body lives in one place; both events reference it.
-**Why:** Edits and deletes operate on the body and need to apply atomically to both visible artifacts. Cloning the body would mean implementing edit fan-out, with its own consistency problems. See ADR-011.
-**Tradeoff:** The two events have to be linked at read time so the frontend knows they share a body. The `echoOfEventId` field on the echo carries the link.
+**Decision:** The echo and the original thread reply are two different EVT envelopes. The echo carries `echoOfEventId`, which points at the original reply envelope. The message identity itself lives on the envelope (`RoomEvent.id` / `Event.id`), not inside the `MessagePostedEvent` payload.
+**Why:** GraphQL and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
+**Tradeoff:** Read models have to keep the echo link when applying edit/delete state. Reactions remain naturally independent because they already key on the envelope event ID.
 
 ### 2. Reactions key on event ID, not body ID
 

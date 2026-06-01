@@ -18,15 +18,11 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // ============================================================================
 
 message MessagePostedEvent {
-  reserved 1;
-  reserved "space_id";
+  reserved 1, 3, 1001;
+  reserved "space_id", "message_body_id", "event_id";
 
   // Room ID - identifies which room this message belongs to
   string room_id = 2;
-
-  // Compound key for body storage in KV: {userId}.{eventId}
-  // The userId prefix enables efficient per-user filtering for GDPR deletion.
-  string message_body_id = 3;
 
   // Threading: event ID of the message this is replying to (empty = top-level message)
   string in_reply_to = 4;
@@ -41,8 +37,8 @@ message MessagePostedEvent {
   repeated string mentioned_user_ids = 6;
 
   // Echo fields (empty for regular messages, set for "also send to channel" echoes).
-  // When set, this event is an echo of a thread reply — the message body is shared
-  // with the original thread reply (same message_body_id), so edits/deletions propagate.
+  // When set, this event is an echo of a thread reply. Echoes are independent
+  // message events that reference the original reply by event ID.
 
   // Event ID of the original thread reply this echoes (empty = not an echo)
   string echo_of_event_id = 7;
@@ -57,18 +53,12 @@ message MessagePostedEvent {
   // SERVER_BODIES KV bucket, so the projections can rebuild full message
   // state from EVT alone.
   //
-  // Empty for events imported from the legacy SERVER_EVENTS stream by
-  // the boot-time importer — those messages still have their bodies in
-  // SERVER_BODIES KV, addressed by `message_body_id` above. Readers
-  // branch on `body == nil`: present → use embedded; absent → look up
-  // SERVER_BODIES via `message_body_id`. See issue #597 phase 3.
+  // Empty only for legacy SERVER_EVENTS records whose SERVER_BODIES entry
+  // had already been removed before the boot-time importer ran.
   MessageBody body = 9;
 
-  // Parent event's ID (populated at read time for resolver access)
-  // Used for reactions lookup since reactions are keyed by event ID
-  string event_id = 1001;
-
-  reserved 1000; // was sequence_id (dead field, never read)
+  // The message's durable event ID lives on the Event envelope. GraphQL exposes
+  // that wrapper ID on RoomEvent / ServerEvent, not on this payload.
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)

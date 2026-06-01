@@ -82,7 +82,7 @@ func TestThreadProjection_EditOfReplyAppendedToThread(t *testing.T) {
 	applyAll(t, p, []*corev1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", body: "original", at: 2}),
-		editedEvent("ENV-EDIT-R1", "REPLY1", "R1", "U2", "edited", 3),
+		editedEvent("ENV-EDIT-R1", "ENV-R1", "R1", "U2", "edited", 3),
 	})
 
 	entries := p.ThreadEvents("ROOT")
@@ -103,7 +103,7 @@ func TestThreadProjection_RetractOfReplyAppendedToThread(t *testing.T) {
 	applyAll(t, p, []*corev1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
-		retractedEvent("ENV-RETRACT-R1", "REPLY1", "R1", "MOD", "spam", 3),
+		retractedEvent("ENV-RETRACT-R1", "ENV-R1", "R1", "MOD", "spam", 3),
 	})
 
 	entries := p.ThreadEvents("ROOT")

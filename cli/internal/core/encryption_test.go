@@ -65,7 +65,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
 
 	// Verify we can read the message back (decrypted)
-	body, err := core.GetMessageBody(ctx, KindChannel, event.GetMessagePosted().MessageBodyId)
+	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body, "decrypted message should match original")
 }
@@ -88,7 +88,7 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify message can be read before key deletion
-	body, err := core.GetMessageBody(ctx, KindChannel, event.GetMessagePosted().MessageBodyId)
+	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
 
@@ -97,12 +97,12 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify message now returns empty string (crypto-shredded)
-	body, err = core.GetMessageBody(ctx, KindChannel, event.GetMessagePosted().MessageBodyId)
+	body, err = core.GetMessageBody(ctx, KindChannel, event.Id)
 	require.NoError(t, err)
 	require.Empty(t, body, "message should be empty after crypto-shredding")
 
 	// Also test GetFullMessageBody - returns nil for crypto-shredded (same as deleted)
-	fullBody, err := core.GetFullMessageBody(ctx, KindChannel, event.GetMessagePosted().MessageBodyId)
+	fullBody, err := core.GetFullMessageBody(ctx, KindChannel, event.Id)
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message should be nil after crypto-shredding (treated same as deleted)")
 }
@@ -190,7 +190,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	// Post an encrypted message
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Original content", nil, "", "", nil, false)
 	require.NoError(t, err)
-	messageBodyID := event.GetMessagePosted().MessageBodyId
+	messageBodyID := event.Id
 
 	// Edit the message
 	err = core.EditMessage(ctx, user.Id, KindChannel, room.Id, messageBodyID, "Edited content")
@@ -233,7 +233,7 @@ func TestCrossUserDecryption(t *testing.T) {
 	require.NoError(t, err)
 
 	// User B should be able to read User A's message (decrypted)
-	bodyA, err := core.GetMessageBody(ctx, KindChannel, eventA.GetMessagePosted().MessageBodyId)
+	bodyA, err := core.GetMessageBody(ctx, KindChannel, eventA.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Message from User A", bodyA, "User B should be able to read User A's decrypted message")
 
@@ -242,7 +242,7 @@ func TestCrossUserDecryption(t *testing.T) {
 	require.NoError(t, err)
 
 	// User A should be able to read User B's message (decrypted)
-	bodyB, err := core.GetMessageBody(ctx, KindChannel, eventB.GetMessagePosted().MessageBodyId)
+	bodyB, err := core.GetMessageBody(ctx, KindChannel, eventB.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Message from User B", bodyB, "User A should be able to read User B's decrypted message")
 }

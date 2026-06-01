@@ -343,11 +343,11 @@ Event: A message was posted
 type MessagePostedEvent {
   "The ID of the room where the message was posted."
   roomId: ID!
-  "The message content. Lazy-loaded from KV bucket on demand. Null if deleted."
+  "The message content resolved from the message projection. Null if deleted."
   body: String @goField(forceResolver: true)
-  "Attachments for this message. Lazy-loaded from KV bucket on demand."
+  "Attachments for this message, resolved from the message projection."
   attachments: [Attachment!]! @goField(forceResolver: true)
-  "Sequence ID of the message this is replying to (null for top-level messages)."
+  "Event ID of the message this is replying to (null for top-level messages)."
   inReplyTo: ID @goField(forceResolver: true)
   "Event ID of the thread root message (null for top-level messages). For direct replies, equals inReplyTo. For nested replies, references the original root."
   threadRootEventId: ID @goField(forceResolver: true)

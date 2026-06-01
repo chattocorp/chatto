@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -31,6 +32,17 @@ type messagesTestRig struct {
 	bodiesKV  jetstream.KeyValue
 	evtStream jetstream.Stream
 	publisher *events.Publisher
+}
+
+func legacyPosted(roomID, bodyKey string) *corev1.MessagePostedEvent {
+	posted := &corev1.MessagePostedEvent{RoomId: roomID}
+	if bodyKey != "" {
+		var unknown []byte
+		unknown = protowire.AppendTag(unknown, 3, protowire.BytesType)
+		unknown = protowire.AppendString(unknown, bodyKey)
+		posted.ProtoReflect().SetUnknown(unknown)
+	}
+	return posted
 }
 
 func setupMessagesRig(t *testing.T) *messagesTestRig {
@@ -192,11 +204,7 @@ func TestMigrateMessagesToES_ImportsBodiesEmbedded(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				EventId:       "M1",
-				MessageBodyId: "U1.M1-BODY",
-			},
+			MessagePosted: legacyPosted("R1", "U1.M1-BODY"),
 		},
 	})
 	rig.publishLegacy(t, "server.room.channel.R1.msg.M2", &corev1.Event{
@@ -204,11 +212,7 @@ func TestMigrateMessagesToES_ImportsBodiesEmbedded(t *testing.T) {
 		ActorId:   "U2",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				EventId:       "M2",
-				MessageBodyId: "U2.M2-BODY",
-			},
+			MessagePosted: legacyPosted("R1", "U2.M2-BODY"),
 		},
 	})
 
@@ -224,8 +228,7 @@ func TestMigrateMessagesToES_ImportsBodiesEmbedded(t *testing.T) {
 		t.Fatalf("EVT msg count = %d, want 2", info.State.Msgs)
 	}
 
-	// Both events landed on evt.room.R1.message_posted with the body
-	// embedded and message_body_id cleared.
+	// Both events landed on evt.room.R1.message_posted with the body embedded.
 	first := rig.readEvent(t, 1)
 	checkImportedMessage(t, first, "M1", "U1", "ciphertext-1")
 	second := rig.readEvent(t, 2)
@@ -243,11 +246,7 @@ func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				EventId:       "ROOT",
-				MessageBodyId: "U1.ROOT-BODY",
-			},
+			MessagePosted: legacyPosted("R1", "U1.ROOT-BODY"),
 		},
 	})
 	rig.publishLegacy(t, "server.room.channel.R1.msg.ROOT.replies.REPLY1", &corev1.Event{
@@ -255,13 +254,12 @@ func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
 		ActorId:   "U2",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				EventId:       "REPLY1",
-				MessageBodyId: "U2.R1-BODY",
-				InThread:      "ROOT",
-				InReplyTo:     "ROOT",
-			},
+			MessagePosted: func() *corev1.MessagePostedEvent {
+				posted := legacyPosted("R1", "U2.R1-BODY")
+				posted.InThread = "ROOT"
+				posted.InReplyTo = "ROOT"
+				return posted
+			}(),
 		},
 	})
 
@@ -292,24 +290,21 @@ func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
 	}
 }
 
-func TestMigrateMessagesToES_BackfillsLegacyEventIDAndThreadRootFromSubject(t *testing.T) {
+func TestMigrateMessagesToES_BackfillsMessageIdentityAndThreadRootFromEnvelopeOrSubject(t *testing.T) {
 	rig := setupMessagesRig(t)
 
 	rig.putBody(t, "U1.ROOT-BODY", &corev1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("root")})
 	rig.putBody(t, "U2.REPLY-BODY", &corev1.MessageBody{AuthorId: "U2", EncryptedBody: []byte("reply")})
 
-	// Legacy PostMessage did not persist MessagePostedEvent.EventId; it
-	// lived on the envelope and subject. This is the real pre-ES shape
+	// Legacy PostMessage did not persist a payload message ID; it lived on
+	// the envelope and subject. This is the real pre-ES shape
 	// imported from production-like data.
 	rig.publishLegacy(t, "server.room.channel.R1.msg.ROOT", &corev1.Event{
 		Id:        "ROOT",
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				MessageBodyId: "U1.ROOT-BODY",
-			},
+			MessagePosted: legacyPosted("R1", "U1.ROOT-BODY"),
 		},
 	})
 
@@ -320,10 +315,7 @@ func TestMigrateMessagesToES_BackfillsLegacyEventIDAndThreadRootFromSubject(t *t
 		ActorId:   "U2",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				MessageBodyId: "U2.REPLY-BODY",
-			},
+			MessagePosted: legacyPosted("R1", "U2.REPLY-BODY"),
 		},
 	})
 
@@ -354,11 +346,7 @@ func TestMigrateMessagesToES_MissingBodyImportsAsNil(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:        "R1",
-				EventId:       "DELETED",
-				MessageBodyId: "U1.GONE",
-			},
+			MessagePosted: legacyPosted("R1", "U1.GONE"),
 		},
 	})
 
@@ -387,7 +375,7 @@ func TestMigrateMessagesToES_ReplayIsIdempotent(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1", MessageBodyId: "U1.M1-BODY"},
+			MessagePosted: legacyPosted("R1", "U1.M1-BODY"),
 		},
 	})
 
@@ -416,7 +404,7 @@ func TestMigrateMessagesToES_ResumesPartiallyImportedRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1", MessageBodyId: "U1.M1-BODY"},
+			MessagePosted: legacyPosted("R1", "U1.M1-BODY"),
 		},
 	})
 	rig.publishLegacy(t, "server.room.channel.R1.msg.M2", &corev1.Event{
@@ -424,7 +412,7 @@ func TestMigrateMessagesToES_ResumesPartiallyImportedRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M2", MessageBodyId: "U1.M2-BODY"},
+			MessagePosted: legacyPosted("R1", "U1.M2-BODY"),
 		},
 	})
 
@@ -435,7 +423,7 @@ func TestMigrateMessagesToES_ResumesPartiallyImportedRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1", MessageBodyId: "M1"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	}); err != nil {
 		t.Fatalf("seed target event: %v", err)
@@ -461,7 +449,7 @@ func TestMigrateMessagesToES_MismatchedExistingPrefixSkipsRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M1"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	})
 	rig.publishLegacy(t, "server.room.channel.R1.msg.M2", &corev1.Event{
@@ -469,7 +457,7 @@ func TestMigrateMessagesToES_MismatchedExistingPrefixSkipsRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "M2"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	})
 
@@ -478,7 +466,7 @@ func TestMigrateMessagesToES_MismatchedExistingPrefixSkipsRoom(t *testing.T) {
 		ActorId:   "U1",
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "DIFFERENT", MessageBodyId: "DIFFERENT"},
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
 	}); err != nil {
 		t.Fatalf("seed target event: %v", err)
@@ -508,7 +496,7 @@ func TestMigrateMessagesToES_ChunksLargeRoom(t *testing.T) {
 			ActorId:   "U1",
 			CreatedAt: timestamppb.New(time.Unix(int64(i), 0)),
 			Event: &corev1.Event_MessagePosted{
-				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: eventID},
+				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 			},
 		})
 	}
@@ -533,11 +521,11 @@ func TestMigrateMessagesToES_MultipleRoomsIsolated(t *testing.T) {
 
 	rig.publishLegacy(t, "server.room.channel.R1.msg.A", &corev1.Event{
 		Id: "A", ActorId: "U1", CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EventId: "A", MessageBodyId: "U1.A-BODY"}},
+		Event: &corev1.Event_MessagePosted{MessagePosted: legacyPosted("R1", "U1.A-BODY")},
 	})
 	rig.publishLegacy(t, "server.room.channel.R2.msg.B", &corev1.Event{
 		Id: "B", ActorId: "U1", CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R2", EventId: "B", MessageBodyId: "U1.B-BODY"}},
+		Event: &corev1.Event_MessagePosted{MessagePosted: legacyPosted("R2", "U1.B-BODY")},
 	})
 
 	if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
@@ -570,10 +558,8 @@ func TestMigrateMessagesToES_MultipleRoomsIsolated(t *testing.T) {
 // =============================================================================
 
 // checkImportedMessage asserts that an event is a MessagePostedEvent
-// with the given envelope ID, embedded body matching the expected
-// ciphertext, and post-cutover message_body_id alias. The payload's
-// EventId field is intentionally not persisted; GraphQL populates it
-// at read time from the envelope.
+// with the given envelope ID and embedded body matching the expected
+// ciphertext.
 func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor, wantCiphertext string) {
 	t.Helper()
 	if ev.GetId() != wantEventID {
@@ -585,12 +571,6 @@ func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor
 	posted := ev.GetMessagePosted()
 	if posted == nil {
 		t.Fatal("expected MessagePostedEvent payload")
-	}
-	if posted.GetEventId() != "" {
-		t.Errorf("posted event_id should not be persisted, got %q", posted.GetEventId())
-	}
-	if posted.GetMessageBodyId() != wantEventID {
-		t.Errorf("posted message_body_id should alias event_id post-cutover, got %q want %q", posted.GetMessageBodyId(), wantEventID)
 	}
 	body := posted.GetBody()
 	if body == nil {

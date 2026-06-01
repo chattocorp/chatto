@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-01
 
 ## Overview
 
@@ -13,7 +13,7 @@ Authors can edit and delete their own messages; moderators with the right permis
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Deletions remove the message body and all attachments and replace the rendered message with a "[Message deleted]" placeholder.
 - Deleting an already-deleted message is a no-op.
-- Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically — they share the same body.
+- Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
 
 ## Design Decisions
@@ -36,10 +36,10 @@ Authors can edit and delete their own messages; moderators with the right permis
 **Why:** A non-OCC update would risk silently overwriting concurrent edits — particularly bad when a moderator and the author both edit a message at once. See ADR-016.
 **Tradeoff:** Clients need retry logic. In practice, conflicts are rare enough that a single retry almost always succeeds.
 
-### 4. Shared body propagation
+### 4. Echo propagation
 
-**Decision:** Thread replies and their channel echoes share one `messageBodyId`. An edit to either resolves to the same body and shows in both places.
-**Why:** The alternative is fan-out edits with their own consistency problems. See FDR-003 and ADR-011.
+**Decision:** Thread replies and their channel echoes are separate message events linked by `echoOfEventId`. An edit or delete targeting the original reply is applied to both visible artifacts by the read model.
+**Why:** Message identity belongs to the EVT envelope, and `MessagePostedEvent` remains payload-only. The link preserves the user-facing "same reply shown twice" behavior without duplicating envelope metadata into payload fields. See FDR-003.
 **Tradeoff:** Frontend has to match edit/delete events against loaded messages by both `e.id` and `echoOfEventId` to refetch the right rows.
 
 ### 5. Delete physically removes the body, not just hides it

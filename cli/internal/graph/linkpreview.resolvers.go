@@ -34,8 +34,12 @@ func (r *linkPreviewResolver) ImageURL(ctx context.Context, obj *corev1.LinkPrev
 
 // LinkPreview is the resolver for the linkPreview field.
 // Lazy-loads the link preview from the MessageBody in the KV bucket.
-func (r *messagePostedEventResolver) LinkPreview(ctx context.Context, obj *corev1.MessagePostedEvent) (*corev1.LinkPreview, error) {
-	kind, err := r.core.FindRoomKind(ctx, obj.RoomId)
+func (r *messagePostedEventResolver) LinkPreview(ctx context.Context, obj *model.MessagePostedEvent) (*corev1.LinkPreview, error) {
+	payload := messagePostedPayload(obj)
+	if payload == nil {
+		return nil, nil
+	}
+	kind, err := r.core.FindRoomKind(ctx, payload.RoomId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve room kind: %w", err)
 	}

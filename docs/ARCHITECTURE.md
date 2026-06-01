@@ -737,12 +737,13 @@ Messages are persisted as durable `EVT` facts with encrypted message bodies embe
 
 **Message Identifiers:**
 
-- **Event ID**: NanoID (e.g., `E...`) used for event identification, message-body identity, and projection lookup
-- **Body Key**: `MessagePostedEvent.message_body_id` is now an alias for the event ID; older imported messages may still reference the legacy `{userId}.{eventId}` compound key
+- **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for GraphQL `RoomEvent.id`, reactions, thread metadata, message-body lookup, attachments, and projections.
+- **Payload**: `MessagePostedEvent` is payload-only. It carries room/thread/echo/body fields, but not an event ID or message-body ID alias.
+- **Legacy import**: older `SERVER_EVENTS` records may contain an unknown-field `message_body_id` pointing at the legacy `{userId}.{eventId}` `SERVER_BODIES` key. The ES importer uses that only while copying legacy state into EVT.
 
 **Write Path:**
 
-1. Generate event with event ID
+1. Generate an EVT envelope with event ID
 2. Encrypt and embed the message body in `MessagePostedEvent.body`
 3. Append the event to `evt.room.{roomId}.message_posted`
 4. Wait for local projections to reach the append sequence before serving read-your-writes

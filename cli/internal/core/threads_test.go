@@ -971,13 +971,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		for _, e := range roomEvents {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
 				foundEcho = true
-				// Post-#597 cutover: echo carries its own embedded body
-				// and its own MessageBodyId (== its own envelope id).
-				// EchoOfEventId / EchoFromThreadRootEventId are the
-				// shared identifiers, not MessageBodyId.
-				if msg.MessageBodyId == "" {
-					t.Errorf("Echo should have its own MessageBodyId set")
-				}
+				// The echo has its own envelope id. EchoOfEventId /
+				// EchoFromThreadRootEventId are the shared identifiers.
 				if msg.EchoOfEventId != replyEvent.Id {
 					t.Errorf("Echo.EchoOfEventId should be %q, got %q", replyEvent.Id, msg.EchoOfEventId)
 				}
@@ -1046,9 +1041,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		// Post-#597 cutover: echo and reply each have their own
-		// envelope id (and thus their own MessageBodyId). What they
-		// share is the ENCRYPTED BODY CONTENT — the echo clones the
+		// Echo and reply each have their own envelope id. What they
+		// share is the encrypted body content: the echo clones the
 		// reply's MessageBody verbatim, so the ciphertext and nonce
 		// are byte-identical.
 		reply := replyEvent.GetMessagePosted()

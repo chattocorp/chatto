@@ -234,10 +234,7 @@ func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomI
 		if posted == nil {
 			continue
 		}
-		eventID := posted.GetEventId()
-		if eventID == "" {
-			eventID = r.Event.GetId()
-		}
+		eventID := r.Event.GetId()
 		if c.RoomTimeline.MessageTombstoned(eventID) {
 			continue
 		}
@@ -389,9 +386,6 @@ func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string
 			continue
 		}
 		if id := event.GetId(); id != "" {
-			return id
-		}
-		if id := event.GetMessagePosted().GetEventId(); id != "" {
 			return id
 		}
 	}

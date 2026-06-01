@@ -62,10 +62,7 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr erro
 		if posted == nil || posted.GetRoomId() == "" || posted.GetBody() == nil {
 			return
 		}
-		messageEventID := posted.GetEventId()
-		if messageEventID == "" {
-			messageEventID = event.GetId()
-		}
+		messageEventID := event.GetId()
 		if messageEventID == "" {
 			return
 		}

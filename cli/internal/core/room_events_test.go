@@ -47,8 +47,8 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	expectedBodies := []string{"Message 1", "Message 2", "Message 3"}
 	for _, event := range events {
 		if msg := event.GetMessagePosted(); msg != nil {
-			// Body is lazy-loaded, fetch it separately using messageBodyId
-			fetchedBody, err := core.GetMessageBody(ctx, KindChannel, msg.MessageBodyId)
+			// Body lookup is keyed by the durable event envelope id.
+			fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
 			if err != nil {
 				t.Errorf("Failed to fetch message body: %v", err)
 			}
@@ -259,8 +259,8 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 		t.Fatal("Event should be a MessagePosted event")
 	}
 
-	// Delete the message body using messageBodyId (author can delete own messages)
-	err = core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, postedMessage.MessageBodyId)
+	// Delete the message body using the event envelope id (author can delete own messages)
+	err = core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, roomEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete message: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	messagePosted := messageEvent.GetMessagePosted()
 
 	// Verify the body is empty (deleted) when fetched via GetMessageBody
-	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messagePosted.MessageBodyId)
+	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messageEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}
@@ -331,10 +331,10 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		events := eventsResult.Events
 
 		// Count MessagePosted events
-		var messageEvents []*corev1.MessagePostedEvent
+		var messageEvents []*corev1.Event
 		for _, event := range events {
-			if msg := event.GetMessagePosted(); msg != nil {
-				messageEvents = append(messageEvents, msg)
+			if event.GetMessagePosted() != nil {
+				messageEvents = append(messageEvents, event.Event)
 			}
 		}
 
@@ -343,7 +343,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 
 		// The last message in our result should be "Message 100" (most recent)
-		lastMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[len(messageEvents)-1].MessageBodyId)
+		lastMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[len(messageEvents)-1].Id)
 		if err != nil {
 			t.Fatalf("Failed to get last message body: %v", err)
 		}
@@ -352,7 +352,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 
 		// The first message in our result should be "Message 51" (51st newest)
-		firstMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[0].MessageBodyId)
+		firstMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[0].Id)
 		if err != nil {
 			t.Fatalf("Failed to get first message body: %v", err)
 		}
@@ -384,10 +384,10 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		olderEvents := olderEventsResult.Events
 
 		// Count MessagePosted events in the older batch
-		var olderMessageEvents []*corev1.MessagePostedEvent
+		var olderMessageEvents []*corev1.Event
 		for _, event := range olderEvents {
-			if msg := event.GetMessagePosted(); msg != nil {
-				olderMessageEvents = append(olderMessageEvents, msg)
+			if event.GetMessagePosted() != nil {
+				olderMessageEvents = append(olderMessageEvents, event.Event)
 			}
 		}
 
@@ -399,7 +399,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 
 		// The newest message in the older batch should be before our cursor
 		if len(olderMessageEvents) > 0 {
-			newestOldBody, err := core.GetMessageBody(ctx, KindChannel, olderMessageEvents[len(olderMessageEvents)-1].MessageBodyId)
+			newestOldBody, err := core.GetMessageBody(ctx, KindChannel, olderMessageEvents[len(olderMessageEvents)-1].Id)
 			if err != nil {
 				t.Fatalf("Failed to get newest old message body: %v", err)
 			}
@@ -511,8 +511,8 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 			t.Errorf("Event ID mismatch: got %s, want %s", foundEvent.Id, postedEvent.Id)
 		}
 
-		if foundMessage.MessageBodyId != messagePosted.MessageBodyId {
-			t.Errorf("MessageBodyId mismatch: got %s, want %s", foundMessage.MessageBodyId, messagePosted.MessageBodyId)
+		if foundMessage.RoomId != messagePosted.RoomId {
+			t.Errorf("RoomId mismatch: got %s, want %s", foundMessage.RoomId, messagePosted.RoomId)
 		}
 
 		if foundEvent.Id != postedEvent.Id {

@@ -166,10 +166,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	// LatestBody is O(1) instead of an O(room) walk per lookup.
 	switch ev := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
-		targetID := ev.MessagePosted.GetEventId()
-		if targetID == "" {
-			targetID = event.GetId()
-		}
+		targetID := event.GetId()
 		if targetID != "" {
 			authorID := messageAuthorID(event, ev.MessagePosted)
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
