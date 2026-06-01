@@ -323,8 +323,8 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 
 		// The event at TargetIndex should be the one we asked for
 		targetEvent := result.Events[result.TargetIndex]
-		if targetEvent.Id != eventIDs[10] {
-			t.Errorf("Expected target event ID %s at index %d, got %s", eventIDs[10], result.TargetIndex, targetEvent.Id)
+		if targetEvent.ID() != eventIDs[10] {
+			t.Errorf("Expected target event ID %s at index %d, got %s", eventIDs[10], result.TargetIndex, targetEvent.ID())
 		}
 	})
 
@@ -431,7 +431,7 @@ func TestQueryResolver_RoomEventsForward(t *testing.T) {
 			t.Fatal("Expected events after cursor")
 		}
 		// First event in the forward page must be different from the cursor's event.
-		if forwardResult.Events[0].Id == allResult.Events[0].Id {
+		if forwardResult.Events[0].ID() == allResult.Events[0].ID() {
 			t.Errorf("Forward pagination returned the cursor event itself")
 		}
 	})
@@ -483,8 +483,8 @@ func TestQueryResolver_RoomEventByEventID(t *testing.T) {
 		if result == nil {
 			t.Fatal("Expected event, got nil")
 		}
-		if result.Id != event.Id {
-			t.Errorf("Expected event ID %s, got %s", event.Id, result.Id)
+		if result.ID() != event.Id {
+			t.Errorf("Expected event ID %s, got %s", event.Id, result.ID())
 		}
 	})
 }

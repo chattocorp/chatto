@@ -81,14 +81,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           messageEventId
           retractedReason: reason
         }
-        ... on MessageUpdatedEvent {
-          roomId
-          messageEventId
-        }
-        ... on MessageDeletedEvent {
-          roomId
-          messageEventId
-        }
         ... on UserJoinedRoomEvent {
           roomId
         }

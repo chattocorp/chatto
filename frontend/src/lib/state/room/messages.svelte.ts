@@ -96,8 +96,12 @@ const ThreadEventsQuery = graphql(`
     room(roomId: $roomId) {
       event(eventId: $threadRootEventId) {
         ...RoomEventView
-        threadReplies {
-          ...RoomEventView
+        event {
+          ... on MessagePostedEvent {
+            threadReplies {
+              ...RoomEventView
+            }
+          }
         }
       }
     }
@@ -277,10 +281,7 @@ export abstract class MessageListStore {
     // (body=null, attachments=[]) and we already know the affected event id,
     // so a server round-trip is wasteful and a refetch failure would leave
     // the original message visible on screen.
-    if (
-      eventData.__typename === 'MessageRetractedEvent' ||
-      eventData.__typename === 'MessageDeletedEvent'
-    ) {
+    if (eventData.__typename === 'MessageRetractedEvent') {
       this.applyDeletion(eventData.messageEventId);
       return;
     }
@@ -291,7 +292,6 @@ export abstract class MessageListStore {
     }
 
     if (
-      eventData.__typename === 'MessageUpdatedEvent' ||
       eventData.__typename === 'ReactionAddedEvent' ||
       eventData.__typename === 'ReactionRemovedEvent' ||
       eventData.__typename === 'VideoProcessingCompletedEvent' ||
@@ -944,7 +944,8 @@ export class ThreadMessagesStore extends MessageListStore {
           // Merge with any subscription events that arrived during the
           // in-flight query (e.g. the user's own reply or a fast cross-user
           // reply). Overwriting would drop them.
-          this.replaceMergingExisting([root, ...root.threadReplies]);
+          const replies = root.event?.__typename === 'MessagePostedEvent' ? root.event.threadReplies : [];
+          this.replaceMergingExisting([root, ...replies]);
         }
         this.isInitialLoading = false;
       })
@@ -969,8 +970,6 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
       return !!eventData.echoOfEventId || !eventData.threadRootEventId;
     case 'MessageEditedEvent':
     case 'MessageRetractedEvent':
-    case 'MessageUpdatedEvent':
-    case 'MessageDeletedEvent':
     case 'UserJoinedRoomEvent':
     case 'UserLeftRoomEvent':
     case 'RoomUpdatedEvent':

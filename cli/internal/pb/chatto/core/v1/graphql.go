@@ -4,10 +4,9 @@ package corev1
 // marker methods below give gqlgen the required interface check; the union is
 // defined in events.graphqls.
 //
-// Every variant rides the same proto Event envelope. Whether a given instance
-// is fetched through room history, delivered through myEvents, persisted in
-// JetStream, or published live to NATS Core is a delivery/storage concern, not
-// part of the GraphQL wrapper shape.
+// GraphQL exposes one Event envelope, but the in-process model may wrap a
+// durable EVT Event, a transient LiveEvent, or a synthetic heartbeat. Payload
+// types implement this union independently of the transport/storage envelope.
 
 // Room-scoped events.
 
@@ -22,8 +21,6 @@ func (*SpaceMemberDeletedEvent) IsEventType()       {}
 func (*MessagePostedEvent) IsEventType()            {}
 func (*MessageEditedEvent) IsEventType()            {}
 func (*MessageRetractedEvent) IsEventType()         {}
-func (*MessageUpdatedEvent) IsEventType()           {}
-func (*MessageDeletedEvent) IsEventType()           {}
 func (*AssetProcessingStartedEvent) IsEventType()   {}
 func (*AssetProcessingSucceededEvent) IsEventType() {}
 func (*AssetProcessingFailedEvent) IsEventType()    {}

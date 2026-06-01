@@ -154,7 +154,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	for {
 		select {
 		case ev := <-eventChan:
-			retracted := ev.GetMessageRetracted()
+			retracted := EventMessageRetracted(ev)
 			if retracted == nil {
 				continue
 			}
@@ -220,7 +220,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 			if !ok {
 				t.Fatal("event stream closed unexpectedly")
 			}
-			if liveEventRoomID(ev) == room.Id && ev.GetMessagePosted() != nil {
+			if liveEventRoomID(ev) == room.Id && EventMessagePosted(ev) != nil {
 				return
 			}
 		case <-timeout:
@@ -280,7 +280,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	for {
 		select {
 		case ev := <-eventChan:
-			edited := ev.GetMessageEdited()
+			edited := EventMessageEdited(ev)
 			if edited == nil {
 				continue
 			}
@@ -294,8 +294,12 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	}
 }
 
-func liveEventRoomID(event *corev1.Event) string {
-	switch e := event.GetEvent().(type) {
+func liveEventRoomID(event EventEnvelope) string {
+	evt := event.EVTEvent()
+	if evt == nil {
+		return ""
+	}
+	switch e := evt.GetEvent().(type) {
 	case *corev1.Event_RoomCreated:
 		return e.RoomCreated.GetRoomId()
 	case *corev1.Event_RoomUpdated:

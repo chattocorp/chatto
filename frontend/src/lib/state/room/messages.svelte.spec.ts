@@ -227,7 +227,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 describe('ThreadMessagesStore — lifecycle ownership', () => {
 	it('triggers a catch-up query when reconnectCount increments', async () => {
 		const fake = new FakeGqlClient({
-			room: { event: { id: 't1', threadReplies: [] } }
+			room: { event: { id: 't1', event: { __typename: 'MessagePostedEvent', threadReplies: [] } } }
 		});
 		const store = new ThreadMessagesStore(fake as unknown as GraphQLClient, () => null);
 

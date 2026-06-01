@@ -364,9 +364,7 @@
     const evt = spaceEvent.event;
     if (
       (evt?.__typename === 'MessageRetractedEvent' ||
-        evt?.__typename === 'MessageDeletedEvent' ||
-        evt?.__typename === 'MessageEditedEvent' ||
-        evt?.__typename === 'MessageUpdatedEvent') &&
+        evt?.__typename === 'MessageEditedEvent') &&
       evt.roomId === roomId
     ) {
       // Check if the deleted/updated message is our reply target

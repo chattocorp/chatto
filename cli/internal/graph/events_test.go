@@ -460,7 +460,7 @@ func TestEventResolver_Actor(t *testing.T) {
 		event := &corev1.Event{
 			ActorId: env.testUser.Id,
 		}
-		user, err := resolver.Actor(env.ctx, event)
+		user, err := resolver.Actor(env.ctx, core.NewEVTEventEnvelope(event))
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -476,7 +476,7 @@ func TestEventResolver_Actor(t *testing.T) {
 		event := &corev1.Event{
 			ActorId: "",
 		}
-		user, err := resolver.Actor(env.ctx, event)
+		user, err := resolver.Actor(env.ctx, core.NewEVTEventEnvelope(event))
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -489,7 +489,7 @@ func TestEventResolver_Actor(t *testing.T) {
 		event := &corev1.Event{
 			ActorId: "nonexistent-user",
 		}
-		user, err := resolver.Actor(env.ctx, event)
+		user, err := resolver.Actor(env.ctx, core.NewEVTEventEnvelope(event))
 		if err != nil {
 			t.Fatalf("expected success (graceful nil), got error: %v", err)
 		}

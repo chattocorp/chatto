@@ -8,22 +8,15 @@ audience.
 """
 type Event {
   "Universal event identifier."
-  id: ID!
+  id: ID! @goField(forceResolver: true)
   "When this event was created."
-  createdAt: Time!
+  createdAt: Time! @goField(forceResolver: true)
   "The ID of the user who triggered this event."
-  actorId: ID!
+  actorId: ID! @goField(forceResolver: true)
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
   "The concrete event data."
   event: EventType! @goField(forceResolver: true)
-  """
-  Replies to this event, when it is a thread root message. Returns an empty
-  list when this event is not a `MessagePostedEvent` or when the message is
-  itself a thread reply (i.e. its `threadRootEventId` is set). Replies are returned in
-  chronological order and do not include this root event.
-  """
-  threadReplies: [Event!]! @goField(forceResolver: true)
 }
 
 """
@@ -44,8 +37,6 @@ union EventType =
   | MessagePostedEvent
   | MessageEditedEvent
   | MessageRetractedEvent
-  | MessageUpdatedEvent
-  | MessageDeletedEvent
   # Reactions
   | ReactionAddedEvent
   | ReactionRemovedEvent
@@ -308,6 +299,12 @@ type MessagePostedEvent {
   threadParticipants(first: Int = 5): [User!]! @goField(forceResolver: true)
   "Whether the current viewer is following this thread. Null for non-root messages or messages without replies."
   viewerIsFollowingThread: Boolean @goField(forceResolver: true)
+  """
+  Replies to this message, when it is a thread root. Returns an empty list when
+  this message is itself a thread reply. Replies are returned in chronological
+  order and do not include this root event.
+  """
+  threadReplies: [Event!]! @goField(forceResolver: true)
 }
 
 """
@@ -340,28 +337,6 @@ type MessageRetractedEvent {
   messageEventId: ID! @goField(forceResolver: true)
   "Optional human-readable retraction reason."
   reason: String
-}
-
-"""
-Event: A message was updated.
-This is a live-only notification event — clients should refetch the affected message
-to get the updated content. Only identifies which message changed.
-"""
-type MessageUpdatedEvent {
-  "The ID of the room where the message was updated."
-  roomId: ID!
-  "The event ID of the message that was updated."
-  messageEventId: ID! @goField(forceResolver: true)
-}
-
-"""
-Event: A message was deleted
-"""
-type MessageDeletedEvent {
-  "The ID of the room where the message was deleted."
-  roomId: ID!
-  "The event ID of the message that was deleted."
-  messageEventId: ID! @goField(forceResolver: true)
 }
 
 # ==============================================================================

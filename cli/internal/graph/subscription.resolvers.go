@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/core"
 )
 
 // MyEvents is the resolver for the myServerEvents field.
@@ -17,7 +17,7 @@ import (
 // Backed by a single core stream (StreamMyEvents) that consumes
 // `live.sync.>` transient LiveEvent messages and `live.evt.>` raw EVT
 // republish messages, plus presence and heartbeats.
-func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan *corev1.Event, error) {
+func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

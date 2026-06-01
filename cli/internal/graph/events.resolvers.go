@@ -194,51 +194,38 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return nil, nil
 }
 
+// ID is the resolver for the id field.
+func (r *eventResolver) ID(ctx context.Context, obj core.EventEnvelope) (string, error) {
+	if obj == nil {
+		return "", nil
+	}
+	return obj.ID(), nil
+}
+
+// CreatedAt is the resolver for the createdAt field.
+func (r *eventResolver) CreatedAt(ctx context.Context, obj core.EventEnvelope) (*timestamppb.Timestamp, error) {
+	if obj == nil {
+		return nil, nil
+	}
+	return obj.CreatedAt(), nil
+}
+
+// ActorID is the resolver for the actorId field.
+func (r *eventResolver) ActorID(ctx context.Context, obj core.EventEnvelope) (string, error) {
+	if obj == nil {
+		return "", nil
+	}
+	return obj.ActorID(), nil
+}
+
 // Actor is the resolver for the actor field.
-func (r *eventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
+func (r *eventResolver) Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error) {
 	return r.resolveEventActor(ctx, obj)
 }
 
 // Event is the resolver for the event field.
-func (r *eventResolver) Event(ctx context.Context, obj *corev1.Event) (model.EventType, error) {
+func (r *eventResolver) Event(ctx context.Context, obj core.EventEnvelope) (model.EventType, error) {
 	return unwrapEventAs[model.EventType](obj, "EventType")
-}
-
-// ThreadReplies is the resolver for the threadReplies field.
-// Only message events that are themselves thread roots have replies; all
-// other event types (or thread replies) resolve to an empty list. Excludes
-// the root event itself — the caller already has it.
-func (r *eventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event) ([]*corev1.Event, error) {
-	msg := obj.GetMessagePosted()
-	if msg == nil || msg.InThread != "" {
-		return []*corev1.Event{}, nil
-	}
-
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	kind, err := r.core.FindRoomKind(ctx, msg.RoomId)
-	if err != nil {
-		return nil, err
-	}
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, msg.RoomId)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotRoomMember
-	}
-
-	events, err := r.core.GetThreadEvents(ctx, kind, msg.RoomId, obj.Id)
-	if err != nil {
-		return nil, err
-	}
-	// GetThreadEvents returns [root, ...replies]; drop the root.
-	if len(events) > 0 {
-		return events[1:], nil
-	}
-	return events, nil
 }
 
 // Alive is the resolver for the alive field. Always true — clients only
@@ -255,16 +242,6 @@ func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1
 // Actor is the resolver for the actor field.
 func (r *mentionNotificationEventResolver) Actor(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.User, error) {
 	return r.resolveOptionalUser(ctx, obj.MentionedByUserId)
-}
-
-// MessageEventID is the resolver for the messageEventId field.
-func (r *messageDeletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageDeletedEvent) (string, error) {
-	if obj.MessageEventId == "" {
-		r.logger.Warn("MessageDeletedEvent has empty messageEventId",
-			"room_id", obj.RoomId,
-			"message_body_id", obj.MessageBodyId)
-	}
-	return obj.MessageEventId, nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -585,22 +562,52 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 	return &isFollowing, nil
 }
 
+// ThreadReplies is the resolver for the threadReplies field.
+// Only root messages have replies; thread replies resolve to an empty list.
+// Excludes the root event itself — the caller already has it.
+func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent) ([]core.EventEnvelope, error) {
+	payload := messagePostedPayload(obj)
+	if payload == nil || payload.InThread != "" {
+		return []core.EventEnvelope{}, nil
+	}
+	eventID := messagePostedEventID(obj)
+	if eventID == "" {
+		return []core.EventEnvelope{}, nil
+	}
+
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind, err := r.core.FindRoomKind(ctx, payload.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, payload.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	events, err := r.core.GetThreadEvents(ctx, kind, payload.RoomId, eventID)
+	if err != nil {
+		return nil, err
+	}
+	// GetThreadEvents returns [root, ...replies]; drop the root.
+	if len(events) > 0 {
+		return core.WrapEVTEventEnvelopes(events[1:]), nil
+	}
+	return []core.EventEnvelope{}, nil
+}
+
 // MessageEventID is the resolver for the messageEventId field.
 func (r *messageRetractedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageRetractedEvent) (string, error) {
 	if obj.EventId == "" {
 		r.logger.Warn("MessageRetractedEvent has empty eventId", "room_id", obj.RoomId)
 	}
 	return obj.EventId, nil
-}
-
-// MessageEventID is the resolver for the messageEventId field.
-func (r *messageUpdatedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageUpdatedEvent) (string, error) {
-	if obj.MessageEventId == "" {
-		r.logger.Warn("MessageUpdatedEvent has empty messageEventId",
-			"room_id", obj.RoomId,
-			"message_body_id", obj.MessageBodyId)
-	}
-	return obj.MessageEventId, nil
 }
 
 // Sender is the resolver for the sender field.
@@ -761,11 +768,6 @@ func (r *Resolver) MentionNotificationEvent() MentionNotificationEventResolver {
 	return &mentionNotificationEventResolver{r}
 }
 
-// MessageDeletedEvent returns MessageDeletedEventResolver implementation.
-func (r *Resolver) MessageDeletedEvent() MessageDeletedEventResolver {
-	return &messageDeletedEventResolver{r}
-}
-
 // MessageEditedEvent returns MessageEditedEventResolver implementation.
 func (r *Resolver) MessageEditedEvent() MessageEditedEventResolver {
 	return &messageEditedEventResolver{r}
@@ -779,11 +781,6 @@ func (r *Resolver) MessagePostedEvent() MessagePostedEventResolver {
 // MessageRetractedEvent returns MessageRetractedEventResolver implementation.
 func (r *Resolver) MessageRetractedEvent() MessageRetractedEventResolver {
 	return &messageRetractedEventResolver{r}
-}
-
-// MessageUpdatedEvent returns MessageUpdatedEventResolver implementation.
-func (r *Resolver) MessageUpdatedEvent() MessageUpdatedEventResolver {
-	return &messageUpdatedEventResolver{r}
 }
 
 // NewDirectMessageNotificationEvent returns NewDirectMessageNotificationEventResolver implementation.
@@ -830,11 +827,9 @@ type attachmentResolver struct{ *Resolver }
 type eventResolver struct{ *Resolver }
 type heartbeatEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
-type messageDeletedEventResolver struct{ *Resolver }
 type messageEditedEventResolver struct{ *Resolver }
 type messagePostedEventResolver struct{ *Resolver }
 type messageRetractedEventResolver struct{ *Resolver }
-type messageUpdatedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }

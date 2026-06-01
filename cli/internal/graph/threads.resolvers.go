@@ -20,8 +20,12 @@ func (r *followedThreadResolver) Room(ctx context.Context, obj *model.FollowedTh
 }
 
 // RootMessage is the resolver for the rootMessage field.
-func (r *followedThreadResolver) RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.Event, error) {
-	return r.core.GetRoomEventByEventID(ctx, core.RoomKindFromLegacySpaceID(obj.SpaceID), obj.RoomID, obj.ThreadRootEventID)
+func (r *followedThreadResolver) RootMessage(ctx context.Context, obj *model.FollowedThread) (core.EventEnvelope, error) {
+	event, err := r.core.GetRoomEventByEventID(ctx, core.RoomKindFromLegacySpaceID(obj.SpaceID), obj.RoomID, obj.ThreadRootEventID)
+	if err != nil {
+		return nil, err
+	}
+	return core.NewEVTEventEnvelope(event), nil
 }
 
 // ThreadParticipants is the resolver for the threadParticipants field.

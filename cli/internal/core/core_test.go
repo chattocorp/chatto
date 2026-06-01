@@ -613,7 +613,7 @@ func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 				}
 				return // Success!
 			}
-			if st := event.GetSessionTerminated(); st != nil {
+			if st := EventSessionTerminated(event); st != nil {
 				if st.Reason != "logout" {
 					t.Errorf("Expected reason 'logout', got %q", st.Reason)
 				}
@@ -684,7 +684,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	// user1 should NOT receive their own typing event
 	select {
 	case event := <-eventChan:
-		if event.GetUserTyping() != nil {
+		if EventUserTyping(event) != nil {
 			t.Error("User received their own typing event — should be filtered server-side")
 		}
 	case <-time.After(500 * time.Millisecond):
@@ -702,9 +702,9 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	for {
 		select {
 		case event := <-eventChan:
-			if typing := event.GetUserTyping(); typing != nil {
-				if event.ActorId != user2.Id {
-					t.Errorf("Expected typing event from user2 (%s), got %s", user2.Id, event.ActorId)
+			if typing := EventUserTyping(event); typing != nil {
+				if event.ActorID() != user2.Id {
+					t.Errorf("Expected typing event from user2 (%s), got %s", user2.Id, event.ActorID())
 				}
 				return // Success!
 			}
@@ -712,5 +712,24 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 		case <-timeout:
 			t.Fatal("Timeout waiting for user2's typing event")
 		}
+	}
+}
+
+func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
+		Subject: "live.sync.config.updated",
+	}, &corev1.LiveEvent{
+		Id:      "LIVE-empty",
+		ActorId: "U1",
+	})
+
+	if ok {
+		t.Fatal("expected empty LiveEvent to be rejected")
+	}
+	if event != nil {
+		t.Fatalf("expected no delivered event, got %+v", event)
 	}
 }

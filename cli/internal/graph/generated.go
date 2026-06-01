@@ -56,11 +56,9 @@ type ResolverRoot interface {
 	LinkPreview() LinkPreviewResolver
 	MentionNotificationEvent() MentionNotificationEventResolver
 	MentionNotificationItem() MentionNotificationItemResolver
-	MessageDeletedEvent() MessageDeletedEventResolver
 	MessageEditedEvent() MessageEditedEventResolver
 	MessagePostedEvent() MessagePostedEventResolver
 	MessageRetractedEvent() MessageRetractedEventResolver
-	MessageUpdatedEvent() MessageUpdatedEventResolver
 	Mutation() MutationResolver
 	NewDirectMessageNotificationEvent() NewDirectMessageNotificationEventResolver
 	NotificationLevelChangedEvent() NotificationLevelChangedEventResolver
@@ -201,12 +199,11 @@ type ComplexityRoot struct {
 	}
 
 	Event struct {
-		Actor         func(childComplexity int) int
-		ActorId       func(childComplexity int) int
-		CreatedAt     func(childComplexity int) int
-		Event         func(childComplexity int) int
-		Id            func(childComplexity int) int
-		ThreadReplies func(childComplexity int) int
+		Actor     func(childComplexity int) int
+		ActorID   func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Event     func(childComplexity int) int
+		ID        func(childComplexity int) int
 	}
 
 	EventLogConnection struct {
@@ -283,11 +280,6 @@ type ComplexityRoot struct {
 		RoomId func(childComplexity int) int
 	}
 
-	MessageDeletedEvent struct {
-		MessageEventID func(childComplexity int) int
-		RoomId         func(childComplexity int) int
-	}
-
 	MessageEditedEvent struct {
 		Attachments    func(childComplexity int) int
 		Body           func(childComplexity int) int
@@ -309,6 +301,7 @@ type ComplexityRoot struct {
 		ReplyCount                func(childComplexity int) int
 		RoomID                    func(childComplexity int) int
 		ThreadParticipants        func(childComplexity int, first *int32) int
+		ThreadReplies             func(childComplexity int) int
 		ThreadRootEventID         func(childComplexity int) int
 		UpdatedAt                 func(childComplexity int) int
 		ViewerIsFollowingThread   func(childComplexity int) int
@@ -317,11 +310,6 @@ type ComplexityRoot struct {
 	MessageRetractedEvent struct {
 		MessageEventID func(childComplexity int) int
 		Reason         func(childComplexity int) int
-		RoomId         func(childComplexity int) int
-	}
-
-	MessageUpdatedEvent struct {
-		MessageEventID func(childComplexity int) int
 		RoomId         func(childComplexity int) int
 	}
 
@@ -945,14 +933,16 @@ type DMMessageNotificationItemResolver interface {
 	Room(ctx context.Context, obj *model.DMMessageNotificationItem) (*corev1.Room, error)
 }
 type EventResolver interface {
-	Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error)
-	Event(ctx context.Context, obj *corev1.Event) (model.EventType, error)
-	ThreadReplies(ctx context.Context, obj *corev1.Event) ([]*corev1.Event, error)
+	ID(ctx context.Context, obj core.EventEnvelope) (string, error)
+	CreatedAt(ctx context.Context, obj core.EventEnvelope) (*timestamppb.Timestamp, error)
+	ActorID(ctx context.Context, obj core.EventEnvelope) (string, error)
+	Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error)
+	Event(ctx context.Context, obj core.EventEnvelope) (model.EventType, error)
 }
 type FollowedThreadResolver interface {
 	Room(ctx context.Context, obj *model.FollowedThread) (*corev1.Room, error)
 
-	RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.Event, error)
+	RootMessage(ctx context.Context, obj *model.FollowedThread) (core.EventEnvelope, error)
 
 	ThreadParticipants(ctx context.Context, obj *model.FollowedThread, first *int32) ([]*corev1.User, error)
 }
@@ -970,9 +960,6 @@ type MentionNotificationItemResolver interface {
 	Actor(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.User, error)
 	Summary(ctx context.Context, obj *model.MentionNotificationItem) (string, error)
 	Room(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Room, error)
-}
-type MessageDeletedEventResolver interface {
-	MessageEventID(ctx context.Context, obj *corev1.MessageDeletedEvent) (string, error)
 }
 type MessageEditedEventResolver interface {
 	MessageEventID(ctx context.Context, obj *corev1.MessageEditedEvent) (string, error)
@@ -994,13 +981,11 @@ type MessagePostedEventResolver interface {
 	LastReplyAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	ThreadParticipants(ctx context.Context, obj *model.MessagePostedEvent, first *int32) ([]*corev1.User, error)
 	ViewerIsFollowingThread(ctx context.Context, obj *model.MessagePostedEvent) (*bool, error)
+	ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent) ([]core.EventEnvelope, error)
 	LinkPreview(ctx context.Context, obj *model.MessagePostedEvent) (*corev1.LinkPreview, error)
 }
 type MessageRetractedEventResolver interface {
 	MessageEventID(ctx context.Context, obj *corev1.MessageRetractedEvent) (string, error)
-}
-type MessageUpdatedEventResolver interface {
-	MessageEventID(ctx context.Context, obj *corev1.MessageUpdatedEvent) (string, error)
 }
 type MutationResolver interface {
 	CreateRoom(ctx context.Context, input model.CreateRoomInput) (*corev1.Room, error)
@@ -1008,7 +993,7 @@ type MutationResolver interface {
 	ArchiveRoom(ctx context.Context, input model.ArchiveRoomInput) (*corev1.Room, error)
 	UnarchiveRoom(ctx context.Context, input model.UnarchiveRoomInput) (*corev1.Room, error)
 	JoinGroup(ctx context.Context, input model.JoinGroupInput) ([]string, error)
-	PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.Event, error)
+	PostMessage(ctx context.Context, input model.PostMessageInput) (core.EventEnvelope, error)
 	UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error)
 	UploadServerLogo(ctx context.Context, input model.UploadServerLogoInput) (*model.Server, error)
 	DeleteServerLogo(ctx context.Context) (*model.Server, error)
@@ -1120,7 +1105,7 @@ type RoomResolver interface {
 	ViewerCanManageRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 
 	Events(ctx context.Context, obj *corev1.Room, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error)
-	Event(ctx context.Context, obj *corev1.Room, eventID string) (*corev1.Event, error)
+	Event(ctx context.Context, obj *corev1.Room, eventID string) (core.EventEnvelope, error)
 	EventsAround(ctx context.Context, obj *corev1.Room, eventID string, limit *int32) (*model.RoomEventsAroundResult, error)
 	VoiceCallToken(ctx context.Context, obj *corev1.Room) (*core.VoiceCallToken, error)
 	CallParticipants(ctx context.Context, obj *corev1.Room) ([]*model.CallParticipant, error)
@@ -1185,7 +1170,7 @@ type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyEvents(ctx context.Context) (<-chan *corev1.Event, error)
+	MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error)
@@ -1730,11 +1715,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Event.Actor(childComplexity), true
 	case "Event.actorId":
-		if e.complexity.Event.ActorId == nil {
+		if e.complexity.Event.ActorID == nil {
 			break
 		}
 
-		return e.complexity.Event.ActorId(childComplexity), true
+		return e.complexity.Event.ActorID(childComplexity), true
 	case "Event.createdAt":
 		if e.complexity.Event.CreatedAt == nil {
 			break
@@ -1748,17 +1733,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Event.Event(childComplexity), true
 	case "Event.id":
-		if e.complexity.Event.Id == nil {
+		if e.complexity.Event.ID == nil {
 			break
 		}
 
-		return e.complexity.Event.Id(childComplexity), true
-	case "Event.threadReplies":
-		if e.complexity.Event.ThreadReplies == nil {
-			break
-		}
-
-		return e.complexity.Event.ThreadReplies(childComplexity), true
+		return e.complexity.Event.ID(childComplexity), true
 
 	case "EventLogConnection.endCursor":
 		if e.complexity.EventLogConnection.EndCursor == nil {
@@ -2044,19 +2023,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.MentionStatusClearedEvent.RoomId(childComplexity), true
 
-	case "MessageDeletedEvent.messageEventId":
-		if e.complexity.MessageDeletedEvent.MessageEventID == nil {
-			break
-		}
-
-		return e.complexity.MessageDeletedEvent.MessageEventID(childComplexity), true
-	case "MessageDeletedEvent.roomId":
-		if e.complexity.MessageDeletedEvent.RoomId == nil {
-			break
-		}
-
-		return e.complexity.MessageDeletedEvent.RoomId(childComplexity), true
-
 	case "MessageEditedEvent.attachments":
 		if e.complexity.MessageEditedEvent.Attachments == nil {
 			break
@@ -2165,6 +2131,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MessagePostedEvent.ThreadParticipants(childComplexity, args["first"].(*int32)), true
+	case "MessagePostedEvent.threadReplies":
+		if e.complexity.MessagePostedEvent.ThreadReplies == nil {
+			break
+		}
+
+		return e.complexity.MessagePostedEvent.ThreadReplies(childComplexity), true
 	case "MessagePostedEvent.threadRootEventId":
 		if e.complexity.MessagePostedEvent.ThreadRootEventID == nil {
 			break
@@ -2202,19 +2174,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MessageRetractedEvent.RoomId(childComplexity), true
-
-	case "MessageUpdatedEvent.messageEventId":
-		if e.complexity.MessageUpdatedEvent.MessageEventID == nil {
-			break
-		}
-
-		return e.complexity.MessageUpdatedEvent.MessageEventID(childComplexity), true
-	case "MessageUpdatedEvent.roomId":
-		if e.complexity.MessageUpdatedEvent.RoomId == nil {
-			break
-		}
-
-		return e.complexity.MessageUpdatedEvent.RoomId(childComplexity), true
 
 	case "Mutation.addReaction":
 		if e.complexity.Mutation.AddReaction == nil {
@@ -8771,14 +8730,14 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Event_id(ctx context.Context, field graphql.CollectedField, obj *corev1.Event) (ret graphql.Marshaler) {
+func (ec *executionContext) _Event_id(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		ec.fieldContext_Event_id,
 		func(ctx context.Context) (any, error) {
-			return obj.Id, nil
+			return ec.resolvers.Event().ID(ctx, obj)
 		},
 		nil,
 		ec.marshalNID2string,
@@ -8791,8 +8750,8 @@ func (ec *executionContext) fieldContext_Event_id(_ context.Context, field graph
 	fc = &graphql.FieldContext{
 		Object:     "Event",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -8800,14 +8759,14 @@ func (ec *executionContext) fieldContext_Event_id(_ context.Context, field graph
 	return fc, nil
 }
 
-func (ec *executionContext) _Event_createdAt(ctx context.Context, field graphql.CollectedField, obj *corev1.Event) (ret graphql.Marshaler) {
+func (ec *executionContext) _Event_createdAt(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		ec.fieldContext_Event_createdAt,
 		func(ctx context.Context) (any, error) {
-			return obj.CreatedAt, nil
+			return ec.resolvers.Event().CreatedAt(ctx, obj)
 		},
 		nil,
 		ec.marshalNTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp,
@@ -8820,8 +8779,8 @@ func (ec *executionContext) fieldContext_Event_createdAt(_ context.Context, fiel
 	fc = &graphql.FieldContext{
 		Object:     "Event",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
 		},
@@ -8829,14 +8788,14 @@ func (ec *executionContext) fieldContext_Event_createdAt(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Event_actorId(ctx context.Context, field graphql.CollectedField, obj *corev1.Event) (ret graphql.Marshaler) {
+func (ec *executionContext) _Event_actorId(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		ec.fieldContext_Event_actorId,
 		func(ctx context.Context) (any, error) {
-			return obj.ActorId, nil
+			return ec.resolvers.Event().ActorID(ctx, obj)
 		},
 		nil,
 		ec.marshalNID2string,
@@ -8849,8 +8808,8 @@ func (ec *executionContext) fieldContext_Event_actorId(_ context.Context, field 
 	fc = &graphql.FieldContext{
 		Object:     "Event",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -8858,7 +8817,7 @@ func (ec *executionContext) fieldContext_Event_actorId(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Event_actor(ctx context.Context, field graphql.CollectedField, obj *corev1.Event) (ret graphql.Marshaler) {
+func (ec *executionContext) _Event_actor(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -8917,7 +8876,7 @@ func (ec *executionContext) fieldContext_Event_actor(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Event_event(ctx context.Context, field graphql.CollectedField, obj *corev1.Event) (ret graphql.Marshaler) {
+func (ec *executionContext) _Event_event(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -8941,49 +8900,6 @@ func (ec *executionContext) fieldContext_Event_event(_ context.Context, field gr
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type EventType does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Event_threadReplies(ctx context.Context, field graphql.CollectedField, obj *corev1.Event) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Event_threadReplies,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Event().ThreadReplies(ctx, obj)
-		},
-		nil,
-		ec.marshalNEvent2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEventᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Event_threadReplies(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Event",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Event_id(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Event_createdAt(ctx, field)
-			case "actorId":
-				return ec.fieldContext_Event_actorId(ctx, field)
-			case "actor":
-				return ec.fieldContext_Event_actor(ctx, field)
-			case "event":
-				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
 	}
 	return fc, nil
@@ -9533,7 +9449,7 @@ func (ec *executionContext) _FollowedThread_rootMessage(ctx context.Context, fie
 			return ec.resolvers.FollowedThread().RootMessage(ctx, obj)
 		},
 		nil,
-		ec.marshalOEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent,
+		ec.marshalOEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope,
 		true,
 		false,
 	)
@@ -9557,8 +9473,6 @@ func (ec *executionContext) fieldContext_FollowedThread_rootMessage(_ context.Co
 				return ec.fieldContext_Event_actor(ctx, field)
 			case "event":
 				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
@@ -10563,64 +10477,6 @@ func (ec *executionContext) fieldContext_MentionStatusClearedEvent_roomId(_ cont
 	return fc, nil
 }
 
-func (ec *executionContext) _MessageDeletedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageDeletedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MessageDeletedEvent_roomId,
-		func(ctx context.Context) (any, error) {
-			return obj.RoomId, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MessageDeletedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MessageDeletedEvent",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MessageDeletedEvent_messageEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageDeletedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MessageDeletedEvent_messageEventId,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.MessageDeletedEvent().MessageEventID(ctx, obj)
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MessageDeletedEvent_messageEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MessageDeletedEvent",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _MessageEditedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageEditedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11294,6 +11150,47 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_viewerIsFollowingThr
 	return fc, nil
 }
 
+func (ec *executionContext) _MessagePostedEvent_threadReplies(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MessagePostedEvent_threadReplies,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.MessagePostedEvent().ThreadReplies(ctx, obj)
+		},
+		nil,
+		ec.marshalNEvent2ᚕhmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelopeᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MessagePostedEvent_threadReplies(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessagePostedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Event_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Event_createdAt(ctx, field)
+			case "actorId":
+				return ec.fieldContext_Event_actorId(ctx, field)
+			case "actor":
+				return ec.fieldContext_Event_actor(ctx, field)
+			case "event":
+				return ec.fieldContext_Event_event(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MessagePostedEvent_linkPreview(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11423,64 +11320,6 @@ func (ec *executionContext) fieldContext_MessageRetractedEvent_reason(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MessageUpdatedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageUpdatedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MessageUpdatedEvent_roomId,
-		func(ctx context.Context) (any, error) {
-			return obj.RoomId, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MessageUpdatedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MessageUpdatedEvent",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MessageUpdatedEvent_messageEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessageUpdatedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MessageUpdatedEvent_messageEventId,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.MessageUpdatedEvent().MessageEventID(ctx, obj)
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MessageUpdatedEvent_messageEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MessageUpdatedEvent",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11902,7 +11741,7 @@ func (ec *executionContext) _Mutation_postMessage(ctx context.Context, field gra
 			return ec.resolvers.Mutation().PostMessage(ctx, fc.Args["input"].(model.PostMessageInput))
 		},
 		nil,
-		ec.marshalNEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent,
+		ec.marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope,
 		true,
 		true,
 	)
@@ -11926,8 +11765,6 @@ func (ec *executionContext) fieldContext_Mutation_postMessage(ctx context.Contex
 				return ec.fieldContext_Event_actor(ctx, field)
 			case "event":
 				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
@@ -18940,7 +18777,7 @@ func (ec *executionContext) _Room_event(ctx context.Context, field graphql.Colle
 			return ec.resolvers.Room().Event(ctx, obj, fc.Args["eventId"].(string))
 		},
 		nil,
-		ec.marshalOEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent,
+		ec.marshalOEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope,
 		true,
 		false,
 	)
@@ -18964,8 +18801,6 @@ func (ec *executionContext) fieldContext_Room_event(ctx context.Context, field g
 				return ec.fieldContext_Event_actor(ctx, field)
 			case "event":
 				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
@@ -19375,7 +19210,7 @@ func (ec *executionContext) _RoomEventsAroundResult_events(ctx context.Context, 
 			return obj.Events, nil
 		},
 		nil,
-		ec.marshalNEvent2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEventᚄ,
+		ec.marshalNEvent2ᚕhmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelopeᚄ,
 		true,
 		true,
 	)
@@ -19399,8 +19234,6 @@ func (ec *executionContext) fieldContext_RoomEventsAroundResult_events(_ context
 				return ec.fieldContext_Event_actor(ctx, field)
 			case "event":
 				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
@@ -19563,7 +19396,7 @@ func (ec *executionContext) _RoomEventsConnection_events(ctx context.Context, fi
 			return obj.Events, nil
 		},
 		nil,
-		ec.marshalNEvent2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEventᚄ,
+		ec.marshalNEvent2ᚕhmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelopeᚄ,
 		true,
 		true,
 	)
@@ -19587,8 +19420,6 @@ func (ec *executionContext) fieldContext_RoomEventsConnection_events(_ context.C
 				return ec.fieldContext_Event_actor(ctx, field)
 			case "event":
 				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
@@ -22647,7 +22478,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 			return ec.resolvers.Subscription().MyEvents(ctx)
 		},
 		nil,
-		ec.marshalNEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent,
+		ec.marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope,
 		true,
 		true,
 	)
@@ -22671,8 +22502,6 @@ func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context
 				return ec.fieldContext_Event_actor(ctx, field)
 			case "event":
 				return ec.fieldContext_Event_event(ctx, field)
-			case "threadReplies":
-				return ec.fieldContext_Event_threadReplies(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Event", field.Name)
 		},
@@ -29411,11 +29240,6 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._NewDirectMessageNotificationEvent(ctx, sel, obj)
-	case *corev1.MessageUpdatedEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._MessageUpdatedEvent(ctx, sel, obj)
 	case *corev1.MessageRetractedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -29431,11 +29255,6 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._MessageEditedEvent(ctx, sel, obj)
-	case *corev1.MessageDeletedEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._MessageDeletedEvent(ctx, sel, obj)
 	case *corev1.MentionStatusClearedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -31160,7 +30979,7 @@ func (ec *executionContext) _DMMessageNotificationItem(ctx context.Context, sel 
 
 var eventImplementors = []string{"Event"}
 
-func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, obj *corev1.Event) graphql.Marshaler {
+func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, obj core.EventEnvelope) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, eventImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -31170,20 +30989,113 @@ func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, ob
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Event")
 		case "id":
-			out.Values[i] = ec._Event_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Event_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "createdAt":
-			out.Values[i] = ec._Event_createdAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Event_createdAt(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "actorId":
-			out.Values[i] = ec._Event_actorId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Event_actorId(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "actor":
 			field := field
 
@@ -31227,42 +31139,6 @@ func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, ob
 					}
 				}()
 				res = ec._Event_event(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "threadReplies":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Event_threadReplies(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -32134,81 +32010,6 @@ func (ec *executionContext) _MentionStatusClearedEvent(ctx context.Context, sel 
 	return out
 }
 
-var messageDeletedEventImplementors = []string{"MessageDeletedEvent", "EventType"}
-
-func (ec *executionContext) _MessageDeletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageDeletedEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, messageDeletedEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("MessageDeletedEvent")
-		case "roomId":
-			out.Values[i] = ec._MessageDeletedEvent_roomId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "messageEventId":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._MessageDeletedEvent_messageEventId(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var messageEditedEventImplementors = []string{"MessageEditedEvent", "EventType"}
 
 func (ec *executionContext) _MessageEditedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageEditedEvent) graphql.Marshaler {
@@ -32843,6 +32644,42 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "threadReplies":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessagePostedEvent_threadReplies(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "linkPreview":
 			field := field
 
@@ -32953,81 +32790,6 @@ func (ec *executionContext) _MessageRetractedEvent(ctx context.Context, sel ast.
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "reason":
 			out.Values[i] = ec._MessageRetractedEvent_reason(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var messageUpdatedEventImplementors = []string{"MessageUpdatedEvent", "EventType"}
-
-func (ec *executionContext) _MessageUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageUpdatedEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, messageUpdatedEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("MessageUpdatedEvent")
-		case "roomId":
-			out.Values[i] = ec._MessageUpdatedEvent_roomId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "messageEventId":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._MessageUpdatedEvent_messageEventId(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -41153,11 +40915,17 @@ func (ec *executionContext) unmarshalNDismissNotificationInput2hmansᚗdeᚋchat
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent(ctx context.Context, sel ast.SelectionSet, v corev1.Event) graphql.Marshaler {
-	return ec._Event(ctx, sel, &v)
+func (ec *executionContext) marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx context.Context, sel ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Event(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNEvent2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*corev1.Event) graphql.Marshaler {
+func (ec *executionContext) marshalNEvent2ᚕhmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelopeᚄ(ctx context.Context, sel ast.SelectionSet, v []core.EventEnvelope) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -41181,7 +40949,7 @@ func (ec *executionContext) marshalNEvent2ᚕᚖhmansᚗdeᚋchattoᚋinternal�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent(ctx, sel, v[i])
+			ret[i] = ec.marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -41199,16 +40967,6 @@ func (ec *executionContext) marshalNEvent2ᚕᚖhmansᚗdeᚋchattoᚋinternal�
 	}
 
 	return ret
-}
-
-func (ec *executionContext) marshalNEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent(ctx context.Context, sel ast.SelectionSet, v *corev1.Event) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Event(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNEventLogConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogConnection(ctx context.Context, sel ast.SelectionSet, v model.EventLogConnection) graphql.Marshaler {
@@ -43191,7 +42949,7 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
-func (ec *executionContext) marshalOEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent(ctx context.Context, sel ast.SelectionSet, v *corev1.Event) graphql.Marshaler {
+func (ec *executionContext) marshalOEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx context.Context, sel ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
