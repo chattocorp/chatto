@@ -227,11 +227,15 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	var attachments []*corev1.Attachment
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
 	if input.Attachments != nil {
-		for _, upload := range input.Attachments {
-			if strings.HasPrefix(upload.ContentType, "video/") && !r.videoConfig.Enabled {
-				return nil, fmt.Errorf("video uploads are disabled on this server")
+		if !r.videoConfig.Enabled {
+			for _, upload := range input.Attachments {
+				if strings.HasPrefix(upload.ContentType, "video/") {
+					return nil, fmt.Errorf("video uploads are disabled on this server")
+				}
 			}
+		}
 
+		for _, upload := range input.Attachments {
 			var reader io.Reader = upload.File
 
 			// Detect animated GIFs: buffer the file to check frame count,

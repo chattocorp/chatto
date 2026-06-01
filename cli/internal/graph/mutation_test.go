@@ -189,6 +189,35 @@ func TestPostMessage_VideoUploadsDisabled(t *testing.T) {
 	if after != before {
 		t.Fatalf("asset count after rejected video = %d, want unchanged %d", after, before)
 	}
+
+	_, err = mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Attachments: []*graphql.Upload{
+			{
+				File:        bytes.NewReader([]byte("hello")),
+				Filename:    "notes.txt",
+				Size:        5,
+				ContentType: "text/plain",
+			},
+			{
+				File:        bytes.NewReader([]byte("video")),
+				Filename:    "clip.mp4",
+				Size:        5,
+				ContentType: "video/mp4",
+			},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "video uploads are disabled") {
+		t.Fatalf("PostMessage mixed upload while disabled error = %v, want disabled-video error", err)
+	}
+
+	afterMixed, err := env.core.GetAssetCount(env.ctx)
+	if err != nil {
+		t.Fatalf("GetAssetCount after mixed post: %v", err)
+	}
+	if afterMixed != before {
+		t.Fatalf("asset count after rejected mixed upload = %d, want unchanged %d", afterMixed, before)
+	}
 }
 
 func TestPostMessage_AllowsNonVideoUploadsWhenVideoProcessingDisabled(t *testing.T) {
