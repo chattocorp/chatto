@@ -482,6 +482,32 @@ func TestChattoCore_AuditAppendFailureCleansNewAuthRuntimeTokens(t *testing.T) {
 	}
 }
 
+func TestChattoCore_BearerRevocationAuditFailureKeepsToken(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "revocation-audit-failure-user", "Revocation Audit Failure User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := core.CreateAuthTokenWithSource(ctx, user.Id, "test_source")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+
+	core.EventPublisher = nil
+	if err := core.RevokeAuthTokenWithReason(ctx, token, "test_revoke"); err == nil {
+		t.Fatalf("expected revocation audit append failure")
+	}
+
+	userID, err := core.ValidateAuthToken(ctx, token)
+	if err != nil {
+		t.Fatalf("expected token to remain valid after failed revocation audit: %v", err)
+	}
+	if userID != user.Id {
+		t.Fatalf("ValidateAuthToken userID = %q, want %q", userID, user.Id)
+	}
+}
+
 func TestAuditRequestMetadataContextCopiesAndDefaults(t *testing.T) {
 	ctx := testContext(t)
 	if got := auditRequestMetadata(ctx); got == nil {

@@ -137,14 +137,15 @@ func (c *ChattoCore) RevokeAuthTokenWithReason(ctx context.Context, token, reaso
 		return fmt.Errorf("failed to unmarshal auth token for revocation: %w", err)
 	}
 
-	err = c.storage.runtimeStateKV.Delete(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to revoke auth token: %w", err)
-	}
 	if tokenData.UserID != "" {
 		if err := c.recordBearerTokenRevoked(ctx, tokenData.UserID, reason); err != nil {
 			return err
 		}
+	}
+
+	err = c.storage.runtimeStateKV.Delete(ctx, key)
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to revoke auth token: %w", err)
 	}
 	return nil
 }
