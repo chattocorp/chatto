@@ -220,7 +220,7 @@ func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, "session-echo-delete")
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
