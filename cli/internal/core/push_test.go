@@ -2,10 +2,7 @@ package core
 
 import (
 	"context"
-	"errors"
 	"testing"
-
-	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestPushSubscriptionKey(t *testing.T) {
@@ -139,9 +136,7 @@ func TestSavePushSubscription(t *testing.T) {
 		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
 			t.Fatalf("expected push subscription in RUNTIME_STATE: %v", err)
 		}
-		if _, err := core.storage.serverKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
-			t.Fatalf("legacy INSTANCE push subscription lookup error = %v, want ErrKeyNotFound", err)
-		}
+		assertLegacyKeyAbsent(t, core.storage.serverKV, key, "legacy INSTANCE push subscription")
 	})
 
 	t.Run("updates existing subscription with same endpoint", func(t *testing.T) {

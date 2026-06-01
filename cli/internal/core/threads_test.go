@@ -2,13 +2,11 @@ package core
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -458,9 +456,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
 			t.Fatalf("Expected thread follow in RUNTIME_STATE: %v", err)
 		}
-		if _, err := core.storage.serverRuntimeKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
-			t.Fatalf("legacy SERVER_RUNTIME follow lookup error = %v, want ErrKeyNotFound", err)
-		}
+		assertLegacyKeyAbsent(t, core.storage.serverRuntimeKV, key, "legacy SERVER_RUNTIME follow")
 
 		isFollowing, err := core.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
 		if err != nil {

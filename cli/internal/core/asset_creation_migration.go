@@ -177,6 +177,9 @@ func (c *ChattoCore) adoptLegacyRuntimeMigrationSentinel(ctx context.Context, ke
 		return fmt.Errorf("get migration sentinel %s: %w", key, err)
 	}
 
+	if c.storage.serverRuntimeKV == nil {
+		return nil
+	}
 	entry, err := c.storage.serverRuntimeKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -196,6 +199,9 @@ func (c *ChattoCore) adoptLegacyRuntimeMigrationSentinel(ctx context.Context, ke
 }
 
 func (c *ChattoCore) waitRuntimeMigrationDoneIn(ctx context.Context, bucket jetstream.KeyValue, key string) error {
+	if bucket == nil {
+		return nil
+	}
 	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(250 * time.Millisecond)

@@ -63,10 +63,9 @@ func TestChattoCore_GetAccountInfo(t *testing.T) {
 	})
 
 	t.Run("returns positive numbers for storage usage", func(t *testing.T) {
-		// All chat data lives in the SERVER_* buckets, eager-created at
-		// boot. Creating a Space record (or rooms within it) doesn't add
-		// streams; what's there at boot is what's there. We just check the
-		// numbers look sensible.
+		// Current storage is deployment-wide and created at boot. Creating a
+		// Space record (or rooms within it) doesn't add streams; what's there
+		// at boot is what's there. We just check the numbers look sensible.
 		info, err := core.GetAccountInfo(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

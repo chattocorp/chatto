@@ -31,7 +31,7 @@ import (
 
 // ChattoCore is the central hub for all Chatto operations.
 // It provides a unified API for spaces, users, rooms, and messages,
-// managing all KV buckets and event streams internally.
+// managing current JetStream resources and legacy import handles internally.
 type ChattoCore struct {
 	nc                 *nats.Conn
 	js                 jetstream.JetStream
@@ -548,14 +548,15 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.DeprecatedAs
 	}
 }
 
-// Ready checks if the core is fully initialized and JetStream resources are accessible.
+// Ready checks if the core is fully initialized and current persistent resources are accessible.
 // Returns nil if ready, or an error describing what's not ready.
 // Used by the /readyz endpoint to verify the server can handle requests.
 func (c *ChattoCore) Ready(ctx context.Context) error {
-	// Check if JetStream is operational by getting the INSTANCE KV bucket status
-	_, err := c.storage.serverKV.Status(ctx)
-	if err != nil {
-		return fmt.Errorf("JetStream not ready: %w", err)
+	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
+		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
+	}
+	if _, err := c.storage.serverEvtStream.Info(ctx); err != nil {
+		return fmt.Errorf("EVT not ready: %w", err)
 	}
 	return nil
 }
@@ -571,7 +572,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
 	}
 
-	// Initialize storage (KV buckets)
+	// Initialize storage (current resources plus optional legacy import sources).
 	storage, err := newStorage(js, ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
@@ -755,45 +756,39 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 // Storage
 // ============================================================================
 
-// storage encapsulates all JetStream KV buckets and streams used by Chatto Core.
+// storage encapsulates JetStream resources used by Chatto Core. Current
+// resources are provisioned at startup; legacy import resources are opened only
+// when they already exist.
 type storage struct {
-	serverKV        jetstream.KeyValue
 	serverStore     jetstream.ObjectStore
 	encryptionKV    jetstream.KeyValue // Encryption keys (excluded from backups)
-	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - runtime configuration overrides
+	serverKV        jetstream.KeyValue // INSTANCE        - legacy user/config import source
+	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - legacy runtime configuration import source
 	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state
 
-	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
-	// (#330 phase 4d). Shared by channel and DM rooms after the Space tier
-	// retirement; legacy non-primary spaces (test-created only in practice)
-	// keep their per-space lazycaches below.
-	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
-	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
-	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - legacy RBAC import source
-	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies + attachment metadata records (#330 phase 4c). TODO: rename → SERVER_CONTENT now that it hosts more than bodies.
-	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
-	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
-	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
-	serverEvtStream    jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034). Coexists with SERVER_EVENTS during migration.
+	// Legacy import resources. Fresh ES-only deployments do not create these;
+	// boot importers treat nil handles as empty sources.
+	serverConfigKV     jetstream.KeyValue // SERVER_CONFIG    - legacy rooms, memberships
+	serverRuntimeKV    jetstream.KeyValue // SERVER_RUNTIME   - legacy sequences, timestamps, read state
+	serverRBACKV       jetstream.KeyValue // SERVER_RBAC      - legacy RBAC import source
+	serverBodiesKV     jetstream.KeyValue // SERVER_BODIES    - legacy message bodies + attachment metadata records
+	serverReactionsKV  jetstream.KeyValue // SERVER_REACTIONS - legacy emoji reactions
+	serverEventsStream jetstream.Stream   // SERVER_EVENTS    - legacy event stream
+
+	serverAttachments jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
+	serverEvtStream   jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
 
 	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
 	callStateKV     jetstream.KeyValue    // Active voice call participants (ephemeral, memory-backed)
 }
 
-// newStorage initializes all JetStream KV buckets and streams.
+// newStorage initializes current JetStream resources and opens existing legacy
+// import resources.
 func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
-	// Initialize INSTANCE KV bucket for all server-level data
-	// Uses subject-based keys: user.{userId}, space.{spaceId}, space_membership.{spaceId}.{userId}, etc.
-	serverKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:         "INSTANCE",
-		Description:    "Instance-level data (users, spaces, memberships)",
-		Storage:        jetstream.FileStorage,
-		Replicas:       cfg.Replicas,
-		LimitMarkerTTL: 24 * time.Hour,
-	})
+	serverKV, err := openLegacyKeyValue(ctx, js, "INSTANCE")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create INSTANCE KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy INSTANCE KV bucket: %w", err)
 	}
 
 	// Initialize server object store
@@ -834,15 +829,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
 	}
 
-	// Initialize runtime configuration KV bucket
-	runtimeConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "INSTANCE_CONFIG",
-		Description: "Runtime configuration overrides",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
+	runtimeConfigKV, err := openLegacyKeyValue(ctx, js, "INSTANCE_CONFIG")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create INSTANCE_CONFIG KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy INSTANCE_CONFIG KV bucket: %w", err)
 	}
 
 	runtimeStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
@@ -889,58 +878,29 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create CALL_STATE KV bucket: %w", err)
 	}
 
-	// Initialize server-level KV buckets (#330 phase 4a, 4b, 4c). These hold
-	// deployment-wide channel and DM room data. Legacy non-primary spaces
-	// (test-created only in practice) keep their per-space SPACE_{id}_*
-	// buckets.
-	serverConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "SERVER_CONFIG",
-		Description: "Server-level configuration (rooms, memberships)",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
+	serverConfigKV, err := openLegacyKeyValue(ctx, js, "SERVER_CONFIG")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_CONFIG KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy SERVER_CONFIG KV bucket: %w", err)
 	}
 
-	serverRBACKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "SERVER_RBAC",
-		Description: "Server-level RBAC (roles, permissions, assignments)",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
+	serverRBACKV, err := openLegacyKeyValue(ctx, js, "SERVER_RBAC")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_RBAC KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy SERVER_RBAC KV bucket: %w", err)
 	}
 
-	serverRuntimeKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "SERVER_RUNTIME",
-		Description: "Server-level runtime state (sequences, read status)",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
+	serverRuntimeKV, err := openLegacyKeyValue(ctx, js, "SERVER_RUNTIME")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_RUNTIME KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy SERVER_RUNTIME KV bucket: %w", err)
 	}
 
-	serverBodiesKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "SERVER_BODIES",
-		Description: "Server-level message bodies",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
+	serverBodiesKV, err := openLegacyKeyValue(ctx, js, "SERVER_BODIES")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_BODIES KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy SERVER_BODIES KV bucket: %w", err)
 	}
 
-	serverReactionsKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "SERVER_REACTIONS",
-		Description: "Server-level emoji reactions",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
+	serverReactionsKV, err := openLegacyKeyValue(ctx, js, "SERVER_REACTIONS")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_REACTIONS KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy SERVER_REACTIONS KV bucket: %w", err)
 	}
 
 	serverAttachments, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
@@ -954,35 +914,15 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
 	}
 
-	// Initialize the deployment-wide events stream (#330 phase 4d). Holds all
-	// JetStream events for channel and DM rooms; legacy non-primary spaces
-	// (test-created only in production) keep their per-space SPACE_{id}_EVENTS
-	// streams.
-	serverEventsStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:               "SERVER_EVENTS",
-		Description:        "Server-level event stream (channel + DM rooms)",
-		Subjects:           []string{"server.>"},
-		Storage:            jetstream.FileStorage,
-		Compression:        jetstream.S2Compression,
-		AllowAtomicPublish: true,
-		Replicas:           cfg.Replicas,
-	})
+	serverEventsStream, err := openLegacyStream(ctx, js, "SERVER_EVENTS")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SERVER_EVENTS stream: %w", err)
+		return nil, fmt.Errorf("failed to open legacy SERVER_EVENTS stream: %w", err)
 	}
 
-	// EVT — the event-sourcing log (ADR-033/034). Coexists with
-	// SERVER_EVENTS during the per-aggregate migration (ADR-035).
+	// EVT — the event-sourcing log (ADR-033/034).
 	// Subjects are evt.{aggregateType}.{aggregateId}; live.evt.> is
 	// the republish target so projections and live subscribers consume
 	// from a single NATS Core path.
-	//
-	// We deliberately do NOT nest under server.> here — the legacy
-	// SERVER_EVENTS stream claims server.> as its subject root, and NATS
-	// won't allow two streams to share an overlapping subject space.
-	// During the migration window we keep them in separate top-level
-	// roots; once SERVER_EVENTS is decommissioned we can revisit the
-	// naming if we want to consolidate.
 	serverEvtStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 		Name:        "EVT",
 		Description: "Event-sourcing log (ADR-033)",
@@ -1024,6 +964,28 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		imageCacheStore:    imageCacheStore,
 		callStateKV:        callStateKV,
 	}, nil
+}
+
+func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.KeyValue, error) {
+	kv, err := js.KeyValue(ctx, bucket)
+	if err == nil {
+		return kv, nil
+	}
+	if errors.Is(err, jetstream.ErrBucketNotFound) {
+		return nil, nil
+	}
+	return nil, err
+}
+
+func openLegacyStream(ctx context.Context, js jetstream.JetStream, streamName string) (jetstream.Stream, error) {
+	stream, err := js.Stream(ctx, streamName)
+	if err == nil {
+		return stream, nil
+	}
+	if errors.Is(err, jetstream.ErrStreamNotFound) {
+		return nil, nil
+	}
+	return nil, err
 }
 
 // ============================================================================
@@ -1249,9 +1211,9 @@ func liveEventAsEvent(live *corev1.LiveEvent) *corev1.Event {
 // Stream Management
 // ============================================================================
 
-// createSpaceResources is now a no-op: all data lives in the deployment-wide
-// SERVER_* buckets (eager-created in newStorage). Kept as a stub so callers
-// don't have to be edited until the broader Space-retirement pass.
+// createSpaceResources is now a no-op: room/user domain state lives in EVT and
+// deployment-wide projections. Kept as a stub so callers don't have to be
+// edited until the broader Space-retirement pass.
 func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
 	return nil
 }
@@ -1751,14 +1713,7 @@ type ServerStats struct {
 // DM rooms. Per-space breakdowns went away with the Space tier (ADR-030).
 func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 	stats := &ServerStats{}
-
-	userKeys, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list user keys: %w", err)
-	}
-	for range userKeys.Keys() {
-		stats.UserCount++
-	}
+	stats.UserCount, _, _ = c.Users.Stats()
 
 	channelRooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {

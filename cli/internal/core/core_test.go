@@ -2,11 +2,13 @@ package core
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -97,6 +99,77 @@ func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {
 		t.Fatalf("event stream info: %v", err)
 	}
 	return info.State.Msgs
+}
+
+func ensureLegacyKeyValue(t *testing.T, core *ChattoCore, bucket string) jetstream.KeyValue {
+	t.Helper()
+	ctx := testContext(t)
+	kv, err := core.js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  bucket,
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatalf("create legacy %s KV: %v", bucket, err)
+	}
+	return kv
+}
+
+func ensureLegacyServerRuntimeKV(t *testing.T, core *ChattoCore) jetstream.KeyValue {
+	t.Helper()
+	kv := ensureLegacyKeyValue(t, core, "SERVER_RUNTIME")
+	core.storage.serverRuntimeKV = kv
+	return kv
+}
+
+func ensureLegacyServerConfigKV(t *testing.T, core *ChattoCore) jetstream.KeyValue {
+	t.Helper()
+	kv := ensureLegacyKeyValue(t, core, "SERVER_CONFIG")
+	core.storage.serverConfigKV = kv
+	return kv
+}
+
+func assertLegacyKeyAbsent(t *testing.T, kv jetstream.KeyValue, key, label string) {
+	t.Helper()
+	if kv == nil {
+		return
+	}
+	ctx := testContext(t)
+	if _, err := kv.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("%s lookup error = %v, want ErrKeyNotFound", label, err)
+	}
+}
+
+func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	core, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+
+	for _, bucket := range []string{
+		"INSTANCE",
+		"INSTANCE_CONFIG",
+		"SERVER_CONFIG",
+		"SERVER_RBAC",
+		"SERVER_RUNTIME",
+		"SERVER_BODIES",
+		"SERVER_REACTIONS",
+	} {
+		if _, err := core.js.KeyValue(ctx, bucket); !errors.Is(err, jetstream.ErrBucketNotFound) {
+			t.Fatalf("legacy bucket %s lookup error = %v, want ErrBucketNotFound", bucket, err)
+		}
+	}
+	if _, err := core.js.Stream(ctx, "SERVER_EVENTS"); !errors.Is(err, jetstream.ErrStreamNotFound) {
+		t.Fatalf("legacy stream SERVER_EVENTS lookup error = %v, want ErrStreamNotFound", err)
+	}
 }
 
 // ============================================================================

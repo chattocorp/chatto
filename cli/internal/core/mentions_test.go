@@ -1,10 +1,7 @@
 package core
 
 import (
-	"errors"
 	"testing"
-
-	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestExtractMentionUsernames(t *testing.T) {
@@ -272,7 +269,5 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 
 	legacyKey := "room_mention_status." + mentioned.Id + "." + room.Id
-	if _, err := core.storage.serverRuntimeKV.Get(ctx, legacyKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Fatalf("legacy mention status key lookup error = %v, want ErrKeyNotFound", err)
-	}
+	assertLegacyKeyAbsent(t, core.storage.serverRuntimeKV, legacyKey, "legacy mention status key")
 }

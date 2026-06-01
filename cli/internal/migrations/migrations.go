@@ -47,8 +47,11 @@ import (
 // RunAll runs every active migration in order, stopping at the first
 // error.
 //
+// Legacy source handles may be nil on fresh ES-only deployments; RunAll treats
+// nil as an empty import source. Current target handles are required.
+//
 // KV buckets:
-//   - `serverKV`: INSTANCE bucket (user data).
+//   - `serverKV`: INSTANCE bucket (legacy user data and related indexes).
 //   - `serverConfigKV`: SERVER_CONFIG (rooms, room memberships,
 //     notification levels, …).
 //   - `serverBodiesKV`: SERVER_BODIES (message content + standalone
@@ -60,8 +63,8 @@ import (
 //   - `runtimeStateKV`: RUNTIME_STATE (persisted latest-value runtime/user
 //     state such as read markers, thread follows, push subscriptions, and
 //     HMAC-keyed auth/workflow tokens).
-//   - `serverReactionsKV`: SERVER_REACTIONS (legacy current reaction
-//     state; retained until reaction ES migration cleanup).
+//   - `serverReactionsKV`: SERVER_REACTIONS (legacy current reaction state).
+//   - `serverEventsStream`: SERVER_EVENTS (legacy room/member event log).
 //
 // `publisher` writes to the EVT event-sourcing stream and is
 // used by the ES migrations (ADR-035 phase 3 per aggregate) that seed
@@ -75,60 +78,74 @@ func RunAll(
 	publisher *events.Publisher,
 	logger *log.Logger,
 ) error {
-	if err := MigrateVerifiedEmailsToProto(ctx, serverKV, logger); err != nil {
-		return fmt.Errorf("verified_emails: %w", err)
+	if serverKV != nil {
+		if err := MigrateVerifiedEmailsToProto(ctx, serverKV, logger); err != nil {
+			return fmt.Errorf("verified_emails: %w", err)
+		}
+		if err := MigratePushSubscriptionsToRuntimeState(ctx, serverKV, runtimeStateKV, logger); err != nil {
+			return fmt.Errorf("push_subscriptions_runtime_state: %w", err)
+		}
+		if err := MigrateServerBrandingToES(ctx, serverKV, publisher, logger); err != nil {
+			return fmt.Errorf("server_branding_es: %w", err)
+		}
+		if err := MigrateUsersToES(ctx, serverKV, publisher, logger); err != nil {
+			return fmt.Errorf("users_es: %w", err)
+		}
+		if err := MigrateUserDisplayPreferencesToES(ctx, serverKV, publisher, logger); err != nil {
+			return fmt.Errorf("user_display_preferences_es: %w", err)
+		}
 	}
-	if err := BackfillRoomKind(ctx, serverConfigKV, logger); err != nil {
-		return fmt.Errorf("room_kind: %w", err)
+	if serverConfigKV != nil {
+		if err := BackfillRoomKind(ctx, serverConfigKV, logger); err != nil {
+			return fmt.Errorf("room_kind: %w", err)
+		}
+		// Room metadata + memberships share the evt.room.{R} subject and
+		// must seed together — a RoomCreatedEvent first, then the
+		// chronologically-ordered UserJoinedRoomEvents. Atomic AppendBatch
+		// keeps that invariant on every observable sequence.
+		if err := MigrateRoomAggregateToES(ctx, serverConfigKV, publisher, logger); err != nil {
+			return fmt.Errorf("room_aggregate_es: %w", err)
+		}
+		if err := MigrateRoomGroupsToES(ctx, serverConfigKV, publisher, logger); err != nil {
+			return fmt.Errorf("room_groups_es: %w", err)
+		}
+		if err := MigrateRoomLayoutToES(ctx, serverConfigKV, publisher, logger); err != nil {
+			return fmt.Errorf("room_layout_es: %w", err)
+		}
+		if err := MigrateNotificationPreferencesToES(ctx, serverConfigKV, publisher, logger); err != nil {
+			return fmt.Errorf("notification_preferences_es: %w", err)
+		}
 	}
-	if err := BackfillAttachmentLocatorData(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
-		return fmt.Errorf("attachment_locator_data: %w", err)
+	if serverBodiesKV != nil && serverRuntimeKV != nil {
+		if err := BackfillAttachmentLocatorData(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
+			return fmt.Errorf("attachment_locator_data: %w", err)
+		}
+		if err := DropLegacyAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
+			return fmt.Errorf("legacy_attachment_records: %w", err)
+		}
 	}
-	if err := DropLegacyAttachmentRecords(ctx, serverBodiesKV, serverRuntimeKV, logger); err != nil {
-		return fmt.Errorf("legacy_attachment_records: %w", err)
+	if serverRuntimeKV != nil {
+		if err := MigrateReadMarkersToRuntimeState(ctx, serverRuntimeKV, runtimeStateKV, logger); err != nil {
+			return fmt.Errorf("read_markers_runtime_state: %w", err)
+		}
+		if err := MigrateThreadFollowsToRuntimeState(ctx, serverRuntimeKV, runtimeStateKV, logger); err != nil {
+			return fmt.Errorf("thread_follows_runtime_state: %w", err)
+		}
 	}
-	if err := MigrateReadMarkersToRuntimeState(ctx, serverRuntimeKV, runtimeStateKV, logger); err != nil {
-		return fmt.Errorf("read_markers_runtime_state: %w", err)
+	if runtimeConfigKV != nil {
+		if err := MigrateServerConfigToES(ctx, runtimeConfigKV, publisher, logger); err != nil {
+			return fmt.Errorf("server_config_es: %w", err)
+		}
 	}
-	if err := MigrateThreadFollowsToRuntimeState(ctx, serverRuntimeKV, runtimeStateKV, logger); err != nil {
-		return fmt.Errorf("thread_follows_runtime_state: %w", err)
+	if serverEventsStream != nil {
+		if err := MigrateMessagesToES(ctx, serverEventsStream, serverBodiesKV, publisher, logger); err != nil {
+			return fmt.Errorf("messages_es: %w", err)
+		}
 	}
-	if err := MigratePushSubscriptionsToRuntimeState(ctx, serverKV, runtimeStateKV, logger); err != nil {
-		return fmt.Errorf("push_subscriptions_runtime_state: %w", err)
-	}
-	// Room metadata + memberships share the evt.room.{R} subject and
-	// must seed together — a RoomCreatedEvent first, then the
-	// chronologically-ordered UserJoinedRoomEvents. Atomic AppendBatch
-	// keeps that invariant on every observable sequence.
-	if err := MigrateRoomAggregateToES(ctx, serverConfigKV, publisher, logger); err != nil {
-		return fmt.Errorf("room_aggregate_es: %w", err)
-	}
-	if err := MigrateRoomGroupsToES(ctx, serverConfigKV, publisher, logger); err != nil {
-		return fmt.Errorf("room_groups_es: %w", err)
-	}
-	if err := MigrateRoomLayoutToES(ctx, serverConfigKV, publisher, logger); err != nil {
-		return fmt.Errorf("room_layout_es: %w", err)
-	}
-	if err := MigrateServerConfigToES(ctx, runtimeConfigKV, publisher, logger); err != nil {
-		return fmt.Errorf("server_config_es: %w", err)
-	}
-	if err := MigrateServerBrandingToES(ctx, serverKV, publisher, logger); err != nil {
-		return fmt.Errorf("server_branding_es: %w", err)
-	}
-	if err := MigrateNotificationPreferencesToES(ctx, serverConfigKV, publisher, logger); err != nil {
-		return fmt.Errorf("notification_preferences_es: %w", err)
-	}
-	if err := MigrateMessagesToES(ctx, serverEventsStream, serverBodiesKV, publisher, logger); err != nil {
-		return fmt.Errorf("messages_es: %w", err)
-	}
-	if err := MigrateReactionsToES(ctx, serverEventsStream, serverReactionsKV, publisher, logger); err != nil {
-		return fmt.Errorf("reactions_es: %w", err)
-	}
-	if err := MigrateUsersToES(ctx, serverKV, publisher, logger); err != nil {
-		return fmt.Errorf("users_es: %w", err)
-	}
-	if err := MigrateUserDisplayPreferencesToES(ctx, serverKV, publisher, logger); err != nil {
-		return fmt.Errorf("user_display_preferences_es: %w", err)
+	if serverEventsStream != nil && serverReactionsKV != nil {
+		if err := MigrateReactionsToES(ctx, serverEventsStream, serverReactionsKV, publisher, logger); err != nil {
+			return fmt.Errorf("reactions_es: %w", err)
+		}
 	}
 	return nil
 }

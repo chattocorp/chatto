@@ -128,11 +128,12 @@ func TestVideoManifestMigration_UntrackedMissingOriginalImportsUnavailable(t *te
 func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, *corev1.User, *corev1.Attachment) {
 	t.Helper()
 	ctx := testContext(t)
+	legacyRuntime := ensureLegacyServerRuntimeKV(t, core)
 
 	_ = core.storage.runtimeStateKV.Delete(ctx, videoManifestESMigrationKey)
 	_ = core.storage.runtimeStateKV.Delete(ctx, assetCreationESMigrationKey)
-	_ = core.storage.serverRuntimeKV.Delete(ctx, videoManifestESMigrationKey)
-	_ = core.storage.serverRuntimeKV.Delete(ctx, assetCreationESMigrationKey)
+	_ = legacyRuntime.Delete(ctx, videoManifestESMigrationKey)
+	_ = legacyRuntime.Delete(ctx, assetCreationESMigrationKey)
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Video", "Video room")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
@@ -182,12 +183,13 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 func writeLegacyVideoState(t *testing.T, core *ChattoCore, attachmentID string, state *corev1.VideoProcessingState) {
 	t.Helper()
 	ctx := testContext(t)
+	legacyRuntime := ensureLegacyServerRuntimeKV(t, core)
 
 	data, err := proto.Marshal(state)
 	if err != nil {
 		t.Fatalf("marshal video state: %v", err)
 	}
-	if _, err := core.storage.serverRuntimeKV.Put(ctx, videoProcessingKey(attachmentID), data); err != nil {
+	if _, err := legacyRuntime.Put(ctx, videoProcessingKey(attachmentID), data); err != nil {
 		t.Fatalf("put legacy video state: %v", err)
 	}
 }

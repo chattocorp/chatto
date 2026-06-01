@@ -195,15 +195,15 @@ func (c *ChattoCore) collectLegacyESCounts(ctx context.Context) (esLegacyCounts,
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy reactions: %w", err)
 	}
-	counts.users, err = countLegacyUserRecords(ctx, c.storage.serverConfigKV)
+	counts.users, err = countLegacyUserRecords(ctx, c.storage.serverKV)
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy users: %w", err)
 	}
-	counts.verifiedEmails, err = countKVKeys(ctx, c.storage.serverConfigKV, "verified_emails.*.*")
+	counts.verifiedEmails, err = countKVKeys(ctx, c.storage.serverKV, "verified_emails.*.*")
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy verified emails: %w", err)
 	}
-	counts.oidcSubjects, err = countKVKeys(ctx, c.storage.serverConfigKV, "user_by_oidc.*")
+	counts.oidcSubjects, err = countKVKeys(ctx, c.storage.serverKV, "user_by_oidc.*")
 	if err != nil {
 		return counts, warnings, fmt.Errorf("count legacy OIDC subjects: %w", err)
 	}
@@ -363,6 +363,9 @@ func (c *ChattoCore) logESEventCounts(counts map[string]int) {
 }
 
 func countKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) (int, error) {
+	if kv == nil {
+		return 0, nil
+	}
 	var lister jetstream.KeyLister
 	var err error
 	if len(filters) == 0 {
@@ -384,6 +387,9 @@ func countKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) 
 }
 
 func countLegacyUserRecords(ctx context.Context, kv jetstream.KeyValue) (int, error) {
+	if kv == nil {
+		return 0, nil
+	}
 	lister, err := kv.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
@@ -401,6 +407,9 @@ func countLegacyUserRecords(ctx context.Context, kv jetstream.KeyValue) (int, er
 }
 
 func kvKeyExists(ctx context.Context, kv jetstream.KeyValue, key string) (bool, error) {
+	if kv == nil {
+		return false, nil
+	}
 	_, err := kv.Get(ctx, key)
 	if err == nil {
 		return true, nil
@@ -412,6 +421,9 @@ func kvKeyExists(ctx context.Context, kv jetstream.KeyValue, key string) (bool, 
 }
 
 func countStreamMessages(ctx context.Context, stream jetstream.Stream, filters []string) (int, error) {
+	if stream == nil {
+		return 0, nil
+	}
 	consumer, err := stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    filters,
 		DeliverPolicy:     jetstream.DeliverAllPolicy,

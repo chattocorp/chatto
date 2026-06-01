@@ -61,9 +61,13 @@ func (c *ChattoCore) migrateRBACToES(ctx context.Context) error {
 }
 
 func (c *ChattoCore) buildRBACMigrationEntries(ctx context.Context) ([]events.BatchEntry, int, error) {
-	keys, err := listSortedKeysFromKV(ctx, c.storage.serverRBACKV)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list SERVER_RBAC keys: %w", err)
+	var keys []string
+	if c.storage.serverRBACKV != nil {
+		var err error
+		keys, err = listSortedKeysFromKV(ctx, c.storage.serverRBACKV)
+		if err != nil {
+			return nil, 0, fmt.Errorf("list SERVER_RBAC keys: %w", err)
+		}
 	}
 
 	roles := defaultRBACRoles()

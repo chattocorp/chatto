@@ -1,10 +1,8 @@
 package core
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -26,9 +24,7 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	if !proto.Equal(logo, got) {
 		t.Fatalf("GetServerLogo = %+v, want %+v", got, logo)
 	}
-	if _, err := core.storage.serverKV.Get(ctx, serverLogoKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Fatalf("legacy logo KV key exists or failed unexpectedly: %v", err)
-	}
+	assertLegacyKeyAbsent(t, core.storage.serverKV, serverLogoKey, "legacy logo KV key")
 	cfg, err := core.ConfigManager().GetServerConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetServerConfig after logo failed: %v", err)

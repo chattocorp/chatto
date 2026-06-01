@@ -167,6 +167,9 @@ func (c *ChattoCore) migrateVideoManifestsToES(ctx context.Context) (retErr erro
 }
 
 func (c *ChattoCore) listLegacyVideoStateKeys(ctx context.Context) ([]string, error) {
+	if c.storage.serverRuntimeKV == nil {
+		return nil, nil
+	}
 	lister, err := c.storage.serverRuntimeKV.ListKeys(ctx)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {

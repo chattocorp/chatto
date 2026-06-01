@@ -156,19 +156,23 @@ func MigrateMessagesToES(
 		// Import with body=nil.
 		var body *corev1.MessageBody
 		if bodyKey := posted.GetMessageBodyId(); bodyKey != "" {
-			entry, getErr := serverBodiesKV.Get(ctx, bodyKey)
-			switch {
-			case getErr == nil:
-				var mb corev1.MessageBody
-				if err := proto.Unmarshal(entry.Value(), &mb); err != nil {
-					logger.Warn("messages ES migration: skipping unparseable body", "body_key", bodyKey, "error", err)
-				} else {
-					body = &mb
-				}
-			case errors.Is(getErr, jetstream.ErrKeyNotFound):
+			if serverBodiesKV == nil {
 				bodyMissing++
-			default:
-				logger.Warn("messages ES migration: failed to fetch body", "body_key", bodyKey, "error", getErr)
+			} else {
+				entry, getErr := serverBodiesKV.Get(ctx, bodyKey)
+				switch {
+				case getErr == nil:
+					var mb corev1.MessageBody
+					if err := proto.Unmarshal(entry.Value(), &mb); err != nil {
+						logger.Warn("messages ES migration: skipping unparseable body", "body_key", bodyKey, "error", err)
+					} else {
+						body = &mb
+					}
+				case errors.Is(getErr, jetstream.ErrKeyNotFound):
+					bodyMissing++
+				default:
+					logger.Warn("messages ES migration: failed to fetch body", "body_key", bodyKey, "error", getErr)
+				}
 			}
 		}
 

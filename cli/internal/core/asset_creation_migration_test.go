@@ -12,9 +12,10 @@ import (
 func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+	legacyRuntime := ensureLegacyServerRuntimeKV(t, core)
 
 	_ = core.storage.runtimeStateKV.Delete(ctx, assetCreationESMigrationKey)
-	_ = core.storage.serverRuntimeKV.Delete(ctx, assetCreationESMigrationKey)
+	_ = legacyRuntime.Delete(ctx, assetCreationESMigrationKey)
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Files", "Files room")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
@@ -90,9 +91,10 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 func TestRuntimeMigrationClaim_WaitsForAtomicOwner(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+	legacyRuntime := ensureLegacyServerRuntimeKV(t, core)
 	key := "test.migration.claim"
 	_ = core.storage.runtimeStateKV.Delete(ctx, key)
-	_ = core.storage.serverRuntimeKV.Delete(ctx, key)
+	_ = legacyRuntime.Delete(ctx, key)
 
 	revision, claimed, err := core.claimRuntimeMigration(ctx, key)
 	if err != nil {
@@ -138,11 +140,12 @@ func TestRuntimeMigrationClaim_WaitsForAtomicOwner(t *testing.T) {
 func TestRuntimeMigrationClaim_AdoptsLegacyDoneSentinel(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+	legacyRuntime := ensureLegacyServerRuntimeKV(t, core)
 	key := "test.migration.legacy.done"
 	_ = core.storage.runtimeStateKV.Delete(ctx, key)
-	_ = core.storage.serverRuntimeKV.Delete(ctx, key)
+	_ = legacyRuntime.Delete(ctx, key)
 
-	if _, err := core.storage.serverRuntimeKV.Put(ctx, key, []byte(runtimeMigrationDone)); err != nil {
+	if _, err := legacyRuntime.Put(ctx, key, []byte(runtimeMigrationDone)); err != nil {
 		t.Fatalf("put legacy sentinel: %v", err)
 	}
 

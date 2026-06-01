@@ -155,6 +155,9 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, msg *corev1.Message
 // Returns the number of legacy body entries deleted.
 func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID string, kind RoomKind) (int, error) {
 	bucket := c.storage.serverBodiesKV
+	if bucket == nil {
+		return 0, nil
+	}
 
 	lister, err := bucket.ListKeysFiltered(ctx, userID+".>")
 	if err != nil {

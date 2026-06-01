@@ -15,12 +15,12 @@ paths: ["cli/**"]
 
 ## ⚠️ NATS IS THE PRIMARY DATA STORE — NOT A MESSAGE BUS ⚠️
 
-NATS JetStream KV buckets and event streams hold the source-of-truth state for Chatto. NATS is not "just" a pubsub layer, and it is not an "eventually-consistent cache in front of a real database." There is no other database. Treat NATS reads/writes with the same care you would treat a Postgres transaction.
+NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS is not "just" a pubsub layer, and it is not an "eventually-consistent cache in front of a real database." There is no other database. Treat NATS reads/writes with the same care you would treat a Postgres transaction.
 
 ## Architecture
 
 - `ChattoCore` handles all domain operations (spaces, users, rooms, messages)
-- KV buckets are source of truth; event streams provide audit trail
+- `EVT` is the durable source of truth for event-sourced domain state; `RUNTIME_STATE` holds persisted latest-value runtime state
 - IDs: 14-char NanoID via `helpers.NewID()` (~83.4 bits entropy)
 - When adding streams/KV buckets, update `docs/ARCHITECTURE.md` inventory
 
@@ -37,7 +37,7 @@ NATS JetStream KV buckets and event streams hold the source-of-truth state for C
   3. For new keys, use `kv.Create()` instead (fails if key exists)
   4. Retry on `jetstream.ErrKeyExists` up to a max attempts (e.g., 5 retries)
 - **Subject structure changes are high-risk**: Changes to NATS subject patterns cascade into stream configs, consumer filters, and query logic (e.g., `GetLastMsgForSubject`, `WithSubjectFilter`). They need careful end-to-end verification including e2e tests.
-- **Single unified event stream**: All room events (channels and DMs) live in `SERVER_EVENTS`, created up-front at boot. `getSpaceStream()` returns the same stream regardless of input — the `kind` segment in subjects (`server.room.channel.*` / `server.room.dm.*`) is what disambiguates. The pre-Phase-4 lazy per-space stream cache is gone.
+- **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. Legacy `SERVER_EVENTS` is opened only when present for pre-ES imports and inspection; new runtime writes must not mirror to it.
 
 ## Room Event Query Behavior
 
@@ -58,9 +58,9 @@ Event subscriptions are unified in `StreamMyEvents`, which consumes NATS Core su
 
 `live.evt.>` is not UI-safe by itself. `StreamMyEvents` reads the republished JetStream sequence, waits for the relevant local projections, applies per-user authorization, and only then emits the GraphQL event.
 
-- **Durable legacy events**: For aggregates that have not moved to EVT yet, publish to `server.>` via `publishServerEvent()` / `publishServerEventWithAck()` / `publishServerEventWithOCC()`. `SERVER_EVENTS` is legacy storage/import infrastructure only and does not participate in live delivery.
+- **Durable legacy events**: Do not add new `server.>` publishers. `SERVER_EVENTS` is legacy storage/import infrastructure only and does not participate in live delivery.
 - **Durable EVT events**: For event-sourced aggregates, publish to `evt.>` via `EventPublisher`. JetStream republish automatically wires them into `live.evt.>`; `StreamMyEvents` is responsible for projection catch-up and authorization before GraphQL delivery.
-- **Transient events**: For real-time UI updates where KV/runtime state is source of truth (typing, notification sync, preference sync, user/config notifications). Publish a `corev1.LiveEvent` directly via NATS Core through `publishLiveEvent()` on `live.sync.>`. No stream storage.
+- **Transient events**: For real-time UI updates where latest-value runtime state is authoritative (typing, notification sync, preference sync, user/config notifications). Publish a `corev1.LiveEvent` directly via NATS Core through `publishLiveEvent()` on `live.sync.>`. No stream storage.
 - **Event-sourced room edits/retracts**: Message edits and retractions use the canonical durable `MessageEditedEvent` / `MessageRetractedEvent` shapes. `myEvents` receives them from `live.evt.>` after projection catch-up; do not synthesize legacy `MessageUpdatedEvent` / `MessageDeletedEvent` for new delivery.
 - **Do not publish from projectors**: Projectors run locally in every Chatto replica. Publishing live events from `Projection.Apply` would multiply one committed EVT event by the number of replicas. Use stream `RePublish` for the raw EVT feed and let `StreamMyEvents` handle readiness/auth.
 - **Do not double-publish.** Publishing the same conceptual event via BOTH `EventPublisher` and `publishLiveEvent` will deliver it twice to subscribers if the event is deliverable from `live.evt.>`. Durable facts belong in EVT; transient sync signals belong in LiveEvent.
@@ -88,7 +88,7 @@ Room events (`live.sync.room.{kind}.{roomId}.…` plus deliverable EVT room fact
 2. Add to GraphQL schema in `events.graphqls` (type + `ServerEventType` union)
 3. Add `IsServerEventType()` method in `pb/chatto/core/v1/graphql.go`
 4. Add case in `unwrapEvent()` in `event_helpers.go`
-5. Publish via `EventPublisher` for durable EVT facts, `publishServerEvent` only for remaining legacy storage/import paths, or `publishLiveEvent` for transient LiveEvent signals — choose ONE conceptual delivery path
+5. Publish via `EventPublisher` for durable EVT facts or `publishLiveEvent` for transient LiveEvent signals — choose ONE conceptual delivery path
 6. Subscribe in frontend via `eventBus.svelte.ts` (or a handler registered through `useEvent`)
 
 **When to create a live event:** Any time a user action changes state that other tabs/devices or other UI components need to reflect in real-time. Common triggers:

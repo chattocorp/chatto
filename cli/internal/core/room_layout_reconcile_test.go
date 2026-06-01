@@ -30,11 +30,12 @@ func equalStrings(a, b []string) bool {
 func writeRawLayoutOrder(t *testing.T, core *ChattoCore, groupIDs []string) {
 	t.Helper()
 	ctx := testContext(t)
+	legacyConfig := ensureLegacyServerConfigKV(t, core)
 	data, err := proto.Marshal(&corev1.RoomLayout{GroupIds: groupIDs})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if _, err := core.storage.serverConfigKV.Put(ctx, roomLayoutKey, data); err != nil {
+	if _, err := legacyConfig.Put(ctx, roomLayoutKey, data); err != nil {
 		t.Fatalf("put layout: %v", err)
 	}
 }

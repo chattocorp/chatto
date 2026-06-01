@@ -177,7 +177,7 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 	return user, nil
 }
 
-// rollbackUserCreation undoes the KV writes performed by CreateUser. Best-effort —
+// rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —
 // failures are logged but not returned, since the caller is already in an error path.
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
@@ -195,7 +195,7 @@ func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, 
 	return nil, ErrNotFound
 }
 
-// GetUsers retrieves multiple users by ID from the INSTANCE KV bucket.
+// GetUsers retrieves multiple users by ID from the user projection.
 // Returns users in the same order as userIDs. nil entries indicate not-found users.
 // More efficient than calling GetUser() in a loop for batched operations.
 func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.User, error) {
