@@ -28,7 +28,7 @@ Drop the prefix entirely when there's nothing left to disambiguate against (sing
 | `CreateInstanceRole` → `CreateRole` | `IsInstanceAdmin` → `IsServerAdmin` (parallels `IsRoomAdmin` etc.) |
 | `AssignInstanceRole` → `AssignRole` | `HasInstancePermission` → `HasServerPermission` (parallels `HasSpacePermission`, `HasRoomPermission`) |
 | `RevokeInstanceRole` → `RevokeRole` | `GrantInstancePermission` → `GrantServerPermission` (parallels `GrantRoomPermission`) |
-| `ListInstanceRoles` → `ListRoles` | `InstanceEvent` → `ServerEvent` (parallels `RoomEvent`) |
+| `ListInstanceRoles` → `ListRoles` | `InstanceEvent` → `ServerEvent` (later consolidated into GraphQL `Event`) |
 | `GetInstanceRole` → `GetRole` | `InstanceConfig` → `ServerConfig` (top-level type) |
 | `GetInstanceRolePermissions` → `GetRolePermissions` | |
 | `ReorderInstanceRoles` → `ReorderRoles` | |

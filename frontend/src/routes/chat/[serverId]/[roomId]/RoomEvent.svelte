@@ -5,7 +5,7 @@
   import SystemEvent from './SystemEvent.svelte';
 
   graphql(`
-    fragment RoomEventView on RoomEvent {
+    fragment RoomEventView on Event {
       id
       createdAt
       actorId

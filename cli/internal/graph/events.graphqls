@@ -1,11 +1,12 @@
 """
-RoomEvent wraps all room-scoped events.
+Event wraps all typed Chatto events.
 
-Room events describe activity inside a channel or direct-message room, such as
-messages, edits, reactions, membership changes, typing indicators, and calls.
-Access is scoped to rooms the current user is allowed to see.
+Room queries and server subscriptions are delivery contexts over the same EVT
+envelope. Room-scoped events are returned only when the current user can see
+the affected room; deployment-scoped events are delivered according to their
+audience.
 """
-type RoomEvent {
+type Event {
   "Universal event identifier."
   id: ID!
   "When this event was created."
@@ -15,80 +16,20 @@ type RoomEvent {
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
   "The concrete event data."
-  event: RoomEventType! @goField(forceResolver: true)
+  event: EventType! @goField(forceResolver: true)
   """
   Replies to this event, when it is a thread root message. Returns an empty
   list when this event is not a `MessagePostedEvent` or when the message is
   itself a thread reply (i.e. its `threadRootEventId` is set). Replies are returned in
   chronological order and do not include this root event.
   """
-  threadReplies: [RoomEvent!]! @goField(forceResolver: true)
+  threadReplies: [Event!]! @goField(forceResolver: true)
 }
 
 """
-Union of all room-scoped event types (both persisted and live).
+Union of every typed event payload exposed by GraphQL.
 """
-union RoomEventType =
-  # Room lifecycle
-  | RoomCreatedEvent
-  | RoomUpdatedEvent
-  | RoomDeletedEvent
-  | RoomArchivedEvent
-  | RoomUnarchivedEvent
-  # Room membership
-  | UserJoinedRoomEvent
-  | UserLeftRoomEvent
-  | ServerMemberDeletedEvent
-  # Messages
-  | MessagePostedEvent
-  | MessageEditedEvent
-  | MessageRetractedEvent
-  | MessageUpdatedEvent
-  | MessageDeletedEvent
-  # Reactions
-  | ReactionAddedEvent
-  | ReactionRemovedEvent
-  # Typing indicators
-  | UserTypingEvent
-  # Video processing
-  | VideoProcessingCompletedEvent
-  | AssetProcessingStartedEvent
-  | AssetProcessingSucceededEvent
-  | AssetProcessingFailedEvent
-  | AssetDeletedEvent
-  # Presence
-  | PresenceChangedEvent
-  # Voice calls
-  | CallParticipantJoinedEvent
-  | CallParticipantLeftEvent
-
-"""
-ServerEvent wraps any event delivered through the `myEvents` subscription.
-
-- Room-scoped events (messages, room lifecycle, typing, presence, reactions,
-  video processing, voice calls) are delivered only when the current user can
-  see the affected room.
-- Deployment-scoped events (config changes, notifications, server lifecycle,
-  thread-follow sync, session termination) are delivered according to their
-  audience: everyone, the affected room members, or the target user.
-"""
-type ServerEvent {
-  "Universal event identifier."
-  id: ID!
-  "When this event was created."
-  createdAt: Time!
-  "The ID of the user who triggered this event."
-  actorId: ID!
-  "The user who triggered this event. May be null if user was deleted."
-  actor: User @goField(forceResolver: true)
-  "The concrete event data."
-  event: ServerEventType! @goField(forceResolver: true)
-}
-
-"""
-Union of every event type a subscriber can receive.
-"""
-union ServerEventType =
+union EventType =
   # Room lifecycle
   | RoomCreatedEvent
   | RoomUpdatedEvent
@@ -459,7 +400,7 @@ type ReactionRemovedEvent {
 Event: A user is typing in a room or thread.
 This is a transient event.
 Clients should implement timeout-based clearing (e.g., 6 seconds of inactivity).
-The user who is typing is identified by the parent RoomEvent's actorId/actor.
+The user who is typing is identified by the parent Event's actorId/actor.
 """
 type UserTypingEvent {
   "The ID of the room where the user is typing."
@@ -541,7 +482,7 @@ type AssetDeletedEvent {
 
 """
 Event: A user's presence status changed.
-The user whose presence changed is identified by the parent RoomEvent's actorId/actor.
+The user whose presence changed is identified by the parent Event's actorId/actor.
 Presence is server-wide.
 """
 type PresenceChangedEvent {

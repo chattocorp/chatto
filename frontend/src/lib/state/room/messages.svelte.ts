@@ -8,7 +8,7 @@ import {
   type RoomEventViewFragment
 } from '$lib/gql/graphql';
 import type { FragmentType } from '$lib/gql/fragment-masking';
-import type { ServerEvent } from '$lib/eventBus.svelte';
+import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from './composerContext.svelte';
 
@@ -252,15 +252,12 @@ export abstract class MessageListStore {
    * RoomDeletedEvent, full refetch on ServerMemberDeletedEvent. Delegates
    * MessagePostedEvent and room system events to subclass hooks.
    */
-  ingestServerEvent(serverEvent: ServerEvent): void {
+  ingestServerEvent(serverEvent: EventEnvelope): void {
     const eventData = serverEvent.event;
     if (!eventData) return;
-    // The subscription envelope (ServerEvent) and the historical-query
-    // envelope (RoomEventView) describe identical fields for the room-
-    // event union members the store cares about — the only TypeScript
-    // difference is the wrapper's broader union of event types. Cast
-    // once at the boundary so the downstream code can keep using the
-    // RoomEventViewFragment shape it was written against.
+    // Subscription and historical-query payloads share the same Event
+    // envelope. Cast once at the room boundary so downstream code can keep
+    // using the RoomEventViewFragment shape it renders with.
     const spaceEvent = serverEvent as unknown as RoomEventViewFragment;
 
     if (eventData.__typename === 'ServerMemberDeletedEvent') {
@@ -401,7 +398,7 @@ export abstract class MessageListStore {
    */
   protected applyEdit(
     messageEventId: string,
-    edit: Extract<ServerEvent['event'], { __typename: 'MessageEditedEvent' }>
+    edit: Extract<EventEnvelope['event'], { __typename: 'MessageEditedEvent' }>
   ): void {
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];

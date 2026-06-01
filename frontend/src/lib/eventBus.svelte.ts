@@ -33,7 +33,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
       }
       event {
         __typename
-        # Room events — full RoomEventView coverage for the chat surface.
+        # Room payloads — full RoomEventView coverage for the chat surface.
         ... on MessagePostedEvent {
           roomId
           body
@@ -237,14 +237,13 @@ export const MyServerEventsSubscriptionDoc = graphql(`
   }
 `);
 
-/** Re-export the urql RoomEventView fragment doc — the chat-event handler
- *  needs it to mask subscription payloads when forwarding to the room-history
- *  store, which still types its inputs against RoomEventView. */
+/** Re-export the urql RoomEventView fragment doc so the chat-event handler can
+ *  mask subscription payloads when forwarding to room-history stores. */
 export { RoomEventViewFragmentDoc, useFragment };
 
-export type ServerEvent = MyServerEventsSubscription['myEvents'];
+export type EventEnvelope = MyServerEventsSubscription['myEvents'];
 
-export type EventHandler = (event: ServerEvent) => void;
+export type EventHandler = (event: EventEnvelope) => void;
 
 export interface EventBus {
   handlers: SvelteSet<EventHandler>;
@@ -305,7 +304,7 @@ export function onEvent(handler: EventHandler): () => void {
 function onTypedEvent<T>(
   typename: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  extract: (envelope: ServerEvent, event: any) => T,
+  extract: (envelope: EventEnvelope, event: any) => T,
   handler: (data: T) => void
 ): () => void {
   let getBus: () => EventBus | undefined;
@@ -333,7 +332,7 @@ function onTypedEventDirect<T>(
   bus: EventBus,
   typename: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  extract: (envelope: ServerEvent, event: any) => T,
+  extract: (envelope: EventEnvelope, event: any) => T,
   handler: (data: T) => void
 ): () => void {
   const wrapper: EventHandler = (envelope) => {

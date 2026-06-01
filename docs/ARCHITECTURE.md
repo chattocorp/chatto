@@ -341,7 +341,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 | Room live-only              | NATS Core  | MessageDeleted, MessageUpdated, PresenceChanged, UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/space/config) | NATS Core  | UserCreated, SpaceUpdated, ConfigUpdated, MentionNotification, NotificationCreated | Cross-tab sync, notifications, server lifecycle |
 
-The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). All variants share the single `corev1.Event` envelope; GraphQL exposes them through one `ServerEvent` wrapping union with the typed payloads as members of the `ServerEventType` union.
+The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). All variants share the single `corev1.Event` envelope; GraphQL exposes them through one `Event` envelope with typed payloads as members of the `EventType` union. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:
 
@@ -737,7 +737,7 @@ Messages are persisted as durable `EVT` facts with encrypted message bodies embe
 
 **Message Identifiers:**
 
-- **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for GraphQL `RoomEvent.id`, reactions, thread metadata, message-body lookup, attachments, and projections.
+- **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for GraphQL `Event.id`, reactions, thread metadata, message-body lookup, attachments, and projections.
 - **Payload**: `MessagePostedEvent` is payload-only. It carries room/thread/echo/body fields, but not an event ID or message-body ID alias.
 - **Legacy import**: older `SERVER_EVENTS` records may contain an unknown-field `message_body_id` pointing at the legacy `{userId}.{eventId}` `SERVER_BODIES` key. The ES importer uses that only while copying legacy state into EVT.
 

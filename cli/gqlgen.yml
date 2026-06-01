@@ -181,15 +181,10 @@ models:
   RoomMessageNotificationItem:
     model:
       - hmans.de/chatto/internal/graph/model.RoomMessageNotificationItem
-  # Both GraphQL wrapper types bind to the single proto Event message.
-  # `RoomEvent` is the query-side envelope (RoomEventsConnection,
-  # RoomEventsAroundResult); `ServerEvent` is the subscription-side
-  # envelope. They differ only in which union of event types they
-  # expose — the proto wrapper carries the full superset.
-  RoomEvent:
-    model:
-      - hmans.de/chatto/internal/pb/chatto/core/v1.Event
-  ServerEvent:
+  # The GraphQL event envelope binds to the single proto Event message.
+  # Room queries and server subscriptions differ by delivery context, not by
+  # wrapper shape.
+  Event:
     model:
       - hmans.de/chatto/internal/pb/chatto/core/v1.Event
   # GraphQL types renamed to *Server*; some proto types still carry the

@@ -74,7 +74,7 @@ type Room {
     @goField(forceResolver: true)
 
   "Fetch a single event in this room by event ID. Returns null if not found."
-  event(eventId: ID!): RoomEvent @goField(forceResolver: true)
+  event(eventId: ID!): Event @goField(forceResolver: true)
 
   """
   Fetch events in this room centered around a specific event.

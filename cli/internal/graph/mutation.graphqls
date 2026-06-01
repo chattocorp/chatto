@@ -23,7 +23,7 @@ type Mutation {
   joinGroup(input: JoinGroupInput!): [ID!]!
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
-  postMessage(input: PostMessageInput!): RoomEvent!
+  postMessage(input: PostMessageInput!): Event!
 
   "Update the server's name. Requires server.manage permission."
   updateServer(input: UpdateServerInput!): Server!

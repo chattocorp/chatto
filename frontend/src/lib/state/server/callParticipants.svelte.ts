@@ -67,7 +67,7 @@ export class CallParticipantsState {
 
 	/**
 	 * Optimistically add a participant from a CallParticipantJoinedEvent.
-	 * Uses the actor data from the RoomEvent wrapper.
+	 * Uses the actor data from the Event envelope.
 	 */
 	handleJoin(roomId: string, actor: UserAvatarUserFragment | null): void {
 		if (roomId !== this.currentRoomId) return;
@@ -112,4 +112,3 @@ function toObserverParticipant(p: CallParticipant): ObserverParticipant {
 		avatarUrl: p.avatarUrl ?? null
 	};
 }
-

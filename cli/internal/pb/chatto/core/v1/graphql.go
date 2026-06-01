@@ -1,93 +1,61 @@
 package corev1
 
-// All event types delivered through the unified myServerEvents subscription
-// are exposed as members of the GraphQL ServerEventType union. The marker
-// methods below give gqlgen the required interface check; the union itself
-// is defined in events.graphqls.
+// Event payloads exposed through GraphQL implement the EventType union. The
+// marker methods below give gqlgen the required interface check; the union is
+// defined in events.graphqls.
 //
-// Every variant rides the same proto ServerEvent envelope; whether a given
-// instance is persisted in JetStream or published live to NATS Core is a
-// publisher-side choice, not part of the wrapper type.
+// Every variant rides the same proto Event envelope. Whether a given instance
+// is fetched through room history, delivered through myEvents, persisted in
+// JetStream, or published live to NATS Core is a delivery/storage concern, not
+// part of the GraphQL wrapper shape.
 
-// Room-scoped events. Durable variants reach subscriptions through EVT's
-// live.evt.> republish path; transient variants use LiveEvent on live.sync.>.
+// Room-scoped events.
 
-func (*RoomCreatedEvent) IsServerEventType()              {}
-func (*RoomUpdatedEvent) IsServerEventType()              {}
-func (*RoomDeletedEvent) IsServerEventType()              {}
-func (*RoomArchivedEvent) IsServerEventType()             {}
-func (*RoomUnarchivedEvent) IsServerEventType()           {}
-func (*UserJoinedRoomEvent) IsServerEventType()           {}
-func (*UserLeftRoomEvent) IsServerEventType()             {}
-func (*SpaceMemberDeletedEvent) IsServerEventType()       {}
-func (*MessagePostedEvent) IsServerEventType()            {}
-func (*MessageEditedEvent) IsServerEventType()            {}
-func (*MessageRetractedEvent) IsServerEventType()         {}
-func (*MessageUpdatedEvent) IsServerEventType()           {}
-func (*MessageDeletedEvent) IsServerEventType()           {}
-func (*AssetProcessingStartedEvent) IsServerEventType()   {}
-func (*AssetProcessingSucceededEvent) IsServerEventType() {}
-func (*AssetProcessingFailedEvent) IsServerEventType()    {}
-func (*AssetDeletedEvent) IsServerEventType()             {}
-func (*ReactionAddedEvent) IsServerEventType()            {}
-func (*ReactionRemovedEvent) IsServerEventType()          {}
-func (*UserTypingEvent) IsServerEventType()               {}
-func (*PresenceChangedEvent) IsServerEventType()          {}
-func (*VideoProcessingCompletedEvent) IsServerEventType() {}
-func (*CallParticipantJoinedEvent) IsServerEventType()    {}
-func (*CallParticipantLeftEvent) IsServerEventType()      {}
+func (*RoomCreatedEvent) IsEventType()              {}
+func (*RoomUpdatedEvent) IsEventType()              {}
+func (*RoomDeletedEvent) IsEventType()              {}
+func (*RoomArchivedEvent) IsEventType()             {}
+func (*RoomUnarchivedEvent) IsEventType()           {}
+func (*UserJoinedRoomEvent) IsEventType()           {}
+func (*UserLeftRoomEvent) IsEventType()             {}
+func (*SpaceMemberDeletedEvent) IsEventType()       {}
+func (*MessagePostedEvent) IsEventType()            {}
+func (*MessageEditedEvent) IsEventType()            {}
+func (*MessageRetractedEvent) IsEventType()         {}
+func (*MessageUpdatedEvent) IsEventType()           {}
+func (*MessageDeletedEvent) IsEventType()           {}
+func (*AssetProcessingStartedEvent) IsEventType()   {}
+func (*AssetProcessingSucceededEvent) IsEventType() {}
+func (*AssetProcessingFailedEvent) IsEventType()    {}
+func (*AssetDeletedEvent) IsEventType()             {}
+func (*ReactionAddedEvent) IsEventType()            {}
+func (*ReactionRemovedEvent) IsEventType()          {}
+func (*UserTypingEvent) IsEventType()               {}
+func (*PresenceChangedEvent) IsEventType()          {}
+func (*VideoProcessingCompletedEvent) IsEventType() {}
+func (*CallParticipantJoinedEvent) IsEventType()    {}
+func (*CallParticipantLeftEvent) IsEventType()      {}
 
-// Deployment-scoped transient events ride LiveEvent on live.sync.>.
+// Deployment-scoped events.
 
-func (*ServerConfigUpdatedEvent) IsServerEventType()          {}
-func (*UserCreatedEvent) IsServerEventType()                  {}
-func (*UserDeletedEvent) IsServerEventType()                  {}
-func (*UserProfileUpdatedEvent) IsServerEventType()           {}
-func (*ServerUserPreferencesUpdatedEvent) IsServerEventType() {}
-func (*NotificationLevelChangedEvent) IsServerEventType()     {}
-func (*ThreadFollowChangedEvent) IsServerEventType()          {}
-func (*ServerCreatedEvent) IsServerEventType()                {}
-func (*ServerUpdatedEvent) IsServerEventType()                {}
-func (*ServerDeletedEvent) IsServerEventType()                {}
-func (*MentionNotificationEvent) IsServerEventType()          {}
-func (*NewDirectMessageNotificationEvent) IsServerEventType() {}
-func (*NotificationCreatedEvent) IsServerEventType()          {}
-func (*NotificationDismissedEvent) IsServerEventType()        {}
-func (*RoomMarkedAsReadEvent) IsServerEventType()             {}
-func (*MentionStatusClearedEvent) IsServerEventType()         {}
-func (*RoomGroupsUpdatedEvent) IsServerEventType()            {}
-func (*SessionTerminatedEvent) IsServerEventType()            {}
+func (*ServerConfigUpdatedEvent) IsEventType()          {}
+func (*UserCreatedEvent) IsEventType()                  {}
+func (*UserDeletedEvent) IsEventType()                  {}
+func (*UserProfileUpdatedEvent) IsEventType()           {}
+func (*ServerUserPreferencesUpdatedEvent) IsEventType() {}
+func (*NotificationLevelChangedEvent) IsEventType()     {}
+func (*ThreadFollowChangedEvent) IsEventType()          {}
+func (*ServerUpdatedEvent) IsEventType()                {}
+func (*MentionNotificationEvent) IsEventType()          {}
+func (*NewDirectMessageNotificationEvent) IsEventType() {}
+func (*NotificationCreatedEvent) IsEventType()          {}
+func (*NotificationDismissedEvent) IsEventType()        {}
+func (*RoomMarkedAsReadEvent) IsEventType()             {}
+func (*MentionStatusClearedEvent) IsEventType()         {}
+func (*RoomGroupsUpdatedEvent) IsEventType()            {}
+func (*SessionTerminatedEvent) IsEventType()            {}
 
-// Synthetic, in-process only. Emitted by StreamMyEvents on a 25s ticker
-// purely as a liveness signal for the client-side watchdog.
+// Synthetic, in-process only. Emitted by StreamMyEvents on a 25s ticker purely
+// as a liveness signal for the client-side watchdog.
 
-func (*HeartbeatEvent) IsServerEventType() {}
-
-// Room-event interface markers, retained because RoomEvent (the query-side
-// wrapper) and its RoomEventType union still exist for historical-message
-// fetches. The subscription has consolidated onto ServerEventType above.
-
-func (*RoomCreatedEvent) IsRoomEventType()              {}
-func (*RoomUpdatedEvent) IsRoomEventType()              {}
-func (*RoomDeletedEvent) IsRoomEventType()              {}
-func (*RoomArchivedEvent) IsRoomEventType()             {}
-func (*RoomUnarchivedEvent) IsRoomEventType()           {}
-func (*UserJoinedRoomEvent) IsRoomEventType()           {}
-func (*UserLeftRoomEvent) IsRoomEventType()             {}
-func (*SpaceMemberDeletedEvent) IsRoomEventType()       {}
-func (*MessagePostedEvent) IsRoomEventType()            {}
-func (*MessageEditedEvent) IsRoomEventType()            {}
-func (*MessageRetractedEvent) IsRoomEventType()         {}
-func (*MessageUpdatedEvent) IsRoomEventType()           {}
-func (*MessageDeletedEvent) IsRoomEventType()           {}
-func (*AssetProcessingStartedEvent) IsRoomEventType()   {}
-func (*AssetProcessingSucceededEvent) IsRoomEventType() {}
-func (*AssetProcessingFailedEvent) IsRoomEventType()    {}
-func (*AssetDeletedEvent) IsRoomEventType()             {}
-func (*ReactionAddedEvent) IsRoomEventType()            {}
-func (*ReactionRemovedEvent) IsRoomEventType()          {}
-func (*UserTypingEvent) IsRoomEventType()               {}
-func (*PresenceChangedEvent) IsRoomEventType()          {}
-func (*VideoProcessingCompletedEvent) IsRoomEventType() {}
-func (*CallParticipantJoinedEvent) IsRoomEventType()    {}
-func (*CallParticipantLeftEvent) IsRoomEventType()      {}
+func (*HeartbeatEvent) IsEventType() {}

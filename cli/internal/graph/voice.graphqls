@@ -46,7 +46,7 @@ extend type Query {
 
 """
 Event: A user joined a voice call in a room.
-The user who joined is identified by the parent RoomEvent's actorId/actor.
+The user who joined is identified by the parent Event's actorId/actor.
 """
 type CallParticipantJoinedEvent {
   "The ID of the room where the call is happening."
@@ -55,7 +55,7 @@ type CallParticipantJoinedEvent {
 
 """
 Event: A user left a voice call in a room.
-The user who left is identified by the parent RoomEvent's actorId/actor.
+The user who left is identified by the parent Event's actorId/actor.
 """
 type CallParticipantLeftEvent {
   "The ID of the room where the call was happening."

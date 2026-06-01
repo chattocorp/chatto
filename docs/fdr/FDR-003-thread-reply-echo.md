@@ -24,7 +24,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 
 ### 1. Echo links by event identity, not payload aliases
 
-**Decision:** The echo and the original thread reply are two different EVT envelopes. The echo carries `echoOfEventId`, which points at the original reply envelope. The message identity itself lives on the envelope (`RoomEvent.id` / `Event.id`), not inside the `MessagePostedEvent` payload.
+**Decision:** The echo and the original thread reply are two different EVT envelopes. The echo carries `echoOfEventId`, which points at the original reply envelope. The message identity itself lives on the envelope (`Event.id`), not inside the `MessagePostedEvent` payload.
 **Why:** GraphQL and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
 **Tradeoff:** Read models have to keep the echo link when applying edit/delete state. Reactions remain naturally independent because they already key on the envelope event ID.
 

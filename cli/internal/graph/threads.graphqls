@@ -13,7 +13,7 @@ type FollowedThread {
   threadRootEventId: ID!
 
   "The root message of the thread (for preview text)."
-  rootMessage: RoomEvent @goField(forceResolver: true)
+  rootMessage: Event @goField(forceResolver: true)
 
   "Number of replies in this thread."
   replyCount: Int!

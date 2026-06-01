@@ -216,13 +216,9 @@ func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) st
 	}
 }
 
-// unwrapEventAs unwraps a proto Event and asserts the payload to the
-// requested GraphQL union interface (model.RoomEventType or
-// model.ServerEventType). Returns a typed error for nil payloads and
-// for variants that don't belong to the requested union — the latter
-// is normal at the room-history boundary, where deployment-event
-// variants in the proto can't appear in stored room history but the
-// type system requires the assertion anyway.
+// unwrapEventAs unwraps a proto Event and asserts the payload to the requested
+// GraphQL union interface (model.EventType). Returns a typed error for nil or
+// unknown payloads.
 func unwrapEventAs[T any](event *corev1.Event, unionName string) (T, error) {
 	var zero T
 	unwrapped := unwrapEvent(event)

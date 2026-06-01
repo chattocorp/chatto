@@ -14,20 +14,15 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// Union of every typed event payload exposed by GraphQL.
+type EventType interface {
+	IsEventType()
+}
+
 // Union of all notification types.
 // Clients should check __typename to determine the notification type.
 type NotificationItem interface {
 	IsNotificationItem()
-}
-
-// Union of all room-scoped event types (both persisted and live).
-type RoomEventType interface {
-	IsRoomEventType()
-}
-
-// Union of every event type a subscriber can receive.
-type ServerEventType interface {
-	IsServerEventType()
 }
 
 // JetStream account limits and usage.

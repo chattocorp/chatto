@@ -8,5 +8,4 @@ type MessagePostedEvent struct {
 	RoomID   string
 }
 
-func (*MessagePostedEvent) IsRoomEventType()   {}
-func (*MessagePostedEvent) IsServerEventType() {}
+func (*MessagePostedEvent) IsEventType() {}

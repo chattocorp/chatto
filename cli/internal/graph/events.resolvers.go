@@ -194,6 +194,53 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return nil, nil
 }
 
+// Actor is the resolver for the actor field.
+func (r *eventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
+	return r.resolveEventActor(ctx, obj)
+}
+
+// Event is the resolver for the event field.
+func (r *eventResolver) Event(ctx context.Context, obj *corev1.Event) (model.EventType, error) {
+	return unwrapEventAs[model.EventType](obj, "EventType")
+}
+
+// ThreadReplies is the resolver for the threadReplies field.
+// Only message events that are themselves thread roots have replies; all
+// other event types (or thread replies) resolve to an empty list. Excludes
+// the root event itself — the caller already has it.
+func (r *eventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event) ([]*corev1.Event, error) {
+	msg := obj.GetMessagePosted()
+	if msg == nil || msg.InThread != "" {
+		return []*corev1.Event{}, nil
+	}
+
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind, err := r.core.FindRoomKind(ctx, msg.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, msg.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	events, err := r.core.GetThreadEvents(ctx, kind, msg.RoomId, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	// GetThreadEvents returns [root, ...replies]; drop the root.
+	if len(events) > 0 {
+		return events[1:], nil
+	}
+	return events, nil
+}
+
 // Alive is the resolver for the alive field. Always true — clients only
 // need the event's arrival, not its contents.
 func (r *heartbeatEventResolver) Alive(ctx context.Context, obj *corev1.HeartbeatEvent) (bool, error) {
@@ -628,68 +675,10 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 	return model.PresenceStatus(obj.Status), nil
 }
 
-// Actor is the resolver for the actor field.
-func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
-	return r.resolveEventActor(ctx, obj)
-}
-
-// Event is the resolver for the event field.
-func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.RoomEventType, error) {
-	return unwrapEventAs[model.RoomEventType](obj, "RoomEventType")
-}
-
-// ThreadReplies is the resolver for the threadReplies field.
-// Only message events that are themselves thread roots have replies; all
-// other event types (or thread replies) resolve to an empty list. Excludes
-// the root event itself — the caller already has it.
-func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event) ([]*corev1.Event, error) {
-	msg := obj.GetMessagePosted()
-	if msg == nil || msg.InThread != "" {
-		return []*corev1.Event{}, nil
-	}
-
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	kind, err := r.core.FindRoomKind(ctx, msg.RoomId)
-	if err != nil {
-		return nil, err
-	}
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, msg.RoomId)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotRoomMember
-	}
-
-	events, err := r.core.GetThreadEvents(ctx, kind, msg.RoomId, obj.Id)
-	if err != nil {
-		return nil, err
-	}
-	// GetThreadEvents returns [root, ...replies]; drop the root.
-	if len(events) > 0 {
-		return events[1:], nil
-	}
-	return events, nil
-}
-
 // Changed is the resolver for the changed field. Vestigial — the event's
 // arrival is the signal; clients refetch Server.roomGroups.
 func (r *roomGroupsUpdatedEventResolver) Changed(ctx context.Context, obj *corev1.RoomGroupsUpdatedEvent) (bool, error) {
 	return true, nil
-}
-
-// Actor is the resolver for the actor field.
-func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
-	return r.resolveEventActor(ctx, obj)
-}
-
-// Event is the resolver for the event field. Unwraps the proto oneof to
-// the concrete event type so gqlgen's union dispatcher can serialise it.
-func (r *serverEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.ServerEventType, error) {
-	return unwrapEventAs[model.ServerEventType](obj, "ServerEventType")
 }
 
 // TimeFormat is the resolver for the timeFormat field.
@@ -761,6 +750,9 @@ func (r *Resolver) AssetProcessingSucceededEvent() AssetProcessingSucceededEvent
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
 
+// Event returns EventResolver implementation.
+func (r *Resolver) Event() EventResolver { return &eventResolver{r} }
+
 // HeartbeatEvent returns HeartbeatEventResolver implementation.
 func (r *Resolver) HeartbeatEvent() HeartbeatEventResolver { return &heartbeatEventResolver{r} }
 
@@ -809,16 +801,10 @@ func (r *Resolver) PresenceChangedEvent() PresenceChangedEventResolver {
 	return &presenceChangedEventResolver{r}
 }
 
-// RoomEvent returns RoomEventResolver implementation.
-func (r *Resolver) RoomEvent() RoomEventResolver { return &roomEventResolver{r} }
-
 // RoomGroupsUpdatedEvent returns RoomGroupsUpdatedEventResolver implementation.
 func (r *Resolver) RoomGroupsUpdatedEvent() RoomGroupsUpdatedEventResolver {
 	return &roomGroupsUpdatedEventResolver{r}
 }
-
-// ServerEvent returns ServerEventResolver implementation.
-func (r *Resolver) ServerEvent() ServerEventResolver { return &serverEventResolver{r} }
 
 // ServerUserPreferencesUpdatedEvent returns ServerUserPreferencesUpdatedEventResolver implementation.
 func (r *Resolver) ServerUserPreferencesUpdatedEvent() ServerUserPreferencesUpdatedEventResolver {
@@ -841,6 +827,7 @@ type assetProcessingFailedEventResolver struct{ *Resolver }
 type assetProcessingStartedEventResolver struct{ *Resolver }
 type assetProcessingSucceededEventResolver struct{ *Resolver }
 type attachmentResolver struct{ *Resolver }
+type eventResolver struct{ *Resolver }
 type heartbeatEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
 type messageDeletedEventResolver struct{ *Resolver }
@@ -851,9 +838,7 @@ type messageUpdatedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
-type roomEventResolver struct{ *Resolver }
 type roomGroupsUpdatedEventResolver struct{ *Resolver }
-type serverEventResolver struct{ *Resolver }
 type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
 type videoProcessingCompletedEventResolver struct{ *Resolver }
