@@ -266,7 +266,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 ## Video Processing
 
 <EnvVar name="CHATTO_VIDEO_ENABLED" toml="video.enabled" default="false">
-  Enable server-side video processing. When enabled, uploaded videos are transcoded into multiple quality variants for adaptive playback. Requires `ffmpeg` and `ffprobe` to be available on the server.
+  Enable server-side video processing and video uploads. When enabled, uploaded videos are transcoded into multiple quality variants for adaptive playback. Requires `ffmpeg` and `ffprobe` to be available on the server.
 </EnvVar>
 
 <EnvVar name="CHATTO_VIDEO_FFMPEG_PATH" toml="video.ffmpeg_path">

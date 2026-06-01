@@ -1,19 +1,20 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-05-27
+**Last reviewed:** 2026-06-01
 
 ## Overview
 
-Users can attach files to messages — images, videos, documents — via drag-and-drop, paste, or file picker. Images are dimensioned and resizable on the fly via signed URLs. Videos and animated GIFs are transcoded into web-friendly quality variants.
+Users can attach files to messages — images, videos, documents — via drag-and-drop, paste, or file picker. Images are dimensioned and resizable on the fly via signed URLs. When video processing is enabled, videos and animated GIFs are transcoded into web-friendly quality variants.
 
 ## Behavior
 
 - The composer accepts files via drag-and-drop, paste, and a file picker button.
 - Draft attachments persist across room switches inside the same session.
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
+- Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the GraphQL mutation rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode).
-- Videos and animated GIFs are processed by the current server process after asset creation and message submission scheduling. This is best-effort and intentionally simple until a real durable worker queue exists.
+- When enabled, videos and animated GIFs are processed by the current server process after asset creation and message submission scheduling. This is best-effort and intentionally simple until a real durable worker queue exists.
 - Processing status: durable COMPLETED / FAILED outcomes are stored as room events. There is no new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
 - A thumbnail is generated from an early video frame.
 - Resized images can be cached as WebP with an auto-expiring cache.
@@ -34,7 +35,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 3. Animated GIFs go through the video pipeline
 
-**Decision:** Animated GIFs are detected at upload and routed to the video transcoder rather than served as raw images.
+**Decision:** When video processing is enabled, animated GIFs are detected at upload and routed to the video transcoder rather than served as raw images. When video processing is disabled, GIFs remain allowed as image uploads.
 **Why:** Animated GIF files are typically much larger than equivalent MP4s, and they're inefficient to decode in browsers. Transcoding to MP4 produces smaller, smoother playback.
 **Tradeoff:** A static thumbnail is shown until processing finishes, even for GIFs that would have rendered immediately as-is. Worth it for the playback experience and bandwidth savings.
 

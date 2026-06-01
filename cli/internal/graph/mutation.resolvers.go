@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -227,6 +228,10 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
 	if input.Attachments != nil {
 		for _, upload := range input.Attachments {
+			if strings.HasPrefix(upload.ContentType, "video/") && !r.videoConfig.Enabled {
+				return nil, fmt.Errorf("video uploads are disabled on this server")
+			}
+
 			var reader io.Reader = upload.File
 
 			// Detect animated GIFs: buffer the file to check frame count,

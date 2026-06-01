@@ -1,9 +1,12 @@
 package graph
 
 import (
+	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
+	"github.com/99designs/gqlgen/graphql"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -155,6 +158,92 @@ func TestPostMessage_Authorization(t *testing.T) {
 			t.Fatal("expected event, got nil")
 		}
 	})
+}
+
+func TestPostMessage_VideoUploadsDisabled(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	before, err := env.core.GetAssetCount(env.ctx)
+	if err != nil {
+		t.Fatalf("GetAssetCount before post: %v", err)
+	}
+
+	_, err = mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Attachments: []*graphql.Upload{{
+			File:        bytes.NewReader([]byte("not a real video, but enough to reject by MIME type")),
+			Filename:    "clip.mp4",
+			Size:        48,
+			ContentType: "video/mp4",
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "video uploads are disabled") {
+		t.Fatalf("PostMessage video while disabled error = %v, want disabled-video error", err)
+	}
+
+	after, err := env.core.GetAssetCount(env.ctx)
+	if err != nil {
+		t.Fatalf("GetAssetCount after post: %v", err)
+	}
+	if after != before {
+		t.Fatalf("asset count after rejected video = %d, want unchanged %d", after, before)
+	}
+}
+
+func TestPostMessage_AllowsNonVideoUploadsWhenVideoProcessingDisabled(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	tests := []struct {
+		name        string
+		filename    string
+		contentType string
+		data        []byte
+	}{
+		{
+			name:        "animated gif stays allowed as image upload",
+			filename:    "tiny.gif",
+			contentType: "image/gif",
+			data: []byte{
+				'G', 'I', 'F', '8', '9', 'a', 1, 0, 1, 0, 0x80, 0, 0,
+				0, 0, 0, 0xff, 0xff, 0xff, 0x2c, 0, 0, 0, 0, 1, 0, 1, 0,
+				0, 2, 2, 0x44, 1, 0, 0x3b,
+			},
+		},
+		{
+			name:        "audio",
+			filename:    "tone.mp3",
+			contentType: "audio/mpeg",
+			data:        []byte("audio bytes"),
+		},
+		{
+			name:        "generic file",
+			filename:    "notes.txt",
+			contentType: "text/plain",
+			data:        []byte("hello"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+				RoomID: env.testRoom.Id,
+				Attachments: []*graphql.Upload{{
+					File:        bytes.NewReader(tt.data),
+					Filename:    tt.filename,
+					Size:        int64(len(tt.data)),
+					ContentType: tt.contentType,
+				}},
+			})
+			if err != nil {
+				t.Fatalf("PostMessage returned error: %v", err)
+			}
+			if event == nil {
+				t.Fatal("PostMessage returned nil event")
+			}
+		})
+	}
 }
 
 // ============================================================================

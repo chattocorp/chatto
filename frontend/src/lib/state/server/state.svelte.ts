@@ -20,6 +20,7 @@ export class ServerInfoState {
   pushNotificationsEnabled = $state(false);
   vapidPublicKey = $state<string | null>(null);
   livekitUrl = $state<string | null>(null);
+  videoProcessingEnabled = $state(false);
   maxUploadSize = $state(25 * 1024 * 1024); // default 25 MB
   maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
   messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten from GetServerInfo
@@ -64,6 +65,7 @@ export class ServerInfoState {
               pushNotificationsEnabled
               vapidPublicKey
               livekitUrl
+              videoProcessingEnabled
               maxUploadSize
               maxVideoUploadSize
               messageEditWindowSeconds
@@ -106,6 +108,7 @@ export class ServerInfoState {
         this.pushNotificationsEnabled = resp.data.server.pushNotificationsEnabled;
         this.vapidPublicKey = resp.data.server.vapidPublicKey ?? null;
         this.livekitUrl = resp.data.server.livekitUrl ?? null;
+        this.videoProcessingEnabled = resp.data.server.videoProcessingEnabled;
         this.maxUploadSize = resp.data.server.maxUploadSize;
         this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
         this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;

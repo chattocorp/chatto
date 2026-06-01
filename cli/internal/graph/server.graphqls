@@ -48,6 +48,9 @@ type Server {
   "True if direct (email/password) registration is enabled on this server."
   directRegistrationEnabled: Boolean! @goField(forceResolver: true)
 
+  "True if server-side video processing is enabled, allowing video attachments to be uploaded."
+  videoProcessingEnabled: Boolean! @goField(forceResolver: true)
+
   "Maximum upload size for regular attachments (images, files) in bytes."
   maxUploadSize: Int! @goField(forceResolver: true)
 

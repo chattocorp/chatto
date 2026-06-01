@@ -827,6 +827,8 @@ type Server struct {
 	LivekitURL *string `json:"livekitUrl,omitempty"`
 	// True if direct (email/password) registration is enabled on this server.
 	DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
+	// True if server-side video processing is enabled, allowing video attachments to be uploaded.
+	VideoProcessingEnabled bool `json:"videoProcessingEnabled"`
 	// Maximum upload size for regular attachments (images, files) in bytes.
 	MaxUploadSize int32 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.

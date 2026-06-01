@@ -3,12 +3,18 @@ import { render } from 'vitest-browser-svelte';
 import { Client } from '@urql/svelte';
 import MessageComposer from './MessageComposer.svelte';
 import { createMockConnection, createMockGraphqlClient, q } from '$lib/test-utils';
+import { getToasts, toast } from '$lib/ui/toast';
 
 const mutationData = { postMessage: { id: 'msg_123' } };
 
 // Mock instance state
 const mockInstanceStores = {
   currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+  serverInfo: {
+    videoProcessingEnabled: false,
+    maxUploadSize: 25 * 1024 * 1024,
+    maxVideoUploadSize: 25 * 1024 * 1024
+  },
   instance: {
     maxUploadSize: 25 * 1024 * 1024,
     maxVideoUploadSize: 25 * 1024 * 1024
@@ -57,7 +63,22 @@ function renderMessageComposer(
   props: { roomId: string },
   context: Map<string, unknown>
 ) {
-  return render(MessageComposer, { props, context });
+  return render(MessageComposer, {
+    props: { ...props, roomId: `${props.roomId}-${renderId++}` },
+    context
+  });
+}
+
+let renderId = 0;
+
+function selectFiles(input: HTMLInputElement, files: File[]) {
+  Object.defineProperty(input, 'files', {
+    value: Object.assign(files, {
+      item: (index: number) => files[index] ?? null
+    }),
+    configurable: true
+  });
+  input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 describe('MessageComposer', () => {
@@ -65,6 +86,16 @@ describe('MessageComposer', () => {
 
   beforeEach(() => {
     mockClient = createMockGraphqlClient({ mutationData });
+    mockInstanceStores.serverInfo.videoProcessingEnabled = false;
+    toast.clear();
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: vi.fn(() => 'blob:test'),
+      configurable: true
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      value: vi.fn(),
+      configurable: true
+    });
     vi.clearAllMocks();
   });
 
@@ -112,7 +143,19 @@ describe('MessageComposer', () => {
   });
 
   describe('file input configuration', () => {
-    it('accepts image, video, and audio files', async () => {
+    it('accepts image and audio files when video processing is disabled', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+
+      await expect
+        .element(q(container, 'input[type="file"]'))
+        .toHaveAttribute('accept', 'image/*,audio/*');
+    });
+
+    it('accepts image, video, and audio files when video processing is enabled', async () => {
+      mockInstanceStores.serverInfo.videoProcessingEnabled = true;
       const { container } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -130,6 +173,36 @@ describe('MessageComposer', () => {
       );
 
       await expect.element(q(container, 'input[type="file"]')).toHaveAttribute('multiple');
+    });
+
+    it('rejects selected video files when video processing is disabled', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [new File(['video'], 'clip.mp4', { type: 'video/mp4' })]);
+
+      expect(getToasts().map((t) => t.message)).toContain(
+        'Video uploads are disabled on this server.'
+      );
+      expect(q(container, '[data-testid="video-attachment-preview"]')).toBeNull();
+    });
+
+    it('stages selected video files when video processing is enabled', async () => {
+      mockInstanceStores.serverInfo.videoProcessingEnabled = true;
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [new File(['video'], 'clip.mp4', { type: 'video/mp4' })]);
+
+      await expect
+        .poll(() => q(container, '[data-testid="video-attachment-preview"]'))
+        .toBeTruthy();
     });
   });
 

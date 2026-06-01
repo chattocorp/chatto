@@ -45,6 +45,7 @@ describe('ServerInfoState.init()', () => {
           pushNotificationsEnabled: true,
           vapidPublicKey: 'vap',
           livekitUrl: 'wss://lk',
+          videoProcessingEnabled: true,
           maxUploadSize: 100,
           maxVideoUploadSize: 200,
           messageEditWindowSeconds: 7200,
@@ -66,6 +67,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
+    expect(state.videoProcessingEnabled).toBe(true);
     expect(state.messageEditWindowSeconds).toBe(7200);
     expect(consoleError).not.toHaveBeenCalled();
   });

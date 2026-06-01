@@ -934,7 +934,9 @@ export class RoomPage {
       '.ogg': 'audio/ogg',
       '.m4a': 'audio/mp4',
       '.flac': 'audio/flac',
-      '.webm': 'audio/webm'
+      '.webm': 'audio/webm',
+      '.mp4': 'video/mp4',
+      '.mov': 'video/quicktime'
     };
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
 

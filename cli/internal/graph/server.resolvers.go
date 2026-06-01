@@ -55,6 +55,11 @@ func (r *serverResolver) DirectRegistrationEnabled(ctx context.Context, obj *mod
 	return r.authConfig.DirectRegistrationOrDefault(), nil
 }
 
+// VideoProcessingEnabled is the resolver for the videoProcessingEnabled field.
+func (r *serverResolver) VideoProcessingEnabled(ctx context.Context, obj *model.Server) (bool, error) {
+	return r.videoConfig.Enabled, nil
+}
+
 // MaxUploadSize is the resolver for the maxUploadSize field.
 func (r *serverResolver) MaxUploadSize(ctx context.Context, obj *model.Server) (int32, error) {
 	cfg := r.core.AssetsConfig()
