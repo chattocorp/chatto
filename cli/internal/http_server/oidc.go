@@ -326,7 +326,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		}
 
 		// Append bearer token for cross-origin clients
-		if bearerToken, err := s.core.CreateAuthToken(ctx, user.Id); err == nil {
+		if bearerToken, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "oidc_login"); err == nil {
 			separator := "?"
 			if strings.Contains(redirectURL, "?") {
 				separator = "&"

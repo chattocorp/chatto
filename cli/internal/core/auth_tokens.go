@@ -52,19 +52,32 @@ func (c *ChattoCore) authTokenKey(token string) string {
 // The token is stored in RUNTIME_STATE and can be used for API authentication.
 // Token expiry is handled by NATS KV TTL.
 func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string, error) {
+	return c.CreateAuthTokenWithSource(ctx, userID, "unknown")
+}
+
+// CreateAuthTokenWithSource creates a new opaque bearer token and records the
+// security-safe issuance fact in EVT. The raw token remains only in the return
+// value and the HMAC-derived RUNTIME_STATE key.
+func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, source string) (string, error) {
 	token := NewAuthToken()
+	createdAt := time.Now()
+	key := c.authTokenKey(token)
 
 	data, err := json.Marshal(AuthTokenData{
 		UserID:    userID,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth token: %w", err)
 	}
 
-	_, err = c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), data, jetstream.KeyTTL(c.authTokenTTL()))
+	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(c.authTokenTTL()))
 	if err != nil {
 		return "", fmt.Errorf("failed to store auth token: %w", err)
+	}
+	if err := c.recordBearerTokenIssued(ctx, userID, createdAt, source); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", err
 	}
 
 	return token, nil
@@ -101,9 +114,37 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 // RevokeAuthToken deletes a bearer token, immediately invalidating it.
 // This is idempotent — revoking a non-existent token is not an error.
 func (c *ChattoCore) RevokeAuthToken(ctx context.Context, token string) error {
-	err := c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(token))
+	return c.RevokeAuthTokenWithReason(ctx, token, "explicit")
+}
+
+// RevokeAuthTokenWithReason deletes a bearer token and records the revocation
+// audit fact when the token existed and could be associated with a user.
+func (c *ChattoCore) RevokeAuthTokenWithReason(ctx context.Context, token, reason string) error {
+	key := c.authTokenKey(token)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to get auth token for revocation: %w", err)
+	}
+
+	var tokenData AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
+		if deleteErr := c.storage.runtimeStateKV.Delete(ctx, key); deleteErr != nil && !errors.Is(deleteErr, jetstream.ErrKeyNotFound) {
+			return fmt.Errorf("failed to revoke malformed auth token after unmarshal error %v: %w", err, deleteErr)
+		}
+		return fmt.Errorf("failed to unmarshal auth token for revocation: %w", err)
+	}
+
+	err = c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to revoke auth token: %w", err)
+	}
+	if tokenData.UserID != "" {
+		if err := c.recordBearerTokenRevoked(ctx, tokenData.UserID, reason); err != nil {
+			return err
+		}
 	}
 	return nil
 }

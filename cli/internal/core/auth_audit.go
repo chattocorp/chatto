@@ -63,6 +63,28 @@ func auditIdentifierHash(identifier string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func auditValueHash(value string) string {
+	normalized := strings.TrimSpace(value)
+	sum := sha256.Sum256([]byte(normalized))
+	return hex.EncodeToString(sum[:])
+}
+
+func auditTokenSource(source string) string {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return "unknown"
+	}
+	return source
+}
+
+func auditFailureReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "unspecified"
+	}
+	return reason
+}
+
 func (c *ChattoCore) appendAuthAuditEvent(ctx context.Context, aggregate events.Aggregate, event *corev1.Event) error {
 	if c.EventPublisher == nil {
 		return errors.New("event publisher is not configured")
@@ -180,6 +202,79 @@ func (c *ChattoCore) RecordLogoutSucceeded(ctx context.Context, userID string) e
 	}})
 	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append logout audit event: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) recordAuthCodeIssued(ctx context.Context, userID, redirectURI string, createdAt time.Time) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AuthCodeIssued{
+		AuthCodeIssued: &corev1.AuthCodeIssuedEvent{
+			UserId:          userID,
+			RedirectUriHash: auditValueHash(redirectURI),
+			ExpiresAt:       tokenExpiresAt(createdAt, authCodeTTL),
+			Request:         auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append auth code issuance audit event: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) recordAuthCodeExchangeSucceeded(ctx context.Context, userID, redirectURI string) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AuthCodeExchangeSucceeded{
+		AuthCodeExchangeSucceeded: &corev1.AuthCodeExchangeSucceededEvent{
+			UserId:          userID,
+			RedirectUriHash: auditValueHash(redirectURI),
+			Request:         auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append auth code exchange success audit event: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) recordAuthCodeExchangeFailed(ctx context.Context, userID, redirectURI, reason string) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AuthCodeExchangeFailed{
+		AuthCodeExchangeFailed: &corev1.AuthCodeExchangeFailedEvent{
+			UserId:          userID,
+			RedirectUriHash: auditValueHash(redirectURI),
+			Reason:          auditFailureReason(reason),
+			Request:         auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append auth code exchange failure audit event: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) recordBearerTokenIssued(ctx context.Context, userID string, createdAt time.Time, source string) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_BearerTokenIssued{
+		BearerTokenIssued: &corev1.BearerTokenIssuedEvent{
+			UserId:    userID,
+			ExpiresAt: tokenExpiresAt(createdAt, c.authTokenTTL()),
+			Source:    auditTokenSource(source),
+			Request:   auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append bearer token issuance audit event: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) recordBearerTokenRevoked(ctx context.Context, userID, reason string) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_BearerTokenRevoked{
+		BearerTokenRevoked: &corev1.BearerTokenRevokedEvent{
+			UserId:  userID,
+			Reason:  auditFailureReason(reason),
+			Request: auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append bearer token revocation audit event: %w", err)
 	}
 	return nil
 }

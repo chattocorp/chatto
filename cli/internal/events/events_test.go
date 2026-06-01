@@ -795,6 +795,51 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			},
 			want: EventLogoutSucceeded,
 		},
+		{
+			name: "AuthCodeIssued",
+			event: &corev1.Event{
+				Event: &corev1.Event_AuthCodeIssued{
+					AuthCodeIssued: &corev1.AuthCodeIssuedEvent{UserId: "U1", RedirectUriHash: "hash"},
+				},
+			},
+			want: EventAuthCodeIssued,
+		},
+		{
+			name: "AuthCodeExchangeSucceeded",
+			event: &corev1.Event{
+				Event: &corev1.Event_AuthCodeExchangeSucceeded{
+					AuthCodeExchangeSucceeded: &corev1.AuthCodeExchangeSucceededEvent{UserId: "U1", RedirectUriHash: "hash"},
+				},
+			},
+			want: EventAuthCodeExchangeSucceeded,
+		},
+		{
+			name: "AuthCodeExchangeFailed",
+			event: &corev1.Event{
+				Event: &corev1.Event_AuthCodeExchangeFailed{
+					AuthCodeExchangeFailed: &corev1.AuthCodeExchangeFailedEvent{UserId: "U1", RedirectUriHash: "hash", Reason: "invalid_verifier"},
+				},
+			},
+			want: EventAuthCodeExchangeFailed,
+		},
+		{
+			name: "BearerTokenIssued",
+			event: &corev1.Event{
+				Event: &corev1.Event_BearerTokenIssued{
+					BearerTokenIssued: &corev1.BearerTokenIssuedEvent{UserId: "U1", Source: "password_login"},
+				},
+			},
+			want: EventBearerTokenIssued,
+		},
+		{
+			name: "BearerTokenRevoked",
+			event: &corev1.Event{
+				Event: &corev1.Event_BearerTokenRevoked{
+					BearerTokenRevoked: &corev1.BearerTokenRevokedEvent{UserId: "U1", Reason: "logout"},
+				},
+			},
+			want: EventBearerTokenRevoked,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -813,7 +858,12 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				c.want == EventAccountDeletionConfirmationIssued ||
 				c.want == EventPasswordResetCompleted ||
 				c.want == EventLoginSucceeded ||
-				c.want == EventLogoutSucceeded {
+				c.want == EventLogoutSucceeded ||
+				c.want == EventAuthCodeIssued ||
+				c.want == EventAuthCodeExchangeSucceeded ||
+				c.want == EventAuthCodeExchangeFailed ||
+				c.want == EventBearerTokenIssued ||
+				c.want == EventBearerTokenRevoked {
 				agg = UserAggregate("U1")
 			}
 			if c.want == EventLoginFailed {

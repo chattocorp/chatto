@@ -13,14 +13,18 @@ import (
 
 // Session keys for the OAuth authorize flow.
 const (
-	sessionKeyOAuthRedirectURI  = "oauth_redirect_uri"
+	sessionKeyOAuthRedirectURI   = "oauth_redirect_uri"
 	sessionKeyOAuthCodeChallenge = "oauth_code_challenge"
-	sessionKeyOAuthCodeMethod   = "oauth_code_method"
-	sessionKeyOAuthState        = "oauth_state"
+	sessionKeyOAuthCodeMethod    = "oauth_code_method"
+	sessionKeyOAuthState         = "oauth_state"
 )
 
 func (s *HTTPServer) setupOAuthRoutes() {
 	oauth := s.router.Group("/oauth")
+	oauth.Use(func(c *gin.Context) {
+		s.requestContextWithAuditMetadata(c)
+		c.Next()
+	})
 
 	// GET /oauth/authorize — OAuth 2.0 Authorization endpoint.
 	// Validates parameters, stores them in the session, then redirects to the

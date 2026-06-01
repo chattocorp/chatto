@@ -59,3 +59,36 @@ message LogoutSucceededEvent {
   string user_id = 1;
   AuditRequestMetadata request = 2;
 }
+
+message AuthCodeIssuedEvent {
+  string user_id = 1;
+  string redirect_uri_hash = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message AuthCodeExchangeSucceededEvent {
+  string user_id = 1;
+  string redirect_uri_hash = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message AuthCodeExchangeFailedEvent {
+  string user_id = 1;
+  string redirect_uri_hash = 2;
+  string reason = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message BearerTokenIssuedEvent {
+  string user_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  string source = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message BearerTokenRevokedEvent {
+  string user_id = 1;
+  string reason = 2;
+  AuditRequestMetadata request = 3;
+}

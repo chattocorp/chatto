@@ -41,6 +41,8 @@ Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing
 - Created on login, registration, bootstrap, and OAuth callback
 - Validated by looking up the HMAC-derived `session.{hmac}` key in `RUNTIME_STATE` and reading the stored user ID
 - Revoked by deleting the key (idempotent)
+
+Issuance and explicit revocation append safe audit facts to `EVT` with source/reason and request metadata. The raw bearer token and token-key HMAC are never copied into the event log.
 - Auto-expired via NATS KV per-key TTL (default 90 days, configurable via `auth.token_ttl`)
 
 **Auth middleware priority:**

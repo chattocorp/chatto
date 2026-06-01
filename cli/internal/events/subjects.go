@@ -152,6 +152,11 @@ const (
 	EventLoginSucceeded                    = "login_succeeded"
 	EventLoginFailed                       = "login_failed"
 	EventLogoutSucceeded                   = "logout_succeeded"
+	EventAuthCodeIssued                    = "auth_code_issued"
+	EventAuthCodeExchangeSucceeded         = "auth_code_exchange_succeeded"
+	EventAuthCodeExchangeFailed            = "auth_code_exchange_failed"
+	EventBearerTokenIssued                 = "bearer_token_issued"
+	EventBearerTokenRevoked                = "bearer_token_revoked"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -319,6 +324,16 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventLoginFailed
 	case *corev1.Event_LogoutSucceeded:
 		return EventLogoutSucceeded
+	case *corev1.Event_AuthCodeIssued:
+		return EventAuthCodeIssued
+	case *corev1.Event_AuthCodeExchangeSucceeded:
+		return EventAuthCodeExchangeSucceeded
+	case *corev1.Event_AuthCodeExchangeFailed:
+		return EventAuthCodeExchangeFailed
+	case *corev1.Event_BearerTokenIssued:
+		return EventBearerTokenIssued
+	case *corev1.Event_BearerTokenRevoked:
+		return EventBearerTokenRevoked
 	}
 	return ""
 }

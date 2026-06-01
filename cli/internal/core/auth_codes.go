@@ -70,21 +70,27 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 	}
 
 	code := NewAuthCode()
+	createdAt := time.Now()
+	key := c.authCodeKey(code)
 
 	data, err := json.Marshal(AuthCodeData{
 		UserID:              userID,
 		RedirectURI:         redirectURI,
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
-		CreatedAt:           time.Now(),
+		CreatedAt:           createdAt,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
 	}
 
-	_, err = c.storage.runtimeStateKV.Create(ctx, c.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL))
+	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(authCodeTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store auth code: %w", err)
+	}
+	if err := c.recordAuthCodeIssued(ctx, userID, redirectURI, createdAt); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", err
 	}
 
 	return code, nil
@@ -119,16 +125,26 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 
 	// Validate redirect_uri matches
 	if codeData.RedirectURI != redirectURI {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "redirect_mismatch"); err != nil {
+			return "", "", err
+		}
 		return "", "", ErrAuthCodeRedirectMismatch
 	}
 
 	// Validate PKCE
 	if !verifyCodeChallenge(codeData.CodeChallengeMethod, codeVerifier, codeData.CodeChallenge) {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "invalid_verifier"); err != nil {
+			return "", "", err
+		}
 		return "", "", ErrAuthCodeInvalidVerifier
 	}
 
+	if err := c.recordAuthCodeExchangeSucceeded(ctx, codeData.UserID, codeData.RedirectURI); err != nil {
+		return "", "", err
+	}
+
 	// Issue a bearer token
-	token, err := c.CreateAuthToken(ctx, codeData.UserID)
+	token, err := c.CreateAuthTokenWithSource(ctx, codeData.UserID, "oauth_code_exchange")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
 	}

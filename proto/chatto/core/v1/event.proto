@@ -172,7 +172,7 @@ message Event {
 
     // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
     // These facts are intentionally minimal: no raw token, link, IP address,
-    // password, auth code, or unhashed email is persisted in EVT.
+    // password, auth code, bearer token, or unhashed email is persisted in EVT.
     RegistrationLinkIssuedEvent registration_link_issued = 900;
     EmailVerificationLinkIssuedEvent email_verification_link_issued = 901;
     PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
@@ -181,6 +181,11 @@ message Event {
     LoginSucceededEvent login_succeeded = 905;
     LoginFailedEvent login_failed = 906;
     LogoutSucceededEvent logout_succeeded = 907;
+    AuthCodeIssuedEvent auth_code_issued = 908;
+    AuthCodeExchangeSucceededEvent auth_code_exchange_succeeded = 909;
+    AuthCodeExchangeFailedEvent auth_code_exchange_failed = 910;
+    BearerTokenIssuedEvent bearer_token_issued = 911;
+    BearerTokenRevokedEvent bearer_token_revoked = 912;
 
     // =================================================================
     // LIVE-ONLY VARIANTS (>= 1000) — never persisted, except the

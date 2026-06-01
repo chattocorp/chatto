@@ -38,7 +38,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// If authenticated via bearer token, revoke it
 		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 			if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && strings.TrimSpace(token) != "" {
-				if err := s.core.RevokeAuthToken(ctx, strings.TrimSpace(token)); err != nil {
+				if err := s.core.RevokeAuthTokenWithReason(ctx, strings.TrimSpace(token), "logout"); err != nil {
 					log.Warn("Failed to revoke bearer token on logout", "error", err)
 				}
 			}
@@ -72,7 +72,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		ctx := c.Request.Context()
-		if err := s.core.RevokeAuthToken(ctx, req.Token); err != nil {
+		if err := s.core.RevokeAuthTokenWithReason(ctx, req.Token, "explicit"); err != nil {
 			log.Error("Failed to revoke token", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke token"})
 			return
@@ -155,7 +155,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Issue a bearer token (cross-origin clients use this instead of the session cookie)
-		if token, err := s.core.CreateAuthToken(ctx, user.Id); err == nil {
+		if token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "password_login"); err == nil {
 			response["token"] = token
 		} else {
 			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
@@ -359,7 +359,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		if token, err := s.core.CreateAuthToken(ctx, user.Id); err == nil {
+		if token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration"); err == nil {
 			response["token"] = token
 		} else {
 			log.Warn("Failed to create auth token on register", "userId", user.Id, "error", err)

@@ -496,6 +496,10 @@ Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is p
 | `evt.user.{userId}.account_deletion_confirmation_issued`                 | Account deletion confirmation token issued. |
 | `evt.user.{userId}.password_reset_completed`                             | Password reset completed. |
 | `evt.user.{userId}.login_succeeded` / `.logout_succeeded`                | Cookie-session login/logout completed. |
+| `evt.user.{userId}.auth_code_issued`                                     | OAuth authorization code issued, with hashed redirect URI. |
+| `evt.user.{userId}.auth_code_exchange_succeeded`                         | OAuth authorization code exchange completed. |
+| `evt.user.{userId}.auth_code_exchange_failed`                            | Known OAuth authorization code exchange failed after code lookup. |
+| `evt.user.{userId}.bearer_token_issued` / `.bearer_token_revoked`         | Opaque bearer token issued or explicitly revoked. |
 
 These audit payloads include only safe request metadata: capped user agent and an HMAC-SHA256 IP hash when request metadata is available. Raw tokens, links, passwords, auth codes, raw IP addresses, and raw email/login identifiers are not persisted in EVT audit payloads.
 
