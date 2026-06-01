@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-05-26
+**Last reviewed:** 2026-06-01
 
 ## Overview
 
@@ -17,11 +17,11 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ## Design Decisions
 
-### 1. Reactions key on canonical message event ID
+### 1. Reactions key on message event ID
 
-**Decision:** A reaction is keyed by message event ID. When the user reacts to a channel echo of a thread reply, the backend canonicalizes the target to the original thread reply event ID, so the echo and original share reaction state.
-**Why:** This preserves current product behavior while reactions move into the event-sourced architecture. Both surfaces represent the same underlying reply, and a shared reaction count avoids divergent state between the channel and thread views.
-**Tradeoff:** The channel echo is not an independent social surface for reactions. If we want split reactions later, that should be a deliberate behavior change rather than a storage migration side effect.
+**Decision:** A reaction is keyed by the specific message event ID the user reacted to. A channel echo of a thread reply and the original thread reply are separate visible events, so they accumulate independent reaction state.
+**Why:** Message identity lives on the EVT envelope. Keeping reactions attached to the exact envelope matches the GraphQL event model and avoids hidden canonicalization between two visible artifacts.
+**Tradeoff:** A reply echoed into the channel can show different reaction counts in the channel and thread views. That is intentional: people are reacting to the appearance they can see.
 
 ### 2. Shortcodes, not raw Unicode
 

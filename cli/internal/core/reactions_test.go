@@ -371,7 +371,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	})
 }
 
-func TestChattoCore_EchoReactionsShared(t *testing.T) {
+func TestChattoCore_EchoReactionsIndependent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -411,7 +411,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		t.Fatal("Echo event not found in room events")
 	}
 
-	t.Run("reaction on echo is stored against original", func(t *testing.T) {
+	t.Run("reaction on echo is stored against echo", func(t *testing.T) {
 		added, err := core.AddReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction on echo failed: %v", err)
@@ -420,20 +420,27 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 			t.Error("Expected reaction to be added")
 		}
 
-		// Reactions should be visible when queried via the original event ID
-		reactions, err := core.GetReactions(ctx, replyEvent.Id)
+		reactions, err := core.GetReactions(ctx, echoEventID)
 		if err != nil {
-			t.Fatalf("GetReactions on original failed: %v", err)
+			t.Fatalf("GetReactions on echo failed: %v", err)
 		}
 		if len(reactions) != 1 {
-			t.Fatalf("Expected 1 reaction on original, got %d", len(reactions))
+			t.Fatalf("Expected 1 reaction on echo, got %d", len(reactions))
 		}
 		if reactions[0].Emoji != "thumbsup" {
 			t.Errorf("Expected thumbsup, got %q", reactions[0].Emoji)
 		}
+
+		originalReactions, err := core.GetReactions(ctx, replyEvent.Id)
+		if err != nil {
+			t.Fatalf("GetReactions on original failed: %v", err)
+		}
+		if len(originalReactions) != 0 {
+			t.Fatalf("Expected no reactions on original, got %d", len(originalReactions))
+		}
 	})
 
-	t.Run("reaction on original is visible via echo", func(t *testing.T) {
+	t.Run("reaction on original stays on original", func(t *testing.T) {
 		added, err := core.AddReaction(ctx, KindChannel, room.Id, replyEvent.Id, "heart", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction on original failed: %v", err)
@@ -442,24 +449,30 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 			t.Error("Expected reaction to be added")
 		}
 
-		// Reactions should also be visible when queried via the original
 		reactions, err := core.GetReactions(ctx, replyEvent.Id)
 		if err != nil {
 			t.Fatalf("GetReactions on original failed: %v", err)
 		}
-		if len(reactions) != 2 {
-			t.Errorf("Expected 2 reactions, got %d", len(reactions))
+		if len(reactions) != 1 {
+			t.Errorf("Expected 1 reaction on original, got %d", len(reactions))
+		}
+
+		echoReactions, err := core.GetReactions(ctx, echoEventID)
+		if err != nil {
+			t.Fatalf("GetReactions on echo failed: %v", err)
+		}
+		if len(echoReactions) != 1 || echoReactions[0].Emoji != "thumbsup" {
+			t.Errorf("Expected echo to keep only thumbsup, got %+v", echoReactions)
 		}
 	})
 
-	t.Run("duplicate reaction via echo is idempotent", func(t *testing.T) {
-		// Already added thumbsup via echo above; adding via original should return false
+	t.Run("same emoji on original and echo is independent", func(t *testing.T) {
 		added, err := core.AddReaction(ctx, KindChannel, room.Id, replyEvent.Id, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
-		if added {
-			t.Error("Expected duplicate reaction (added via echo, re-added via original) to return false")
+		if !added {
+			t.Error("Expected same emoji on original to be independent from echo")
 		}
 	})
 
@@ -472,15 +485,28 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 			t.Error("Expected reaction to be removed")
 		}
 
-		// Should be gone when queried via original
-		reactions, err := core.GetReactions(ctx, replyEvent.Id)
+		reactions, err := core.GetReactions(ctx, echoEventID)
 		if err != nil {
 			t.Fatalf("GetReactions failed: %v", err)
 		}
 		for _, r := range reactions {
 			if r.Emoji == "thumbsup" {
-				t.Error("thumbsup should have been removed")
+				t.Error("thumbsup should have been removed from echo")
 			}
+		}
+
+		originalReactions, err := core.GetReactions(ctx, replyEvent.Id)
+		if err != nil {
+			t.Fatalf("GetReactions on original failed: %v", err)
+		}
+		var originalHasThumbsup bool
+		for _, r := range originalReactions {
+			if r.Emoji == "thumbsup" {
+				originalHasThumbsup = true
+			}
+		}
+		if !originalHasThumbsup {
+			t.Error("thumbsup on original should remain independent")
 		}
 	})
 }

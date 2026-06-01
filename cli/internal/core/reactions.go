@@ -43,31 +43,10 @@ func parseReactionKey(key string) (string, string, string, error) {
 // Reactions API
 // ============================================================================
 
-// resolveReactionTarget returns the canonical event ID for storing reactions.
-// If the target message is an echo, returns the original thread reply's event ID
-// so that reactions are shared between the echo and the original.
-// Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) resolveReactionTarget(ctx context.Context, kind RoomKind, roomID, messageEventID string) (string, error) {
-	event, err := c.GetRoomEventByEventID(ctx, kind, roomID, messageEventID)
-	if err != nil {
-		return "", fmt.Errorf("failed to look up message: %w", err)
-	}
-	if event == nil {
-		return messageEventID, nil
-	}
-
-	if msg := event.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
-		return msg.EchoOfEventId, nil
-	}
-
-	return messageEventID, nil
-}
-
 // AddReaction adds an emoji reaction to a message.
 // Accepts an emoji shortcode name (e.g., "thumbsup", "heart").
 // Returns true if the reaction was added, false if it already existed.
 // Publishes a durable ReactionAddedEvent after successful OCC write.
-// If the target message is an echo, the reaction is stored against the original message.
 func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
@@ -83,14 +62,8 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 		return false, ErrRoomArchived
 	}
 
-	// Resolve echo → original so reactions are shared
-	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
-	if err != nil {
-		return false, err
-	}
-
-	event := newReactionAddedEvent(userID, roomID, canonicalEventID, emojiName)
-	added, err := c.publishReactionMutation(ctx, kind, roomID, canonicalEventID, emojiName, userID, event)
+	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
+	added, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
@@ -101,7 +74,7 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 	c.logger.Debug("Reaction added",
 		"kind", kind,
 		"room_id", roomID,
-		"message_event_id", canonicalEventID,
+		"message_event_id", messageEventID,
 		"emoji_name", emojiName,
 		"user_id", userID,
 	)
@@ -113,21 +86,14 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 // Accepts an emoji shortcode name (e.g., "thumbsup", "heart").
 // Returns true if the reaction was removed, false if it didn't exist.
 // Publishes a durable ReactionRemovedEvent after successful OCC write.
-// If the target message is an echo, the reaction is removed from the original message.
 func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
 		return false, err
 	}
 
-	// Resolve echo → original so reactions are shared
-	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
-	if err != nil {
-		return false, err
-	}
-
-	event := newReactionRemovedEvent(userID, roomID, canonicalEventID, emojiName)
-	removed, err := c.publishReactionMutation(ctx, kind, roomID, canonicalEventID, emojiName, userID, event)
+	event := newReactionRemovedEvent(userID, roomID, messageEventID, emojiName)
+	removed, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove reaction: %w", err)
 	}
@@ -138,7 +104,7 @@ func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, 
 	c.logger.Debug("Reaction removed",
 		"kind", kind,
 		"room_id", roomID,
-		"message_event_id", canonicalEventID,
+		"message_event_id", messageEventID,
 		"emoji_name", emojiName,
 		"user_id", userID,
 	)
