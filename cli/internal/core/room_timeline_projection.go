@@ -44,6 +44,10 @@ type RoomTimelineProjection struct {
 	// each has its own embedded body and we need explicit
 	// propagation.
 	echoLinks map[string][]string
+	// hiddenEchoes tracks echo MessagePostedEvents that were directly
+	// retracted. A direct echo retract removes the room-timeline copy
+	// without deleting the original thread reply's content.
+	hiddenEchoes map[string]struct{}
 	// videoManifests stores the latest durable processing outcome for each
 	// original video attachment. A processed event supersedes a failed event
 	// and vice versa; generated asset metadata lives in the event payload.
@@ -109,6 +113,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		latestBody:        make(map[string]*corev1.MessageBody),
 		retractedFlags:    make(map[string]struct{}),
 		echoLinks:         make(map[string][]string),
+		hiddenEchoes:      make(map[string]struct{}),
 		assetCreations:    make(map[string]*corev1.AssetCreatedEvent),
 		assetChildren:     make(map[string][]string),
 		videoManifests:    make(map[string]*VideoAttachmentManifest),
@@ -189,8 +194,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				p.assetMessageOwner[assetID] = assetMessageRef{roomID: roomID, messageEventID: targetID}
 			}
 		}
-		// Track echo links so edits / retracts on either side can fan
-		// out to the other.
+		// Track echo links so edits on either side can fan out to the
+		// other, and so original retractions can be reflected when
+		// rendering echoes.
 		if origID := ev.MessagePosted.GetEchoOfEventId(); origID != "" && targetID != "" {
 			p.echoLinks[origID] = append(p.echoLinks[origID], targetID)
 		}
@@ -203,6 +209,13 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_MessageRetracted:
 		targetID := ev.MessageRetracted.GetEventId()
 		if targetID != "" {
+			if origID := p.echoOriginalIDLocked(targetID); origID != "" {
+				if _, originalRetracted := p.retractedFlags[origID]; !originalRetracted {
+					delete(p.latestBody, targetID)
+					p.hiddenEchoes[targetID] = struct{}{}
+					return nil
+				}
+			}
 			delete(p.latestBody, targetID)
 			p.retractedFlags[targetID] = struct{}{}
 		}
@@ -407,13 +420,49 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 	if _, exists := p.byEventID[eventID]; !exists {
 		return nil, false, false
 	}
+	if _, hidden := p.hiddenEchoes[eventID]; hidden {
+		return nil, true, true
+	}
 	if _, isRetracted := p.retractedFlags[eventID]; isRetracted {
 		return nil, true, true
+	}
+	if origID := p.echoOriginalIDLocked(eventID); origID != "" {
+		if _, originalRetracted := p.retractedFlags[origID]; originalRetracted {
+			return nil, true, true
+		}
 	}
 	if b, has := p.latestBody[eventID]; has {
 		return b, false, true
 	}
 	return nil, false, true
+}
+
+func (p *RoomTimelineProjection) echoOriginalIDLocked(eventID string) string {
+	entry := p.byEventID[eventID]
+	if entry == nil || entry.Event == nil {
+		return ""
+	}
+	posted := entry.Event.GetMessagePosted()
+	if posted == nil {
+		return ""
+	}
+	return posted.GetEchoOfEventId()
+}
+
+// IsEcho reports whether eventID is a MessagePostedEvent echo.
+func (p *RoomTimelineProjection) IsEcho(eventID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	return p.echoOriginalIDLocked(eventID) != ""
+}
+
+// IsHiddenEcho reports whether an echo has been directly retracted from the
+// room timeline.
+func (p *RoomTimelineProjection) IsHiddenEcho(eventID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	_, ok := p.hiddenEchoes[eventID]
+	return ok
 }
 
 // VideoAttachmentManifest returns the latest durable processing outcome for
@@ -628,15 +677,15 @@ func removeString(values []string, value string) []string {
 	return out
 }
 
-// LinkedEventIDs returns the set of event_ids that an edit / retract
-// targeting `eventID` should also be applied to: any echoes pointing
+// LinkedEventIDs returns the set of event_ids that an edit targeting
+// `eventID` should also be applied to: any echoes pointing
 // at `eventID`, plus the original message that `eventID` is an echo
 // of (if any). Does NOT include `eventID` itself — the caller emits
 // the mutation for the target separately.
 //
-// Used by EditMessage / DeleteMessage to preserve the legacy "edit
-// the echo, the original updates too (and vice versa)" semantic
-// after the shared-messageBodyId mechanism was retired in #614.
+// Used by EditMessage to preserve the legacy "edit the echo, the
+// original updates too (and vice versa)" semantic after the shared-
+// messageBodyId mechanism was retired in #614.
 func (p *RoomTimelineProjection) LinkedEventIDs(eventID string) []string {
 	p.RLock()
 	defer p.RUnlock()
@@ -685,6 +734,9 @@ func (p *RoomTimelineProjection) LastVisibleRoomEntry(
 	entries := p.byRoom[roomID]
 	for i := len(entries) - 1; i >= 0; i-- {
 		e := entries[i]
+		if p.isHiddenEchoEntryLocked(e) {
+			continue
+		}
 		if visible != nil && !visible(e.Event) {
 			continue
 		}
@@ -724,6 +776,9 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
 			continue
 		}
+		if p.isHiddenEchoEntryLocked(e) {
+			continue
+		}
 		if visible != nil && !visible(e.Event) {
 			continue
 		}
@@ -753,6 +808,9 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 		if e.StreamSeq <= afterStreamSeq {
 			continue
 		}
+		if p.isHiddenEchoEntryLocked(e) {
+			continue
+		}
 		if visible != nil && !visible(e.Event) {
 			continue
 		}
@@ -762,6 +820,14 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 		}
 	}
 	return out
+}
+
+func (p *RoomTimelineProjection) isHiddenEchoEntryLocked(entry *TimelineEntry) bool {
+	if entry == nil || entry.Event == nil {
+		return false
+	}
+	_, hidden := p.hiddenEchoes[entry.Event.GetId()]
+	return hidden
 }
 
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {

@@ -714,6 +714,7 @@
           {roomId}
           messageEventId={event.id}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+          deleteEventId={event.id}
           messageBody={msg.body ?? ''}
           reactions={msg?.reactions ?? []}
           canReact={roomPermissions.canReact}
@@ -753,6 +754,7 @@
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        deleteEventId={event.id}
         messageBody={msg.body ?? ''}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
@@ -785,6 +787,7 @@
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        deleteEventId={event.id}
         messageBody={msg.body ?? ''}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}

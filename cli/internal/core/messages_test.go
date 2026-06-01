@@ -377,6 +377,204 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 	}
 }
 
+func TestChattoCore_DeleteEcho_HidesEchoOnly(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "echo-delete-user", "Echo Delete User", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread reply echoed", nil, rootEvent.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("Post reply with echo: %v", err)
+	}
+
+	echoID := ""
+	before, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents before delete: %v", err)
+	}
+	for _, event := range before.Events {
+		if msg := event.GetMessagePosted(); msg != nil && msg.GetEchoOfEventId() == replyEvent.Id {
+			echoID = event.Id
+			break
+		}
+	}
+	if echoID == "" {
+		t.Fatal("expected echoed reply in room timeline")
+	}
+
+	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, echoID); err != nil {
+		t.Fatalf("Delete echo: %v", err)
+	}
+
+	after, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents after delete: %v", err)
+	}
+	for _, event := range after.Events {
+		if event.Id == echoID {
+			t.Fatal("hidden echo should not appear in room timeline")
+		}
+	}
+	if event, err := core.GetRoomEventByEventID(ctx, KindChannel, room.Id, echoID); err != nil {
+		t.Fatalf("GetRoomEventByEventID hidden echo: %v", err)
+	} else if event != nil {
+		t.Fatal("hidden echo should not be directly loadable from room event API")
+	}
+
+	body, err := core.GetMessageBody(ctx, KindChannel, replyEvent.Id)
+	if err != nil {
+		t.Fatalf("Get original reply body: %v", err)
+	}
+	if body != "Thread reply echoed" {
+		t.Fatalf("original thread reply body = %q, want %q", body, "Thread reply echoed")
+	}
+	threadEvents, err := core.GetThreadEvents(ctx, KindChannel, room.Id, rootEvent.Id)
+	if err != nil {
+		t.Fatalf("GetThreadEvents: %v", err)
+	}
+	foundReply := false
+	for _, event := range threadEvents {
+		if event.Id == replyEvent.Id {
+			foundReply = true
+			break
+		}
+	}
+	if !foundReply {
+		t.Fatal("original thread reply should remain in thread")
+	}
+}
+
+func TestChattoCore_DeleteEcho_PreservesOriginalAttachment(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "echo-attachment-delete-user", "Echo Attachment Delete User", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "echo-attachment.png", "image/png", bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	store, err := core.GetAttachmentsStore(ctx)
+	if err != nil {
+		t.Fatalf("GetAttachmentsStore: %v", err)
+	}
+
+	rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread reply with attachment", []string{attachment.Id}, rootEvent.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("Post reply with echo: %v", err)
+	}
+	echoID := ""
+	roomEvents, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	for _, event := range roomEvents.Events {
+		if msg := event.GetMessagePosted(); msg != nil && msg.GetEchoOfEventId() == replyEvent.Id {
+			echoID = event.Id
+			break
+		}
+	}
+	if echoID == "" {
+		t.Fatal("expected echoed reply in room timeline")
+	}
+
+	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, echoID); err != nil {
+		t.Fatalf("Delete echo: %v", err)
+	}
+
+	if _, err := store.Get(ctx, attachment.Id); err != nil {
+		t.Fatalf("echo delete should preserve backing attachment: %v", err)
+	}
+	body, err := core.GetFullMessageBody(ctx, KindChannel, replyEvent.Id)
+	if err != nil {
+		t.Fatalf("Get original reply body: %v", err)
+	}
+	if body == nil {
+		t.Fatal("original reply body should remain readable")
+	}
+	if len(body.Attachments) != 1 || body.Attachments[0].Id != attachment.Id {
+		t.Fatalf("original reply attachments = %+v, want %s", body.Attachments, attachment.Id)
+	}
+}
+
+func TestChattoCore_DeleteOriginalReply_TombstonesEcho(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "echo-original-delete-user", "Echo Original Delete User", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread reply echoed", nil, rootEvent.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("Post reply with echo: %v", err)
+	}
+	roomEvents, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents before delete: %v", err)
+	}
+	echoID := ""
+	for _, event := range roomEvents.Events {
+		if msg := event.GetMessagePosted(); msg != nil && msg.GetEchoOfEventId() == replyEvent.Id {
+			echoID = event.Id
+			break
+		}
+	}
+	if echoID == "" {
+		t.Fatal("expected echoed reply in room timeline")
+	}
+
+	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, replyEvent.Id); err != nil {
+		t.Fatalf("Delete original reply: %v", err)
+	}
+
+	roomEvents, err = core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents after delete: %v", err)
+	}
+	foundEcho := false
+	for _, event := range roomEvents.Events {
+		if event.Id == echoID {
+			foundEcho = true
+			break
+		}
+	}
+	if !foundEcho {
+		t.Fatal("echo should remain visible as a tombstone when original is deleted")
+	}
+	replyBody, err := core.GetMessageBody(ctx, KindChannel, replyEvent.Id)
+	if err != nil {
+		t.Fatalf("Get original reply body: %v", err)
+	}
+	if replyBody != "" {
+		t.Fatalf("deleted original reply body = %q, want empty", replyBody)
+	}
+	echoBody, err := core.GetMessageBody(ctx, KindChannel, echoID)
+	if err != nil {
+		t.Fatalf("Get echo body: %v", err)
+	}
+	if echoBody != "" {
+		t.Fatalf("echo body after original delete = %q, want empty", echoBody)
+	}
+}
+
 func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -8,6 +8,7 @@
     roomId,
     messageEventId,
     eventId,
+    deleteEventId = eventId,
     messageBody,
     reactions = [],
     canReact = false,
@@ -22,6 +23,7 @@
     roomId: string;
     messageEventId: string;
     eventId: string;
+    deleteEventId?: string;
     messageBody: string;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
@@ -41,6 +43,7 @@
     roomId,
     messageEventId,
     eventId,
+    deleteEventId,
     messageBody
   });
 

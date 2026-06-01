@@ -14,6 +14,7 @@ Authors can edit and delete their own messages; moderators with the right permis
 - Deletions remove the message body and all attachments and replace the rendered message with a "[Message deleted]" placeholder.
 - Deleting an already-deleted message is a no-op.
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
+- Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
 
 ## Design Decisions
@@ -38,9 +39,9 @@ Authors can edit and delete their own messages; moderators with the right permis
 
 ### 4. Echo propagation
 
-**Decision:** Thread replies and their channel echoes are separate message events linked by `echoOfEventId`. An edit or delete targeting the original reply is applied to both visible artifacts by the read model.
+**Decision:** Thread replies and their channel echoes are separate message events linked by `echoOfEventId`. An edit or delete targeting the original reply is applied to both visible artifacts by the read model. A delete targeting the echo's own event ID hides only the echo artifact from the room timeline.
 **Why:** Message identity belongs to the EVT envelope, and `MessagePostedEvent` remains payload-only. The link preserves the user-facing "same reply shown twice" behavior without duplicating envelope metadata into payload fields. See FDR-003.
-**Tradeoff:** Frontend has to match edit/delete events against loaded messages by both `e.id` and `echoOfEventId` to refetch the right rows.
+**Tradeoff:** Frontend has to distinguish direct echo deletes from original-reply deletes: direct echo deletes remove the echo row, while original deletes tombstone any loaded echoes.
 
 ### 5. Delete physically removes the body, not just hides it
 
