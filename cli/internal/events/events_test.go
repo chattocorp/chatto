@@ -175,26 +175,6 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 	}
 }
 
-func TestPublisher_Append_RejectsLiveOnlyEventVariant(t *testing.T) {
-	js, stream := setupTestStream(t)
-	pub := NewPublisher(js, stream, testLogger())
-	ctx := testContext(t)
-
-	event := &corev1.Event{
-		Id:        "EVT-live-only",
-		ActorId:   "U1",
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_ServerUpdated{
-			ServerUpdated: &corev1.ServerUpdatedEvent{},
-		},
-	}
-
-	_, err := pub.Append(ctx, ConfigAggregate().Subject("server_updated"), event)
-	if !errors.Is(err, ErrInvalidEvent) {
-		t.Fatalf("want ErrInvalidEvent, got %v", err)
-	}
-}
-
 func TestPublisher_AppendEventually_ConcurrentWrites(t *testing.T) {
 	// Multiple goroutines append to the same subject. Each should succeed
 	// (AppendEventually retries on OCC conflict); the final per-subject

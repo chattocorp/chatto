@@ -5,7 +5,6 @@ package chatto.core.v1;
 import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/auth_events.proto";
 import "chatto/core/v1/asset_events.proto";
-import "chatto/core/v1/live_events.proto";
 import "chatto/core/v1/message_events.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
@@ -30,9 +29,8 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
      - **1050-1051**: durable reaction variants that kept their legacy
        live tags during the EVT cutover. Treat them like persisted tags.
 
-     - **>= 1000, except 1050-1051**: legacy live-only variants retained
-       temporarily for the GraphQL adapter and older decoded envelopes. New
-       transient pubsub signals belong in LiveEvent, not Event.
+     - **>= 1000, except 1050-1051**: retired legacy live-only variant
+       numbers. New transient pubsub signals belong in LiveEvent, not Event.
 
    Category ownership for the top-level oneof tags is documented in the
    sibling *_events.proto files. The top-level tag is the durable/event
@@ -51,6 +49,8 @@ message Event {
   // ID of the user who triggered this event.
   string actor_id = 3;
 
+  reserved 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
+  reserved "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
 
   // The concrete event payload.
@@ -79,12 +79,8 @@ message Event {
     // ----- Messages (400-409) -----
     MessagePostedEvent message_posted = 400;
     // Durable edit / retract variants for the EVT stream (ADR-033/034/035,
-    // issue #597). Named "Edited"/"Retracted" to coexist with the legacy
-    // live-only MessageUpdatedEvent/MessageDeletedEvent at 1040/1041 during
-    // the migration. Once phase-5 cutover lands and the live-only variants
-    // are removed, we should rename these to MessageUpdatedEvent /
-    // MessageDeletedEvent in a follow-up cleanup. Proto names are just
-    // labels — they don't affect wire format.
+    // issue #597). The old live-only MessageUpdatedEvent/MessageDeletedEvent
+    // tags at 1040/1041 are now retired and reserved.
     MessageEditedEvent message_edited = 401;
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
@@ -187,82 +183,11 @@ message Event {
     BearerTokenIssuedEvent bearer_token_issued = 911;
     BearerTokenRevokedEvent bearer_token_revoked = 912;
 
-    // =================================================================
-    // LIVE-ONLY VARIANTS (>= 1000) — never persisted, except the
-    // reaction legacy-tag exception noted below.
-    // These ride NATS Core only. Field numbers are less durable than
-    // persisted tags, but still avoid reuse during mixed-version deploys.
-    // =================================================================
-
-    // ----- Server config (1000-1009) -----
-    ServerConfigUpdatedEvent config_updated = 1000;
-
-    // ----- User lifecycle (1010-1029) -----
-    UserCreatedEvent user_created = 1010;
-    UserDeletedEvent user_deleted = 1011;
-    UserProfileUpdatedEvent user_profile_updated = 1012;
-    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 1013;
-    NotificationLevelChangedEvent notification_level_changed = 1014;
-    ThreadFollowChangedEvent thread_follow_changed = 1015;
-
-    // 1020-1029 was server-membership (UserJoinedSpaceEvent /
-    // UserLeftSpaceEvent), retired. Skip these for now to keep grep
-    // breadcrumbs working when tracing old logs.
-
-    // ----- Server lifecycle (1030-1039) -----
-    ServerCreatedEvent server_created = 1030;
-    ServerUpdatedEvent server_updated = 1031;
-    ServerDeletedEvent server_deleted = 1032;
-
-    // ----- Message mutations (1040-1049) — KV is source of truth -----
-    MessageUpdatedEvent message_updated = 1040;
-    MessageDeletedEvent message_deleted = 1041;
-
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy
     // 1050/1051 tags during the cutover, so treat these two tags as
     // frozen durable IDs even though they sit in the >=1000 range.
     ReactionAddedEvent reaction_added = 1050;
     ReactionRemovedEvent reaction_removed = 1051;
-
-    // ----- Typing indicators (1060-1069) -----
-    UserTypingEvent user_typing = 1060;
-
-    // ----- Video processing (1070-1079) -----
-    VideoProcessingCompletedEvent video_processing_completed = 1070;
-
-    // ----- Presence (1080-1089) -----
-    PresenceChangedEvent presence_changed = 1080;
-
-    // ----- Notifications (1090-1099) -----
-    MentionNotificationEvent mention_notification = 1090;
-    NewDirectMessageNotificationEvent new_direct_message_notification = 1091;
-
-    // ----- Voice calls (1100-1109) -----
-    CallParticipantJoinedEvent call_participant_joined = 1100;
-    CallParticipantLeftEvent call_participant_left = 1101;
-
-    // ----- Notification sync (1110-1119) -----
-    NotificationCreatedEvent notification_created = 1110;
-    NotificationDismissedEvent notification_dismissed = 1111;
-
-    // ----- Unread indicators (1120-1129) -----
-    // 1120 was NewMessageInSpaceEvent (retired in ADR-030 cleanup —
-    // MessagePostedEvent on the per-room subject covers the same use case).
-    RoomMarkedAsReadEvent room_marked_as_read = 1121;
-    MentionStatusClearedEvent mention_status_cleared = 1122;
-
-    // ----- Room layout (1130-1139) -----
-    RoomGroupsUpdatedEvent room_groups_updated = 1130;
-
-    // ----- Session termination (1140-1149) -----
-    SessionTerminatedEvent session_terminated = 1140;
-
-    // ----- Subscription liveness (1200-1209) -----
-    // Synthetic heartbeat — never published over NATS. Emitted directly
-    // into the subscription channel by StreamMyEvents so clients can
-    // detect a dead subscription on an otherwise-healthy WebSocket and
-    // trigger a reconnect.
-    HeartbeatEvent heartbeat = 1200;
   }
 }

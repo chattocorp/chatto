@@ -58,23 +58,16 @@ message MessagePostedEvent {
   MessageBody body = 9;
 
   // The message's durable event ID lives on the Event envelope. GraphQL exposes
-  // that wrapper ID on RoomEvent / ServerEvent, not on this payload.
+  // that wrapper ID on the public Event wrapper, not on this payload.
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)
 // ============================================================================
 //
-// Two flavours coexist during the event-sourcing migration (#597/#629):
-//
-//   - MessageEditedEvent / MessageRetractedEvent — DURABLE, ride the EVT
-//     stream at evt.room.{R}.message_edited / .message_retracted, carry
-//     enough state (body for edits) for projections to replay history
-//     without reaching back to KV, and reach live subscribers through
-//     the EVT stream's live.evt.> republish path.
-//
-//   - MessageUpdatedEvent / MessageDeletedEvent — legacy live-only GraphQL
-//     adapter shapes retained during the rollout window. New edit and
-//     retract delivery uses the canonical durable names above.
+// MessageEditedEvent / MessageRetractedEvent are the durable mutation facts on
+// EVT. The older MessageUpdatedEvent / MessageDeletedEvent messages below are
+// retired legacy live-only payload shapes; they are no longer carried by the
+// durable Event envelope or the public GraphQL EventType union.
 
 // MessageEditedEvent is the durable event published when a message's body
 // is edited. Carries the full new body envelope; the projection overlays

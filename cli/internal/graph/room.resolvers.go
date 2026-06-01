@@ -214,7 +214,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 
 // Event is the resolver for the event field.
 // Uses O(1) subject lookup in JetStream — lightweight and fast.
-func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID string) (*corev1.Event, error) {
+func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID string) (core.EventEnvelope, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -228,7 +228,11 @@ func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID stri
 		return nil, core.ErrNotRoomMember
 	}
 
-	return r.core.GetRoomEventByEventID(ctx, core.KindOfRoom(obj), obj.Id, eventID)
+	event, err := r.core.GetRoomEventByEventID(ctx, core.KindOfRoom(obj), obj.Id, eventID)
+	if err != nil {
+		return nil, err
+	}
+	return core.NewEVTEventEnvelope(event), nil
 }
 
 // EventsAround is the resolver for the eventsAround field.
@@ -257,9 +261,9 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		return nil, err
 	}
 
-	events := make([]*corev1.Event, len(result.Events))
+	events := make([]core.EventEnvelope, len(result.Events))
 	for i, e := range result.Events {
-		events[i] = e.Event
+		events[i] = core.NewEVTEventEnvelope(e.Event)
 	}
 	out := &model.RoomEventsAroundResult{
 		Events:      events,

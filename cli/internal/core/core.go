@@ -1143,70 +1143,6 @@ func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
 	return event
 }
 
-// liveEventAsEvent adapts the transient LiveEvent wire envelope into the
-// legacy Event envelope consumed by GraphQL resolvers. This is intentionally
-// a boundary adapter; durable EVT facts should not use LiveEvent.
-func liveEventAsEvent(live *corev1.LiveEvent) *corev1.Event {
-	if live == nil || live.Event == nil {
-		return nil
-	}
-
-	event := &corev1.Event{
-		Id:        live.Id,
-		CreatedAt: live.CreatedAt,
-		ActorId:   live.ActorId,
-	}
-
-	switch e := live.Event.(type) {
-	case *corev1.LiveEvent_ConfigUpdated:
-		event.Event = &corev1.Event_ConfigUpdated{ConfigUpdated: e.ConfigUpdated}
-	case *corev1.LiveEvent_UserCreated:
-		event.Event = &corev1.Event_UserCreated{UserCreated: e.UserCreated}
-	case *corev1.LiveEvent_UserDeleted:
-		event.Event = &corev1.Event_UserDeleted{UserDeleted: e.UserDeleted}
-	case *corev1.LiveEvent_UserProfileUpdated:
-		event.Event = &corev1.Event_UserProfileUpdated{UserProfileUpdated: e.UserProfileUpdated}
-	case *corev1.LiveEvent_ServerUserPreferencesUpdated:
-		event.Event = &corev1.Event_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: e.ServerUserPreferencesUpdated}
-	case *corev1.LiveEvent_NotificationLevelChanged:
-		event.Event = &corev1.Event_NotificationLevelChanged{NotificationLevelChanged: e.NotificationLevelChanged}
-	case *corev1.LiveEvent_ThreadFollowChanged:
-		event.Event = &corev1.Event_ThreadFollowChanged{ThreadFollowChanged: e.ThreadFollowChanged}
-	case *corev1.LiveEvent_SpaceMemberDeleted:
-		event.Event = &corev1.Event_SpaceMemberDeleted{SpaceMemberDeleted: e.SpaceMemberDeleted}
-	case *corev1.LiveEvent_ServerUpdated:
-		event.Event = &corev1.Event_ServerUpdated{ServerUpdated: e.ServerUpdated}
-	case *corev1.LiveEvent_UserTyping:
-		event.Event = &corev1.Event_UserTyping{UserTyping: e.UserTyping}
-	case *corev1.LiveEvent_VideoProcessingCompleted:
-		event.Event = &corev1.Event_VideoProcessingCompleted{VideoProcessingCompleted: e.VideoProcessingCompleted}
-	case *corev1.LiveEvent_MentionNotification:
-		event.Event = &corev1.Event_MentionNotification{MentionNotification: e.MentionNotification}
-	case *corev1.LiveEvent_NewDirectMessageNotification:
-		event.Event = &corev1.Event_NewDirectMessageNotification{NewDirectMessageNotification: e.NewDirectMessageNotification}
-	case *corev1.LiveEvent_CallParticipantJoined:
-		event.Event = &corev1.Event_CallParticipantJoined{CallParticipantJoined: e.CallParticipantJoined}
-	case *corev1.LiveEvent_CallParticipantLeft:
-		event.Event = &corev1.Event_CallParticipantLeft{CallParticipantLeft: e.CallParticipantLeft}
-	case *corev1.LiveEvent_NotificationCreated:
-		event.Event = &corev1.Event_NotificationCreated{NotificationCreated: e.NotificationCreated}
-	case *corev1.LiveEvent_NotificationDismissed:
-		event.Event = &corev1.Event_NotificationDismissed{NotificationDismissed: e.NotificationDismissed}
-	case *corev1.LiveEvent_RoomMarkedAsRead:
-		event.Event = &corev1.Event_RoomMarkedAsRead{RoomMarkedAsRead: e.RoomMarkedAsRead}
-	case *corev1.LiveEvent_MentionStatusCleared:
-		event.Event = &corev1.Event_MentionStatusCleared{MentionStatusCleared: e.MentionStatusCleared}
-	case *corev1.LiveEvent_RoomGroupsUpdated:
-		event.Event = &corev1.Event_RoomGroupsUpdated{RoomGroupsUpdated: e.RoomGroupsUpdated}
-	case *corev1.LiveEvent_SessionTerminated:
-		event.Event = &corev1.Event_SessionTerminated{SessionTerminated: e.SessionTerminated}
-	default:
-		return nil
-	}
-
-	return event
-}
-
 // ============================================================================
 // Stream Management
 // ============================================================================
@@ -1267,7 +1203,7 @@ func isTerminalIteratorError(err error) bool {
 //
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
-func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
+func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan EventEnvelope, error) {
 	// memberRooms is the per-subscription visibility cache: the user
 	// receives live events for rooms they are an explicit member of.
 	// Seeded from `room_membership.*` records and mutated on
@@ -1309,7 +1245,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
-	eventChan := make(chan *corev1.Event)
+	eventChan := make(chan EventEnvelope)
 
 	go func() {
 		c.logger.Debug("Server event stream started", "user_id", userID, "member_rooms", len(memberRooms))
@@ -1338,7 +1274,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 			close(eventChan)
 		}()
 
-		send := func(event *corev1.Event) bool {
+		send := func(event EventEnvelope) bool {
 			select {
 			case <-ctx.Done():
 				return false
@@ -1370,11 +1306,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 				}
 
 			case <-heartbeatTicker.C:
-				if !send(&corev1.Event{
-					Id:        NewEventID(),
-					CreatedAt: timestamppb.Now(),
-					Event:     &corev1.Event_Heartbeat{Heartbeat: &corev1.HeartbeatEvent{}},
-				}) {
+				if !send(NewHeartbeatEventEnvelope(NewEventID(), timestamppb.Now())) {
 					return
 				}
 
@@ -1389,7 +1321,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 				// Session termination tears down the subscription.
 				// The frontend handles logout on receipt; closing
 				// the channel ensures the server tears down too.
-				if event.GetSessionTerminated() != nil {
+				if EventSessionTerminated(event) != nil {
 					c.logger.Info("Session terminated - closing event stream", "user_id", userID)
 					return
 				}
@@ -1403,13 +1335,12 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 				} else {
 					lastKnownPresence[update.UserID] = update.Status
 				}
-				if !send(&corev1.Event{
-					CreatedAt: timestamppb.Now(),
-					ActorId:   update.UserID,
-					Event: &corev1.Event_PresenceChanged{
+				live := newLiveEvent(update.UserID, &corev1.LiveEvent{
+					Event: &corev1.LiveEvent_PresenceChanged{
 						PresenceChanged: &corev1.PresenceChangedEvent{Status: update.Status},
 					},
-				}) {
+				})
+				if !send(NewLiveEventEnvelope(live)) {
 					return
 				}
 			}
@@ -1466,19 +1397,14 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 //  1. Room subjects (live.sync.room.{kind}.{roomId}.…):
 //     gated on room membership.
 //  2. Everything else: delegated to isAuthorizedForLiveEvent.
-func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (EventEnvelope, bool) {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
 		var live corev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			c.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 			return nil, false
 		}
-		event := liveEventAsEvent(&live)
-		if event == nil {
-			c.logger.Warn("Failed to adapt live sync event", "subject", msg.Subject, "event_id", live.GetId())
-			return nil, false
-		}
-		return c.filterLiveEventEnvelope(ctx, userID, memberRooms, msg, event)
+		return c.filterLiveSyncEvent(ctx, userID, memberRooms, msg, &live)
 	}
 
 	if !strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
@@ -1495,7 +1421,12 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, memberR
 	return c.filterLiveEVTEvent(ctx, userID, memberRooms, msg, &event)
 }
 
-func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
+	if event == nil || event.Event == nil {
+		c.logger.Warn("Dropping live sync event without payload", "subject", msg.Subject)
+		return nil, false
+	}
+
 	// Path 1: room-scoped transient events on live.sync.room.{kind}.{roomId}.…
 	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
 		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
@@ -1503,28 +1434,7 @@ func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string,
 			return nil, false
 		}
 
-		// Capture membership before mutating the cache so transition
-		// events (self-leave, room-deleted) still reach the member who
-		// is transitioning out.
 		_, isMember := memberRooms[roomID]
-
-		switch event.Event.(type) {
-		case *corev1.Event_UserJoinedRoom:
-			if event.ActorId == userID {
-				// Membership is the gate: once the user has joined, they
-				// receive the room's live events. Visibility is handled
-				// upstream by the join action itself; if the user wasn't
-				// allowed to join, this event wouldn't have been published.
-				memberRooms[roomID] = struct{}{}
-				isMember = true
-			}
-		case *corev1.Event_UserLeftRoom:
-			if event.ActorId == userID {
-				delete(memberRooms, roomID)
-			}
-		case *corev1.Event_RoomDeleted:
-			delete(memberRooms, roomID)
-		}
 
 		// Skip own typing events — the sender doesn't need to see them.
 		// Critical for multi-server clients where the frontend's
@@ -1536,7 +1446,7 @@ func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string,
 		if !isMember {
 			return nil, false
 		}
-		return event, true
+		return NewLiveEventEnvelope(event), true
 	}
 
 	// Path 2: user/config/member subjects.
@@ -1544,10 +1454,10 @@ func (c *ChattoCore) filterLiveEventEnvelope(ctx context.Context, userID string,
 		return nil, false
 	}
 
-	return event, true
+	return NewLiveEventEnvelope(event), true
 }
 
-func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (*corev1.Event, bool) {
+func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool) {
 	roomID, ok := events.ParseRoomSubject(msg.Subject)
 	if !ok {
 		return nil, false
@@ -1585,7 +1495,7 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	if !isMember {
 		return nil, false
 	}
-	return event, true
+	return NewEVTEventEnvelope(event), true
 }
 
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {

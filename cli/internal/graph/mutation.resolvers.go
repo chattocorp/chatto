@@ -176,7 +176,7 @@ func (r *mutationResolver) JoinGroup(ctx context.Context, input model.JoinGroupI
 }
 
 // PostMessage is the resolver for the postMessage field.
-func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.Event, error) {
+func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (core.EventEnvelope, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -374,7 +374,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	}
 
-	return event, nil
+	return core.NewEVTEventEnvelope(event), nil
 }
 
 // UpdateServer is the resolver for the updateServer field.

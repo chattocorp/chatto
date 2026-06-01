@@ -52,7 +52,7 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 					t.Error("Received nil event")
 					return
 				}
-				if event.GetMessagePosted() != nil {
+				if core.EventMessagePosted(event) != nil {
 					found = true
 				}
 			case <-deadline:
@@ -136,7 +136,7 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 		// Should timeout without receiving the event
 		select {
 		case event := <-eventChan:
-			if event != nil && event.GetMessagePosted() != nil {
+			if event != nil && core.EventMessagePosted(event) != nil {
 				t.Error("Should not receive events from rooms user is not a member of")
 			}
 		case <-time.After(500 * time.Millisecond):
@@ -208,10 +208,10 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 					t.Error("Received nil event")
 					continue
 				}
-				if event.GetMessagePosted() == nil {
+				if core.EventMessagePosted(event) == nil {
 					continue // not a message event — skip
 				}
-				receivedIDs = append(receivedIDs, event.Id)
+				receivedIDs = append(receivedIDs, event.ID())
 			case <-deadline:
 				t.Fatalf("Timeout waiting for message events: got %d of %d (ids so far: %v)", len(receivedIDs), len(messages), receivedIDs)
 			}
@@ -276,7 +276,7 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 				if event == nil {
 					continue
 				}
-				if msg := event.GetMessagePosted(); msg != nil && msg.InThread != "" {
+				if msg := core.EventMessagePosted(event); msg != nil && msg.InThread != "" {
 					if msg.InThread != rootEventID {
 						t.Errorf("Expected InThread=%q, got %q", rootEventID, msg.InThread)
 					}
@@ -361,7 +361,7 @@ func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				if mentioned := event.GetMentionNotification(); mentioned != nil {
+				if mentioned := core.EventMentionNotification(event); mentioned != nil {
 					if mentioned.RoomId != env.testRoom.Id {
 						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, mentioned.RoomId)
 					}
@@ -371,14 +371,14 @@ func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 					t.Logf("Successfully received mention notification in room %s", mentioned.RoomId)
 					return
 				}
-				if notifCreated := event.GetNotificationCreated(); notifCreated != nil {
+				if notifCreated := core.EventNotificationCreated(event); notifCreated != nil {
 					if notifCreated.RoomId != env.testRoom.Id {
 						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
 					}
 					t.Logf("Successfully received notification created event for mention in room %s", notifCreated.RoomId)
 					return
 				}
-				t.Logf("Ignoring non-mention event: %T", event.Event)
+				t.Logf("Ignoring non-mention event: %T", event.Payload())
 			case <-deadline:
 				t.Fatal("Timeout waiting for mention event")
 			}
@@ -434,19 +434,19 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				presenceEvent := event.GetPresenceChanged()
+				presenceEvent := core.EventPresenceChanged(event)
 				if presenceEvent == nil {
-					t.Logf("Received non-presence event: %T, skipping", event.Event)
+					t.Logf("Received non-presence event: %T, skipping", event.Payload())
 					continue
 				}
-				if event.ActorId != userB.Id {
-					t.Logf("Received presence event for %s (not User B), skipping", event.ActorId)
+				if event.ActorID() != userB.Id {
+					t.Logf("Received presence event for %s (not User B), skipping", event.ActorID())
 					continue
 				}
 				if presenceEvent.Status != "ONLINE" {
 					t.Errorf("Expected status ONLINE, got %s", presenceEvent.Status)
 				}
-				t.Logf("Successfully received presence event: user %s is now %s", event.ActorId, presenceEvent.Status)
+				t.Logf("Successfully received presence event: user %s is now %s", event.ActorID(), presenceEvent.Status)
 				found = true
 			case <-deadline:
 				t.Fatal("Timeout waiting for User B's presence event")

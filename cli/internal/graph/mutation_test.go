@@ -1422,13 +1422,14 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to post root message: %v", err)
 	}
+	rootEventID := rootEvent.ID()
 
 	t.Run("user with echo permission can post with alsoSendToChannel", func(t *testing.T) {
 		alsoSend := true
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Reply echoed to channel"),
-			ThreadRootEventID: &rootEvent.Id,
+			ThreadRootEventID: &rootEventID,
 			AlsoSendToChannel: &alsoSend,
 		}
 
@@ -1476,7 +1477,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Reply trying to echo"),
-			ThreadRootEventID: &rootEvent.Id,
+			ThreadRootEventID: &rootEventID,
 			AlsoSendToChannel: &alsoSend,
 		}
 
@@ -1507,7 +1508,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Reply trying to echo without post permission"),
-			ThreadRootEventID: &rootEvent.Id,
+			ThreadRootEventID: &rootEventID,
 			AlsoSendToChannel: &alsoSend,
 		}
 
@@ -1532,7 +1533,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Normal thread reply"),
-			ThreadRootEventID: &rootEvent.Id,
+			ThreadRootEventID: &rootEventID,
 		}
 
 		event, err := mutation.PostMessage(env.authContextForUser(member2), input)

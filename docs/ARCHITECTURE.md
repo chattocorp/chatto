@@ -229,7 +229,7 @@ Like `Query.admin`, the `admin: AdminMutations` field returns `null` for non-adm
 
 | Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ---- |
-| `myEvents`            | The single subscription. Multiplexes room events (messages, reactions, typing, edits, deletes, mention notifications, video processing, voice call lifecycle) and deployment-scoped events (server config, profile updates, room CRUD, room-layout changes, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
+| `myEvents`            | The single subscription. Multiplexes durable room events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, voice call lifecycle, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
 
 There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
 
@@ -314,41 +314,40 @@ These sections previously described the RBAC model and DM behavior in detail. Th
 
 ### Event Types
 
-Chatto uses a single protobuf wrapper, `corev1.Event`, for every event a user can receive — both the JetStream-stored room-scoped events and the deployment-scoped live events. The earlier two-wrapper split (`SpaceEvent` + `InstanceEvent` / live wrappers) was retired in PR #429: storage decisions (JetStream vs. NATS Core) belong to the publisher path, not the message type.
+Chatto uses `corev1.Event` as the durable EVT wrapper and `corev1.LiveEvent` as the transient NATS Core wrapper. GraphQL exposes both through one public `Event` envelope, but the protobuf wire envelopes stay separate so live-only sync signals cannot leak into the durable audit/event log shape.
 
 - **Wrapper fields**: `id`, `created_at`, `actor_id`
-- **Concrete event**: `event` oneof; contextual fields (`spaceId`, `roomId`, etc.) live on the concrete payloads.
+- **Concrete event**: `event` oneof on the relevant wire envelope; contextual fields (`roomId`, etc.) live on the concrete payloads.
 
 The oneof's field-number convention makes durability obvious at a glance:
 
 - **`< 1000`** — persisted variants stored in JetStream. The field number is part of the on-disk wire format; do not change or reuse.
-- **`>= 1000`** — live-only variants published to NATS Core. Free to reassign, modulo a single-deployment in-flight constraint.
+- **`>= 1000`** — retired legacy live-only `Event` tags, except frozen durable reaction tags `1050` / `1051`. New transient payloads belong in `LiveEvent`; new durable facts should use an intentional low-numbered block.
 
 **Proto File Organization:**
 
 | File | Contents | Safety |
 | ---- | -------- | ------ |
-| `event.proto` | `Event` wrapper + the persisted event message definitions | Changing field numbers/structure affects JetStream-stored data — requires careful migration |
-| `live_event.proto` | All live-only event message definitions | Safe to change freely — these are never persisted |
+| `event.proto` | Durable `Event` wrapper + persisted event message definitions | Changing field numbers/structure affects JetStream-stored data — requires careful migration |
+| `live_events.proto` | Transient `LiveEvent` wrapper + live-only event message definitions | Safe to change freely — these are never persisted |
 
-Both files share `package chatto.core.v1` and generate into the same Go package. The `unwrapEvent` helper in `cli/internal/graph/event_helpers.go` is the single switch from the proto oneof to a typed payload; `unwrapEventAs[T]` is the typed wrapper used by the GraphQL resolvers.
+Both files share `package chatto.core.v1` and generate into the same Go package. `core.EventEnvelope` is the in-process GraphQL delivery interface that can carry durable EVT, transient LiveEvent, or a heartbeat through private concrete implementations. The `unwrapEvent` helper in `cli/internal/graph/event_helpers.go` is the single switch from that delivery envelope to a typed GraphQL payload; `unwrapEventAs[T]` is the typed wrapper used by the GraphQL resolvers.
 
 **Event Categories:**
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, historical replay, projection source of truth |
-| Room live-only              | NATS Core  | MessageDeleted, MessageUpdated, PresenceChanged, UserTyping | Ephemeral room notifications where another store/projection is source of truth |
-| Deployment live (user/space/config) | NATS Core  | UserCreated, SpaceUpdated, ConfigUpdated, MentionNotification, NotificationCreated | Cross-tab sync, notifications, server lifecycle |
+| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, historical replay, projection source of truth |
+| Room live-only              | NATS Core  | UserTyping, VideoProcessingCompleted, CallParticipantJoined, CallParticipantLeft | Ephemeral room notifications where another store/projection is source of truth |
+| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, ConfigUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
-The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). All variants share the single `corev1.Event` envelope; GraphQL exposes them through one `Event` envelope with typed payloads as members of the `EventType` union. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
+The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`, and GraphQL exposes both through one `Event` envelope with typed payloads as members of the `EventType` union. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:
 
-- Space events contain `space_id`
-- Room events contain `space_id` and `room_id`
-- Membership events contain relevant IDs (`space_id` for space joins, `space_id` + `room_id` for room joins)
-- Self-initiated events (e.g., `PresenceChanged`, `UserJoinedSpace`, `UserLeftSpace`) use the parent wrapper's `actor_id` instead of duplicating a `user_id` field
+- Room events contain `room_id`.
+- Membership events contain relevant IDs (`room_id` for room joins/leaves).
+- Self-initiated events (e.g., `PresenceChanged`) use the parent wrapper's `actor_id` instead of duplicating a `user_id` field.
 
 **Event Publishing Strategy:**
 

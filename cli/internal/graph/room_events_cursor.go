@@ -7,16 +7,15 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // buildRoomEventsConnection unwraps core.RoomEvent (which carries the
-// JetStream sequence) into bare SpaceEvent pointers for the GraphQL
+// JetStream sequence) into delivered Event envelopes for the GraphQL
 // model and renders the cursor sequences as opaque strings.
 func buildRoomEventsConnection(r *core.RoomEventsResult) *model.RoomEventsConnection {
-	events := make([]*corev1.Event, len(r.Events))
+	events := make([]core.EventEnvelope, len(r.Events))
 	for i, e := range r.Events {
-		events[i] = e.Event
+		events[i] = core.NewEVTEventEnvelope(e.Event)
 	}
 	conn := &model.RoomEventsConnection{
 		Events:   events,

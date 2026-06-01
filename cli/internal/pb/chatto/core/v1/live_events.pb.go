@@ -25,7 +25,7 @@ const (
 // LiveEvent is the wire-format envelope for transient pubsub signals.
 // These events are never stored in EVT and are not projection input. They
 // are delivered over the live.sync.> subject family and adapted by myEvents
-// into the public GraphQL ServerEvent shape.
+// into the public GraphQL Event shape.
 //
 // Durable facts belong in Event on the EVT stream. Do not add new transient
 // variants to Event.
@@ -50,6 +50,7 @@ type LiveEvent struct {
 	//	*LiveEvent_ServerUpdated
 	//	*LiveEvent_UserTyping
 	//	*LiveEvent_VideoProcessingCompleted
+	//	*LiveEvent_PresenceChanged
 	//	*LiveEvent_MentionNotification
 	//	*LiveEvent_NewDirectMessageNotification
 	//	*LiveEvent_CallParticipantJoined
@@ -222,6 +223,15 @@ func (x *LiveEvent) GetVideoProcessingCompleted() *VideoProcessingCompletedEvent
 	return nil
 }
 
+func (x *LiveEvent) GetPresenceChanged() *PresenceChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*LiveEvent_PresenceChanged); ok {
+			return x.PresenceChanged
+		}
+	}
+	return nil
+}
+
 func (x *LiveEvent) GetMentionNotification() *MentionNotificationEvent {
 	if x != nil {
 		if x, ok := x.Event.(*LiveEvent_MentionNotification); ok {
@@ -364,6 +374,11 @@ type LiveEvent_VideoProcessingCompleted struct {
 	VideoProcessingCompleted *VideoProcessingCompletedEvent `protobuf:"bytes,41,opt,name=video_processing_completed,json=videoProcessingCompleted,proto3,oneof"`
 }
 
+type LiveEvent_PresenceChanged struct {
+	// ----- Presence -----
+	PresenceChanged *PresenceChangedEvent `protobuf:"bytes,45,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
+}
+
 type LiveEvent_MentionNotification struct {
 	// ----- Notifications -----
 	MentionNotification *MentionNotificationEvent `protobuf:"bytes,50,opt,name=mention_notification,json=mentionNotification,proto3,oneof"`
@@ -431,6 +446,8 @@ func (*LiveEvent_ServerUpdated) isLiveEvent_Event() {}
 func (*LiveEvent_UserTyping) isLiveEvent_Event() {}
 
 func (*LiveEvent_VideoProcessingCompleted) isLiveEvent_Event() {}
+
+func (*LiveEvent_PresenceChanged) isLiveEvent_Event() {}
 
 func (*LiveEvent_MentionNotification) isLiveEvent_Event() {}
 
@@ -1502,7 +1519,7 @@ var File_chatto_core_v1_live_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/live_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"chatto/core/v1/config_events.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\xb3\x10\n" +
+	" chatto/core/v1/live_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"chatto/core/v1/config_events.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\x86\x11\n" +
 	"\tLiveEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1520,7 +1537,8 @@ const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\x0eserver_updated\x18\x1f \x01(\v2\".chatto.core.v1.ServerUpdatedEventH\x00R\rserverUpdated\x12B\n" +
 	"\vuser_typing\x18( \x01(\v2\x1f.chatto.core.v1.UserTypingEventH\x00R\n" +
 	"userTyping\x12m\n" +
-	"\x1avideo_processing_completed\x18) \x01(\v2-.chatto.core.v1.VideoProcessingCompletedEventH\x00R\x18videoProcessingCompleted\x12]\n" +
+	"\x1avideo_processing_completed\x18) \x01(\v2-.chatto.core.v1.VideoProcessingCompletedEventH\x00R\x18videoProcessingCompleted\x12Q\n" +
+	"\x10presence_changed\x18- \x01(\v2$.chatto.core.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12]\n" +
 	"\x14mention_notification\x182 \x01(\v2(.chatto.core.v1.MentionNotificationEventH\x00R\x13mentionNotification\x12z\n" +
 	"\x1fnew_direct_message_notification\x183 \x01(\v21.chatto.core.v1.NewDirectMessageNotificationEventH\x00R\x1cnewDirectMessageNotification\x12d\n" +
 	"\x17call_participant_joined\x18< \x01(\v2*.chatto.core.v1.CallParticipantJoinedEventH\x00R\x15callParticipantJoined\x12^\n" +
@@ -1647,23 +1665,24 @@ var file_chatto_core_v1_live_events_proto_depIdxs = []int32{
 	4,  // 9: chatto.core.v1.LiveEvent.server_updated:type_name -> chatto.core.v1.ServerUpdatedEvent
 	6,  // 10: chatto.core.v1.LiveEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
 	17, // 11: chatto.core.v1.LiveEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
-	8,  // 12: chatto.core.v1.LiveEvent.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
-	9,  // 13: chatto.core.v1.LiveEvent.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
-	18, // 14: chatto.core.v1.LiveEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
-	19, // 15: chatto.core.v1.LiveEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
-	10, // 16: chatto.core.v1.LiveEvent.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
-	11, // 17: chatto.core.v1.LiveEvent.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
-	13, // 18: chatto.core.v1.LiveEvent.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
-	14, // 19: chatto.core.v1.LiveEvent.mention_status_cleared:type_name -> chatto.core.v1.MentionStatusClearedEvent
-	15, // 20: chatto.core.v1.LiveEvent.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
-	16, // 21: chatto.core.v1.LiveEvent.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
-	27, // 22: chatto.core.v1.NotificationLevelChangedEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	27, // 23: chatto.core.v1.NotificationLevelChangedEvent.effective_level:type_name -> chatto.core.v1.NotificationLevel
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	7,  // 12: chatto.core.v1.LiveEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
+	8,  // 13: chatto.core.v1.LiveEvent.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
+	9,  // 14: chatto.core.v1.LiveEvent.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
+	18, // 15: chatto.core.v1.LiveEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
+	19, // 16: chatto.core.v1.LiveEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
+	10, // 17: chatto.core.v1.LiveEvent.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
+	11, // 18: chatto.core.v1.LiveEvent.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
+	13, // 19: chatto.core.v1.LiveEvent.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
+	14, // 20: chatto.core.v1.LiveEvent.mention_status_cleared:type_name -> chatto.core.v1.MentionStatusClearedEvent
+	15, // 21: chatto.core.v1.LiveEvent.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
+	16, // 22: chatto.core.v1.LiveEvent.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
+	27, // 23: chatto.core.v1.NotificationLevelChangedEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	27, // 24: chatto.core.v1.NotificationLevelChangedEvent.effective_level:type_name -> chatto.core.v1.NotificationLevel
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_live_events_proto_init() }
@@ -1687,6 +1706,7 @@ func file_chatto_core_v1_live_events_proto_init() {
 		(*LiveEvent_ServerUpdated)(nil),
 		(*LiveEvent_UserTyping)(nil),
 		(*LiveEvent_VideoProcessingCompleted)(nil),
+		(*LiveEvent_PresenceChanged)(nil),
 		(*LiveEvent_MentionNotification)(nil),
 		(*LiveEvent_NewDirectMessageNotification)(nil),
 		(*LiveEvent_CallParticipantJoined)(nil),
