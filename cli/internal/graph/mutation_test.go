@@ -1301,8 +1301,8 @@ func TestDeleteMessage_EchoDeletesOnlyEchoArtifact(t *testing.T) {
 	}
 	echoID := ""
 	for _, event := range events.Events {
-		if msg := event.GetMessagePosted(); msg != nil && msg.GetEchoOfEventId() == replyEvent.Id {
-			echoID = event.Id
+		if msg := core.EventMessagePosted(event); msg != nil && msg.GetEchoOfEventId() == replyEvent.Id {
+			echoID = event.ID()
 			break
 		}
 	}
@@ -1326,7 +1326,7 @@ func TestDeleteMessage_EchoDeletesOnlyEchoArtifact(t *testing.T) {
 		t.Fatalf("Room.Events after delete: %v", err)
 	}
 	for _, event := range events.Events {
-		if event.Id == echoID {
+		if event.ID() == echoID {
 			t.Fatal("hidden echo should not appear in GraphQL room events")
 		}
 	}

@@ -236,7 +236,7 @@ func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 	for {
 		select {
 		case ev := <-eventChan:
-			retracted := ev.GetMessageRetracted()
+			retracted := EventMessageRetracted(ev)
 			if retracted == nil {
 				continue
 			}
