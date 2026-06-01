@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -174,32 +173,19 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Encrypt the body with the author's per-user key. Same envelope
-	// shape as before the ES cutover (MessageBody.EncryptedBody +
-	// EncryptionNonce); only the storage location has changed —
-	// embedded in the event instead of stored in SERVER_BODIES.
-	key, err := c.encryption.keyManager.GetUserKey(ctx, user_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get encryption key: %w", err)
-	}
-	if key == nil {
-		return nil, fmt.Errorf("encryption key not found for user %s", user_id)
-	}
-	encrypted, err := encryption.Encrypt(key, []byte(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt message body: %w", err)
-	}
-
+	eventID := NewEventID()
 	messageBody := &corev1.MessageBody{
-		CreatedAt:       timestamppb.New(now),
-		AssetIds:        resolvedAssetIDs,
-		AuthorId:        user_id,
-		LinkPreview:     linkPreview,
-		EncryptedBody:   encrypted.Ciphertext,
-		EncryptionNonce: encrypted.Nonce,
+		CreatedAt:   timestamppb.New(now),
+		AssetIds:    resolvedAssetIDs,
+		AuthorId:    user_id,
+		LinkPreview: linkPreview,
+	}
+	if err := c.encryptMessageBody(ctx, messageBody, room_id, eventID, body); err != nil {
+		return nil, err
 	}
 
 	event := newEvent(user_id, &corev1.Event{
+		Id:        eventID,
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
@@ -371,11 +357,17 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	// Publish echo event to root subject if "also send to channel" was requested.
 	// The echo references the original event_id, so resolvers can fold
-	// it back to the underlying body. We re-use the encrypted body
-	// envelope from the original (same ciphertext + nonce) so the
-	// echo is a self-contained renderable message.
+	// it back to the underlying body. The body is encrypted again for the
+	// echo event ID because v2 encryption authenticates the event context.
 	if inThread != "" && alsoSendToChannel {
+		echoID := NewEventID()
+		echoBody := proto.Clone(messageBody).(*corev1.MessageBody)
+		if err := c.encryptMessageBody(ctx, echoBody, room_id, echoID, body); err != nil {
+			c.logger.Warn("Failed to encrypt thread reply echo", "error", err, "thread_reply_event_id", event.Id)
+			return event, nil
+		}
 		echoEvent := newEvent(user_id, &corev1.Event{
+			Id:        echoID,
 			CreatedAt: event.CreatedAt,
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
@@ -384,7 +376,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 					MentionedUserIds:          mentionedUserIDs,
 					EchoOfEventId:             event.Id,
 					EchoFromThreadRootEventId: inThread,
-					Body:                      messageBody,
+					Body:                      echoBody,
 				},
 			},
 		})
@@ -586,22 +578,14 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return ErrMessageNotFound
 	}
 
-	key, err := c.encryption.keyManager.GetUserKey(ctx, authorID)
-	if err != nil {
-		return fmt.Errorf("failed to get encryption key: %w", err)
-	}
-	if key == nil {
-		return fmt.Errorf("cannot edit: encryption key not found (message was crypto-shredded)")
-	}
-	encrypted, err := encryption.Encrypt(key, []byte(newBody))
-	if err != nil {
-		return fmt.Errorf("failed to encrypt message body: %w", err)
-	}
-
 	updated := proto.Clone(current).(*corev1.MessageBody)
-	updated.EncryptedBody = encrypted.Ciphertext
-	updated.EncryptionNonce = encrypted.Nonce
 	updated.UpdatedAt = timestamppb.Now()
+	if err := c.encryptMessageBody(ctx, updated, roomID, eventID, newBody); err != nil {
+		if updated.GetAuthorId() == "" {
+			return fmt.Errorf("cannot edit: message body author is empty")
+		}
+		return err
+	}
 
 	agg := events.RoomAggregate(roomID)
 	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
@@ -611,6 +595,11 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	// the legacy "edit one, both update" semantic is preserved.
 	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
 		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
+		if err := c.encryptMessageBody(ctx, linkedBody, roomID, linkedID, newBody); err != nil {
+			c.logger.Warn("Failed to encrypt linked message edit",
+				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
+			continue
+		}
 		if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, linkedID, linkedBody); err != nil {
 			c.logger.Warn("Failed to propagate edit to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
@@ -704,7 +693,16 @@ func (c *ChattoCore) editEmbeddedBody(
 		return err
 	}
 	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
-		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
+		linkedCurrent, linkedRetracted, _ := c.RoomTimeline.LatestBody(linkedID)
+		if linkedRetracted || linkedCurrent == nil {
+			continue
+		}
+		linkedBody := proto.Clone(linkedCurrent).(*corev1.MessageBody)
+		metadata := proto.Clone(updated).(*corev1.MessageBody)
+		linkedBody.AssetIds = append([]string(nil), metadata.GetAssetIds()...)
+		linkedBody.Attachments = metadata.GetAttachments()
+		linkedBody.LinkPreview = metadata.GetLinkPreview()
+		linkedBody.UpdatedAt = metadata.GetUpdatedAt()
 		if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, linkedID, linkedBody); err != nil {
 			c.logger.Warn("Failed to propagate partial edit to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"hmans.de/chatto/internal/encryption"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -143,6 +144,15 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	}
 	if len(storedBody.EncryptionNonce) == 0 {
 		t.Error("Expected encryption nonce to be non-empty")
+	}
+	if storedBody.EncryptionVersion != encryption.EnvelopeVersionV2 {
+		t.Errorf("EncryptionVersion = %d, want %d", storedBody.EncryptionVersion, encryption.EnvelopeVersionV2)
+	}
+	if len(storedBody.EncryptedDataKey) == 0 {
+		t.Error("Expected wrapped data key to be non-empty")
+	}
+	if len(storedBody.DataKeyNonce) == 0 {
+		t.Error("Expected data key nonce to be non-empty")
 	}
 
 	// Verify timestamps are set correctly

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -1041,10 +1040,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		// Echo and reply each have their own envelope id. What they
-		// share is the encrypted body content: the echo clones the
-		// reply's MessageBody verbatim, so the ciphertext and nonce
-		// are byte-identical.
+		// Echo and reply each have their own envelope id and encryption
+		// context, but decrypt to the same visible content.
 		reply := replyEvent.GetMessagePosted()
 		replyBody := reply.GetBody()
 		if replyBody == nil {
@@ -1053,20 +1050,33 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 
 		roomEventsResult, _ := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
 		var echoBody *corev1.MessageBody
+		var echoID string
 		for _, e := range roomEventsResult.Events {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
 				echoBody = msg.GetBody()
+				echoID = e.Id
 				break
 			}
 		}
 		if echoBody == nil {
 			t.Fatal("Echo not found in room events (or has no embedded body)")
 		}
-		if !bytes.Equal(echoBody.EncryptedBody, replyBody.EncryptedBody) {
-			t.Errorf("Echo body ciphertext differs from reply's")
+		if echoID == "" {
+			t.Fatal("Echo event has no id")
 		}
-		if !bytes.Equal(echoBody.EncryptionNonce, replyBody.EncryptionNonce) {
-			t.Errorf("Echo body nonce differs from reply's")
+		if string(echoBody.EncryptedBody) == string(replyBody.EncryptedBody) {
+			t.Errorf("Echo body ciphertext should be independently encrypted")
+		}
+		echoText, err := core.GetMessageBody(ctx, KindChannel, echoID)
+		if err != nil {
+			t.Fatalf("Failed to decrypt echo body: %v", err)
+		}
+		replyText, err := core.GetMessageBody(ctx, KindChannel, replyEvent.Id)
+		if err != nil {
+			t.Fatalf("Failed to decrypt reply body: %v", err)
+		}
+		if echoText != replyText || echoText != "Shared body content" {
+			t.Errorf("Echo/reply body = %q/%q, want shared content", echoText, replyText)
 		}
 	})
 }

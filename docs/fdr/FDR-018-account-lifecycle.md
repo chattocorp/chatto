@@ -67,10 +67,10 @@ This FDR covers the user account from registration through deletion: signup, ema
 **Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying one key destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
 **Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
 
-### 5. Per-user keys, not shared keys
+### 5. Per-user KEKs, not shared keys
 
-**Decision:** Each user has their own ChaCha20-Poly1305 encryption key.
-**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user keys make each deletion fully self-contained. See ADR-007.
+**Decision:** Each user has their own message-body KEK. New messages use per-message DEKs wrapped by that KEK; legacy messages encrypted directly with the per-user key remain readable.
+**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained while per-message DEKs limit the blast radius of an individual content key. See ADR-007.
 **Tradeoff:** Every message-body decryption is a per-author KV lookup. The lookup is cheap (NATS KV is memory-cached) and dataloader batches help on bulk reads.
 
 ### 6. KMS service boundary, even though it's in-process

@@ -78,9 +78,18 @@ This boundary is intentional and enforced in the resolvers under `Query.admin` �
 
 ### Message bodies at rest
 
-Message bodies are encrypted with **ChaCha20-Poly1305** (AEAD, 256-bit key, 96-bit random nonce) before being written to JetStream. Each user has their own encryption key, generated on demand and stored in a dedicated `KV_ENCRYPTION_KEYS` bucket. Authentication tags are verified on every read; tampered ciphertext is rejected with `ErrDecryptionFailed`.
+Message bodies are encrypted before being written to JetStream. New messages use a compact versioned envelope:
+
+- Chatto generates a fresh per-message data encryption key (DEK).
+- The body is encrypted with **XChaCha20-Poly1305** using that DEK.
+- The DEK is wrapped with the author's per-user key encryption key (KEK).
+- The encrypted body is authenticated with its event context — event ID, room ID, author ID, and message-body event type — as Additional Authenticated Data (AAD).
+
+The per-user KEK is generated on demand and stored in a dedicated `ENCRYPTION_KEYS` NATS KV bucket. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
 
 This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the encryption keys bucket.
+
+Older message bodies encrypted directly with the user's per-user ChaCha20-Poly1305 key remain readable.
 
 <Aside type="note">
   Message **bodies** are encrypted. User profile fields — login, display name, email address — are stored in plaintext KV. Email addresses are indexed by SHA-256 hash of the normalized address, but the email itself is also stored in plaintext on the user record so it can be displayed in admin views and matched against `owners.emails`.
@@ -90,8 +99,8 @@ This means an attacker who exfiltrates the JetStream data files alone cannot rec
 
 When a user is deleted, Chatto:
 
-1. Deletes every message body the user authored across every room.
-2. **Deletes the user's encryption key**, rendering any remaining encrypted bytes (e.g. inside long-lived event streams) permanently unreadable.
+1. Retracts visible message bodies the user authored across every room.
+2. **Deletes the user's KEK**, rendering remaining encrypted body bytes and wrapped per-message DEKs permanently unreadable.
 3. Removes profile fields, the avatar object, push-notification subscriptions, email index entries, and the server membership.
 4. Publishes member-deleted events so other clients refetch and show "Deleted User" in place of any orphaned references.
 
@@ -109,9 +118,9 @@ TLS is **not required**. Chatto can also run plain HTTP, which is useful for loc
 
 ## Backup security
 
-Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. `KV_ENCRYPTION_KEYS` is **deliberately excluded** from backups for security reasons:
+Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. The `ENCRYPTION_KEYS` bucket is **deliberately excluded** from backups for security reasons:
 
-- `KV_ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies if leaked.
+- `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies if leaked.
 
 `RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
@@ -168,7 +177,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 | Secret                              | Storage                                     | Backed up?     |
 | ----------------------------------- | ------------------------------------------- | -------------- |
-| User encryption keys                | `KV_ENCRYPTION_KEYS` (NATS KV)              | No (export separately) |
+| User message-body KEKs              | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
 | Bearer/session token verifiers      | `KV_RUNTIME_STATE` (HMAC-keyed, with TTL)   | Yes (not raw tokens) |
 | Account-flow link/code verifiers    | `KV_RUNTIME_STATE` (HMAC-keyed, with TTL)   | Yes (not raw links/codes) |
 | Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |

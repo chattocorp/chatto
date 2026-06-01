@@ -69,7 +69,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 		return nil, nil
 	}
 
-	plaintext, err := c.decryptMessageBody(ctx, body)
+	plaintext, err := c.decryptMessageBody(ctx, eventID, posted.GetRoomId(), body)
 	if err != nil {
 		if errors.Is(err, encryption.ErrKeyNotFound) {
 			return nil, nil // crypto-shredded
@@ -124,15 +124,29 @@ func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, mess
 	return entry.Event.GetActorId(), nil
 }
 
-// decryptMessageBody decrypts an encrypted message body using the
-// author's per-user encryption key.
-func (c *ChattoCore) decryptMessageBody(ctx context.Context, msg *corev1.MessageBody) ([]byte, error) {
+// decryptMessageBody decrypts an encrypted message body. Legacy bodies are
+// decrypted directly with the author's per-user key; v2 bodies unwrap a
+// per-message DEK and authenticate the event context as AAD.
+func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID string, msg *corev1.MessageBody) ([]byte, error) {
 	key, err := c.encryption.keyManager.GetUserKey(ctx, msg.GetAuthorId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
 	if key == nil {
 		return nil, encryption.ErrKeyNotFound
+	}
+	if msg.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || len(msg.GetEncryptedDataKey()) > 0 {
+		if version := msg.GetEncryptionVersion(); version != encryption.EnvelopeVersionV2 {
+			return nil, fmt.Errorf("unsupported message body encryption version %d", version)
+		}
+		return encryption.DecryptEnvelope(
+			key,
+			msg.GetEncryptedBody(),
+			msg.GetEncryptionNonce(),
+			msg.GetEncryptedDataKey(),
+			msg.GetDataKeyNonce(),
+			messageBodyAAD(eventID, roomID, msg.GetAuthorId()),
+		)
 	}
 	return encryption.Decrypt(key, msg.GetEncryptedBody(), msg.GetEncryptionNonce())
 }

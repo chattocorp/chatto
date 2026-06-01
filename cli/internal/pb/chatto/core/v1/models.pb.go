@@ -1168,15 +1168,29 @@ func (x *Attachment) GetMessageBodyId() string {
 // Stored separately from events in KV buckets for GDPR compliance.
 // This allows individual message bodies to be deleted while preserving
 // the audit trail in the event stream.
-// Message bodies are always encrypted using per-user ChaCha20-Poly1305 keys.
+// Message bodies are always encrypted. Legacy bodies use the author's
+// per-user ChaCha20-Poly1305 key directly. New bodies use a versioned
+// envelope with a per-message DEK wrapped by the author's per-user KEK.
 type MessageBody struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AuthorId  string                 `protobuf:"bytes,1,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// Encrypted message body (ChaCha20-Poly1305 ciphertext with auth tag)
+	// Encryption envelope version. Empty/0 means legacy v1 direct per-user-key
+	// encryption for backward compatibility with historical bodies. Version 2
+	// means XChaCha20-Poly1305 body encryption with a per-message DEK wrapped by
+	// the author's per-user KEK.
+	EncryptionVersion int32 `protobuf:"varint,4,opt,name=encryption_version,json=encryptionVersion,proto3" json:"encryption_version,omitempty"`
+	// V2 only: per-message DEK wrapped with the author's per-user KEK.
+	EncryptedDataKey []byte `protobuf:"bytes,5,opt,name=encrypted_data_key,json=encryptedDataKey,proto3" json:"encrypted_data_key,omitempty"`
+	// V2 only: XChaCha20-Poly1305 nonce for encrypted_data_key.
+	DataKeyNonce []byte `protobuf:"bytes,6,opt,name=data_key_nonce,json=dataKeyNonce,proto3" json:"data_key_nonce,omitempty"`
+	// Encrypted message body ciphertext with auth tag. For legacy bodies this
+	// is ChaCha20-Poly1305. For v2 envelope bodies this is XChaCha20-Poly1305
+	// using a per-message DEK.
 	EncryptedBody []byte `protobuf:"bytes,20,opt,name=encrypted_body,json=encryptedBody,proto3" json:"encrypted_body,omitempty"`
-	// 12-byte nonce for ChaCha20-Poly1305 (must be unique per encryption)
+	// Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
+	// for v2 XChaCha20-Poly1305.
 	EncryptionNonce []byte `protobuf:"bytes,21,opt,name=encryption_nonce,json=encryptionNonce,proto3" json:"encryption_nonce,omitempty"`
 	// Legacy embedded attachment protos. Older bodies (and the legacy
 	// import path) carry full Attachment records here. New bodies write
@@ -1243,6 +1257,27 @@ func (x *MessageBody) GetCreatedAt() *timestamppb.Timestamp {
 func (x *MessageBody) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *MessageBody) GetEncryptionVersion() int32 {
+	if x != nil {
+		return x.EncryptionVersion
+	}
+	return 0
+}
+
+func (x *MessageBody) GetEncryptedDataKey() []byte {
+	if x != nil {
+		return x.EncryptedDataKey
+	}
+	return nil
+}
+
+func (x *MessageBody) GetDataKeyNonce() []byte {
+	if x != nil {
+		return x.DataKeyNonce
 	}
 	return nil
 }
@@ -1912,13 +1947,16 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06height\x18\b \x01(\x05R\x06height\x129\n" +
 	"\astorage\x18\t \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\astorage\x12&\n" +
 	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\x8d\x03\n" +
+	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\x90\x04\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12-\n" +
+	"\x12encryption_version\x18\x04 \x01(\x05R\x11encryptionVersion\x12,\n" +
+	"\x12encrypted_data_key\x18\x05 \x01(\fR\x10encryptedDataKey\x12$\n" +
+	"\x0edata_key_nonce\x18\x06 \x01(\fR\fdataKeyNonce\x12%\n" +
 	"\x0eencrypted_body\x18\x14 \x01(\fR\rencryptedBody\x12)\n" +
 	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x12<\n" +
 	"\vattachments\x18\x1e \x03(\v2\x1a.chatto.core.v1.AttachmentR\vattachments\x12\x1b\n" +

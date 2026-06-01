@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -63,11 +64,39 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotNil(t, stored, "expected embedded body on the published event")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
+	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "new messages should use v2 envelopes")
+	require.NotEmpty(t, stored.EncryptedDataKey, "wrapped DEK should be stored")
+	require.NotEmpty(t, stored.DataKeyNonce, "wrapped DEK nonce should be stored")
 
 	// Verify we can read the message back (decrypted)
 	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body, "decrypted message should match original")
+}
+
+func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "aaduser", "AAD User", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
+	require.NoError(t, err)
+
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Bound to one event", nil, "", "", nil, false)
+	require.NoError(t, err)
+	stored := event.GetMessagePosted().GetBody()
+	require.NotNil(t, stored)
+
+	plaintext, err := core.decryptMessageBody(ctx, event.Id, room.Id, stored)
+	require.NoError(t, err)
+	require.Equal(t, "Bound to one event", string(plaintext))
+
+	_, err = core.decryptMessageBody(ctx, "EtamperedEventID", room.Id, stored)
+	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+
+	_, err = core.decryptMessageBody(ctx, event.Id, "RtamperedRoomID", stored)
+	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 }
 
 func TestGetMessageBody_CryptoShredding(t *testing.T) {
@@ -204,6 +233,8 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	require.NotNil(t, stored, "expected a body after edit")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty after edit")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty after edit")
+	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "edited messages should keep v2 envelopes")
+	require.NotEmpty(t, stored.EncryptedDataKey, "edited messages should store a wrapped DEK")
 
 	// Verify we can read the edited content
 	body, err := core.GetMessageBody(ctx, KindChannel, messageBodyID)

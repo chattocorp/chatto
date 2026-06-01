@@ -512,11 +512,11 @@ Notes: Server configuration now lives in EVT config events and is served from th
 
 **ENCRYPTION_KEYS keys:**
 
-| Key        | Description                                          |
-| ---------- | ---------------------------------------------------- |
-| `{userId}` | User's 32-byte encryption key (ChaCha20-Poly1305)    |
+| Key             | Description                       |
+| --------------- | --------------------------------- |
+| `user.{userId}` | User's 32-byte message-body KEK   |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Enables GDPR-compliant crypto-shredding: deleting a user's key renders all their messages permanently unreadable.
+Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. New message bodies use this key to wrap a per-message DEK; legacy bodies use it directly. Key IDs are not stored on message bodies yet because each user has only one active key. Enables GDPR-compliant crypto-shredding: deleting a user's key renders all their messages permanently unreadable.
 
 **SERVER\_CONFIG keys:**
 
@@ -736,7 +736,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with a per-message DEK authenticated with event-context AAD and wrapped by the author's per-user KEK. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 

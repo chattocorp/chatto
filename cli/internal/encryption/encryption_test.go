@@ -78,6 +78,46 @@ func TestDecryptWithTamperedNonce(t *testing.T) {
 	require.ErrorIs(t, err, ErrDecryptionFailed)
 }
 
+func TestEncryptEnvelopeDecrypt(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	aad := []byte("event=E123\x00room=R123\x00author=U123")
+
+	encrypted, err := EncryptEnvelope(kek, []byte("secret message"), aad)
+	require.NoError(t, err)
+	require.Equal(t, EnvelopeVersionV2, encrypted.Version)
+	require.NotEqual(t, "secret message", string(encrypted.Ciphertext))
+	require.Len(t, encrypted.Nonce, XNonceSize)
+	require.NotEmpty(t, encrypted.EncryptedDataKey)
+	require.Len(t, encrypted.DataKeyNonce, XNonceSize)
+
+	decrypted, err := DecryptEnvelope(kek, encrypted.Ciphertext, encrypted.Nonce, encrypted.EncryptedDataKey, encrypted.DataKeyNonce, aad)
+	require.NoError(t, err)
+	require.Equal(t, "secret message", string(decrypted))
+}
+
+func TestDecryptEnvelopeWithTamperedAAD(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	encrypted, err := EncryptEnvelope(kek, []byte("secret message"), []byte("event=E123"))
+	require.NoError(t, err)
+
+	_, err = DecryptEnvelope(kek, encrypted.Ciphertext, encrypted.Nonce, encrypted.EncryptedDataKey, encrypted.DataKeyNonce, []byte("event=E456"))
+	require.ErrorIs(t, err, ErrDecryptionFailed)
+}
+
+func TestDecryptEnvelopeWithTamperedWrappedKey(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	aad := []byte("event=E123")
+	encrypted, err := EncryptEnvelope(kek, []byte("secret message"), aad)
+	require.NoError(t, err)
+	encrypted.EncryptedDataKey[0] ^= 0xFF
+
+	_, err = DecryptEnvelope(kek, encrypted.Ciphertext, encrypted.Nonce, encrypted.EncryptedDataKey, encrypted.DataKeyNonce, aad)
+	require.ErrorIs(t, err, ErrDecryptionFailed)
+}
+
 func TestNonceUniqueness(t *testing.T) {
 	key, err := GenerateKey()
 	require.NoError(t, err)
