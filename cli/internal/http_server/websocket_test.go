@@ -275,7 +275,7 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 	// Subscribe to server events
 	payload, _ := json.Marshal(subscriptionPayload{
 		Query: `subscription {
-			myEvents {
+			myEvents(presenceSessionId: "ws-session-1") {
 				id
 				event {
 					... on MessagePostedEvent {
@@ -348,7 +348,7 @@ func TestWebSocket_Subscription_Unauthenticated(t *testing.T) {
 
 	// Try to subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
+		Query: `subscription { myEvents(presenceSessionId: "ws-session-unauth") { id event { ... on MessagePostedEvent { body } } } }`,
 	})
 
 	sendWSMessage(t, conn, graphqlWSMessage{
@@ -390,11 +390,11 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	sendWSMessage(t, conn, graphqlWSMessage{Type: "connection_init"})
 	readWSMessage(t, conn, 5*time.Second) // connection_ack
 
-	// myEvents is deployment-wide and takes no args. Two subscriptions
-	// over the single feed exercise the multi-subscription dispatch path.
+	// myEvents is deployment-wide. Two subscriptions over the single feed
+	// exercise the multi-subscription dispatch path.
 	for i := 0; i < 2; i++ {
 		payload, _ := json.Marshal(subscriptionPayload{
-			Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
+			Query: `subscription { myEvents(presenceSessionId: "ws-session-multi") { id event { ... on MessagePostedEvent { body } } } }`,
 		})
 		sendWSMessage(t, conn, graphqlWSMessage{
 			ID:      string(rune('1' + i)),
@@ -446,7 +446,7 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 
 	// Subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
+		Query: `subscription { myEvents(presenceSessionId: "ws-session-unsub") { id event { ... on MessagePostedEvent { body } } } }`,
 	})
 	sendWSMessage(t, conn, graphqlWSMessage{ID: "1", Type: "subscribe", Payload: payload})
 

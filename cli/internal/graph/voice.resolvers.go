@@ -12,7 +12,7 @@ import (
 )
 
 // ActiveCallRoomIds is the resolver for the activeCallRoomIds field.
-// Reads active call room IDs from the CALL_STATE KV bucket.
+// Reads active call room IDs from MEMORY_CACHE.
 // Returns empty list if LiveKit is not configured. Requires space membership.
 func (r *queryResolver) ActiveCallRoomIds(ctx context.Context) ([]string, error) {
 	kind := core.KindChannel

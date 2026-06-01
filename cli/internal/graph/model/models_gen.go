@@ -134,7 +134,7 @@ type AssignRoleInput struct {
 }
 
 // A participant currently in a voice call.
-// Sourced from the server-side CALL_STATE KV bucket (populated by LiveKit webhooks).
+// Sourced from server-side MEMORY_CACHE call state (populated by LiveKit webhooks).
 type CallParticipant struct {
 	// The user's ID.
 	UserID string `json:"userId"`
@@ -1047,6 +1047,8 @@ type UpdateMessageInput struct {
 
 // Input for updating the current user's presence status.
 type UpdateMyPresenceInput struct {
+	// Stable token for this tab/device presence session.
+	PresenceSessionID string `json:"presenceSessionId"`
 	// The presence status to set.
 	Status PresenceStatus `json:"status"`
 }

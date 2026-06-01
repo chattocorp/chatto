@@ -137,7 +137,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	// Subscribe as viewer — they should receive the deletion event.
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, "session-1")
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, target.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, target.Id, "session-1")
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, "session-2")
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}

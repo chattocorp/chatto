@@ -17,13 +17,16 @@ import (
 // Backed by a single core stream (StreamMyEvents) that consumes
 // `live.sync.>` transient LiveEvent messages and `live.evt.>` raw EVT
 // republish messages, plus presence and heartbeats.
-func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error) {
+func (r *subscriptionResolver) MyEvents(ctx context.Context, presenceSessionID string) (<-chan core.EventEnvelope, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
+	if err := core.ValidatePresenceSessionID(presenceSessionID); err != nil {
+		return nil, err
+	}
 
-	events, err := r.core.StreamMyEvents(ctx, user.Id)
+	events, err := r.core.StreamMyEvents(ctx, user.Id, presenceSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("subscribe events: %w", err)
 	}

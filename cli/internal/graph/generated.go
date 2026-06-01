@@ -714,7 +714,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		MyEvents func(childComplexity int) int
+		MyEvents func(childComplexity int, presenceSessionID string) int
 	}
 
 	SystemInfo struct {
@@ -1160,7 +1160,7 @@ type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error)
+	MyEvents(ctx context.Context, presenceSessionID string) (<-chan core.EventEnvelope, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error)
@@ -4300,7 +4300,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Subscription.MyEvents(childComplexity), true
+		args, err := ec.field_Subscription_myEvents_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.MyEvents(childComplexity, args["presenceSessionId"].(string)), true
 
 	case "SystemInfo.account":
 		if e.ComplexityRoot.SystemInfo.Account == nil {
@@ -7643,6 +7648,20 @@ func (ec *executionContext) field_Server_viewerCanManageUser_args(ctx context.Co
 		return nil, err
 	}
 	args["userId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_myEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "presenceSessionId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["presenceSessionId"] = arg0
 	return args, nil
 }
 
@@ -20000,7 +20019,8 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 			return ec.fieldContext_Subscription_myEvents(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Subscription().MyEvents(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().MyEvents(ctx, fc.Args["presenceSessionId"].(string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
@@ -20010,7 +20030,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Subscription_myEvents(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -20019,6 +20039,17 @@ func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Event(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_myEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -25332,13 +25363,20 @@ func (ec *executionContext) unmarshalInputUpdateMyPresenceInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"status"}
+	fieldsInOrder := [...]string{"presenceSessionId", "status"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "presenceSessionId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("presenceSessionId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PresenceSessionID = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
 			data, err := ec.unmarshalNPresenceStatus2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐPresenceStatus(ctx, v)

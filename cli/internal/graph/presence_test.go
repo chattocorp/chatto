@@ -37,7 +37,7 @@ func TestUserResolver_PresenceStatus(t *testing.T) {
 		}
 
 		// Set presence directly
-		err = env.core.SetPresence(env.ctx, onlineUser.Id, "ONLINE")
+		err = env.core.SetPresence(env.ctx, onlineUser.Id, "session-1", "ONLINE")
 		if err != nil {
 			t.Fatalf("failed to set presence: %v", err)
 		}
@@ -53,7 +53,7 @@ func TestUserResolver_PresenceStatus(t *testing.T) {
 
 	t.Run("querying own presence works", func(t *testing.T) {
 		// Set presence directly
-		err := env.core.SetPresence(env.ctx, env.testUser.Id, "ONLINE")
+		err := env.core.SetPresence(env.ctx, env.testUser.Id, "session-1", "ONLINE")
 		if err != nil {
 			t.Fatalf("failed to set presence: %v", err)
 		}

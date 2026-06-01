@@ -32,37 +32,39 @@ type PresenceSubscription struct {
 	id uint64
 }
 
-// PresenceHub runs a single KV watcher on presence.> and fans out
-// raw presence updates to registered subscribers. Each Chatto process
-// has one PresenceHub instance, reducing KV watcher count from
-// O(users × spaces) to 1 per process.
+// PresenceHub runs a single MEMORY_CACHE watcher on presence_session.> and fans
+// out effective per-user presence updates. Each Chatto process has one
+// PresenceHub instance, reducing KV watcher count from O(users × spaces) to 1
+// per process.
 type PresenceHub struct {
-	presenceKV jetstream.KeyValue
-	logger     *log.Logger
+	memoryCacheKV jetstream.KeyValue
+	logger        *log.Logger
 
 	mu          sync.Mutex
 	subscribers map[uint64]*PresenceSubscription
 	nextID      uint64
-	snapshot    map[string]string // current presence state (built during init sync)
-	ready       chan struct{}     // closed when initial sync is complete
-	readyOnce   sync.Once        // ensures ready is closed exactly once
+	snapshot    map[string]string            // current effective presence state (built during init sync)
+	sessions    map[string]map[string]string // userID -> presenceSessionID -> status
+	ready       chan struct{}                // closed when initial sync is complete
+	readyOnce   sync.Once                    // ensures ready is closed exactly once
 }
 
 // NewPresenceHub creates a PresenceHub. Call Run() to start it.
-func NewPresenceHub(presenceKV jetstream.KeyValue, logger *log.Logger) *PresenceHub {
+func NewPresenceHub(memoryCacheKV jetstream.KeyValue, logger *log.Logger) *PresenceHub {
 	return &PresenceHub{
-		presenceKV:  presenceKV,
-		logger:      logger,
-		subscribers: make(map[uint64]*PresenceSubscription),
-		snapshot:    make(map[string]string),
-		ready:       make(chan struct{}),
+		memoryCacheKV: memoryCacheKV,
+		logger:        logger,
+		subscribers:   make(map[uint64]*PresenceSubscription),
+		snapshot:      make(map[string]string),
+		sessions:      make(map[string]map[string]string),
+		ready:         make(chan struct{}),
 	}
 }
 
 // Run starts the KV watcher and fans out updates to subscribers.
 // Blocks until ctx is cancelled. Should be started in an errgroup.
 func (h *PresenceHub) Run(ctx context.Context) error {
-	watcher, err := h.presenceKV.Watch(ctx, "presence.>")
+	watcher, err := h.memoryCacheKV.Watch(ctx, "presence_session.>")
 	if err != nil {
 		return fmt.Errorf("presence hub: failed to create watcher: %w", err)
 	}
@@ -87,7 +89,11 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 				continue
 			}
 
-			userID := parseUserIDFromPresenceKey(entry.Key())
+			userID, sessionID, ok := parsePresenceSessionKey(entry.Key())
+			if !ok {
+				continue
+			}
+
 			var status string
 
 			if entry.Operation() == jetstream.KeyValueDelete ||
@@ -104,16 +110,35 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 
 			h.mu.Lock()
 
-			// Update snapshot
+			previous, hadPrevious := h.snapshot[userID]
+			if _, ok := h.sessions[userID]; !ok {
+				h.sessions[userID] = make(map[string]string)
+			}
 			if status == PresenceStatusOffline {
+				delete(h.sessions[userID], sessionID)
+			} else {
+				h.sessions[userID][sessionID] = status
+			}
+			statuses := make([]string, 0, len(h.sessions[userID]))
+			for _, sessionStatus := range h.sessions[userID] {
+				statuses = append(statuses, sessionStatus)
+			}
+			effective := aggregatePresenceStatuses(statuses)
+			if effective == PresenceStatusOffline {
+				delete(h.sessions, userID)
 				delete(h.snapshot, userID)
 			} else {
-				h.snapshot[userID] = status
+				h.snapshot[userID] = effective
 			}
 
-			// Only fan out after initial sync is complete
-			if syncComplete {
-				update := PresenceUpdate{UserID: userID, Status: status}
+			// Only fan out after initial sync is complete, and only when the
+			// derived per-user status actually changed.
+			changed := previous != effective
+			if effective == PresenceStatusOffline && !hadPrevious {
+				changed = false
+			}
+			if syncComplete && changed {
+				update := PresenceUpdate{UserID: userID, Status: effective}
 				for _, sub := range h.subscribers {
 					select {
 					case sub.ch <- update:

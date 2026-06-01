@@ -25,12 +25,12 @@ type Subscription {
   deployment.
 
   **Side effects:**
-  - Subscribing sets the user's presence to ONLINE.
+  - Subscribing sets the given presence session to ONLINE.
   - Presence is refreshed every 30s (60s TTL); expires after the subscription
     closes.
   - A SessionTerminatedEvent closes the stream server-side.
 
   Only streams new events — no replay of historical traffic.
   """
-  myEvents: Event!
+  myEvents(presenceSessionId: ID!): Event!
 }

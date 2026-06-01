@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -60,15 +61,69 @@ func presenceStatusToString(status corev1.UserPresenceStatus) string {
 // Key Helpers
 // ============================================================================
 
-// presenceKey returns the KV key for a user's presence.
-func presenceKey(userID string) string {
-	return fmt.Sprintf("presence.%s", userID)
+const maxPresenceWriteRetries = 5
+
+// ValidatePresenceSessionID verifies the caller-provided tab/device presence
+// session token is safe to embed in a NATS KV key.
+func ValidatePresenceSessionID(id string) error {
+	if id == "" {
+		return fmt.Errorf("presence session id is required")
+	}
+	if len(id) > 128 {
+		return fmt.Errorf("presence session id is too long")
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if (c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') ||
+			c == '_' ||
+			c == '-' {
+			continue
+		}
+		return fmt.Errorf("presence session id contains invalid characters")
+	}
+	return nil
 }
 
-// parseUserIDFromPresenceKey extracts the userID from a presence key.
-// Key format: presence.{userId}
-func parseUserIDFromPresenceKey(key string) string {
-	return strings.TrimPrefix(key, "presence.")
+// presenceSessionKey returns the MEMORY_CACHE key for one live user session.
+func presenceSessionKey(userID, presenceSessionID string) string {
+	return fmt.Sprintf("presence_session.%s.%s", userID, presenceSessionID)
+}
+
+func presenceSessionPrefix(userID string) string {
+	return fmt.Sprintf("presence_session.%s.", userID)
+}
+
+// parsePresenceSessionKey extracts userID and sessionID from a presence session
+// key. Key format: presence_session.{userId}.{presenceSessionId}
+func parsePresenceSessionKey(key string) (userID, presenceSessionID string, ok bool) {
+	rest := strings.TrimPrefix(key, "presence_session.")
+	if rest == key {
+		return "", "", false
+	}
+	parts := strings.SplitN(rest, ".", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+func aggregatePresenceStatuses(statuses []string) string {
+	effective := PresenceStatusOffline
+	for _, status := range statuses {
+		switch status {
+		case PresenceStatusDoNotDisturb:
+			return PresenceStatusDoNotDisturb
+		case PresenceStatusOnline:
+			effective = PresenceStatusOnline
+		case PresenceStatusAway:
+			if effective == PresenceStatusOffline {
+				effective = PresenceStatusAway
+			}
+		}
+	}
+	return effective
 }
 
 // ============================================================================
@@ -78,30 +133,51 @@ func parseUserIDFromPresenceKey(key string) string {
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
 func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string, error) {
-	entry, err := c.storage.presenceKV.Get(ctx, presenceKey(userID))
+	lister, err := c.storage.memoryCacheKV.ListKeysFiltered(ctx, presenceSessionPrefix(userID)+">")
 	if err != nil {
-		// Key not found means user is offline
-		if err == jetstream.ErrKeyNotFound {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return PresenceStatusOffline, nil
 		}
-		return PresenceStatusOffline, fmt.Errorf("failed to get presence: %w", err)
+		return PresenceStatusOffline, fmt.Errorf("failed to list presence sessions: %w", err)
+	}
+	defer lister.Stop()
+
+	var statuses []string
+	for key := range lister.Keys() {
+		sessionUserID, _, ok := parsePresenceSessionKey(key)
+		if !ok || sessionUserID != userID {
+			continue
+		}
+		entry, err := c.storage.memoryCacheKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return PresenceStatusOffline, fmt.Errorf("failed to get presence session: %w", err)
+		}
+		if entry.Operation() == jetstream.KeyValueDelete ||
+			entry.Operation() == jetstream.KeyValuePurge {
+			continue
+		}
+		presence := &corev1.UserPresence{}
+		if err := proto.Unmarshal(entry.Value(), presence); err != nil {
+			c.logger.Warn("Failed to unmarshal presence session, treating session as offline",
+				"error", err, "user_id", userID, "key", key)
+			continue
+		}
+		statuses = append(statuses, presenceStatusToString(presence.Status))
 	}
 
-	// Unmarshal protobuf payload
-	presence := &corev1.UserPresence{}
-	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
-		c.logger.Warn("Failed to unmarshal presence, treating as offline",
-			"error", err, "user_id", userID)
-		return PresenceStatusOffline, nil
-	}
-
-	return presenceStatusToString(presence.Status), nil
+	return aggregatePresenceStatuses(statuses), nil
 }
 
-// SetPresence writes/refreshes a user's presence in the bucket.
+// SetPresence writes/refreshes one live presence session in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
-func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
-	// Create and marshal protobuf message
+func (c *ChattoCore) SetPresence(ctx context.Context, userID string, presenceSessionID string, status string) error {
+	if err := ValidatePresenceSessionID(presenceSessionID); err != nil {
+		return err
+	}
+
 	presence := &corev1.UserPresence{
 		Status: presenceStatusFromString(status),
 	}
@@ -111,8 +187,7 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 		return fmt.Errorf("failed to marshal presence: %w", err)
 	}
 
-	_, err = c.storage.presenceKV.Put(ctx, presenceKey(userID), data)
-	return err
+	return c.writePresenceSession(ctx, presenceSessionKey(userID, presenceSessionID), data)
 }
 
 // refreshPresence reads the current presence value from KV and re-puts it
@@ -122,12 +197,17 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 // Uses optimistic locking (kv.Update with revision) to avoid overwriting a concurrent
 // SetPresence call from updateMyPresence. If the revision has changed between Get and
 // Update, the newer value is preserved and we silently skip the refresh.
-func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
-	entry, err := c.storage.presenceKV.Get(ctx, presenceKey(userID))
+func (c *ChattoCore) refreshPresence(ctx context.Context, userID string, presenceSessionID string) error {
+	if err := ValidatePresenceSessionID(presenceSessionID); err != nil {
+		return err
+	}
+
+	key := presenceSessionKey(userID, presenceSessionID)
+	entry, err := c.storage.memoryCacheKV.Get(ctx, key)
 	if err != nil {
-		if err == jetstream.ErrKeyNotFound {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			// Entry expired between ticks — re-set to ONLINE as safe default
-			return c.SetPresence(ctx, userID, PresenceStatusOnline)
+			return c.SetPresence(ctx, userID, presenceSessionID, PresenceStatusOnline)
 		}
 		return fmt.Errorf("failed to read presence for refresh: %w", err)
 	}
@@ -135,11 +215,11 @@ func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	// Re-put the same value to refresh TTL using optimistic locking.
 	// If a concurrent SetPresence modified the entry, Update fails and
 	// the newer status is preserved — which is the correct behavior.
-	_, err = c.storage.presenceKV.Update(ctx, presenceKey(userID), entry.Value(), entry.Revision())
+	_, err = c.putPresenceSessionWithTTL(ctx, key, entry.Value(), entry.Revision())
 	if err != nil {
 		// ErrKeyExists means the revision changed (concurrent write) — that's fine,
 		// the newer value already has a fresh TTL from the concurrent Put.
-		if err == jetstream.ErrKeyExists {
+		if errors.Is(err, jetstream.ErrKeyExists) {
 			return nil
 		}
 		return fmt.Errorf("failed to refresh presence: %w", err)
@@ -147,35 +227,43 @@ func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	return nil
 }
 
-// kvEntryToPresenceChange converts a KV entry to a PresenceChange proto.
-// Handles both PUT operations (user came online/changed status) and DELETE operations (user went offline).
-func (c *ChattoCore) kvEntryToPresenceChange(entry jetstream.KeyValueEntry) *corev1.PresenceChange {
-	// Extract userID from key (format: presence.{userId})
-	userID := parseUserIDFromPresenceKey(entry.Key())
-
-	// Handle deletion (TTL expiry or explicit delete)
-	if entry.Operation() == jetstream.KeyValueDelete ||
-		entry.Operation() == jetstream.KeyValuePurge {
-		return &corev1.PresenceChange{
-			UserId: userID,
-			Status: PresenceStatusOffline,
+func (c *ChattoCore) writePresenceSession(ctx context.Context, key string, data []byte) error {
+	for attempt := 0; attempt < maxPresenceWriteRetries; attempt++ {
+		entry, err := c.storage.memoryCacheKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				_, err = c.storage.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
+				if errors.Is(err, jetstream.ErrKeyExists) {
+					continue
+				}
+				return err
+			}
+			return fmt.Errorf("failed to read presence session: %w", err)
 		}
-	}
 
-	// Unmarshal protobuf payload
-	presence := &corev1.UserPresence{}
-	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
-		c.logger.Warn("Failed to unmarshal presence change, treating as offline",
-			"error", err, "user_id", userID)
-		return &corev1.PresenceChange{
-			UserId: userID,
-			Status: PresenceStatusOffline,
+		_, err = c.putPresenceSessionWithTTL(ctx, key, data, entry.Revision())
+		if err == nil {
+			return nil
 		}
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			continue
+		}
+		return err
 	}
 
-	return &corev1.PresenceChange{
-		UserId: userID,
-		Status: presenceStatusToString(presence.Status),
-	}
+	return fmt.Errorf("presence session update failed after %d retries", maxPresenceWriteRetries)
 }
 
+func (c *ChattoCore) putPresenceSessionWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
+	ack, err := c.js.Publish(
+		ctx,
+		"$KV.MEMORY_CACHE."+key,
+		data,
+		jetstream.WithExpectLastSequencePerSubject(revision),
+		jetstream.WithMsgTTL(PresenceTTL),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ack.Sequence, nil
+}

@@ -25,6 +25,7 @@ func TestSkipReason(t *testing.T) {
 		wantReason  string
 	}{
 		// Should be skipped (default: includeKeys=false)
+		{"KV_MEMORY_CACHE", false, true, "ephemeral (memory storage)"},
 		{"KV_USER_PRESENCE", false, true, "ephemeral (memory storage)"},
 		{"KV_CALL_STATE", false, true, "ephemeral (memory storage)"},
 		{"KV_ENCRYPTION_KEYS", false, true, "security (keys excluded from backups; pass --include-keys to override)"},
@@ -34,6 +35,7 @@ func TestSkipReason(t *testing.T) {
 
 		// With --include-keys, KV_ENCRYPTION_KEYS is backed up; others stay skipped.
 		{"KV_ENCRYPTION_KEYS", true, false, ""},
+		{"KV_MEMORY_CACHE", true, true, "ephemeral (memory storage)"},
 		{"KV_USER_PRESENCE", true, true, "ephemeral (memory storage)"},
 		{"KV_AUTH_TOKENS", true, true, "security (prevents token leakage)"},
 
@@ -244,7 +246,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 
 	// Create a memory-only stream (should be skipped)
 	_, err = srcJS.CreateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:  "USER_PRESENCE",
+		Bucket:  "MEMORY_CACHE",
 		Storage: jetstream.MemoryStorage,
 	})
 	if err != nil {
@@ -289,15 +291,15 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	manifest.Stats.TotalStreams = len(streamNames) - manifest.Stats.Skipped - manifest.Stats.Failed
 
-	// Verify the backup skipped USER_PRESENCE
-	var skippedPresence bool
+	// Verify the backup skipped MEMORY_CACHE
+	var skippedMemoryCache bool
 	for _, s := range manifest.Streams {
-		if s.Name == "KV_USER_PRESENCE" && s.Type == "skipped" {
-			skippedPresence = true
+		if s.Name == "KV_MEMORY_CACHE" && s.Type == "skipped" {
+			skippedMemoryCache = true
 		}
 	}
-	if !skippedPresence {
-		t.Error("Expected KV_USER_PRESENCE to be skipped in backup")
+	if !skippedMemoryCache {
+		t.Error("Expected KV_MEMORY_CACHE to be skipped in backup")
 	}
 
 	// Write manifest
@@ -423,10 +425,10 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		}
 	}
 
-	// Verify USER_PRESENCE was NOT restored (it was skipped)
-	_, err = dstJS.KeyValue(ctx, "USER_PRESENCE")
+	// Verify MEMORY_CACHE was NOT restored (it was skipped)
+	_, err = dstJS.KeyValue(ctx, "MEMORY_CACHE")
 	if err == nil {
-		t.Error("USER_PRESENCE should not have been restored (was skipped during backup)")
+		t.Error("MEMORY_CACHE should not have been restored (was skipped during backup)")
 	}
 }
 

@@ -1,8 +1,10 @@
 package core
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -115,55 +117,75 @@ func TestPresenceStatusRoundTrip(t *testing.T) {
 // Key Helper Tests
 // ============================================================================
 
-func TestPresenceKey(t *testing.T) {
+func TestPresenceSessionKey(t *testing.T) {
 	tests := []struct {
-		userID   string
-		expected string
+		userID    string
+		sessionID string
+		expected  string
 	}{
-		{"user123", "presence.user123"},
-		{"abc", "presence.abc"},
-		{"a1b2c3d4e5f6g7", "presence.a1b2c3d4e5f6g7"},
+		{"user123", "tab-1", "presence_session.user123.tab-1"},
+		{"abc", "device_2", "presence_session.abc.device_2"},
+		{"a1b2c3d4e5f6g7", "uuid-123", "presence_session.a1b2c3d4e5f6g7.uuid-123"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.userID, func(t *testing.T) {
-			result := presenceKey(tt.userID)
+			result := presenceSessionKey(tt.userID, tt.sessionID)
 			if result != tt.expected {
-				t.Errorf("presenceKey(%q) = %q, want %q", tt.userID, result, tt.expected)
+				t.Errorf("presenceSessionKey(%q, %q) = %q, want %q", tt.userID, tt.sessionID, result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestParseUserIDFromPresenceKey(t *testing.T) {
+func TestParsePresenceSessionKey(t *testing.T) {
 	tests := []struct {
-		key      string
-		expected string
+		key       string
+		userID    string
+		sessionID string
+		ok        bool
 	}{
-		{"presence.user123", "user123"},
-		{"presence.abc", "abc"},
-		{"presence.a1b2c3d4e5f6g7", "a1b2c3d4e5f6g7"},
+		{"presence_session.user123.tab-1", "user123", "tab-1", true},
+		{"presence_session.abc.device_2", "abc", "device_2", true},
+		{"presence.user123", "", "", false},
+		{"presence_session.user123", "", "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
-			result := parseUserIDFromPresenceKey(tt.key)
-			if result != tt.expected {
-				t.Errorf("parseUserIDFromPresenceKey(%q) = %q, want %q", tt.key, result, tt.expected)
+			userID, sessionID, ok := parsePresenceSessionKey(tt.key)
+			if ok != tt.ok || userID != tt.userID || sessionID != tt.sessionID {
+				t.Errorf("parsePresenceSessionKey(%q) = (%q, %q, %v), want (%q, %q, %v)", tt.key, userID, sessionID, ok, tt.userID, tt.sessionID, tt.ok)
 			}
 		})
 	}
 }
 
-func TestPresenceKeyRoundTrip(t *testing.T) {
+func TestValidatePresenceSessionID(t *testing.T) {
+	valid := []string{"tab-1", "device_2", "ABC123", "550e8400-e29b-41d4-a716-446655440000"}
+	for _, id := range valid {
+		if err := ValidatePresenceSessionID(id); err != nil {
+			t.Errorf("ValidatePresenceSessionID(%q) returned error: %v", id, err)
+		}
+	}
+
+	invalid := []string{"", "has.dot", "has/slash", "has space", strings.Repeat("a", 129)}
+	for _, id := range invalid {
+		if err := ValidatePresenceSessionID(id); err == nil {
+			t.Errorf("ValidatePresenceSessionID(%q) returned nil error", id)
+		}
+	}
+}
+
+func TestPresenceSessionKeyRoundTrip(t *testing.T) {
 	userIDs := []string{"user123", "abc", "a1b2c3d4e5f6g7"}
 
 	for _, userID := range userIDs {
 		t.Run(userID, func(t *testing.T) {
-			key := presenceKey(userID)
-			result := parseUserIDFromPresenceKey(key)
-			if result != userID {
-				t.Errorf("Round trip failed: %q -> %q -> %q", userID, key, result)
+			key := presenceSessionKey(userID, "session-1")
+			resultUserID, resultSessionID, ok := parsePresenceSessionKey(key)
+			if !ok || resultUserID != userID || resultSessionID != "session-1" {
+				t.Errorf("Round trip failed: %q -> %q -> (%q, %q, %v)", userID, key, resultUserID, resultSessionID, ok)
 			}
 		})
 	}
@@ -192,9 +214,10 @@ func TestChattoCore_SetAndGetPresence(t *testing.T) {
 	ctx := testContext(t)
 
 	userID := "test-user-123"
+	sessionID := "session-1"
 
 	// Set presence to ONLINE
-	err := core.SetPresence(ctx, userID, PresenceStatusOnline)
+	err := core.SetPresence(ctx, userID, sessionID, PresenceStatusOnline)
 	if err != nil {
 		t.Fatalf("setPresence failed: %v", err)
 	}
@@ -209,7 +232,7 @@ func TestChattoCore_SetAndGetPresence(t *testing.T) {
 	}
 
 	// Change to AWAY
-	err = core.SetPresence(ctx, userID, PresenceStatusAway)
+	err = core.SetPresence(ctx, userID, sessionID, PresenceStatusAway)
 	if err != nil {
 		t.Fatalf("setPresence failed: %v", err)
 	}
@@ -223,7 +246,7 @@ func TestChattoCore_SetAndGetPresence(t *testing.T) {
 	}
 
 	// Change to DO_NOT_DISTURB
-	err = core.SetPresence(ctx, userID, PresenceStatusDoNotDisturb)
+	err = core.SetPresence(ctx, userID, sessionID, PresenceStatusDoNotDisturb)
 	if err != nil {
 		t.Fatalf("setPresence failed: %v", err)
 	}
@@ -242,9 +265,10 @@ func TestChattoCore_PresenceDelete(t *testing.T) {
 	ctx := testContext(t)
 
 	userID := "test-user-delete"
+	sessionID := "session-1"
 
 	// Set presence
-	err := core.SetPresence(ctx, userID, PresenceStatusOnline)
+	err := core.SetPresence(ctx, userID, sessionID, PresenceStatusOnline)
 	if err != nil {
 		t.Fatalf("setPresence failed: %v", err)
 	}
@@ -256,7 +280,7 @@ func TestChattoCore_PresenceDelete(t *testing.T) {
 	}
 
 	// Delete the presence entry
-	err = core.storage.presenceKV.Delete(ctx, presenceKey(userID))
+	err = core.storage.memoryCacheKV.Delete(ctx, presenceSessionKey(userID, sessionID))
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
@@ -276,15 +300,16 @@ func TestChattoCore_RefreshPresence(t *testing.T) {
 	ctx := testContext(t)
 
 	userID := "test-user-refresh"
+	sessionID := "session-1"
 
 	// Set presence to AWAY
-	err := core.SetPresence(ctx, userID, PresenceStatusAway)
+	err := core.SetPresence(ctx, userID, sessionID, PresenceStatusAway)
 	if err != nil {
 		t.Fatalf("SetPresence failed: %v", err)
 	}
 
 	// Refresh should preserve the AWAY status
-	err = core.refreshPresence(ctx, userID)
+	err = core.refreshPresence(ctx, userID, sessionID)
 	if err != nil {
 		t.Fatalf("refreshPresence failed: %v", err)
 	}
@@ -298,15 +323,53 @@ func TestChattoCore_RefreshPresence(t *testing.T) {
 	}
 }
 
+func TestChattoCore_RefreshPresenceRenewsKeyTTL(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	userID := "test-user-refresh-ttl"
+	sessionID := "session-1"
+	key := presenceSessionKey(userID, sessionID)
+
+	if err := core.SetPresence(ctx, userID, sessionID, PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence failed: %v", err)
+	}
+
+	stream, err := core.js.Stream(ctx, "KV_MEMORY_CACHE")
+	if err != nil {
+		t.Fatalf("open MEMORY_CACHE stream: %v", err)
+	}
+	before, err := stream.GetLastMsgForSubject(ctx, "$KV.MEMORY_CACHE."+key)
+	if err != nil {
+		t.Fatalf("get initial presence message: %v", err)
+	}
+
+	if err := core.refreshPresence(ctx, userID, sessionID); err != nil {
+		t.Fatalf("refreshPresence failed: %v", err)
+	}
+
+	after, err := stream.GetLastMsgForSubject(ctx, "$KV.MEMORY_CACHE."+key)
+	if err != nil {
+		t.Fatalf("get refreshed presence message: %v", err)
+	}
+	if after.Sequence <= before.Sequence {
+		t.Fatalf("expected refresh to rewrite presence key, before seq=%d after seq=%d", before.Sequence, after.Sequence)
+	}
+	if got := after.Header.Get(jetstream.MsgTTLHeader); got != PresenceTTL.String() {
+		t.Fatalf("refreshed presence TTL header = %q, want %q", got, PresenceTTL.String())
+	}
+}
+
 func TestChattoCore_RefreshPresence_Expired(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	userID := "test-user-refresh-expired"
+	sessionID := "session-1"
 
 	// Don't set any presence — key doesn't exist
 	// refreshPresence should fall back to ONLINE
-	err := core.refreshPresence(ctx, userID)
+	err := core.refreshPresence(ctx, userID, sessionID)
 	if err != nil {
 		t.Fatalf("refreshPresence failed: %v", err)
 	}
@@ -317,6 +380,49 @@ func TestChattoCore_RefreshPresence_Expired(t *testing.T) {
 	}
 	if status != PresenceStatusOnline {
 		t.Errorf("Expected ONLINE as fallback, got %q", status)
+	}
+}
+
+func TestChattoCore_MultiplePresenceSessionsAggregate(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	userID := "test-user-multi-session"
+	if err := core.SetPresence(ctx, userID, "tab-1", PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence tab-1: %v", err)
+	}
+	if err := core.SetPresence(ctx, userID, "tab-2", PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence tab-2: %v", err)
+	}
+
+	status, err := core.GetUserPresence(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPresence failed: %v", err)
+	}
+	if status != PresenceStatusOnline {
+		t.Fatalf("Expected ONLINE with AWAY+ONLINE sessions, got %q", status)
+	}
+
+	if err := core.SetPresence(ctx, userID, "tab-3", PresenceStatusDoNotDisturb); err != nil {
+		t.Fatalf("SetPresence tab-3: %v", err)
+	}
+	status, err = core.GetUserPresence(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPresence failed: %v", err)
+	}
+	if status != PresenceStatusDoNotDisturb {
+		t.Fatalf("Expected DO_NOT_DISTURB with DND session, got %q", status)
+	}
+
+	if err := core.storage.memoryCacheKV.Delete(ctx, presenceSessionKey(userID, "tab-3")); err != nil {
+		t.Fatalf("Delete tab-3: %v", err)
+	}
+	status, err = core.GetUserPresence(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPresence failed: %v", err)
+	}
+	if status != PresenceStatusOnline {
+		t.Fatalf("Expected ONLINE after deleting DND session, got %q", status)
 	}
 }
 
@@ -347,7 +453,7 @@ func TestChattoCore_MultipleUsersPresence(t *testing.T) {
 	}
 
 	for i, userID := range users {
-		err := core.SetPresence(ctx, userID, statuses[i])
+		err := core.SetPresence(ctx, userID, "session-1", statuses[i])
 		if err != nil {
 			t.Fatalf("Failed to set presence for user %d: %v", i, err)
 		}

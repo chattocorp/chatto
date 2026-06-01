@@ -20,7 +20,7 @@ extend type User {
 extend type Mutation {
   """
   Update the current user's presence status.
-  Status persists until changed or the user disconnects (TTL expiry).
+  Status applies to one live browser tab/device session.
   OFFLINE is not a valid input — to go offline, simply disconnect.
   """
   updateMyPresence(input: UpdateMyPresenceInput!): Boolean!
@@ -30,6 +30,8 @@ extend type Mutation {
 Input for updating the current user's presence status.
 """
 input UpdateMyPresenceInput {
+  "Stable token for this tab/device presence session."
+  presenceSessionId: ID!
   "The presence status to set."
   status: PresenceStatus!
 }
