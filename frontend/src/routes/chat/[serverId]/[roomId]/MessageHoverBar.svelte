@@ -9,7 +9,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 - `serverId` - Server ID (scopes the recent-emoji slots per server)
 - `roomId` - Room ID
 - `messageEventId` - Event ID of the message
-- `eventId` - Event ID for edit/delete operations
+- `eventId` - Event ID for edit operations
+- `deleteEventId` - Event ID for delete operations (defaults to `eventId`)
 - `messageBody` - Current message body text
 - `reactions` - Current reactions on the message (for toggle behavior)
 - `canReact` - Whether the user can add reactions
@@ -30,6 +31,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     roomId,
     messageEventId,
     eventId,
+    deleteEventId = eventId,
     messageBody,
     reactions = [],
     canReact = false,
@@ -44,6 +46,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     roomId: string;
     messageEventId: string;
     eventId: string;
+    deleteEventId?: string;
     messageBody: string;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
@@ -63,6 +66,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     roomId,
     messageEventId,
     eventId,
+    deleteEventId,
     messageBody
   });
 

@@ -9,6 +9,7 @@ export type MessageActionParams = {
 	roomId: string;
 	messageEventId: string;
 	eventId: string;
+	deleteEventId?: string;
 	messageBody: string;
 };
 
@@ -81,7 +82,7 @@ export function useMessageActions() {
 			modal: {
 				type: 'deleteMessage',
 				roomId: params.roomId,
-				eventId: params.eventId
+				eventId: params.deleteEventId ?? params.eventId
 			}
 		});
 	}

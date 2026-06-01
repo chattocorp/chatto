@@ -106,6 +106,9 @@ func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, r
 	if entry.Event.GetEvent() == nil {
 		return nil, nil
 	}
+	if c.RoomTimeline.IsHiddenEcho(eventID) {
+		return nil, nil
+	}
 	// Honour the roomID scope — looking up an event in the wrong
 	// room should be a clean miss, not a leak.
 	if roomIDOfEvent(entry.Event) != roomID {
@@ -126,6 +129,9 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 
 	target, ok := c.RoomTimeline.Get(eventID)
 	if !ok {
+		return nil, ErrMessageNotFound
+	}
+	if c.RoomTimeline.IsHiddenEcho(eventID) {
 		return nil, ErrMessageNotFound
 	}
 	if !isVisibleRoomTimelineEntry(target.Event) {

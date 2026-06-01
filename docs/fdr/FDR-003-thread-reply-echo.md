@@ -15,6 +15,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
 - If the original reply was attributed to a specific message, the echo shows the same reply-attribution byline. Clicking the byline on the echo opens the thread and highlights the referenced message inside it.
 - Editing or deleting the original reply automatically affects the echo too — edit/delete events target the original reply, and read models apply the change to the linked echo.
+- Deleting the echo itself only hides that room-timeline copy. The original thread reply remains in the thread with its body readable.
 - Reactions on the original and the echo are independent — they're different events as far as reactions are concerned.
 - The thread's reply count is not incremented by the echo; the echo represents the same reply, not an additional one.
 - Mention notifications fire once for the reply, not twice (the echo doesn't re-notify).
@@ -28,25 +29,31 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 **Why:** GraphQL and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
 **Tradeoff:** Read models have to keep the echo link when applying edit/delete state. Reactions remain naturally independent because they already key on the envelope event ID.
 
-### 2. Reactions key on event ID, not body ID
+### 2. Echo deletion hides the echo artifact
+
+**Decision:** Deleting an echo emits the normal durable message retraction for the echo's own event ID, and the room read model hides that echo from the main timeline. It does not retract the original thread reply.
+**Why:** The echo is a first-class `MessagePostedEvent`, so its counterpart is the same delete/retract fact used for other messages. The special case is rendering policy: retracting an echo removes the copy, while retracting the original removes the underlying content.
+**Tradeoff:** Echo retractions are interpreted differently from original reply retractions. The projection has to know whether the target event is an echo.
+
+### 3. Reactions key on event ID, not body ID
 
 **Decision:** Reactions attach to the event ID, so the echo and original accumulate reactions independently.
 **Why:** People reacting in the channel timeline are reacting to the appearance there; people reacting in the thread are reacting to the contribution inside the thread. Conflating them would mute one of those signals.
 **Tradeoff:** Total reaction count on a "reply that was also sent to channel" is split — there's no single canonical number. In practice this matches the user's mental model.
 
-### 3. Mentions copy to the echo, but don't re-notify
+### 4. Mentions copy to the echo, but don't re-notify
 
 **Decision:** The echo carries the same `mentionedUserIds` as the original, but only the original triggers mention notifications.
 **Why:** The mention rendering (highlight, link to profile) needs to work on the echo too, so the field has to be present. But getting two notifications for one mention would be noisy.
 **Tradeoff:** Mention-driven indicators in the UI need to look at both events; the notification system has to know to skip the echo.
 
-### 4. Echo publish is best-effort
+### 5. Echo publish is best-effort
 
 **Decision:** If the echo publish fails, a warning is logged and the original thread reply still succeeds.
 **Why:** The reply is the primary artifact. Failing the whole operation because the secondary copy didn't make it would be worse than missing the copy.
 **Tradeoff:** Rarely, an echo can fail silently from the user's perspective. The reply is still posted in the thread, so no message is lost.
 
-### 5. Echo only flows thread → room, never the reverse
+### 6. Echo only flows thread → room, never the reverse
 
 **Decision:** `alsoSendToChannel` is only valid when posting inside a thread. Sending a plain room message with the flag is rejected.
 **Why:** The feature exists to bridge thread visibility back to the room. The reverse (a room message that also shows in some thread) doesn't have a well-defined target.

@@ -371,13 +371,24 @@ export abstract class MessageListStore {
   }
 
   /**
-   * Apply a deletion locally to any matching MessagePostedEvent in the buffer
-   * (the original by id, plus any echo whose echoOfEventId points at it).
-   * Mirrors the server's post-deletion state: body=null, attachments=[].
+   * Apply a deletion locally. Direct echo retractions hide only the echo
+   * artifact; original-message retractions tombstone the original and any
+   * visible echoes that point at it.
    * Reactions and reply metadata are left intact so the tombstone row keeps
    * its existing engagement visible alongside the placeholder.
    */
   protected applyDeletion(messageEventId: string): void {
+    const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
+    const target = targetIndex === -1 ? null : this.events[targetIndex];
+    const targetPayload = target?.event;
+    if (
+      targetPayload?.__typename === 'MessagePostedEvent' &&
+      targetPayload.echoOfEventId
+    ) {
+      this.events.splice(targetIndex, 1);
+      return;
+    }
+
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
       const evt = e.event;

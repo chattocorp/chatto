@@ -265,6 +265,48 @@ func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_RetractingEchoHidesEchoOnly(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U1", body: "reply", inThread: "ENV-ROOT", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U1", body: "reply", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-ROOT", at: 3}),
+		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U1", "", 4),
+	})
+
+	if !p.IsHiddenEcho("ENV-ECHO") {
+		t.Fatal("echo should be marked hidden")
+	}
+	visible := p.VisibleRoomTimeline("R1", 10, 0, isVisibleRoomTimelineEntry)
+	if got := eventIDs(visible); len(got) != 1 || got[0] != "ENV-ROOT" {
+		t.Fatalf("visible room timeline = %v, want only root", got)
+	}
+	if _, retracted, ok := p.LatestBody("ENV-REPLY"); !ok || retracted {
+		t.Fatal("original reply should remain readable after hiding echo")
+	}
+}
+
+func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U1", body: "reply", inThread: "ENV-ROOT", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U1", body: "reply", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-ROOT", at: 3}),
+		retractedEvent("ENV-RETRACT-REPLY", "ENV-REPLY", "R1", "U1", "", 4),
+	})
+
+	if p.IsHiddenEcho("ENV-ECHO") {
+		t.Fatal("echo should stay visible when original is retracted")
+	}
+	visible := p.VisibleRoomTimeline("R1", 10, 0, isVisibleRoomTimelineEntry)
+	if got := eventIDs(visible); len(got) != 2 || got[0] != "ENV-ECHO" || got[1] != "ENV-ROOT" {
+		t.Fatalf("visible room timeline = %v, want echo and root", got)
+	}
+	if _, retracted, ok := p.LatestBody("ENV-ECHO"); !ok || !retracted {
+		t.Fatal("echo body should read as retracted when original is retracted")
+	}
+}
+
 func TestRoomTimeline_Idempotency(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	e := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})

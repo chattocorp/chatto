@@ -171,6 +171,90 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "echo-author", "Echo Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "echo-viewer", "Echo Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply with echo", nil, root.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("Post reply with echo: %v", err)
+	}
+	roomEvents, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	echoID := ""
+	for _, event := range roomEvents.Events {
+		if msg := event.GetMessagePosted(); msg != nil && msg.GetEchoOfEventId() == reply.Id {
+			echoID = event.Id
+			break
+		}
+	}
+	if echoID == "" {
+		t.Fatal("expected echoed reply in room events")
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	if err := core.DeleteMessage(ctx, author.Id, KindChannel, room.Id, echoID); err != nil {
+		t.Fatalf("Delete echo: %v", err)
+	}
+
+	timeout := time.After(300 * time.Millisecond)
+	seenEchoRetract := false
+	for {
+		select {
+		case ev := <-eventChan:
+			retracted := EventMessageRetracted(ev)
+			if retracted == nil {
+				continue
+			}
+			if retracted.GetEventId() == reply.Id {
+				t.Fatal("deleting echo should not deliver a retraction for the original reply")
+			}
+			if retracted.GetEventId() == echoID {
+				seenEchoRetract = true
+			}
+		case <-timeout:
+			if !seenEchoRetract {
+				t.Fatal("viewer never received MessageRetractedEvent for echo")
+			}
+			return
+		}
+	}
+}
+
 func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

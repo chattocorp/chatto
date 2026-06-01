@@ -1281,6 +1281,70 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 	})
 }
 
+func TestDeleteMessage_EchoDeletesOnlyEchoArtifact(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+	roomResolver := env.resolver.Room()
+
+	rootEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "GraphQL echo delete root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	replyEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "GraphQL echo delete reply", nil, rootEvent.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("Post reply with echo: %v", err)
+	}
+
+	events, err := roomResolver.Events(env.authContext(), env.testRoom, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Room.Events before delete: %v", err)
+	}
+	echoID := ""
+	for _, event := range events.Events {
+		if msg := core.EventMessagePosted(event); msg != nil && msg.GetEchoOfEventId() == replyEvent.Id {
+			echoID = event.ID()
+			break
+		}
+	}
+	if echoID == "" {
+		t.Fatal("expected echoed reply in room events")
+	}
+
+	ok, err := mutation.DeleteMessage(env.authContext(), model.DeleteMessageInput{
+		RoomID:  env.testRoom.Id,
+		EventID: echoID,
+	})
+	if err != nil {
+		t.Fatalf("DeleteMessage echo: %v", err)
+	}
+	if !ok {
+		t.Fatal("DeleteMessage echo returned false")
+	}
+
+	events, err = roomResolver.Events(env.authContext(), env.testRoom, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Room.Events after delete: %v", err)
+	}
+	for _, event := range events.Events {
+		if event.ID() == echoID {
+			t.Fatal("hidden echo should not appear in GraphQL room events")
+		}
+	}
+	if event, err := roomResolver.Event(env.authContext(), env.testRoom, echoID); err != nil {
+		t.Fatalf("Room.Event hidden echo: %v", err)
+	} else if event != nil {
+		t.Fatal("hidden echo should not be directly loadable through GraphQL room event")
+	}
+
+	body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, replyEvent.Id)
+	if err != nil {
+		t.Fatalf("Get original reply body: %v", err)
+	}
+	if body != "GraphQL echo delete reply" {
+		t.Fatalf("original reply body = %q, want %q", body, "GraphQL echo delete reply")
+	}
+}
+
 // ============================================================================
 // DM Reactions Tests
 // ============================================================================

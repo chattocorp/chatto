@@ -463,12 +463,12 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 	}
 }
 
-// DeleteMessage deletes a message body and its attachments for GDPR compliance.
-// This removes the message content from the BODIES bucket and any attachments from the ASSETS
-// ObjectStore, while preserving the event in the stream for audit trail purposes.
-// Subsequent lazy-loading will result in an empty body field.
-// Publishes a MessageRetractedEvent to notify connected clients in real-time.
-// The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
+// DeleteMessage retracts a message. For ordinary messages and original thread
+// replies, the retraction removes visible content and attachments for GDPR
+// compliance while preserving the event in the stream for audit. For echoes,
+// the same durable MessageRetractedEvent hides only the echo artifact from the
+// room timeline; the original thread reply remains readable.
+// The messageBodyKey parameter is the legacy body key or canonical event ID.
 // Authorization: Caller must verify the actor is the message author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
 func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
 	eventID := eventIDFromBodyKey(messageBodyKey)
@@ -482,6 +482,10 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	originalEntry, ok := c.RoomTimeline.Get(eventID)
 	if !ok {
 		c.logger.Debug("Delete on unknown message — no-op", "event_id", eventID)
+		return nil
+	}
+	isEcho := c.RoomTimeline.IsEcho(eventID)
+	if isEcho && c.RoomTimeline.IsHiddenEcho(eventID) {
 		return nil
 	}
 	body, retracted, _ := c.RoomTimeline.LatestBody(eventID)
@@ -498,13 +502,9 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, eventID); err != nil {
 		return err
 	}
-	// Fan out the retract to echoes / original (legacy "delete one,
-	// both go" semantic).
-	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
-		if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, linkedID); err != nil {
-			c.logger.Warn("Failed to propagate retract to linked message",
-				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
-		}
+	if isEcho {
+		c.logger.Info("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
+		return nil
 	}
 
 	// Attachments are referenced by the (now-tombstoned) message but

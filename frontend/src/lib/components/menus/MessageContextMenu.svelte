@@ -8,7 +8,8 @@ Rendered inside a ContextMenu when right-clicking a message.
 - `spaceId` - Space ID
 - `roomId` - Room ID
 - `messageEventId` - Event ID of the message
-- `eventId` - Event ID for edit/delete operations
+- `eventId` - Event ID for edit operations
+- `deleteEventId` - Event ID for delete operations (defaults to `eventId`)
 - `messageBody` - Current message body text
 - `canReact` - Whether the user can add reactions
 - `canEdit` - Whether the user can edit this message
@@ -27,6 +28,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     roomId,
     messageEventId,
     eventId,
+    deleteEventId = eventId,
     messageBody,
     reactions = [],
     canReact = false,
@@ -41,6 +43,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     roomId: string;
     messageEventId: string;
     eventId: string;
+    deleteEventId?: string;
     messageBody: string;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
@@ -60,6 +63,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     roomId,
     messageEventId,
     eventId,
+    deleteEventId,
     messageBody
   });
 
