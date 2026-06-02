@@ -448,14 +448,14 @@ const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\x15MessageRetractedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xef\x01\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xfc\x01\n" +
 	"\x13MessageUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x04 \x01(\tR\rmessageBodyId\x12\x1e\n" +
 	"\vin_reply_to\x18\x05 \x01(\tR\tinReplyTo\x12\x1b\n" +
 	"\tin_thread\x18\x06 \x01(\tR\binThread\x12(\n" +
 	"\x10message_event_id\x18\a \x01(\tR\x0emessageEventId\x12\x1a\n" +
-	"\bevent_id\x18\xe8\a \x01(\tR\aeventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\bspace_id\"\x90\x01\n" +
+	"\bevent_id\x18\xe8\a \x01(\tR\aeventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\bspace_idR\vsequence_id\"\x90\x01\n" +
 	"\x13MessageDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +

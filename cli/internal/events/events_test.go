@@ -12,6 +12,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -889,6 +890,64 @@ func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testi
 	}
 	if got := decoded.ProtoReflect().GetUnknown(); len(got) == 0 {
 		t.Fatal("expected legacy message_body_id to remain in unknown fields")
+	}
+}
+
+func TestEventOneofDurableFieldNumberPolicy(t *testing.T) {
+	allowedHighDurableTags := map[protoreflect.Name]protoreflect.FieldNumber{
+		"reaction_added":   1050,
+		"reaction_removed": 1051,
+	}
+
+	desc := (&corev1.Event{}).ProtoReflect().Descriptor()
+	oneof := desc.Oneofs().ByName("event")
+	if oneof == nil {
+		t.Fatal("Event oneof not found")
+	}
+
+	fields := oneof.Fields()
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		number := field.Number()
+		if number < 1000 {
+			continue
+		}
+		if allowed, ok := allowedHighDurableTags[field.Name()]; ok && number == allowed {
+			continue
+		}
+		t.Errorf("Event.%s uses field number %d; durable Event variants must stay below 1000 except reaction_added=1050/reaction_removed=1051", field.Name(), number)
+	}
+}
+
+func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
+	eventDesc := (&corev1.Event{}).ProtoReflect().Descriptor()
+	if !eventDesc.ReservedRanges().Has(9001) {
+		t.Error("Event tag 9001 must stay reserved for removed sequence_id")
+	}
+	if !eventDesc.ReservedNames().Has("sequence_id") {
+		t.Error("Event name sequence_id must stay reserved")
+	}
+
+	postedDesc := (&corev1.MessagePostedEvent{}).ProtoReflect().Descriptor()
+	if !postedDesc.ReservedRanges().Has(3) {
+		t.Error("MessagePostedEvent tag 3 must stay reserved for removed message_body_id")
+	}
+	if !postedDesc.ReservedNames().Has("message_body_id") {
+		t.Error("MessagePostedEvent name message_body_id must stay reserved")
+	}
+	if postedDesc.Fields().ByName("message_body_id") != nil {
+		t.Error("MessagePostedEvent must not reintroduce message_body_id")
+	}
+	if postedDesc.Fields().ByName("event_id") != nil {
+		t.Error("MessagePostedEvent must not reintroduce event_id")
+	}
+
+	updatedDesc := (&corev1.MessageUpdatedEvent{}).ProtoReflect().Descriptor()
+	if !updatedDesc.ReservedRanges().Has(3) {
+		t.Error("MessageUpdatedEvent tag 3 must stay reserved for removed sequence_id")
+	}
+	if !updatedDesc.ReservedNames().Has("sequence_id") {
+		t.Error("MessageUpdatedEvent name sequence_id must stay reserved")
 	}
 }
 

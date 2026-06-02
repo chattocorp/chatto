@@ -106,7 +106,7 @@ message MessageRetractedEvent {
 
 message MessageUpdatedEvent {
   reserved 1;
-  reserved "space_id";
+  reserved "space_id", "sequence_id";
 
   // Room ID - identifies which room this message belongs to
   string room_id = 2;
