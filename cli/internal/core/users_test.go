@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"image"
 	"image/color"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"hmans.de/chatto/internal/kms"
 )
 
 func TestChattoCore_CreateUser(t *testing.T) {
@@ -47,6 +50,49 @@ func TestChattoCore_CreateUser(t *testing.T) {
 	_, err = core.VerifyPassword(ctx, user.Login, "password123")
 	if err != nil {
 		t.Errorf("Expected password to be verifiable: %v", err)
+	}
+}
+
+type cancelAfterWrapKeyWrapper struct {
+	kms.KeyWrapper
+	cancel     context.CancelFunc
+	wrapped    bool
+	wrappedFor string
+}
+
+func (w *cancelAfterWrapKeyWrapper) WrapContentKey(ctx context.Context, userID string, contentKey, aad []byte) (*kms.WrappedContentKey, error) {
+	wrapped, err := w.KeyWrapper.WrapContentKey(ctx, userID, contentKey, aad)
+	if err == nil && !w.wrapped {
+		w.wrapped = true
+		w.wrappedFor = userID
+		w.cancel()
+	}
+	return wrapped, err
+}
+
+func TestChattoCore_CreateUser_AppendFailureCleansUpEncryptionKey(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx, cancel := context.WithCancel(testContext(t))
+	wrapper := &cancelAfterWrapKeyWrapper{
+		KeyWrapper: core.encryption.keyWrapper,
+		cancel:     cancel,
+	}
+	core.encryption.keyWrapper = wrapper
+
+	_, err := core.CreateUser(ctx, "system", "cancelled-signup", "Cancelled Signup", "password123")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CreateUser error = %v, want context.Canceled", err)
+	}
+	if !wrapper.wrapped {
+		t.Fatal("test did not reach content-key wrapping")
+	}
+
+	exists, err := wrapper.KeyWrapper.UserKeyExists(context.Background(), wrapper.wrappedFor)
+	if err != nil {
+		t.Fatalf("UserKeyExists: %v", err)
+	}
+	if exists {
+		t.Fatalf("encryption key for failed signup user %q still exists", wrapper.wrappedFor)
 	}
 }
 

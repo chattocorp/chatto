@@ -92,10 +92,15 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	if err := c.encryption.keyWrapper.CreateUserKey(ctx, userID); err != nil {
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
+	cleanupEncryptionKey := true
+	defer func() {
+		if cleanupEncryptionKey {
+			c.cleanupCreatedUserEncryptionKey(ctx, userID)
+		}
+	}()
 
 	contentKeyBytes, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, 1)
 	if err != nil {
-		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, err
 	}
 
@@ -112,12 +117,10 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	account := accountCreated.GetUserAccountCreated()
 	account.EncryptedLogin, err = encryptUserPIIStringWithContentKey(contentKey, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
 	if err != nil {
-		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, fmt.Errorf("encrypt login: %w", err)
 	}
 	account.EncryptedDisplayName, err = encryptUserPIIStringWithContentKey(contentKey, accountCreated.GetId(), userID, events.EventUserAccountCreated, "display_name", displayName)
 	if err != nil {
-		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, fmt.Errorf("encrypt display name: %w", err)
 	}
 
@@ -131,7 +134,6 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	if password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
-			_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
 		passwordChanged := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
@@ -154,11 +156,9 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, ErrLoginAlreadyTaken) {
-			_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
-		}
 		return nil, err
 	}
+	cleanupEncryptionKey = false
 	if err := c.ContentKeysProjector.WaitForSeq(ctx, seq); err != nil {
 		return nil, fmt.Errorf("wait for content key projection: %w", err)
 	}
@@ -183,6 +183,14 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	c.logger.Info("Created user", "id", userID, "login", login)
 
 	return user, nil
+}
+
+func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, userID string) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := c.deleteUserEncryptionKeyOnly(cleanupCtx, userID); err != nil {
+		c.logger.Warn("failed to clean up user encryption key after failed signup", "error", err, "user_id", userID)
+	}
 }
 
 // CreateVerifiedUser creates a user and registers an already-verified email for them
