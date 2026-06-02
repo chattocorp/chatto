@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/log"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/encryption"
@@ -14,11 +15,16 @@ import (
 
 const (
 	// AlgorithmBuiltinXChaCha20Poly1305V1 identifies the built-in in-process
-	// wrapper that stores raw per-user KEKs in the ENCRYPTION_KEYS KV bucket.
+	// wrapper that stores raw KEKs under opaque refs in ENCRYPTION_KEYS.
 	AlgorithmBuiltinXChaCha20Poly1305V1 = "builtin-xchacha20-poly1305-v1"
 )
 
 var ErrUnsupportedWrappingAlgorithm = errors.New("unsupported content key wrapping algorithm")
+
+const (
+	keyRefAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	keyRefLength   = 24
+)
 
 // WrappedContentKey is the opaque wrapped-key material returned by a KMS.
 type WrappedContentKey struct {
@@ -30,11 +36,11 @@ type WrappedContentKey struct {
 
 // KeyWrapper is the key-only KMS boundary used by Chatto core.
 type KeyWrapper interface {
-	CreateUserKey(ctx context.Context, userID string) error
-	UserKeyExists(ctx context.Context, userID string) (bool, error)
-	WrapContentKey(ctx context.Context, userID string, contentKey, aad []byte) (*WrappedContentKey, error)
-	UnwrapContentKey(ctx context.Context, userID string, wrapped WrappedContentKey, aad []byte) ([]byte, error)
-	ShredUserKey(ctx context.Context, userID string) error
+	CreateKey(ctx context.Context, owner string) (string, error)
+	KeyExists(ctx context.Context, keyRef string) (bool, error)
+	WrapContentKey(ctx context.Context, keyRef string, contentKey, aad []byte) (*WrappedContentKey, error)
+	UnwrapContentKey(ctx context.Context, keyRef string, wrapped WrappedContentKey, aad []byte) ([]byte, error)
+	ShredKey(ctx context.Context, keyRef string) error
 }
 
 // LegacyKeyProvider exposes raw local KEKs only for decrypting pre-envelope
@@ -60,45 +66,64 @@ func NewBuiltin(kv jetstream.KeyValue, logger *log.Logger) *Builtin {
 	return &Builtin{kv: kv, logger: logger}
 }
 
-func userKeyPath(userID string) string {
+func LegacyUserKeyRef(userID string) string {
 	return "user." + userID
 }
 
-func (b *Builtin) getUserKey(ctx context.Context, userID string) ([]byte, error) {
-	entry, err := b.kv.Get(ctx, userKeyPath(userID))
+func keyPath(keyRef string) string {
+	return keyRef
+}
+
+func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {
+	entry, err := b.kv.Get(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get user encryption key: %w", err)
+		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
 	return append([]byte(nil), entry.Value()...), nil
 }
 
 // LegacyUserKey returns a raw KEK for legacy direct-key body decrypt only.
 func (b *Builtin) LegacyUserKey(ctx context.Context, userID string) ([]byte, error) {
-	return b.getUserKey(ctx, userID)
+	return b.getKey(ctx, LegacyUserKeyRef(userID))
 }
 
-// CreateUserKey generates and stores a new per-user KEK.
-func (b *Builtin) CreateUserKey(ctx context.Context, userID string) error {
+func newKeyRef() (string, error) {
+	id, err := gonanoid.Generate(keyRefAlphabet, keyRefLength)
+	if err != nil {
+		return "", err
+	}
+	return "kek." + id, nil
+}
+
+// CreateKey generates and stores a new KEK, returning its opaque KMS key ref.
+func (b *Builtin) CreateKey(ctx context.Context, owner string) (string, error) {
 	key, err := encryption.GenerateKey()
 	if err != nil {
-		return err
+		return "", err
 	}
-	if _, err := b.kv.Create(ctx, userKeyPath(userID), key); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			return nil
+	for attempt := 0; attempt < 5; attempt++ {
+		keyRef, err := newKeyRef()
+		if err != nil {
+			return "", err
 		}
-		return fmt.Errorf("failed to store user encryption key: %w", err)
+		if _, err := b.kv.Create(ctx, keyPath(keyRef), key); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			}
+			return "", fmt.Errorf("failed to store encryption key: %w", err)
+		}
+		b.logger.Info("created encryption key", "key_ref", keyRef, "owner", owner)
+		return keyRef, nil
 	}
-	b.logger.Info("created user encryption key", "user_id", userID)
-	return nil
+	return "", fmt.Errorf("failed to allocate unique encryption key ref")
 }
 
-// UserKeyExists checks if a user has a KEK.
-func (b *Builtin) UserKeyExists(ctx context.Context, userID string) (bool, error) {
-	_, err := b.kv.Get(ctx, userKeyPath(userID))
+// KeyExists checks if a KEK exists.
+func (b *Builtin) KeyExists(ctx context.Context, keyRef string) (bool, error) {
+	_, err := b.kv.Get(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil
@@ -108,9 +133,9 @@ func (b *Builtin) UserKeyExists(ctx context.Context, userID string) (bool, error
 	return true, nil
 }
 
-// WrapContentKey wraps a content key with the user's built-in KEK.
-func (b *Builtin) WrapContentKey(ctx context.Context, userID string, contentKey, aad []byte) (*WrappedContentKey, error) {
-	kek, err := b.getUserKey(ctx, userID)
+// WrapContentKey wraps a content key with the referenced built-in KEK.
+func (b *Builtin) WrapContentKey(ctx context.Context, keyRef string, contentKey, aad []byte) (*WrappedContentKey, error) {
+	kek, err := b.getKey(ctx, keyRef)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +153,12 @@ func (b *Builtin) WrapContentKey(ctx context.Context, userID string, contentKey,
 	}, nil
 }
 
-// UnwrapContentKey unwraps a content key with the user's built-in KEK.
-func (b *Builtin) UnwrapContentKey(ctx context.Context, userID string, wrapped WrappedContentKey, aad []byte) ([]byte, error) {
+// UnwrapContentKey unwraps a content key with the referenced built-in KEK.
+func (b *Builtin) UnwrapContentKey(ctx context.Context, keyRef string, wrapped WrappedContentKey, aad []byte) ([]byte, error) {
 	if wrapped.Algorithm != "" && wrapped.Algorithm != AlgorithmBuiltinXChaCha20Poly1305V1 {
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWrappingAlgorithm, wrapped.Algorithm)
 	}
-	kek, err := b.getUserKey(ctx, userID)
+	kek, err := b.getKey(ctx, keyRef)
 	if err != nil {
 		return nil, err
 	}
@@ -143,15 +168,15 @@ func (b *Builtin) UnwrapContentKey(ctx context.Context, userID string, wrapped W
 	return encryption.UnwrapContentKey(kek, wrapped.EncryptedContentKey, wrapped.Nonce, aad)
 }
 
-// ShredUserKey permanently removes a user's KEK.
-func (b *Builtin) ShredUserKey(ctx context.Context, userID string) error {
-	err := b.kv.Delete(ctx, userKeyPath(userID))
+// ShredKey permanently removes a KEK.
+func (b *Builtin) ShredKey(ctx context.Context, keyRef string) error {
+	err := b.kv.Delete(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
-		return fmt.Errorf("failed to delete user encryption key: %w", err)
+		return fmt.Errorf("failed to delete encryption key: %w", err)
 	}
-	b.logger.Info("shredded user encryption key", "user_id", userID)
+	b.logger.Info("shredded encryption key", "key_ref", keyRef)
 	return nil
 }

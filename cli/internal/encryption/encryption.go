@@ -89,7 +89,7 @@ func Decrypt(key, ciphertext, nonce []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// WrapContentKey encrypts a content key with a per-user key encryption key.
+// WrapContentKey encrypts a content key with a key encryption key.
 func WrapContentKey(kek, contentKey, aad []byte) (*WrappedContentKey, error) {
 	if len(kek) != KeySize {
 		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(kek))
@@ -109,7 +109,7 @@ func WrapContentKey(kek, contentKey, aad []byte) (*WrappedContentKey, error) {
 	return &WrappedContentKey{EncryptedContentKey: encryptedContentKey, Nonce: nonce}, nil
 }
 
-// UnwrapContentKey decrypts a content key with a per-user key encryption key.
+// UnwrapContentKey decrypts a content key with a key encryption key.
 func UnwrapContentKey(kek, encryptedContentKey, nonce, aad []byte) ([]byte, error) {
 	if len(kek) != KeySize {
 		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(kek))

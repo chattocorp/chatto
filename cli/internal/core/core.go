@@ -371,27 +371,40 @@ func (c *ChattoCore) DeleteUserEncryptionKey(ctx context.Context, userID string)
 	return c.DeleteUserEncryptionKeyAs(ctx, userID, userID)
 }
 
-func (c *ChattoCore) deleteUserEncryptionKeyOnly(ctx context.Context, userID string) error {
+func (c *ChattoCore) deleteEncryptionKeyOnly(ctx context.Context, keyRef string) error {
 	if c.encryption.keyWrapper == nil {
 		return nil
 	}
-	return c.encryption.keyWrapper.ShredUserKey(ctx, userID)
+	return c.encryption.keyWrapper.ShredKey(ctx, keyRef)
 }
 
 func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, userID string) error {
 	if c.encryption.keyWrapper == nil {
 		return nil // Encryption not configured
 	}
-	exists, err := c.encryption.keyWrapper.UserKeyExists(ctx, userID)
-	if err != nil {
-		return err
+
+	keyRefs := c.ContentKeys.KeyRefs(userID)
+	if len(keyRefs) == 0 {
+		keyRefs = []string{kms.LegacyUserKeyRef(userID)}
 	}
-	if !exists {
+	shredded := false
+	for _, keyRef := range keyRefs {
+		exists, err := c.encryption.keyWrapper.KeyExists(ctx, keyRef)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		if err := c.encryption.keyWrapper.ShredKey(ctx, keyRef); err != nil {
+			return err
+		}
+		shredded = true
+	}
+	if !shredded {
 		return nil
 	}
-	if err := c.encryption.keyWrapper.ShredUserKey(ctx, userID); err != nil {
-		return err
-	}
+
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_UserKeyShredded{
 			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: userID},

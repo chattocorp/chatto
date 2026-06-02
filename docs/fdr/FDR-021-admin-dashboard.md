@@ -25,7 +25,7 @@ The admin section gives owners and admins visibility into the server's operation
 ### 2. Aggregate metrics only — no per-stream / per-bucket breakdowns
 
 **Decision:** The System Info page shows totals (overall stream count, overall memory usage, etc.) but not per-stream or per-bucket figures. Stream names, bucket names, and object-store identifiers are deliberately omitted.
-**Why:** Stream and bucket names embed room IDs and user IDs (e.g., per-user encryption-key keys). Exposing them would leak structural metadata that operators don't need for capacity planning and that a malicious admin could correlate against. Aggregates serve the operational need without the leak.
+**Why:** Stream and bucket names embed room IDs and user IDs in many places. Exposing them would leak structural metadata that operators don't need for capacity planning and that a malicious admin could correlate against. Aggregates serve the operational need without the leak.
 **Tradeoff:** Debugging a specific bucket's growth requires direct NATS access via `nats` CLI. Acceptable for the operator persona that already has shell access for this kind of work.
 
 ### 3. Privacy boundary: admins see metadata, not content

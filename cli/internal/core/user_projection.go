@@ -129,7 +129,11 @@ func (p *UserProjection) applyContentKeyGenerated(e *corev1.UserContentKeyGenera
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || p.keyWrapper == nil {
 		return
 	}
-	key, err := p.keyWrapper.UnwrapContentKey(context.Background(), e.GetUserId(), kms.WrappedContentKey{
+	keyRef := e.GetWrappingKeyRef()
+	if keyRef == "" {
+		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
+	}
+	key, err := p.keyWrapper.UnwrapContentKey(context.Background(), keyRef, kms.WrappedContentKey{
 		EncryptedContentKey: e.GetEncryptedContentKey(),
 		Nonce:               e.GetContentKeyNonce(),
 		Algorithm:           e.GetWrappingAlgorithm(),

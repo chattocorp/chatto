@@ -68,7 +68,11 @@ func (c *ChattoCore) unwrapMessageContentKey(ctx context.Context, event *corev1.
 	if c.encryption.keyWrapper == nil {
 		return nil, encryption.ErrKeyNotFound
 	}
-	key, err := c.encryption.keyWrapper.UnwrapContentKey(ctx, userID, kms.WrappedContentKey{
+	keyRef := event.GetWrappingKeyRef()
+	if keyRef == "" {
+		keyRef = kms.LegacyUserKeyRef(userID)
+	}
+	key, err := c.encryption.keyWrapper.UnwrapContentKey(ctx, keyRef, kms.WrappedContentKey{
 		EncryptedContentKey: event.GetEncryptedContentKey(),
 		Nonce:               event.GetContentKeyNonce(),
 		Algorithm:           event.GetWrappingAlgorithm(),
@@ -97,8 +101,25 @@ func (c *ChattoCore) generateInitialMessageContentKey(ctx context.Context, userI
 			return c.unwrapMessageContentKey(ctx, event)
 		}
 
-		key, wrapped, err := c.newWrappedMessageContentKey(ctx, userID, 1)
+		keyRef := kms.LegacyUserKeyRef(userID)
+		createdKey := false
+		exists, err := c.encryption.keyWrapper.KeyExists(ctx, keyRef)
 		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			keyRef, err = c.encryption.keyWrapper.CreateKey(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			createdKey = true
+		}
+
+		key, wrapped, err := c.newWrappedMessageContentKey(ctx, userID, keyRef, 1)
+		if err != nil {
+			if createdKey {
+				_ = c.encryption.keyWrapper.ShredKey(context.WithoutCancel(ctx), keyRef)
+			}
 			return nil, err
 		}
 		event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserContentKeyGenerated{
@@ -111,6 +132,9 @@ func (c *ChattoCore) generateInitialMessageContentKey(ctx context.Context, userI
 				return nil, fmt.Errorf("wait for content key projection: %w", err)
 			}
 			return &messageContentKey{epoch: 1, key: key}, nil
+		}
+		if createdKey {
+			_ = c.encryption.keyWrapper.ShredKey(context.WithoutCancel(ctx), keyRef)
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err
@@ -125,7 +149,7 @@ func (c *ChattoCore) generateInitialMessageContentKey(ctx context.Context, userI
 	return nil, fmt.Errorf("content key OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID string, epoch int32) ([]byte, *corev1.UserContentKeyGeneratedEvent, error) {
+func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID, keyRef string, epoch int32) ([]byte, *corev1.UserContentKeyGeneratedEvent, error) {
 	if c.encryption.keyWrapper == nil {
 		return nil, nil, encryption.ErrKeyNotFound
 	}
@@ -133,7 +157,7 @@ func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID str
 	if err != nil {
 		return nil, nil, err
 	}
-	wrapped, err := c.encryption.keyWrapper.WrapContentKey(ctx, userID, key, contentKeyAAD(userID, epoch))
+	wrapped, err := c.encryption.keyWrapper.WrapContentKey(ctx, keyRef, key, contentKeyAAD(userID, epoch))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wrap content key: %w", err)
 	}
@@ -144,5 +168,6 @@ func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID str
 		ContentKeyNonce:     wrapped.Nonce,
 		WrappingAlgorithm:   wrapped.Algorithm,
 		WrappingMetadata:    wrapped.Metadata,
+		WrappingKeyRef:      keyRef,
 	}, nil
 }

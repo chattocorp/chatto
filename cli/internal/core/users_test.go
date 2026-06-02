@@ -55,16 +55,16 @@ func TestChattoCore_CreateUser(t *testing.T) {
 
 type cancelAfterWrapKeyWrapper struct {
 	kms.KeyWrapper
-	cancel     context.CancelFunc
-	wrapped    bool
-	wrappedFor string
+	cancel    context.CancelFunc
+	wrapped   bool
+	wrappedBy string
 }
 
-func (w *cancelAfterWrapKeyWrapper) WrapContentKey(ctx context.Context, userID string, contentKey, aad []byte) (*kms.WrappedContentKey, error) {
-	wrapped, err := w.KeyWrapper.WrapContentKey(ctx, userID, contentKey, aad)
+func (w *cancelAfterWrapKeyWrapper) WrapContentKey(ctx context.Context, keyRef string, contentKey, aad []byte) (*kms.WrappedContentKey, error) {
+	wrapped, err := w.KeyWrapper.WrapContentKey(ctx, keyRef, contentKey, aad)
 	if err == nil && !w.wrapped {
 		w.wrapped = true
-		w.wrappedFor = userID
+		w.wrappedBy = keyRef
 		w.cancel()
 	}
 	return wrapped, err
@@ -87,12 +87,12 @@ func TestChattoCore_CreateUser_AppendFailureCleansUpEncryptionKey(t *testing.T) 
 		t.Fatal("test did not reach content-key wrapping")
 	}
 
-	exists, err := wrapper.KeyWrapper.UserKeyExists(context.Background(), wrapper.wrappedFor)
+	exists, err := wrapper.KeyWrapper.KeyExists(context.Background(), wrapper.wrappedBy)
 	if err != nil {
-		t.Fatalf("UserKeyExists: %v", err)
+		t.Fatalf("KeyExists: %v", err)
 	}
 	if exists {
-		t.Fatalf("encryption key for failed signup user %q still exists", wrapper.wrappedFor)
+		t.Fatalf("encryption key for failed signup key ref %q still exists", wrapper.wrappedBy)
 	}
 }
 

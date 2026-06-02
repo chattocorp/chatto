@@ -157,4 +157,5 @@ message UserContentKeyGeneratedEvent {
   bytes content_key_nonce = 4;
   string wrapping_algorithm = 5;
   bytes wrapping_metadata = 6;
+  string wrapping_key_ref = 7;
 }

@@ -31,7 +31,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
-- On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
+- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's KMS key refs from the `ENCRYPTION_KEYS` bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
 - The login is freed up for re-use.
@@ -64,14 +64,14 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 4. Crypto-shredding instead of message deletion
 
-**Decision:** Account deletion destroys the user's encryption key and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
-**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying one key destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
+**Decision:** Account deletion shreds the KMS key refs that wrapped the user's content keys and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
+**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying the wrapping key destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
 **Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
 
 ### 5. Per-user KEKs, not shared keys
 
-**Decision:** Each user has their own message-body KEK. New messages use per-user content key epochs wrapped by that KEK; legacy messages encrypted directly with the per-user key remain readable.
-**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while content key epochs keep message events compact and leave room for external KMS unwrap flows. See ADR-007.
+**Decision:** Each user has their own message-body KEK, addressed through an opaque KMS key ref. New messages use per-user content key epochs wrapped by that key ref; legacy messages encrypted directly with the per-user key remain readable.
+**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while opaque key refs and content key epochs keep message events compact and map cleanly to external KMS unwrap flows. See ADR-007.
 **Tradeoff:** Message-body decryption has to resolve and unwrap the author's content key epoch. The built-in KMS path is cheap and local today; an external KMS may need caching policy and latency budgets.
 
 ### 6. Durable user PII is encrypted, not indexed in EVT
@@ -82,7 +82,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 7. KMS service boundary, even though it's in-process
 
-**Decision:** Content-key operations go through a KMS service interface (`wrapContentKey`, `unwrapContentKey`, `shredUserKey`) rather than direct KEK access. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
+**Decision:** Content-key operations go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or Chatto user IDs. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
 **Why:** A clean service boundary is what makes future extraction to Vault / AWS KMS / HSM possible without rewriting business logic. See ADR-007.
 **Tradeoff:** A tiny indirection layer for what's currently an in-process call. Legacy direct-key body decrypt still has a local raw-KEK compatibility path until old bodies age out.
 

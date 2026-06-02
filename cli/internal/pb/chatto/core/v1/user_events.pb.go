@@ -1041,6 +1041,7 @@ type UserContentKeyGeneratedEvent struct {
 	ContentKeyNonce     []byte                 `protobuf:"bytes,4,opt,name=content_key_nonce,json=contentKeyNonce,proto3" json:"content_key_nonce,omitempty"`
 	WrappingAlgorithm   string                 `protobuf:"bytes,5,opt,name=wrapping_algorithm,json=wrappingAlgorithm,proto3" json:"wrapping_algorithm,omitempty"`
 	WrappingMetadata    []byte                 `protobuf:"bytes,6,opt,name=wrapping_metadata,json=wrappingMetadata,proto3" json:"wrapping_metadata,omitempty"`
+	WrappingKeyRef      string                 `protobuf:"bytes,7,opt,name=wrapping_key_ref,json=wrappingKeyRef,proto3" json:"wrapping_key_ref,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1117,6 +1118,13 @@ func (x *UserContentKeyGeneratedEvent) GetWrappingMetadata() []byte {
 	return nil
 }
 
+func (x *UserContentKeyGeneratedEvent) GetWrappingKeyRef() string {
+	if x != nil {
+		return x.WrappingKeyRef
+	}
+	return ""
+}
+
 var File_chatto_core_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_user_events_proto_rawDesc = "" +
@@ -1187,14 +1195,15 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x17UserAccountDeletedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
 	"\x14UserKeyShreddedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x89\x02\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xb3\x02\n" +
 	"\x1cUserContentKeyGeneratedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x05R\x05epoch\x122\n" +
 	"\x15encrypted_content_key\x18\x03 \x01(\fR\x13encryptedContentKey\x12*\n" +
 	"\x11content_key_nonce\x18\x04 \x01(\fR\x0fcontentKeyNonce\x12-\n" +
 	"\x12wrapping_algorithm\x18\x05 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
-	"\x11wrapping_metadata\x18\x06 \x01(\fR\x10wrappingMetadataB\xb2\x01\n" +
+	"\x11wrapping_metadata\x18\x06 \x01(\fR\x10wrappingMetadata\x12(\n" +
+	"\x10wrapping_key_ref\x18\a \x01(\tR\x0ewrappingKeyRefB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fUserEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (

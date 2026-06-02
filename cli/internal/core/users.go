@@ -89,17 +89,18 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	// Create encryption key for this user. Keys are always created so they
 	// exist if encryption is enabled later.
-	if err := c.encryption.keyWrapper.CreateUserKey(ctx, userID); err != nil {
+	keyRef, err := c.encryption.keyWrapper.CreateKey(ctx, userID)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
 	cleanupEncryptionKey := true
 	defer func() {
 		if cleanupEncryptionKey {
-			c.cleanupCreatedUserEncryptionKey(ctx, userID)
+			c.cleanupCreatedUserEncryptionKey(ctx, keyRef)
 		}
 	}()
 
-	contentKeyBytes, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, 1)
+	contentKeyBytes, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, keyRef, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -185,11 +186,11 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	return user, nil
 }
 
-func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, userID string) {
+func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef string) {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	if err := c.deleteUserEncryptionKeyOnly(cleanupCtx, userID); err != nil {
-		c.logger.Warn("failed to clean up user encryption key after failed signup", "error", err, "user_id", userID)
+	if err := c.deleteEncryptionKeyOnly(cleanupCtx, keyRef); err != nil {
+		c.logger.Warn("failed to clean up user encryption key after failed signup", "error", err, "key_ref", keyRef)
 	}
 }
 
@@ -217,9 +218,6 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 // failures are logged but not returned, since the caller is already in an error path.
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
-	if err := c.deleteUserEncryptionKeyOnly(ctx, user.Id); err != nil {
-		c.logger.Warn("rollback encryption key delete failed", "user_id", user.Id, "error", err)
-	}
 	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
 }
 

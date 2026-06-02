@@ -77,6 +77,8 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.EqualValues(t, 1, contentKeyEvent.GetEpoch())
 	require.NotEmpty(t, contentKeyEvent.GetEncryptedContentKey(), "wrapped content key should be stored on the user stream")
 	require.NotEmpty(t, contentKeyEvent.GetContentKeyNonce(), "wrapped content key nonce should be stored on the user stream")
+	require.NotEmpty(t, contentKeyEvent.GetWrappingKeyRef(), "content key event should reference the wrapping KEK")
+	require.NotEqual(t, kms.LegacyUserKeyRef(user.Id), contentKeyEvent.GetWrappingKeyRef(), "new users should use opaque KMS key refs")
 
 	// Verify we can read the message back (decrypted)
 	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
@@ -227,8 +229,9 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.Equal(t, "Secret message content", body)
 
 	// Delete the user's encryption key (crypto-shredding)
-	err = core.encryption.keyWrapper.ShredUserKey(ctx, user.Id)
-	require.NoError(t, err)
+	contentKeyEvent, ok := core.ContentKeys.Active(user.Id)
+	require.True(t, ok)
+	require.NoError(t, core.encryption.keyWrapper.ShredKey(ctx, contentKeyEvent.GetWrappingKeyRef()))
 
 	// Verify message now returns empty string (crypto-shredded)
 	body, err = core.GetMessageBody(ctx, KindChannel, event.Id)

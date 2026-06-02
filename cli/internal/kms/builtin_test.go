@@ -29,36 +29,40 @@ func setupBuiltinKMS(t *testing.T) (*Builtin, context.Context) {
 func TestBuiltinWrapUnwrapAndShred(t *testing.T) {
 	k, ctx := setupBuiltinKMS(t)
 
-	require.NoError(t, k.CreateUserKey(ctx, "U1"))
-	exists, err := k.UserKeyExists(ctx, "U1")
+	keyRef, err := k.CreateKey(ctx, "U1")
+	require.NoError(t, err)
+	require.NotEmpty(t, keyRef)
+	require.NotEqual(t, LegacyUserKeyRef("U1"), keyRef)
+	exists, err := k.KeyExists(ctx, keyRef)
 	require.NoError(t, err)
 	require.True(t, exists)
 
 	contentKey, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	wrapped, err := k.WrapContentKey(ctx, "U1", contentKey, []byte("user=U1\x00epoch=1"))
+	wrapped, err := k.WrapContentKey(ctx, keyRef, contentKey, []byte("user=U1\x00epoch=1"))
 	require.NoError(t, err)
 	require.Equal(t, AlgorithmBuiltinXChaCha20Poly1305V1, wrapped.Algorithm)
 	require.NotEmpty(t, wrapped.EncryptedContentKey)
 	require.Len(t, wrapped.Nonce, encryption.XNonceSize)
 
-	unwrapped, err := k.UnwrapContentKey(ctx, "U1", *wrapped, []byte("user=U1\x00epoch=1"))
+	unwrapped, err := k.UnwrapContentKey(ctx, keyRef, *wrapped, []byte("user=U1\x00epoch=1"))
 	require.NoError(t, err)
 	require.Equal(t, contentKey, unwrapped)
 
-	require.NoError(t, k.ShredUserKey(ctx, "U1"))
-	exists, err = k.UserKeyExists(ctx, "U1")
+	require.NoError(t, k.ShredKey(ctx, keyRef))
+	exists, err = k.KeyExists(ctx, keyRef)
 	require.NoError(t, err)
 	require.False(t, exists)
-	_, err = k.UnwrapContentKey(ctx, "U1", *wrapped, []byte("user=U1\x00epoch=1"))
+	_, err = k.UnwrapContentKey(ctx, keyRef, *wrapped, []byte("user=U1\x00epoch=1"))
 	require.ErrorIs(t, err, encryption.ErrKeyNotFound)
 }
 
 func TestBuiltinRejectsUnsupportedWrappingAlgorithm(t *testing.T) {
 	k, ctx := setupBuiltinKMS(t)
-	require.NoError(t, k.CreateUserKey(ctx, "U1"))
+	keyRef, err := k.CreateKey(ctx, "U1")
+	require.NoError(t, err)
 
-	_, err := k.UnwrapContentKey(ctx, "U1", WrappedContentKey{
+	_, err = k.UnwrapContentKey(ctx, keyRef, WrappedContentKey{
 		Algorithm: "external-kms-v9",
 	}, []byte("aad"))
 	require.ErrorIs(t, err, ErrUnsupportedWrappingAlgorithm)

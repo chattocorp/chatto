@@ -40,8 +40,8 @@ The storage boundary is:
 - If a value is binary/object data, it belongs in the appropriate object store.
 - Administrator-managed configuration stays in the existing configuration
   buckets because it is configuration, not runtime state.
-- User encryption keys stay in `ENCRYPTION_KEYS` because their backup and
-  security rules are intentionally different from ordinary runtime state.
+- KMS key material stays in `ENCRYPTION_KEYS` because its backup and security
+  rules are intentionally different from ordinary runtime state.
 
 `RUNTIME_STATE` is persisted and configured for latest-value use:
 

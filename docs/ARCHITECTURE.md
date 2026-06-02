@@ -451,7 +451,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
 | `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
-| `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
+| `ENCRYPTION_KEYS`             | File    | **No**   | KMS key material (excluded for security)        |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Cached link preview metadata (48h TTL)          |
 | `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
 | `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; copied best-effort into `MEMORY_CACHE` on boot if present, not provisioned on fresh boot |
@@ -515,9 +515,10 @@ Notes: Server configuration now lives in EVT config events and is served from th
 
 | Key             | Description                       |
 | --------------- | --------------------------------- |
-| `user.{userId}` | User's 32-byte message-body KEK   |
+| `kek.{keyRef}`  | 32-byte message-body KEK addressed by opaque KMS key ref |
+| `user.{userId}` | Legacy direct-key message-body KEK compatibility path |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core interacts with these keys through the in-process `internal/kms` wrapper boundary. New message bodies use this KMS boundary to wrap per-user content key epochs stored on the user EVT stream; legacy bodies use the local KEK directly only for compatibility. Key IDs are not stored yet because each user has only one active KEK. Enables GDPR-compliant crypto-shredding: deleting a user's key renders all their messages permanently unreadable.
+Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core interacts with these keys through the in-process `internal/kms` wrapper boundary. New message bodies use this KMS boundary to wrap per-user content key epochs stored on the user EVT stream; those content-key events record the wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded key refs renders all their encrypted content permanently unreadable.
 
 **SERVER\_CONFIG keys:**
 
@@ -738,7 +739,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active content key epoch, authenticated with event-context AAD. Wrapped content keys live on the user EVT stream instead of every message and include wrapping algorithm metadata for future KMS implementations. New durable user PII fields use the same content key epoch machinery with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active content key epoch, authenticated with event-context AAD. Wrapped content keys live on the user EVT stream instead of every message and include wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use the same content key epoch machinery with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 
