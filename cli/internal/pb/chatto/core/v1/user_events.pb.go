@@ -1161,29 +1161,29 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xfc\x01\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xdb\x01\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
 	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\x12Y\n" +
-	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05loginR\fdisplay_name\"\x8b\x01\n" +
+	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\"~\n" +
 	"\x15UserLoginChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLoginJ\x04\b\x02\x10\x03R\x05login\"\xa5\x01\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\"\x91\x01\n" +
 	"\x1bUserDisplayNameChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12Y\n" +
 	"\x16encrypted_display_name\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\x02\x10\x03R\fdisplay_name\"f\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\"f\n" +
 	"\x12UserAvatarSetEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x127\n" +
 	"\x06avatar\x18\x02 \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\x06avatar\"1\n" +
 	"\x16UserAvatarClearedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x91\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x84\x01\n" +
 	"\x1bUserVerifiedEmailAddedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_email\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedEmailJ\x04\b\x02\x10\x03R\x05email\"\\\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedEmail\"\\\n" +
 	"\x1cUserPasswordHashChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
 	"\rpassword_hash\x18\x02 \x01(\fR\fpasswordHash\"\x8a\x01\n" +

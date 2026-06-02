@@ -67,23 +67,17 @@ message EncryptedUserString {
 
 message UserAccountCreatedEvent {
   string user_id = 1;
-  reserved 2, 3;
-  reserved "login", "display_name";
   EncryptedUserString encrypted_login = 10;
   EncryptedUserString encrypted_display_name = 11;
 }
 
 message UserLoginChangedEvent {
   string user_id = 1;
-  reserved 2;
-  reserved "login";
   EncryptedUserString encrypted_login = 10;
 }
 
 message UserDisplayNameChangedEvent {
   string user_id = 1;
-  reserved 2;
-  reserved "display_name";
   EncryptedUserString encrypted_display_name = 10;
 }
 
@@ -101,8 +95,6 @@ message UserAvatarClearedEvent {
 
 message UserVerifiedEmailAddedEvent {
   string user_id = 1;
-  reserved 2;
-  reserved "email";
   EncryptedUserString encrypted_email = 10;
 }
 
