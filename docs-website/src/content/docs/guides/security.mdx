@@ -91,7 +91,7 @@ This means an attacker who exfiltrates the JetStream data files alone cannot rec
 
 Older message bodies encrypted directly with the user's per-user ChaCha20-Poly1305 key remain readable.
 
-New durable user events also encrypt login, display name, and verified email fields with the user's active content key epoch. Projections decrypt those fields while the key exists and derive the in-memory login/email indexes used by the API. Legacy plaintext user events remain readable for compatibility.
+Durable user events also encrypt login, display name, and verified email fields with the user's active content key epoch. Legacy KV user records are imported by emitting encrypted user events, and projections decrypt those fields while the key exists to derive the in-memory login/email indexes used by the API.
 
 <Aside type="note">
   Authorized live events and GraphQL responses still contain profile fields in plaintext because clients need to render them. The durable event log is the protected boundary here.

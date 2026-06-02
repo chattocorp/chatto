@@ -43,6 +43,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 )
 
 // RunAll runs every active migration in order, stopping at the first
@@ -77,6 +78,7 @@ func RunAll(
 	serverEventsStream jetstream.Stream,
 	serverReactionsKV jetstream.KeyValue,
 	publisher *events.Publisher,
+	keyWrapper kms.KeyWrapper,
 	logger *log.Logger,
 ) error {
 	run := func(name string, legacySourcePresent bool, fn func() error) error {
@@ -99,7 +101,7 @@ func RunAll(
 		return err
 	}
 	if err := run("users_es", serverKV != nil, func() error {
-		return MigrateUsersToES(ctx, serverKV, publisher, logger)
+		return MigrateUsersToES(ctx, serverKV, publisher, keyWrapper, logger)
 	}); err != nil {
 		return err
 	}

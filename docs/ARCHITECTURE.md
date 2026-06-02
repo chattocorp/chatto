@@ -483,7 +483,7 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; new durable user events encrypt login, display name, and verified email payloads with the user's active content key epoch while retaining legacy plaintext decode fallback. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
+Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active content key epoch. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
 
 **EVT auth audit subjects:**
 

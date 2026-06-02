@@ -752,6 +752,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		storage.runtimeStateKV,
 		storage.serverEventsStream, storage.serverReactionsKV,
 		eventPublisher,
+		encMgr.keyWrapper,
 		logger,
 	); err != nil {
 		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
