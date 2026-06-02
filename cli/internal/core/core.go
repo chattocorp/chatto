@@ -161,8 +161,8 @@ type ChattoCore struct {
 	// WaitForSeq from user/account writers.
 	UsersProjector *events.Projector
 
-	// ContentKeys holds wrapped per-user content key epochs used by
-	// encrypted message bodies.
+	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
+	// message bodies and durable user PII.
 	ContentKeys *ContentKeyProjection
 
 	// ContentKeysProjector runs the consumer for ContentKeys. Exposed for

@@ -1170,7 +1170,7 @@ func (x *Attachment) GetMessageBodyId() string {
 // the audit trail in the event stream.
 // Message bodies are always encrypted. Legacy bodies use the author's
 // per-user ChaCha20-Poly1305 key directly. New bodies use a versioned
-// envelope with a per-user content key epoch.
+// envelope with a per-user message-body DEK epoch.
 type MessageBody struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AuthorId  string                 `protobuf:"bytes,1,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
@@ -1179,13 +1179,13 @@ type MessageBody struct {
 	// Encryption envelope version. Empty/0 means legacy v1 direct per-user-key
 	// encryption for backward compatibility with historical bodies. Version 2
 	// means XChaCha20-Poly1305 body encryption with the author's referenced
-	// content key epoch.
+	// message-body DEK epoch.
 	EncryptionVersion int32 `protobuf:"varint,4,opt,name=encryption_version,json=encryptionVersion,proto3" json:"encryption_version,omitempty"`
-	// V2 only: per-user content key epoch that encrypted this body.
+	// V2 only: per-user message-body DEK epoch that encrypted this body.
 	ContentKeyEpoch int32 `protobuf:"varint,5,opt,name=content_key_epoch,json=contentKeyEpoch,proto3" json:"content_key_epoch,omitempty"`
 	// Encrypted message body ciphertext with auth tag. For legacy bodies this
 	// is ChaCha20-Poly1305. For v2 envelope bodies this is XChaCha20-Poly1305
-	// using the referenced content key.
+	// using the referenced message-body DEK.
 	EncryptedBody []byte `protobuf:"bytes,20,opt,name=encrypted_body,json=encryptedBody,proto3" json:"encrypted_body,omitempty"`
 	// Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
 	// for v2 XChaCha20-Poly1305.

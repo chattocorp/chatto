@@ -100,34 +100,46 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		}
 	}()
 
-	contentKeyBytes, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, keyRef, 1)
+	_, wrappedMessageDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	if err != nil {
 		return nil, err
 	}
 
-	contentKey := &messageContentKey{epoch: 1, key: contentKeyBytes}
+	piiDEKBytes, wrappedPIIDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	if err != nil {
+		return nil, err
+	}
+
+	piiDEK := &userDEK{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
 	agg := events.UserAggregate(userID)
-	contentKeyEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserContentKeyGenerated{
-		UserContentKeyGenerated: wrappedContentKey,
+	messageDEKEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+		UserDekGenerated: wrappedMessageDEK,
 	}})
-	contentKeyEvent.CreatedAt = now
+	messageDEKEvent.CreatedAt = now
+	piiDEKEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+		UserDekGenerated: wrappedPIIDEK,
+	}})
+	piiDEKEvent.CreatedAt = now
 	accountCreated := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
 		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID},
 	}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
-	account.EncryptedLogin, err = encryptUserPIIStringWithContentKey(contentKey, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
+	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt login: %w", err)
 	}
-	account.EncryptedDisplayName, err = encryptUserPIIStringWithContentKey(contentKey, accountCreated.GetId(), userID, events.EventUserAccountCreated, "display_name", displayName)
+	account.EncryptedDisplayName, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "display_name", displayName)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt display name: %w", err)
 	}
 
 	entries := []events.BatchEntry{{
-		Subject: agg.Subject(events.EventUserContentKeyGenerated),
-		Event:   contentKeyEvent,
+		Subject: agg.Subject(events.EventUserDEKGenerated),
+		Event:   messageDEKEvent,
+	}, {
+		Subject: agg.Subject(events.EventUserDEKGenerated),
+		Event:   piiDEKEvent,
 	}, {
 		Subject: agg.Subject(events.EventUserAccountCreated),
 		Event:   accountCreated,

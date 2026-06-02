@@ -225,7 +225,7 @@ message Attachment {
 // the audit trail in the event stream.
 // Message bodies are always encrypted. Legacy bodies use the author's
 // per-user ChaCha20-Poly1305 key directly. New bodies use a versioned
-// envelope with a per-user content key epoch.
+// envelope with a per-user message-body DEK epoch.
 message MessageBody {
   string author_id = 1;
   google.protobuf.Timestamp created_at = 2;
@@ -234,14 +234,14 @@ message MessageBody {
   // Encryption envelope version. Empty/0 means legacy v1 direct per-user-key
   // encryption for backward compatibility with historical bodies. Version 2
   // means XChaCha20-Poly1305 body encryption with the author's referenced
-  // content key epoch.
+  // message-body DEK epoch.
   int32 encryption_version = 4;
-  // V2 only: per-user content key epoch that encrypted this body.
+  // V2 only: per-user message-body DEK epoch that encrypted this body.
   int32 content_key_epoch = 5;
 
   // Encrypted message body ciphertext with auth tag. For legacy bodies this
   // is ChaCha20-Poly1305. For v2 envelope bodies this is XChaCha20-Poly1305
-  // using the referenced content key.
+  // using the referenced message-body DEK.
   bytes encrypted_body = 20;
   // Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
   // for v2 XChaCha20-Poly1305.

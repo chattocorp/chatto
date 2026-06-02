@@ -483,7 +483,7 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active content key epoch. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
+Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active user-PII DEK epoch. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
 
 **EVT auth audit subjects:**
 
@@ -515,10 +515,10 @@ Notes: Server configuration now lives in EVT config events and is served from th
 
 | Key             | Description                       |
 | --------------- | --------------------------------- |
-| `kek.{keyRef}`  | 32-byte message-body KEK addressed by opaque KMS key ref |
+| `kek.{keyRef}`  | 32-byte per-user KEK addressed by opaque KMS key ref |
 | `user.{userId}` | Legacy direct-key message-body KEK compatibility path |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core interacts with these keys through the in-process `internal/kms` wrapper boundary. New message bodies use this KMS boundary to wrap per-user content key epochs stored on the user EVT stream; those content-key events record the wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded key refs renders all their encrypted content permanently unreadable.
+Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core interacts with these keys through the in-process `internal/kms` wrapper boundary. New message bodies and durable user PII use this KMS boundary to wrap per-user, purpose-scoped DEK epochs stored on the user EVT stream as `UserDEKGeneratedEvent` facts. Those DEK events record the purpose, epoch, wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded key refs renders all their encrypted content permanently unreadable.
 
 **SERVER\_CONFIG keys:**
 
@@ -740,7 +740,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active content key epoch, authenticated with event-context AAD. Wrapped content keys live on the user EVT stream instead of every message and include wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use the same content key epoch machinery with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active message-body DEK epoch, authenticated with event-context AAD. Wrapped DEKs live on the user EVT stream instead of every message and include purpose, epoch, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 

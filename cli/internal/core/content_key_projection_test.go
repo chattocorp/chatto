@@ -8,14 +8,16 @@ import (
 
 func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 	p := NewContentKeyProjection()
+	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
 	events := []*corev1.Event{
 		{
 			Id: "E1",
-			Event: &corev1.Event_UserContentKeyGenerated{
-				UserContentKeyGenerated: &corev1.UserContentKeyGeneratedEvent{
+			Event: &corev1.Event_UserDekGenerated{
+				UserDekGenerated: &corev1.UserDEKGeneratedEvent{
 					UserId:              "U1",
 					Epoch:               1,
+					Purpose:             purpose,
 					EncryptedContentKey: []byte("wrapped-1"),
 					ContentKeyNonce:     []byte("nonce-1"),
 				},
@@ -23,10 +25,11 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 		},
 		{
 			Id: "E2",
-			Event: &corev1.Event_UserContentKeyGenerated{
-				UserContentKeyGenerated: &corev1.UserContentKeyGeneratedEvent{
+			Event: &corev1.Event_UserDekGenerated{
+				UserDekGenerated: &corev1.UserDEKGeneratedEvent{
 					UserId:              "U1",
 					Epoch:               2,
+					Purpose:             purpose,
 					EncryptedContentKey: []byte("wrapped-2"),
 					ContentKeyNonce:     []byte("nonce-2"),
 				},
@@ -39,7 +42,7 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 		}
 	}
 
-	active, ok := p.Active("U1")
+	active, ok := p.Active("U1", purpose)
 	if !ok {
 		t.Fatal("expected active content key")
 	}
@@ -47,7 +50,7 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 		t.Fatalf("active epoch = %d, want 2", active.GetEpoch())
 	}
 
-	epoch1, ok := p.Get("U1", 1)
+	epoch1, ok := p.Get("U1", purpose, 1)
 	if !ok {
 		t.Fatal("expected epoch 1")
 	}
@@ -58,13 +61,15 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 
 func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
 	p := NewContentKeyProjection()
+	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
 	if err := p.Apply(&corev1.Event{
 		Id: "E1",
-		Event: &corev1.Event_UserContentKeyGenerated{
-			UserContentKeyGenerated: &corev1.UserContentKeyGeneratedEvent{
+		Event: &corev1.Event_UserDekGenerated{
+			UserDekGenerated: &corev1.UserDEKGeneratedEvent{
 				UserId:              "U1",
 				Epoch:               1,
+				Purpose:             purpose,
 				EncryptedContentKey: []byte("wrapped"),
 				ContentKeyNonce:     []byte("nonce"),
 			},
@@ -81,10 +86,10 @@ func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
 		t.Fatalf("Apply shred: %v", err)
 	}
 
-	if _, ok := p.Active("U1"); ok {
+	if _, ok := p.Active("U1", purpose); ok {
 		t.Fatal("active content key should be cleared after shred")
 	}
-	if _, ok := p.Get("U1", 1); ok {
+	if _, ok := p.Get("U1", purpose, 1); ok {
 		t.Fatal("epoch 1 content key should be cleared after shred")
 	}
 }

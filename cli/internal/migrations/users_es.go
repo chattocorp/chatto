@@ -31,8 +31,8 @@ import (
 //   - user_by_oidc.{issuerSubjectHash}
 //
 // New durable user events encrypt login, display name, and verified email
-// payloads. The migration therefore emits an initial content-key event for
-// each imported user and writes encrypted PII facts using that epoch.
+// payloads. The migration therefore emits initial purpose-scoped DEK events
+// for each imported user and writes encrypted PII facts using that epoch.
 //
 // Login and email indexes are not imported as their own events; they are
 // reconstructed by the projection from user-created / verified-email-added
@@ -135,10 +135,11 @@ func listLegacyUserRecordKeys(ctx context.Context, kv jetstream.KeyValue) ([]str
 	return out, nil
 }
 
-type migrationContentKey struct {
+type migrationDEK struct {
 	epoch         int32
+	purpose       corev1.UserDEKPurpose
 	key           []byte
-	event         *corev1.UserContentKeyGeneratedEvent
+	event         *corev1.UserDEKGeneratedEvent
 	cleanupKeyRef string
 }
 
@@ -158,19 +159,32 @@ func buildUserMigrationEntries(
 		createdAt = timestamppb.New(legacyCreatedAt)
 	}
 
-	contentKey, err := migrationContentKeyForUser(ctx, keyWrapper, user.GetId(), existingEvents)
+	messageDEK, err := migrationDEKForUser(ctx, keyWrapper, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, existingEvents)
 	if err != nil {
 		return nil, nil, err
 	}
 	var cleanupKeyRefs []string
-	if contentKey.cleanupKeyRef != "" {
-		cleanupKeyRefs = append(cleanupKeyRefs, contentKey.cleanupKeyRef)
+	if messageDEK.cleanupKeyRef != "" {
+		cleanupKeyRefs = append(cleanupKeyRefs, messageDEK.cleanupKeyRef)
+	}
+	piiDEK, err := migrationDEKForUser(ctx, keyWrapper, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, existingEvents)
+	if err != nil {
+		return nil, cleanupKeyRefs, err
+	}
+	if piiDEK.cleanupKeyRef != "" {
+		cleanupKeyRefs = append(cleanupKeyRefs, piiDEK.cleanupKeyRef)
 	}
 
 	var entries []events.BatchEntry
-	if contentKey.event != nil {
-		event := stamp(&corev1.Event{Event: &corev1.Event_UserContentKeyGenerated{
-			UserContentKeyGenerated: contentKey.event,
+	if messageDEK.event != nil {
+		event := stamp(&corev1.Event{Event: &corev1.Event_UserDekGenerated{
+			UserDekGenerated: messageDEK.event,
+		}}, "system:migration", createdAt)
+		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+	}
+	if piiDEK.event != nil {
+		event := stamp(&corev1.Event{Event: &corev1.Event_UserDekGenerated{
+			UserDekGenerated: piiDEK.event,
 		}}, "system:migration", createdAt)
 		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
@@ -181,11 +195,11 @@ func buildUserMigrationEntries(
 		},
 	}}, "system:migration", createdAt)
 	accountCreated := created.GetUserAccountCreated()
-	accountCreated.EncryptedLogin, err = encryptMigrationUserPIIString(contentKey, created.GetId(), user.GetId(), events.EventUserAccountCreated, "login", user.GetLogin())
+	accountCreated.EncryptedLogin, err = encryptMigrationUserPIIString(piiDEK, created.GetId(), user.GetId(), events.EventUserAccountCreated, "login", user.GetLogin())
 	if err != nil {
 		return nil, cleanupKeyRefs, fmt.Errorf("encrypt legacy login: %w", err)
 	}
-	accountCreated.EncryptedDisplayName, err = encryptMigrationUserPIIString(contentKey, created.GetId(), user.GetId(), events.EventUserAccountCreated, "display_name", user.GetDisplayName())
+	accountCreated.EncryptedDisplayName, err = encryptMigrationUserPIIString(piiDEK, created.GetId(), user.GetId(), events.EventUserAccountCreated, "display_name", user.GetDisplayName())
 	if err != nil {
 		return nil, cleanupKeyRefs, fmt.Errorf("encrypt legacy display name: %w", err)
 	}
@@ -215,7 +229,7 @@ func buildUserMigrationEntries(
 		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
 
-	emailEntries, err := getLegacyVerifiedEmailEvents(ctx, kv, user.GetId(), contentKey, createdAt, logger)
+	emailEntries, err := getLegacyVerifiedEmailEvents(ctx, kv, user.GetId(), piiDEK, createdAt, logger)
 	if err != nil {
 		return nil, cleanupKeyRefs, err
 	}
@@ -251,16 +265,16 @@ func buildUserMigrationEntries(
 	return entries, cleanupKeyRefs, nil
 }
 
-func migrationContentKeyForUser(ctx context.Context, keyWrapper kms.KeyWrapper, userID string, existingEvents []*corev1.Event) (*migrationContentKey, error) {
-	if existing := firstMigrationContentKey(existingEvents); existing != nil {
-		key, err := unwrapMigrationContentKey(ctx, keyWrapper, existing)
+func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, userID string, purpose corev1.UserDEKPurpose, existingEvents []*corev1.Event) (*migrationDEK, error) {
+	if existing := firstMigrationDEK(existingEvents, purpose); existing != nil {
+		key, err := unwrapMigrationDEK(ctx, keyWrapper, existing)
 		if err != nil {
-			return nil, fmt.Errorf("unwrap existing content key: %w", err)
+			return nil, fmt.Errorf("unwrap existing DEK: %w", err)
 		}
-		return &migrationContentKey{
-			epoch: existing.GetEpoch(),
-			key:   key,
-			event: proto.Clone(existing).(*corev1.UserContentKeyGeneratedEvent),
+		return &migrationDEK{
+			epoch:   existing.GetEpoch(),
+			purpose: existing.GetPurpose(),
+			key:     key,
 		}, nil
 	}
 
@@ -278,24 +292,26 @@ func migrationContentKeyForUser(ctx context.Context, keyWrapper kms.KeyWrapper, 
 		cleanupKeyRef = keyRef
 	}
 
-	contentKey, err := encryption.GenerateKey()
+	dek, err := encryption.GenerateKey()
 	if err != nil {
 		return nil, err
 	}
-	wrapped, err := keyWrapper.WrapContentKey(ctx, keyRef, contentKey, migrationContentKeyAAD(userID, 1))
+	wrapped, err := keyWrapper.WrapContentKey(ctx, keyRef, dek, migrationUserDEKAAD(userID, purpose, 1))
 	if err != nil {
 		if cleanupKeyRef != "" {
 			_ = keyWrapper.ShredKey(context.WithoutCancel(ctx), cleanupKeyRef)
 			cleanupKeyRef = ""
 		}
-		return nil, fmt.Errorf("wrap migration content key: %w", err)
+		return nil, fmt.Errorf("wrap migration DEK: %w", err)
 	}
-	return &migrationContentKey{
-		epoch: 1,
-		key:   contentKey,
-		event: &corev1.UserContentKeyGeneratedEvent{
+	return &migrationDEK{
+		epoch:   1,
+		purpose: purpose,
+		key:     dek,
+		event: &corev1.UserDEKGeneratedEvent{
 			UserId:              userID,
 			Epoch:               1,
+			Purpose:             purpose,
 			EncryptedContentKey: wrapped.EncryptedContentKey,
 			ContentKeyNonce:     wrapped.Nonce,
 			WrappingAlgorithm:   wrapped.Algorithm,
@@ -306,7 +322,7 @@ func migrationContentKeyForUser(ctx context.Context, keyWrapper kms.KeyWrapper, 
 	}, nil
 }
 
-func unwrapMigrationContentKey(ctx context.Context, keyWrapper kms.KeyWrapper, e *corev1.UserContentKeyGeneratedEvent) ([]byte, error) {
+func unwrapMigrationDEK(ctx context.Context, keyWrapper kms.KeyWrapper, e *corev1.UserDEKGeneratedEvent) ([]byte, error) {
 	keyRef := e.GetWrappingKeyRef()
 	if keyRef == "" {
 		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
@@ -316,16 +332,22 @@ func unwrapMigrationContentKey(ctx context.Context, keyWrapper kms.KeyWrapper, e
 		Nonce:               e.GetContentKeyNonce(),
 		Algorithm:           e.GetWrappingAlgorithm(),
 		Metadata:            e.GetWrappingMetadata(),
-	}, migrationContentKeyAAD(e.GetUserId(), e.GetEpoch()))
+	}, migrationUserDEKAAD(e.GetUserId(), e.GetPurpose(), e.GetEpoch()))
 }
 
-func firstMigrationContentKey(existingEvents []*corev1.Event) *corev1.UserContentKeyGeneratedEvent {
+func firstMigrationDEK(existingEvents []*corev1.Event, purpose corev1.UserDEKPurpose) *corev1.UserDEKGeneratedEvent {
+	var fallback *corev1.UserDEKGeneratedEvent
 	for _, event := range existingEvents {
-		if e := event.GetUserContentKeyGenerated(); e != nil {
-			return e
+		if e := event.GetUserDekGenerated(); e != nil {
+			if e.GetPurpose() == purpose {
+				return e
+			}
+			if e.GetPurpose() == corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && fallback == nil {
+				fallback = e
+			}
 		}
 	}
-	return nil
+	return fallback
 }
 
 func needsEncryptedUserRepair(existingEvents []*corev1.Event) bool {
@@ -350,10 +372,8 @@ func repairUserMigrationEntries(entries []events.BatchEntry, existingEvents []*c
 	for _, entry := range entries {
 		eventType := events.EventTypeOf(entry.Event)
 		switch eventType {
-		case events.EventUserContentKeyGenerated:
-			if _, ok := seen[eventType]; !ok {
-				out = append(out, entry)
-			}
+		case events.EventUserDEKGenerated:
+			out = append(out, entry)
 		case events.EventUserAccountCreated, events.EventUserVerifiedEmailAdded:
 			out = append(out, entry)
 		default:
@@ -365,18 +385,18 @@ func repairUserMigrationEntries(entries []events.BatchEntry, existingEvents []*c
 	return out
 }
 
-func encryptMigrationUserPIIString(contentKey *migrationContentKey, eventID, userID, eventType, purpose, plaintext string) (*corev1.EncryptedUserString, error) {
-	if contentKey == nil || contentKey.epoch <= 0 || len(contentKey.key) == 0 {
-		return nil, fmt.Errorf("content key is missing")
+func encryptMigrationUserPIIString(dek *migrationDEK, eventID, userID, eventType, purpose, plaintext string) (*corev1.EncryptedUserString, error) {
+	if dek == nil || dek.epoch <= 0 || len(dek.key) == 0 {
+		return nil, fmt.Errorf("DEK is missing")
 	}
-	encrypted, err := encryption.EncryptXChaCha20Poly1305(contentKey.key, []byte(plaintext), migrationUserPIIAAD(eventID, userID, eventType, purpose, contentKey.epoch))
+	encrypted, err := encryption.EncryptXChaCha20Poly1305(dek.key, []byte(plaintext), migrationUserPIIAAD(eventID, userID, eventType, purpose, dek.epoch))
 	if err != nil {
 		return nil, err
 	}
 	return &corev1.EncryptedUserString{
 		EncryptedValue:  encrypted.Ciphertext,
 		Nonce:           encrypted.Nonce,
-		ContentKeyEpoch: contentKey.epoch,
+		ContentKeyEpoch: dek.epoch,
 	}, nil
 }
 
@@ -384,8 +404,11 @@ func migrationUserPIIAAD(eventID, userID, eventType, purpose string, epoch int32
 	return []byte(fmt.Sprintf("chatto:user-pii-context:v1\x00event_id=%s\x00user_id=%s\x00event_type=%s\x00field=%s\x00content_key_epoch=%d", eventID, userID, eventType, purpose, epoch))
 }
 
-func migrationContentKeyAAD(userID string, epoch int32) []byte {
-	return []byte(fmt.Sprintf("chatto:content-key-context:v2\x00user_id=%s\x00epoch=%d", userID, epoch))
+func migrationUserDEKAAD(userID string, purpose corev1.UserDEKPurpose, epoch int32) []byte {
+	if purpose == corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
+		return []byte(fmt.Sprintf("chatto:content-key-context:v2\x00user_id=%s\x00epoch=%d", userID, epoch))
+	}
+	return []byte(fmt.Sprintf("chatto:user-dek-context:v1\x00user_id=%s\x00purpose=%d\x00epoch=%d", userID, purpose, epoch))
 }
 
 func cleanupMigrationKeyRefs(ctx context.Context, keyWrapper kms.KeyWrapper, keyRefs []string, logger *log.Logger) {
@@ -438,7 +461,7 @@ func getLegacyVerifiedEmailEvents(
 	ctx context.Context,
 	kv jetstream.KeyValue,
 	userID string,
-	contentKey *migrationContentKey,
+	piiDEK *migrationDEK,
 	fallbackCreatedAt *timestamppb.Timestamp,
 	logger *log.Logger,
 ) ([]*corev1.Event, error) {
@@ -473,7 +496,7 @@ func getLegacyVerifiedEmailEvents(
 			},
 		}}, "system:migration", verifiedAt)
 		emailEvent := event.GetUserVerifiedEmailAdded()
-		emailEvent.EncryptedEmail, err = encryptMigrationUserPIIString(contentKey, event.GetId(), userID, events.EventUserVerifiedEmailAdded, "email", ve.GetEmail())
+		emailEvent.EncryptedEmail, err = encryptMigrationUserPIIString(piiDEK, event.GetId(), userID, events.EventUserVerifiedEmailAdded, "email", ve.GetEmail())
 		if err != nil {
 			return nil, fmt.Errorf("encrypt legacy verified email %s: %w", key, err)
 		}
@@ -577,8 +600,8 @@ func publishUserMigration(
 
 func userMigrationIdentity(event *corev1.Event) string {
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserContentKeyGenerated:
-		return strings.Join([]string{events.EventUserContentKeyGenerated, e.UserContentKeyGenerated.GetUserId(), fmt.Sprint(e.UserContentKeyGenerated.GetEpoch())}, "\x00")
+	case *corev1.Event_UserDekGenerated:
+		return strings.Join([]string{events.EventUserDEKGenerated, e.UserDekGenerated.GetUserId(), fmt.Sprint(e.UserDekGenerated.GetPurpose()), fmt.Sprint(e.UserDekGenerated.GetEpoch())}, "\x00")
 	case *corev1.Event_UserAccountCreated:
 		return events.EventUserAccountCreated + "\x00" + e.UserAccountCreated.GetUserId()
 	case *corev1.Event_UserDisplayNameChanged:

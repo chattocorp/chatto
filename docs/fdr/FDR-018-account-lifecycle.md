@@ -64,25 +64,25 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 4. Crypto-shredding instead of message deletion
 
-**Decision:** Account deletion shreds the KMS key refs that wrapped the user's content keys and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
+**Decision:** Account deletion shreds the KMS key refs that wrapped the user's purpose-scoped DEKs and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies and durable user PII stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
 **Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying the wrapping key destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
 **Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
 
 ### 5. Per-user KEKs, not shared keys
 
-**Decision:** Each user has their own message-body KEK, addressed through an opaque KMS key ref. New messages use per-user content key epochs wrapped by that key ref; legacy messages encrypted directly with the per-user key remain readable.
-**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while opaque key refs and content key epochs keep message events compact and map cleanly to external KMS unwrap flows. See ADR-007.
-**Tradeoff:** Message-body decryption has to resolve and unwrap the author's content key epoch. The built-in KMS path is cheap and local today; an external KMS may need caching policy and latency budgets.
+**Decision:** Each user has their own KEK, addressed through an opaque KMS key ref. New messages use a purpose-scoped message-body DEK epoch wrapped by that key ref; durable user PII uses a separate user-PII DEK epoch. Legacy messages encrypted directly with the per-user key remain readable.
+**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while opaque key refs and purpose-scoped DEK epochs keep message and user events compact and map cleanly to external KMS unwrap flows. See ADR-007.
+**Tradeoff:** Message-body and user-PII decryption have to resolve and unwrap the relevant DEK epoch. The built-in KMS path is cheap and local today; an external KMS may need caching policy and latency budgets.
 
 ### 6. Durable user PII is encrypted, not indexed in EVT
 
-**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active content key epoch. The projection decrypts these values and derives in-memory login/email indexes.
+**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. The projection decrypts these values and derives in-memory login/email indexes.
 **Why:** Immutable event logs are the wrong long-term home for plaintext PII. Keeping the encrypted payload in EVT preserves replayability without a separate PII KV store, and deletion destroys the key needed to rebuild the data. See ADR-007.
 **Tradeoff:** Projections need access to key-unwrapping during replay. If a user's key is gone, cold replay intentionally cannot rebuild their profile PII or uniqueness indexes.
 
 ### 7. KMS service boundary, even though it's in-process
 
-**Decision:** Content-key operations go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or Chatto user IDs. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
+**Decision:** DEK operations go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or Chatto user IDs. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
 **Why:** A clean service boundary is what makes future extraction to Vault / AWS KMS / HSM possible without rewriting business logic. See ADR-007.
 **Tradeoff:** A tiny indirection layer for what's currently an in-process call. Legacy direct-key body decrypt still has a local raw-KEK compatibility path until old bodies age out.
 

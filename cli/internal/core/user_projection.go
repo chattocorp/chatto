@@ -26,7 +26,7 @@ type UserProjection struct {
 	oidcIndex   map[string]string
 	eventIDSeen map[string]struct{}
 	keyWrapper  kms.KeyWrapper
-	contentKeys map[string]map[int32][]byte
+	contentKeys map[string]map[corev1.UserDEKPurpose]map[int32][]byte
 }
 
 type projectedUser struct {
@@ -51,7 +51,7 @@ func NewUserProjection(keyWrappers ...kms.KeyWrapper) *UserProjection {
 		oidcIndex:   make(map[string]string),
 		eventIDSeen: make(map[string]struct{}),
 		keyWrapper:  keyWrapper,
-		contentKeys: make(map[string]map[int32][]byte),
+		contentKeys: make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
 	}
 }
 
@@ -77,8 +77,8 @@ func (p *UserProjection) Apply(event *corev1.Event, _ uint64) error {
 	defer p.Unlock()
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserContentKeyGenerated:
-		p.applyContentKeyGenerated(e.UserContentKeyGenerated)
+	case *corev1.Event_UserDekGenerated:
+		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
 		p.applyAccountCreated(event.GetId(), e.UserAccountCreated, event.GetCreatedAt())
 	case *corev1.Event_UserLoginChanged:
@@ -125,10 +125,11 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 	return u
 }
 
-func (p *UserProjection) applyContentKeyGenerated(e *corev1.UserContentKeyGeneratedEvent) {
+func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || p.keyWrapper == nil {
 		return
 	}
+	purpose := e.GetPurpose()
 	keyRef := e.GetWrappingKeyRef()
 	if keyRef == "" {
 		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
@@ -138,14 +139,19 @@ func (p *UserProjection) applyContentKeyGenerated(e *corev1.UserContentKeyGenera
 		Nonce:               e.GetContentKeyNonce(),
 		Algorithm:           e.GetWrappingAlgorithm(),
 		Metadata:            e.GetWrappingMetadata(),
-	}, contentKeyAAD(e.GetUserId(), e.GetEpoch()))
+	}, userDEKAAD(e.GetUserId(), purpose, e.GetEpoch()))
 	if err != nil {
 		return
 	}
-	epochs := p.contentKeys[e.GetUserId()]
+	byPurpose := p.contentKeys[e.GetUserId()]
+	if byPurpose == nil {
+		byPurpose = make(map[corev1.UserDEKPurpose]map[int32][]byte)
+		p.contentKeys[e.GetUserId()] = byPurpose
+	}
+	epochs := byPurpose[purpose]
 	if epochs == nil {
 		epochs = make(map[int32][]byte)
-		p.contentKeys[e.GetUserId()] = epochs
+		byPurpose[purpose] = epochs
 	}
 	epochs[e.GetEpoch()] = append([]byte(nil), key...)
 }
@@ -372,11 +378,14 @@ func (p *UserProjection) userPIIString(eventID, userID, eventType, purpose strin
 	if encrypted == nil {
 		return "", false
 	}
-	epochs := p.contentKeys[userID]
-	if epochs == nil {
+	byPurpose := p.contentKeys[userID]
+	if byPurpose == nil {
 		return "", false
 	}
-	key := epochs[encrypted.GetContentKeyEpoch()]
+	key := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
+	if len(key) == 0 {
+		key = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
+	}
 	if len(key) == 0 {
 		return "", false
 	}

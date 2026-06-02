@@ -51,14 +51,15 @@ func newEncryptedUserProjection(t *testing.T, userID string) (*UserProjection, *
 	p := NewUserProjection(staticProjectionKeyWrapper{key: key})
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id: "K1",
-		Event: &corev1.Event_UserContentKeyGenerated{UserContentKeyGenerated: &corev1.UserContentKeyGeneratedEvent{
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
 			UserId:              userID,
 			Epoch:               1,
+			Purpose:             corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
 			EncryptedContentKey: []byte("wrapped"),
 			ContentKeyNonce:     []byte("nonce"),
 		}},
 	}, 1))
-	return p, &messageContentKey{epoch: 1, key: key}
+	return p, &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 }
 
 func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID, login, displayName string) *corev1.Event {

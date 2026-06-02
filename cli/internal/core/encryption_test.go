@@ -40,6 +40,18 @@ func setupTestCoreWithEncryption(t *testing.T) *ChattoCore {
 	return core
 }
 
+func userDEKEventByPurpose(t *testing.T, eventList []*corev1.Event, purpose corev1.UserDEKPurpose) *corev1.UserDEKGeneratedEvent {
+	t.Helper()
+	for _, event := range eventList {
+		dek := event.GetUserDekGenerated()
+		if dek != nil && dek.GetPurpose() == purpose {
+			return dek
+		}
+	}
+	require.FailNowf(t, "missing DEK event", "purpose %s not found", purpose.String())
+	return nil
+}
+
 func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
@@ -66,18 +78,19 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
 	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "new messages should use v2 envelopes")
-	require.EqualValues(t, 1, stored.ContentKeyEpoch, "new messages should reference the active content key epoch")
+	require.EqualValues(t, 1, stored.ContentKeyEpoch, "new messages should reference the active message-body DEK epoch")
 
-	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserContentKeyGenerated))
+	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
 	require.NoError(t, err)
-	require.Len(t, contentKeyEvents, 1)
-	contentKeyEvent := contentKeyEvents[0].GetUserContentKeyGenerated()
+	require.Len(t, contentKeyEvents, 2)
+	contentKeyEvent := userDEKEventByPurpose(t, contentKeyEvents, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NotNil(t, contentKeyEvent)
 	require.Equal(t, user.Id, contentKeyEvent.GetUserId())
 	require.EqualValues(t, 1, contentKeyEvent.GetEpoch())
-	require.NotEmpty(t, contentKeyEvent.GetEncryptedContentKey(), "wrapped content key should be stored on the user stream")
-	require.NotEmpty(t, contentKeyEvent.GetContentKeyNonce(), "wrapped content key nonce should be stored on the user stream")
-	require.NotEmpty(t, contentKeyEvent.GetWrappingKeyRef(), "content key event should reference the wrapping KEK")
+	require.Equal(t, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, contentKeyEvent.GetPurpose())
+	require.NotEmpty(t, contentKeyEvent.GetEncryptedContentKey(), "wrapped DEK should be stored on the user stream")
+	require.NotEmpty(t, contentKeyEvent.GetContentKeyNonce(), "wrapped DEK nonce should be stored on the user stream")
+	require.NotEmpty(t, contentKeyEvent.GetWrappingKeyRef(), "DEK event should reference the wrapping KEK")
 	require.NotEqual(t, kms.LegacyUserKeyRef(user.Id), contentKeyEvent.GetWrappingKeyRef(), "new users should use opaque KMS key refs")
 
 	// Verify we can read the message back (decrypted)
@@ -129,10 +142,10 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
 	require.NoError(t, err)
 	require.Len(t, accountEvents, 1)
-	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserContentKeyGenerated))
+	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
 	require.NoError(t, err)
-	require.Len(t, contentKeyEvents, 1)
-	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, contentKeyEvents[0].GetUserContentKeyGenerated().GetWrappingAlgorithm())
+	require.Len(t, contentKeyEvents, 2)
+	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, userDEKEventByPurpose(t, contentKeyEvents, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII).GetWrappingAlgorithm())
 	account := accountEvents[0].GetUserAccountCreated()
 	require.NotNil(t, account.GetEncryptedLogin())
 	require.NotNil(t, account.GetEncryptedDisplayName())
@@ -190,7 +203,7 @@ func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
 func TestUserPIIAADRejectsWrongContext(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	contentKey := &messageContentKey{epoch: 1, key: key}
+	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 
 	encrypted, err := encryptUserPIIStringWithContentKey(contentKey, "E1", "U1", events.EventUserLoginChanged, "login", "alice")
 	require.NoError(t, err)
@@ -224,7 +237,7 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.Equal(t, "Secret message content", body)
 
 	// Delete the user's encryption key (crypto-shredding)
-	contentKeyEvent, ok := core.ContentKeys.Active(user.Id)
+	contentKeyEvent, ok := core.ContentKeys.Active(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.True(t, ok)
 	require.NoError(t, core.encryption.keyWrapper.ShredKey(ctx, contentKeyEvent.GetWrappingKeyRef()))
 
@@ -350,7 +363,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty after edit")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty after edit")
 	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "edited messages should keep v2 envelopes")
-	require.EqualValues(t, 1, stored.ContentKeyEpoch, "edited messages should reference the active content key epoch")
+	require.EqualValues(t, 1, stored.ContentKeyEpoch, "edited messages should reference the active message-body DEK epoch")
 
 	// Verify we can read the edited content
 	body, err := core.GetMessageBody(ctx, KindChannel, messageBodyID)

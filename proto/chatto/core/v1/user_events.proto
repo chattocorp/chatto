@@ -145,10 +145,16 @@ message UserKeyShreddedEvent {
   string user_id = 1;
 }
 
-// UserContentKeyGeneratedEvent records one wrapped content key epoch for a
-// user. Message bodies reference the epoch; the wrapped key lives here so
-// historical events remain append-only and compact.
-message UserContentKeyGeneratedEvent {
+enum UserDEKPurpose {
+  USER_DEK_PURPOSE_UNSPECIFIED = 0;
+  USER_DEK_PURPOSE_MESSAGE_BODY = 1;
+  USER_DEK_PURPOSE_USER_PII = 2;
+}
+
+// UserDEKGeneratedEvent records one wrapped per-user data-encryption key epoch.
+// Message bodies and PII payloads reference purpose-specific epochs; the
+// wrapped key lives here so historical events remain append-only and compact.
+message UserDEKGeneratedEvent {
   string user_id = 1;
   int32 epoch = 2;
   bytes encrypted_content_key = 3;
@@ -156,4 +162,5 @@ message UserContentKeyGeneratedEvent {
   string wrapping_algorithm = 5;
   bytes wrapping_metadata = 6;
   string wrapping_key_ref = 7;
+  UserDEKPurpose purpose = 8;
 }
