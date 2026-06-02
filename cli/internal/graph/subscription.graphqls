@@ -28,9 +28,9 @@ type Subscription {
   - Subscribing sets the user's presence to ONLINE.
   - Presence is refreshed every 30s (60s TTL); expires after the subscription
     closes.
-  - A SessionTerminatedEvent closes the stream server-side.
+  - A SessionTerminatedEvent closes the subscription.
 
-  Only streams new events — no replay of historical traffic.
+  Only delivers new events — no replay of historical traffic.
   """
   myEvents: Event!
 }

@@ -23,7 +23,7 @@ type LinkPreview {
 """
 Input type for passing link preview data from client to server.
 The client fetches preview metadata via the linkPreview query, then includes
-the data in the postMessage mutation so the server stores it directly.
+the data in the postMessage mutation so it can be attached to the message.
 """
 input LinkPreviewInput {
   "The URL that was previewed."
@@ -45,7 +45,7 @@ input LinkPreviewInput {
 extend type Query {
   """
   Fetch link preview metadata for a URL.
-  Results are cached server-side. Returns null if the URL cannot be previewed.
+  Returns null if the URL cannot be previewed.
   Requires authentication.
   """
   linkPreview(url: String!): LinkPreview
@@ -55,4 +55,3 @@ extend type MessagePostedEvent {
   "Link preview for the first URL in the message body."
   linkPreview: LinkPreview @goField(forceResolver: true)
 }
-

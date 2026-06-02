@@ -90,7 +90,7 @@ type Mutation {
 
   """
   Delete a message body for GDPR compliance.
-  The message event remains in the stream for audit trail, but the content is removed.
+  The message remains as a retracted/deleted entry, but the content is removed.
   Requires either delete_any_message permission (moderator) or delete_own_message permission
   and ownership of the message.
   Returns true on success.
@@ -106,7 +106,7 @@ type Mutation {
 
   """
   Delete an attachment from a message. Only the message author can delete their attachments.
-  Removes the attachment from the message and deletes the file from storage.
+  Removes the attachment from the message.
   Returns true on success.
   """
   deleteAttachment(input: DeleteAttachmentInput!): Boolean!
