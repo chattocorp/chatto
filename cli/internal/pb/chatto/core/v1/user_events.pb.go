@@ -1039,6 +1039,8 @@ type UserContentKeyGeneratedEvent struct {
 	Epoch               int32                  `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	EncryptedContentKey []byte                 `protobuf:"bytes,3,opt,name=encrypted_content_key,json=encryptedContentKey,proto3" json:"encrypted_content_key,omitempty"`
 	ContentKeyNonce     []byte                 `protobuf:"bytes,4,opt,name=content_key_nonce,json=contentKeyNonce,proto3" json:"content_key_nonce,omitempty"`
+	WrappingAlgorithm   string                 `protobuf:"bytes,5,opt,name=wrapping_algorithm,json=wrappingAlgorithm,proto3" json:"wrapping_algorithm,omitempty"`
+	WrappingMetadata    []byte                 `protobuf:"bytes,6,opt,name=wrapping_metadata,json=wrappingMetadata,proto3" json:"wrapping_metadata,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1097,6 +1099,20 @@ func (x *UserContentKeyGeneratedEvent) GetEncryptedContentKey() []byte {
 func (x *UserContentKeyGeneratedEvent) GetContentKeyNonce() []byte {
 	if x != nil {
 		return x.ContentKeyNonce
+	}
+	return nil
+}
+
+func (x *UserContentKeyGeneratedEvent) GetWrappingAlgorithm() string {
+	if x != nil {
+		return x.WrappingAlgorithm
+	}
+	return ""
+}
+
+func (x *UserContentKeyGeneratedEvent) GetWrappingMetadata() []byte {
+	if x != nil {
+		return x.WrappingMetadata
 	}
 	return nil
 }
@@ -1171,12 +1187,14 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x17UserAccountDeletedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
 	"\x14UserKeyShreddedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xad\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x89\x02\n" +
 	"\x1cUserContentKeyGeneratedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x05R\x05epoch\x122\n" +
 	"\x15encrypted_content_key\x18\x03 \x01(\fR\x13encryptedContentKey\x12*\n" +
-	"\x11content_key_nonce\x18\x04 \x01(\fR\x0fcontentKeyNonceB\xb2\x01\n" +
+	"\x11content_key_nonce\x18\x04 \x01(\fR\x0fcontentKeyNonce\x12-\n" +
+	"\x12wrapping_algorithm\x18\x05 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
+	"\x11wrapping_metadata\x18\x06 \x01(\fR\x10wrappingMetadataB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fUserEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (

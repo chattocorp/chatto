@@ -12,14 +12,14 @@ An alternative is **crypto-shredding**: encrypt each user's messages with a key 
 
 Use per-user encryption with crypto-shredding:
 
-- **Algorithm**: New message bodies use a compact versioned envelope: XChaCha20-Poly1305 encrypts the body with the author's active content key epoch. Each content key is generated as a durable user event and wrapped by the author's per-user KEK. Legacy bodies encrypted directly with the per-user ChaCha20-Poly1305 key remain readable.
+- **Algorithm**: New message bodies use a compact versioned envelope: XChaCha20-Poly1305 encrypts the body with the author's active content key epoch. Each content key is generated as a durable user event and wrapped by the KMS boundary using the author's per-user KEK. Legacy bodies encrypted directly with the per-user ChaCha20-Poly1305 key remain readable.
 - **AAD binding**: New envelopes authenticate the message event context (event ID, room ID, author ID, content key epoch, and message-body event type) as Additional Authenticated Data so ciphertext cannot be replayed into a different message context without detection.
 - **Durable user PII encryption**: New durable user events encrypt login, display name, and verified email fields with the user's active content key epoch. Projections decrypt them during replay to rebuild profile and uniqueness indexes. Legacy plaintext user events remain readable for compatibility.
 - **Per-user keys**: Each user has their own KEK stored in a dedicated `ENCRYPTION_KEYS` KV bucket.
 - **Key isolation**: The encryption key bucket is explicitly excluded from `chatto backup`. Backups contain only encrypted data, never the keys to read it.
 - **Erasure = key deletion + durable shred event**: When a user requests deletion, their encryption key is removed from the KV bucket and a `UserKeyShreddedEvent` is appended to the user aggregate. All their encrypted message bodies across all streams become permanently unreadable, and projections treat the shred event as the authoritative tombstone signal before attempting decrypts.
 - **Message-owned assets are deleted explicitly**: Attachments and derivative assets are not encrypted with the user's message key. Account deletion therefore records `AssetDeletedEvent`s for message-owned asset graphs and removes their backing bytes separately from crypto-shredding. User avatar assets follow the same durable delete-event path during account deletion.
-- **KMS service boundary**: Encryption operations (`encrypt`, `decrypt`, `deleteKey`) go through a dedicated KMS service interface. The default implementation is in-process; it can be extracted to a standalone service for high-security deployments.
+- **KMS boundary**: Content-key operations (`wrapContentKey`, `unwrapContentKey`, `shredUserKey`) go through a dedicated `internal/kms` interface. The default implementation is in-process and backed by `ENCRYPTION_KEYS`; it can be extracted to a standalone service for high-security deployments. Legacy direct-key body decrypt is the only remaining raw-KEK compatibility path.
 
 ## Consequences
 
@@ -30,4 +30,4 @@ Use per-user encryption with crypto-shredding:
 - **Key loss is permanent**: If the KMS loses a user's key (outside of intentional deletion), their messages are gone. The KV bucket must be treated as critical data.
 - **Per-message overhead**: Legacy bodies carry one nonce and Poly1305 tag. V2 message bodies carry a body nonce, Poly1305 tag, and compact content key epoch. Wrapped content key material is stored once per user epoch in the user EVT stream.
 - **Durable PII is crypto-shreddable**: New login, display name, and verified-email event payloads become unrecoverable after the user's KEK is destroyed. Cold projection replay skips encrypted PII that can no longer be decrypted.
-- **Future extensibility**: The KMS interface can be adapted to external key management (HashiCorp Vault, AWS KMS, HSM) without changing application code.
+- **Future extensibility**: The KMS interface and wrapping metadata on content-key events can be adapted to external key management (HashiCorp Vault, AWS KMS, HSM) without changing application code.

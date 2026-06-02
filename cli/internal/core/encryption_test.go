@@ -10,6 +10,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/signedurl"
@@ -126,6 +127,10 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
 	require.NoError(t, err)
 	require.Len(t, accountEvents, 1)
+	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserContentKeyGenerated))
+	require.NoError(t, err)
+	require.Len(t, contentKeyEvents, 1)
+	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, contentKeyEvents[0].GetUserContentKeyGenerated().GetWrappingAlgorithm())
 	account := accountEvents[0].GetUserAccountCreated()
 	require.Empty(t, account.GetLogin(), "durable user creation event should not store plaintext login")
 	require.Empty(t, account.GetDisplayName(), "durable user creation event should not store plaintext display name")
@@ -174,7 +179,7 @@ func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
 	userEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).AllEventsFilter())
 	require.NoError(t, err)
 
-	replayed := NewUserProjection(core.encryption.keyManager)
+	replayed := NewUserProjection(core.encryption.keyWrapper)
 	for i, event := range userEvents {
 		require.NoError(t, replayed.Apply(event, uint64(i+1)))
 	}
@@ -222,7 +227,7 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.Equal(t, "Secret message content", body)
 
 	// Delete the user's encryption key (crypto-shredding)
-	err = core.encryption.keyManager.DeleteUserKey(ctx, user.Id)
+	err = core.encryption.keyWrapper.ShredUserKey(ctx, user.Id)
 	require.NoError(t, err)
 
 	// Verify message now returns empty string (crypto-shredded)

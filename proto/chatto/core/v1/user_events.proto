@@ -155,4 +155,6 @@ message UserContentKeyGeneratedEvent {
   int32 epoch = 2;
   bytes encrypted_content_key = 3;
   bytes content_key_nonce = 4;
+  string wrapping_algorithm = 5;
+  bytes wrapping_metadata = 6;
 }

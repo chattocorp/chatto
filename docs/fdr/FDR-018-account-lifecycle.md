@@ -82,9 +82,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 7. KMS service boundary, even though it's in-process
 
-**Decision:** Encryption operations go through a KMS service interface (`encrypt`, `decrypt`, `deleteKey`) rather than direct key access. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
+**Decision:** Content-key operations go through a KMS service interface (`wrapContentKey`, `unwrapContentKey`, `shredUserKey`) rather than direct KEK access. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
 **Why:** A clean service boundary is what makes future extraction to Vault / AWS KMS / HSM possible without rewriting business logic. See ADR-007.
-**Tradeoff:** A tiny indirection layer for what's currently an in-process call. Negligible cost; future flexibility worth a lot.
+**Tradeoff:** A tiny indirection layer for what's currently an in-process call. Legacy direct-key body decrypt still has a local raw-KEK compatibility path until old bodies age out.
 
 ### 8. Login is freed on deletion
 

@@ -82,10 +82,10 @@ Message bodies are encrypted before being written to JetStream. New messages use
 
 - Chatto generates a per-user content key epoch and records the wrapped key in the user event stream.
 - The body is encrypted with **XChaCha20-Poly1305** using the author's active content key epoch.
-- Each content key is wrapped with the author's per-user key encryption key (KEK).
+- Each content key is wrapped through Chatto's KMS boundary with the author's per-user key encryption key (KEK).
 - The encrypted body is authenticated with its event context — event ID, room ID, author ID, content key epoch, and message-body event type — as Additional Authenticated Data (AAD).
 
-The per-user KEK is generated on demand and stored in a dedicated `ENCRYPTION_KEYS` NATS KV bucket. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
+The built-in KMS runs in-process and stores per-user KEKs in a dedicated `ENCRYPTION_KEYS` NATS KV bucket. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
 
 This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the encryption keys bucket.
 

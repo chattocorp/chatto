@@ -89,8 +89,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	// Create encryption key for this user. Keys are always created so they
 	// exist if encryption is enabled later.
-	_, err = c.encryption.keyManager.CreateUserKey(ctx, userID)
-	if err != nil {
+	if err := c.encryption.keyWrapper.CreateUserKey(ctx, userID); err != nil {
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
 

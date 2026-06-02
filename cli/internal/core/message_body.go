@@ -152,7 +152,10 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 		)
 	}
 
-	key, err := c.encryption.keyManager.GetUserKey(ctx, msg.GetAuthorId())
+	if c.encryption.legacyKeys == nil {
+		return nil, encryption.ErrKeyNotFound
+	}
+	key, err := c.encryption.legacyKeys.LegacyUserKey(ctx, msg.GetAuthorId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}

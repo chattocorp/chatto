@@ -19,8 +19,8 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/migrations"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -339,17 +339,17 @@ func (c *ChattoCore) assetURL(path string) string {
 
 // encryptionManager handles message body encryption/decryption.
 type encryptionManager struct {
-	keyManager *encryption.KeyManager
+	keyWrapper kms.KeyWrapper
+	legacyKeys kms.LegacyKeyProvider
 }
 
 func (c *ChattoCore) ServerStore() jetstream.ObjectStore {
 	return c.storage.serverStore
 }
 
-// KeyManager returns the encryption key manager.
-// Used by the KMS service to handle encryption operations.
-func (c *ChattoCore) KeyManager() *encryption.KeyManager {
-	return c.encryption.keyManager
+// KeyWrapper returns the key-only KMS boundary used by encryption operations.
+func (c *ChattoCore) KeyWrapper() kms.KeyWrapper {
+	return c.encryption.keyWrapper
 }
 
 // ConfigManager returns the runtime configuration manager.
@@ -372,24 +372,24 @@ func (c *ChattoCore) DeleteUserEncryptionKey(ctx context.Context, userID string)
 }
 
 func (c *ChattoCore) deleteUserEncryptionKeyOnly(ctx context.Context, userID string) error {
-	if c.encryption.keyManager == nil {
+	if c.encryption.keyWrapper == nil {
 		return nil
 	}
-	return c.encryption.keyManager.DeleteUserKey(ctx, userID)
+	return c.encryption.keyWrapper.ShredUserKey(ctx, userID)
 }
 
 func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, userID string) error {
-	if c.encryption.keyManager == nil {
+	if c.encryption.keyWrapper == nil {
 		return nil // Encryption not configured
 	}
-	exists, err := c.encryption.keyManager.UserKeyExists(ctx, userID)
+	exists, err := c.encryption.keyWrapper.UserKeyExists(ctx, userID)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		return nil
 	}
-	if err := c.encryption.keyManager.DeleteUserKey(ctx, userID); err != nil {
+	if err := c.encryption.keyWrapper.ShredUserKey(ctx, userID); err != nil {
 		return err
 	}
 	event := newEvent(actorID, &corev1.Event{
@@ -587,8 +587,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	// Initialize encryption manager
+	builtinKMS := kms.NewBuiltin(storage.encryptionKV, logger.WithPrefix("core.kms"))
 	encMgr := &encryptionManager{
-		keyManager: encryption.NewKeyManager(storage.encryptionKV),
+		keyWrapper: builtinKMS,
+		legacyKeys: builtinKMS,
 	}
 
 	// Initialize S3 client if S3 storage is configured
@@ -653,7 +655,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "ReactionsProjector")
 
-	users := NewUserProjection(encMgr.keyManager)
+	users := NewUserProjection(encMgr.keyWrapper)
 	usersProjector := newProjector(users, "UsersProjector")
 
 	contentKeys := NewContentKeyProjection()

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
@@ -126,6 +127,20 @@ func TestUnwrapContentKeyRejectsTamperedWrappedKey(t *testing.T) {
 
 	_, err = UnwrapContentKey(kek, wrapped.EncryptedContentKey, wrapped.Nonce, aad)
 	require.ErrorIs(t, err, ErrDecryptionFailed)
+}
+
+func TestUnwrapContentKeyRejectsInvalidPlaintextKeySize(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	aad := []byte("event=E123")
+	wrapAEAD, err := chacha20poly1305.NewX(kek)
+	require.NoError(t, err)
+	nonce, err := randomBytes(XNonceSize)
+	require.NoError(t, err)
+	ciphertext := wrapAEAD.Seal(nil, nonce, []byte("too-short"), aadForContentKey(aad))
+
+	_, err = UnwrapContentKey(kek, ciphertext, nonce, aad)
+	require.ErrorIs(t, err, ErrInvalidKeySize)
 }
 
 func TestNonceUniqueness(t *testing.T) {

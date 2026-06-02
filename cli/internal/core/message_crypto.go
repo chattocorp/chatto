@@ -8,6 +8,7 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -64,15 +65,15 @@ func (c *ChattoCore) unwrapMessageContentKey(ctx context.Context, event *corev1.
 	if userID == "" || epoch <= 0 {
 		return nil, fmt.Errorf("invalid content key event")
 	}
-	kek, err := c.encryption.keyManager.GetUserKey(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get encryption key: %w", err)
-	}
-	if kek == nil {
+	if c.encryption.keyWrapper == nil {
 		return nil, encryption.ErrKeyNotFound
 	}
-
-	key, err := encryption.UnwrapContentKey(kek, event.GetEncryptedContentKey(), event.GetContentKeyNonce(), contentKeyAAD(userID, epoch))
+	key, err := c.encryption.keyWrapper.UnwrapContentKey(ctx, userID, kms.WrappedContentKey{
+		EncryptedContentKey: event.GetEncryptedContentKey(),
+		Nonce:               event.GetContentKeyNonce(),
+		Algorithm:           event.GetWrappingAlgorithm(),
+		Metadata:            event.GetWrappingMetadata(),
+	}, contentKeyAAD(userID, epoch))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unwrap content key: %w", err)
 	}
@@ -125,18 +126,14 @@ func (c *ChattoCore) generateInitialMessageContentKey(ctx context.Context, userI
 }
 
 func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID string, epoch int32) ([]byte, *corev1.UserContentKeyGeneratedEvent, error) {
-	kek, err := c.encryption.keyManager.GetUserKey(ctx, userID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get encryption key: %w", err)
-	}
-	if kek == nil {
+	if c.encryption.keyWrapper == nil {
 		return nil, nil, encryption.ErrKeyNotFound
 	}
 	key, err := encryption.GenerateKey()
 	if err != nil {
 		return nil, nil, err
 	}
-	wrapped, err := encryption.WrapContentKey(kek, key, contentKeyAAD(userID, epoch))
+	wrapped, err := c.encryption.keyWrapper.WrapContentKey(ctx, userID, key, contentKeyAAD(userID, epoch))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wrap content key: %w", err)
 	}
@@ -145,5 +142,7 @@ func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID str
 		Epoch:               epoch,
 		EncryptedContentKey: wrapped.EncryptedContentKey,
 		ContentKeyNonce:     wrapped.Nonce,
+		WrappingAlgorithm:   wrapped.Algorithm,
+		WrappingMetadata:    wrapped.Metadata,
 	}, nil
 }

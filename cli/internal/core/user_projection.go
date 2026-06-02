@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -24,7 +25,7 @@ type UserProjection struct {
 	emailIndex  map[string]string
 	oidcIndex   map[string]string
 	eventIDSeen map[string]struct{}
-	keyManager  *encryption.KeyManager
+	keyWrapper  kms.KeyWrapper
 	contentKeys map[string]map[int32][]byte
 }
 
@@ -38,10 +39,10 @@ type projectedUser struct {
 	loginChanged  time.Time
 }
 
-func NewUserProjection(keyManagers ...*encryption.KeyManager) *UserProjection {
-	var keyManager *encryption.KeyManager
-	if len(keyManagers) > 0 {
-		keyManager = keyManagers[0]
+func NewUserProjection(keyWrappers ...kms.KeyWrapper) *UserProjection {
+	var keyWrapper kms.KeyWrapper
+	if len(keyWrappers) > 0 {
+		keyWrapper = keyWrappers[0]
 	}
 	return &UserProjection{
 		users:       make(map[string]*projectedUser),
@@ -49,7 +50,7 @@ func NewUserProjection(keyManagers ...*encryption.KeyManager) *UserProjection {
 		emailIndex:  make(map[string]string),
 		oidcIndex:   make(map[string]string),
 		eventIDSeen: make(map[string]struct{}),
-		keyManager:  keyManager,
+		keyWrapper:  keyWrapper,
 		contentKeys: make(map[string]map[int32][]byte),
 	}
 }
@@ -125,14 +126,15 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 }
 
 func (p *UserProjection) applyContentKeyGenerated(e *corev1.UserContentKeyGeneratedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || p.keyManager == nil {
+	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || p.keyWrapper == nil {
 		return
 	}
-	kek, err := p.keyManager.GetUserKey(context.Background(), e.GetUserId())
-	if err != nil || kek == nil {
-		return
-	}
-	key, err := encryption.UnwrapContentKey(kek, e.GetEncryptedContentKey(), e.GetContentKeyNonce(), contentKeyAAD(e.GetUserId(), e.GetEpoch()))
+	key, err := p.keyWrapper.UnwrapContentKey(context.Background(), e.GetUserId(), kms.WrappedContentKey{
+		EncryptedContentKey: e.GetEncryptedContentKey(),
+		Nonce:               e.GetContentKeyNonce(),
+		Algorithm:           e.GetWrappingAlgorithm(),
+		Metadata:            e.GetWrappingMetadata(),
+	}, contentKeyAAD(e.GetUserId(), e.GetEpoch()))
 	if err != nil {
 		return
 	}

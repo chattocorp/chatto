@@ -125,6 +125,9 @@ func UnwrapContentKey(kek, encryptedContentKey, nonce, aad []byte) ([]byte, erro
 	if err != nil {
 		return nil, ErrDecryptionFailed
 	}
+	if len(contentKey) != KeySize {
+		return nil, fmt.Errorf("%w: expected content key size %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
+	}
 	return contentKey, nil
 }
 
