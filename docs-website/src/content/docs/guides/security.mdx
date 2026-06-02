@@ -179,9 +179,9 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 | Secret                              | Storage                                     | Backed up?     |
 | ----------------------------------- | ------------------------------------------- | -------------- |
-| Message-body KEKs                   | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
-| Bearer/session token verifiers      | `KV_RUNTIME_STATE` (HMAC-keyed, with TTL)   | Yes (not raw tokens) |
-| Account-flow link/code verifiers    | `KV_RUNTIME_STATE` (HMAC-keyed, with TTL)   | Yes (not raw links/codes) |
+| Per-user KEKs for wrapped DEKs      | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
+| Bearer/session token verifiers      | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw tokens) |
+| Account-flow link/code verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw links/codes) |
 | Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |
 | Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |
 | Cookie encryption secret (optional) | `chatto.toml` (`webserver.cookie_encryption_secret`) | n/a    |
