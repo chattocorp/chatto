@@ -256,6 +256,9 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.NoError(t, err)
 	variant, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("secret variant")))
 	require.NoError(t, err)
+	avatar, err := core.UploadUserAvatar(ctx, author.Id, bytes.NewReader(createTestPNG(64, 64)))
+	require.NoError(t, err)
+	require.NoError(t, core.SetUserAvatar(ctx, author.Id, avatar))
 
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "message with secret asset", []string{original.Id}, "", "", nil, false)
 	require.NoError(t, err)
@@ -301,6 +304,16 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 		_, _, err = core.GetAttachmentReader(ctx, att)
 		require.Error(t, err, "backing bytes for %s should be deleted", att.Id)
 	}
+
+	userAssetDeletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(author.Id).Subject(events.EventAssetDeleted))
+	require.NoError(t, err)
+	require.Len(t, userAssetDeletedEvents, 1)
+	require.Equal(t, avatar.Id, userAssetDeletedEvents[0].GetAssetDeleted().GetAssetId())
+	deletedAvatar, err := core.GetUserAvatar(ctx, author.Id)
+	require.NoError(t, err)
+	require.Nil(t, deletedAvatar)
+	_, err = core.storage.serverStore.Get(ctx, avatar.Id)
+	require.Error(t, err, "avatar backing bytes should be deleted after key shred and account deletion")
 }
 
 func TestEditMessage_PreservesEncryptionState(t *testing.T) {

@@ -350,8 +350,12 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 			delete(p.emailIndex, hash)
 		}
 	}
+	for hash, userID := range p.oidcIndex {
+		if userID == e.GetUserId() {
+			delete(p.oidcIndex, hash)
+		}
+	}
 	u.user = &corev1.User{Id: e.GetUserId()}
-	u.avatar = nil
 	u.passwordHash = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]VerifiedEmail)
