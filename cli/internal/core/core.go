@@ -246,7 +246,12 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 				return fmt.Errorf("wait for projections current: %w", err)
 			}
-			c.logESBootVerification(gctx)
+			if err := c.logESBootVerification(gctx); err != nil {
+				if c.config.ESBootVerifyStrict {
+					return err
+				}
+				c.logger.Warn("ES boot verification reported problems", "error", err)
+			}
 		}
 		close(c.bootDone)
 		return nil
@@ -754,11 +759,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.permissionResolver = NewPermissionResolver(core)
 
 	// Initialize link preview cache and fetcher
-	linkPreviewCache, err := linkpreview.NewCache(ctx, js, cfg.Replicas)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create link preview cache: %w", err)
-	}
-	core.linkPreviewCache = linkPreviewCache
+	core.linkPreviewCache = linkpreview.NewCache(storage.runtimeStateKV)
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
 

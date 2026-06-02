@@ -70,12 +70,12 @@ type esProjectedCounts struct {
 // projectors. It is intentionally part of the main process: embedded-NATS
 // deployments cannot safely run a second verifier process over the same data
 // directory.
-func (c *ChattoCore) logESBootVerification(ctx context.Context) {
+func (c *ChattoCore) logESBootVerification(ctx context.Context) error {
 	startedAt := time.Now()
 	report, err := c.buildESBootVerificationReport(ctx)
 	if err != nil {
 		c.logger.Warn("ES boot verification failed to build report", "error", err)
-		return
+		return err
 	}
 
 	c.evaluateESBootVerificationReport(report)
@@ -137,7 +137,9 @@ func (c *ChattoCore) logESBootVerification(ctx context.Context) {
 	}
 	if len(report.problems) == 0 {
 		c.logger.Info("ES boot verification passed")
+		return nil
 	}
+	return fmt.Errorf("ES boot verification found %d problem(s)", len(report.problems))
 }
 
 func (c *ChattoCore) buildESBootVerificationReport(ctx context.Context) (*esBootVerificationReport, error) {

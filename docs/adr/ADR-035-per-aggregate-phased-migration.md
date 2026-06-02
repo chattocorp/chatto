@@ -84,6 +84,20 @@ The always-OCC invariant from ADR-033 makes migration replayability automatic:
 - A second full run against an already-migrated subject fails the OCC check on the first event and aborts that subject's migration without writing duplicates.
 - A migration that crashed midway can resume: re-running iterates the same KV order, the already-emitted prefix is no-op'd by OCC, and the remainder appends.
 
+### Rollout observability
+
+Boot migrations emit one structured log marker per migration step, including
+whether the legacy source exists, whether the step completed/skipped/failed,
+duration, and the `EVT` stream message/byte delta appended by that step. This
+keeps no-op boots visible while making first-import runs auditable from logs.
+
+`core.es_boot_verify` enables the boot verifier: after projectors catch up, it
+logs legacy counts, projected counts, per-event-type `EVT` counts, decode
+errors, warnings, and problems. `core.es_boot_verify_strict` upgrades verifier
+problems into boot failure for cutover gates and scratch-restore dry runs. It is
+opt-in so normal production restarts do not fail on a diagnostic-only scan
+unless rollout explicitly asks for that behavior.
+
 Determinism is the migration command's responsibility: events for a given subject must be emitted in the same order across runs given the same KV state. This is a property of the iteration code, not of the framework.
 
 ### Why no dual-write
