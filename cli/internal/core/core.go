@@ -238,7 +238,12 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 				return fmt.Errorf("wait for projections current: %w", err)
 			}
-			c.logESBootVerification(gctx)
+			if err := c.logESBootVerification(gctx); err != nil {
+				if c.config.ESBootVerifyStrict {
+					return err
+				}
+				c.logger.Warn("ES boot verification reported problems", "error", err)
+			}
 		}
 		close(c.bootDone)
 		return nil

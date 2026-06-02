@@ -66,6 +66,17 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger Logger
 	return &Publisher{js: js, stream: stream, logger: logger}
 }
 
+// StreamUsage returns the current message and byte totals for the bound
+// stream. Rollout tooling uses this to report how many EVT records each
+// importer appended without making every importer expose bespoke counters.
+func (p *Publisher) StreamUsage(ctx context.Context) (messages, bytes uint64, err error) {
+	info, err := p.stream.Info(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	return info.State.Msgs, info.State.Bytes, nil
+}
+
 const maxAppendRetries = 5
 
 // Append publishes an event to a subject, automatically computing the
