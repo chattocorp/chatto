@@ -59,20 +59,34 @@ message ServerUserPreferencesUpdatedEvent {
 // DURABLE USER EVENTS (evt.user.{userId})
 // ============================================================================
 
+message EncryptedUserString {
+  bytes encrypted_value = 1;
+  bytes nonce = 2;
+  int32 content_key_epoch = 3;
+}
+
 message UserAccountCreatedEvent {
   string user_id = 1;
+  // Legacy plaintext fallback for events written before encrypted user PII.
   string login = 2;
+  // Legacy plaintext fallback for events written before encrypted user PII.
   string display_name = 3;
+  EncryptedUserString encrypted_login = 10;
+  EncryptedUserString encrypted_display_name = 11;
 }
 
 message UserLoginChangedEvent {
   string user_id = 1;
+  // Legacy plaintext fallback for events written before encrypted user PII.
   string login = 2;
+  EncryptedUserString encrypted_login = 10;
 }
 
 message UserDisplayNameChangedEvent {
   string user_id = 1;
+  // Legacy plaintext fallback for events written before encrypted user PII.
   string display_name = 2;
+  EncryptedUserString encrypted_display_name = 10;
 }
 
 message UserAvatarSetEvent {
@@ -89,7 +103,9 @@ message UserAvatarClearedEvent {
 
 message UserVerifiedEmailAddedEvent {
   string user_id = 1;
+  // Legacy plaintext fallback for events written before encrypted user PII.
   string email = 2;
+  EncryptedUserString encrypted_email = 10;
 }
 
 message UserPasswordHashChangedEvent {

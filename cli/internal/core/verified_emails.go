@@ -208,9 +208,13 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
 		UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
 			UserId: userID,
-			Email:  email,
 		},
 	}})
+	encryptedEmail, err := c.encryptUserPIIString(ctx, event.GetId(), userID, events.EventUserVerifiedEmailAdded, "email", email)
+	if err != nil {
+		return fmt.Errorf("encrypt verified email: %w", err)
+	}
+	event.GetUserVerifiedEmailAdded().EncryptedEmail = encryptedEmail
 	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
 		if user, ok := c.Users.GetByEmail(email); ok {
 			if user.GetId() == userID {

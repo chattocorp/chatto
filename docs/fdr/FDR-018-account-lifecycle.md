@@ -33,6 +33,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
 - On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
+- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
 - The login is freed up for re-use.
 
 ## Design Decisions
@@ -73,13 +74,19 @@ This FDR covers the user account from registration through deletion: signup, ema
 **Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while content key epochs keep message events compact and leave room for external KMS unwrap flows. See ADR-007.
 **Tradeoff:** Every message-body decryption is a per-author KV lookup. The lookup is cheap (NATS KV is memory-cached) and dataloader batches help on bulk reads.
 
-### 6. KMS service boundary, even though it's in-process
+### 6. Durable user PII is encrypted, not indexed in EVT
+
+**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active content key epoch. The projection decrypts these values and derives in-memory login/email indexes.
+**Why:** Immutable event logs are the wrong long-term home for plaintext PII. Keeping the encrypted payload in EVT preserves replayability without a separate PII KV store, and deletion destroys the key needed to rebuild the data. See ADR-007.
+**Tradeoff:** Projections need access to key-unwrapping during replay. If a user's key is gone, cold replay intentionally cannot rebuild their profile PII or uniqueness indexes.
+
+### 7. KMS service boundary, even though it's in-process
 
 **Decision:** Encryption operations go through a KMS service interface (`encrypt`, `decrypt`, `deleteKey`) rather than direct key access. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
 **Why:** A clean service boundary is what makes future extraction to Vault / AWS KMS / HSM possible without rewriting business logic. See ADR-007.
 **Tradeoff:** A tiny indirection layer for what's currently an in-process call. Negligible cost; future flexibility worth a lot.
 
-### 7. Login is freed on deletion
+### 8. Login is freed on deletion
 
 **Decision:** After account deletion, the deleted user's login is available for re-use by a new signup.
 **Why:** Holding usernames forever would gradually exhaust the namespace. Re-use is acceptable because the new owner gets a new identity (new user ID, new encryption key) — they don't inherit any of the previous user's data or messages.

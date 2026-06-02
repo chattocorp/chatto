@@ -14,6 +14,7 @@ Use per-user encryption with crypto-shredding:
 
 - **Algorithm**: New message bodies use a compact versioned envelope: XChaCha20-Poly1305 encrypts the body with the author's active content key epoch. Each content key is generated as a durable user event and wrapped by the author's per-user KEK. Legacy bodies encrypted directly with the per-user ChaCha20-Poly1305 key remain readable.
 - **AAD binding**: New envelopes authenticate the message event context (event ID, room ID, author ID, content key epoch, and message-body event type) as Additional Authenticated Data so ciphertext cannot be replayed into a different message context without detection.
+- **Durable user PII encryption**: New durable user events encrypt login, display name, and verified email fields with the user's active content key epoch. Projections decrypt them during replay to rebuild profile and uniqueness indexes. Legacy plaintext user events remain readable for compatibility.
 - **Per-user keys**: Each user has their own KEK stored in a dedicated `ENCRYPTION_KEYS` KV bucket.
 - **Key isolation**: The encryption key bucket is explicitly excluded from `chatto backup`. Backups contain only encrypted data, never the keys to read it.
 - **Erasure = key deletion + durable shred event**: When a user requests deletion, their encryption key is removed from the KV bucket and a `UserKeyShreddedEvent` is appended to the user aggregate. All their encrypted message bodies across all streams become permanently unreadable, and projections treat the shred event as the authoritative tombstone signal before attempting decrypts.
@@ -28,4 +29,5 @@ Use per-user encryption with crypto-shredding:
 - **No content indexing**: Encrypted message bodies cannot be indexed for full-text search on the server. Search features must either work on metadata or require client-side decryption.
 - **Key loss is permanent**: If the KMS loses a user's key (outside of intentional deletion), their messages are gone. The KV bucket must be treated as critical data.
 - **Per-message overhead**: Legacy bodies carry one nonce and Poly1305 tag. V2 message bodies carry a body nonce, Poly1305 tag, and compact content key epoch. Wrapped content key material is stored once per user epoch in the user EVT stream.
+- **Durable PII is crypto-shreddable**: New login, display name, and verified-email event payloads become unrecoverable after the user's KEK is destroyed. Cold projection replay skips encrypted PII that can no longer be decrypted.
 - **Future extensibility**: The KMS interface can be adapted to external key management (HashiCorp Vault, AWS KMS, HSM) without changing application code.

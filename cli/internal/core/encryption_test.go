@@ -108,6 +108,97 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 }
 
+func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "piiuser", "PII User", "password123")
+	require.NoError(t, err)
+	require.NoError(t, core.AddVerifiedEmailDirect(ctx, user.Id, "pii@example.com"))
+
+	updated, err := core.UpdateUserDisplayName(ctx, user.Id, "Renamed User")
+	require.NoError(t, err)
+	require.Equal(t, "Renamed User", updated.GetDisplayName())
+	updated, err = core.UpdateUserLogin(ctx, user.Id, "piiuser2")
+	require.NoError(t, err)
+	require.Equal(t, "piiuser2", updated.GetLogin())
+
+	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
+	require.NoError(t, err)
+	require.Len(t, accountEvents, 1)
+	account := accountEvents[0].GetUserAccountCreated()
+	require.Empty(t, account.GetLogin(), "durable user creation event should not store plaintext login")
+	require.Empty(t, account.GetDisplayName(), "durable user creation event should not store plaintext display name")
+	require.NotNil(t, account.GetEncryptedLogin())
+	require.NotNil(t, account.GetEncryptedDisplayName())
+
+	emailEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserVerifiedEmailAdded))
+	require.NoError(t, err)
+	require.Len(t, emailEvents, 1)
+	email := emailEvents[0].GetUserVerifiedEmailAdded()
+	require.Empty(t, email.GetEmail(), "durable verified-email event should not store plaintext email")
+	require.NotNil(t, email.GetEncryptedEmail())
+
+	displayNameEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDisplayNameChanged))
+	require.NoError(t, err)
+	require.Len(t, displayNameEvents, 1)
+	displayName := displayNameEvents[0].GetUserDisplayNameChanged()
+	require.Empty(t, displayName.GetDisplayName(), "durable display-name event should not store plaintext display name")
+	require.NotNil(t, displayName.GetEncryptedDisplayName())
+
+	loginEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserLoginChanged))
+	require.NoError(t, err)
+	require.Len(t, loginEvents, 1)
+	login := loginEvents[0].GetUserLoginChanged()
+	require.Empty(t, login.GetLogin(), "durable login event should not store plaintext login")
+	require.NotNil(t, login.GetEncryptedLogin())
+
+	found, err := core.GetUserByLogin(ctx, "piiuser2")
+	require.NoError(t, err)
+	require.Equal(t, user.Id, found.GetId())
+	require.True(t, core.Users.EmailClaimed("pii@example.com"))
+	emails := core.Users.VerifiedEmails(user.Id)
+	require.Len(t, emails, 1)
+	require.Equal(t, "pii@example.com", emails[0].Email)
+}
+
+func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "shreddedpii", "Shredded PII", "password123")
+	require.NoError(t, err)
+	require.NoError(t, core.AddVerifiedEmailDirect(ctx, user.Id, "shredded-pii@example.com"))
+	require.NoError(t, core.DeleteUser(ctx, user.Id, user.Id))
+
+	userEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).AllEventsFilter())
+	require.NoError(t, err)
+
+	replayed := NewUserProjection(core.encryption.keyManager)
+	for i, event := range userEvents {
+		require.NoError(t, replayed.Apply(event, uint64(i+1)))
+	}
+	require.False(t, replayed.LoginExists("shreddedpii"))
+	require.False(t, replayed.EmailClaimed("shredded-pii@example.com"))
+	got, ok := replayed.Get(user.Id)
+	require.False(t, ok, "shredded user should not replay as a readable profile")
+	require.Nil(t, got)
+}
+
+func TestUserPIIAADRejectsWrongContext(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	contentKey := &messageContentKey{epoch: 1, key: key}
+
+	encrypted, err := encryptUserPIIStringWithContentKey(contentKey, "E1", "U1", events.EventUserLoginChanged, "login", "alice")
+	require.NoError(t, err)
+
+	_, err = decryptUserPIIString(key, "E2", "U1", events.EventUserLoginChanged, "login", encrypted)
+	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+	_, err = decryptUserPIIString(key, "E1", "U1", events.EventUserLoginChanged, "display_name", encrypted)
+	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+}
+
 func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)

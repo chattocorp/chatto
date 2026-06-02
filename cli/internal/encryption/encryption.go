@@ -128,13 +128,13 @@ func UnwrapContentKey(kek, encryptedContentKey, nonce, aad []byte) ([]byte, erro
 	return contentKey, nil
 }
 
-// EncryptWithContentKey encrypts plaintext with an already-selected content
-// key. aad must be supplied unchanged for decryption.
-func EncryptWithContentKey(contentKey, plaintext, aad []byte) (*EncryptedData, error) {
-	if len(contentKey) != KeySize {
-		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
+// EncryptXChaCha20Poly1305 encrypts plaintext with XChaCha20-Poly1305.
+// aad is authenticated as supplied by the caller.
+func EncryptXChaCha20Poly1305(key, plaintext, aad []byte) (*EncryptedData, error) {
+	if len(key) != KeySize {
+		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(key))
 	}
-	bodyAEAD, err := chacha20poly1305.NewX(contentKey)
+	bodyAEAD, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
 	}
@@ -142,27 +142,39 @@ func EncryptWithContentKey(contentKey, plaintext, aad []byte) (*EncryptedData, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate body nonce: %w", err)
 	}
-	ciphertext := bodyAEAD.Seal(nil, nonce, plaintext, aadForBody(aad))
+	ciphertext := bodyAEAD.Seal(nil, nonce, plaintext, aad)
 	return &EncryptedData{Ciphertext: ciphertext, Nonce: nonce}, nil
 }
 
-// DecryptWithContentKey decrypts a v2 message body with a content key.
-func DecryptWithContentKey(contentKey, ciphertext, nonce, aad []byte) ([]byte, error) {
-	if len(contentKey) != KeySize {
-		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
+// DecryptXChaCha20Poly1305 decrypts ciphertext with XChaCha20-Poly1305.
+// aad must match the encryption context exactly.
+func DecryptXChaCha20Poly1305(key, ciphertext, nonce, aad []byte) ([]byte, error) {
+	if len(key) != KeySize {
+		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(key))
 	}
 	if len(nonce) != XNonceSize {
 		return nil, fmt.Errorf("%w: expected %d-byte XChaCha nonces", ErrInvalidNonceSize, XNonceSize)
 	}
-	bodyAEAD, err := chacha20poly1305.NewX(contentKey)
+	bodyAEAD, err := chacha20poly1305.NewX(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
 	}
-	plaintext, err := bodyAEAD.Open(nil, nonce, ciphertext, aadForBody(aad))
+	plaintext, err := bodyAEAD.Open(nil, nonce, ciphertext, aad)
 	if err != nil {
 		return nil, ErrDecryptionFailed
 	}
 	return plaintext, nil
+}
+
+// EncryptWithContentKey encrypts plaintext with an already-selected content
+// key. aad must be supplied unchanged for decryption.
+func EncryptWithContentKey(contentKey, plaintext, aad []byte) (*EncryptedData, error) {
+	return EncryptXChaCha20Poly1305(contentKey, plaintext, aadForBody(aad))
+}
+
+// DecryptWithContentKey decrypts a v2 message body with a content key.
+func DecryptWithContentKey(contentKey, ciphertext, nonce, aad []byte) ([]byte, error) {
+	return DecryptXChaCha20Poly1305(contentKey, ciphertext, nonce, aadForBody(aad))
 }
 
 // GenerateKey generates a cryptographically secure random key.

@@ -91,8 +91,10 @@ This means an attacker who exfiltrates the JetStream data files alone cannot rec
 
 Older message bodies encrypted directly with the user's per-user ChaCha20-Poly1305 key remain readable.
 
+New durable user events also encrypt login, display name, and verified email fields with the user's active content key epoch. Projections decrypt those fields while the key exists and derive the in-memory login/email indexes used by the API. Legacy plaintext user events remain readable for compatibility.
+
 <Aside type="note">
-  Message **bodies** are encrypted. User profile fields — login, display name, email address — are stored in plaintext KV. Email addresses are indexed by SHA-256 hash of the normalized address, but the email itself is also stored in plaintext on the user record so it can be displayed in admin views and matched against `owners.emails`.
+  Authorized live events and GraphQL responses still contain profile fields in plaintext because clients need to render them. The durable event log is the protected boundary here.
 </Aside>
 
 ### Crypto-shredding

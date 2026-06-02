@@ -482,7 +482,7 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
+Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; new durable user events encrypt login, display name, and verified email payloads with the user's active content key epoch while retaining legacy plaintext decode fallback. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
 
 **EVT auth audit subjects:**
 
@@ -736,7 +736,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active content key epoch, authenticated with event-context AAD. Wrapped content keys live on the user EVT stream instead of every message. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active content key epoch, authenticated with event-context AAD. Wrapped content keys live on the user EVT stream instead of every message. New durable user PII fields use the same content key epoch machinery with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 

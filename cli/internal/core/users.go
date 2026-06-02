@@ -87,37 +87,6 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		CreatedAt:   now,
 	}
 
-	agg := events.UserAggregate(userID)
-	entries := []events.BatchEntry{{
-		Subject: agg.Subject(events.EventUserAccountCreated),
-		Event: newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
-			UserAccountCreated: &corev1.UserAccountCreatedEvent{
-				UserId:      userID,
-				Login:       login,
-				DisplayName: displayName,
-			},
-		}}),
-	}}
-	for _, entry := range entries {
-		entry.Event.CreatedAt = now
-	}
-
-	if password != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			return nil, fmt.Errorf("failed to hash password: %w", err)
-		}
-		entries = append(entries, events.BatchEntry{
-			Subject: agg.Subject(events.EventUserPasswordHashChanged),
-			Event: newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
-				UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
-					UserId:       userID,
-					PasswordHash: hashedPassword,
-				},
-			}}),
-		})
-	}
-
 	// Create encryption key for this user. Keys are always created so they
 	// exist if encryption is enabled later.
 	_, err = c.encryption.keyManager.CreateUserKey(ctx, userID)
@@ -125,17 +94,59 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
 
-	_, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, 1)
+	contentKeyBytes, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, 1)
 	if err != nil {
 		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, err
 	}
-	entries = append(entries, events.BatchEntry{
+
+	contentKey := &messageContentKey{epoch: 1, key: contentKeyBytes}
+	agg := events.UserAggregate(userID)
+	contentKeyEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserContentKeyGenerated{
+		UserContentKeyGenerated: wrappedContentKey,
+	}})
+	contentKeyEvent.CreatedAt = now
+	accountCreated := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
+		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID},
+	}})
+	accountCreated.CreatedAt = now
+	account := accountCreated.GetUserAccountCreated()
+	account.EncryptedLogin, err = encryptUserPIIStringWithContentKey(contentKey, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
+	if err != nil {
+		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+		return nil, fmt.Errorf("encrypt login: %w", err)
+	}
+	account.EncryptedDisplayName, err = encryptUserPIIStringWithContentKey(contentKey, accountCreated.GetId(), userID, events.EventUserAccountCreated, "display_name", displayName)
+	if err != nil {
+		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+		return nil, fmt.Errorf("encrypt display name: %w", err)
+	}
+
+	entries := []events.BatchEntry{{
 		Subject: agg.Subject(events.EventUserContentKeyGenerated),
-		Event: newEvent(userID, &corev1.Event{Event: &corev1.Event_UserContentKeyGenerated{
-			UserContentKeyGenerated: wrappedContentKey,
-		}}),
-	})
+		Event:   contentKeyEvent,
+	}, {
+		Subject: agg.Subject(events.EventUserAccountCreated),
+		Event:   accountCreated,
+	}}
+	if password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		passwordChanged := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+				UserId:       userID,
+				PasswordHash: hashedPassword,
+			},
+		}})
+		passwordChanged.CreatedAt = now
+		entries = append(entries, events.BatchEntry{
+			Subject: agg.Subject(events.EventUserPasswordHashChanged),
+			Event:   passwordChanged,
+		})
+	}
 
 	seq, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
 		if c.Users.LoginExists(login) {
@@ -144,11 +155,12 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil
 	})
 	if err != nil {
-		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+		if errors.Is(err, ErrLoginAlreadyTaken) {
+			_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+		}
 		return nil, err
 	}
 	if err := c.ContentKeysProjector.WaitForSeq(ctx, seq); err != nil {
-		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, fmt.Errorf("wait for content key projection: %w", err)
 	}
 
@@ -613,10 +625,14 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
 		UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
-			UserId:      userID,
-			DisplayName: displayName,
+			UserId: userID,
 		},
 	}})
+	encryptedDisplayName, err := c.encryptUserPIIString(ctx, event.GetId(), userID, events.EventUserDisplayNameChanged, "display_name", displayName)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt display name: %w", err)
+	}
+	event.GetUserDisplayNameChanged().EncryptedDisplayName = encryptedDisplayName
 	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
 		return nil, fmt.Errorf("failed to store user: %w", err)
 	}
@@ -717,9 +733,13 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 	loginChanged := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 		UserLoginChanged: &corev1.UserLoginChangedEvent{
 			UserId: userID,
-			Login:  newLogin,
 		},
 	}})
+	encryptedLogin, err := c.encryptUserPIIString(ctx, loginChanged.GetId(), userID, events.EventUserLoginChanged, "login", newLogin)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt login: %w", err)
+	}
+	loginChanged.GetUserLoginChanged().EncryptedLogin = encryptedLogin
 	agg := events.UserAggregate(userID)
 	entries := []events.BatchEntry{{
 		Subject: agg.SubjectFor(loginChanged),

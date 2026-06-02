@@ -653,7 +653,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "ReactionsProjector")
 
-	users := NewUserProjection()
+	users := NewUserProjection(encMgr.keyManager)
 	usersProjector := newProjector(users, "UsersProjector")
 
 	contentKeys := NewContentKeyProjection()
