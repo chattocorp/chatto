@@ -704,6 +704,15 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventUserKeyShredded,
 		},
 		{
+			name: "UserContentKeyGenerated",
+			event: &corev1.Event{
+				Event: &corev1.Event_UserContentKeyGenerated{
+					UserContentKeyGenerated: &corev1.UserContentKeyGeneratedEvent{UserId: "U1", Epoch: 1},
+				},
+			},
+			want: EventUserContentKeyGenerated,
+		},
+		{
 			name: "RegistrationLinkIssued",
 			event: &corev1.Event{
 				Event: &corev1.Event_RegistrationLinkIssued{
@@ -827,7 +836,7 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				t.Errorf("EventTypeOf = %q, want %q", got, c.want)
 			}
 			agg := RoomAggregate("ROOM123")
-			if c.want == EventUserKeyShredded {
+			if c.want == EventUserKeyShredded || c.want == EventUserContentKeyGenerated {
 				agg = UserAggregate("U1")
 			}
 			if c.want == EventRegistrationLinkIssued {

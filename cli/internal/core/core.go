@@ -161,6 +161,14 @@ type ChattoCore struct {
 	// WaitForSeq from user/account writers.
 	UsersProjector *events.Projector
 
+	// ContentKeys holds wrapped per-user content key epochs used by
+	// encrypted message bodies.
+	ContentKeys *ContentKeyProjection
+
+	// ContentKeysProjector runs the consumer for ContentKeys. Exposed for
+	// WaitForSeq from encryption writers.
+	ContentKeysProjector *events.Projector
+
 	// RBAC holds current role, assignment, and permission state derived
 	// from durable RBAC aggregate events.
 	RBAC *RBACProjection
@@ -648,6 +656,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	users := NewUserProjection()
 	usersProjector := newProjector(users, "UsersProjector")
 
+	contentKeys := NewContentKeyProjection()
+	contentKeysProjector := newProjector(contentKeys, "ContentKeysProjector")
+
 	rbac := NewRBACProjection()
 	rbacProjector := newProjector(rbac, "RBACProjector")
 
@@ -682,6 +693,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ReactionsProjector:      reactionsProjector,
 		Users:                   users,
 		UsersProjector:          usersProjector,
+		ContentKeys:             contentKeys,
+		ContentKeysProjector:    contentKeysProjector,
 		RBAC:                    rbac,
 		RBACProjector:           rbacProjector,
 		projectors:              projectors,

@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-02
 
 ## Overview
 
@@ -69,8 +69,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 5. Per-user KEKs, not shared keys
 
-**Decision:** Each user has their own message-body KEK. New messages use per-message DEKs wrapped by that KEK; legacy messages encrypted directly with the per-user key remain readable.
-**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained while per-message DEKs limit the blast radius of an individual content key. See ADR-007.
+**Decision:** Each user has their own message-body KEK. New messages use per-user content key epochs wrapped by that KEK; legacy messages encrypted directly with the per-user key remain readable.
+**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while content key epochs keep message events compact and leave room for external KMS unwrap flows. See ADR-007.
 **Tradeoff:** Every message-body decryption is a per-author KV lookup. The lookup is cheap (NATS KV is memory-cached) and dataloader batches help on bulk reads.
 
 ### 6. KMS service boundary, even though it's in-process

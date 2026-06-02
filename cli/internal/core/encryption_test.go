@@ -65,8 +65,17 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
 	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "new messages should use v2 envelopes")
-	require.NotEmpty(t, stored.EncryptedDataKey, "wrapped DEK should be stored")
-	require.NotEmpty(t, stored.DataKeyNonce, "wrapped DEK nonce should be stored")
+	require.EqualValues(t, 1, stored.ContentKeyEpoch, "new messages should reference the active content key epoch")
+
+	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserContentKeyGenerated))
+	require.NoError(t, err)
+	require.Len(t, contentKeyEvents, 1)
+	contentKeyEvent := contentKeyEvents[0].GetUserContentKeyGenerated()
+	require.NotNil(t, contentKeyEvent)
+	require.Equal(t, user.Id, contentKeyEvent.GetUserId())
+	require.EqualValues(t, 1, contentKeyEvent.GetEpoch())
+	require.NotEmpty(t, contentKeyEvent.GetEncryptedContentKey(), "wrapped content key should be stored on the user stream")
+	require.NotEmpty(t, contentKeyEvent.GetContentKeyNonce(), "wrapped content key nonce should be stored on the user stream")
 
 	// Verify we can read the message back (decrypted)
 	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
@@ -234,7 +243,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty after edit")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty after edit")
 	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "edited messages should keep v2 envelopes")
-	require.NotEmpty(t, stored.EncryptedDataKey, "edited messages should store a wrapped DEK")
+	require.EqualValues(t, 1, stored.ContentKeyEpoch, "edited messages should reference the active content key epoch")
 
 	// Verify we can read the edited content
 	body, err := core.GetMessageBody(ctx, KindChannel, messageBodyID)

@@ -1,5 +1,5 @@
 // Package encryption provides server-side encryption for message bodies,
-// including legacy direct-key encryption and the v2 per-message DEK envelope.
+// including legacy direct-key encryption and the v2 content-key envelope.
 package encryption
 
 import (
@@ -19,12 +19,12 @@ const (
 	// XNonceSize is the size of the XChaCha20-Poly1305 nonce (192 bits).
 	XNonceSize = chacha20poly1305.NonceSizeX // 24 bytes
 
-	// EnvelopeVersionV2 identifies the per-message DEK envelope format.
+	// EnvelopeVersionV2 identifies the content-key epoch message body format.
 	EnvelopeVersionV2 int32 = 2
 
 	// AlgorithmEnvelopeV2 identifies the algorithm implied by v2 envelopes.
 	// It is kept as a code-level constant rather than stored per message.
-	AlgorithmEnvelopeV2 = "xchacha20-poly1305+dek-wrap-v1"
+	AlgorithmEnvelopeV2 = "xchacha20-poly1305+content-key-epoch-v1"
 )
 
 // EncryptedData holds the result of an encryption operation.
@@ -33,13 +33,10 @@ type EncryptedData struct {
 	Nonce      []byte
 }
 
-// Envelope holds a v2 encrypted message body and its wrapped per-message key.
-type Envelope struct {
-	Version          int32
-	Ciphertext       []byte
-	Nonce            []byte
-	EncryptedDataKey []byte
-	DataKeyNonce     []byte
+// WrappedContentKey holds a content key encrypted with a per-user KEK.
+type WrappedContentKey struct {
+	EncryptedContentKey []byte
+	Nonce               []byte
 }
 
 // Encrypt encrypts plaintext using ChaCha20-Poly1305 AEAD.
@@ -92,68 +89,72 @@ func Decrypt(key, ciphertext, nonce []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// EncryptEnvelope encrypts plaintext with a fresh per-message data encryption
-// key, then wraps that DEK with the caller's key encryption key. aad is bound
-// to both layers and must be supplied unchanged for decryption.
-func EncryptEnvelope(kek, plaintext, aad []byte) (*Envelope, error) {
+// WrapContentKey encrypts a content key with a per-user key encryption key.
+func WrapContentKey(kek, contentKey, aad []byte) (*WrappedContentKey, error) {
 	if len(kek) != KeySize {
 		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(kek))
 	}
-
-	dek, err := GenerateKey()
-	if err != nil {
-		return nil, err
+	if len(contentKey) != KeySize {
+		return nil, fmt.Errorf("%w: expected content key size %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
 	}
-
-	bodyAEAD, err := chacha20poly1305.NewX(dek)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
-	}
-	bodyNonce, err := randomBytes(XNonceSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate body nonce: %w", err)
-	}
-	ciphertext := bodyAEAD.Seal(nil, bodyNonce, plaintext, aadForBody(aad))
-
 	wrapAEAD, err := chacha20poly1305.NewX(kek)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create key wrap AEAD cipher: %w", err)
 	}
-	dataKeyNonce, err := randomBytes(XNonceSize)
+	nonce, err := randomBytes(XNonceSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate data key nonce: %w", err)
+		return nil, fmt.Errorf("failed to generate content key nonce: %w", err)
 	}
-	encryptedDataKey := wrapAEAD.Seal(nil, dataKeyNonce, dek, aadForKeyWrap(aad))
-
-	return &Envelope{
-		Version:          EnvelopeVersionV2,
-		Ciphertext:       ciphertext,
-		Nonce:            bodyNonce,
-		EncryptedDataKey: encryptedDataKey,
-		DataKeyNonce:     dataKeyNonce,
-	}, nil
+	encryptedContentKey := wrapAEAD.Seal(nil, nonce, contentKey, aadForContentKey(aad))
+	return &WrappedContentKey{EncryptedContentKey: encryptedContentKey, Nonce: nonce}, nil
 }
 
-// DecryptEnvelope unwraps the per-message DEK with kek, then decrypts the
-// message body. aad must match the encryption context exactly.
-func DecryptEnvelope(kek, ciphertext, nonce, encryptedDataKey, dataKeyNonce, aad []byte) ([]byte, error) {
+// UnwrapContentKey decrypts a content key with a per-user key encryption key.
+func UnwrapContentKey(kek, encryptedContentKey, nonce, aad []byte) ([]byte, error) {
 	if len(kek) != KeySize {
 		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(kek))
 	}
-	if len(nonce) != XNonceSize || len(dataKeyNonce) != XNonceSize {
+	if len(nonce) != XNonceSize {
 		return nil, fmt.Errorf("%w: expected %d-byte XChaCha nonces", ErrInvalidNonceSize, XNonceSize)
 	}
-
 	wrapAEAD, err := chacha20poly1305.NewX(kek)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create key wrap AEAD cipher: %w", err)
 	}
-	dek, err := wrapAEAD.Open(nil, dataKeyNonce, encryptedDataKey, aadForKeyWrap(aad))
+	contentKey, err := wrapAEAD.Open(nil, nonce, encryptedContentKey, aadForContentKey(aad))
 	if err != nil {
 		return nil, ErrDecryptionFailed
 	}
+	return contentKey, nil
+}
 
-	bodyAEAD, err := chacha20poly1305.NewX(dek)
+// EncryptWithContentKey encrypts plaintext with an already-selected content
+// key. aad must be supplied unchanged for decryption.
+func EncryptWithContentKey(contentKey, plaintext, aad []byte) (*EncryptedData, error) {
+	if len(contentKey) != KeySize {
+		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
+	}
+	bodyAEAD, err := chacha20poly1305.NewX(contentKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
+	}
+	nonce, err := randomBytes(XNonceSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate body nonce: %w", err)
+	}
+	ciphertext := bodyAEAD.Seal(nil, nonce, plaintext, aadForBody(aad))
+	return &EncryptedData{Ciphertext: ciphertext, Nonce: nonce}, nil
+}
+
+// DecryptWithContentKey decrypts a v2 message body with a content key.
+func DecryptWithContentKey(contentKey, ciphertext, nonce, aad []byte) ([]byte, error) {
+	if len(contentKey) != KeySize {
+		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
+	}
+	if len(nonce) != XNonceSize {
+		return nil, fmt.Errorf("%w: expected %d-byte XChaCha nonces", ErrInvalidNonceSize, XNonceSize)
+	}
+	bodyAEAD, err := chacha20poly1305.NewX(contentKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
 	}
@@ -185,8 +186,8 @@ func aadForBody(aad []byte) []byte {
 	return scopedAAD("chatto:message-body:v2", aad)
 }
 
-func aadForKeyWrap(aad []byte) []byte {
-	return scopedAAD("chatto:message-dek:v2", aad)
+func aadForContentKey(aad []byte) []byte {
+	return scopedAAD("chatto:content-key:v2", aad)
 }
 
 func scopedAAD(scope string, aad []byte) []byte {

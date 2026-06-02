@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-712: durable user aggregate events on evt.user.{userId}.*
+//   - 700-713: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -129,4 +129,14 @@ message UserAccountDeletedEvent {
 // same command path.
 message UserKeyShreddedEvent {
   string user_id = 1;
+}
+
+// UserContentKeyGeneratedEvent records one wrapped content key epoch for a
+// user. Message bodies reference the epoch; the wrapped key lives here so
+// historical events remain append-only and compact.
+message UserContentKeyGeneratedEvent {
+  string user_id = 1;
+  int32 epoch = 2;
+  bytes encrypted_content_key = 3;
+  bytes content_key_nonce = 4;
 }

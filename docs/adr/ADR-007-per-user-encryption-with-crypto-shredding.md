@@ -12,8 +12,8 @@ An alternative is **crypto-shredding**: encrypt each user's messages with a key 
 
 Use per-user encryption with crypto-shredding:
 
-- **Algorithm**: New message bodies use a compact versioned envelope: a random per-message DEK encrypts the body with XChaCha20-Poly1305, then the author's per-user KEK wraps that DEK with XChaCha20-Poly1305. Legacy bodies encrypted directly with the per-user ChaCha20-Poly1305 key remain readable.
-- **AAD binding**: New envelopes authenticate the message event context (event ID, room ID, author ID, and message-body event type) as Additional Authenticated Data so ciphertext cannot be replayed into a different message context without detection.
+- **Algorithm**: New message bodies use a compact versioned envelope: XChaCha20-Poly1305 encrypts the body with the author's active content key epoch. Each content key is generated as a durable user event and wrapped by the author's per-user KEK. Legacy bodies encrypted directly with the per-user ChaCha20-Poly1305 key remain readable.
+- **AAD binding**: New envelopes authenticate the message event context (event ID, room ID, author ID, content key epoch, and message-body event type) as Additional Authenticated Data so ciphertext cannot be replayed into a different message context without detection.
 - **Per-user keys**: Each user has their own KEK stored in a dedicated `ENCRYPTION_KEYS` KV bucket.
 - **Key isolation**: The encryption key bucket is explicitly excluded from `chatto backup`. Backups contain only encrypted data, never the keys to read it.
 - **Erasure = key deletion + durable shred event**: When a user requests deletion, their encryption key is removed from the KV bucket and a `UserKeyShreddedEvent` is appended to the user aggregate. All their encrypted message bodies across all streams become permanently unreadable, and projections treat the shred event as the authoritative tombstone signal before attempting decrypts.
@@ -22,10 +22,10 @@ Use per-user encryption with crypto-shredding:
 
 ## Consequences
 
-- **Fast, reliable erasure**: Deleting one KV key renders all of a user's encrypted message bodies unreadable, including v2 bodies whose per-message DEKs are wrapped by that key. The durable shred event lets room timeline and thread projections immediately tombstone already-projected or replayed messages authored by that user.
+- **Fast, reliable erasure**: Deleting one KV key renders all of a user's encrypted message bodies unreadable, including v2 bodies whose content keys are wrapped by that key. The durable shred event lets room timeline and thread projections immediately tombstone already-projected or replayed messages authored by that user.
 - **Backup safety**: Since keys are excluded from backups, restoring a backup does not restore the ability to read deleted users' messages.
 - **Attachment cleanup is separate from crypto-shredding**: Binary assets need explicit delete events and storage cleanup because key deletion alone does not affect stored bytes or signed asset locators. Projections stop resolving deleted assets before backing bytes are removed.
 - **No content indexing**: Encrypted message bodies cannot be indexed for full-text search on the server. Search features must either work on metadata or require client-side decryption.
 - **Key loss is permanent**: If the KMS loses a user's key (outside of intentional deletion), their messages are gone. The KV bucket must be treated as critical data.
-- **Per-message overhead**: Legacy bodies carry one nonce and Poly1305 tag. V2 bodies carry a body nonce, wrapped DEK, DEK nonce, and two Poly1305 tags. The envelope deliberately omits a stored algorithm string and key ID until key rotation exists.
+- **Per-message overhead**: Legacy bodies carry one nonce and Poly1305 tag. V2 message bodies carry a body nonce, Poly1305 tag, and compact content key epoch. Wrapped content key material is stored once per user epoch in the user EVT stream.
 - **Future extensibility**: The KMS interface can be adapted to external key management (HashiCorp Vault, AWS KMS, HSM) without changing application code.

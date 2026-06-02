@@ -118,21 +118,38 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		})
 	}
 
-	// Create encryption key for this user
-	// Keys are always created so they exist if encryption is enabled later
+	// Create encryption key for this user. Keys are always created so they
+	// exist if encryption is enabled later.
 	_, err = c.encryption.keyManager.CreateUserKey(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
 
-	if _, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
+	_, wrappedContentKey, err := c.newWrappedMessageContentKey(ctx, userID, 1)
+	if err != nil {
+		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+		return nil, err
+	}
+	entries = append(entries, events.BatchEntry{
+		Subject: agg.Subject(events.EventUserContentKeyGenerated),
+		Event: newEvent(userID, &corev1.Event{Event: &corev1.Event_UserContentKeyGenerated{
+			UserContentKeyGenerated: wrappedContentKey,
+		}}),
+	})
+
+	seq, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
 		if c.Users.LoginExists(login) {
 			return ErrLoginAlreadyTaken
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
 		return nil, err
+	}
+	if err := c.ContentKeysProjector.WaitForSeq(ctx, seq); err != nil {
+		_ = c.deleteUserEncryptionKeyOnly(ctx, userID)
+		return nil, fmt.Errorf("wait for content key projection: %w", err)
 	}
 
 	// Create and publish audit event (best-effort)

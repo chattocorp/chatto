@@ -80,10 +80,10 @@ This boundary is intentional and enforced in the resolvers under `Query.admin` �
 
 Message bodies are encrypted before being written to JetStream. New messages use a compact versioned envelope:
 
-- Chatto generates a fresh per-message data encryption key (DEK).
-- The body is encrypted with **XChaCha20-Poly1305** using that DEK.
-- The DEK is wrapped with the author's per-user key encryption key (KEK).
-- The encrypted body is authenticated with its event context — event ID, room ID, author ID, and message-body event type — as Additional Authenticated Data (AAD).
+- Chatto generates a per-user content key epoch and records the wrapped key in the user event stream.
+- The body is encrypted with **XChaCha20-Poly1305** using the author's active content key epoch.
+- Each content key is wrapped with the author's per-user key encryption key (KEK).
+- The encrypted body is authenticated with its event context — event ID, room ID, author ID, content key epoch, and message-body event type — as Additional Authenticated Data (AAD).
 
 The per-user KEK is generated on demand and stored in a dedicated `ENCRYPTION_KEYS` NATS KV bucket. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
 
@@ -100,7 +100,7 @@ Older message bodies encrypted directly with the user's per-user ChaCha20-Poly13
 When a user is deleted, Chatto:
 
 1. Retracts visible message bodies the user authored across every room.
-2. **Deletes the user's KEK**, rendering remaining encrypted body bytes and wrapped per-message DEKs permanently unreadable.
+2. **Deletes the user's KEK**, rendering remaining encrypted body bytes and wrapped content key epochs permanently unreadable.
 3. Removes profile fields, the avatar object, push-notification subscriptions, email index entries, and the server membership.
 4. Publishes member-deleted events so other clients refetch and show "Deleted User" in place of any orphaned references.
 

@@ -148,11 +148,8 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	if storedBody.EncryptionVersion != encryption.EnvelopeVersionV2 {
 		t.Errorf("EncryptionVersion = %d, want %d", storedBody.EncryptionVersion, encryption.EnvelopeVersionV2)
 	}
-	if len(storedBody.EncryptedDataKey) == 0 {
-		t.Error("Expected wrapped data key to be non-empty")
-	}
-	if len(storedBody.DataKeyNonce) == 0 {
-		t.Error("Expected data key nonce to be non-empty")
+	if storedBody.ContentKeyEpoch != 1 {
+		t.Errorf("ContentKeyEpoch = %d, want 1", storedBody.ContentKeyEpoch)
 	}
 
 	// Verify timestamps are set correctly
