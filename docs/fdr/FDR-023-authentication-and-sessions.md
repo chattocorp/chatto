@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-02
 
 ## Overview
 
@@ -11,7 +11,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 - **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
 - **OAuth login** — operators can configure OAuth providers (e.g., Google). The login page shows provider buttons; clicking takes the user through the standard authorization-code flow.
-- **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries the user ID; the server loads the user from KV per request.
+- **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries the user ID; the server resolves the current user from projections per request.
 - **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL.
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
 - **Logout** — for cookie sessions: the server clears the session and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
@@ -24,14 +24,14 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 1. Cookie-based sessions for same-origin
 
-**Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The session stores only the user ID; the user record itself is loaded from KV per request.
+**Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The session stores only the user ID; the current user record is resolved from projections per request.
 **Why:** Cookies are the simplest mechanism for browser SPAs — the browser handles attachment, expiry, and HttpOnly protects against XSS-extracted tokens. WebSocket auth comes for free because the browser sends the cookie with the upgrade request. See ADR-017.
 **Tradeoff:** Non-browser clients can't use cookies. The bearer token path exists for them.
 
 ### 2. Bearer tokens for cross-origin
 
 **Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys. Tokens are validated by KV lookup; revocation is one delete.
-**Why:** Cookies are scoped to one origin and `SameSite=Lax` blocks them on cross-origin requests. Tokens are origin-agnostic. We chose opaque tokens over JWTs because Chatto already does a per-request KV lookup to load the user — JWT's "stateless validation" advantage gives nothing here, while opaque tokens give instant revocation and natural TTL via KV's built-in expiry. See ADR-024.
+**Why:** Cookies are scoped to one origin and `SameSite=Lax` blocks them on cross-origin requests. Tokens are origin-agnostic. We chose opaque tokens over JWTs because Chatto still resolves the current user and permissions server-side per request — JWT's "stateless validation" advantage gives little here, while opaque tokens give instant revocation and natural TTL via KV's built-in expiry. See ADR-024.
 **Tradeoff:** Tokens stored in `localStorage` are vulnerable to XSS; cookie sessions are not. Cross-origin clients accept this tradeoff in exchange for being able to authenticate at all. Operators must keep `[core].secret_key` stable across restores to preserve active bearer-token sessions.
 
 ### 3. Sliding-window TTL for tokens (and cookies)
@@ -46,11 +46,11 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Why:** Doing auth inside the WS protocol (a `connection_init` payload exchange) adds round-trips and creates a window where the WS is open but not authenticated — easy to misuse, easy to leave open by accident. Upgrade-time auth is atomic. See ADR-017.
 **Tradeoff:** Bearer-token WebSocket clients have to deliver the token via `connectionParams` (a graphql-ws feature). Standard pattern, well-supported by libraries.
 
-### 5. Per-request user load, no in-session caching
+### 5. Per-request user resolution, no in-session caching
 
-**Decision:** Even though the session stores a user ID, the user record is loaded from KV on every request (and every WS frame's GraphQL handler).
-**Why:** Caching the user in the session would mean serving stale data (display name, roles) across requests. Users expect their profile updates to be immediate; per-request loads guarantee that with negligible cost (KV is memory-cached internally). Dataloaders batch within a single request to prevent fan-out.
-**Tradeoff:** A per-request KV `Get`. At Chatto's volume, this is far below noise.
+**Decision:** Even though the session stores a user ID, the user record is resolved from the current projections on every request and every WebSocket GraphQL handler.
+**Why:** Caching the user in the session would mean serving stale data (display name, roles) across requests. Users expect profile, role, and deletion changes to be immediate; projection-backed resolution gives the current view while keeping sessions small. Dataloaders batch within a single request to prevent fan-out.
+**Tradeoff:** Each request still performs server-side user and permission resolution. At Chatto's volume, this is far below noise.
 
 ### 6. Cookie auth unchanged when token auth was added
 

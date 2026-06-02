@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-02
 
 ## Overview
 
@@ -24,11 +24,11 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Logins are the basis for `@mentions`, search results, and recognition across the server. Frequent changes are an impersonation/confusion risk — `@alice` today might be a different person tomorrow. A 30-day cooldown discourages rapid churn while still allowing occasional rename for legitimate reasons. Case-only changes are exempt because they don't change identity.
 **Tradeoff:** A user who legitimately needs to change twice in 30 days (e.g., picked a typo'd name) is stuck. The admin clear-cooldown affordance handles those cases.
 
-### 2. Login swap is atomic via KV claim
+### 2. Login uniqueness is enforced with projection catch-up and OCC
 
-**Decision:** A new login is claimed via `kv.Create()` on a `login_index.*` key *before* the old claim is released. If the new login is taken, the operation fails without touching the old state.
-**Why:** Read-then-write would race: two users could grab the same login simultaneously. Atomic claim is the only safe shape.
-**Tradeoff:** A failed marshal partway through means the new claim has to be rolled back. The code does this explicitly.
+**Decision:** Login changes wait for the user projection to catch up, check the decrypted login index, and append the login-change event with optimistic concurrency over the user subject family. If another writer wins first, the operation retries against the updated projection.
+**Why:** User profile state now lives in the event-sourced user aggregate, and new durable login-change facts carry encrypted PII. Projection catch-up plus OCC keeps uniqueness race-safe without reintroducing a separate login KV as source of truth.
+**Tradeoff:** The write path depends on projection readiness and may retry under contention. In exchange, the durable event stream remains append-only and the login index stays derived state.
 
 ### 3. Admin path doesn't advance the cooldown timestamp
 

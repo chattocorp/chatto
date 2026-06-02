@@ -231,11 +231,13 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 ## Security & Encryption
 
 <RoadmapItem title="Per-User Encryption" status="done">
-  Every message body is encrypted with ChaCha20-Poly1305 using a unique per-user
-  key. Messages are encrypted at rest in NATS and only decrypted when served to
-  an authorized client. Deleting a user's key renders all of their messages
-  permanently unreadable — fast, reliable GDPR-compliant data destruction
-  without needing to locate individual messages across streams.
+  Every message body is encrypted at rest with XChaCha20-Poly1305 using the
+  author's active content-key epoch, and durable user PII events use the same
+  encrypted-envelope model. Content keys are wrapped by per-user keys behind
+  Chatto's KMS boundary and only unwrapped when authorized projections or API
+  paths need plaintext. Deleting a user's key renders their wrapped content keys
+  and encrypted data permanently unreadable — fast, reliable GDPR-compliant data
+  destruction without needing to locate individual messages across streams.
 </RoadmapItem>
 
 <RoadmapItem title="Signed Asset URLs" status="done">

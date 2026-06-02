@@ -11,7 +11,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### Registration
 
-- A user signs up with a login, email, and password. The login must pass uniqueness and format checks; emails are checked against the server's blocked-usernames list.
+- A user signs up with a login, email, and password. The login must pass uniqueness, format, and blocked-username checks; email uniqueness is enforced when the address is verified.
 - After signup, an email is sent to the address with a verification link.
 - Registration and verification links are backed by `RUNTIME_STATE` HMAC-derived token records with 24-hour per-key TTLs. Raw token/link values are never written to `EVT` or backup archives.
 - Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
@@ -72,7 +72,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 **Decision:** Each user has their own message-body KEK. New messages use per-user content key epochs wrapped by that KEK; legacy messages encrypted directly with the per-user key remain readable.
 **Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while content key epochs keep message events compact and leave room for external KMS unwrap flows. See ADR-007.
-**Tradeoff:** Every message-body decryption is a per-author KV lookup. The lookup is cheap (NATS KV is memory-cached) and dataloader batches help on bulk reads.
+**Tradeoff:** Message-body decryption has to resolve and unwrap the author's content key epoch. The built-in KMS path is cheap and local today; an external KMS may need caching policy and latency budgets.
 
 ### 6. Durable user PII is encrypted, not indexed in EVT
 

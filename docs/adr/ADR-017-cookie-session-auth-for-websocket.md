@@ -13,7 +13,7 @@ Authentication approaches for WebSocket:
 
 ## Decision
 
-Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for all authentication. The session stores `user_id`; the user is loaded from KV and injected into request context by HTTP middleware. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
+Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for the embedded browser SPA. The session stores `user_id`; the current user is resolved server-side and injected into request context by HTTP middleware. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
 
 The WebSocket `InitFunc` reads the authenticated user from context and creates a fresh `context.Background()` with only the user re-injected — dataloaders and other request-scoped state are deliberately stripped. The `connection_ack` payload includes the server version for frontend upgrade detection.
 
@@ -21,6 +21,6 @@ The WebSocket `InitFunc` reads the authenticated user from context and creates a
 
 - **Zero client-side token management**: The browser handles cookie storage, expiry, and attachment to requests automatically. No token refresh logic in the frontend.
 - **WebSocket auth is implicit**: There's no `connection_init` authentication payload. The user is authenticated before the WS protocol even starts. This simplifies the subscription client.
-- **Non-browser clients need a different path**: CLI tools, bots, or mobile apps that can't use cookies would require an alternative auth mechanism (API keys, bearer tokens). This doesn't exist yet.
+- **Non-browser clients use bearer tokens**: CLI tools, bots, multi-instance frontends, and future mobile apps can use opaque bearer tokens instead of cookies. Cookie sessions remain the same-origin browser path.
 - **Session refresh on static file requests**: The cookie TTL is refreshed when the server serves static frontend files (`refreshSessionIfAuthenticated`), preventing cookie expiry during passive browsing sessions.
 - **Server version in `connection_ack`**: The frontend uses this to detect when the server has been upgraded and prompt users to refresh. This is a lightweight deployment coordination mechanism.
