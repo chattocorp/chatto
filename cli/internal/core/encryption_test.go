@@ -134,8 +134,6 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.Len(t, contentKeyEvents, 1)
 	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, contentKeyEvents[0].GetUserContentKeyGenerated().GetWrappingAlgorithm())
 	account := accountEvents[0].GetUserAccountCreated()
-	require.Empty(t, account.GetLogin(), "durable user creation event should not store plaintext login")
-	require.Empty(t, account.GetDisplayName(), "durable user creation event should not store plaintext display name")
 	require.NotNil(t, account.GetEncryptedLogin())
 	require.NotNil(t, account.GetEncryptedDisplayName())
 
@@ -143,21 +141,18 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, emailEvents, 1)
 	email := emailEvents[0].GetUserVerifiedEmailAdded()
-	require.Empty(t, email.GetEmail(), "durable verified-email event should not store plaintext email")
 	require.NotNil(t, email.GetEncryptedEmail())
 
 	displayNameEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDisplayNameChanged))
 	require.NoError(t, err)
 	require.Len(t, displayNameEvents, 1)
 	displayName := displayNameEvents[0].GetUserDisplayNameChanged()
-	require.Empty(t, displayName.GetDisplayName(), "durable display-name event should not store plaintext display name")
 	require.NotNil(t, displayName.GetEncryptedDisplayName())
 
 	loginEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserLoginChanged))
 	require.NoError(t, err)
 	require.Len(t, loginEvents, 1)
 	login := loginEvents[0].GetUserLoginChanged()
-	require.Empty(t, login.GetLogin(), "durable login event should not store plaintext login")
 	require.NotNil(t, login.GetEncryptedLogin())
 
 	found, err := core.GetUserByLogin(ctx, "piiuser2")

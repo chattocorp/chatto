@@ -317,14 +317,10 @@ func (x *EncryptedUserString) GetContentKeyEpoch() int32 {
 }
 
 type UserAccountCreatedEvent struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Legacy plaintext fallback for events written before encrypted user PII.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Legacy plaintext fallback for events written before encrypted user PII.
-	DisplayName          string               `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	EncryptedLogin       *EncryptedUserString `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
-	EncryptedDisplayName *EncryptedUserString `protobuf:"bytes,11,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	UserId               string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EncryptedLogin       *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
+	EncryptedDisplayName *EncryptedUserString   `protobuf:"bytes,11,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -366,20 +362,6 @@ func (x *UserAccountCreatedEvent) GetUserId() string {
 	return ""
 }
 
-func (x *UserAccountCreatedEvent) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *UserAccountCreatedEvent) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
 func (x *UserAccountCreatedEvent) GetEncryptedLogin() *EncryptedUserString {
 	if x != nil {
 		return x.EncryptedLogin
@@ -395,11 +377,9 @@ func (x *UserAccountCreatedEvent) GetEncryptedDisplayName() *EncryptedUserString
 }
 
 type UserLoginChangedEvent struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Legacy plaintext fallback for events written before encrypted user PII.
-	Login          string               `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	EncryptedLogin *EncryptedUserString `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EncryptedLogin *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -441,13 +421,6 @@ func (x *UserLoginChangedEvent) GetUserId() string {
 	return ""
 }
 
-func (x *UserLoginChangedEvent) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
 func (x *UserLoginChangedEvent) GetEncryptedLogin() *EncryptedUserString {
 	if x != nil {
 		return x.EncryptedLogin
@@ -456,11 +429,9 @@ func (x *UserLoginChangedEvent) GetEncryptedLogin() *EncryptedUserString {
 }
 
 type UserDisplayNameChangedEvent struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Legacy plaintext fallback for events written before encrypted user PII.
-	DisplayName          string               `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	EncryptedDisplayName *EncryptedUserString `protobuf:"bytes,10,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	UserId               string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EncryptedDisplayName *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -498,13 +469,6 @@ func (*UserDisplayNameChangedEvent) Descriptor() ([]byte, []int) {
 func (x *UserDisplayNameChangedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
-	}
-	return ""
-}
-
-func (x *UserDisplayNameChangedEvent) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
 	}
 	return ""
 }
@@ -616,11 +580,9 @@ func (x *UserAvatarClearedEvent) GetUserId() string {
 }
 
 type UserVerifiedEmailAddedEvent struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Legacy plaintext fallback for events written before encrypted user PII.
-	Email          string               `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	EncryptedEmail *EncryptedUserString `protobuf:"bytes,10,opt,name=encrypted_email,json=encryptedEmail,proto3" json:"encrypted_email,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EncryptedEmail *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_email,json=encryptedEmail,proto3" json:"encrypted_email,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -658,13 +620,6 @@ func (*UserVerifiedEmailAddedEvent) Descriptor() ([]byte, []int) {
 func (x *UserVerifiedEmailAddedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
-	}
-	return ""
-}
-
-func (x *UserVerifiedEmailAddedEvent) GetEmail() string {
-	if x != nil {
-		return x.Email
 	}
 	return ""
 }
@@ -1149,34 +1104,29 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\x94\x02\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xfc\x01\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12L\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
 	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\x12Y\n" +
-	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\"\x94\x01\n" +
+	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05loginR\fdisplay_name\"\x8b\x01\n" +
 	"\x15UserLoginChangedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12L\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\"\xb4\x01\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLoginJ\x04\b\x02\x10\x03R\x05login\"\xa5\x01\n" +
 	"\x1bUserDisplayNameChangedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12Y\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12Y\n" +
 	"\x16encrypted_display_name\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\"f\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\x02\x10\x03R\fdisplay_name\"f\n" +
 	"\x12UserAvatarSetEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x127\n" +
 	"\x06avatar\x18\x02 \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\x06avatar\"1\n" +
 	"\x16UserAvatarClearedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x9a\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x91\x01\n" +
 	"\x1bUserVerifiedEmailAddedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12L\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_email\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedEmail\"\\\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedEmailJ\x04\b\x02\x10\x03R\x05email\"\\\n" +
 	"\x1cUserPasswordHashChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
 	"\rpassword_hash\x18\x02 \x01(\fR\fpasswordHash\"\x8a\x01\n" +

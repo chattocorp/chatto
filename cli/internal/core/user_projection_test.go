@@ -1,12 +1,16 @@
 package core
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -16,18 +20,67 @@ func userEvent(id string, ts time.Time, event *corev1.Event) *corev1.Event {
 	return event
 }
 
-func accountCreated(userID, login, displayName string) *corev1.Event {
+type staticProjectionKeyWrapper struct {
+	key []byte
+}
+
+func (w staticProjectionKeyWrapper) CreateKey(context.Context, string) (string, error) {
+	return "test-key", nil
+}
+
+func (w staticProjectionKeyWrapper) KeyExists(context.Context, string) (bool, error) {
+	return true, nil
+}
+
+func (w staticProjectionKeyWrapper) WrapContentKey(context.Context, string, []byte, []byte) (*kms.WrappedContentKey, error) {
+	return nil, nil
+}
+
+func (w staticProjectionKeyWrapper) UnwrapContentKey(context.Context, string, kms.WrappedContentKey, []byte) ([]byte, error) {
+	return append([]byte(nil), w.key...), nil
+}
+
+func (w staticProjectionKeyWrapper) ShredKey(context.Context, string) error {
+	return nil
+}
+
+func newEncryptedUserProjection(t *testing.T, userID string) (*UserProjection, *messageContentKey) {
+	t.Helper()
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key})
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "K1",
+		Event: &corev1.Event_UserContentKeyGenerated{UserContentKeyGenerated: &corev1.UserContentKeyGeneratedEvent{
+			UserId:              userID,
+			Epoch:               1,
+			EncryptedContentKey: []byte("wrapped"),
+			ContentKeyNonce:     []byte("nonce"),
+		}},
+	}, 1))
+	return p, &messageContentKey{epoch: 1, key: key}
+}
+
+func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID, login, displayName string) *corev1.Event {
+	t.Helper()
+	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "login", login)
+	require.NoError(t, err)
+	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "display_name", displayName)
+	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{
-		UserId:      userID,
-		Login:       login,
-		DisplayName: displayName,
+		UserId:               userID,
+		EncryptedLogin:       encryptedLogin,
+		EncryptedDisplayName: encryptedDisplayName,
 	}}}
 }
 
-func loginChanged(userID, login string) *corev1.Event {
+func loginChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, login string) *corev1.Event {
+	t.Helper()
+	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserLoginChanged, "login", login)
+	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserLoginChanged{UserLoginChanged: &corev1.UserLoginChangedEvent{
-		UserId: userID,
-		Login:  login,
+		UserId:         userID,
+		EncryptedLogin: encryptedLogin,
 	}}}
 }
 
@@ -37,18 +90,21 @@ func loginCooldownStarted(userID string) *corev1.Event {
 	}}}
 }
 
-func displayNameChanged(userID, displayName string) *corev1.Event {
+func displayNameChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, displayName string) *corev1.Event {
+	t.Helper()
+	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserDisplayNameChanged, "display_name", displayName)
+	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
-		UserId:      userID,
-		DisplayName: displayName,
+		UserId:               userID,
+		EncryptedDisplayName: encryptedDisplayName,
 	}}}
 }
 
 func TestUserProjection_AccountProfileAndLogin(t *testing.T) {
-	p := NewUserProjection()
+	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 
-	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated("U1", "Alice", "Alice A.")), 1))
+	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 
 	got, ok := p.Get("U1")
 	require.True(t, ok)
@@ -64,14 +120,14 @@ func TestUserProjection_AccountProfileAndLogin(t *testing.T) {
 }
 
 func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
-	p := NewUserProjection()
+	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	changedAt := createdAt.Add(5 * time.Minute)
 
-	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated("U1", "Alice", "Alice A.")), 1))
+	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 	require.True(t, p.LoginChangedAt("U1").IsZero())
 
-	require.NoError(t, p.Apply(userEvent("E3", changedAt, loginChanged("U1", "Alice2")), 3))
+	require.NoError(t, p.Apply(userEvent("E3", changedAt, loginChanged(t, contentKey, "E3", "U1", "Alice2")), 3))
 	require.True(t, p.LoginChangedAt("U1").IsZero())
 	require.False(t, p.LoginExists("Alice"))
 	require.True(t, p.LoginExists("alice2"))
@@ -87,17 +143,19 @@ func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
 }
 
 func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
-	p := NewUserProjection()
+	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	verifiedAt := createdAt.Add(time.Hour)
 
-	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated("U1", "Alice", "Alice A.")), 1))
+	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
+	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E3", "U1", events.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
+	require.NoError(t, err)
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id:        "E3",
 		CreatedAt: timestamppb.New(verifiedAt),
 		Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
-			UserId: "U1",
-			Email:  "Alice@Example.com",
+			UserId:         "U1",
+			EncryptedEmail: encryptedEmail,
 		}},
 	}, 3))
 	require.NoError(t, p.Apply(&corev1.Event{

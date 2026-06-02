@@ -388,6 +388,14 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return nil // Encryption not configured
 	}
 
+	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.UserAggregate(userID).AllEventsFilter())
+	if err != nil {
+		return fmt.Errorf("read content key projection target seq: %w", err)
+	}
+	if err := c.ContentKeysProjector.WaitForSeq(ctx, filterSeq); err != nil {
+		return fmt.Errorf("wait for content key projection: %w", err)
+	}
+
 	keyRefs := c.ContentKeys.KeyRefs(userID)
 	if len(keyRefs) == 0 {
 		keyRefs = []string{kms.LegacyUserKeyRef(userID)}

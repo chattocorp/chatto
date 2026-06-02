@@ -154,11 +154,11 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin(), e.GetLogin())
+	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	if !ok {
 		return
 	}
-	displayName, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName(), e.GetDisplayName())
+	displayName, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
 	if !ok {
 		return
 	}
@@ -179,7 +179,7 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginCh
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin(), e.GetLogin())
+	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	if !ok || login == "" {
 		return
 	}
@@ -198,7 +198,7 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserD
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	displayName, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName(), e.GetDisplayName())
+	displayName, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
 	if !ok {
 		return
 	}
@@ -251,7 +251,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	email, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail(), e.GetEmail())
+	email, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
 	if !ok || email == "" {
 		return
 	}
@@ -368,9 +368,9 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	u.loginChanged = time.Time{}
 }
 
-func (p *UserProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString, legacy string) (string, bool) {
+func (p *UserProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool) {
 	if encrypted == nil {
-		return legacy, true
+		return "", false
 	}
 	epochs := p.contentKeys[userID]
 	if epochs == nil {
