@@ -12,7 +12,6 @@ type VoiceCallToken {
 
 """
 A participant currently in a voice call.
-Sourced from server-side MEMORY_CACHE call state (populated by LiveKit webhooks).
 """
 type CallParticipant {
   "The user's ID."

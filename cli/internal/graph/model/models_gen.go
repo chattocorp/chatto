@@ -134,7 +134,6 @@ type AssignRoleInput struct {
 }
 
 // A participant currently in a voice call.
-// Sourced from server-side MEMORY_CACHE call state (populated by LiveKit webhooks).
 type CallParticipant struct {
 	// The user's ID.
 	UserID string `json:"userId"`

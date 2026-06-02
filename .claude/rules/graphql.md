@@ -17,6 +17,7 @@ gqlgen is schema-first. Follow this workflow for GraphQL changes:
 - Every enum value must have a description explaining its meaning
 - Descriptions should be concise (one sentence preferred)
 - Include format examples for non-obvious string values (e.g., `"Round-trip time (e.g., '1.234ms')."`)
+- Schema descriptions are user-facing API documentation. Do not mention backend implementation details like KV buckets, streams, internal projections, storage names, migration paths, or webhook plumbing unless they are intentionally part of the public contract.
 
 ## Schema Directives
 
