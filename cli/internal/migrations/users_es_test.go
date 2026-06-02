@@ -256,6 +256,84 @@ func TestMigrateUsersToES_RepairDoesNotDuplicateExistingDEK(t *testing.T) {
 	require.Equal(t, 2, dekCount)
 }
 
+func TestMigrateUsersToES_RepairResumesAfterEncryptedAccount(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+	keyWrapper := setupUserMigrationKMS(t, ctx)
+
+	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+	user := &corev1.User{
+		Id:          "U1",
+		Login:       "Alice",
+		DisplayName: "Alice A.",
+		CreatedAt:   timestamppb.New(createdAt),
+	}
+	putProtoKV(t, ctx, kv, "user.U1", user)
+	putProtoKV(t, ctx, kv, "verified_emails.U1.emailhash", &corev1.VerifiedEmail{
+		Email:      "Alice@Example.com",
+		VerifiedAt: timestamppb.New(createdAt.Add(time.Hour)),
+	})
+	_, err := kv.Put(ctx, "user_by_oidc.subjecthash", []byte("U1"))
+	require.NoError(t, err)
+
+	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, user, createdAt, []string{"subjecthash"}, nil, testLogger())
+	require.NoError(t, err)
+	legacyPlaintextAccount := stamp(&corev1.Event{Event: &corev1.Event_UserAccountCreated{
+		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U1"},
+	}}, "system:migration", timestamppb.New(createdAt))
+	appendUserMigrationEntries(t, ctx, publisher, "U1", []events.BatchEntry{
+		{Subject: events.UserAggregate("U1").SubjectFor(legacyPlaintextAccount), Event: legacyPlaintextAccount},
+		entries[0],
+		entries[1],
+		entries[2],
+	}, 0)
+
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 6, info.State.Msgs)
+	eventsBySeq := readUserMigrationEvents(t, ctx, stream, 6)
+	require.Nil(t, eventsBySeq[0].GetUserAccountCreated().GetEncryptedLogin())
+	require.IsType(t, &corev1.Event_UserDekGenerated{}, eventsBySeq[1].GetEvent())
+	require.IsType(t, &corev1.Event_UserDekGenerated{}, eventsBySeq[2].GetEvent())
+	require.NotNil(t, eventsBySeq[3].GetUserAccountCreated().GetEncryptedLogin())
+	require.NotNil(t, eventsBySeq[4].GetUserVerifiedEmailAdded().GetEncryptedEmail())
+	require.Equal(t, "subjecthash", eventsBySeq[5].GetUserOidcSubjectLinked().GetSubjectHash())
+
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	infoReplay, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 6, infoReplay.State.Msgs)
+}
+
+func TestMigrateUsersToES_SkipsCorruptOptionalLegacyValues(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+	keyWrapper := setupUserMigrationKMS(t, ctx)
+
+	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+	user := &corev1.User{
+		Id:          "U1",
+		Login:       "Alice",
+		DisplayName: "Alice A.",
+		CreatedAt:   timestamppb.New(createdAt),
+	}
+	putProtoKV(t, ctx, kv, "user.U1", user)
+	_, err := kv.Put(ctx, "user.U1.avatar", []byte("not protobuf"))
+	require.NoError(t, err)
+	_, err = kv.Put(ctx, "user_login_changed_at.U1", []byte("not a timestamp"))
+	require.NoError(t, err)
+
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, info.State.Msgs)
+	eventsBySeq := readUserMigrationEvents(t, ctx, stream, 3)
+	require.IsType(t, &corev1.Event_UserDekGenerated{}, eventsBySeq[0].GetEvent())
+	require.IsType(t, &corev1.Event_UserDekGenerated{}, eventsBySeq[1].GetEvent())
+	require.IsType(t, &corev1.Event_UserAccountCreated{}, eventsBySeq[2].GetEvent())
+}
+
 func TestSortLegacyEmailEvents_UsesLegacyKeyForTimestampTies(t *testing.T) {
 	ts := timestamppb.New(time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC))
 	items := []legacyEmailEvent{{

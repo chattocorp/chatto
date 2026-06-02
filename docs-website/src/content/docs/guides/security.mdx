@@ -122,11 +122,11 @@ TLS is **not required**. Chatto can also run plain HTTP, which is useful for loc
 
 Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. The `ENCRYPTION_KEYS` bucket is **deliberately excluded** from backups for security reasons:
 
-- `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies if leaked.
+- `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
 
 `RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
-Encryption keys are exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
+Encryption keys are exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Restores need those keys to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
 <LinkCard
   title="Backup & Restore"

@@ -27,7 +27,7 @@ Certain streams are intentionally excluded:
 | Asset cache | Regeneratable (resized image variants) |
 
 <Aside type="caution">
-  Encryption keys are excluded from backups by design. Chatto always encrypts message bodies, so the encrypted content in the backup cannot be decrypted without the keys. See [Encryption key backup](#encryption-key-backup) below.
+  Encryption keys are excluded from backups by design. Chatto encrypts message bodies and durable user PII, so restored accounts and encrypted content cannot be decrypted without the keys. See [Encryption key backup](#encryption-key-backup) below.
 </Aside>
 
 <Aside type="note">
@@ -127,7 +127,7 @@ chatto restore backup.tar.gz -c chatto.toml --conflict=overwrite
 
 ## Encryption key backup
 
-Encryption keys are excluded from data backups by design — since Chatto always encrypts message bodies, this ensures that a leaked backup archive doesn't expose message content. To fully restore messages, you need to export the keys separately.
+Encryption keys are excluded from data backups by design — since Chatto encrypts message bodies and durable user PII, this ensures that a leaked backup archive doesn't expose that encrypted content. To fully restore accounts, profile indexes, and messages, export the keys separately.
 
 ### Exporting keys
 

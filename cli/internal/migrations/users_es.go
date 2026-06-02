@@ -218,7 +218,11 @@ func buildUserMigrationEntries(
 	}
 
 	if avatar, ok, err := getLegacyAvatar(ctx, kv, "user."+user.GetId()+".avatar"); err != nil {
-		return nil, cleanupKeyRefs, err
+		if isCorruptLegacyValue(err) {
+			logger.Warn("users ES migration: skipping corrupt legacy avatar", "user_id", user.GetId(), "error", err)
+		} else {
+			return nil, cleanupKeyRefs, err
+		}
 	} else if ok {
 		event := stamp(&corev1.Event{Event: &corev1.Event_UserAvatarSet{
 			UserAvatarSet: &corev1.UserAvatarSetEvent{
@@ -249,7 +253,11 @@ func buildUserMigrationEntries(
 	}
 
 	if changedAt, ok, err := getLegacyLoginChangedAt(ctx, kv, "user_login_changed_at."+user.GetId()); err != nil {
-		return nil, cleanupKeyRefs, err
+		if isCorruptLegacyValue(err) {
+			logger.Warn("users ES migration: skipping corrupt login cooldown timestamp", "user_id", user.GetId(), "error", err)
+		} else {
+			return nil, cleanupKeyRefs, err
+		}
 	} else if ok {
 		event := stamp(&corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
 			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{
@@ -365,24 +373,41 @@ func needsEncryptedUserRepair(existingEvents []*corev1.Event) bool {
 		return false
 	}
 	for _, event := range existingEvents {
-		if e := event.GetUserAccountCreated(); e != nil && e.GetEncryptedLogin() != nil && e.GetEncryptedDisplayName() != nil {
-			return false
+		if e := event.GetUserAccountCreated(); e != nil && (e.GetEncryptedLogin() == nil || e.GetEncryptedDisplayName() == nil) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func repairUserMigrationEntries(entries []events.BatchEntry, existingEvents []*corev1.Event) []events.BatchEntry {
 	seen := make(map[string]struct{})
+	hasEncryptedAccount := false
+	encryptedEmailCount := 0
 	for _, event := range existingEvents {
 		seen[userMigrationIdentity(event)] = struct{}{}
+		if account := event.GetUserAccountCreated(); account != nil && account.GetEncryptedLogin() != nil && account.GetEncryptedDisplayName() != nil {
+			hasEncryptedAccount = true
+		}
+		if email := event.GetUserVerifiedEmailAdded(); email != nil && email.GetEncryptedEmail() != nil {
+			encryptedEmailCount++
+		}
 	}
 
 	var out []events.BatchEntry
+	seenEmailEntries := 0
 	for _, entry := range entries {
 		eventType := events.EventTypeOf(entry.Event)
 		switch eventType {
-		case events.EventUserAccountCreated, events.EventUserVerifiedEmailAdded:
+		case events.EventUserAccountCreated:
+			if !hasEncryptedAccount {
+				out = append(out, entry)
+			}
+		case events.EventUserVerifiedEmailAdded:
+			if seenEmailEntries < encryptedEmailCount {
+				seenEmailEntries++
+				continue
+			}
 			out = append(out, entry)
 		default:
 			if _, ok := seen[userMigrationIdentity(entry.Event)]; !ok {
@@ -428,6 +453,14 @@ func cleanupMigrationKeyRefs(ctx context.Context, keyWrapper kms.KeyWrapper, key
 			logger.Warn("users ES migration: failed to clean up unused key ref", "key_ref", keyRef, "error", err)
 		}
 	}
+}
+
+func isCorruptLegacyValue(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.HasPrefix(msg, "unmarshal ") || strings.HasPrefix(msg, "parse ")
 }
 
 func getLegacyBytes(ctx context.Context, kv jetstream.KeyValue, key string) ([]byte, bool, error) {

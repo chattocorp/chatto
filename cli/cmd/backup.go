@@ -241,7 +241,7 @@ func runBackup(cmd *cobra.Command, args []string) {
 				"Treat the archive as sensitive material — keep it on trusted media or use --encrypt.")
 		} else {
 			log.Warn("Encryption keys are excluded from backups by default. " +
-				"Encrypted message bodies in this backup cannot be decrypted without the keys. " +
+				"Encrypted message bodies and durable user PII in this backup cannot be decrypted without the keys. " +
 				"Back up your encryption keys separately, or pass --include-keys to embed them.")
 		}
 	}

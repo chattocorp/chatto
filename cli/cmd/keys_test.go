@@ -13,8 +13,8 @@ import (
 
 func TestEncryptDecryptKeysRoundTrip(t *testing.T) {
 	keys := []ExportedKey{
-		{UserID: "user-alice", Key: []byte("01234567890123456789012345678901")}, // 32 bytes
-		{UserID: "user-bob", Key: []byte("abcdefghijklmnopqrstuvwxyz012345")},   // 32 bytes
+		{KeyRef: "kek.alice", Key: []byte("01234567890123456789012345678901")}, // 32 bytes
+		{UserID: "user-bob", Key: []byte("abcdefghijklmnopqrstuvwxyz012345")},  // legacy v2 shape
 	}
 
 	passphrase := "test-passphrase-123"
@@ -45,6 +45,9 @@ func TestEncryptDecryptKeysRoundTrip(t *testing.T) {
 	}
 
 	for i, dk := range decrypted {
+		if dk.KeyRef != keys[i].KeyRef {
+			t.Errorf("Key %d: KeyRef = %q, want %q", i, dk.KeyRef, keys[i].KeyRef)
+		}
 		if dk.UserID != keys[i].UserID {
 			t.Errorf("Key %d: UserID = %q, want %q", i, dk.UserID, keys[i].UserID)
 		}
@@ -80,6 +83,7 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		"user.alice":   []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), // 32 bytes
 		"user.bob":     []byte("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"),
 		"user.charlie": []byte("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"),
+		"kek.DEKRef01": []byte("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"),
 	}
 
 	for k, v := range testKeys {
@@ -99,21 +103,27 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("Exported %d keys, want %d", len(exported), len(testKeys))
 	}
 
+	exportedByRef := make(map[string][]byte)
 	exportedByUser := make(map[string][]byte)
 	for _, ek := range exported {
-		exportedByUser[ek.UserID] = ek.Key
+		exportedByRef[ek.KeyRef] = ek.Key
+		if ek.UserID != "" {
+			exportedByUser[ek.UserID] = ek.Key
+		}
 	}
 
 	for k, wantVal := range testKeys {
-		userID := k[5:] // strip "user." prefix
-		got, ok := exportedByUser[userID]
+		got, ok := exportedByRef[k]
 		if !ok {
-			t.Errorf("Missing exported key for user %s", userID)
+			t.Errorf("Missing exported key ref %s", k)
 			continue
 		}
 		if string(got) != string(wantVal) {
-			t.Errorf("Key for %s: got %q, want %q", userID, got, wantVal)
+			t.Errorf("Key for %s: got %q, want %q", k, got, wantVal)
 		}
+	}
+	if _, ok := exportedByUser["alice"]; !ok {
+		t.Error("legacy user key should still populate user_id")
 	}
 
 	// --- Encrypt to file and decrypt ---
@@ -142,18 +152,7 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		t.Fatal("Failed to create destination ENCRYPTION_KEYS bucket:", err)
 	}
 
-	var imported, skipped int
-	for _, key := range decrypted {
-		_, err := dstKV.Create(ctx, "user."+key.UserID, key.Key)
-		if err != nil {
-			if err.Error() == "key exists" {
-				skipped++
-				continue
-			}
-			t.Fatalf("Failed to import key for %s: %v", key.UserID, err)
-		}
-		imported++
-	}
+	imported, skipped := importKeys(ctx, dstKV, decrypted)
 
 	if imported != len(testKeys) {
 		t.Errorf("Imported %d keys, want %d", imported, len(testKeys))
@@ -177,9 +176,15 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 	// --- Verify: importing again skips existing keys ---
 
 	for _, key := range decrypted {
-		_, err := dstKV.Create(ctx, "user."+key.UserID, key.Key)
-		if err == nil {
-			t.Errorf("Expected key %s to already exist on second import", key.UserID)
+		if _, err := dstKV.Create(ctx, keyRefForImport(key), key.Key); err == nil {
+			t.Errorf("Expected key %s to already exist on second import", keyRefForImport(key))
 		}
+	}
+}
+
+func TestKeyRefForImport_LegacyV2UserID(t *testing.T) {
+	got := keyRefForImport(ExportedKey{UserID: "alice"})
+	if got != "user.alice" {
+		t.Fatalf("keyRefForImport legacy = %q, want user.alice", got)
 	}
 }

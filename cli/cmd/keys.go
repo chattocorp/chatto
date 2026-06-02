@@ -30,10 +30,13 @@ type KeyExport struct {
 	Keys      []ExportedKey `json:"keys"`
 }
 
-// ExportedKey is a single user's encryption key in the export.
+// ExportedKey is one raw ENCRYPTION_KEYS entry in the export.
 type ExportedKey struct {
-	UserID string `json:"user_id"`
-	Key    []byte `json:"key"` // raw 32-byte ChaCha20-Poly1305 key
+	// KeyRef is the literal ENCRYPTION_KEYS key. New KMS-backed entries use
+	// opaque refs such as "kek.Abc123"; legacy exports may only have UserID.
+	KeyRef string `json:"key_ref,omitempty"`
+	UserID string `json:"user_id,omitempty"`
+	Key    []byte `json:"key"` // raw 32-byte key-encryption key
 }
 
 var (
@@ -54,9 +57,9 @@ var keysExportCmd = &cobra.Command{
 	Long: `Exports all user encryption keys to a file, encrypted with a passphrase.
 
 The export file is encrypted using age (age-encryption.org) and contains
-all per-user encryption keys needed to decrypt message bodies. Store this
-file securely — anyone with the file and passphrase can decrypt all
-message content.
+all key-encryption keys needed to decrypt message bodies and encrypted
+durable user PII. Store this file securely — anyone with the file and
+passphrase can decrypt encrypted Chatto content.
 
 Use together with 'chatto backup' for complete disaster recovery:
   1. chatto backup -c chatto.toml
@@ -182,21 +185,40 @@ func runKeysImport(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
 	}
 
-	var imported, skipped int
+	imported, skipped := importKeys(ctx, kv, keys)
+
+	log.Info("Key import complete", "imported", imported, "skipped_existing", skipped)
+}
+
+func keyRefForImport(key ExportedKey) string {
+	if key.KeyRef != "" {
+		return key.KeyRef
+	}
+	if key.UserID == "" {
+		return ""
+	}
+	return "user." + key.UserID
+}
+
+func importKeys(ctx context.Context, kv jetstream.KeyValue, keys []ExportedKey) (imported int, skipped int) {
 	for _, key := range keys {
-		_, err := kv.Create(ctx, "user."+key.UserID, key.Key)
+		keyRef := keyRefForImport(key)
+		if keyRef == "" {
+			log.Error("Failed to import key", "error", "missing key_ref/user_id")
+			continue
+		}
+		_, err := kv.Create(ctx, keyRef, key.Key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyExists) {
 				skipped++
 				continue
 			}
-			log.Error("Failed to import key", "user_id", key.UserID, "error", err)
+			log.Error("Failed to import key", "key_ref", keyRef, "user_id", key.UserID, "error", err)
 			continue
 		}
 		imported++
 	}
-
-	log.Info("Key import complete", "imported", imported, "skipped_existing", skipped)
+	return imported, skipped
 }
 
 // exportAllKeys reads all entries from the ENCRYPTION_KEYS KV bucket.
@@ -216,16 +238,14 @@ func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, e
 			return nil, fmt.Errorf("failed to get key %s: %w", key, err)
 		}
 
-		// Strip "user." prefix if present
-		userID := key
-		if len(key) > 5 && key[:5] == "user." {
-			userID = key[5:]
-		}
-
-		exported = append(exported, ExportedKey{
-			UserID: userID,
+		exportedKey := ExportedKey{
+			KeyRef: key,
 			Key:    entry.Value(),
-		})
+		}
+		if strings.HasPrefix(key, "user.") {
+			exportedKey.UserID = strings.TrimPrefix(key, "user.")
+		}
+		exported = append(exported, exportedKey)
 	}
 
 	return exported, nil
@@ -234,7 +254,7 @@ func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, e
 // encryptKeysToFile encrypts keys with age and writes them to a file.
 func encryptKeysToFile(keys []ExportedKey, passphrase, filePath string) error {
 	export := KeyExport{
-		Version:   2,
+		Version:   3,
 		CreatedAt: time.Now().UTC(),
 		KeyCount:  len(keys),
 		Keys:      keys,
@@ -300,8 +320,8 @@ func decryptKeysFromFile(filePath, passphrase string) ([]ExportedKey, error) {
 		return nil, fmt.Errorf("failed to parse key export: %w", err)
 	}
 
-	if export.Version != 2 {
-		return nil, fmt.Errorf("unsupported key export version: %d (expected 2)", export.Version)
+	if export.Version != 2 && export.Version != 3 {
+		return nil, fmt.Errorf("unsupported key export version: %d (expected 2 or 3)", export.Version)
 	}
 
 	return export.Keys, nil
