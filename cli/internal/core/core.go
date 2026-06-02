@@ -703,6 +703,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		bootDone:                make(chan struct{}),
 	}
 
+	if err := core.migrateLegacyCallStateToMemoryCache(ctx); err != nil {
+		logger.Warn("Failed to copy legacy CALL_STATE entries into MEMORY_CACHE", "error", err)
+	}
+
 	if err := core.migrateRBACToES(ctx); err != nil {
 		return nil, fmt.Errorf("failed to migrate RBAC to ES: %w", err)
 	}
@@ -753,7 +757,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	// Initialize presence hub (single KV watcher per process). Started
 	// by core.Run alongside the projectors.
-	core.PresenceHub = NewPresenceHub(storage.presenceKV, logger)
+	core.PresenceHub = NewPresenceHub(storage.memoryCacheKV, logger)
 
 	return core, nil
 }
@@ -793,9 +797,9 @@ type storage struct {
 	serverAttachments jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
 	serverEvtStream   jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
 
-	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
-	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
-	callStateKV     jetstream.KeyValue    // Active voice call participants (ephemeral, memory-backed)
+	memoryCacheKV     jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	imageCacheStore   jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
+	legacyCallStateKV jetstream.KeyValue    // CALL_STATE - legacy active voice call import source
 }
 
 // newStorage initializes current JetStream resources and opens existing legacy
@@ -816,20 +820,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create INSTANCE object store: %w", err)
-	}
-
-	// Initialize server-level presence KV bucket (memory-based with TTL)
-	presenceKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:         "USER_PRESENCE",
-		Description:    "Instance-level user presence status",
-		Storage:        jetstream.MemoryStorage, // Memory-based for speed, no persistence needed
-		TTL:            PresenceTTL,             // Auto-expire entries that aren't refreshed
-		History:        1,                       // Only current value needed
-		LimitMarkerTTL: PresenceTTL,             // Emit delete markers on TTL expiry so watchers get notified
-		Replicas:       cfg.Replicas,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create PRESENCE KV bucket: %w", err)
 	}
 
 	// Initialize encryption keys KV bucket (excluded from backups for security)
@@ -862,6 +852,18 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create RUNTIME_STATE KV bucket: %w", err)
 	}
 
+	memoryCacheKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:         "MEMORY_CACHE",
+		Description:    "Volatile memory-backed runtime cache state",
+		Storage:        jetstream.MemoryStorage,
+		History:        1,
+		Replicas:       cfg.Replicas,
+		LimitMarkerTTL: PresenceTTL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MEMORY_CACHE KV bucket: %w", err)
+	}
+
 	// Initialize image cache object store (optional, only when enabled)
 	var imageCacheStore jetstream.ObjectStore
 	if cfg.Assets.Cache.Enabled {
@@ -878,19 +880,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	// Initialize call state KV bucket (memory-backed, ephemeral)
-	// Tracks active voice call participants. Keys: {spaceId}.{roomId} → JSON participant list.
-	// Memory storage is intentional: call state is transient and will be repopulated
-	// by LiveKit webhooks after a server restart.
-	callStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "CALL_STATE",
-		Description: "Active voice call participants (ephemeral)",
-		Storage:     jetstream.MemoryStorage,
-		History:     1,
-		Replicas:    cfg.Replicas,
-	})
+	legacyCallStateKV, err := openLegacyKeyValue(ctx, js, "CALL_STATE")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create CALL_STATE KV bucket: %w", err)
+		return nil, fmt.Errorf("failed to open legacy CALL_STATE KV bucket: %w", err)
 	}
 
 	serverConfigKV, err := openLegacyKeyValue(ctx, js, "SERVER_CONFIG")
@@ -975,9 +967,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverAttachments:  serverAttachments,
 		serverEventsStream: serverEventsStream,
 		serverEvtStream:    serverEvtStream,
-		presenceKV:         presenceKV,
+		memoryCacheKV:      memoryCacheKV,
 		imageCacheStore:    imageCacheStore,
-		callStateKV:        callStateKV,
+		legacyCallStateKV:  legacyCallStateKV,
 	}, nil
 }
 

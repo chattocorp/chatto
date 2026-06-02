@@ -55,8 +55,12 @@ type callState struct {
 	Participants []CallParticipant `json:"participants"`
 }
 
-// callStateKey builds the CALL_STATE KV key for a room's call.
+// callStateKey builds the MEMORY_CACHE KV key for a room's call.
 func callStateKey(spaceID, roomID string) string {
+	return "call." + spaceID + "." + roomID
+}
+
+func legacyCallStateKey(spaceID, roomID string) string {
 	return spaceID + "." + roomID
 }
 
@@ -195,7 +199,7 @@ func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, spaceID, roo
 
 		if len(filtered) == 0 {
 			// Call is now empty — delete the key
-			_ = c.storage.callStateKV.Delete(ctx, key)
+			_ = c.storage.memoryCacheKV.Delete(ctx, key)
 			return c.PublishCallParticipantLeft(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID)
 		}
 
@@ -225,7 +229,7 @@ func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, spaceID, roomID
 	}
 
 	// Delete the key
-	_ = c.storage.callStateKV.Delete(ctx, key)
+	_ = c.storage.memoryCacheKV.Delete(ctx, key)
 	return nil
 }
 
@@ -238,20 +242,21 @@ func (c *ChattoCore) GetCallParticipants(ctx context.Context, spaceID, roomID st
 }
 
 // GetActiveCallRoomIDs returns the room IDs in a space that have active voice calls.
-// Reads from the in-memory CALL_STATE KV bucket (no external API calls).
+// Reads from the in-memory MEMORY_CACHE KV bucket (no external API calls).
 // Authorization: Caller must verify space membership before calling.
 func (c *ChattoCore) GetActiveCallRoomIDs(ctx context.Context, spaceID string) ([]string, error) {
-	prefix := spaceID + "."
-	keys, err := c.storage.callStateKV.Keys(ctx)
+	prefix := "call." + spaceID + "."
+	lister, err := c.storage.memoryCacheKV.ListKeysFiltered(ctx, prefix+">")
 	if errors.Is(err, jetstream.ErrNoKeysFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("list call state keys: %w", err)
 	}
+	defer lister.Stop()
 
 	var roomIDs []string
-	for _, key := range keys {
+	for key := range lister.Keys() {
 		if strings.HasPrefix(key, prefix) {
 			roomIDs = append(roomIDs, key[len(prefix):])
 		}
@@ -270,7 +275,7 @@ const maxCallStateRetries = 5
 
 // readCallState reads and unmarshals call state from KV. Returns empty state on miss.
 func (c *ChattoCore) readCallState(ctx context.Context, key string) callStateEntry {
-	entry, err := c.storage.callStateKV.Get(ctx, key)
+	entry, err := c.storage.memoryCacheKV.Get(ctx, key)
 	if err != nil {
 		return callStateEntry{}
 	}
@@ -289,11 +294,54 @@ func (c *ChattoCore) writeCallState(ctx context.Context, key string, state *call
 		return fmt.Errorf("marshal call state: %w", err)
 	}
 	if revision == 0 {
-		_, err = c.storage.callStateKV.Create(ctx, key, data)
+		_, err = c.storage.memoryCacheKV.Create(ctx, key, data)
 	} else {
-		_, err = c.storage.callStateKV.Update(ctx, key, data, revision)
+		_, err = c.storage.memoryCacheKV.Update(ctx, key, data, revision)
 	}
 	return err
+}
+
+func (c *ChattoCore) migrateLegacyCallStateToMemoryCache(ctx context.Context) error {
+	if c.storage.legacyCallStateKV == nil {
+		return nil
+	}
+
+	lister, err := c.storage.legacyCallStateKV.ListKeys(ctx)
+	if errors.Is(err, jetstream.ErrNoKeysFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("list legacy call state keys: %w", err)
+	}
+	defer lister.Stop()
+
+	copied := 0
+	for key := range lister.Keys() {
+		entry, err := c.storage.legacyCallStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return fmt.Errorf("get legacy call state %s: %w", key, err)
+		}
+		parts := strings.SplitN(key, ".", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			c.logger.Warn("Skipping malformed legacy call state key", "key", key)
+			continue
+		}
+		newKey := callStateKey(parts[0], parts[1])
+		if _, err := c.storage.memoryCacheKV.Create(ctx, newKey, entry.Value()); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			}
+			return fmt.Errorf("copy legacy call state %s: %w", key, err)
+		}
+		copied++
+	}
+	if copied > 0 {
+		c.logger.Info("Copied legacy CALL_STATE entries into MEMORY_CACHE", "copied", copied)
+	}
+	return nil
 }
 
 // PublishCallParticipantJoined publishes a live event notifying room members

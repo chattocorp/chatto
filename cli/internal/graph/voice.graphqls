@@ -12,7 +12,6 @@ type VoiceCallToken {
 
 """
 A participant currently in a voice call.
-Sourced from the server-side CALL_STATE KV bucket (populated by LiveKit webhooks).
 """
 type CallParticipant {
   "The user's ID."

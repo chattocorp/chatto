@@ -337,6 +337,9 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
+	if _, err := core.storage.memoryCacheKV.Get(ctx, callStateKey("channel", roomID)); err != nil {
+		t.Fatalf("expected call state in MEMORY_CACHE: %v", err)
+	}
 
 	participants, err = core.GetCallParticipants(ctx, "channel", roomID)
 	if err != nil {

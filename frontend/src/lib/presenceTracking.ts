@@ -39,7 +39,10 @@ export function initPresenceTracking(
   function setPresenceStatus(status: PresenceStatus) {
     onStatusChange?.(status);
     for (const client of getClients()) {
-      client.mutation(UpdateMyPresenceDoc, { input: { status } }).toPromise().catch(() => {});
+      client
+        .mutation(UpdateMyPresenceDoc, { input: { status } })
+        .toPromise()
+        .catch(() => {});
     }
   }
 

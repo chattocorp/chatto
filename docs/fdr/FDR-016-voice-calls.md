@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-01
 
 ## Overview
 
@@ -20,13 +20,13 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 
 ### 1. LiveKit webhooks are the sole source of participant state changes
 
-**Decision:** Participant join/leave events come from LiveKit's webhooks, never from client-side mutations. Chatto's `CALL_STATE` KV bucket is updated only in response to a `participant_joined`, `participant_left`, or `room_finished` webhook.
+**Decision:** Participant join/leave events come from LiveKit's webhooks, never from client-side mutations. Chatto's `MEMORY_CACHE` call state (`call.{spaceId}.{roomId}`) is updated only in response to a `participant_joined`, `participant_left`, or `room_finished` webhook.
 **Why:** Client-driven join/leave is brittle — a crashed tab or lost network never sends the leave mutation, and the participant looks stuck in the call forever. LiveKit detects WebRTC transport-level disconnects and fires `participant_left` whether the client cooperated or not. See ADR-009.
 **Tradeoff:** Joining is slightly delayed for remote observers (the webhook has to round-trip from LiveKit to Chatto before others see you). Acceptable in exchange for never-stuck participants. The local user sees themselves immediately because the LiveKit Room object exposes local state without the webhook.
 
 ### 2. Call state is memory-backed, deliberately ephemeral
 
-**Decision:** The `CALL_STATE` KV bucket uses `MemoryStorage`. If Chatto restarts, the call state vanishes.
+**Decision:** Call state lives in the memory-backed, non-backed-up `MEMORY_CACHE` bucket. If JetStream restarts, the call state vanishes. The retired `CALL_STATE` bucket is copied into `MEMORY_CACHE` on boot when present so active calls survive the storage rename during upgrade.
 **Why:** Call state is "who's connected right now". After a restart, the source of truth is LiveKit — and as participants reconnect, the webhooks repopulate the state automatically. Persisting it would waste storage and risk showing a stale "who's in the call" list across restarts.
 **Tradeoff:** A brief window after restart where the API reports no active calls until participants reconnect and webhooks land. Acceptable for an ephemeral concept.
 

@@ -343,6 +343,8 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 // KV_ENCRYPTION_KEYS is backed up; the archive must then be treated as sensitive.
 func skipReason(name string, includeKeys bool) string {
 	switch name {
+	case "KV_MEMORY_CACHE":
+		return "ephemeral (memory storage)"
 	case "KV_USER_PRESENCE":
 		return "ephemeral (memory storage)"
 	case "KV_CALL_STATE":

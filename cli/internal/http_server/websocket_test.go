@@ -390,8 +390,8 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	sendWSMessage(t, conn, graphqlWSMessage{Type: "connection_init"})
 	readWSMessage(t, conn, 5*time.Second) // connection_ack
 
-	// myEvents is deployment-wide and takes no args. Two subscriptions
-	// over the single feed exercise the multi-subscription dispatch path.
+	// myEvents is deployment-wide. Two subscriptions over the single feed
+	// exercise the multi-subscription dispatch path.
 	for i := 0; i < 2; i++ {
 		payload, _ := json.Marshal(subscriptionPayload{
 			Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,

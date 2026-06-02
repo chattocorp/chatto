@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -60,15 +60,25 @@ func presenceStatusToString(status corev1.UserPresenceStatus) string {
 // Key Helpers
 // ============================================================================
 
-// presenceKey returns the KV key for a user's presence.
+const maxPresenceWriteRetries = 5
+
+// presenceKey returns the MEMORY_CACHE key for a user's live presence state.
 func presenceKey(userID string) string {
 	return fmt.Sprintf("presence.%s", userID)
 }
 
-// parseUserIDFromPresenceKey extracts the userID from a presence key.
+// parsePresenceKey extracts userID from a presence key.
 // Key format: presence.{userId}
-func parseUserIDFromPresenceKey(key string) string {
-	return strings.TrimPrefix(key, "presence.")
+func parsePresenceKey(key string) (userID string, ok bool) {
+	const prefix = "presence."
+	if len(key) <= len(prefix) || key[:len(prefix)] != prefix {
+		return "", false
+	}
+	userID = key[len(prefix):]
+	if userID == "" {
+		return "", false
+	}
+	return userID, true
 }
 
 // ============================================================================
@@ -78,19 +88,20 @@ func parseUserIDFromPresenceKey(key string) string {
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
 func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string, error) {
-	entry, err := c.storage.presenceKV.Get(ctx, presenceKey(userID))
+	entry, err := c.storage.memoryCacheKV.Get(ctx, presenceKey(userID))
 	if err != nil {
-		// Key not found means user is offline
-		if err == jetstream.ErrKeyNotFound {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return PresenceStatusOffline, nil
 		}
 		return PresenceStatusOffline, fmt.Errorf("failed to get presence: %w", err)
 	}
-
-	// Unmarshal protobuf payload
+	if entry.Operation() == jetstream.KeyValueDelete ||
+		entry.Operation() == jetstream.KeyValuePurge {
+		return PresenceStatusOffline, nil
+	}
 	presence := &corev1.UserPresence{}
 	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
-		c.logger.Warn("Failed to unmarshal presence, treating as offline",
+		c.logger.Warn("Failed to unmarshal presence, treating user as offline",
 			"error", err, "user_id", userID)
 		return PresenceStatusOffline, nil
 	}
@@ -98,10 +109,9 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 	return presenceStatusToString(presence.Status), nil
 }
 
-// SetPresence writes/refreshes a user's presence in the bucket.
+// SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
 func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
-	// Create and marshal protobuf message
 	presence := &corev1.UserPresence{
 		Status: presenceStatusFromString(status),
 	}
@@ -111,8 +121,7 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 		return fmt.Errorf("failed to marshal presence: %w", err)
 	}
 
-	_, err = c.storage.presenceKV.Put(ctx, presenceKey(userID), data)
-	return err
+	return c.writePresence(ctx, presenceKey(userID), data)
 }
 
 // refreshPresence reads the current presence value from KV and re-puts it
@@ -123,9 +132,10 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 // SetPresence call from updateMyPresence. If the revision has changed between Get and
 // Update, the newer value is preserved and we silently skip the refresh.
 func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
-	entry, err := c.storage.presenceKV.Get(ctx, presenceKey(userID))
+	key := presenceKey(userID)
+	entry, err := c.storage.memoryCacheKV.Get(ctx, key)
 	if err != nil {
-		if err == jetstream.ErrKeyNotFound {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			// Entry expired between ticks — re-set to ONLINE as safe default
 			return c.SetPresence(ctx, userID, PresenceStatusOnline)
 		}
@@ -135,11 +145,11 @@ func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	// Re-put the same value to refresh TTL using optimistic locking.
 	// If a concurrent SetPresence modified the entry, Update fails and
 	// the newer status is preserved — which is the correct behavior.
-	_, err = c.storage.presenceKV.Update(ctx, presenceKey(userID), entry.Value(), entry.Revision())
+	_, err = c.putPresenceWithTTL(ctx, key, entry.Value(), entry.Revision())
 	if err != nil {
 		// ErrKeyExists means the revision changed (concurrent write) — that's fine,
 		// the newer value already has a fresh TTL from the concurrent Put.
-		if err == jetstream.ErrKeyExists {
+		if errors.Is(err, jetstream.ErrKeyExists) {
 			return nil
 		}
 		return fmt.Errorf("failed to refresh presence: %w", err)
@@ -147,35 +157,43 @@ func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	return nil
 }
 
-// kvEntryToPresenceChange converts a KV entry to a PresenceChange proto.
-// Handles both PUT operations (user came online/changed status) and DELETE operations (user went offline).
-func (c *ChattoCore) kvEntryToPresenceChange(entry jetstream.KeyValueEntry) *corev1.PresenceChange {
-	// Extract userID from key (format: presence.{userId})
-	userID := parseUserIDFromPresenceKey(entry.Key())
-
-	// Handle deletion (TTL expiry or explicit delete)
-	if entry.Operation() == jetstream.KeyValueDelete ||
-		entry.Operation() == jetstream.KeyValuePurge {
-		return &corev1.PresenceChange{
-			UserId: userID,
-			Status: PresenceStatusOffline,
+func (c *ChattoCore) writePresence(ctx context.Context, key string, data []byte) error {
+	for attempt := 0; attempt < maxPresenceWriteRetries; attempt++ {
+		entry, err := c.storage.memoryCacheKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				_, err = c.storage.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
+				if errors.Is(err, jetstream.ErrKeyExists) {
+					continue
+				}
+				return err
+			}
+			return fmt.Errorf("failed to read presence: %w", err)
 		}
-	}
 
-	// Unmarshal protobuf payload
-	presence := &corev1.UserPresence{}
-	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
-		c.logger.Warn("Failed to unmarshal presence change, treating as offline",
-			"error", err, "user_id", userID)
-		return &corev1.PresenceChange{
-			UserId: userID,
-			Status: PresenceStatusOffline,
+		_, err = c.putPresenceWithTTL(ctx, key, data, entry.Revision())
+		if err == nil {
+			return nil
 		}
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			continue
+		}
+		return err
 	}
 
-	return &corev1.PresenceChange{
-		UserId: userID,
-		Status: presenceStatusToString(presence.Status),
-	}
+	return fmt.Errorf("presence update failed after %d retries", maxPresenceWriteRetries)
 }
 
+func (c *ChattoCore) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
+	ack, err := c.js.Publish(
+		ctx,
+		"$KV.MEMORY_CACHE."+key,
+		data,
+		jetstream.WithExpectLastSequencePerSubject(revision),
+		jetstream.WithMsgTTL(PresenceTTL),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ack.Sequence, nil
+}

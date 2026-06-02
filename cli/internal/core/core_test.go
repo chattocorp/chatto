@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -162,13 +163,67 @@ func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testi
 		"SERVER_RUNTIME",
 		"SERVER_BODIES",
 		"SERVER_REACTIONS",
+		"USER_PRESENCE",
+		"CALL_STATE",
 	} {
 		if _, err := core.js.KeyValue(ctx, bucket); !errors.Is(err, jetstream.ErrBucketNotFound) {
 			t.Fatalf("legacy bucket %s lookup error = %v, want ErrBucketNotFound", bucket, err)
 		}
 	}
+	if _, err := core.js.KeyValue(ctx, "MEMORY_CACHE"); err != nil {
+		t.Fatalf("MEMORY_CACHE lookup error = %v", err)
+	}
 	if _, err := core.js.Stream(ctx, "SERVER_EVENTS"); !errors.Is(err, jetstream.ErrStreamNotFound) {
 		t.Fatalf("legacy stream SERVER_EVENTS lookup error = %v, want ErrStreamNotFound", err)
+	}
+}
+
+func TestNewChattoCore_CopiesLegacyCallStateToMemoryCache(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+
+	legacy, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  "CALL_STATE",
+		Storage: jetstream.MemoryStorage,
+		History: 1,
+	})
+	if err != nil {
+		t.Fatalf("create legacy CALL_STATE: %v", err)
+	}
+	state := callState{Participants: []CallParticipant{{
+		UserID:      "user-1",
+		DisplayName: "Alice",
+		Login:       "alice",
+		JoinedAt:    123,
+	}}}
+	data, err := json.Marshal(&state)
+	if err != nil {
+		t.Fatalf("marshal call state: %v", err)
+	}
+	if _, err := legacy.Put(ctx, legacyCallStateKey("channel", "room-1"), data); err != nil {
+		t.Fatalf("put legacy call state: %v", err)
+	}
+
+	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+
+	participants, err := core.GetCallParticipants(ctx, "channel", "room-1")
+	if err != nil {
+		t.Fatalf("GetCallParticipants: %v", err)
+	}
+	if len(participants) != 1 || participants[0].UserID != "user-1" {
+		t.Fatalf("participants = %+v, want copied legacy participant user-1", participants)
 	}
 }
 

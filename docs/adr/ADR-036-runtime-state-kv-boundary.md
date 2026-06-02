@@ -35,7 +35,8 @@ The storage boundary is:
 - If a value is durable latest-value runtime/user/operational state, it belongs
   in `RUNTIME_STATE`.
 - If a value is purely transient process state, it can remain in memory or a
-  memory-backed KV bucket.
+  memory-backed KV bucket. Shared volatile cache state that must be visible
+  across Chatto processes belongs in `MEMORY_CACHE`.
 - If a value is binary/object data, it belongs in the appropriate object store.
 - Administrator-managed configuration stays in the existing configuration
   buckets because it is configuration, not runtime state.
@@ -100,6 +101,14 @@ canonical state.
   splitting each feature into its own bucket.
 - Security-sensitive exceptions remain explicit. In particular,
   `ENCRYPTION_KEYS` is not folded into this bucket.
+- `MEMORY_CACHE` is the companion non-durable bucket for cross-process
+  volatile state. It uses memory storage, one version per key, the deployment's
+  replica count, no global TTL, and a limit-marker TTL for expiring presence
+  sessions. It is excluded from backups and is expected to clear on a full
+  JetStream restart. Current occupants are user presence records
+  `presence.{userId}` with per-key TTL and active voice calls
+  `call.{spaceId}.{roomId}`. The retired `USER_PRESENCE` and `CALL_STATE`
+  buckets are legacy import sources only; fresh boots do not provision them.
 
 ## Related
 

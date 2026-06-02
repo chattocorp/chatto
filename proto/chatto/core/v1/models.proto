@@ -142,8 +142,8 @@ enum UserPresenceStatus {
   USER_PRESENCE_STATUS_DO_NOT_DISTURB = 2;
 }
 
-// UserPresence represents a user's current presence in a space.
-// Stored in USER_PRESENCE KV bucket.
+// UserPresence represents a user's current live presence status.
+// Stored under presence.{userId} in MEMORY_CACHE.
 message UserPresence {
   UserPresenceStatus status = 1;
 }

@@ -134,7 +134,6 @@ type AssignRoleInput struct {
 }
 
 // A participant currently in a voice call.
-// Sourced from the server-side CALL_STATE KV bucket (populated by LiveKit webhooks).
 type CallParticipant struct {
 	// The user's ID.
 	UserID string `json:"userId"`
@@ -427,7 +426,7 @@ type LeaveRoomInput struct {
 
 // Input type for passing link preview data from client to server.
 // The client fetches preview metadata via the linkPreview query, then includes
-// the data in the postMessage mutation so the server stores it directly.
+// the data in the postMessage mutation so it can be attached to the message.
 type LinkPreviewInput struct {
 	// The URL that was previewed.
 	URL string `json:"url"`
@@ -511,14 +510,14 @@ type PermissionExplanation struct {
 }
 
 // A single step in the permission resolution trace.
-// Only entries actually backed by a KV value are emitted (allow or deny);
-// roles with no entry at the level being checked are silent.
+// Only explicit allow or deny entries are emitted; roles with no decision at the
+// level being checked are silent.
 type PermissionTraceEntry struct {
 	// The level at which this decision was observed.
 	Level PermissionLevel `json:"level"`
-	// The role whose KV produced this decision.
+	// The role that produced this decision.
 	RoleName string `json:"roleName"`
-	// Whether the role's KV said allow or deny at this level.
+	// Whether the role allowed or denied the permission at this level.
 	Decision PermissionDecisionKind `json:"decision"`
 	// Whether this entry is the winning decision (matches the trace head).
 	Applied bool `json:"applied"`
@@ -822,7 +821,7 @@ type Server struct {
 	LivekitURL *string `json:"livekitUrl,omitempty"`
 	// True if direct (email/password) registration is enabled on this server.
 	DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
-	// True if server-side video processing is enabled, allowing video attachments to be uploaded.
+	// True if video processing is enabled, allowing video attachments to be uploaded.
 	VideoProcessingEnabled bool `json:"videoProcessingEnabled"`
 	// Maximum upload size for regular attachments (images, files) in bytes.
 	MaxUploadSize int32 `json:"maxUploadSize"`
@@ -1283,9 +1282,9 @@ func (e FitMode) MarshalJSON() ([]byte, error) {
 type PermissionDecisionKind string
 
 const (
-	// The role's KV grants the permission.
+	// The role explicitly grants the permission.
 	PermissionDecisionKindAllow PermissionDecisionKind = "ALLOW"
-	// The role's KV denies the permission.
+	// The role explicitly denies the permission.
 	PermissionDecisionKindDeny PermissionDecisionKind = "DENY"
 	// Used only for overall State; the resolver found no allow or deny anywhere.
 	PermissionDecisionKindNone PermissionDecisionKind = "NONE"

@@ -1,6 +1,6 @@
 """
 User display preferences for time and date formatting.
-Stored server-side so preferences persist across devices.
+Preferences persist across devices.
 """
 type UserSettings {
   "IANA timezone name (e.g., 'Europe/Berlin'). Null means use browser timezone."

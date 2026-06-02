@@ -1,10 +1,10 @@
 """
 Event wraps all typed Chatto events.
 
-Room queries and server subscriptions are delivery contexts over the same EVT
-envelope. Room-scoped events are returned only when the current user can see
-the affected room; deployment-scoped events are delivered according to their
-audience.
+Room queries and server subscriptions are delivery contexts over the same
+event envelope. Room-scoped events are returned only when the current user can
+see the affected room; deployment-scoped events are delivered according to
+their audience.
 """
 type Event {
   "Universal event identifier."
@@ -275,9 +275,9 @@ Event: A message was posted
 type MessagePostedEvent {
   "The ID of the room where the message was posted."
   roomId: ID!
-  "The message content resolved from the message projection. Null if deleted."
+  "The message content. Null if deleted."
   body: String @goField(forceResolver: true)
-  "Attachments for this message, resolved from the message projection."
+  "Attachments for this message."
   attachments: [Attachment!]! @goField(forceResolver: true)
   "Event ID of the message this is replying to (null for top-level messages)."
   inReplyTo: ID @goField(forceResolver: true)
@@ -472,8 +472,8 @@ type PresenceChangedEvent {
 """
 Notification: A user was mentioned in a message.
 This is a live-only notification event for toast displays.
-Persistent pending-attention state is tracked separately by NotificationCreatedEvent
-and the user's notification records in RUNTIME_STATE.
+Persistent pending-attention state is represented separately by
+NotificationCreatedEvent and the user's notification records.
 """
 type MentionNotificationEvent {
   "The ID of the room where the mention occurred."
@@ -572,8 +572,7 @@ type HeartbeatEvent {
 
 """
 Event: The user's session was terminated.
-Published on logout or admin boot. The subscription stream closes after this event,
-tearing down the WebSocket connection server-side.
+Published on logout or admin boot. The subscription closes after this event.
 """
 type SessionTerminatedEvent {
   "Why the session was terminated (logout, admin_boot, account_deleted)."

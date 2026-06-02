@@ -20,7 +20,7 @@ extend type User {
 extend type Mutation {
   """
   Update the current user's presence status.
-  Status persists until changed or the user disconnects (TTL expiry).
+  Status applies to the current user on this server.
   OFFLINE is not a valid input — to go offline, simply disconnect.
   """
   updateMyPresence(input: UpdateMyPresenceInput!): Boolean!

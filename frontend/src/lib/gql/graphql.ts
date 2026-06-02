@@ -292,10 +292,7 @@ export type AttachmentUrlArgs = {
   width?: InputMaybe<Scalars['Int']['input']>;
 };
 
-/**
- * A participant currently in a voice call.
- * Sourced from the server-side CALL_STATE KV bucket (populated by LiveKit webhooks).
- */
+/** A participant currently in a voice call. */
 export type CallParticipant = {
   __typename?: 'CallParticipant';
   /** The user's avatar URL (may be null if no avatar is set). */
@@ -530,10 +527,10 @@ export type DismissNotificationInput = {
 /**
  * Event wraps all typed Chatto events.
  *
- * Room queries and server subscriptions are delivery contexts over the same EVT
- * envelope. Room-scoped events are returned only when the current user can see
- * the affected room; deployment-scoped events are delivered according to their
- * audience.
+ * Room queries and server subscriptions are delivery contexts over the same
+ * event envelope. Room-scoped events are returned only when the current user can
+ * see the affected room; deployment-scoped events are delivered according to
+ * their audience.
  */
 export type Event = {
   __typename?: 'Event';
@@ -754,7 +751,7 @@ export type LinkPreviewImageUrlArgs = {
 /**
  * Input type for passing link preview data from client to server.
  * The client fetches preview metadata via the linkPreview query, then includes
- * the data in the postMessage mutation so the server stores it directly.
+ * the data in the postMessage mutation so it can be attached to the message.
  */
 export type LinkPreviewInput = {
   /** The page description. */
@@ -818,8 +815,8 @@ export type MarkThreadAsReadResult = {
 /**
  * Notification: A user was mentioned in a message.
  * This is a live-only notification event for toast displays.
- * Persistent pending-attention state is tracked separately by NotificationCreatedEvent
- * and the user's notification records in RUNTIME_STATE.
+ * Persistent pending-attention state is represented separately by
+ * NotificationCreatedEvent and the user's notification records.
  */
 export type MentionNotificationEvent = {
   __typename?: 'MentionNotificationEvent';
@@ -888,9 +885,9 @@ export type MessageEditedEvent = {
 /** Event: A message was posted */
 export type MessagePostedEvent = {
   __typename?: 'MessagePostedEvent';
-  /** Attachments for this message, resolved from the message projection. */
+  /** Attachments for this message. */
   attachments: Array<Attachment>;
-  /** The message content resolved from the message projection. Null if deleted. */
+  /** The message content. Null if deleted. */
   body?: Maybe<Scalars['String']['output']>;
   /** The thread this echo originates from (null for non-echo messages). */
   echoFromThreadRootEventId?: Maybe<Scalars['ID']['output']>;
@@ -1013,7 +1010,7 @@ export type Mutation = {
   createRoomGroup: RoomGroup;
   /**
    * Delete an attachment from a message. Only the message author can delete their attachments.
-   * Removes the attachment from the message and deletes the file from storage.
+   * Removes the attachment from the message.
    * Returns true on success.
    */
   deleteAttachment: Scalars['Boolean']['output'];
@@ -1030,7 +1027,7 @@ export type Mutation = {
   deleteLinkPreview: Scalars['Boolean']['output'];
   /**
    * Delete a message body for GDPR compliance.
-   * The message event remains in the stream for audit trail, but the content is removed.
+   * The message remains as a retracted/deleted entry, but the content is removed.
    * Requires either delete_any_message permission (moderator) or delete_own_message permission
    * and ownership of the message.
    * Returns true on success.
@@ -1249,7 +1246,7 @@ export type Mutation = {
   updateMessage: Scalars['Boolean']['output'];
   /**
    * Update the current user's presence status.
-   * Status persists until changed or the user disconnects (TTL expiry).
+   * Status applies to the current user on this server.
    * OFFLINE is not a valid input — to go offline, simply disconnect.
    */
   updateMyPresence: Scalars['Boolean']['output'];
@@ -1723,9 +1720,9 @@ export type NotificationLevelChangedEvent = {
 
 /** The kind of decision a role contributed at a given level. */
 export enum PermissionDecisionKind {
-  /** The role's KV grants the permission. */
+  /** The role explicitly grants the permission. */
   Allow = 'ALLOW',
-  /** The role's KV denies the permission. */
+  /** The role explicitly denies the permission. */
   Deny = 'DENY',
   /** Used only for overall State; the resolver found no allow or deny anywhere. */
   None = 'NONE'
@@ -1762,18 +1759,18 @@ export enum PermissionLevel {
 
 /**
  * A single step in the permission resolution trace.
- * Only entries actually backed by a KV value are emitted (allow or deny);
- * roles with no entry at the level being checked are silent.
+ * Only explicit allow or deny entries are emitted; roles with no decision at the
+ * level being checked are silent.
  */
 export type PermissionTraceEntry = {
   __typename?: 'PermissionTraceEntry';
   /** Whether this entry is the winning decision (matches the trace head). */
   applied: Scalars['Boolean']['output'];
-  /** Whether the role's KV said allow or deny at this level. */
+  /** Whether the role allowed or denied the permission at this level. */
   decision: PermissionDecisionKind;
   /** The level at which this decision was observed. */
   level: PermissionLevel;
-  /** The role whose KV produced this decision. */
+  /** The role that produced this decision. */
   roleName: Scalars['String']['output'];
 };
 
@@ -1884,7 +1881,7 @@ export type Query = {
   admin?: Maybe<AdminQueries>;
   /**
    * Fetch link preview metadata for a URL.
-   * Results are cached server-side. Returns null if the URL cannot be previewed.
+   * Returns null if the URL cannot be previewed.
    * Requires authentication.
    */
   linkPreview?: Maybe<LinkPreview>;
@@ -2623,7 +2620,7 @@ export type Server = {
   vapidPublicKey?: Maybe<Scalars['String']['output']>;
   /** The application version. */
   version: Scalars['String']['output'];
-  /** True if server-side video processing is enabled, allowing video attachments to be uploaded. */
+  /** True if video processing is enabled, allowing video attachments to be uploaded. */
   videoProcessingEnabled: Scalars['Boolean']['output'];
   /** Whether the current user can assign roles to users (has admin.roles.assign permission). */
   viewerCanAssignRoles: Scalars['Boolean']['output'];
@@ -2844,8 +2841,7 @@ export type ServerUserPreferencesUpdatedEvent = {
 
 /**
  * Event: The user's session was terminated.
- * Published on logout or admin boot. The subscription stream closes after this event,
- * tearing down the WebSocket connection server-side.
+ * Published on logout or admin boot. The subscription closes after this event.
  */
 export type SessionTerminatedEvent = {
   __typename?: 'SessionTerminatedEvent';
@@ -2902,9 +2898,9 @@ export type Subscription = {
    * - Subscribing sets the user's presence to ONLINE.
    * - Presence is refreshed every 30s (60s TTL); expires after the subscription
    *   closes.
-   * - A SessionTerminatedEvent closes the stream server-side.
+   * - A SessionTerminatedEvent closes the subscription.
    *
-   * Only streams new events — no replay of historical traffic.
+   * Only delivers new events — no replay of historical traffic.
    */
   myEvents: Event;
 };
@@ -3357,7 +3353,7 @@ export type UserProfileUpdatedEvent = {
 
 /**
  * User display preferences for time and date formatting.
- * Stored server-side so preferences persist across devices.
+ * Preferences persist across devices.
  */
 export type UserSettings = {
   __typename?: 'UserSettings';

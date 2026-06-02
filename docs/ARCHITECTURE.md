@@ -255,8 +255,8 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
-| KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
+| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
 | Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | `SERVER_ASSETS`               | Message attachments                         |
@@ -442,7 +442,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
 - One `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages, and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Authorization is applied per event: room membership for room subjects, `isAuthorizedForLiveEvent` for user/config/member subjects, and projection readiness before deliverable `live.evt.>` events.
-- The PresenceHub (single per-process KV watcher on `presence.>` fanning out to all subscribers).
+- The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
 
 ### KV Buckets (backed by streams)
@@ -450,10 +450,11 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
-| `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
-| `CALL_STATE`                  | Memory  | No       | Active voice call participants, keyed `{spaceId}.{roomId}` (repopulated by LiveKit webhooks after restart) |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
 | `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Cached link preview metadata (48h TTL)          |
+| `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
+| `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; copied best-effort into `MEMORY_CACHE` on boot if present, not provisioned on fresh boot |
 | `INSTANCE`                    | File    | Yes      | Legacy import source for users, verified emails, branding, display preferences, and push subscriptions; not provisioned on fresh boot |
 | `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source; not provisioned on fresh boot |
 | `SERVER_CONFIG`               | File    | Yes      | Legacy rooms, memberships, room sets/layout, and notification preferences import source; not provisioned on fresh boot |
@@ -592,13 +593,14 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 
 These keys don't carry a kind segment — `roomId` is globally unique, so direct lookup works for DM and channel rooms alike.
 
-**USER_PRESENCE keys:**
+**MEMORY_CACHE keys:**
 
-| Key                  | Description                               |
-| -------------------- | ----------------------------------------- |
-| `presence.{userId}`  | Serialized `UserPresence` proto (status)  |
+| Key                                        | Description                                      |
+| ------------------------------------------ | ------------------------------------------------ |
+| `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status; per-key 60s TTL |
+| `call.{spaceId}.{roomId}`                  | JSON active voice call participant list          |
 
-Notes: Memory-based storage (not persisted). 60-second TTL with 30-second client refresh. Uses `LimitMarkerTTL` so NATS emits delete markers on TTL expiry, allowing watchers to detect offline transitions. A single per-process **PresenceHub** watches `presence.>` and fans out updates to all space subscriptions (reducing KV watcher count from O(subscriptions) to O(1)). Subscriptions filter by space membership using a lazy positive-only cache. **Multi-device support**: On disconnect, clients stop refreshing but don't explicitly delete—TTL handles expiry. This means a user stays online if any device is still connected. **Event deduplication**: Presence events are only emitted when status actually changes (online→away, etc.), not on refresh cycles. **Client-driven status**: The `updateMyPresence` mutation allows clients to set AWAY or DO_NOT_DISTURB; heartbeat refreshes use optimistic locking to preserve these statuses.
+Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is also volatile and is repopulated by LiveKit webhooks; legacy `CALL_STATE` entries are copied into `MEMORY_CACHE` on boot during the storage rename.
 
 **SERVER\_BODIES keys:**
 

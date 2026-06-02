@@ -52,6 +52,7 @@ message Event {
   reserved 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
   reserved "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
+  reserved "sequence_id";
 
   // The concrete event payload.
   oneof event {
