@@ -182,7 +182,7 @@ func buildUserMigrationEntries(
 		}}, "system:migration", createdAt)
 		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
-	if piiDEK.event != nil {
+	if piiDEK.event != nil && !sameMigrationDEKEvent(messageDEK.event, piiDEK.event) {
 		event := stamp(&corev1.Event{Event: &corev1.Event_UserDekGenerated{
 			UserDekGenerated: piiDEK.event,
 		}}, "system:migration", createdAt)
@@ -275,6 +275,7 @@ func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, userID 
 			epoch:   existing.GetEpoch(),
 			purpose: existing.GetPurpose(),
 			key:     key,
+			event:   proto.Clone(existing).(*corev1.UserDEKGeneratedEvent),
 		}, nil
 	}
 
@@ -322,6 +323,15 @@ func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, userID 
 	}, nil
 }
 
+func sameMigrationDEKEvent(a, b *corev1.UserDEKGeneratedEvent) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.GetUserId() == b.GetUserId() &&
+		a.GetPurpose() == b.GetPurpose() &&
+		a.GetEpoch() == b.GetEpoch()
+}
+
 func unwrapMigrationDEK(ctx context.Context, keyWrapper kms.KeyWrapper, e *corev1.UserDEKGeneratedEvent) ([]byte, error) {
 	keyRef := e.GetWrappingKeyRef()
 	if keyRef == "" {
@@ -365,19 +375,17 @@ func needsEncryptedUserRepair(existingEvents []*corev1.Event) bool {
 func repairUserMigrationEntries(entries []events.BatchEntry, existingEvents []*corev1.Event) []events.BatchEntry {
 	seen := make(map[string]struct{})
 	for _, event := range existingEvents {
-		seen[events.EventTypeOf(event)] = struct{}{}
+		seen[userMigrationIdentity(event)] = struct{}{}
 	}
 
 	var out []events.BatchEntry
 	for _, entry := range entries {
 		eventType := events.EventTypeOf(entry.Event)
 		switch eventType {
-		case events.EventUserDEKGenerated:
-			out = append(out, entry)
 		case events.EventUserAccountCreated, events.EventUserVerifiedEmailAdded:
 			out = append(out, entry)
 		default:
-			if _, ok := seen[eventType]; !ok {
+			if _, ok := seen[userMigrationIdentity(entry.Event)]; !ok {
 				out = append(out, entry)
 			}
 		}
@@ -469,7 +477,7 @@ func getLegacyVerifiedEmailEvents(
 	if err != nil {
 		return nil, fmt.Errorf("list verified emails for %s: %w", userID, err)
 	}
-	out := make([]*corev1.Event, 0, len(keys))
+	out := make([]legacyEmailEvent, 0, len(keys))
 	for _, key := range keys {
 		entry, err := kv.Get(ctx, key)
 		if err != nil {
@@ -500,15 +508,30 @@ func getLegacyVerifiedEmailEvents(
 		if err != nil {
 			return nil, fmt.Errorf("encrypt legacy verified email %s: %w", key, err)
 		}
-		out = append(out, event)
+		out = append(out, legacyEmailEvent{legacyKey: key, event: event})
 	}
+	sortLegacyEmailEvents(out)
+	events := make([]*corev1.Event, 0, len(out))
+	for _, entry := range out {
+		events = append(events, entry.event)
+	}
+	return events, nil
+}
+
+type legacyEmailEvent struct {
+	legacyKey string
+	event     *corev1.Event
+}
+
+func sortLegacyEmailEvents(out []legacyEmailEvent) {
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].GetCreatedAt() != nil && out[j].GetCreatedAt() != nil && !out[i].GetCreatedAt().AsTime().Equal(out[j].GetCreatedAt().AsTime()) {
-			return out[i].GetCreatedAt().AsTime().Before(out[j].GetCreatedAt().AsTime())
+		leftCreatedAt := out[i].event.GetCreatedAt()
+		rightCreatedAt := out[j].event.GetCreatedAt()
+		if leftCreatedAt != nil && rightCreatedAt != nil && !leftCreatedAt.AsTime().Equal(rightCreatedAt.AsTime()) {
+			return leftCreatedAt.AsTime().Before(rightCreatedAt.AsTime())
 		}
-		return out[i].GetId() < out[j].GetId()
+		return out[i].legacyKey < out[j].legacyKey
 	})
-	return out, nil
 }
 
 func loadOIDCSubjectHashesByUser(ctx context.Context, kv jetstream.KeyValue) (map[string][]string, error) {
