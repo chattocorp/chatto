@@ -66,6 +66,8 @@ Current occupants include:
   `email_verification.{hmac}`, `password_reset.{hmac}`, and
   `account_deletion_token.{hmac}`, with per-key TTLs appropriate to each
   workflow.
+- Link-preview cache entries: `link_preview.{urlHash}`, with per-key 24-hour
+  TTL for successful previews and 1-hour TTL for failed fetches.
 
 The HMAC keys for bearer tokens, OAuth codes, and account workflow tokens are
 derived with `[core].secret_key` from the raw token/code plus a per-flow scope

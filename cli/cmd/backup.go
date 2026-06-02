@@ -73,7 +73,7 @@ var backupCmd = &cobra.Command{
 Excluded from backups by default:
 - Encryption keys (security: keeps backup data encrypted at rest)
 - User presence (ephemeral, memory-only)
-- Link preview cache (regeneratable)
+- Retired standalone link preview cache, if present (regeneratable)
 - Asset cache (regeneratable)
 
 Pass --include-keys to include KV_ENCRYPTION_KEYS in the archive. This

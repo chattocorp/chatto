@@ -726,11 +726,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.permissionResolver = NewPermissionResolver(core)
 
 	// Initialize link preview cache and fetcher
-	linkPreviewCache, err := linkpreview.NewCache(ctx, js, cfg.Replicas)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create link preview cache: %w", err)
-	}
-	core.linkPreviewCache = linkPreviewCache
+	core.linkPreviewCache = linkpreview.NewCache(storage.runtimeStateKV)
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
 

@@ -19,17 +19,15 @@ import (
 var ErrCachedFailure = fmt.Errorf("cached failure")
 
 const (
-	// CacheBucketName is the name of the KV bucket for link preview cache.
-	CacheBucketName = "LINK_PREVIEW_CACHE"
+	// RuntimeStateKeyPrefix is the RUNTIME_STATE key prefix for cached link
+	// preview metadata.
+	RuntimeStateKeyPrefix = "link_preview."
 
 	// SuccessTTL is how long successful previews are cached.
 	SuccessTTL = 24 * time.Hour
 
 	// FailureTTL is how long failed previews are cached.
 	FailureTTL = 1 * time.Hour
-
-	// BucketTTL is the bucket-level TTL (entries auto-expire).
-	BucketTTL = 48 * time.Hour
 )
 
 // Cache provides caching for link preview results.
@@ -37,26 +35,16 @@ type Cache struct {
 	kv jetstream.KeyValue
 }
 
-// NewCache creates or opens the link preview cache KV bucket.
-func NewCache(ctx context.Context, js jetstream.JetStream, replicas int) (*Cache, error) {
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      CacheBucketName,
-		Description: "Cached link preview metadata",
-		Storage:     jetstream.FileStorage,
-		TTL:         BucketTTL,
-		Replicas:    replicas,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &Cache{kv: kv}, nil
+// NewCache creates a cache wrapper over RUNTIME_STATE.
+func NewCache(kv jetstream.KeyValue) *Cache {
+	return &Cache{kv: kv}
 }
 
 // cacheKey generates a cache key from a URL.
 func cacheKey(rawURL string) string {
 	normalized := NormalizeURLString(rawURL)
 	hash := sha256.Sum256([]byte(normalized))
-	return hex.EncodeToString(hash[:])
+	return RuntimeStateKeyPrefix + hex.EncodeToString(hash[:])
 }
 
 // Get retrieves a cached link preview.
@@ -110,8 +98,7 @@ func (c *Cache) Set(ctx context.Context, url string, preview *corev1.LinkPreview
 		return err
 	}
 
-	_, err = c.kv.Put(ctx, cacheKey(url), data)
-	return err
+	return c.setWithTTL(ctx, cacheKey(url), data, SuccessTTL)
 }
 
 // SetFailure stores a failed fetch in the cache (negative caching).
@@ -129,6 +116,23 @@ func (c *Cache) SetFailure(ctx context.Context, url string, reason string) error
 		return err
 	}
 
-	_, err = c.kv.Put(ctx, cacheKey(url), data)
-	return err
+	return c.setWithTTL(ctx, cacheKey(url), data, FailureTTL)
+}
+
+func (c *Cache) setWithTTL(ctx context.Context, key string, data []byte, ttl time.Duration) error {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if _, err := c.kv.Create(ctx, key, data, jetstream.KeyTTL(ttl)); err == nil {
+			return nil
+		} else if !errors.Is(err, jetstream.ErrKeyExists) {
+			return err
+		} else {
+			lastErr = err
+		}
+
+		if err := c.kv.Purge(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return err
+		}
+	}
+	return fmt.Errorf("replace cached link preview: %w", lastErr)
 }
