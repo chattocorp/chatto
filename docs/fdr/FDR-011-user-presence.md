@@ -9,12 +9,12 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ## Behavior
 
-- When a user connects to a server (subscribes to the main event stream), the client supplies a per-tab/per-device presence session ID and that session is set to Online.
+- When a user connects to a server (subscribes to the main event stream), the server sets that user's presence to Online and keeps the TTL refreshed.
 - After 5 minutes without keyboard/mouse/touch input, the client transitions to Away.
 - If the browser tab is hidden for 10 seconds, the client also transitions to Away (debounced to avoid flashing during quick tab switches).
 - Any interaction returns the user to Online.
-- Users can set Do Not Disturb for the current live session. Presence state is not persisted as a user preference.
-- Disconnecting (closing the tab, network drop) leaves that session entry to expire. After 60 seconds without a heartbeat refresh, the session is gone; the user appears Offline only when no other live session remains.
+- Users can set Do Not Disturb for their current live server presence. Presence state is not persisted as a user preference.
+- Disconnecting (closing the tab, network drop) does not send an active Offline signal. After 60 seconds without a heartbeat refresh, the presence entry expires and the user appears Offline.
 - The presence dot updates across the UI as other users' statuses change, in real time.
 
 ## Design Decisions
@@ -27,14 +27,14 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 2. Offline is inferred, not stored
 
-**Decision:** Offline is the absence of any live presence session, not a stored state. The server refreshes the session entry every 30 seconds; if the client disconnects, the entry expires after 60 seconds via NATS KV TTL.
+**Decision:** Offline is the absence of a live presence record, not a stored state. The server refreshes the user's presence entry every 30 seconds; if all clients disconnect, the entry expires after 60 seconds via NATS KV TTL.
 **Why:** A disconnecting client may not get the chance to send a clean "I'm offline" message (browser crash, network drop). Relying on TTL expiry handles all the failure modes uniformly.
 **Tradeoff:** Up to a one-minute delay between "user closed the tab" and "the dot turns gray". This is the standard behavior in most chat apps and matches user expectations.
 
-### 3. Per-session aggregation with heartbeat-driven deduplication
+### 3. User-level live status with heartbeat-driven deduplication
 
-**Decision:** Presence is stored in `MEMORY_CACHE` as `presence_session.{userId}.{sessionId}`. A per-process PresenceHub watches these keys, derives one effective status per user, and emits live events only when the derived status changes. Effective precedence is Do Not Disturb, then Online, then Away, then Offline.
-**Why:** Multi-tab and multi-device users should stay online while any session is online. Broadcasting a "I'm still Online" event every 30 seconds to every connected client would generate enormous useless traffic. Only derived user-level changes carry value.
+**Decision:** Presence is stored in `MEMORY_CACHE` as `presence.{userId}`. A per-process PresenceHub watches these keys and emits live events only when the user-level status changes.
+**Why:** Presence is a current-state hint, not per-tab/device domain state. Competing tabs/devices simply write the user's current live status; closing a tab does not actively write Offline, so another open tab can keep the TTL alive.
 **Tradeoff:** The frontend has to clear its presence cache on reconnect, because it can't rely on incremental updates if it dropped a status-change event mid-flight.
 
 ### 4. Auto-away has two triggers (idle + tab hidden)
@@ -43,17 +43,17 @@ Every user has a presence status visible to others as a colored dot on their ava
 **Why:** Idle-only would miss the very common "switched tabs" case. Tab-hidden-only would mark people as away the moment they alt-tab to look at something. Combining both covers the realistic away cases.
 **Tradeoff:** Some false positives — a user actively listening in another window is technically "away" by our model. Acceptable for the use case.
 
-### 5. DND is live session state
+### 5. DND is live user state
 
-**Decision:** Do Not Disturb is a live presence status on a session, not durable account state. It expires with the session and is not backed up or replayed from EVT.
+**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT.
 **Why:** Presence controls notification routing and "right now" UI hints. Persisting it as domain/account history would overstate its meaning.
 **Tradeoff:** A future durable "manual status" feature would need separate product semantics rather than reusing transient presence records.
 
 ### 6. Per-server tracking, with frontend coordination across servers
 
-**Decision:** Each connected Chatto server tracks its own presence. The frontend's auto-away detector broadcasts the new status, with the same per-tab session ID, to all connected servers in parallel.
+**Decision:** Each connected Chatto server tracks its own presence. The frontend's auto-away detector broadcasts the new status to all connected servers in parallel.
 **Why:** Servers are independent and shouldn't have to coordinate among themselves — that would require cross-server discovery and trust. The client is already connected to all of them and can coordinate cheaply. See ADR-025.
-**Tradeoff:** A user signed in from two different devices to the same server may briefly expose different session states, but aggregation gives a stable effective user status.
+**Tradeoff:** A user signed in from two different devices to the same server may have competing presence writers; the latest write wins until TTL expiry.
 
 ## Permissions
 

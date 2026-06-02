@@ -1047,8 +1047,6 @@ type UpdateMessageInput struct {
 
 // Input for updating the current user's presence status.
 type UpdateMyPresenceInput struct {
-	// Stable token for this tab/device presence session.
-	PresenceSessionID string `json:"presenceSessionId"`
 	// The presence status to set.
 	Status PresenceStatus `json:"status"`
 }

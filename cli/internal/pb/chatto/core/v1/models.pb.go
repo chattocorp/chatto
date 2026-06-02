@@ -860,8 +860,8 @@ func (x *Role) GetPosition() int32 {
 	return 0
 }
 
-// UserPresence represents one live presence session's current status.
-// Stored under presence_session.{userId}.{sessionId} in MEMORY_CACHE.
+// UserPresence represents a user's current live presence status.
+// Stored under presence.{userId} in MEMORY_CACHE.
 type UserPresence struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        UserPresenceStatus     `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.core.v1.UserPresenceStatus" json:"status,omitempty"`

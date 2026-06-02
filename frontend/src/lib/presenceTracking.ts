@@ -15,16 +15,6 @@ type ActivityState = 'active' | 'idle' | 'hidden';
 
 // Module-level singleton to prevent duplicate tracking
 let initialized = false;
-let presenceSessionId: string | undefined;
-
-export function getPresenceSessionId(): string {
-  if (!presenceSessionId) {
-    presenceSessionId =
-      globalThis.crypto?.randomUUID?.() ??
-      `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
-  return presenceSessionId;
-}
 
 /**
  * Initialize presence tracking. Uses idle detection and page visibility
@@ -48,10 +38,9 @@ export function initPresenceTracking(
 
   function setPresenceStatus(status: PresenceStatus) {
     onStatusChange?.(status);
-    const presenceSessionId = getPresenceSessionId();
     for (const client of getClients()) {
       client
-        .mutation(UpdateMyPresenceDoc, { input: { presenceSessionId, status } })
+        .mutation(UpdateMyPresenceDoc, { input: { status } })
         .toPromise()
         .catch(() => {});
     }

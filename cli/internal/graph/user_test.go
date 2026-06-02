@@ -432,7 +432,7 @@ func TestMutation_UpdateMyPresence(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	t.Run("authenticated user can set online", func(t *testing.T) {
-		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{PresenceSessionID: "session-1", Status: model.PresenceStatusOnline})
+		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusOnline})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -442,7 +442,7 @@ func TestMutation_UpdateMyPresence(t *testing.T) {
 	})
 
 	t.Run("authenticated user can set away", func(t *testing.T) {
-		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{PresenceSessionID: "session-1", Status: model.PresenceStatusAway})
+		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusAway})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -452,21 +452,14 @@ func TestMutation_UpdateMyPresence(t *testing.T) {
 	})
 
 	t.Run("cannot set offline status", func(t *testing.T) {
-		_, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{PresenceSessionID: "session-1", Status: model.PresenceStatusOffline})
+		_, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusOffline})
 		if err == nil {
 			t.Error("expected error when setting OFFLINE status")
 		}
 	})
 
-	t.Run("invalid presence session id fails", func(t *testing.T) {
-		_, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{PresenceSessionID: "bad.session", Status: model.PresenceStatusOnline})
-		if err == nil {
-			t.Error("expected error for invalid presence session id")
-		}
-	})
-
 	t.Run("unauthenticated request fails", func(t *testing.T) {
-		_, err := mutation.UpdateMyPresence(env.unauthContext(), model.UpdateMyPresenceInput{PresenceSessionID: "session-1", Status: model.PresenceStatusOnline})
+		_, err := mutation.UpdateMyPresence(env.unauthContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusOnline})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}

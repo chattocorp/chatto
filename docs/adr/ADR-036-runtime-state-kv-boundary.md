@@ -105,11 +105,10 @@ canonical state.
   volatile state. It uses memory storage, one version per key, the deployment's
   replica count, no global TTL, and a limit-marker TTL for expiring presence
   sessions. It is excluded from backups and is expected to clear on a full
-  JetStream restart. Current occupants are per-tab/per-device presence sessions
-  `presence_session.{userId}.{sessionId}` with per-key TTL and active voice
-  calls `call.{spaceId}.{roomId}`. The retired `USER_PRESENCE` and
-  `CALL_STATE` buckets are legacy import sources only; fresh boots do not
-  provision them.
+  JetStream restart. Current occupants are user presence records
+  `presence.{userId}` with per-key TTL and active voice calls
+  `call.{spaceId}.{roomId}`. The retired `USER_PRESENCE` and `CALL_STATE`
+  buckets are legacy import sources only; fresh boots do not provision them.
 
 ## Related
 

@@ -1195,11 +1195,7 @@ func isTerminalIteratorError(err error) bool {
 //
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
-func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID, presenceSessionID string) (<-chan EventEnvelope, error) {
-	if err := ValidatePresenceSessionID(presenceSessionID); err != nil {
-		return nil, err
-	}
-
+func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan EventEnvelope, error) {
 	// memberRooms is the per-subscription visibility cache: the user
 	// receives live events for rooms they are an explicit member of.
 	// Seeded from `room_membership.*` records and mutated on
@@ -1244,12 +1240,12 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID, presenceSession
 	eventChan := make(chan EventEnvelope)
 
 	go func() {
-		c.logger.Debug("Server event stream started", "user_id", userID, "presence_session_id", presenceSessionID, "member_rooms", len(memberRooms))
+		c.logger.Debug("Server event stream started", "user_id", userID, "member_rooms", len(memberRooms))
 
 		// Subscribing implies the user is online; refresh on a ticker
 		// so the KV TTL doesn't expire while the connection is open.
-		if err := c.SetPresence(ctx, userID, presenceSessionID, PresenceStatusOnline); err != nil {
-			c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID, "presence_session_id", presenceSessionID)
+		if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
+			c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID)
 		}
 		presenceTicker := time.NewTicker(PresenceRefreshInterval)
 		defer presenceTicker.Stop()
@@ -1263,7 +1259,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID, presenceSession
 		}
 
 		defer func() {
-			c.logger.Debug("Server event stream closed", "user_id", userID, "presence_session_id", presenceSessionID)
+			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
 			c.PresenceHub.Unsubscribe(presenceSub)
@@ -1297,8 +1293,8 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID, presenceSession
 				return
 
 			case <-presenceTicker.C:
-				if err := c.refreshPresence(ctx, userID, presenceSessionID); err != nil {
-					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID, "presence_session_id", presenceSessionID)
+				if err := c.refreshPresence(ctx, userID); err != nil {
+					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID)
 				}
 
 			case <-heartbeatTicker.C:

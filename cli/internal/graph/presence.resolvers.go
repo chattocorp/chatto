@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -25,11 +24,8 @@ func (r *mutationResolver) UpdateMyPresence(ctx context.Context, input model.Upd
 	if input.Status == model.PresenceStatusOffline {
 		return false, fmt.Errorf("cannot set presence to OFFLINE; disconnect instead")
 	}
-	if err := core.ValidatePresenceSessionID(input.PresenceSessionID); err != nil {
-		return false, err
-	}
 
-	if err := r.core.SetPresence(ctx, user.Id, input.PresenceSessionID, string(input.Status)); err != nil {
+	if err := r.core.SetPresence(ctx, user.Id, string(input.Status)); err != nil {
 		return false, err
 	}
 	return true, nil

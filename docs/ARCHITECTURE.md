@@ -256,7 +256,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
-| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence sessions and active voice calls; excluded from backups |
+| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
 | Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | `SERVER_ASSETS`               | Message attachments                         |
@@ -442,7 +442,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
 - One `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages, and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Authorization is applied per event: room membership for room subjects, `isAuthorizedForLiveEvent` for user/config/member subjects, and projection readiness before deliverable `live.evt.>` events.
-- The PresenceHub (single per-process KV watcher on `presence_session.>` fanning out derived per-user status changes to all subscribers).
+- The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
 
 ### KV Buckets (backed by streams)
@@ -450,7 +450,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence sessions keyed `presence_session.{userId}.{sessionId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
 | `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Cached link preview metadata (48h TTL)          |
 | `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
@@ -597,10 +597,10 @@ These keys don't carry a kind segment — `roomId` is globally unique, so direct
 
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
-| `presence_session.{userId}.{sessionId}`    | Serialized `UserPresence` proto for one live tab/device session; per-key 60s TTL |
+| `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status; per-key 60s TTL |
 | `call.{spaceId}.{roomId}`                  | JSON active voice call participant list          |
 
-Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence_session.>` and derives one effective status per user using precedence `DO_NOT_DISTURB` > `ONLINE` > `AWAY` > `OFFLINE`; it emits `PresenceChanged` only when that derived status changes. `Subscription.myEvents(presenceSessionId:)` sets one tab/device session online, and `updateMyPresence` updates that same session. On disconnect, clients stop refreshing and TTL handles expiry, so a user stays online while any tab/device session remains alive. Voice call state is also volatile and is repopulated by LiveKit webhooks; legacy `CALL_STATE` entries are copied into `MEMORY_CACHE` on boot during the storage rename.
+Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is also volatile and is repopulated by LiveKit webhooks; legacy `CALL_STATE` entries are copied into `MEMORY_CACHE` on boot during the storage rename.
 
 **SERVER\_BODIES keys:**
 

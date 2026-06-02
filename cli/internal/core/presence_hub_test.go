@@ -17,7 +17,7 @@ func TestPresenceHub_BasicFanOut(t *testing.T) {
 	defer core.PresenceHub.Unsubscribe(sub)
 
 	// Set a user's presence
-	err = core.SetPresence(ctx, "user-1", "session-1", PresenceStatusOnline)
+	err = core.SetPresence(ctx, "user-1", PresenceStatusOnline)
 	if err != nil {
 		t.Fatalf("SetPresence failed: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestPresenceHub_SnapshotIncludesExisting(t *testing.T) {
 	ctx := testContext(t)
 
 	// Set presence — hub is already running, so this gets picked up live
-	err := core.SetPresence(ctx, "existing-user", "session-1", PresenceStatusAway)
+	err := core.SetPresence(ctx, "existing-user", PresenceStatusAway)
 	if err != nil {
 		t.Fatalf("SetPresence failed: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestPresenceHub_MultipleSubscribers(t *testing.T) {
 	defer core.PresenceHub.Unsubscribe(sub2)
 
 	// Set presence
-	err = core.SetPresence(ctx, "multi-user", "session-1", PresenceStatusDoNotDisturb)
+	err = core.SetPresence(ctx, "multi-user", PresenceStatusDoNotDisturb)
 	if err != nil {
 		t.Fatalf("SetPresence failed: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestPresenceHub_OfflineOnDelete(t *testing.T) {
 	defer core.PresenceHub.Unsubscribe(sub)
 
 	// Set presence, then delete it
-	err = core.SetPresence(ctx, "delete-user", "session-1", PresenceStatusOnline)
+	err = core.SetPresence(ctx, "delete-user", PresenceStatusOnline)
 	if err != nil {
 		t.Fatalf("SetPresence failed: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestPresenceHub_OfflineOnDelete(t *testing.T) {
 	}
 
 	// Delete the presence entry
-	err = core.storage.memoryCacheKV.Delete(ctx, presenceSessionKey("delete-user", "session-1"))
+	err = core.storage.memoryCacheKV.Delete(ctx, presenceKey("delete-user"))
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestPresenceHub_OfflineOnDelete(t *testing.T) {
 	}
 }
 
-func TestPresenceHub_DerivesEffectiveStatusAcrossSessions(t *testing.T) {
+func TestPresenceHub_UserLevelStatusOverwrites(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -154,29 +154,20 @@ func TestPresenceHub_DerivesEffectiveStatusAcrossSessions(t *testing.T) {
 	}
 	defer core.PresenceHub.Unsubscribe(sub)
 
-	if err := core.SetPresence(ctx, "multi-session-user", "tab-1", PresenceStatusAway); err != nil {
-		t.Fatalf("SetPresence tab-1 failed: %v", err)
+	if err := core.SetPresence(ctx, "overwrite-user", PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence away failed: %v", err)
 	}
-	expectPresenceUpdate(t, sub, "multi-session-user", PresenceStatusAway)
+	expectPresenceUpdate(t, sub, "overwrite-user", PresenceStatusAway)
 
-	if err := core.SetPresence(ctx, "multi-session-user", "tab-2", PresenceStatusOnline); err != nil {
-		t.Fatalf("SetPresence tab-2 failed: %v", err)
+	if err := core.SetPresence(ctx, "overwrite-user", PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence online failed: %v", err)
 	}
-	expectPresenceUpdate(t, sub, "multi-session-user", PresenceStatusOnline)
+	expectPresenceUpdate(t, sub, "overwrite-user", PresenceStatusOnline)
 
-	if err := core.storage.memoryCacheKV.Delete(ctx, presenceSessionKey("multi-session-user", "tab-1")); err != nil {
-		t.Fatalf("Delete tab-1 failed: %v", err)
+	if err := core.storage.memoryCacheKV.Delete(ctx, presenceKey("overwrite-user")); err != nil {
+		t.Fatalf("Delete presence failed: %v", err)
 	}
-	select {
-	case update := <-sub.C:
-		t.Fatalf("Unexpected update after deleting lower-precedence session: %+v", update)
-	case <-time.After(200 * time.Millisecond):
-	}
-
-	if err := core.storage.memoryCacheKV.Delete(ctx, presenceSessionKey("multi-session-user", "tab-2")); err != nil {
-		t.Fatalf("Delete tab-2 failed: %v", err)
-	}
-	expectPresenceUpdate(t, sub, "multi-session-user", PresenceStatusOffline)
+	expectPresenceUpdate(t, sub, "overwrite-user", PresenceStatusOffline)
 }
 
 func expectPresenceUpdate(t *testing.T, sub *PresenceSubscription, userID, status string) {

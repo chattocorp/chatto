@@ -13,7 +13,6 @@ import { pipe, subscribe as urqlSubscribe, onEnd } from 'wonka';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { EventHandler, EventBus } from '$lib/eventBus.svelte';
 import { MyServerEventsSubscriptionDoc } from '$lib/eventBus.svelte';
-import { getPresenceSessionId } from '$lib/presenceTracking';
 import type { GraphQLClient } from './graphqlClient.svelte';
 
 // Safety-net watchdog: if no event arrives within this window while the
@@ -88,11 +87,10 @@ class EventBusManager {
 		// reentrant resubscribe in response to our own unsubscribe.
 		let teardownInProgress = false;
 		let stopped = false;
-		const presenceSessionId = getPresenceSessionId();
 
 		const subscribeOnce = () =>
 			pipe(
-				client.subscription(MyServerEventsSubscriptionDoc, { presenceSessionId }),
+				client.subscription(MyServerEventsSubscriptionDoc, {}),
 				onEnd(() => {
 					if (teardownInProgress || stopped) return;
 					console.warn(`[eventBus:${serverId}] subscription source ended`);
