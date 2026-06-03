@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -341,19 +342,32 @@ func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, content
 		}
 		return nil, err
 	}
+	event := &corev1.UserDEKGeneratedEvent{
+		UserId:            userID,
+		Epoch:             1,
+		Purpose:           purpose,
+		ContentKeyRef:     contentKeyRef,
+		WrappingAlgorithm: stored.WrappingAlgorithm,
+		WrappingMetadata:  stored.WrappingMetadata,
+		WrappingKeyRef:    stored.WrappingKeyRef,
+	}
+	verifiedDEK, err := unwrapMigrationDEK(ctx, keyWrapper, contentKeys, event)
+	if err != nil || !bytes.Equal(verifiedDEK, dek) {
+		_ = contentKeys.Shred(context.WithoutCancel(ctx), contentKeyRef)
+		if cleanupKeyRef != "" {
+			_ = keyWrapper.ShredKey(context.WithoutCancel(ctx), cleanupKeyRef)
+			cleanupKeyRef = ""
+		}
+		if err != nil {
+			return nil, fmt.Errorf("verify migration DEK: %w", err)
+		}
+		return nil, fmt.Errorf("verify migration DEK: unwrapped DEK mismatch")
+	}
 	return &migrationDEK{
-		epoch:   1,
-		purpose: purpose,
-		key:     dek,
-		event: &corev1.UserDEKGeneratedEvent{
-			UserId:            userID,
-			Epoch:             1,
-			Purpose:           purpose,
-			ContentKeyRef:     contentKeyRef,
-			WrappingAlgorithm: stored.WrappingAlgorithm,
-			WrappingMetadata:  stored.WrappingMetadata,
-			WrappingKeyRef:    stored.WrappingKeyRef,
-		},
+		epoch:                1,
+		purpose:              purpose,
+		key:                  dek,
+		event:                event,
 		cleanupKeyRef:        cleanupKeyRef,
 		cleanupContentKeyRef: contentKeyRef,
 	}, nil

@@ -18,6 +18,18 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
+type corruptingWrapKeyWrapper struct {
+	kms.KeyWrapper
+}
+
+func (w corruptingWrapKeyWrapper) WrapContentKey(ctx context.Context, keyRef string, contentKey, aad []byte) (*kms.WrappedContentKey, error) {
+	wrongKey, err := encryption.GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+	return w.KeyWrapper.WrapContentKey(ctx, keyRef, wrongKey, aad)
+}
+
 func TestMigrateUsersToES_EmptyKV(t *testing.T) {
 	ctx, kv, _, publisher := setupTestES(t)
 	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
@@ -113,6 +125,27 @@ func TestMigrateUsersToES_SeedsEncryptedUserAggregateAndReplays(t *testing.T) {
 	infoReplay, err := stream.Info(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 8, infoReplay.State.Msgs)
+}
+
+func TestMigrateUsersToES_VerifiesCreatedDEKBeforePublishing(t *testing.T) {
+	ctx, kv, stream, publisher := setupTestES(t)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
+
+	user := &corev1.User{
+		Id:          "U1",
+		Login:       "Alice",
+		DisplayName: "Alice A.",
+		CreatedAt:   timestamppb.New(time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)),
+	}
+	putProtoKV(t, ctx, kv, "user.U1", user)
+
+	err := MigrateUsersToES(ctx, kv, publisher, corruptingWrapKeyWrapper{KeyWrapper: keyWrapper}, contentKeys, testLogger())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "verify migration DEK")
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, info.State.Msgs)
 }
 
 func TestMigrateUsersToES_AppendsEncryptedRepairForPlaintextUserEVTPrefix(t *testing.T) {
