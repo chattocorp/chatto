@@ -85,7 +85,7 @@ Message bodies are encrypted before being written to JetStream. New messages use
 - Each DEK is wrapped through Chatto's KMS boundary, stored by the application, and addressed by an opaque content-key ref.
 - The encrypted body is authenticated with its event context — event ID, room ID, author ID, message-body DEK epoch, and message-body event type — as Additional Authenticated Data (AAD).
 
-The built-in KMS runs in-process and stores KEKs in a dedicated `ENCRYPTION_KEYS` NATS KV bucket under opaque `kek.*` references. App-owned protobuf `StoredUserDEK` wrapped DEK records live in the same bucket under `dek.*` references. DEK events record their purpose, epoch, content-key ref, and wrapping key ref, which keeps Chatto's durable event shape close to external KMS systems such as Vault, AWS KMS, or HSM-backed providers without making immutable EVT history or the KMS API a permanent DEK registry. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
+The built-in KMS runs in-process and stores KEKs as protobuf `UserKeyEncryptionKey` records in a dedicated `ENCRYPTION_KEYS` NATS KV bucket under opaque `kek.*` references, with read compatibility for older raw 32-byte `kek.*` records. App-owned protobuf `UserDataEncryptionKey` wrapped DEK records live in the same bucket under `dek.*` references. Raw `user.*` records are legacy direct-key compatibility only. DEK events record their purpose, epoch, content-key ref, and wrapping key ref, which keeps Chatto's durable event shape close to external KMS systems such as Vault, AWS KMS, or HSM-backed providers without making immutable EVT history or the KMS API a permanent DEK registry. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
 
 This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the encryption keys bucket.
 
@@ -179,7 +179,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 | Secret                              | Storage                                     | Backed up?     |
 | ----------------------------------- | ------------------------------------------- | -------------- |
-| Per-user KEKs and wrapped DEK records | `ENCRYPTION_KEYS` (NATS KV)               | No (export separately) |
+| Per-user KEK and wrapped DEK records | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
 | Bearer/session token verifiers      | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw tokens) |
 | Account-flow link/code verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw links/codes) |
 | Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |

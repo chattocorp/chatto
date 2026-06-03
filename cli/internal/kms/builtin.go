@@ -5,21 +5,27 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
 	// AlgorithmBuiltinXChaCha20Poly1305V1 identifies the built-in in-process
-	// wrapper that stores raw KEKs under opaque refs in ENCRYPTION_KEYS.
+	// wrapper used for protobuf UserKeyEncryptionKey records in ENCRYPTION_KEYS.
 	AlgorithmBuiltinXChaCha20Poly1305V1 = "builtin-xchacha20-poly1305-v1"
 )
 
-var ErrUnsupportedWrappingAlgorithm = errors.New("unsupported content key wrapping algorithm")
+var (
+	ErrInvalidKeyRef                = errors.New("invalid key ref")
+	ErrUnsupportedWrappingAlgorithm = errors.New("unsupported content key wrapping algorithm")
+)
 
 const (
 	keyRefAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -70,11 +76,72 @@ func LegacyUserKeyRef(userID string) string {
 	return "user." + userID
 }
 
+func IsKeyRef(keyRef string) bool {
+	return strings.HasPrefix(keyRef, "kek.") || strings.HasPrefix(keyRef, "user.")
+}
+
+func ValidateKeyRef(keyRef string) error {
+	if IsKeyRef(keyRef) {
+		return nil
+	}
+	return fmt.Errorf("%w for KMS operation: %s", ErrInvalidKeyRef, keyRef)
+}
+
 func keyPath(keyRef string) string {
 	return keyRef
 }
 
+func encodeUserKeyEncryptionKey(key []byte) ([]byte, error) {
+	if len(key) != encryption.KeySize {
+		return nil, fmt.Errorf("invalid KEK length: got %d, want %d", len(key), encryption.KeySize)
+	}
+	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+		Key:       key,
+		Algorithm: AlgorithmBuiltinXChaCha20Poly1305V1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode encryption key: %w", err)
+	}
+	return data, nil
+}
+
+func DecodeUserKeyEncryptionKeyRecord(keyRef string, data []byte) ([]byte, error) {
+	if err := ValidateKeyRef(keyRef); err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(keyRef, "user.") {
+		if len(data) == encryption.KeySize {
+			return append([]byte(nil), data...), nil
+		}
+		return nil, fmt.Errorf("invalid legacy user key record")
+	}
+	var stored corev1.UserKeyEncryptionKey
+	if err := proto.Unmarshal(data, &stored); err == nil &&
+		stored.GetAlgorithm() == AlgorithmBuiltinXChaCha20Poly1305V1 &&
+		len(stored.GetKey()) == encryption.KeySize {
+		return append([]byte(nil), stored.GetKey()...), nil
+	}
+	if len(data) == encryption.KeySize {
+		return append([]byte(nil), data...), nil
+	}
+	if stored.GetAlgorithm() != "" && stored.GetAlgorithm() != AlgorithmBuiltinXChaCha20Poly1305V1 {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWrappingAlgorithm, stored.GetAlgorithm())
+	}
+	if len(stored.GetKey()) > 0 && len(stored.GetKey()) != encryption.KeySize {
+		return nil, fmt.Errorf("invalid key-encryption-key length: got %d, want %d", len(stored.GetKey()), encryption.KeySize)
+	}
+	return nil, fmt.Errorf("invalid key-encryption-key record")
+}
+
+func ValidateUserKeyEncryptionKeyRecord(keyRef string, data []byte) error {
+	_, err := DecodeUserKeyEncryptionKeyRecord(keyRef, data)
+	return err
+}
+
 func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {
+	if err := ValidateKeyRef(keyRef); err != nil {
+		return nil, err
+	}
 	entry, err := b.kv.Get(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -82,7 +149,11 @@ func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
-	return append([]byte(nil), entry.Value()...), nil
+	key, err := DecodeUserKeyEncryptionKeyRecord(keyRef, entry.Value())
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode encryption key %s: %w", keyRef, err)
+	}
+	return key, nil
 }
 
 // LegacyUserKey returns a raw KEK for legacy direct-key body decrypt only.
@@ -109,7 +180,11 @@ func (b *Builtin) CreateKey(ctx context.Context, owner string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if _, err := b.kv.Create(ctx, keyPath(keyRef), key); err != nil {
+		data, err := encodeUserKeyEncryptionKey(key)
+		if err != nil {
+			return "", err
+		}
+		if _, err := b.kv.Create(ctx, keyPath(keyRef), data); err != nil {
 			if errors.Is(err, jetstream.ErrKeyExists) {
 				continue
 			}
@@ -123,6 +198,9 @@ func (b *Builtin) CreateKey(ctx context.Context, owner string) (string, error) {
 
 // KeyExists checks if a KEK exists.
 func (b *Builtin) KeyExists(ctx context.Context, keyRef string) (bool, error) {
+	if err := ValidateKeyRef(keyRef); err != nil {
+		return false, err
+	}
 	_, err := b.kv.Get(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -170,6 +248,9 @@ func (b *Builtin) UnwrapContentKey(ctx context.Context, keyRef string, wrapped W
 
 // ShredKey permanently removes a KEK.
 func (b *Builtin) ShredKey(ctx context.Context, keyRef string) error {
+	if err := ValidateKeyRef(keyRef); err != nil {
+		return err
+	}
 	err := b.kv.Purge(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {

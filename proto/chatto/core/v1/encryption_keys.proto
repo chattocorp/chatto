@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// UserKeyEncryptionKey is the built-in KMS storage record for opaque kek.*
+// refs in ENCRYPTION_KEYS. It is a local implementation detail; external KMS
+// backends may not store key-encryption-key material in Chatto at all.
+message UserKeyEncryptionKey {
+  bytes key = 1;
+  string algorithm = 2;
+}
+
+// UserDataEncryptionKey is the wrapped data-encryption-key record stored in
+// ENCRYPTION_KEYS under UserDEKGeneratedEvent.content_key_ref. It is
+// deliberately outside EVT so crypto-shredding can destroy key material
+// without mutating event history.
+message UserDataEncryptionKey {
+  bytes encrypted_content_key = 1;
+  bytes content_key_nonce = 2;
+  string wrapping_algorithm = 3;
+  bytes wrapping_metadata = 4;
+  string wrapping_key_ref = 5;
+}

@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -32,10 +33,10 @@ func setupStore(t *testing.T) (*Store, context.Context) {
 func TestStoreCreateGetAndShred(t *testing.T) {
 	store, ctx := setupStore(t)
 
-	stored := &corev1.StoredUserDEK{
+	stored := &corev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		ContentKeyNonce:     []byte("nonce"),
-		WrappingAlgorithm:   "test-wrap",
+		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
 		WrappingKeyRef:      "kek.test",
 	}
 	ref, err := store.Create(ctx, stored)
@@ -49,4 +50,36 @@ func TestStoreCreateGetAndShred(t *testing.T) {
 	require.NoError(t, store.Shred(ctx, ref))
 	_, err = store.Get(ctx, ref)
 	require.ErrorIs(t, err, encryption.ErrKeyNotFound)
+}
+
+func TestStoreRejectsWrongPrefixRefs(t *testing.T) {
+	store, ctx := setupStore(t)
+
+	_, err := store.Get(ctx, "kek.test")
+	require.ErrorIs(t, err, ErrInvalidRef)
+	require.ErrorIs(t, store.Shred(ctx, "kek.test"), ErrInvalidRef)
+	require.ErrorIs(t, store.Shred(ctx, "user.test"), ErrInvalidRef)
+}
+
+func TestStoreRejectsMalformedRecords(t *testing.T) {
+	store, ctx := setupStore(t)
+	data, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+		EncryptedContentKey: []byte("wrapped"),
+		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
+		WrappingKeyRef:      "kek.test",
+	})
+	require.NoError(t, err)
+	_, err = store.kv.Create(ctx, "dek.bad", data)
+	require.NoError(t, err)
+
+	_, err = store.Get(ctx, "dek.bad")
+	require.ErrorContains(t, err, "content key nonce is empty")
+
+	_, err = store.Create(ctx, &corev1.UserDataEncryptionKey{
+		EncryptedContentKey: []byte("wrapped"),
+		ContentKeyNonce:     []byte("nonce"),
+		WrappingAlgorithm:   "unsupported",
+		WrappingKeyRef:      "kek.test",
+	})
+	require.Error(t, err)
 }

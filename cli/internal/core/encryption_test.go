@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
@@ -254,6 +256,86 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	fullBody, err := core.GetFullMessageBody(ctx, KindChannel, event.Id)
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message should be nil after crypto-shredding (treated same as deleted)")
+}
+
+func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "storeddekref", "Stored DEK Ref", "password123")
+	require.NoError(t, err)
+	contentKeyEvent, ok := core.ContentKeys.Active(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	require.True(t, ok)
+	evtWrappingKeyRef := contentKeyEvent.GetWrappingKeyRef()
+	require.NotEmpty(t, evtWrappingKeyRef)
+
+	storedWrappingKeyRef, err := core.encryption.keyWrapper.CreateKey(ctx, user.Id)
+	require.NoError(t, err)
+	stored, err := core.encryption.contentKeys.Get(ctx, contentKeyEvent.GetContentKeyRef())
+	require.NoError(t, err)
+	stored.WrappingKeyRef = storedWrappingKeyRef
+	data, err := proto.Marshal(stored)
+	require.NoError(t, err)
+	_, err = core.storage.encryptionKV.Put(ctx, contentKeyEvent.GetContentKeyRef(), data)
+	require.NoError(t, err)
+
+	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
+
+	exists, err := core.encryption.keyWrapper.KeyExists(ctx, evtWrappingKeyRef)
+	require.NoError(t, err)
+	require.False(t, exists, "EVT wrapping key ref should be shredded")
+	exists, err = core.encryption.keyWrapper.KeyExists(ctx, storedWrappingKeyRef)
+	require.NoError(t, err)
+	require.False(t, exists, "stored DEK wrapping key ref should also be shredded")
+}
+
+func TestDeleteUserEncryptionKey_ShredsLegacyUserKeyRef(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "legacyuserkey", "Legacy User Key", "password123")
+	require.NoError(t, err)
+	legacyKey, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	legacyRef := kms.LegacyUserKeyRef(user.Id)
+	_, err = core.storage.encryptionKV.Create(ctx, legacyRef, legacyKey)
+	require.NoError(t, err)
+
+	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
+
+	exists, err := core.encryption.keyWrapper.KeyExists(ctx, legacyRef)
+	require.NoError(t, err)
+	require.False(t, exists, "legacy user key ref should always be included in deletion")
+}
+
+func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "badcontentref", "Bad Content Ref", "password123")
+	require.NoError(t, err)
+	mistypedContentRef, err := core.encryption.keyWrapper.CreateKey(ctx, user.Id)
+	require.NoError(t, err)
+	event := newEvent(user.Id, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+		UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId:            user.Id,
+			Epoch:             2,
+			Purpose:           corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+			ContentKeyRef:     mistypedContentRef,
+			WrappingAlgorithm: kms.AlgorithmBuiltinXChaCha20Poly1305V1,
+			WrappingKeyRef:    mistypedContentRef,
+		},
+	}})
+	seq, err := core.appendUserEvent(ctx, user.Id, event, "", nil)
+	require.NoError(t, err)
+	require.NoError(t, core.ContentKeysProjector.WaitForSeq(ctx, seq))
+
+	err = core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id)
+	require.ErrorIs(t, err, dekstore.ErrInvalidRef)
+
+	exists, err := core.encryption.keyWrapper.KeyExists(ctx, mistypedContentRef)
+	require.NoError(t, err)
+	require.True(t, exists, "mistyped content_key_ref must not be shredded through the DEK store")
 }
 
 func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *testing.T) {

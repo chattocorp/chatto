@@ -515,11 +515,11 @@ Notes: Server configuration now lives in EVT config events and is served from th
 
 | Key             | Description                       |
 | --------------- | --------------------------------- |
-| `kek.{keyRef}`  | 32-byte per-user KEK addressed by opaque KMS key ref |
-| `dek.{keyRef}`  | Protobuf `StoredUserDEK` wrapped purpose-scoped DEK record addressed by opaque app content-key ref |
-| `user.{userId}` | Legacy direct-key message-body KEK compatibility path |
+| `kek.{keyRef}`  | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref; legacy raw 32-byte compatibility is also accepted |
+| `dek.{keyRef}`  | Protobuf `UserDataEncryptionKey` wrapped purpose-scoped DEK record addressed by opaque app content-key ref |
+| `user.{userId}` | Raw 32-byte legacy direct-key message-body compatibility path only |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. New message bodies and durable user PII store wrapped, purpose-scoped DEK epochs as app-owned protobuf `StoredUserDEK` records under `dek.*` refs; the user EVT stream stores `UserDEKGeneratedEvent` audit facts with the purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded content-key refs or wrapping-key refs renders their encrypted content permanently unreadable.
+Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. New built-in KMS writes store KEKs as protobuf `UserKeyEncryptionKey` records under `kek.*` refs, while raw 32-byte `kek.*` records remain readable for compatibility with older exports. New message bodies and durable user PII store wrapped, purpose-scoped DEK epochs as app-owned protobuf `UserDataEncryptionKey` records under `dek.*` refs; the user EVT stream stores `UserDEKGeneratedEvent` audit facts with the purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local raw `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded content-key refs or wrapping-key refs renders their encrypted content permanently unreadable.
 
 **SERVER\_CONFIG keys:**
 

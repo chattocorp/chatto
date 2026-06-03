@@ -301,19 +301,11 @@ func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, content
 		}, nil
 	}
 
-	keyRef := kms.LegacyUserKeyRef(userID)
-	cleanupKeyRef := ""
-	exists, err := keyWrapper.KeyExists(ctx, keyRef)
+	keyRef, err := keyWrapper.CreateKey(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
-		keyRef, err = keyWrapper.CreateKey(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		cleanupKeyRef = keyRef
-	}
+	cleanupKeyRef := keyRef
 
 	dek, err := encryption.GenerateKey()
 	if err != nil {
@@ -327,7 +319,7 @@ func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, content
 		}
 		return nil, fmt.Errorf("wrap migration DEK: %w", err)
 	}
-	stored := &corev1.StoredUserDEK{
+	stored := &corev1.UserDataEncryptionKey{
 		EncryptedContentKey: wrapped.EncryptedContentKey,
 		ContentKeyNonce:     wrapped.Nonce,
 		WrappingAlgorithm:   wrapped.Algorithm,

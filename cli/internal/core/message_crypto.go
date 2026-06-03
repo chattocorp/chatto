@@ -135,19 +135,11 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 			return c.unwrapUserDEK(ctx, event, purpose)
 		}
 
-		keyRef := kms.LegacyUserKeyRef(userID)
-		createdKey := false
-		exists, err := c.encryption.keyWrapper.KeyExists(ctx, keyRef)
+		keyRef, err := c.encryption.keyWrapper.CreateKey(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
-		if !exists {
-			keyRef, err = c.encryption.keyWrapper.CreateKey(ctx, userID)
-			if err != nil {
-				return nil, err
-			}
-			createdKey = true
-		}
+		createdKey := true
 
 		key, wrapped, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, purpose)
 		if err != nil {
@@ -203,7 +195,7 @@ func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef strin
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wrap DEK: %w", err)
 	}
-	stored := &corev1.StoredUserDEK{
+	stored := &corev1.UserDataEncryptionKey{
 		EncryptedContentKey: wrapped.EncryptedContentKey,
 		ContentKeyNonce:     wrapped.Nonce,
 		WrappingAlgorithm:   wrapped.Algorithm,

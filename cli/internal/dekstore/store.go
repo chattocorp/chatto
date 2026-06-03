@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -20,8 +22,10 @@ const (
 	refLength   = 24
 )
 
+var ErrInvalidRef = errors.New("invalid data-encryption-key ref")
+
 type Reader interface {
-	Get(ctx context.Context, ref string) (*corev1.StoredUserDEK, error)
+	Get(ctx context.Context, ref string) (*corev1.UserDataEncryptionKey, error)
 }
 
 type Store struct {
@@ -44,9 +48,56 @@ func newRef() (string, error) {
 	return "dek." + id, nil
 }
 
-func (s *Store) Create(ctx context.Context, dek *corev1.StoredUserDEK) (string, error) {
-	if dek == nil || len(dek.GetEncryptedContentKey()) == 0 || len(dek.GetContentKeyNonce()) == 0 || dek.GetWrappingKeyRef() == "" {
-		return "", fmt.Errorf("invalid stored DEK")
+func IsRef(ref string) bool {
+	return strings.HasPrefix(ref, "dek.")
+}
+
+func ValidateRef(ref string) error {
+	if IsRef(ref) {
+		return nil
+	}
+	return fmt.Errorf("%w: %s", ErrInvalidRef, ref)
+}
+
+func validateUserDataEncryptionKey(dek *corev1.UserDataEncryptionKey) error {
+	if dek == nil {
+		return fmt.Errorf("invalid user data encryption key")
+	}
+	if len(dek.GetEncryptedContentKey()) == 0 {
+		return fmt.Errorf("invalid user data encryption key: encrypted content key is empty")
+	}
+	if len(dek.GetContentKeyNonce()) == 0 {
+		return fmt.Errorf("invalid user data encryption key: content key nonce is empty")
+	}
+	if dek.GetWrappingKeyRef() == "" {
+		return fmt.Errorf("invalid user data encryption key: wrapping key ref is empty")
+	}
+	if err := kms.ValidateKeyRef(dek.GetWrappingKeyRef()); err != nil {
+		return fmt.Errorf("invalid user data encryption key wrapping key ref: %w", err)
+	}
+	if dek.GetWrappingAlgorithm() != kms.AlgorithmBuiltinXChaCha20Poly1305V1 {
+		if dek.GetWrappingAlgorithm() == "" {
+			return fmt.Errorf("invalid user data encryption key: wrapping algorithm is empty")
+		}
+		return fmt.Errorf("%w: %s", kms.ErrUnsupportedWrappingAlgorithm, dek.GetWrappingAlgorithm())
+	}
+	return nil
+}
+
+func ValidateUserDataEncryptionKeyRecord(ref string, data []byte) error {
+	if err := ValidateRef(ref); err != nil {
+		return err
+	}
+	var dek corev1.UserDataEncryptionKey
+	if err := proto.Unmarshal(data, &dek); err != nil {
+		return fmt.Errorf("failed to decode content key: %w", err)
+	}
+	return validateUserDataEncryptionKey(&dek)
+}
+
+func (s *Store) Create(ctx context.Context, dek *corev1.UserDataEncryptionKey) (string, error) {
+	if err := validateUserDataEncryptionKey(dek); err != nil {
+		return "", err
 	}
 	data, err := proto.Marshal(dek)
 	if err != nil {
@@ -69,7 +120,10 @@ func (s *Store) Create(ctx context.Context, dek *corev1.StoredUserDEK) (string, 
 	return "", fmt.Errorf("failed to allocate unique content key ref")
 }
 
-func (s *Store) Get(ctx context.Context, ref string) (*corev1.StoredUserDEK, error) {
+func (s *Store) Get(ctx context.Context, ref string) (*corev1.UserDataEncryptionKey, error) {
+	if err := ValidateRef(ref); err != nil {
+		return nil, err
+	}
 	entry, err := s.kv.Get(ctx, ref)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -77,17 +131,20 @@ func (s *Store) Get(ctx context.Context, ref string) (*corev1.StoredUserDEK, err
 		}
 		return nil, fmt.Errorf("failed to get content key: %w", err)
 	}
-	var dek corev1.StoredUserDEK
+	var dek corev1.UserDataEncryptionKey
 	if err := proto.Unmarshal(entry.Value(), &dek); err != nil {
 		return nil, fmt.Errorf("failed to decode content key: %w", err)
 	}
-	if dek.GetWrappingKeyRef() == "" {
-		return nil, encryption.ErrKeyNotFound
+	if err := validateUserDataEncryptionKey(&dek); err != nil {
+		return nil, err
 	}
 	return &dek, nil
 }
 
 func (s *Store) Shred(ctx context.Context, ref string) error {
+	if err := ValidateRef(ref); err != nil {
+		return err
+	}
 	err := s.kv.Purge(ctx, ref)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {

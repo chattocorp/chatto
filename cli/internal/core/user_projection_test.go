@@ -46,8 +46,8 @@ func (w staticProjectionKeyWrapper) ShredKey(context.Context, string) error {
 	return nil
 }
 
-func (s staticProjectionDEKStore) Get(context.Context, string) (*corev1.StoredUserDEK, error) {
-	return &corev1.StoredUserDEK{
+func (s staticProjectionDEKStore) Get(context.Context, string) (*corev1.UserDataEncryptionKey, error) {
+	return &corev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		ContentKeyNonce:     []byte("nonce"),
 		WrappingKeyRef:      "test-key",

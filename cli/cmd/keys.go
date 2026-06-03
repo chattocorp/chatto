@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/dekstore"
+	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/pkg/natsauth"
 )
 
@@ -37,7 +39,7 @@ type ExportedKey struct {
 	// only have UserID.
 	KeyRef string `json:"key_ref,omitempty"`
 	UserID string `json:"user_id,omitempty"`
-	Key    []byte `json:"key"` // raw KEK bytes or protobuf-encoded wrapped-DEK record
+	Key    []byte `json:"key"` // raw legacy key bytes or protobuf-encoded key record
 }
 
 var (
@@ -186,7 +188,10 @@ func runKeysImport(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
 	}
 
-	imported, skipped := importKeys(ctx, kv, keys)
+	imported, skipped, err := importKeys(ctx, kv, keys)
+	if err != nil {
+		log.Fatal("Failed to import keys", "error", err)
+	}
 
 	log.Info("Key import complete", "imported", imported, "skipped_existing", skipped)
 }
@@ -201,25 +206,51 @@ func keyRefForImport(key ExportedKey) string {
 	return "user." + key.UserID
 }
 
-func importKeys(ctx context.Context, kv jetstream.KeyValue, keys []ExportedKey) (imported int, skipped int) {
-	for _, key := range keys {
-		keyRef := keyRefForImport(key)
-		if keyRef == "" {
-			log.Error("Failed to import key", "error", "missing key_ref/user_id")
-			continue
+func validateEncryptionKeyRecord(keyRef string, data []byte) error {
+	switch {
+	case strings.HasPrefix(keyRef, "dek."):
+		return dekstore.ValidateUserDataEncryptionKeyRecord(keyRef, data)
+	case kms.IsKeyRef(keyRef):
+		return kms.ValidateUserKeyEncryptionKeyRecord(keyRef, data)
+	default:
+		return fmt.Errorf("unknown ENCRYPTION_KEYS key ref prefix: %s", keyRef)
+	}
+}
+
+func validateExportedKey(key ExportedKey) (string, error) {
+	keyRef := keyRefForImport(key)
+	if keyRef == "" {
+		return "", fmt.Errorf("missing key_ref/user_id")
+	}
+	if err := validateEncryptionKeyRecord(keyRef, key.Key); err != nil {
+		return "", err
+	}
+	return keyRef, nil
+}
+
+func importKeys(ctx context.Context, kv jetstream.KeyValue, keys []ExportedKey) (imported int, skipped int, err error) {
+	keyRefs := make([]string, len(keys))
+	for i, key := range keys {
+		keyRef, err := validateExportedKey(key)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid exported key %q: %w", keyRefForImport(key), err)
 		}
+		keyRefs[i] = keyRef
+	}
+
+	for i, key := range keys {
+		keyRef := keyRefs[i]
 		_, err := kv.Create(ctx, keyRef, key.Key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyExists) {
 				skipped++
 				continue
 			}
-			log.Error("Failed to import key", "key_ref", keyRef, "user_id", key.UserID, "error", err)
-			continue
+			return imported, skipped, fmt.Errorf("failed to import key %s: %w", keyRef, err)
 		}
 		imported++
 	}
-	return imported, skipped
+	return imported, skipped, nil
 }
 
 // exportAllKeys reads all entries from the ENCRYPTION_KEYS KV bucket.
@@ -237,6 +268,9 @@ func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, e
 		entry, err := kv.Get(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key %s: %w", key, err)
+		}
+		if err := validateEncryptionKeyRecord(key, entry.Value()); err != nil {
+			return nil, fmt.Errorf("invalid ENCRYPTION_KEYS record %s: %w", key, err)
 		}
 
 		exportedKey := ExportedKey{

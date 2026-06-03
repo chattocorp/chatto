@@ -399,18 +399,35 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	}
 
 	contentKeyRefs := c.ContentKeys.ContentKeyRefs(userID)
+	keyRefs := make(map[string]struct{})
+	keyRefs[kms.LegacyUserKeyRef(userID)] = struct{}{}
+	for _, keyRef := range c.ContentKeys.KeyRefs(userID) {
+		if keyRef != "" {
+			keyRefs[keyRef] = struct{}{}
+		}
+	}
+	for _, contentKeyRef := range contentKeyRefs {
+		if c.encryption.contentKeys == nil {
+			return fmt.Errorf("content key store is not configured")
+		}
+		stored, err := c.encryption.contentKeys.Get(ctx, contentKeyRef)
+		if err != nil {
+			return fmt.Errorf("failed to load DEK %s before shredding: %w", contentKeyRef, err)
+		}
+		if wrappingKeyRef := stored.GetWrappingKeyRef(); wrappingKeyRef != "" {
+			keyRefs[wrappingKeyRef] = struct{}{}
+		}
+	}
+
+	shredded := false
 	for _, contentKeyRef := range contentKeyRefs {
 		if err := c.encryption.contentKeys.Shred(ctx, contentKeyRef); err != nil {
 			return err
 		}
+		shredded = true
 	}
 
-	keyRefs := c.ContentKeys.KeyRefs(userID)
-	if len(keyRefs) == 0 && len(contentKeyRefs) == 0 {
-		keyRefs = []string{kms.LegacyUserKeyRef(userID)}
-	}
-	shredded := len(contentKeyRefs) > 0
-	for _, keyRef := range keyRefs {
+	for keyRef := range keyRefs {
 		exists, err := c.encryption.keyWrapper.KeyExists(ctx, keyRef)
 		if err != nil {
 			return err
