@@ -170,7 +170,7 @@ func (b *Builtin) UnwrapContentKey(ctx context.Context, keyRef string, wrapped W
 
 // ShredKey permanently removes a KEK.
 func (b *Builtin) ShredKey(ctx context.Context, keyRef string) error {
-	err := b.kv.Delete(ctx, keyPath(keyRef))
+	err := b.kv.Purge(ctx, keyPath(keyRef))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil

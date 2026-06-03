@@ -20,7 +20,8 @@ func setupBuiltinKMS(t *testing.T) (*Builtin, context.Context) {
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
 	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket: "TEST_ENCRYPTION_KEYS",
+		Bucket:  "TEST_ENCRYPTION_KEYS",
+		History: 1,
 	})
 	require.NoError(t, err)
 	return NewBuiltin(kv, nil), ctx

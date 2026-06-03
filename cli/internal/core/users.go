@@ -94,8 +94,14 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
 	cleanupEncryptionKey := true
+	var cleanupContentKeyRefs []string
 	defer func() {
 		if cleanupEncryptionKey {
+			for _, contentKeyRef := range cleanupContentKeyRefs {
+				if err := c.encryption.contentKeys.Shred(context.WithoutCancel(ctx), contentKeyRef); err != nil {
+					c.logger.Warn("failed to clean up user content key after failed signup", "error", err, "content_key_ref", contentKeyRef)
+				}
+			}
 			c.cleanupCreatedUserEncryptionKey(ctx, keyRef)
 		}
 	}()
@@ -104,11 +110,13 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	if err != nil {
 		return nil, err
 	}
+	cleanupContentKeyRefs = append(cleanupContentKeyRefs, wrappedMessageDEK.GetContentKeyRef())
 
 	piiDEKBytes, wrappedPIIDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
 	if err != nil {
 		return nil, err
 	}
+	cleanupContentKeyRefs = append(cleanupContentKeyRefs, wrappedPIIDEK.GetContentKeyRef())
 
 	piiDEK := &userDEK{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
 	agg := events.UserAggregate(userID)

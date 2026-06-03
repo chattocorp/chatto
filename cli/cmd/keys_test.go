@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestEncryptDecryptKeysRoundTrip(t *testing.T) {
@@ -79,11 +82,21 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		t.Fatal("Failed to create ENCRYPTION_KEYS bucket:", err)
 	}
 
+	storedDEK, err := proto.Marshal(&corev1.StoredUserDEK{
+		EncryptedContentKey: []byte("wrapped"),
+		ContentKeyNonce:     []byte("nonce"),
+		WrappingKeyRef:      "kek.DEKRef01",
+	})
+	if err != nil {
+		t.Fatal("marshal stored DEK:", err)
+	}
+
 	testKeys := map[string][]byte{
 		"user.alice":   []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), // 32 bytes
 		"user.bob":     []byte("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"),
 		"user.charlie": []byte("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"),
 		"kek.DEKRef01": []byte("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"),
+		"dek.Ref01":    storedDEK,
 	}
 
 	for k, v := range testKeys {

@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
@@ -19,13 +20,13 @@ import (
 
 func TestMigrateUsersToES_EmptyKV(t *testing.T) {
 	ctx, kv, _, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 }
 
 func TestMigrateUsersToES_SeedsEncryptedUserAggregateAndReplays(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
 
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	verifiedAt := createdAt.Add(time.Hour)
@@ -56,7 +57,7 @@ func TestMigrateUsersToES_SeedsEncryptedUserAggregateAndReplays(t *testing.T) {
 	_, err = kv.Put(ctx, "user_by_oidc.subjecthash", []byte("U1"))
 	require.NoError(t, err)
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
@@ -76,13 +77,17 @@ func TestMigrateUsersToES_SeedsEncryptedUserAggregateAndReplays(t *testing.T) {
 	require.Equal(t, "U1", messageDEK.GetUserId())
 	require.EqualValues(t, 1, messageDEK.GetEpoch())
 	require.Equal(t, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, messageDEK.GetPurpose())
-	require.NotEmpty(t, messageDEK.GetEncryptedContentKey())
-	require.NotEmpty(t, messageDEK.GetContentKeyNonce())
+	require.NotEmpty(t, messageDEK.GetContentKeyRef())
 	require.NotEmpty(t, messageDEK.GetWrappingKeyRef())
+	storedMessageDEK, err := contentKeys.Get(ctx, messageDEK.GetContentKeyRef())
+	require.NoError(t, err)
+	require.NotEmpty(t, storedMessageDEK.GetEncryptedContentKey())
+	require.NotEmpty(t, storedMessageDEK.GetContentKeyNonce())
+	require.Equal(t, messageDEK.GetWrappingKeyRef(), storedMessageDEK.GetWrappingKeyRef())
 
 	piiDEKEvent := eventsBySeq[1].GetUserDekGenerated()
 	require.Equal(t, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, piiDEKEvent.GetPurpose())
-	unwrappedPIIDEK, err := unwrapMigrationDEK(ctx, keyWrapper, piiDEKEvent)
+	unwrappedPIIDEK, err := unwrapMigrationDEK(ctx, keyWrapper, contentKeys, piiDEKEvent)
 	require.NoError(t, err)
 
 	account := eventsBySeq[2].GetUserAccountCreated()
@@ -104,7 +109,7 @@ func TestMigrateUsersToES_SeedsEncryptedUserAggregateAndReplays(t *testing.T) {
 	require.Equal(t, "U1", eventsBySeq[7].GetUserLoginCooldownStarted().GetUserId())
 	require.True(t, eventsBySeq[7].GetCreatedAt().AsTime().Equal(loginChangedAt))
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 	infoReplay, err := stream.Info(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 8, infoReplay.State.Msgs)
@@ -112,7 +117,7 @@ func TestMigrateUsersToES_SeedsEncryptedUserAggregateAndReplays(t *testing.T) {
 
 func TestMigrateUsersToES_AppendsEncryptedRepairForPlaintextUserEVTPrefix(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
 
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	user := &corev1.User{
@@ -139,7 +144,7 @@ func TestMigrateUsersToES_AppendsEncryptedRepairForPlaintextUserEVTPrefix(t *tes
 	}})
 	require.NoError(t, err)
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
@@ -151,14 +156,14 @@ func TestMigrateUsersToES_AppendsEncryptedRepairForPlaintextUserEVTPrefix(t *tes
 	require.IsType(t, &corev1.Event_UserAccountCreated{}, eventsBySeq[3].GetEvent())
 	require.IsType(t, &corev1.Event_UserVerifiedEmailAdded{}, eventsBySeq[4].GetEvent())
 
-	piiDEK, err := unwrapMigrationDEK(ctx, keyWrapper, eventsBySeq[2].GetUserDekGenerated())
+	piiDEK, err := unwrapMigrationDEK(ctx, keyWrapper, contentKeys, eventsBySeq[2].GetUserDekGenerated())
 	require.NoError(t, err)
 	account := eventsBySeq[3].GetUserAccountCreated()
 	require.Equal(t, "Alice", decryptImportedUserString(t, piiDEK, eventsBySeq[3].GetId(), "U1", events.EventUserAccountCreated, "login", account.GetEncryptedLogin()))
 	email := eventsBySeq[4].GetUserVerifiedEmailAdded()
 	require.Equal(t, "Alice@Example.com", decryptImportedUserString(t, piiDEK, eventsBySeq[4].GetId(), "U1", events.EventUserVerifiedEmailAdded, "email", email.GetEncryptedEmail()))
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 	infoReplay, err := stream.Info(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 5, infoReplay.State.Msgs)
@@ -166,7 +171,7 @@ func TestMigrateUsersToES_AppendsEncryptedRepairForPlaintextUserEVTPrefix(t *tes
 
 func TestMigrateUsersToES_ResumesAfterCommittedDEKsAndEncryptedAccount(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
 
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	verifiedAt := createdAt.Add(time.Hour)
@@ -189,11 +194,11 @@ func TestMigrateUsersToES_ResumesAfterCommittedDEKsAndEncryptedAccount(t *testin
 	_, err = kv.Put(ctx, "user_login_changed_at.U1", []byte(loginChangedAt.Format(time.RFC3339)))
 	require.NoError(t, err)
 
-	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, user, createdAt, []string{"subjecthash"}, nil, testLogger())
+	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, contentKeys, user, createdAt, []string{"subjecthash"}, nil, testLogger())
 	require.NoError(t, err)
 	appendUserMigrationEntries(t, ctx, publisher, "U1", entries[:3], 0)
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
@@ -210,7 +215,7 @@ func TestMigrateUsersToES_ResumesAfterCommittedDEKsAndEncryptedAccount(t *testin
 
 func TestMigrateUsersToES_RepairDoesNotDuplicateExistingDEK(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
 
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	user := &corev1.User{
@@ -225,7 +230,7 @@ func TestMigrateUsersToES_RepairDoesNotDuplicateExistingDEK(t *testing.T) {
 		VerifiedAt: timestamppb.New(createdAt.Add(time.Hour)),
 	})
 
-	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, user, createdAt, nil, nil, testLogger())
+	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, contentKeys, user, createdAt, nil, nil, testLogger())
 	require.NoError(t, err)
 	legacyPlaintextAccount := stamp(&corev1.Event{Event: &corev1.Event_UserAccountCreated{
 		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U1"},
@@ -235,7 +240,7 @@ func TestMigrateUsersToES_RepairDoesNotDuplicateExistingDEK(t *testing.T) {
 		{Subject: events.UserAggregate("U1").SubjectFor(legacyPlaintextAccount), Event: legacyPlaintextAccount},
 	}, 0)
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
@@ -258,7 +263,7 @@ func TestMigrateUsersToES_RepairDoesNotDuplicateExistingDEK(t *testing.T) {
 
 func TestMigrateUsersToES_RepairResumesAfterEncryptedAccount(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
 
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	user := &corev1.User{
@@ -275,7 +280,7 @@ func TestMigrateUsersToES_RepairResumesAfterEncryptedAccount(t *testing.T) {
 	_, err := kv.Put(ctx, "user_by_oidc.subjecthash", []byte("U1"))
 	require.NoError(t, err)
 
-	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, user, createdAt, []string{"subjecthash"}, nil, testLogger())
+	entries, _, err := buildUserMigrationEntries(ctx, kv, keyWrapper, contentKeys, user, createdAt, []string{"subjecthash"}, nil, testLogger())
 	require.NoError(t, err)
 	legacyPlaintextAccount := stamp(&corev1.Event{Event: &corev1.Event_UserAccountCreated{
 		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U1"},
@@ -287,7 +292,7 @@ func TestMigrateUsersToES_RepairResumesAfterEncryptedAccount(t *testing.T) {
 		entries[2],
 	}, 0)
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
@@ -300,7 +305,7 @@ func TestMigrateUsersToES_RepairResumesAfterEncryptedAccount(t *testing.T) {
 	require.NotNil(t, eventsBySeq[4].GetUserVerifiedEmailAdded().GetEncryptedEmail())
 	require.Equal(t, "subjecthash", eventsBySeq[5].GetUserOidcSubjectLinked().GetSubjectHash())
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 	infoReplay, err := stream.Info(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 6, infoReplay.State.Msgs)
@@ -308,7 +313,7 @@ func TestMigrateUsersToES_RepairResumesAfterEncryptedAccount(t *testing.T) {
 
 func TestMigrateUsersToES_SkipsCorruptOptionalLegacyValues(t *testing.T) {
 	ctx, kv, stream, publisher := setupTestES(t)
-	keyWrapper := setupUserMigrationKMS(t, ctx)
+	keyWrapper, contentKeys := setupUserMigrationKMS(t, ctx)
 
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	user := &corev1.User{
@@ -323,7 +328,7 @@ func TestMigrateUsersToES_SkipsCorruptOptionalLegacyValues(t *testing.T) {
 	_, err = kv.Put(ctx, "user_login_changed_at.U1", []byte("not a timestamp"))
 	require.NoError(t, err)
 
-	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, testLogger()))
+	require.NoError(t, MigrateUsersToES(ctx, kv, publisher, keyWrapper, contentKeys, testLogger()))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)
@@ -360,7 +365,7 @@ func putProtoKV(t *testing.T, ctx context.Context, kv jetstream.KeyValue, key st
 	require.NoError(t, err)
 }
 
-func setupUserMigrationKMS(t *testing.T, ctx context.Context) kms.KeyWrapper {
+func setupUserMigrationKMS(t *testing.T, ctx context.Context) (kms.KeyWrapper, *dekstore.Store) {
 	t.Helper()
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
@@ -370,7 +375,7 @@ func setupUserMigrationKMS(t *testing.T, ctx context.Context) kms.KeyWrapper {
 		Storage: jetstream.MemoryStorage,
 	})
 	require.NoError(t, err)
-	return kms.NewBuiltin(kv, testLogger())
+	return kms.NewBuiltin(kv, testLogger()), dekstore.New(kv, testLogger())
 }
 
 func decryptImportedUserString(t *testing.T, contentKey []byte, eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) string {

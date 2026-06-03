@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
@@ -26,6 +27,7 @@ type UserProjection struct {
 	oidcIndex   map[string]string
 	eventIDSeen map[string]struct{}
 	keyWrapper  kms.KeyWrapper
+	dekStore    dekstore.Reader
 	contentKeys map[string]map[corev1.UserDEKPurpose]map[int32][]byte
 }
 
@@ -39,11 +41,7 @@ type projectedUser struct {
 	loginChanged  time.Time
 }
 
-func NewUserProjection(keyWrappers ...kms.KeyWrapper) *UserProjection {
-	var keyWrapper kms.KeyWrapper
-	if len(keyWrappers) > 0 {
-		keyWrapper = keyWrappers[0]
-	}
+func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *UserProjection {
 	return &UserProjection{
 		users:       make(map[string]*projectedUser),
 		loginIndex:  make(map[string]string),
@@ -51,6 +49,7 @@ func NewUserProjection(keyWrappers ...kms.KeyWrapper) *UserProjection {
 		oidcIndex:   make(map[string]string),
 		eventIDSeen: make(map[string]struct{}),
 		keyWrapper:  keyWrapper,
+		dekStore:    dekStore,
 		contentKeys: make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
 	}
 }
@@ -126,19 +125,23 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 }
 
 func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || p.keyWrapper == nil {
+	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" || p.keyWrapper == nil || p.dekStore == nil {
 		return
 	}
 	purpose := e.GetPurpose()
-	keyRef := e.GetWrappingKeyRef()
+	stored, err := p.dekStore.Get(context.Background(), e.GetContentKeyRef())
+	if err != nil {
+		return
+	}
+	keyRef := stored.WrappingKeyRef
 	if keyRef == "" {
 		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
 	}
 	key, err := p.keyWrapper.UnwrapContentKey(context.Background(), keyRef, kms.WrappedContentKey{
-		EncryptedContentKey: e.GetEncryptedContentKey(),
-		Nonce:               e.GetContentKeyNonce(),
-		Algorithm:           e.GetWrappingAlgorithm(),
-		Metadata:            e.GetWrappingMetadata(),
+		EncryptedContentKey: stored.EncryptedContentKey,
+		Nonce:               stored.ContentKeyNonce,
+		Algorithm:           stored.WrappingAlgorithm,
+		Metadata:            stored.WrappingMetadata,
 	}, userDEKAAD(e.GetUserId(), purpose, e.GetEpoch()))
 	if err != nil {
 		return

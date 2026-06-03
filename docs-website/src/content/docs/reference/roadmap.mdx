@@ -234,9 +234,9 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
   Every message body is encrypted at rest with XChaCha20-Poly1305 using the
   author's active message-body DEK epoch, and durable user PII events use a
   separate user-PII DEK epoch. DEKs are wrapped behind Chatto's KMS
-  boundary using opaque key refs and only unwrapped when authorized projections
-  or API paths need plaintext. Shredding a user's key refs renders their wrapped
-  DEKs and encrypted data permanently unreadable — fast, reliable
+  boundary, stored by the application under opaque content-key refs, and only unwrapped when
+  authorized projections or API paths need plaintext. Shredding a user's
+  content-key refs or wrapping-key refs renders their encrypted data permanently unreadable — fast, reliable
   GDPR-compliant data destruction without needing to locate individual messages
   across streams.
 </RoadmapItem>

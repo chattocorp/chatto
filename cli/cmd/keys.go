@@ -30,13 +30,14 @@ type KeyExport struct {
 	Keys      []ExportedKey `json:"keys"`
 }
 
-// ExportedKey is one raw ENCRYPTION_KEYS entry in the export.
+// ExportedKey is one ENCRYPTION_KEYS entry in the export.
 type ExportedKey struct {
 	// KeyRef is the literal ENCRYPTION_KEYS key. New KMS-backed entries use
-	// opaque refs such as "kek.Abc123"; legacy exports may only have UserID.
+	// opaque refs such as "kek.Abc123" and "dek.Abc123"; legacy exports may
+	// only have UserID.
 	KeyRef string `json:"key_ref,omitempty"`
 	UserID string `json:"user_id,omitempty"`
-	Key    []byte `json:"key"` // raw 32-byte key-encryption key
+	Key    []byte `json:"key"` // raw KEK bytes or protobuf-encoded wrapped-DEK record
 }
 
 var (
@@ -54,12 +55,12 @@ var keysCmd = &cobra.Command{
 var keysExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export encryption keys",
-	Long: `Exports all user encryption keys to a file, encrypted with a passphrase.
+	Long: `Exports all Chatto encryption key records to a file, encrypted with a passphrase.
 
 The export file is encrypted using age (age-encryption.org) and contains
-all key-encryption keys needed to decrypt message bodies and encrypted
-durable user PII. Store this file securely — anyone with the file and
-passphrase can decrypt encrypted Chatto content.
+all key-encryption keys and wrapped content-key records needed to decrypt
+message bodies and encrypted durable user PII. Store this file securely —
+anyone with the file and passphrase can decrypt encrypted Chatto content.
 
 Use together with 'chatto backup' for complete disaster recovery:
   1. chatto backup -c chatto.toml
@@ -70,10 +71,10 @@ Use together with 'chatto backup' for complete disaster recovery:
 var keysImportCmd = &cobra.Command{
 	Use:   "import <file>",
 	Short: "Import encryption keys",
-	Long: `Imports user encryption keys from a file created by 'chatto keys export'.
+	Long: `Imports Chatto encryption key records from a file created by 'chatto keys export'.
 
-By default, existing keys are NOT overwritten. Keys are only imported for
-users that don't already have a key in the ENCRYPTION_KEYS bucket.
+By default, existing records are NOT overwritten. Records are only imported
+when the ENCRYPTION_KEYS bucket does not already contain that key ref.
 
 Use together with 'chatto restore' for complete disaster recovery:
   1. chatto restore backup.tar.gz -c chatto.toml

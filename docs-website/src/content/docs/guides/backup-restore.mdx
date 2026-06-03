@@ -127,7 +127,7 @@ chatto restore backup.tar.gz -c chatto.toml --conflict=overwrite
 
 ## Encryption key backup
 
-Encryption keys are excluded from data backups by design — since Chatto encrypts message bodies and durable user PII, this ensures that a leaked backup archive doesn't expose that encrypted content. To fully restore accounts, profile indexes, and messages, export the keys separately.
+Encryption key records are excluded from data backups by design — since Chatto encrypts message bodies and durable user PII, this ensures that a leaked backup archive doesn't expose that encrypted content. To fully restore accounts, profile indexes, and messages, export the KEK and wrapped-DEK records separately.
 
 ### Exporting keys
 
@@ -154,7 +154,7 @@ After restoring a data backup, import the encryption keys:
 chatto keys import keys.backup -c chatto.toml
 ```
 
-Existing keys are never overwritten — only keys for users that don't already have one are imported. This makes it safe to re-run.
+Existing key records are never overwritten — only refs that do not already exist are imported. This makes it safe to re-run.
 
 ## Complete disaster recovery
 

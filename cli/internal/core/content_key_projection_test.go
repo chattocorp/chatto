@@ -15,11 +15,11 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 			Id: "E1",
 			Event: &corev1.Event_UserDekGenerated{
 				UserDekGenerated: &corev1.UserDEKGeneratedEvent{
-					UserId:              "U1",
-					Epoch:               1,
-					Purpose:             purpose,
-					EncryptedContentKey: []byte("wrapped-1"),
-					ContentKeyNonce:     []byte("nonce-1"),
+					UserId:         "U1",
+					Epoch:          1,
+					Purpose:        purpose,
+					ContentKeyRef:  "dek.1",
+					WrappingKeyRef: "kek.1",
 				},
 			},
 		},
@@ -27,11 +27,11 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 			Id: "E2",
 			Event: &corev1.Event_UserDekGenerated{
 				UserDekGenerated: &corev1.UserDEKGeneratedEvent{
-					UserId:              "U1",
-					Epoch:               2,
-					Purpose:             purpose,
-					EncryptedContentKey: []byte("wrapped-2"),
-					ContentKeyNonce:     []byte("nonce-2"),
+					UserId:         "U1",
+					Epoch:          2,
+					Purpose:        purpose,
+					ContentKeyRef:  "dek.2",
+					WrappingKeyRef: "kek.1",
 				},
 			},
 		},
@@ -54,8 +54,17 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 	if !ok {
 		t.Fatal("expected epoch 1")
 	}
-	if string(epoch1.GetEncryptedContentKey()) != "wrapped-1" {
-		t.Fatalf("epoch 1 wrapped key = %q", epoch1.GetEncryptedContentKey())
+	if epoch1.GetContentKeyRef() != "dek.1" {
+		t.Fatalf("epoch 1 content key ref = %q", epoch1.GetContentKeyRef())
+	}
+
+	contentKeyRefs := p.ContentKeyRefs("U1")
+	if len(contentKeyRefs) != 2 {
+		t.Fatalf("content key refs = %v, want 2 refs", contentKeyRefs)
+	}
+	keyRefs := p.KeyRefs("U1")
+	if len(keyRefs) != 1 || keyRefs[0] != "kek.1" {
+		t.Fatalf("wrapping key refs = %v, want [kek.1]", keyRefs)
 	}
 }
 
@@ -67,11 +76,10 @@ func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
 		Id: "E1",
 		Event: &corev1.Event_UserDekGenerated{
 			UserDekGenerated: &corev1.UserDEKGeneratedEvent{
-				UserId:              "U1",
-				Epoch:               1,
-				Purpose:             purpose,
-				EncryptedContentKey: []byte("wrapped"),
-				ContentKeyNonce:     []byte("nonce"),
+				UserId:        "U1",
+				Epoch:         1,
+				Purpose:       purpose,
+				ContentKeyRef: "dek.1",
 			},
 		},
 	}, 1); err != nil {
@@ -91,5 +99,8 @@ func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
 	}
 	if _, ok := p.Get("U1", purpose, 1); ok {
 		t.Fatal("epoch 1 content key should be cleared after shred")
+	}
+	if refs := p.ContentKeyRefs("U1"); len(refs) != 0 {
+		t.Fatalf("content key refs should be cleared after shred, got %v", refs)
 	}
 }

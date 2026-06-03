@@ -42,6 +42,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
 )
@@ -79,6 +80,7 @@ func RunAll(
 	serverReactionsKV jetstream.KeyValue,
 	publisher *events.Publisher,
 	keyWrapper kms.KeyWrapper,
+	contentKeys *dekstore.Store,
 	logger *log.Logger,
 ) error {
 	run := func(name string, legacySourcePresent bool, fn func() error) error {
@@ -101,7 +103,7 @@ func RunAll(
 		return err
 	}
 	if err := run("users_es", serverKV != nil, func() error {
-		return MigrateUsersToES(ctx, serverKV, publisher, keyWrapper, logger)
+		return MigrateUsersToES(ctx, serverKV, publisher, keyWrapper, contentKeys, logger)
 	}); err != nil {
 		return err
 	}

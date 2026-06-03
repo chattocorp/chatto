@@ -56,7 +56,7 @@ func (p *ContentKeyProjection) Apply(event *corev1.Event, _ uint64) error {
 }
 
 func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *corev1.UserDEKGeneratedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 {
+	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return
 	}
 	purpose := e.GetPurpose()
@@ -126,6 +126,31 @@ func (p *ContentKeyProjection) KeyRefs(userID string) []string {
 			ref := event.GetWrappingKeyRef()
 			if ref == "" {
 				ref = kms.LegacyUserKeyRef(userID)
+			}
+			if _, ok := seen[ref]; ok {
+				continue
+			}
+			seen[ref] = struct{}{}
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
+func (p *ContentKeyProjection) ContentKeyRefs(userID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	byPurpose := p.byUserPurposeEpoch[userID]
+	if byPurpose == nil {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var refs []string
+	for _, epochs := range byPurpose {
+		for _, event := range epochs {
+			ref := event.GetContentKeyRef()
+			if ref == "" {
+				continue
 			}
 			if _, ok := seen[ref]; ok {
 				continue

@@ -40,8 +40,8 @@ If you add a new memory-only or cache bucket, add it to `skipReason()`.
 Encryption keys (`KV_ENCRYPTION_KEYS`) are intentionally excluded from data backups. This is a security design choice — backups contain only encrypted data, not the keys to decrypt it.
 
 Separate key management commands exist:
-- `chatto keys export -o keys.backup` — Exports all per-user encryption keys, encrypted with age
-- `chatto keys import keys.backup` — Imports keys; skips users that already have a key (safe to re-run)
+- `chatto keys export -o keys.backup` — Exports all `ENCRYPTION_KEYS` records, including KEKs and app-owned wrapped DEK records, encrypted with age
+- `chatto keys import keys.backup` — Imports key records; skips refs that already exist (safe to re-run)
 
 Key files: `cli/cmd/keys.go`, `cli/cmd/keys_test.go`
 

@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
@@ -43,6 +44,7 @@ func MigrateUsersToES(
 	serverKV jetstream.KeyValue,
 	publisher *events.Publisher,
 	keyWrapper kms.KeyWrapper,
+	contentKeys *dekstore.Store,
 	logger *log.Logger,
 ) error {
 	userKeys, err := listLegacyUserRecordKeys(ctx, serverKV)
@@ -54,6 +56,9 @@ func MigrateUsersToES(
 	}
 	if keyWrapper == nil {
 		return fmt.Errorf("users ES migration requires a KMS key wrapper")
+	}
+	if contentKeys == nil {
+		return fmt.Errorf("users ES migration requires a DEK store")
 	}
 
 	oidcByUser, err := loadOIDCSubjectHashesByUser(ctx, serverKV)
@@ -88,21 +93,21 @@ func MigrateUsersToES(
 			return fmt.Errorf("read existing user events for %s: %w", user.GetId(), err)
 		}
 
-		entries, cleanupKeyRefs, err := buildUserMigrationEntries(ctx, serverKV, keyWrapper, &user, entry.Created(), oidcByUser[user.GetId()], existingEvents, logger)
+		entries, cleanupKeyRefs, err := buildUserMigrationEntries(ctx, serverKV, keyWrapper, contentKeys, &user, entry.Created(), oidcByUser[user.GetId()], existingEvents, logger)
 		if err != nil {
-			cleanupMigrationKeyRefs(ctx, keyWrapper, cleanupKeyRefs, logger)
+			cleanupMigrationKeyRefs(ctx, keyWrapper, contentKeys, cleanupKeyRefs, logger)
 			return fmt.Errorf("build user migration events for %s: %w", user.GetId(), err)
 		}
 
 		userImported, userSkipped, err := publishUserMigration(ctx, publisher, user.GetId(), entries, existingEvents, expectedSeq, logger)
 		if err != nil {
 			if userImported == 0 {
-				cleanupMigrationKeyRefs(ctx, keyWrapper, cleanupKeyRefs, logger)
+				cleanupMigrationKeyRefs(ctx, keyWrapper, contentKeys, cleanupKeyRefs, logger)
 			}
 			return fmt.Errorf("publish user migration for %s: %w", user.GetId(), err)
 		}
 		if userImported == 0 {
-			cleanupMigrationKeyRefs(ctx, keyWrapper, cleanupKeyRefs, logger)
+			cleanupMigrationKeyRefs(ctx, keyWrapper, contentKeys, cleanupKeyRefs, logger)
 		}
 		imported += userImported
 		skipped += userSkipped
@@ -136,17 +141,19 @@ func listLegacyUserRecordKeys(ctx context.Context, kv jetstream.KeyValue) ([]str
 }
 
 type migrationDEK struct {
-	epoch         int32
-	purpose       corev1.UserDEKPurpose
-	key           []byte
-	event         *corev1.UserDEKGeneratedEvent
-	cleanupKeyRef string
+	epoch                int32
+	purpose              corev1.UserDEKPurpose
+	key                  []byte
+	event                *corev1.UserDEKGeneratedEvent
+	cleanupKeyRef        string
+	cleanupContentKeyRef string
 }
 
 func buildUserMigrationEntries(
 	ctx context.Context,
 	kv jetstream.KeyValue,
 	keyWrapper kms.KeyWrapper,
+	contentKeys *dekstore.Store,
 	user *corev1.User,
 	legacyCreatedAt time.Time,
 	oidcSubjectHashes []string,
@@ -159,7 +166,7 @@ func buildUserMigrationEntries(
 		createdAt = timestamppb.New(legacyCreatedAt)
 	}
 
-	messageDEK, err := migrationDEKForUser(ctx, keyWrapper, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, existingEvents)
+	messageDEK, err := migrationDEKForUser(ctx, keyWrapper, contentKeys, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, existingEvents)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -167,12 +174,18 @@ func buildUserMigrationEntries(
 	if messageDEK.cleanupKeyRef != "" {
 		cleanupKeyRefs = append(cleanupKeyRefs, messageDEK.cleanupKeyRef)
 	}
-	piiDEK, err := migrationDEKForUser(ctx, keyWrapper, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, existingEvents)
+	if messageDEK.cleanupContentKeyRef != "" {
+		cleanupKeyRefs = append(cleanupKeyRefs, messageDEK.cleanupContentKeyRef)
+	}
+	piiDEK, err := migrationDEKForUser(ctx, keyWrapper, contentKeys, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, existingEvents)
 	if err != nil {
 		return nil, cleanupKeyRefs, err
 	}
 	if piiDEK.cleanupKeyRef != "" {
 		cleanupKeyRefs = append(cleanupKeyRefs, piiDEK.cleanupKeyRef)
+	}
+	if piiDEK.cleanupContentKeyRef != "" {
+		cleanupKeyRefs = append(cleanupKeyRefs, piiDEK.cleanupContentKeyRef)
 	}
 
 	var entries []events.BatchEntry
@@ -273,9 +286,9 @@ func buildUserMigrationEntries(
 	return entries, cleanupKeyRefs, nil
 }
 
-func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, userID string, purpose corev1.UserDEKPurpose, existingEvents []*corev1.Event) (*migrationDEK, error) {
+func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, contentKeys *dekstore.Store, userID string, purpose corev1.UserDEKPurpose, existingEvents []*corev1.Event) (*migrationDEK, error) {
 	if existing := firstMigrationDEK(existingEvents, purpose); existing != nil {
-		key, err := unwrapMigrationDEK(ctx, keyWrapper, existing)
+		key, err := unwrapMigrationDEK(ctx, keyWrapper, contentKeys, existing)
 		if err != nil {
 			return nil, fmt.Errorf("unwrap existing DEK: %w", err)
 		}
@@ -313,21 +326,36 @@ func migrationDEKForUser(ctx context.Context, keyWrapper kms.KeyWrapper, userID 
 		}
 		return nil, fmt.Errorf("wrap migration DEK: %w", err)
 	}
+	stored := &corev1.StoredUserDEK{
+		EncryptedContentKey: wrapped.EncryptedContentKey,
+		ContentKeyNonce:     wrapped.Nonce,
+		WrappingAlgorithm:   wrapped.Algorithm,
+		WrappingMetadata:    wrapped.Metadata,
+		WrappingKeyRef:      keyRef,
+	}
+	contentKeyRef, err := contentKeys.Create(ctx, stored)
+	if err != nil {
+		if cleanupKeyRef != "" {
+			_ = keyWrapper.ShredKey(context.WithoutCancel(ctx), cleanupKeyRef)
+			cleanupKeyRef = ""
+		}
+		return nil, err
+	}
 	return &migrationDEK{
 		epoch:   1,
 		purpose: purpose,
 		key:     dek,
 		event: &corev1.UserDEKGeneratedEvent{
-			UserId:              userID,
-			Epoch:               1,
-			Purpose:             purpose,
-			EncryptedContentKey: wrapped.EncryptedContentKey,
-			ContentKeyNonce:     wrapped.Nonce,
-			WrappingAlgorithm:   wrapped.Algorithm,
-			WrappingMetadata:    wrapped.Metadata,
-			WrappingKeyRef:      keyRef,
+			UserId:            userID,
+			Epoch:             1,
+			Purpose:           purpose,
+			ContentKeyRef:     contentKeyRef,
+			WrappingAlgorithm: stored.WrappingAlgorithm,
+			WrappingMetadata:  stored.WrappingMetadata,
+			WrappingKeyRef:    stored.WrappingKeyRef,
 		},
-		cleanupKeyRef: cleanupKeyRef,
+		cleanupKeyRef:        cleanupKeyRef,
+		cleanupContentKeyRef: contentKeyRef,
 	}, nil
 }
 
@@ -340,16 +368,20 @@ func sameMigrationDEKEvent(a, b *corev1.UserDEKGeneratedEvent) bool {
 		a.GetEpoch() == b.GetEpoch()
 }
 
-func unwrapMigrationDEK(ctx context.Context, keyWrapper kms.KeyWrapper, e *corev1.UserDEKGeneratedEvent) ([]byte, error) {
-	keyRef := e.GetWrappingKeyRef()
+func unwrapMigrationDEK(ctx context.Context, keyWrapper kms.KeyWrapper, contentKeys dekstore.Reader, e *corev1.UserDEKGeneratedEvent) ([]byte, error) {
+	stored, err := contentKeys.Get(ctx, e.GetContentKeyRef())
+	if err != nil {
+		return nil, err
+	}
+	keyRef := stored.WrappingKeyRef
 	if keyRef == "" {
 		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
 	}
 	return keyWrapper.UnwrapContentKey(ctx, keyRef, kms.WrappedContentKey{
-		EncryptedContentKey: e.GetEncryptedContentKey(),
-		Nonce:               e.GetContentKeyNonce(),
-		Algorithm:           e.GetWrappingAlgorithm(),
-		Metadata:            e.GetWrappingMetadata(),
+		EncryptedContentKey: stored.EncryptedContentKey,
+		Nonce:               stored.ContentKeyNonce,
+		Algorithm:           stored.WrappingAlgorithm,
+		Metadata:            stored.WrappingMetadata,
 	}, migrationUserDEKAAD(e.GetUserId(), e.GetPurpose(), e.GetEpoch()))
 }
 
@@ -444,12 +476,18 @@ func migrationUserDEKAAD(userID string, purpose corev1.UserDEKPurpose, epoch int
 	return []byte(fmt.Sprintf("chatto:user-dek-context:v1\x00user_id=%s\x00purpose=%d\x00epoch=%d", userID, purpose, epoch))
 }
 
-func cleanupMigrationKeyRefs(ctx context.Context, keyWrapper kms.KeyWrapper, keyRefs []string, logger *log.Logger) {
+func cleanupMigrationKeyRefs(ctx context.Context, keyWrapper kms.KeyWrapper, contentKeys *dekstore.Store, keyRefs []string, logger *log.Logger) {
 	for _, keyRef := range keyRefs {
 		if keyRef == "" {
 			continue
 		}
-		if err := keyWrapper.ShredKey(context.WithoutCancel(ctx), keyRef); err != nil {
+		var err error
+		if strings.HasPrefix(keyRef, "dek.") {
+			err = contentKeys.Shred(context.WithoutCancel(ctx), keyRef)
+		} else {
+			err = keyWrapper.ShredKey(context.WithoutCancel(ctx), keyRef)
+		}
+		if err != nil {
 			logger.Warn("users ES migration: failed to clean up unused key ref", "key_ref", keyRef, "error", err)
 		}
 	}

@@ -84,7 +84,8 @@ func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *corev1.UserDEKGen
 	}
 	userID := event.GetUserId()
 	epoch := event.GetEpoch()
-	if userID == "" || epoch <= 0 {
+	contentKeyRef := event.GetContentKeyRef()
+	if userID == "" || epoch <= 0 || contentKeyRef == "" {
 		return nil, fmt.Errorf("invalid DEK event")
 	}
 	eventPurpose := event.GetPurpose()
@@ -94,15 +95,22 @@ func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *corev1.UserDEKGen
 	if c.encryption.keyWrapper == nil {
 		return nil, encryption.ErrKeyNotFound
 	}
-	keyRef := event.GetWrappingKeyRef()
+	if c.encryption.contentKeys == nil {
+		return nil, encryption.ErrKeyNotFound
+	}
+	stored, err := c.encryption.contentKeys.Get(ctx, contentKeyRef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load DEK: %w", err)
+	}
+	keyRef := stored.WrappingKeyRef
 	if keyRef == "" {
 		keyRef = kms.LegacyUserKeyRef(userID)
 	}
 	key, err := c.encryption.keyWrapper.UnwrapContentKey(ctx, keyRef, kms.WrappedContentKey{
-		EncryptedContentKey: event.GetEncryptedContentKey(),
-		Nonce:               event.GetContentKeyNonce(),
-		Algorithm:           event.GetWrappingAlgorithm(),
-		Metadata:            event.GetWrappingMetadata(),
+		EncryptedContentKey: stored.EncryptedContentKey,
+		Nonce:               stored.ContentKeyNonce,
+		Algorithm:           stored.WrappingAlgorithm,
+		Metadata:            stored.WrappingMetadata,
 	}, userDEKAAD(userID, eventPurpose, epoch))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unwrap DEK: %w", err)
@@ -159,6 +167,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 			}
 			return &userDEK{epoch: 1, purpose: purpose, key: key}, nil
 		}
+		_ = c.encryption.contentKeys.Shred(context.WithoutCancel(ctx), wrapped.GetContentKeyRef())
 		if createdKey {
 			_ = c.encryption.keyWrapper.ShredKey(context.WithoutCancel(ctx), keyRef)
 		}
@@ -183,6 +192,9 @@ func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef strin
 	if c.encryption.keyWrapper == nil {
 		return nil, nil, encryption.ErrKeyNotFound
 	}
+	if c.encryption.contentKeys == nil {
+		return nil, nil, encryption.ErrKeyNotFound
+	}
 	key, err := encryption.GenerateKey()
 	if err != nil {
 		return nil, nil, err
@@ -191,14 +203,24 @@ func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef strin
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wrap DEK: %w", err)
 	}
-	return key, &corev1.UserDEKGeneratedEvent{
-		UserId:              userID,
-		Epoch:               epoch,
-		Purpose:             purpose,
+	stored := &corev1.StoredUserDEK{
 		EncryptedContentKey: wrapped.EncryptedContentKey,
 		ContentKeyNonce:     wrapped.Nonce,
 		WrappingAlgorithm:   wrapped.Algorithm,
 		WrappingMetadata:    wrapped.Metadata,
 		WrappingKeyRef:      keyRef,
+	}
+	contentKeyRef, err := c.encryption.contentKeys.Create(ctx, stored)
+	if err != nil {
+		return nil, nil, err
+	}
+	return key, &corev1.UserDEKGeneratedEvent{
+		UserId:            userID,
+		Epoch:             epoch,
+		Purpose:           purpose,
+		ContentKeyRef:     contentKeyRef,
+		WrappingAlgorithm: stored.WrappingAlgorithm,
+		WrappingMetadata:  stored.WrappingMetadata,
+		WrappingKeyRef:    stored.WrappingKeyRef,
 	}, nil
 }

@@ -451,7 +451,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
 | `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
-| `ENCRYPTION_KEYS`             | File    | **No**   | KMS key material (excluded for security)        |
+| `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and app-owned wrapped DEK records (excluded for security) |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Legacy retired standalone link-preview cache; current entries live in `RUNTIME_STATE` |
 | `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
 | `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; copied best-effort into `MEMORY_CACHE` on boot if present, not provisioned on fresh boot |
@@ -516,9 +516,10 @@ Notes: Server configuration now lives in EVT config events and is served from th
 | Key             | Description                       |
 | --------------- | --------------------------------- |
 | `kek.{keyRef}`  | 32-byte per-user KEK addressed by opaque KMS key ref |
+| `dek.{keyRef}`  | Protobuf `StoredUserDEK` wrapped purpose-scoped DEK record addressed by opaque app content-key ref |
 | `user.{userId}` | Legacy direct-key message-body KEK compatibility path |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core interacts with these keys through the in-process `internal/kms` wrapper boundary. New message bodies and durable user PII use this KMS boundary to wrap per-user, purpose-scoped DEK epochs stored on the user EVT stream as `UserDEKGeneratedEvent` facts. Those DEK events record the purpose, epoch, wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded key refs renders all their encrypted content permanently unreadable.
+Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. New message bodies and durable user PII store wrapped, purpose-scoped DEK epochs as app-owned protobuf `StoredUserDEK` records under `dek.*` refs; the user EVT stream stores `UserDEKGeneratedEvent` audit facts with the purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded content-key refs or wrapping-key refs renders their encrypted content permanently unreadable.
 
 **SERVER\_CONFIG keys:**
 
@@ -740,7 +741,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active message-body DEK epoch, authenticated with event-context AAD. Wrapped DEKs live on the user EVT stream instead of every message and include purpose, epoch, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts with encrypted message bodies embedded in `MessagePostedEvent.body`. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 with the author's active message-body DEK epoch, authenticated with event-context AAD. Wrapped DEKs live in app-owned `ENCRYPTION_KEYS` records instead of every message; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 

@@ -1034,21 +1034,21 @@ func (x *UserKeyShreddedEvent) GetUserId() string {
 	return ""
 }
 
-// UserDEKGeneratedEvent records one wrapped per-user data-encryption key epoch.
-// Message bodies and PII payloads reference purpose-specific epochs; the
-// wrapped key lives here so historical events remain append-only and compact.
+// UserDEKGeneratedEvent records the creation of one per-user data-encryption
+// key epoch. Message bodies and PII payloads reference purpose-specific
+// epochs; the wrapped key material lives in ENCRYPTION_KEYS under
+// content_key_ref so it can be shredded independently of immutable EVT history.
 type UserDEKGeneratedEvent struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	UserId              string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Epoch               int32                  `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	EncryptedContentKey []byte                 `protobuf:"bytes,3,opt,name=encrypted_content_key,json=encryptedContentKey,proto3" json:"encrypted_content_key,omitempty"`
-	ContentKeyNonce     []byte                 `protobuf:"bytes,4,opt,name=content_key_nonce,json=contentKeyNonce,proto3" json:"content_key_nonce,omitempty"`
-	WrappingAlgorithm   string                 `protobuf:"bytes,5,opt,name=wrapping_algorithm,json=wrappingAlgorithm,proto3" json:"wrapping_algorithm,omitempty"`
-	WrappingMetadata    []byte                 `protobuf:"bytes,6,opt,name=wrapping_metadata,json=wrappingMetadata,proto3" json:"wrapping_metadata,omitempty"`
-	WrappingKeyRef      string                 `protobuf:"bytes,7,opt,name=wrapping_key_ref,json=wrappingKeyRef,proto3" json:"wrapping_key_ref,omitempty"`
-	Purpose             UserDEKPurpose         `protobuf:"varint,8,opt,name=purpose,proto3,enum=chatto.core.v1.UserDEKPurpose" json:"purpose,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	UserId            string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Purpose           UserDEKPurpose         `protobuf:"varint,2,opt,name=purpose,proto3,enum=chatto.core.v1.UserDEKPurpose" json:"purpose,omitempty"`
+	Epoch             int32                  `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	ContentKeyRef     string                 `protobuf:"bytes,4,opt,name=content_key_ref,json=contentKeyRef,proto3" json:"content_key_ref,omitempty"`
+	WrappingKeyRef    string                 `protobuf:"bytes,5,opt,name=wrapping_key_ref,json=wrappingKeyRef,proto3" json:"wrapping_key_ref,omitempty"`
+	WrappingAlgorithm string                 `protobuf:"bytes,6,opt,name=wrapping_algorithm,json=wrappingAlgorithm,proto3" json:"wrapping_algorithm,omitempty"`
+	WrappingMetadata  []byte                 `protobuf:"bytes,7,opt,name=wrapping_metadata,json=wrappingMetadata,proto3" json:"wrapping_metadata,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UserDEKGeneratedEvent) Reset() {
@@ -1088,6 +1088,13 @@ func (x *UserDEKGeneratedEvent) GetUserId() string {
 	return ""
 }
 
+func (x *UserDEKGeneratedEvent) GetPurpose() UserDEKPurpose {
+	if x != nil {
+		return x.Purpose
+	}
+	return UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED
+}
+
 func (x *UserDEKGeneratedEvent) GetEpoch() int32 {
 	if x != nil {
 		return x.Epoch
@@ -1095,18 +1102,18 @@ func (x *UserDEKGeneratedEvent) GetEpoch() int32 {
 	return 0
 }
 
-func (x *UserDEKGeneratedEvent) GetEncryptedContentKey() []byte {
+func (x *UserDEKGeneratedEvent) GetContentKeyRef() string {
 	if x != nil {
-		return x.EncryptedContentKey
+		return x.ContentKeyRef
 	}
-	return nil
+	return ""
 }
 
-func (x *UserDEKGeneratedEvent) GetContentKeyNonce() []byte {
+func (x *UserDEKGeneratedEvent) GetWrappingKeyRef() string {
 	if x != nil {
-		return x.ContentKeyNonce
+		return x.WrappingKeyRef
 	}
-	return nil
+	return ""
 }
 
 func (x *UserDEKGeneratedEvent) GetWrappingAlgorithm() string {
@@ -1123,18 +1130,83 @@ func (x *UserDEKGeneratedEvent) GetWrappingMetadata() []byte {
 	return nil
 }
 
-func (x *UserDEKGeneratedEvent) GetWrappingKeyRef() string {
+// StoredUserDEK is the wrapped DEK record stored in ENCRYPTION_KEYS under
+// UserDEKGeneratedEvent.content_key_ref. It is deliberately outside EVT so
+// crypto-shredding can destroy DEK material without mutating event history.
+type StoredUserDEK struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	EncryptedContentKey []byte                 `protobuf:"bytes,1,opt,name=encrypted_content_key,json=encryptedContentKey,proto3" json:"encrypted_content_key,omitempty"`
+	ContentKeyNonce     []byte                 `protobuf:"bytes,2,opt,name=content_key_nonce,json=contentKeyNonce,proto3" json:"content_key_nonce,omitempty"`
+	WrappingAlgorithm   string                 `protobuf:"bytes,3,opt,name=wrapping_algorithm,json=wrappingAlgorithm,proto3" json:"wrapping_algorithm,omitempty"`
+	WrappingMetadata    []byte                 `protobuf:"bytes,4,opt,name=wrapping_metadata,json=wrappingMetadata,proto3" json:"wrapping_metadata,omitempty"`
+	WrappingKeyRef      string                 `protobuf:"bytes,5,opt,name=wrapping_key_ref,json=wrappingKeyRef,proto3" json:"wrapping_key_ref,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *StoredUserDEK) Reset() {
+	*x = StoredUserDEK{}
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoredUserDEK) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoredUserDEK) ProtoMessage() {}
+
+func (x *StoredUserDEK) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[19]
 	if x != nil {
-		return x.WrappingKeyRef
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoredUserDEK.ProtoReflect.Descriptor instead.
+func (*StoredUserDEK) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *StoredUserDEK) GetEncryptedContentKey() []byte {
+	if x != nil {
+		return x.EncryptedContentKey
+	}
+	return nil
+}
+
+func (x *StoredUserDEK) GetContentKeyNonce() []byte {
+	if x != nil {
+		return x.ContentKeyNonce
+	}
+	return nil
+}
+
+func (x *StoredUserDEK) GetWrappingAlgorithm() string {
+	if x != nil {
+		return x.WrappingAlgorithm
 	}
 	return ""
 }
 
-func (x *UserDEKGeneratedEvent) GetPurpose() UserDEKPurpose {
+func (x *StoredUserDEK) GetWrappingMetadata() []byte {
 	if x != nil {
-		return x.Purpose
+		return x.WrappingMetadata
 	}
-	return UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED
+	return nil
+}
+
+func (x *StoredUserDEK) GetWrappingKeyRef() string {
+	if x != nil {
+		return x.WrappingKeyRef
+	}
+	return ""
 }
 
 var File_chatto_core_v1_user_events_proto protoreflect.FileDescriptor
@@ -1202,16 +1274,21 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x17UserAccountDeletedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
 	"\x14UserKeyShreddedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xe6\x02\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xae\x02\n" +
 	"\x15UserDEKGeneratedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05epoch\x18\x02 \x01(\x05R\x05epoch\x122\n" +
-	"\x15encrypted_content_key\x18\x03 \x01(\fR\x13encryptedContentKey\x12*\n" +
-	"\x11content_key_nonce\x18\x04 \x01(\fR\x0fcontentKeyNonce\x12-\n" +
-	"\x12wrapping_algorithm\x18\x05 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
-	"\x11wrapping_metadata\x18\x06 \x01(\fR\x10wrappingMetadata\x12(\n" +
-	"\x10wrapping_key_ref\x18\a \x01(\tR\x0ewrappingKeyRef\x128\n" +
-	"\apurpose\x18\b \x01(\x0e2\x1e.chatto.core.v1.UserDEKPurposeR\apurpose*t\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x128\n" +
+	"\apurpose\x18\x02 \x01(\x0e2\x1e.chatto.core.v1.UserDEKPurposeR\apurpose\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x05R\x05epoch\x12&\n" +
+	"\x0fcontent_key_ref\x18\x04 \x01(\tR\rcontentKeyRef\x12(\n" +
+	"\x10wrapping_key_ref\x18\x05 \x01(\tR\x0ewrappingKeyRef\x12-\n" +
+	"\x12wrapping_algorithm\x18\x06 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
+	"\x11wrapping_metadata\x18\a \x01(\fR\x10wrappingMetadata\"\xf5\x01\n" +
+	"\rStoredUserDEK\x122\n" +
+	"\x15encrypted_content_key\x18\x01 \x01(\fR\x13encryptedContentKey\x12*\n" +
+	"\x11content_key_nonce\x18\x02 \x01(\fR\x0fcontentKeyNonce\x12-\n" +
+	"\x12wrapping_algorithm\x18\x03 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
+	"\x11wrapping_metadata\x18\x04 \x01(\fR\x10wrappingMetadata\x12(\n" +
+	"\x10wrapping_key_ref\x18\x05 \x01(\tR\x0ewrappingKeyRef*t\n" +
 	"\x0eUserDEKPurpose\x12 \n" +
 	"\x1cUSER_DEK_PURPOSE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dUSER_DEK_PURPOSE_MESSAGE_BODY\x10\x01\x12\x1d\n" +
@@ -1231,7 +1308,7 @@ func file_chatto_core_v1_user_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_user_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_chatto_core_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(UserDEKPurpose)(0),                       // 0: chatto.core.v1.UserDEKPurpose
 	(*UserCreatedEvent)(nil),                  // 1: chatto.core.v1.UserCreatedEvent
@@ -1253,19 +1330,20 @@ var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*UserAccountDeletedEvent)(nil),           // 17: chatto.core.v1.UserAccountDeletedEvent
 	(*UserKeyShreddedEvent)(nil),              // 18: chatto.core.v1.UserKeyShreddedEvent
 	(*UserDEKGeneratedEvent)(nil),             // 19: chatto.core.v1.UserDEKGeneratedEvent
-	(TimeFormat)(0),                           // 20: chatto.core.v1.TimeFormat
-	(*DeprecatedAsset)(nil),                   // 21: chatto.core.v1.DeprecatedAsset
-	(*ServerUserPreferences)(nil),             // 22: chatto.core.v1.ServerUserPreferences
+	(*StoredUserDEK)(nil),                     // 20: chatto.core.v1.StoredUserDEK
+	(TimeFormat)(0),                           // 21: chatto.core.v1.TimeFormat
+	(*DeprecatedAsset)(nil),                   // 22: chatto.core.v1.DeprecatedAsset
+	(*ServerUserPreferences)(nil),             // 23: chatto.core.v1.ServerUserPreferences
 }
 var file_chatto_core_v1_user_events_proto_depIdxs = []int32{
-	20, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	21, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	5,  // 1: chatto.core.v1.UserAccountCreatedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 2: chatto.core.v1.UserAccountCreatedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 3: chatto.core.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 4: chatto.core.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
-	21, // 5: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
+	22, // 5: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
 	5,  // 6: chatto.core.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.v1.EncryptedUserString
-	22, // 7: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	23, // 7: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
 	0,  // 8: chatto.core.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.v1.UserDEKPurpose
 	9,  // [9:9] is the sub-list for method output_type
 	9,  // [9:9] is the sub-list for method input_type
@@ -1287,7 +1365,7 @@ func file_chatto_core_v1_user_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_user_events_proto_rawDesc), len(file_chatto_core_v1_user_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -143,16 +143,27 @@ enum UserDEKPurpose {
   USER_DEK_PURPOSE_USER_PII = 2;
 }
 
-// UserDEKGeneratedEvent records one wrapped per-user data-encryption key epoch.
-// Message bodies and PII payloads reference purpose-specific epochs; the
-// wrapped key lives here so historical events remain append-only and compact.
+// UserDEKGeneratedEvent records the creation of one per-user data-encryption
+// key epoch. Message bodies and PII payloads reference purpose-specific
+// epochs; the wrapped key material lives in ENCRYPTION_KEYS under
+// content_key_ref so it can be shredded independently of immutable EVT history.
 message UserDEKGeneratedEvent {
   string user_id = 1;
-  int32 epoch = 2;
-  bytes encrypted_content_key = 3;
-  bytes content_key_nonce = 4;
-  string wrapping_algorithm = 5;
-  bytes wrapping_metadata = 6;
-  string wrapping_key_ref = 7;
-  UserDEKPurpose purpose = 8;
+  UserDEKPurpose purpose = 2;
+  int32 epoch = 3;
+  string content_key_ref = 4;
+  string wrapping_key_ref = 5;
+  string wrapping_algorithm = 6;
+  bytes wrapping_metadata = 7;
+}
+
+// StoredUserDEK is the wrapped DEK record stored in ENCRYPTION_KEYS under
+// UserDEKGeneratedEvent.content_key_ref. It is deliberately outside EVT so
+// crypto-shredding can destroy DEK material without mutating event history.
+message StoredUserDEK {
+  bytes encrypted_content_key = 1;
+  bytes content_key_nonce = 2;
+  string wrapping_algorithm = 3;
+  bytes wrapping_metadata = 4;
+  string wrapping_key_ref = 5;
 }

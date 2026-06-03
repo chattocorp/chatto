@@ -19,6 +19,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/migrations"
@@ -344,8 +345,9 @@ func (c *ChattoCore) assetURL(path string) string {
 
 // encryptionManager handles message body encryption/decryption.
 type encryptionManager struct {
-	keyWrapper kms.KeyWrapper
-	legacyKeys kms.LegacyKeyProvider
+	keyWrapper  kms.KeyWrapper
+	legacyKeys  kms.LegacyKeyProvider
+	contentKeys *dekstore.Store
 }
 
 func (c *ChattoCore) ServerStore() jetstream.ObjectStore {
@@ -396,11 +398,18 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return fmt.Errorf("wait for content key projection: %w", err)
 	}
 
+	contentKeyRefs := c.ContentKeys.ContentKeyRefs(userID)
+	for _, contentKeyRef := range contentKeyRefs {
+		if err := c.encryption.contentKeys.Shred(ctx, contentKeyRef); err != nil {
+			return err
+		}
+	}
+
 	keyRefs := c.ContentKeys.KeyRefs(userID)
-	if len(keyRefs) == 0 {
+	if len(keyRefs) == 0 && len(contentKeyRefs) == 0 {
 		keyRefs = []string{kms.LegacyUserKeyRef(userID)}
 	}
-	shredded := false
+	shredded := len(contentKeyRefs) > 0
 	for _, keyRef := range keyRefs {
 		exists, err := c.encryption.keyWrapper.KeyExists(ctx, keyRef)
 		if err != nil {
@@ -615,8 +624,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// Initialize encryption manager
 	builtinKMS := kms.NewBuiltin(storage.encryptionKV, logger.WithPrefix("core.kms"))
 	encMgr := &encryptionManager{
-		keyWrapper: builtinKMS,
-		legacyKeys: builtinKMS,
+		keyWrapper:  builtinKMS,
+		legacyKeys:  builtinKMS,
+		contentKeys: dekstore.New(storage.encryptionKV, logger.WithPrefix("core.dekstore")),
 	}
 
 	// Initialize S3 client if S3 storage is configured
@@ -681,7 +691,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "ReactionsProjector")
 
-	users := NewUserProjection(encMgr.keyWrapper)
+	users := NewUserProjection(encMgr.keyWrapper, encMgr.contentKeys)
 	usersProjector := newProjector(users, "UsersProjector")
 
 	contentKeys := NewContentKeyProjection()
@@ -753,6 +763,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		storage.serverEventsStream, storage.serverReactionsKV,
 		eventPublisher,
 		encMgr.keyWrapper,
+		encMgr.contentKeys,
 		logger,
 	); err != nil {
 		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
@@ -851,6 +862,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		Bucket:      "ENCRYPTION_KEYS",
 		Description: "User encryption keys (excluded from backups)",
 		Storage:     jetstream.FileStorage,
+		History:     1,
 		Replicas:    cfg.Replicas,
 	})
 	if err != nil {

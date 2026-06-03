@@ -88,10 +88,14 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.Equal(t, user.Id, contentKeyEvent.GetUserId())
 	require.EqualValues(t, 1, contentKeyEvent.GetEpoch())
 	require.Equal(t, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, contentKeyEvent.GetPurpose())
-	require.NotEmpty(t, contentKeyEvent.GetEncryptedContentKey(), "wrapped DEK should be stored on the user stream")
-	require.NotEmpty(t, contentKeyEvent.GetContentKeyNonce(), "wrapped DEK nonce should be stored on the user stream")
+	require.NotEmpty(t, contentKeyEvent.GetContentKeyRef(), "DEK event should reference DEK storage")
 	require.NotEmpty(t, contentKeyEvent.GetWrappingKeyRef(), "DEK event should reference the wrapping KEK")
 	require.NotEqual(t, kms.LegacyUserKeyRef(user.Id), contentKeyEvent.GetWrappingKeyRef(), "new users should use opaque KMS key refs")
+	storedContentKey, err := core.encryption.contentKeys.Get(ctx, contentKeyEvent.GetContentKeyRef())
+	require.NoError(t, err)
+	require.NotEmpty(t, storedContentKey.GetEncryptedContentKey(), "wrapped DEK should be stored in DEK storage")
+	require.NotEmpty(t, storedContentKey.GetContentKeyNonce(), "wrapped DEK nonce should be stored in DEK storage")
+	require.Equal(t, contentKeyEvent.GetWrappingKeyRef(), storedContentKey.GetWrappingKeyRef())
 
 	// Verify we can read the message back (decrypted)
 	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
@@ -189,7 +193,7 @@ func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
 	userEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).AllEventsFilter())
 	require.NoError(t, err)
 
-	replayed := NewUserProjection(core.encryption.keyWrapper)
+	replayed := NewUserProjection(core.encryption.keyWrapper, core.encryption.contentKeys)
 	for i, event := range userEvents {
 		require.NoError(t, replayed.Apply(event, uint64(i+1)))
 	}
@@ -236,10 +240,10 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
 
-	// Delete the user's encryption key (crypto-shredding)
+	// Delete the message-body DEK record (crypto-shredding)
 	contentKeyEvent, ok := core.ContentKeys.Active(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.True(t, ok)
-	require.NoError(t, core.encryption.keyWrapper.ShredKey(ctx, contentKeyEvent.GetWrappingKeyRef()))
+	require.NoError(t, core.encryption.contentKeys.Shred(ctx, contentKeyEvent.GetContentKeyRef()))
 
 	// Verify message now returns empty string (crypto-shredded)
 	body, err = core.GetMessageBody(ctx, KindChannel, event.Id)

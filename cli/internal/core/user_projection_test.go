@@ -24,6 +24,8 @@ type staticProjectionKeyWrapper struct {
 	key []byte
 }
 
+type staticProjectionDEKStore struct{}
+
 func (w staticProjectionKeyWrapper) CreateKey(context.Context, string) (string, error) {
 	return "test-key", nil
 }
@@ -44,19 +46,26 @@ func (w staticProjectionKeyWrapper) ShredKey(context.Context, string) error {
 	return nil
 }
 
+func (s staticProjectionDEKStore) Get(context.Context, string) (*corev1.StoredUserDEK, error) {
+	return &corev1.StoredUserDEK{
+		EncryptedContentKey: []byte("wrapped"),
+		ContentKeyNonce:     []byte("nonce"),
+		WrappingKeyRef:      "test-key",
+	}, nil
+}
+
 func newEncryptedUserProjection(t *testing.T, userID string) (*UserProjection, *messageContentKey) {
 	t.Helper()
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	p := NewUserProjection(staticProjectionKeyWrapper{key: key})
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key}, staticProjectionDEKStore{})
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id: "K1",
 		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
-			UserId:              userID,
-			Epoch:               1,
-			Purpose:             corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
-			EncryptedContentKey: []byte("wrapped"),
-			ContentKeyNonce:     []byte("nonce"),
+			UserId:        userID,
+			Epoch:         1,
+			Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			ContentKeyRef: "dek.test",
 		}},
 	}, 1))
 	return p, &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
