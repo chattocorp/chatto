@@ -32,6 +32,7 @@ func TestAdminProjections_State(t *testing.T) {
 	require.True(t, byName["Room Timeline"])
 	require.True(t, byName["Threads"])
 	require.True(t, byName["Reactions"])
+	require.True(t, byName["Content Keys"])
 }
 
 func TestAdminProjections_AuthorizationDenied(t *testing.T) {

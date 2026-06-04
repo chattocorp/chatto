@@ -45,7 +45,7 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 	}
 	streamLastSeq := info.State.LastSeq
 
-	states := make([]ProjectionAdminState, 0, 10)
+	states := make([]ProjectionAdminState, 0, len(c.projections))
 	add := func(name string, projector *events.Projector, entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric) error {
 		targetSeq, err := projector.CurrentTargetSeq(ctx)
 		if err != nil {
@@ -76,49 +76,9 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 		return nil
 	}
 
-	for _, collect := range []func() error{
-		func() error {
-			entries, bytes, metrics := c.RoomCatalog.adminProjectionEstimate()
-			return add("Room Catalog", c.RoomCatalogProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.RoomMembership.adminProjectionEstimate()
-			return add("Room Membership", c.RoomMembershipProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.ServerConfig.adminProjectionEstimate()
-			return add("Server Config", c.ServerConfigProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.RoomGroups.adminProjectionEstimate()
-			return add("Room Groups", c.RoomGroupsProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.RoomLayout.adminProjectionEstimate()
-			return add("Room Layout", c.RoomLayoutProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.RoomTimeline.adminProjectionEstimate()
-			return add("Room Timeline", c.RoomTimelineProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.Threads.adminProjectionEstimate()
-			return add("Threads", c.ThreadsProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.Reactions.adminProjectionEstimate()
-			return add("Reactions", c.ReactionsProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.Users.adminProjectionEstimate()
-			return add("Users", c.UsersProjector, entries, bytes, metrics)
-		},
-		func() error {
-			entries, bytes, metrics := c.RBAC.adminProjectionEstimate()
-			return add("RBAC", c.RBACProjector, entries, bytes, metrics)
-		},
-	} {
-		if err := collect(); err != nil {
+	for _, projection := range c.projections {
+		entries, bytes, metrics := projection.estimate()
+		if err := add(projection.name, projection.projector, entries, bytes, metrics); err != nil {
 			return nil, err
 		}
 	}
@@ -445,6 +405,44 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		{Name: "login_index", Value: int64(len(p.loginIndex)), Bytes: loginBytes},
 		{Name: "email_index", Value: int64(len(p.emailIndex)), Bytes: emailBytes},
 		{Name: "oidc_index", Value: int64(len(p.oidcIndex)), Bytes: oidcBytes},
+		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
+	}
+}
+
+func (p *ContentKeyProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	p.RLock()
+	defer p.RUnlock()
+	var users, purposes, epochs, active, bytes int64
+	for userID, byPurpose := range p.byUserPurposeEpoch {
+		users++
+		bytes += projectionMapEntryOverhead + int64(len(userID))
+		for _, byEpoch := range byPurpose {
+			purposes++
+			bytes += projectionMapEntryOverhead
+			for _, event := range byEpoch {
+				epochs++
+				bytes += projectionMapEntryOverhead
+				if event != nil {
+					bytes += int64(proto.Size(event))
+				}
+			}
+		}
+	}
+	var activeBytes int64
+	for userID, byPurpose := range p.activeEpoch {
+		activeBytes += projectionMapEntryOverhead + int64(len(userID))
+		for range byPurpose {
+			active++
+			activeBytes += projectionMapEntryOverhead + 8
+		}
+	}
+	seenBytes := int64(len(p.eventIDSeen)) * projectionMapEntryOverhead
+	bytes += activeBytes + seenBytes
+	return epochs, bytes, []ProjectionAdminMetric{
+		{Name: "users", Value: users, Bytes: 0},
+		{Name: "purposes", Value: purposes, Bytes: 0},
+		{Name: "dek_epochs", Value: epochs, Bytes: bytes - activeBytes - seenBytes},
+		{Name: "active_epochs", Value: active, Bytes: activeBytes},
 		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
 	}
 }

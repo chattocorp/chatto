@@ -178,12 +178,11 @@ type ChattoCore struct {
 	// from role and permission writers.
 	RBACProjector *events.Projector
 
-	// projectors is the set of all event-sourcing projectors owned by
-	// this core. Each new aggregate migration (ADR-035) appends here
-	// during NewChattoCore; Run iterates the slice. Adding a projector
-	// is one line at construction and zero changes at call sites — see
-	// (*ChattoCore).Run.
-	projectors []*events.Projector
+	// projections is the set of all event-sourcing projections owned by
+	// this core. Each registration carries the runtime projector plus
+	// operator-facing diagnostics, so lifecycle and admin surfaces cannot
+	// drift into separate hand-maintained lists.
+	projections []projectionRegistration
 
 	// bootDone is closed by Run once all projectors are started AND
 	// boot-time mutations (ensureChannelRoomsAreInAGroup) have
@@ -202,14 +201,14 @@ type ChattoCore struct {
 // launch it in a bare goroutine with a per-test context that cleanup
 // cancels. Background services are not designed to be restarted.
 //
-// New projectors should be appended to c.projectors during NewChattoCore;
-// they are then started automatically here without any additional wiring.
+// New projectors should be registered during NewChattoCore; they are then
+// started automatically here without any additional wiring.
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	for _, p := range c.projectors {
-		p := p
-		g.Go(func() error { return p.Run(gctx) })
+	for _, projection := range c.projections {
+		projector := projection.projector
+		g.Go(func() error { return projector.Run(gctx) })
 	}
 
 	// Block until every projector has entered Run before issuing
@@ -270,8 +269,8 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 // background goroutines launched by Run aren't guaranteed to have
 // been scheduled the instant `go core.Run(ctx)` returns.
 func (c *ChattoCore) AllProjectorsStarted() bool {
-	for _, p := range c.projectors {
-		if !p.Started() {
+	for _, projection := range c.projections {
+		if !projection.projector.Started() {
 			return false
 		}
 	}
@@ -298,8 +297,8 @@ func (c *ChattoCore) WaitForBoot(ctx context.Context) error {
 // applied the latest stream message matching its filters as of this call.
 // Intended for boot/import diagnostics, not hot request paths.
 func (c *ChattoCore) WaitForProjectionsCurrent(ctx context.Context) error {
-	for _, p := range c.projectors {
-		if err := p.WaitForCurrent(ctx); err != nil {
+	for _, projection := range c.projections {
+		if err := projection.projector.WaitForCurrent(ctx); err != nil {
 			return err
 		}
 	}
@@ -453,13 +452,10 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	if err != nil {
 		return fmt.Errorf("failed to record user key shred event: %w", err)
 	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for room timeline projection: %w", err)
-	}
-	if err := c.ThreadsProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for thread projection: %w", err)
-	}
-	return nil
+	return waitForSeqAll(ctx, seq,
+		waitForProjection("room timeline", c.RoomTimelineProjector),
+		waitForProjection("thread", c.ThreadsProjector),
+	)
 }
 
 // AssetsConfig returns the assets configuration as an assets.Config.
@@ -669,53 +665,57 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// projectors → managers that depend on them.
 	eventPublisher := events.NewPublisher(js, storage.serverEvtStream, logger)
 
-	// newProjector wraps the (projection, logger-prefix) → Projector
-	// construction so the per-aggregate wiring below stays one line per
-	// projection. Each projector also gets appended to the slice that
-	// (*ChattoCore).Run iterates.
-	var projectors []*events.Projector
-	newProjector := func(p events.Projection, name string) *events.Projector {
-		pr := events.NewProjector(js, storage.serverEvtStream, p, logger.WithPrefix("core."+name))
-		projectors = append(projectors, pr)
+	// newProjector wraps projection construction into one registration
+	// record. Runtime lifecycle and admin diagnostics both consume this
+	// same list, so adding a projection has a single wiring point.
+	var projections []projectionRegistration
+	newProjector := func(p events.Projection, name string, estimate func() (int64, int64, []ProjectionAdminMetric)) *events.Projector {
+		loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
+		pr := events.NewProjector(js, storage.serverEvtStream, p, logger.WithPrefix("core."+loggerName))
+		projections = append(projections, projectionRegistration{
+			name:      name,
+			projector: pr,
+			estimate:  estimate,
+		})
 		return pr
 	}
 
 	roomMembership := NewRoomMembershipProjection()
-	roomMembershipProjector := newProjector(roomMembership, "RoomMembershipProjector")
+	roomMembershipProjector := newProjector(roomMembership, "Room Membership", roomMembership.adminProjectionEstimate)
 
 	serverConfigProjection := NewConfigProjection()
-	serverConfigProjector := newProjector(serverConfigProjection, "ServerConfigProjector")
+	serverConfigProjector := newProjector(serverConfigProjection, "Server Config", serverConfigProjection.adminProjectionEstimate)
 
 	roomCatalog := NewRoomCatalogProjection()
-	roomCatalogProjector := newProjector(roomCatalog, "RoomCatalogProjector")
+	roomCatalogProjector := newProjector(roomCatalog, "Room Catalog", roomCatalog.adminProjectionEstimate)
 
 	roomGroups := NewRoomGroupProjection()
-	roomGroupsProjector := newProjector(roomGroups, "RoomGroupsProjector")
+	roomGroupsProjector := newProjector(roomGroups, "Room Groups", roomGroups.adminProjectionEstimate)
 
 	roomLayout := NewRoomLayoutProjection()
-	roomLayoutProjector := newProjector(roomLayout, "RoomLayoutProjector")
+	roomLayoutProjector := newProjector(roomLayout, "Room Layout", roomLayout.adminProjectionEstimate)
 
 	// Per-room event-log + per-thread event-log projections (#597
 	// phase 2). Both consume the full evt.room.> firehose; resolvers
 	// do all filtering and rendering at query time. v1 shape — we
 	// iterate significantly on this once we observe read patterns.
 	roomTimeline := NewRoomTimelineProjection()
-	roomTimelineProjector := newProjector(roomTimeline, "RoomTimelineProjector")
+	roomTimelineProjector := newProjector(roomTimeline, "Room Timeline", roomTimeline.adminProjectionEstimate)
 
 	threads := NewThreadProjection()
-	threadsProjector := newProjector(threads, "ThreadsProjector")
+	threadsProjector := newProjector(threads, "Threads", threads.adminProjectionEstimate)
 
 	reactions := NewReactionProjection()
-	reactionsProjector := newProjector(reactions, "ReactionsProjector")
+	reactionsProjector := newProjector(reactions, "Reactions", reactions.adminProjectionEstimate)
 
 	users := NewUserProjection(encMgr.keyWrapper, encMgr.contentKeys)
-	usersProjector := newProjector(users, "UsersProjector")
+	usersProjector := newProjector(users, "Users", users.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
-	contentKeysProjector := newProjector(contentKeys, "ContentKeysProjector")
+	contentKeysProjector := newProjector(contentKeys, "Content Keys", contentKeys.adminProjectionEstimate)
 
 	rbac := NewRBACProjection()
-	rbacProjector := newProjector(rbac, "RBACProjector")
+	rbacProjector := newProjector(rbac, "RBAC", rbac.adminProjectionEstimate)
 
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
@@ -752,7 +752,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ContentKeysProjector:    contentKeysProjector,
 		RBAC:                    rbac,
 		RBACProjector:           rbacProjector,
-		projectors:              projectors,
+		projections:             projections,
 		bootDone:                make(chan struct{}),
 	}
 
@@ -1582,20 +1582,18 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 }
 
 func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.Event, seq uint64) error {
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("room timeline: %w", err)
-	}
-	if err := c.ThreadsProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("threads: %w", err)
-	}
-	if err := c.ReactionsProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("reactions: %w", err)
+	if err := waitForSeqAll(ctx, seq,
+		waitForProjection("room timeline", c.RoomTimelineProjector),
+		waitForProjection("threads", c.ThreadsProjector),
+		waitForProjection("reactions", c.ReactionsProjector),
+	); err != nil {
+		return err
 	}
 
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserJoinedRoom, *corev1.Event_UserLeftRoom, *corev1.Event_RoomDeleted:
-		if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-			return fmt.Errorf("room membership: %w", err)
+		if err := waitForSeqAll(ctx, seq, waitForProjection("room membership", c.RoomMembershipProjector)); err != nil {
+			return err
 		}
 	}
 	switch event.GetEvent().(type) {
@@ -1604,8 +1602,8 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomDeleted:
-		if err := c.RoomCatalogProjector.WaitForSeq(ctx, seq); err != nil {
-			return fmt.Errorf("room catalog: %w", err)
+		if err := waitForSeqAll(ctx, seq, waitForProjection("room catalog", c.RoomCatalogProjector)); err != nil {
+			return err
 		}
 	}
 	return nil

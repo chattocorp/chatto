@@ -199,11 +199,11 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
 	}
 
-	if err := c.RoomCatalogProjector.WaitForSeq(ctx, createdSeq); err != nil {
-		return nil, fmt.Errorf("wait for catalog projection: %w", err)
-	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, createdSeq); err != nil {
-		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	if err := waitForSeqAll(ctx, createdSeq,
+		waitForProjection("catalog", c.RoomCatalogProjector),
+		waitForProjection("room timeline", c.RoomTimelineProjector),
+	); err != nil {
+		return nil, err
 	}
 	return room, nil
 }
@@ -329,11 +329,11 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 
 	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
 
-	if err := c.RoomCatalogProjector.WaitForSeq(ctx, updatedSeq); err != nil {
-		return nil, fmt.Errorf("wait for catalog projection: %w", err)
-	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, updatedSeq); err != nil {
-		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	if err := waitForSeqAll(ctx, updatedSeq,
+		waitForProjection("catalog", c.RoomCatalogProjector),
+		waitForProjection("room timeline", c.RoomTimelineProjector),
+	); err != nil {
+		return nil, err
 	}
 	return room, nil
 }
@@ -396,18 +396,16 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 
 	// Read-your-writes: every projection that needs to drop state
 	// must have applied its event before we return.
-	if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for membership projection: %w", err)
-	}
-	if err := c.RoomCatalogProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for catalog projection: %w", err)
-	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for room timeline projection: %w", err)
+	if err := waitForSeqAll(ctx, seq,
+		waitForProjection("membership", c.RoomMembershipProjector),
+		waitForProjection("catalog", c.RoomCatalogProjector),
+		waitForProjection("room timeline", c.RoomTimelineProjector),
+	); err != nil {
+		return err
 	}
 	if groupRemovedSeq > 0 {
-		if err := c.RoomGroupsProjector.WaitForSeq(ctx, groupRemovedSeq); err != nil {
-			return fmt.Errorf("wait for groups projection: %w", err)
+		if err := waitForSeqAll(ctx, groupRemovedSeq, waitForProjection("groups", c.RoomGroupsProjector)); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -436,8 +434,8 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
 	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+		return nil, err
 	}
 
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
@@ -471,8 +469,8 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
 	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+		return nil, err
 	}
 
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {

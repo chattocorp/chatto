@@ -92,11 +92,11 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 
 		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
 		if err == nil {
-			if err := c.RoomMembershipProjector.WaitForSeq(ctx, seq); err != nil {
-				return nil, fmt.Errorf("wait for membership projection: %w", err)
-			}
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-				return nil, fmt.Errorf("wait for room timeline projection: %w", err)
+			if err := waitForSeqAll(ctx, seq,
+				waitForProjection("membership", c.RoomMembershipProjector),
+				waitForProjection("room timeline", c.RoomTimelineProjector),
+			); err != nil {
+				return nil, err
 			}
 			break
 		}
@@ -166,8 +166,8 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 	if err != nil {
 		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
 	}
-	if err := c.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
-		return fmt.Errorf("wait for room timeline projection: %w", err)
+	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+		return err
 	}
 
 	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
