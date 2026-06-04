@@ -170,7 +170,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		})
 	}
 
-	seq, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
+	_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
 		if c.Users.LoginExists(login) {
 			return ErrLoginAlreadyTaken
 		}
@@ -180,8 +180,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, err
 	}
 	cleanupEncryptionKey = false
-	if err := c.ContentKeysProjector.WaitForSeq(ctx, seq); err != nil {
-		return nil, fmt.Errorf("wait for content key projection: %w", err)
+	if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+		return nil, err
 	}
 
 	// Create and publish audit event (best-effort)

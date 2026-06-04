@@ -27,7 +27,10 @@ func NewReactionProjection() *ReactionProjection {
 }
 
 func (p *ReactionProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{
+		events.RoomEventTypeFilter(events.EventReactionAdded),
+		events.RoomEventTypeFilter(events.EventReactionRemoved),
+	}
 }
 
 func (p *ReactionProjection) Apply(event *corev1.Event, _ uint64) error {

@@ -481,19 +481,44 @@ func RBACSubjectFilter() string { return SubjectRoot + AggregateRBAC + ".>" }
 // Pattern: evt.auth.>
 func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
 
+// AggregateEventTypeFilter returns a cross-aggregate, event-type-narrow
+// filter — every event of the given type across every aggregate instance.
+// Used by projections that only care about a subset of event types and don't
+// want to receive the full evt.{aggregate}.> firehose.
+// Pattern: evt.{aggregateType}.*.{eventType}
+func AggregateEventTypeFilter(aggregateType, eventType string) string {
+	return SubjectRoot + aggregateType + ".*." + eventType
+}
+
 // RoomEventTypeFilter returns a cross-aggregate, event-type-narrow
-// filter — every event of the given type across every room. Used by
-// projections that only care about a subset of event types and don't
-// want to receive the full evt.room.> firehose.
+// filter for room aggregates.
 // Pattern: evt.room.*.{eventType}
 func RoomEventTypeFilter(eventType string) string {
-	return SubjectRoot + AggregateRoom + ".*." + eventType
+	return AggregateEventTypeFilter(AggregateRoom, eventType)
 }
 
 // GroupEventTypeFilter is the group analogue of RoomEventTypeFilter.
 // Pattern: evt.group.*.{eventType}
 func GroupEventTypeFilter(eventType string) string {
-	return SubjectRoot + AggregateGroup + ".*." + eventType
+	return AggregateEventTypeFilter(AggregateGroup, eventType)
+}
+
+// ConfigEventTypeFilter is the config analogue of RoomEventTypeFilter.
+// Pattern: evt.config.*.{eventType}
+func ConfigEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateConfig, eventType)
+}
+
+// UserEventTypeFilter is the user analogue of RoomEventTypeFilter.
+// Pattern: evt.user.*.{eventType}
+func UserEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateUser, eventType)
+}
+
+// RBACEventTypeFilter is the RBAC analogue of RoomEventTypeFilter.
+// Pattern: evt.rbac.*.{eventType}
+func RBACEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateRBAC, eventType)
 }
 
 // ParseRoomSubject extracts the roomID from a room-aggregate event

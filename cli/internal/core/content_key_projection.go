@@ -25,7 +25,10 @@ func NewContentKeyProjection() *ContentKeyProjection {
 }
 
 func (p *ContentKeyProjection) Subjects() []string {
-	return []string{events.UserSubjectFilter()}
+	return []string{
+		events.UserEventTypeFilter(events.EventUserDEKGenerated),
+		events.UserEventTypeFilter(events.EventUserKeyShredded),
+	}
 }
 
 func (p *ContentKeyProjection) Apply(event *corev1.Event, _ uint64) error {

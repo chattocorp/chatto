@@ -128,8 +128,8 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		if err != nil {
 			return nil, fmt.Errorf("read DEK OCC filter seq: %w", err)
 		}
-		if err := c.ContentKeysProjector.WaitForSeq(ctx, filterSeq); err != nil {
-			return nil, fmt.Errorf("wait for DEK projection: %w", err)
+		if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+			return nil, err
 		}
 		if event, ok := c.ContentKeys.Active(userID, purpose); ok {
 			return c.unwrapUserDEK(ctx, event, purpose)

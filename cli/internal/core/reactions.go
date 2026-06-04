@@ -180,8 +180,8 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 		if err != nil {
 			return false, fmt.Errorf("read OCC filter seq: %w", err)
 		}
-		if err := c.ReactionsProjector.WaitForSeq(ctx, filterSeq); err != nil {
-			return false, fmt.Errorf("wait for reactions projection: %w", err)
+		if err := c.waitForRoomReactionsCurrent(ctx, roomID); err != nil {
+			return false, err
 		}
 
 		exists := c.Reactions.HasReaction(messageEventID, emoji, userID)

@@ -389,12 +389,8 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return nil // Encryption not configured
 	}
 
-	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.UserAggregate(userID).AllEventsFilter())
-	if err != nil {
-		return fmt.Errorf("read content key projection target seq: %w", err)
-	}
-	if err := c.ContentKeysProjector.WaitForSeq(ctx, filterSeq); err != nil {
-		return fmt.Errorf("wait for content key projection: %w", err)
+	if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+		return err
 	}
 
 	contentKeyRefs := c.ContentKeys.ContentKeyRefs(userID)
@@ -1585,11 +1581,16 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.
 	if err := waitForSeqAll(ctx, seq,
 		waitForProjection("room timeline", c.RoomTimelineProjector),
 		waitForProjection("threads", c.ThreadsProjector),
-		waitForProjection("reactions", c.ReactionsProjector),
 	); err != nil {
 		return err
 	}
 
+	switch event.GetEvent().(type) {
+	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
+		if err := waitForSeqAll(ctx, seq, waitForProjection("reactions", c.ReactionsProjector)); err != nil {
+			return err
+		}
+	}
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserJoinedRoom, *corev1.Event_UserLeftRoom, *corev1.Event_RoomDeleted:
 		if err := waitForSeqAll(ctx, seq, waitForProjection("room membership", c.RoomMembershipProjector)); err != nil {

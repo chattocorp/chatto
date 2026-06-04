@@ -630,6 +630,30 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("AggregateEventTypeFilter", func(t *testing.T) {
+		got := AggregateEventTypeFilter(AggregateUser, EventUserDEKGenerated)
+		want := "evt.user.*.dek_generated"
+		if got != want {
+			t.Errorf("AggregateEventTypeFilter: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("ConfigEventTypeFilter", func(t *testing.T) {
+		got := ConfigEventTypeFilter(EventServerNameChanged)
+		want := "evt.config.*.server_name_changed"
+		if got != want {
+			t.Errorf("ConfigEventTypeFilter: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("UserEventTypeFilter", func(t *testing.T) {
+		got := UserEventTypeFilter(EventUserKeyShredded)
+		want := "evt.user.*.user_key_shredded"
+		if got != want {
+			t.Errorf("UserEventTypeFilter: got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("ParseRoomSubject", func(t *testing.T) {
 		cases := []struct {
 			subject string
