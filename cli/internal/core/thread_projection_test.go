@@ -1,8 +1,10 @@
 package core
 
 import (
+	"slices"
 	"testing"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -188,13 +190,19 @@ func TestThreadProjection_Idempotency(t *testing.T) {
 
 func TestThreadProjection_SubjectFilter(t *testing.T) {
 	subjects := NewThreadProjection().Subjects()
-	want := map[string]bool{"evt.room.>": true, "evt.user.>": true}
+	want := map[string]bool{
+		events.RoomSubjectFilter():                              true,
+		events.UserEventTypeFilter(events.EventUserKeyShredded): true,
+	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))
 	}
-	for _, subject := range subjects {
-		if !want[subject] {
-			t.Errorf("unexpected subject filter %q", subject)
+	for subject := range want {
+		if !slices.Contains(subjects, subject) {
+			t.Errorf("missing subject filter %q", subject)
 		}
+	}
+	if slices.Contains(subjects, events.UserSubjectFilter()) {
+		t.Errorf("unexpected broad user subject filter %q", events.UserSubjectFilter())
 	}
 }

@@ -43,11 +43,11 @@ func NewThreadProjection() *ThreadProjection {
 	}
 }
 
-// Subjects implements events.Projection. Subscribes to the same
-// firehose as RoomTimelineProjection — the apply switch picks out
-// the variants this projection cares about.
+// Subjects implements events.Projection. Threads are a room-derived view, so
+// the projection subscribes to the room aggregate namespace plus the extra user
+// key-shred events it needs.
 func (p *ThreadProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter(), events.UserSubjectFilter()}
+	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
 }
 
 // Apply implements events.Projection.

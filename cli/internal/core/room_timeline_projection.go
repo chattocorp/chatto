@@ -122,12 +122,11 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 	}
 }
 
-// Subjects implements events.Projection. The wildcard filter consumes
-// every event under the room aggregate — the projection owns the
-// "everything that happened in this room" surface, so it has to see
-// all of it.
+// Subjects implements events.Projection. The projection owns the
+// "everything that happened in this room" surface, so it subscribes to the
+// room aggregate namespace plus the extra user key-shred events it needs.
 func (p *RoomTimelineProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter(), events.UserSubjectFilter()}
+	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
 }
 
 // Apply implements events.Projection. Extracts the room_id from
