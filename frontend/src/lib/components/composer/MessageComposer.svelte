@@ -260,6 +260,7 @@
   let fileInputElement = $state<HTMLInputElement>();
 
   let filesWithUrls = $state<FileWithUrl[]>([]);
+  let pendingAttachmentCount = $state(0);
 
   // Derive just the files for posting
   let selectedFiles = $derived(filesWithUrls.map((f) => f.file));
@@ -297,6 +298,7 @@
   let canSubmit = $derived(
     !loading &&
       !inputDisabled &&
+      pendingAttachmentCount === 0 &&
       (hasVisibleContent(message) || selectedFiles.length > 0 || isEditing)
   );
 
@@ -561,16 +563,35 @@
     return accepted;
   }
 
-  async function handleFileSelect(event: Event) {
+  function filesToPreviewItems(files: File[]): FileWithUrl[] {
+    return files.map((file) => ({
+      file,
+      url: URL.createObjectURL(file)
+    }));
+  }
+
+  async function stageFiles(files: File[]) {
+    const validFiles = validateFileSizes(files);
+    if (validFiles.length === 0) return;
+
+    pendingAttachmentCount += validFiles.length;
+    try {
+      const prepared = await prepareFiles(validFiles);
+      if (prepared.length > 0) {
+        filesWithUrls = [...filesWithUrls, ...filesToPreviewItems(prepared)];
+      }
+    } catch (err) {
+      console.error('Error preparing attachment files:', err);
+      toast.error('Failed to prepare attachment');
+    } finally {
+      pendingAttachmentCount -= validFiles.length;
+    }
+  }
+
+  function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files) {
-      const validFiles = validateFileSizes(Array.from(target.files));
-      const prepared = await prepareFiles(validFiles);
-      const newFiles = prepared.map((file) => ({
-        file,
-        url: URL.createObjectURL(file)
-      }));
-      filesWithUrls = [...filesWithUrls, ...newFiles];
+      void stageFiles(Array.from(target.files));
     }
     // Reset input so same file can be selected again
     target.value = '';
@@ -589,13 +610,7 @@
    * Creates object URLs for preview and adds to the attachment list.
    */
   async function addFiles(files: File[]) {
-    const validFiles = validateFileSizes(files);
-    const prepared = await prepareFiles(validFiles);
-    const newFiles = prepared.map((file) => ({
-      file,
-      url: URL.createObjectURL(file)
-    }));
-    filesWithUrls = [...filesWithUrls, ...newFiles];
+    await stageFiles(files);
   }
 
   // Focus the input programmatically (e.g., when opening thread from mobile action sheet)
@@ -629,12 +644,7 @@
     }
 
     if (pastedFiles.length > 0) {
-      const validFiles = validateFileSizes(pastedFiles);
-      // Fire-and-forget: convert HEIC files asynchronously, then add to list
-      prepareFiles(validFiles).then((prepared) => {
-        const newFiles = prepared.map((file) => ({ file, url: URL.createObjectURL(file) }));
-        filesWithUrls = [...filesWithUrls, ...newFiles];
-      });
+      void stageFiles(pastedFiles);
       return true; // Prevent TipTap from processing the paste
     }
     return false; // Let TipTap handle text pastes
@@ -704,7 +714,7 @@
         message = bodyToSend;
         editorApi?.setContent(bodyToSend);
         if (filesToSend) {
-          filesWithUrls = filesToSend.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
+          filesWithUrls = filesToPreviewItems(filesToSend);
         }
       } else {
         // Scroll the enclosing pane to the user's new message. The composer
@@ -758,7 +768,9 @@
   }
 
   async function handleSubmit() {
-    if (loading) return; // Guard against double-sends while editor stays editable
+    // Guard against double-sends while editor stays editable, and against
+    // submitting before pasted/dropped/selected files have finished staging.
+    if (loading || inputDisabled || pendingAttachmentCount > 0) return;
     if (isEditing) {
       await editMessage();
     } else {
