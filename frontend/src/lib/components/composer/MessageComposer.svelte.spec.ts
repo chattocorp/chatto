@@ -73,10 +73,14 @@ function renderMessageComposer(
   props: { roomId: string },
   context: Map<string, unknown>
 ) {
-  return render(MessageComposer, {
-    props: { ...props, roomId: `${props.roomId}-${renderId++}` },
-    context
-  });
+  const roomId = `${props.roomId}-${renderId++}`;
+  return {
+    ...render(MessageComposer, {
+      props: { ...props, roomId },
+      context
+    }),
+    roomId
+  };
 }
 
 let renderId = 0;
@@ -324,7 +328,7 @@ describe('MessageComposer', () => {
       const file = imageFile();
       const pendingPreparation = deferred<File[]>();
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
-      const { container } = renderMessageComposer(
+      const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
@@ -347,7 +351,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
-        roomId: 'room_456',
+        roomId,
         body: 'message with image',
         attachments: [file]
       });
@@ -357,7 +361,7 @@ describe('MessageComposer', () => {
       const file = imageFile();
       const pendingPreparation = deferred<File[]>();
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
-      const { container } = renderMessageComposer(
+      const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
@@ -377,7 +381,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
-        roomId: 'room_456',
+        roomId,
         body: null,
         attachments: [file]
       });
