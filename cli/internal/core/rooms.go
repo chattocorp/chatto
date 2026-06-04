@@ -200,7 +200,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 
 	if err := waitForSeqAll(ctx, createdSeq,
-		waitForProjection("catalog", c.RoomCatalogProjector),
+		waitForProjection("room directory", c.RoomDirectoryProjector),
 		waitForProjection("room timeline", c.RoomTimelineProjector),
 	); err != nil {
 		return nil, err
@@ -328,7 +328,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
 
 	if err := waitForSeqAll(ctx, updatedSeq,
-		waitForProjection("catalog", c.RoomCatalogProjector),
+		waitForProjection("room directory", c.RoomDirectoryProjector),
 		waitForProjection("room timeline", c.RoomTimelineProjector),
 	); err != nil {
 		return nil, err
@@ -339,8 +339,8 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 // DeleteRoom deletes a room.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
 //
-// ADR-035 phase 6: event-only. Publishes RoomDeletedEvent (which both
-// the catalog and membership projections apply as a drop) and, for
+// ADR-035 phase 6: event-only. Publishes RoomDeletedEvent (which the
+// room directory applies to both catalog and membership indexes) and, for
 // channel rooms in a group, a RoomRemovedFromGroupEvent cascade per
 // ADR-034 Approach A. Historical room events are retained in EVT; the
 // legacy KV room record is no longer touched here.
@@ -395,14 +395,13 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	// Read-your-writes: every projection that needs to drop state
 	// must have applied its event before we return.
 	if err := waitForSeqAll(ctx, seq,
-		waitForProjection("membership", c.RoomMembershipProjector),
-		waitForProjection("catalog", c.RoomCatalogProjector),
+		waitForProjection("room directory", c.RoomDirectoryProjector),
 		waitForProjection("room timeline", c.RoomTimelineProjector),
 	); err != nil {
 		return err
 	}
 	if groupRemovedSeq > 0 {
-		if err := waitForSeqAll(ctx, groupRemovedSeq, waitForProjection("groups", c.RoomGroupsProjector)); err != nil {
+		if err := waitForSeqAll(ctx, groupRemovedSeq, waitForProjection("room group layout", c.RoomGroupLayoutProjector)); err != nil {
 			return err
 		}
 	}
@@ -428,7 +427,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 			},
 		},
 	})
-	seq, err := c.RoomCatalogProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent)
+	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
 	}
@@ -463,7 +462,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 			},
 		},
 	})
-	seq, err := c.RoomCatalogProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent)
+	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
 	}

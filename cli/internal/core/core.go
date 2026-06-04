@@ -87,15 +87,12 @@ type ChattoCore struct {
 	RoomDirectory *RoomDirectoryProjection
 
 	// RoomDirectoryProjector runs the consumer for RoomDirectory. The
-	// RoomCatalogProjector and RoomMembershipProjector fields alias this
-	// projector for existing read-your-writes call sites.
+	// room catalog and membership writer paths wait on this projector for
+	// read-your-writes.
 	RoomDirectoryProjector *events.Projector
 
 	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
-
-	// RoomMembershipProjector aliases RoomDirectoryProjector.
-	RoomMembershipProjector *events.Projector
 
 	// ServerConfig is the projection holding current dynamic configuration
 	// rebuilt from EVT. The field name is retained for compatibility with
@@ -111,29 +108,20 @@ type ChattoCore struct {
 	// RoomCatalog is the room metadata index inside RoomDirectory.
 	RoomCatalog *RoomCatalogProjection
 
-	// RoomCatalogProjector aliases RoomDirectoryProjector.
-	RoomCatalogProjector *events.Projector
-
 	// RoomGroupLayout combines room-group state and sidebar ordering under one
 	// projector over evt.group.> plus evt.layout.>.
 	RoomGroupLayout *RoomGroupLayoutProjection
 
 	// RoomGroupLayoutProjector runs the consumer for RoomGroupLayout. The
-	// RoomGroupsProjector and RoomLayoutProjector fields alias this projector
-	// for existing read-your-writes call sites.
+	// room-group and layout writer paths wait on this projector for
+	// read-your-writes.
 	RoomGroupLayoutProjector *events.Projector
 
 	// RoomGroups is the group state index inside RoomGroupLayout.
 	RoomGroups *RoomGroupProjection
 
-	// RoomGroupsProjector aliases RoomGroupLayoutProjector.
-	RoomGroupsProjector *events.Projector
-
 	// RoomLayout is the sidebar ordering index inside RoomGroupLayout.
 	RoomLayout *RoomLayoutProjection
-
-	// RoomLayoutProjector aliases RoomGroupLayoutProjector.
-	RoomLayoutProjector *events.Projector
 
 	// RoomTimeline holds an append-only event log per room, derived
 	// from the full evt.room.> firehose (#597 phase 2). Source of
@@ -686,20 +674,16 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomDirectory := NewRoomDirectoryProjection()
 	roomDirectoryProjector := newProjector(roomDirectory, "Room Directory", roomDirectory.adminProjectionEstimate)
 	roomMembership := roomDirectory.Membership
-	roomMembershipProjector := roomDirectoryProjector
 
 	serverConfigProjection := NewConfigProjection()
 	serverConfigProjector := newProjector(serverConfigProjection, "Server Config", serverConfigProjection.adminProjectionEstimate)
 
 	roomCatalog := roomDirectory.Catalog
-	roomCatalogProjector := roomDirectoryProjector
 
 	roomGroupLayout := NewRoomGroupLayoutProjection()
 	roomGroupLayoutProjector := newProjector(roomGroupLayout, "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
 	roomGroups := roomGroupLayout.Groups
-	roomGroupsProjector := roomGroupLayoutProjector
 	roomLayout := roomGroupLayout.Layout
-	roomLayoutProjector := roomGroupLayoutProjector
 
 	// Per-room event-log + per-thread event-log projections (#597
 	// phase 2). Both consume the full evt.room.> firehose; resolvers
@@ -739,17 +723,13 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomDirectory:            roomDirectory,
 		RoomDirectoryProjector:   roomDirectoryProjector,
 		RoomMembership:           roomMembership,
-		RoomMembershipProjector:  roomMembershipProjector,
 		ServerConfig:             serverConfigProjection,
 		ServerConfigProjector:    serverConfigProjector,
 		RoomCatalog:              roomCatalog,
-		RoomCatalogProjector:     roomCatalogProjector,
 		RoomGroupLayout:          roomGroupLayout,
 		RoomGroupLayoutProjector: roomGroupLayoutProjector,
 		RoomGroups:               roomGroups,
-		RoomGroupsProjector:      roomGroupsProjector,
 		RoomLayout:               roomLayout,
-		RoomLayoutProjector:      roomLayoutProjector,
 		RoomTimeline:             roomTimeline,
 		RoomTimelineProjector:    roomTimelineProjector,
 		Threads:                  threads,
@@ -1606,18 +1586,14 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.
 		}
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.Event_UserJoinedRoom, *corev1.Event_UserLeftRoom, *corev1.Event_RoomDeleted:
-		if err := waitForSeqAll(ctx, seq, waitForProjection("room membership", c.RoomMembershipProjector)); err != nil {
-			return err
-		}
-	}
-	switch event.GetEvent().(type) {
-	case *corev1.Event_RoomCreated,
+	case *corev1.Event_UserJoinedRoom,
+		*corev1.Event_UserLeftRoom,
+		*corev1.Event_RoomCreated,
 		*corev1.Event_RoomUpdated,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomDeleted:
-		if err := waitForSeqAll(ctx, seq, waitForProjection("room catalog", c.RoomCatalogProjector)); err != nil {
+		if err := waitForSeqAll(ctx, seq, waitForProjection("room directory", c.RoomDirectoryProjector)); err != nil {
 			return err
 		}
 	}

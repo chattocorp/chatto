@@ -82,8 +82,8 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 			return nil, fmt.Errorf("read UserJoinedRoomEvent OCC seq: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.RoomMembershipProjector.WaitForSeq(ctx, expectedSeq); err != nil {
-				return nil, fmt.Errorf("wait for membership projection before join: %w", err)
+			if err := c.RoomDirectoryProjector.WaitForSeq(ctx, expectedSeq); err != nil {
+				return nil, fmt.Errorf("wait for room directory projection before join: %w", err)
 			}
 			if c.RoomMembership.IsMember(room_id, user_id) {
 				return membership, nil
@@ -93,7 +93,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
 		if err == nil {
 			if err := waitForSeqAll(ctx, seq,
-				waitForProjection("membership", c.RoomMembershipProjector),
+				waitForProjection("room directory", c.RoomDirectoryProjector),
 				waitForProjection("room timeline", c.RoomTimelineProjector),
 			); err != nil {
 				return nil, err
@@ -162,7 +162,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	seq, err := c.RoomMembershipProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
+	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
 	if err != nil {
 		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
 	}
@@ -272,8 +272,8 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 	}
 
 	if lastSeq > 0 {
-		if err := c.RoomMembershipProjector.WaitForSeq(ctx, lastSeq); err != nil {
-			return fmt.Errorf("wait for membership projection after membership cleanup: %w", err)
+		if err := c.RoomDirectoryProjector.WaitForSeq(ctx, lastSeq); err != nil {
+			return fmt.Errorf("wait for room directory projection after membership cleanup: %w", err)
 		}
 		if err := c.RoomTimelineProjector.WaitForSeq(ctx, lastSeq); err != nil {
 			return fmt.Errorf("wait for room timeline projection after membership cleanup: %w", err)
