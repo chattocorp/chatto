@@ -24,9 +24,9 @@ const maxMoveRoomToGroupRetries = 5
 // populated from pre-phase-6 history and the boot-time migrations,
 // kept around solely to allow a rollback to a pre-phase-6 binary.
 //
-// Reads compose three projections:
-//   - RoomGroups: per-group metadata + ordered room_ids (evt.group.>)
-//   - RoomLayout: operator-defined ordering of group IDs (evt.layout.>)
+// Reads compose three read-model indexes:
+//   - RoomGroups: per-group metadata + ordered room_ids
+//   - RoomLayout: operator-defined ordering of group IDs
 //   - RoomCatalog: room metadata, used for the final reconciliation
 //
 // `ListRoomGroupsOrdered` walks the layout's ordering, drops stale

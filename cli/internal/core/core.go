@@ -82,14 +82,19 @@ type ChattoCore struct {
 	// higher-level helpers as aggregates migrate.
 	EventPublisher *events.Publisher
 
-	// RoomMembership is the first event-sourced projection (ADR-033 POC).
-	// Populated by RoomMembershipProjector; not yet read by any
-	// user-facing resolver. Inspectable via an admin endpoint.
+	// RoomDirectory combines the room catalog and membership read models under
+	// one evt.room.> projector.
+	RoomDirectory *RoomDirectoryProjection
+
+	// RoomDirectoryProjector runs the consumer for RoomDirectory. The
+	// RoomCatalogProjector and RoomMembershipProjector fields alias this
+	// projector for existing read-your-writes call sites.
+	RoomDirectoryProjector *events.Projector
+
+	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
 
-	// RoomMembershipProjector runs the consumer + apply loop that keeps
-	// RoomMembership current. Started by (*ChattoCore).Run; exposed here
-	// so writers can call WaitForSeq for read-your-writes.
+	// RoomMembershipProjector aliases RoomDirectoryProjector.
 	RoomMembershipProjector *events.Projector
 
 	// ServerConfig is the projection holding current dynamic configuration
@@ -103,29 +108,31 @@ type ChattoCore struct {
 	// so writers (ConfigManager mutations) can call WaitForSeq.
 	ServerConfigProjector *events.Projector
 
-	// RoomCatalog is the projection holding per-room metadata
-	// (id/name/description/kind/archived) derived from evt.room.>.
-	// Coexists with RoomMembership on the same subject family.
+	// RoomCatalog is the room metadata index inside RoomDirectory.
 	RoomCatalog *RoomCatalogProjection
 
-	// RoomCatalogProjector runs the consumer for RoomCatalog. Exposed
-	// for WaitForSeq from room-metadata writers.
+	// RoomCatalogProjector aliases RoomDirectoryProjector.
 	RoomCatalogProjector *events.Projector
 
-	// RoomGroups is the projection holding per-group metadata and
-	// ordered room membership, derived from evt.group.>.
+	// RoomGroupLayout combines room-group state and sidebar ordering under one
+	// projector over evt.group.> plus evt.layout.>.
+	RoomGroupLayout *RoomGroupLayoutProjection
+
+	// RoomGroupLayoutProjector runs the consumer for RoomGroupLayout. The
+	// RoomGroupsProjector and RoomLayoutProjector fields alias this projector
+	// for existing read-your-writes call sites.
+	RoomGroupLayoutProjector *events.Projector
+
+	// RoomGroups is the group state index inside RoomGroupLayout.
 	RoomGroups *RoomGroupProjection
 
-	// RoomGroupsProjector runs the consumer for RoomGroups. Exposed
-	// for WaitForSeq from group writers.
+	// RoomGroupsProjector aliases RoomGroupLayoutProjector.
 	RoomGroupsProjector *events.Projector
 
-	// RoomLayout holds the operator-defined inter-group ordering for
-	// the sidebar, derived from evt.layout.> events.
+	// RoomLayout is the sidebar ordering index inside RoomGroupLayout.
 	RoomLayout *RoomLayoutProjection
 
-	// RoomLayoutProjector runs the consumer for RoomLayout. Exposed
-	// for WaitForSeq from layout writers.
+	// RoomLayoutProjector aliases RoomGroupLayoutProjector.
 	RoomLayoutProjector *events.Projector
 
 	// RoomTimeline holds an append-only event log per room, derived
@@ -676,20 +683,23 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return pr
 	}
 
-	roomMembership := NewRoomMembershipProjection()
-	roomMembershipProjector := newProjector(roomMembership, "Room Membership", roomMembership.adminProjectionEstimate)
+	roomDirectory := NewRoomDirectoryProjection()
+	roomDirectoryProjector := newProjector(roomDirectory, "Room Directory", roomDirectory.adminProjectionEstimate)
+	roomMembership := roomDirectory.Membership
+	roomMembershipProjector := roomDirectoryProjector
 
 	serverConfigProjection := NewConfigProjection()
 	serverConfigProjector := newProjector(serverConfigProjection, "Server Config", serverConfigProjection.adminProjectionEstimate)
 
-	roomCatalog := NewRoomCatalogProjection()
-	roomCatalogProjector := newProjector(roomCatalog, "Room Catalog", roomCatalog.adminProjectionEstimate)
+	roomCatalog := roomDirectory.Catalog
+	roomCatalogProjector := roomDirectoryProjector
 
-	roomGroups := NewRoomGroupProjection()
-	roomGroupsProjector := newProjector(roomGroups, "Room Groups", roomGroups.adminProjectionEstimate)
-
-	roomLayout := NewRoomLayoutProjection()
-	roomLayoutProjector := newProjector(roomLayout, "Room Layout", roomLayout.adminProjectionEstimate)
+	roomGroupLayout := NewRoomGroupLayoutProjection()
+	roomGroupLayoutProjector := newProjector(roomGroupLayout, "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
+	roomGroups := roomGroupLayout.Groups
+	roomGroupsProjector := roomGroupLayoutProjector
+	roomLayout := roomGroupLayout.Layout
+	roomLayoutProjector := roomGroupLayoutProjector
 
 	// Per-room event-log + per-thread event-log projections (#597
 	// phase 2). Both consume the full evt.room.> firehose; resolvers
@@ -717,39 +727,43 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	configMgr := NewConfigManager(configService, serverConfigProjection)
 
 	core := &ChattoCore{
-		nc:                      nc,
-		js:                      js,
-		logger:                  logger,
-		storage:                 storage,
-		config:                  cfg,
-		encryption:              encMgr,
-		configManager:           configMgr,
-		s3Client:                s3Client,
-		EventPublisher:          eventPublisher,
-		RoomMembership:          roomMembership,
-		RoomMembershipProjector: roomMembershipProjector,
-		ServerConfig:            serverConfigProjection,
-		ServerConfigProjector:   serverConfigProjector,
-		RoomCatalog:             roomCatalog,
-		RoomCatalogProjector:    roomCatalogProjector,
-		RoomGroups:              roomGroups,
-		RoomGroupsProjector:     roomGroupsProjector,
-		RoomLayout:              roomLayout,
-		RoomLayoutProjector:     roomLayoutProjector,
-		RoomTimeline:            roomTimeline,
-		RoomTimelineProjector:   roomTimelineProjector,
-		Threads:                 threads,
-		ThreadsProjector:        threadsProjector,
-		Reactions:               reactions,
-		ReactionsProjector:      reactionsProjector,
-		Users:                   users,
-		UsersProjector:          usersProjector,
-		ContentKeys:             contentKeys,
-		ContentKeysProjector:    contentKeysProjector,
-		RBAC:                    rbac,
-		RBACProjector:           rbacProjector,
-		projections:             projections,
-		bootDone:                make(chan struct{}),
+		nc:                       nc,
+		js:                       js,
+		logger:                   logger,
+		storage:                  storage,
+		config:                   cfg,
+		encryption:               encMgr,
+		configManager:            configMgr,
+		s3Client:                 s3Client,
+		EventPublisher:           eventPublisher,
+		RoomDirectory:            roomDirectory,
+		RoomDirectoryProjector:   roomDirectoryProjector,
+		RoomMembership:           roomMembership,
+		RoomMembershipProjector:  roomMembershipProjector,
+		ServerConfig:             serverConfigProjection,
+		ServerConfigProjector:    serverConfigProjector,
+		RoomCatalog:              roomCatalog,
+		RoomCatalogProjector:     roomCatalogProjector,
+		RoomGroupLayout:          roomGroupLayout,
+		RoomGroupLayoutProjector: roomGroupLayoutProjector,
+		RoomGroups:               roomGroups,
+		RoomGroupsProjector:      roomGroupsProjector,
+		RoomLayout:               roomLayout,
+		RoomLayoutProjector:      roomLayoutProjector,
+		RoomTimeline:             roomTimeline,
+		RoomTimelineProjector:    roomTimelineProjector,
+		Threads:                  threads,
+		ThreadsProjector:         threadsProjector,
+		Reactions:                reactions,
+		ReactionsProjector:       reactionsProjector,
+		Users:                    users,
+		UsersProjector:           usersProjector,
+		ContentKeys:              contentKeys,
+		ContentKeysProjector:     contentKeysProjector,
+		RBAC:                     rbac,
+		RBACProjector:            rbacProjector,
+		projections:              projections,
+		bootDone:                 make(chan struct{}),
 	}
 
 	if err := core.migrateLegacyCallStateToMemoryCache(ctx); err != nil {

@@ -209,12 +209,11 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		return nil, err
 	}
 
-	// Wait per-projector for the seq of the last event each
-	// actually consumes. Projectors subscribe to narrow event-type
-	// filters now — waiting on a seq that doesn't match the filter
-	// blocks forever (the LastSeq only advances on filter-matching
-	// events). seqs[0] is the RoomCreated (catalog); seqs[len-1] is
-	// the last UserJoinedRoom (membership).
+	// Wait per-projector for a sequence covered by that projector's
+	// subscription. Room-derived projections subscribe to evt.room.>,
+	// so both the RoomCreated and UserJoinedRoom sequences are visible.
+	// seqs[0] is the RoomCreated (catalog); seqs[len-1] is the last
+	// UserJoinedRoom (membership and timeline).
 	if err := c.RoomCatalogProjector.WaitForSeq(ctx, seqs[0]); err != nil {
 		c.logger.Warn("DM room catalog projection wait failed", "error", err, "room_id", roomID)
 	}

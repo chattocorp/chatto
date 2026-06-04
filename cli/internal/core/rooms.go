@@ -215,11 +215,9 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 // The flow per attempt:
 //  1. Check the catalog for the desired `name`; if any other room
 //     holds it, return ErrRoomNameExists immediately.
-//  2. Read the stream's actual last seq for the OCC filter directly
-//     (NOT from the catalog projector — that subscribes to a narrower
-//     set of subjects than `evt.room.>` and its LastSeq would fall
-//     permanently behind, deterministically failing every retry on a
-//     server that's had any joins/leaves since the last catalog write).
+//  2. Read the stream's actual last seq for the OCC filter directly.
+//     This keeps the uniqueness check tied to JetStream's aggregate
+//     scope rather than to any projection's local catch-up state.
 //  3. Publish the event with the freshly-read filter seq. JetStream
 //     rejects with ErrConflict if any evt.room.> message landed in the
 //     read-publish window — backoff briefly and retry.

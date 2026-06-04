@@ -34,21 +34,11 @@ func NewRoomGroupProjection() *RoomGroupProjection {
 	}
 }
 
-// Subjects implements events.Projection. Narrow filters covering
-// every event type the projection handles. New event types added to
-// evt.group.> won't reach this consumer until they're listed here —
-// matches the "apply what you understand, ignore the rest" rule, but
-// makes the "ignore" cheaper (server-side filter, not in-process
-// switch).
+// Subjects implements events.Projection. Room groups are a group-derived read
+// model, so the projection subscribes to the group aggregate namespace and
+// ignores group events it does not handle.
 func (p *RoomGroupProjection) Subjects() []string {
-	return []string{
-		events.GroupEventTypeFilter(events.EventRoomGroupCreated),
-		events.GroupEventTypeFilter(events.EventRoomGroupUpdated),
-		events.GroupEventTypeFilter(events.EventRoomGroupDeleted),
-		events.GroupEventTypeFilter(events.EventRoomAddedToGroup),
-		events.GroupEventTypeFilter(events.EventRoomRemovedFromGroup),
-		events.GroupEventTypeFilter(events.EventRoomsInGroupReordered),
-	}
+	return []string{events.GroupSubjectFilter()}
 }
 
 // Apply implements events.Projection. Recognised events:

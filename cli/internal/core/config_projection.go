@@ -52,24 +52,7 @@ func NewServerConfigProjection() *ConfigProjection {
 
 func (p *ConfigProjection) Subjects() []string {
 	return []string{
-		events.ConfigEventTypeFilter(events.EventServerConfigChanged),
-		events.ConfigEventTypeFilter(events.EventServerNameChanged),
-		events.ConfigEventTypeFilter(events.EventServerDescriptionChanged),
-		events.ConfigEventTypeFilter(events.EventServerWelcomeMessageChanged),
-		events.ConfigEventTypeFilter(events.EventServerMotdChanged),
-		events.ConfigEventTypeFilter(events.EventServerBlockedUsernamesChanged),
-		events.ConfigEventTypeFilter(events.EventServerLogoSet),
-		events.ConfigEventTypeFilter(events.EventServerLogoCleared),
-		events.ConfigEventTypeFilter(events.EventServerBannerSet),
-		events.ConfigEventTypeFilter(events.EventServerBannerCleared),
-		events.ConfigEventTypeFilter(events.EventUserTimezoneChanged),
-		events.ConfigEventTypeFilter(events.EventUserTimezoneCleared),
-		events.ConfigEventTypeFilter(events.EventUserTimeFormatChanged),
-		events.ConfigEventTypeFilter(events.EventUserTimeFormatCleared),
-		events.ConfigEventTypeFilter(events.EventUserServerNotificationLevelSet),
-		events.ConfigEventTypeFilter(events.EventUserServerNotificationLevelCleared),
-		events.ConfigEventTypeFilter(events.EventUserRoomNotificationLevelSet),
-		events.ConfigEventTypeFilter(events.EventUserRoomNotificationLevelCleared),
+		events.ConfigSubjectFilter(),
 		events.UserEventTypeFilter(events.EventUserServerPreferencesChanged),
 		events.UserEventTypeFilter(events.EventUserAccountDeleted),
 	}

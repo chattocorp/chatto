@@ -128,6 +128,21 @@ func (p *RoomMembershipProjection) adminProjectionEstimate() (int64, int64, []Pr
 	}
 }
 
+func (p *RoomDirectoryProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	catalogEntries, catalogBytes, catalogMetrics := p.Catalog.adminProjectionEstimate()
+	membershipEntries, membershipBytes, membershipMetrics := p.Membership.adminProjectionEstimate()
+	metrics := make([]ProjectionAdminMetric, 0, len(catalogMetrics)+len(membershipMetrics))
+	for _, metric := range catalogMetrics {
+		metric.Name = "catalog_" + metric.Name
+		metrics = append(metrics, metric)
+	}
+	for _, metric := range membershipMetrics {
+		metric.Name = "membership_" + metric.Name
+		metrics = append(metrics, metric)
+	}
+	return catalogEntries + membershipEntries, catalogBytes + membershipBytes, metrics
+}
+
 func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.RLock()
 	defer p.RUnlock()
@@ -241,6 +256,21 @@ func (p *RoomLayoutProjection) adminProjectionEstimate() (int64, int64, []Projec
 	return int64(len(p.groupIDs)), bytes, []ProjectionAdminMetric{
 		{Name: "ordered_groups", Value: int64(len(p.groupIDs)), Bytes: bytes},
 	}
+}
+
+func (p *RoomGroupLayoutProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	groupEntries, groupBytes, groupMetrics := p.Groups.adminProjectionEstimate()
+	layoutEntries, layoutBytes, layoutMetrics := p.Layout.adminProjectionEstimate()
+	metrics := make([]ProjectionAdminMetric, 0, len(groupMetrics)+len(layoutMetrics))
+	for _, metric := range groupMetrics {
+		metric.Name = "groups_" + metric.Name
+		metrics = append(metrics, metric)
+	}
+	for _, metric := range layoutMetrics {
+		metric.Name = "layout_" + metric.Name
+		metrics = append(metrics, metric)
+	}
+	return groupEntries + layoutEntries, groupBytes + layoutBytes, metrics
 }
 
 func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
