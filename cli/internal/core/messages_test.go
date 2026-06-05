@@ -142,8 +142,8 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	if len(storedBody.EncryptionNonce) == 0 {
 		t.Error("Expected encryption nonce to be non-empty")
 	}
-	if storedBody.EncryptionVersion != encryption.EnvelopeVersionV3 {
-		t.Errorf("EncryptionVersion = %d, want %d", storedBody.EncryptionVersion, encryption.EnvelopeVersionV3)
+	if storedBody.EncryptionVersion != encryption.EnvelopeVersionV2 {
+		t.Errorf("EncryptionVersion = %d, want %d", storedBody.EncryptionVersion, encryption.EnvelopeVersionV2)
 	}
 	if storedBody.ContentKeyEpoch != 1 {
 		t.Errorf("ContentKeyEpoch = %d, want 1", storedBody.ContentKeyEpoch)
@@ -151,13 +151,6 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	if storedBody.BodyEventId == "" {
 		t.Error("BodyEventId should be set")
 	}
-	if len(storedBody.WrappedBodyKey) == 0 {
-		t.Error("Expected wrapped body key to be non-empty")
-	}
-	if len(storedBody.BodyKeyWrapNonce) == 0 {
-		t.Error("Expected body key wrap nonce to be non-empty")
-	}
-
 	// Verify timestamps are set correctly
 	if storedBody.CreatedAt == nil {
 		t.Error("CreatedAt should be set")

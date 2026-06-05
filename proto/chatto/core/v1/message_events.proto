@@ -74,7 +74,7 @@ message MessageBodyEvent {
   // Event ID of the message whose current body is being set.
   string event_id = 2;
 
-  // Encrypted body envelope. For v3 bodies body.body_event_id must match the
+  // Encrypted body envelope. For new writes body.body_event_id must match the
   // outer Event envelope ID that carries this MessageBodyEvent.
   MessageBody body = 3;
 }

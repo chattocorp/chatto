@@ -127,12 +127,12 @@ func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, mess
 // decryptMessageBody decrypts an encrypted message body. Legacy bodies are
 // decrypted directly with the author's per-user key. V2 bodies resolve the
 // author's message-body DEK epoch and authenticate the event context as AAD.
-// V3 bodies first unwrap the one-time body key with that epoch, then decrypt
-// the body with AAD that also binds the body event envelope ID.
+// Bodies carried by MessageBodyEvent additionally bind the body event envelope
+// ID into AAD so payloads cannot be replayed under a different body event.
 func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID string, msg *corev1.MessageBody) ([]byte, error) {
 	if msg.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || msg.GetContentKeyEpoch() > 0 {
 		version := msg.GetEncryptionVersion()
-		if version != encryption.EnvelopeVersionV2 && version != encryption.EnvelopeVersionV3 {
+		if version != encryption.EnvelopeVersionV2 {
 			return nil, fmt.Errorf("unsupported message body encryption version %d", version)
 		}
 		epoch := msg.GetContentKeyEpoch()
@@ -147,32 +147,11 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 		if err != nil {
 			return nil, err
 		}
-		if version == encryption.EnvelopeVersionV3 {
-			bodyEventID := msg.GetBodyEventId()
-			if bodyEventID == "" {
-				return nil, fmt.Errorf("missing body event ID for v3 message body")
-			}
-			bodyKey, err := encryption.UnwrapContentKey(
-				contentKey.key,
-				msg.GetWrappedBodyKey(),
-				msg.GetBodyKeyWrapNonce(),
-				messageBodyKeyWrapAAD(eventID, bodyEventID, roomID, msg.GetAuthorId(), epoch),
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unwrap message body key: %w", err)
-			}
-			return encryption.DecryptWithContentKey(
-				bodyKey,
-				msg.GetEncryptedBody(),
-				msg.GetEncryptionNonce(),
-				messageBodyV3AAD(eventID, bodyEventID, roomID, msg.GetAuthorId(), epoch),
-			)
-		}
 		return encryption.DecryptWithContentKey(
 			contentKey.key,
 			msg.GetEncryptedBody(),
 			msg.GetEncryptionNonce(),
-			messageBodyAAD(eventID, roomID, msg.GetAuthorId(), epoch),
+			messageBodyAAD(eventID, msg.GetBodyEventId(), roomID, msg.GetAuthorId(), epoch),
 		)
 	}
 

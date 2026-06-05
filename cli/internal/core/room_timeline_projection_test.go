@@ -102,7 +102,7 @@ func bodyEvent(envID, targetID, roomID, actorID, body string, at int) *corev1.Ev
 				Body: &corev1.MessageBody{
 					AuthorId:          actorID,
 					BodyEventId:       envID,
-					EncryptionVersion: encryption.EnvelopeVersionV3,
+					EncryptionVersion: encryption.EnvelopeVersionV2,
 					EncryptedBody:     []byte(body),
 				},
 			},

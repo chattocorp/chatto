@@ -78,11 +78,9 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotNil(t, stored, "expected projected body from MessageBodyEvent")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
-	require.Equal(t, encryption.EnvelopeVersionV3, stored.EncryptionVersion, "new messages should use v3 envelopes")
+	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "new messages should use v2 envelopes")
 	require.EqualValues(t, 1, stored.ContentKeyEpoch, "new messages should reference the active message-body DEK epoch")
-	require.NotEmpty(t, stored.BodyEventId, "v3 bodies should bind to their body event")
-	require.NotEmpty(t, stored.WrappedBodyKey, "v3 bodies should wrap the per-body key")
-	require.NotEmpty(t, stored.BodyKeyWrapNonce, "v3 bodies should store the wrap nonce")
+	require.NotEmpty(t, stored.BodyEventId, "new body-event-carried bodies should bind to their body event")
 
 	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
 	require.NoError(t, err)
@@ -107,7 +105,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.Equal(t, "Secret message content", body, "decrypted message should match original")
 }
 
-func TestMessageBodyV3AADRejectsWrongEventContext(t *testing.T) {
+func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -136,22 +134,6 @@ func TestMessageBodyV3AADRejectsWrongEventContext(t *testing.T) {
 	t.Run("tampered body event ID", func(t *testing.T) {
 		tampered := proto.Clone(stored).(*corev1.MessageBody)
 		tampered.BodyEventId = "EtamperedBodyEventID"
-		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
-		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
-	})
-
-	t.Run("tampered wrapped body key", func(t *testing.T) {
-		tampered := proto.Clone(stored).(*corev1.MessageBody)
-		tampered.WrappedBodyKey = append([]byte(nil), tampered.GetWrappedBodyKey()...)
-		tampered.WrappedBodyKey[0] ^= 0xff
-		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
-		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
-	})
-
-	t.Run("tampered body key wrap nonce", func(t *testing.T) {
-		tampered := proto.Clone(stored).(*corev1.MessageBody)
-		tampered.BodyKeyWrapNonce = append([]byte(nil), tampered.GetBodyKeyWrapNonce()...)
-		tampered.BodyKeyWrapNonce[0] ^= 0xff
 		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
 		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 	})
@@ -491,7 +473,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	require.NotNil(t, stored, "expected a body after edit")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty after edit")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty after edit")
-	require.Equal(t, encryption.EnvelopeVersionV3, stored.EncryptionVersion, "edited messages should keep v3 envelopes")
+	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "edited messages should keep v2 envelopes")
 	require.EqualValues(t, 1, stored.ContentKeyEpoch, "edited messages should reference the active message-body DEK epoch")
 
 	// Verify we can read the edited content

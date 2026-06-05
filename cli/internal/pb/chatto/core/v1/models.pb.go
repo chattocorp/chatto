@@ -1169,7 +1169,7 @@ func (x *Attachment) GetMessageBodyId() string {
 // payload can be securely deleted while preserving public timeline facts.
 // Message bodies are always encrypted. Legacy bodies use the author's per-user
 // ChaCha20-Poly1305 key directly. V2 bodies use a per-user message-body DEK
-// epoch directly. V3 bodies use a one-time body DEK wrapped by that epoch.
+// epoch directly.
 type MessageBody struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AuthorId  string                 `protobuf:"bytes,1,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
@@ -1178,26 +1178,21 @@ type MessageBody struct {
 	// Encryption envelope version. Empty/0 means legacy v1 direct per-user-key
 	// encryption for backward compatibility with historical bodies. Version 2
 	// means XChaCha20-Poly1305 body encryption with the author's referenced
-	// message-body DEK epoch. Version 3 means the body ciphertext uses a
-	// one-time body DEK, wrapped by the referenced per-user message-body DEK.
+	// message-body DEK epoch.
 	EncryptionVersion int32 `protobuf:"varint,4,opt,name=encryption_version,json=encryptionVersion,proto3" json:"encryption_version,omitempty"`
-	// V2/V3: per-user message-body DEK epoch that encrypted or wrapped this body.
+	// V2: per-user message-body DEK epoch that encrypted this body.
 	ContentKeyEpoch int32 `protobuf:"varint,5,opt,name=content_key_epoch,json=contentKeyEpoch,proto3" json:"content_key_epoch,omitempty"`
-	// V3 only: Event envelope ID of the MessageBodyEvent carrying this body.
-	// Included in AAD to prevent replaying old body payloads under new events.
+	// Event envelope ID of the MessageBodyEvent carrying this body. Included in
+	// AAD for new body-event-carried bodies to prevent replaying old encrypted
+	// body payloads under new body events.
 	BodyEventId string `protobuf:"bytes,6,opt,name=body_event_id,json=bodyEventId,proto3" json:"body_event_id,omitempty"`
 	// Encrypted message body ciphertext with auth tag. For legacy bodies this
 	// is ChaCha20-Poly1305. For v2 envelope bodies this uses the referenced
-	// message-body DEK. For v3 envelope bodies this uses the one-time body DEK.
+	// message-body DEK.
 	EncryptedBody []byte `protobuf:"bytes,20,opt,name=encrypted_body,json=encryptedBody,proto3" json:"encrypted_body,omitempty"`
 	// Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
-	// for v2/v3 XChaCha20-Poly1305.
+	// for v2 XChaCha20-Poly1305.
 	EncryptionNonce []byte `protobuf:"bytes,21,opt,name=encryption_nonce,json=encryptionNonce,proto3" json:"encryption_nonce,omitempty"`
-	// V3 only: one-time body DEK encrypted with the per-user message-body DEK
-	// epoch referenced by content_key_epoch.
-	WrappedBodyKey []byte `protobuf:"bytes,22,opt,name=wrapped_body_key,json=wrappedBodyKey,proto3" json:"wrapped_body_key,omitempty"`
-	// V3 only: XChaCha20-Poly1305 nonce for wrapped_body_key.
-	BodyKeyWrapNonce []byte `protobuf:"bytes,23,opt,name=body_key_wrap_nonce,json=bodyKeyWrapNonce,proto3" json:"body_key_wrap_nonce,omitempty"`
 	// Legacy embedded attachment protos. Older bodies (and the legacy
 	// import path) carry full Attachment records here. New bodies write
 	// asset_ids instead and the GraphQL resolver hydrates from the
@@ -1298,20 +1293,6 @@ func (x *MessageBody) GetEncryptedBody() []byte {
 func (x *MessageBody) GetEncryptionNonce() []byte {
 	if x != nil {
 		return x.EncryptionNonce
-	}
-	return nil
-}
-
-func (x *MessageBody) GetWrappedBodyKey() []byte {
-	if x != nil {
-		return x.WrappedBodyKey
-	}
-	return nil
-}
-
-func (x *MessageBody) GetBodyKeyWrapNonce() []byte {
-	if x != nil {
-		return x.BodyKeyWrapNonce
 	}
 	return nil
 }
@@ -1967,7 +1948,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x06height\x18\b \x01(\x05R\x06height\x129\n" +
 	"\astorage\x18\t \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\astorage\x12&\n" +
 	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\xe5\x04\n" +
+	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\x8c\x04\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +
@@ -1978,9 +1959,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x11content_key_epoch\x18\x05 \x01(\x05R\x0fcontentKeyEpoch\x12\"\n" +
 	"\rbody_event_id\x18\x06 \x01(\tR\vbodyEventId\x12%\n" +
 	"\x0eencrypted_body\x18\x14 \x01(\fR\rencryptedBody\x12)\n" +
-	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x12(\n" +
-	"\x10wrapped_body_key\x18\x16 \x01(\fR\x0ewrappedBodyKey\x12-\n" +
-	"\x13body_key_wrap_nonce\x18\x17 \x01(\fR\x10bodyKeyWrapNonce\x12<\n" +
+	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x12<\n" +
 	"\vattachments\x18\x1e \x03(\v2\x1a.chatto.core.v1.AttachmentR\vattachments\x12\x1b\n" +
 	"\tasset_ids\x18\x1f \x03(\tR\bassetIds\x12>\n" +
 	"\flink_preview\x18( \x01(\v2\x1b.chatto.core.v1.LinkPreviewR\vlinkPreview\"\xfe\x01\n" +

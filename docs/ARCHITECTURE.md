@@ -741,7 +741,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v3 envelope: a one-time body DEK encrypts the body, then the body DEK is wrapped by the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `ENCRYPTION_KEYS` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `ENCRYPTION_KEYS` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 
@@ -752,7 +752,7 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 **Write Path:**
 
 1. Generate an EVT envelope with event ID
-2. Generate a private body event ID, encrypt the body with a one-time body DEK, and wrap that DEK with the author's active message-body DEK epoch
+2. Generate a private body event ID and encrypt the body with the author's active message-body DEK epoch
 3. Atomically append `MessageBodyEvent` before the bodyless `MessagePostedEvent`
 4. Wait for local projections to reach the public message append sequence before serving read-your-writes
 

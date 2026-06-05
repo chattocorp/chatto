@@ -173,7 +173,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		if targetID != "" && body != nil {
 			if body.GetBodyEventId() == "" {
 				body.BodyEventId = event.GetId()
-			} else if body.GetEncryptionVersion() >= 3 && body.GetBodyEventId() != event.GetId() {
+			} else if body.GetBodyEventId() != event.GetId() {
 				return nil
 			}
 			if authorID := body.GetAuthorId(); authorID != "" {

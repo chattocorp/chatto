@@ -20,16 +20,11 @@ type userDEK struct {
 
 type messageContentKey = userDEK
 
-func messageBodyAAD(eventID, roomID, authorID string, epoch int32) []byte {
-	return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, roomID, authorID, epoch))
-}
-
-func messageBodyV3AAD(eventID, bodyEventID, roomID, authorID string, epoch int32) []byte {
-	return []byte(fmt.Sprintf("chatto:message-body-context:v3\x00event_type=message_body\x00event_id=%s\x00body_event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, bodyEventID, roomID, authorID, epoch))
-}
-
-func messageBodyKeyWrapAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) []byte {
-	return []byte(fmt.Sprintf("chatto:message-body-key-wrap-context:v1\x00event_type=message_body\x00event_id=%s\x00body_event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, bodyEventID, roomID, authorID, epoch))
+func messageBodyAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) []byte {
+	if bodyEventID == "" {
+		return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, roomID, authorID, epoch))
+	}
+	return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00body_event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, bodyEventID, roomID, authorID, epoch))
 }
 
 func contentKeyAAD(userID string, epoch int32) []byte {
@@ -59,26 +54,15 @@ func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.Messag
 		return err
 	}
 
-	bodyKey, err := encryption.GenerateKey()
-	if err != nil {
-		return fmt.Errorf("failed to generate body key: %w", err)
-	}
-	wrappedBodyKey, err := encryption.WrapContentKey(contentKey.key, bodyKey, messageBodyKeyWrapAAD(eventID, bodyEventID, roomID, authorID, contentKey.epoch))
-	if err != nil {
-		return fmt.Errorf("failed to wrap body key: %w", err)
-	}
-
-	encrypted, err := encryption.EncryptWithContentKey(bodyKey, []byte(plaintext), messageBodyV3AAD(eventID, bodyEventID, roomID, authorID, contentKey.epoch))
+	encrypted, err := encryption.EncryptWithContentKey(contentKey.key, []byte(plaintext), messageBodyAAD(eventID, bodyEventID, roomID, authorID, contentKey.epoch))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt message body: %w", err)
 	}
 	body.EncryptedBody = encrypted.Ciphertext
 	body.EncryptionNonce = encrypted.Nonce
-	body.EncryptionVersion = encryption.EnvelopeVersionV3
+	body.EncryptionVersion = encryption.EnvelopeVersionV2
 	body.ContentKeyEpoch = contentKey.epoch
 	body.BodyEventId = bodyEventID
-	body.WrappedBodyKey = wrappedBodyKey.EncryptedContentKey
-	body.BodyKeyWrapNonce = wrappedBodyKey.Nonce
 	return nil
 }
 

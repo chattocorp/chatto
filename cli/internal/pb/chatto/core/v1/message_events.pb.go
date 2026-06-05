@@ -135,7 +135,7 @@ type MessageBodyEvent struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message whose current body is being set.
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Encrypted body envelope. For v3 bodies body.body_event_id must match the
+	// Encrypted body envelope. For new writes body.body_event_id must match the
 	// outer Event envelope ID that carries this MessageBodyEvent.
 	Body          *MessageBody `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields

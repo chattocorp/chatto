@@ -22,16 +22,9 @@ const (
 	// EnvelopeVersionV2 identifies the content-key epoch message body format.
 	EnvelopeVersionV2 int32 = 2
 
-	// EnvelopeVersionV3 identifies the per-body key message body format.
-	EnvelopeVersionV3 int32 = 3
-
 	// AlgorithmEnvelopeV2 identifies the algorithm implied by v2 envelopes.
 	// It is kept as a code-level constant rather than stored per message.
 	AlgorithmEnvelopeV2 = "xchacha20-poly1305+content-key-epoch-v1"
-
-	// AlgorithmEnvelopeV3 identifies the algorithm implied by v3 envelopes.
-	// It is kept as a code-level constant rather than stored per message.
-	AlgorithmEnvelopeV3 = "xchacha20-poly1305+per-body-key-v1"
 )
 
 // EncryptedData holds the result of an encryption operation.
