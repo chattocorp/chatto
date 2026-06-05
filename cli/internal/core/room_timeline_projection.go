@@ -27,6 +27,7 @@ import (
 type RoomTimelineProjection struct {
 	events.MemoryProjection
 	byRoom          map[string][]*TimelineEntry
+	visibleByRoom   map[string][]*TimelineEntry
 	byEventID       map[string]*TimelineEntry
 	appliedEventIDs map[string]struct{}
 	// latestBody is the derived current-body index. Updated as
@@ -112,6 +113,7 @@ type TimelineEntry struct {
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
 		byRoom:            make(map[string][]*TimelineEntry),
+		visibleByRoom:     make(map[string][]*TimelineEntry),
 		byEventID:         make(map[string]*TimelineEntry),
 		appliedEventIDs:   make(map[string]struct{}),
 		latestBody:        make(map[string]*corev1.MessageBody),
@@ -202,6 +204,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	entry := &TimelineEntry{StreamSeq: seq, Event: event}
 	p.byRoom[roomID] = append(p.byRoom[roomID], entry)
+	if isVisibleRoomTimelineEntry(event) {
+		p.visibleByRoom[roomID] = append(p.visibleByRoom[roomID], entry)
+	}
 	if eid := event.GetId(); eid != "" {
 		p.byEventID[eid] = entry
 	}
@@ -413,6 +418,22 @@ func (p *RoomTimelineProjection) RoomEventCount(roomID string) int {
 	p.RLock()
 	defer p.RUnlock()
 	return len(p.byRoom[roomID])
+}
+
+// VisibleRoomEventCount returns the total number of room-visible timeline
+// entries in the room. Hidden echoes may still be present in the derived slice
+// and are excluded by the visible timeline readers.
+func (p *RoomTimelineProjection) VisibleRoomEventCount(roomID string) int {
+	p.RLock()
+	defer p.RUnlock()
+	n := 0
+	for _, entry := range p.visibleByRoom[roomID] {
+		if p.isHiddenEchoEntryLocked(entry) {
+			continue
+		}
+		n++
+	}
+	return n
 }
 
 // Stats returns aggregate counts useful for import/rollout diagnostics.
@@ -882,6 +903,9 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	p.RLock()
 	defer p.RUnlock()
 	entries := p.byRoom[roomID]
+	if visible == nil {
+		entries = p.visibleByRoom[roomID]
+	}
 	out := make([]*TimelineEntry, 0, limit)
 	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
 		e := entries[i]
@@ -915,6 +939,9 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	p.RLock()
 	defer p.RUnlock()
 	entries := p.byRoom[roomID]
+	if visible == nil {
+		entries = p.visibleByRoom[roomID]
+	}
 	out := make([]*TimelineEntry, 0, limit)
 	for _, e := range entries {
 		if e.StreamSeq <= afterStreamSeq {
@@ -932,6 +959,63 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 		}
 	}
 	return out
+}
+
+// VisibleRoomTimelineAround returns a room-visible window centered on eventID
+// in oldest-first order. It walks the derived visible-room slice instead of the
+// raw room log, so edits/reactions/assets/thread replies are not revisited when
+// serving "jump to message" style reads.
+func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
+	roomID string,
+	eventID string,
+	limit int,
+) (entries []*TimelineEntry, targetIndex int, hasOlder bool, hasNewer bool, ok bool) {
+	if limit <= 0 || eventID == "" {
+		return nil, 0, false, false, false
+	}
+	p.RLock()
+	defer p.RUnlock()
+	roomEntries := p.visibleByRoom[roomID]
+	targetVisibleIndex := -1
+	visibleCount := 0
+	for _, entry := range roomEntries {
+		if p.isHiddenEchoEntryLocked(entry) {
+			continue
+		}
+		if entry != nil && entry.Event != nil && entry.Event.GetId() == eventID {
+			targetVisibleIndex = visibleCount
+		}
+		visibleCount++
+	}
+	if targetVisibleIndex == -1 {
+		return nil, 0, false, false, false
+	}
+
+	half := limit / 2
+	start := targetVisibleIndex - half
+	if start < 0 {
+		start = 0
+	}
+	end := targetVisibleIndex + half + 1
+	if end > visibleCount {
+		end = visibleCount
+	}
+
+	out := make([]*TimelineEntry, 0, end-start)
+	visibleIndex := 0
+	for _, entry := range roomEntries {
+		if p.isHiddenEchoEntryLocked(entry) {
+			continue
+		}
+		if visibleIndex >= start && visibleIndex < end {
+			out = append(out, entry)
+		}
+		visibleIndex++
+		if visibleIndex >= end {
+			break
+		}
+	}
+	return out, targetVisibleIndex - start, start > 0, end < visibleCount, true
 }
 
 func (p *RoomTimelineProjection) isHiddenEchoEntryLocked(entry *TimelineEntry) bool {

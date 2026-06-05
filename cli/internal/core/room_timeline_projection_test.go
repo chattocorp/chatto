@@ -405,6 +405,29 @@ func TestRoomTimeline_RetractingEchoHidesEchoOnly(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U1", body: "reply", inThread: "ENV-ROOT", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U1", body: "reply", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-ROOT", at: 3}),
+		editedEvent("ENV-EDIT-ROOT", "ENV-ROOT", "R1", "U1", "root edited", 4),
+		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U1", "", 5),
+		joinedEvent("ENV-JOIN-U2", "R1", "U2", 6),
+	})
+
+	if got := p.RoomEventCount("R1"); got != 6 {
+		t.Fatalf("raw RoomEventCount = %d, want 6", got)
+	}
+	if got := p.VisibleRoomEventCount("R1"); got != 2 {
+		t.Fatalf("VisibleRoomEventCount = %d, want 2", got)
+	}
+	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
+	if got := eventIDs(visible); !slices.Equal(got, []string{"ENV-JOIN-U2", "ENV-ROOT"}) {
+		t.Fatalf("derived visible timeline = %v, want join and root only", got)
+	}
+}
+
 func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*corev1.Event{
@@ -423,6 +446,90 @@ func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
 	}
 	if _, retracted, ok := p.LatestBody("ENV-ECHO"); !ok || !retracted {
 		t.Fatal("echo body should read as retracted when original is retracted")
+	}
+}
+
+func TestRoomTimeline_VisibleRoomTimelineAroundUsesVisibleIndex(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U1", body: "reply", inThread: "M1", at: 2}),
+		postedEvent(postedOpts{envelopeID: "M2", roomID: "R1", actorID: "U1", body: "2", at: 3}),
+		editedEvent("EDIT-M2", "M2", "R1", "U1", "2 edited", 4),
+		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U1", body: "3", at: 5}),
+		postedEvent(postedOpts{envelopeID: "M4", roomID: "R1", actorID: "U1", body: "4", at: 6}),
+	})
+
+	entries, targetIndex, hasOlder, hasNewer, ok := p.VisibleRoomTimelineAround("R1", "M2", 3)
+	if !ok {
+		t.Fatal("VisibleRoomTimelineAround ok=false, want true")
+	}
+	if got := eventIDs(entries); !slices.Equal(got, []string{"M1", "M2", "M3"}) {
+		t.Fatalf("around entries = %v, want M1/M2/M3", got)
+	}
+	if targetIndex != 1 {
+		t.Fatalf("targetIndex = %d, want 1", targetIndex)
+	}
+	if hasOlder {
+		t.Fatal("hasOlder = true, want false")
+	}
+	if !hasNewer {
+		t.Fatal("hasNewer = false, want true")
+	}
+}
+
+func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	post := postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "1", at: 1})
+	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{{Id: "A-video", ContentType: "video/mp4"}}
+	applyAll(t, p, []*corev1.Event{
+		post,
+		bodyEvent("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", 2),
+		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
+		&corev1.Event{
+			Id: "ENV-VIDEO-START",
+			Event: &corev1.Event_AssetProcessingStarted{
+				AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: "A-video", MessageEventId: "ENV-M1"},
+			},
+		},
+		&corev1.Event{
+			Id: "ENV-VIDEO-OK",
+			Event: &corev1.Event_AssetProcessingSucceeded{
+				AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
+					AssetId:        "A-video",
+					MessageEventId: "ENV-M1",
+					Video:          &corev1.AssetProcessedVideo{DurationMs: 1200},
+				},
+			},
+		},
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-M1", at: 6}),
+		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-M1", at: 7}),
+		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 8),
+	})
+
+	entries, bytes, metrics := p.adminProjectionEstimate()
+	if entries == 0 || bytes == 0 {
+		t.Fatalf("adminProjectionEstimate entries=%d bytes=%d, want non-zero", entries, bytes)
+	}
+	for _, name := range []string{
+		"visible_timeline_index",
+		"applied_event_ids",
+		"body_event_seqs",
+		"asset_creations",
+		"video_manifests",
+		"asset_message_owner_index",
+		"hidden_echoes",
+	} {
+		metric := projectionMetricByName(metrics, name)
+		if metric == nil {
+			t.Fatalf("missing metric %q", name)
+		}
+		if metric.Value == 0 {
+			t.Fatalf("metric %q value = 0, want non-zero", name)
+		}
+		if metric.Bytes == 0 {
+			t.Fatalf("metric %q bytes = 0, want non-zero", name)
+		}
 	}
 }
 
@@ -629,4 +736,13 @@ func eventIDs(entries []*TimelineEntry) []string {
 		out[i] = e.Event.GetId()
 	}
 	return out
+}
+
+func projectionMetricByName(metrics []ProjectionAdminMetric, name string) *ProjectionAdminMetric {
+	for i := range metrics {
+		if metrics[i].Name == name {
+			return &metrics[i]
+		}
+	}
+	return nil
 }

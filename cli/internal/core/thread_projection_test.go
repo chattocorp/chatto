@@ -208,6 +208,31 @@ func TestThreadProjection_Idempotency(t *testing.T) {
 	}
 }
 
+func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T) {
+	p := NewThreadProjection()
+	root := postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1})
+	if err := p.Apply(root, 1); err != nil {
+		t.Fatalf("first root Apply: %v", err)
+	}
+	if err := p.Apply(root, 1); err != nil {
+		t.Fatalf("second root Apply: %v", err)
+	}
+	if got := len(p.appliedEventIDs); got != 0 {
+		t.Fatalf("ignored root events populated appliedEventIDs with %d entries, want 0", got)
+	}
+
+	reply := postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 2})
+	if err := p.Apply(reply, 2); err != nil {
+		t.Fatalf("reply Apply after ignored same-id root: %v", err)
+	}
+	if got := p.ReplyCount("ROOT"); got != 1 {
+		t.Fatalf("ReplyCount = %d, want 1", got)
+	}
+	if got := len(p.appliedEventIDs); got != 1 {
+		t.Fatalf("appliedEventIDs after relevant event = %d, want 1", got)
+	}
+}
+
 func TestThreadProjection_SubjectFilter(t *testing.T) {
 	subjects := NewThreadProjection().Subjects()
 	want := map[string]bool{

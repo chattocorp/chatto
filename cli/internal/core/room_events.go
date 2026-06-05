@@ -62,9 +62,9 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 		before = *beforeSeq
 	}
 
-	// Bounded newest-first walk via VisibleRoomTimeline. Fetch
+	// Bounded newest-first walk via the derived visible-room timeline. Fetch
 	// limit+1 to detect HasOlder without a second call.
-	raw := c.RoomTimeline.VisibleRoomTimeline(room_id, limit+1, before, isVisibleRoomTimelineEntry)
+	raw := c.RoomTimeline.VisibleRoomTimeline(room_id, limit+1, before, nil)
 	hasOlder := len(raw) > limit
 	if hasOlder {
 		raw = raw[:limit]
@@ -142,50 +142,19 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 		return nil, ErrMessageNotFound
 	}
 
-	// Walk the room's visible timeline newest-first, then reverse it
-	// to the API's chronological oldest-first contract. RoomEventCount
-	// gives an upper bound so we don't ask for an unbounded slice.
-	roomLen := c.RoomTimeline.RoomEventCount(roomID)
-	raw := c.RoomTimeline.VisibleRoomTimeline(roomID, roomLen, 0, isVisibleRoomTimelineEntry)
-	visible := make([]*RoomEvent, len(raw))
-	for i, e := range raw {
-		visible[i] = &RoomEvent{Event: e.Event, Sequence: e.StreamSeq}
-	}
-	for i, j := 0, len(visible)-1; i < j; i, j = i+1, j-1 {
-		visible[i], visible[j] = visible[j], visible[i]
-	}
-
-	targetIdx := -1
-	for i, e := range visible {
-		if e.Id == eventID {
-			targetIdx = i
-			break
-		}
-	}
-	if targetIdx == -1 {
+	raw, targetIdx, hasOlder, hasNewer, ok := c.RoomTimeline.VisibleRoomTimelineAround(roomID, eventID, limit)
+	if !ok {
 		return nil, ErrMessageNotFound
 	}
-
-	// visible[] is chronological oldest-first. Return the around-window
-	// in the same order so start/end cursors mean oldest/newest just like
-	// Room.events.
-	half := limit / 2
-	start := targetIdx - half
-	if start < 0 {
-		start = 0
+	window := make([]*RoomEvent, len(raw))
+	for i, e := range raw {
+		window[i] = &RoomEvent{Event: e.Event, Sequence: e.StreamSeq}
 	}
-	end := targetIdx + half + 1
-	if end > len(visible) {
-		end = len(visible)
-	}
-
-	window := make([]*RoomEvent, end-start)
-	copy(window, visible[start:end])
 	return &RoomEventsAroundResult{
 		Events:      window,
-		TargetIndex: targetIdx - start,
-		HasOlder:    start > 0,
-		HasNewer:    end < len(visible),
+		TargetIndex: targetIdx,
+		HasOlder:    hasOlder,
+		HasNewer:    hasNewer,
 	}, nil
 }
 
@@ -202,7 +171,7 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 	// Walk visible entries oldest-first from the cursor so forward
 	// pagination returns the nearest newer events first. Fetch limit+1
 	// to detect whether another forward page exists.
-	raw := c.RoomTimeline.VisibleRoomTimelineAfter(roomID, limit+1, afterSeq, isVisibleRoomTimelineEntry)
+	raw := c.RoomTimeline.VisibleRoomTimelineAfter(roomID, limit+1, afterSeq, nil)
 	hasNewer := len(raw) > limit
 	if hasNewer {
 		raw = raw[:limit]
