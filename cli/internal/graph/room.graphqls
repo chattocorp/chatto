@@ -69,11 +69,12 @@ type Room {
   groupId: ID!
 
   """
-  Fetch historical events for this room (default limit: 50). Use the
-  opaque `before` cursor for backward pagination and `after` for forward
-  pagination — pass the `startCursor` / `endCursor` from a previous
-  `RoomEventsConnection` response. Cursors are opaque strings; clients
-  must not attempt to parse them.
+  Fetch historical events for this room (default limit: 50, max: 500;
+  larger values are silently clamped). Use the opaque `before` cursor
+  for backward pagination and `after` for forward pagination — pass the
+  `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+  response. Cursors are opaque strings; clients must not attempt to
+  parse them.
   """
   events(limit: Int = 50, before: String, after: String): RoomEventsConnection!
     @goField(forceResolver: true)
@@ -82,7 +83,8 @@ type Room {
   event(eventId: ID!): Event @goField(forceResolver: true)
 
   """
-  Fetch events in this room centered around a specific event.
+  Fetch events in this room centered around a specific event (default
+  limit: 50, max: 500; larger values are silently clamped).
   Returns a window of events with the target event roughly in the middle.
   Used for "jump to message" when clicking reply links to messages not in the loaded range.
   """

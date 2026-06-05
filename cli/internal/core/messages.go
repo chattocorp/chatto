@@ -13,7 +13,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const defaultHistoricalMessageLimit = 50
+const (
+	defaultHistoricalMessageLimit = 50
+	maxHistoricalMessageLimit     = 500
+)
 
 type postMessageOptions struct {
 	videoProcessingAssetIDs map[string]struct{}

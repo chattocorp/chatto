@@ -160,10 +160,11 @@ If you want a private server where the schema is not browsable, place Chatto beh
 
 Two protections apply to every GraphQL request:
 
-| Limit                   | Value | Purpose                                          |
-| ----------------------- | ----- | ------------------------------------------------ |
-| Maximum query depth     | 12    | Bounds recursion through nested field resolvers  |
-| Fixed complexity limit  | 500   | Bounds the total cost of any single query        |
+| Limit                         | Value          | Purpose                                                     |
+| ----------------------------- | -------------- | ----------------------------------------------------------- |
+| Maximum query depth           | 12             | Bounds recursion through nested field resolvers             |
+| Fixed complexity limit        | 500            | Bounds the total cost of any single query                   |
+| Room event pagination limit   | 500 per field  | Bounds historical room event windows and jump-to-message reads |
 
 There is **no per-IP or per-user rate limiting** at the GraphQL layer. If you expose Chatto on the public internet, a request-rate limiter (e.g. Caddy `rate_limit`, Cloudflare, or an upstream WAF) is recommended.
 

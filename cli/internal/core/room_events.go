@@ -54,9 +54,7 @@ type RoomEventsAroundResult struct {
 // evt.room.{R}.{eventType} — kind is a property of the room, not the
 // event).
 func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64) (*RoomEventsResult, error) {
-	if limit <= 0 {
-		limit = defaultHistoricalMessageLimit
-	}
+	limit = clampHistoricalMessageLimit(limit)
 	var before uint64
 	if beforeSeq != nil {
 		before = *beforeSeq
@@ -123,9 +121,7 @@ func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, r
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int) (*RoomEventsAroundResult, error) {
-	if limit <= 0 {
-		limit = defaultHistoricalMessageLimit
-	}
+	limit = clampHistoricalMessageLimit(limit)
 
 	target, ok := c.RoomTimeline.Get(eventID)
 	if !ok {
@@ -166,15 +162,16 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 		return nil, ErrMessageNotFound
 	}
 
-	// visible[] is chronological oldest-first. Return the around-window
-	// in the same order so start/end cursors mean oldest/newest just like
-	// Room.events.
-	half := limit / 2
-	start := targetIdx - half
+	// visible[] is chronological oldest-first. Return at most `limit`
+	// events in the same order so start/end cursors mean oldest/newest
+	// just like Room.events.
+	beforeCount := (limit - 1) / 2
+	afterCount := limit - beforeCount - 1
+	start := targetIdx - beforeCount
 	if start < 0 {
 		start = 0
 	}
-	end := targetIdx + half + 1
+	end := targetIdx + afterCount + 1
 	if end > len(visible) {
 		end = len(visible)
 	}
@@ -195,9 +192,7 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int) (*RoomEventsResult, error) {
-	if limit <= 0 {
-		limit = defaultHistoricalMessageLimit
-	}
+	limit = clampHistoricalMessageLimit(limit)
 
 	// Walk visible entries oldest-first from the cursor so forward
 	// pagination returns the nearest newer events first. Fetch limit+1
@@ -222,6 +217,16 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 		r.EndCursorSeq = newer[len(newer)-1].Sequence
 	}
 	return r, nil
+}
+
+func clampHistoricalMessageLimit(limit int) int {
+	if limit <= 0 {
+		return defaultHistoricalMessageLimit
+	}
+	if limit > maxHistoricalMessageLimit {
+		return maxHistoricalMessageLimit
+	}
+	return limit
 }
 
 // GetEventSequence returns the stream sequence number for an event by

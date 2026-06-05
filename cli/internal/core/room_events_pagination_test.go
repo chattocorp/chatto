@@ -46,6 +46,66 @@ func TestChattoCore_GetRoomEventsAfterReturnsNearestNewerPage(t *testing.T) {
 	}
 }
 
+func TestChattoCore_RoomEventQueriesClampLimits(t *testing.T) {
+	core := testCoreWithRoomTimeline(t, "R1", 600)
+
+	t.Run("recent events clamp oversized limits", func(t *testing.T) {
+		result, err := core.GetRoomEvents(context.Background(), KindChannel, "R1", 1000, nil)
+		if err != nil {
+			t.Fatalf("GetRoomEvents: %v", err)
+		}
+
+		assertRoomEventIDs(t, result.Events[:2], []string{"M101", "M102"})
+		if len(result.Events) != maxHistoricalMessageLimit {
+			t.Fatalf("len(Events) = %d, want %d", len(result.Events), maxHistoricalMessageLimit)
+		}
+		if !result.HasOlder {
+			t.Error("HasOlder = false, want true")
+		}
+	})
+
+	t.Run("forward events clamp oversized limits", func(t *testing.T) {
+		result, err := core.GetRoomEventsAfter(context.Background(), KindChannel, "R1", 0, 1000)
+		if err != nil {
+			t.Fatalf("GetRoomEventsAfter: %v", err)
+		}
+
+		if len(result.Events) != maxHistoricalMessageLimit {
+			t.Fatalf("len(Events) = %d, want %d", len(result.Events), maxHistoricalMessageLimit)
+		}
+		assertRoomEventIDs(t, result.Events[:2], []string{"M1", "M2"})
+		if !result.HasNewer {
+			t.Error("HasNewer = false, want true")
+		}
+	})
+
+	t.Run("around events clamp oversized limits", func(t *testing.T) {
+		result, err := core.GetRoomEventsAround(context.Background(), KindChannel, "R1", "M300", 1000)
+		if err != nil {
+			t.Fatalf("GetRoomEventsAround: %v", err)
+		}
+
+		if len(result.Events) != maxHistoricalMessageLimit {
+			t.Fatalf("len(Events) = %d, want %d", len(result.Events), maxHistoricalMessageLimit)
+		}
+		wantTargetIndex := (maxHistoricalMessageLimit - 1) / 2
+		if result.TargetIndex != wantTargetIndex {
+			t.Fatalf("TargetIndex = %d, want %d", result.TargetIndex, wantTargetIndex)
+		}
+	})
+
+	t.Run("non-positive limits use default", func(t *testing.T) {
+		result, err := core.GetRoomEvents(context.Background(), KindChannel, "R1", -1, nil)
+		if err != nil {
+			t.Fatalf("GetRoomEvents: %v", err)
+		}
+
+		if len(result.Events) != defaultHistoricalMessageLimit {
+			t.Fatalf("len(Events) = %d, want %d", len(result.Events), defaultHistoricalMessageLimit)
+		}
+	})
+}
+
 func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCore {
 	t.Helper()
 	projection := NewRoomTimelineProjection()

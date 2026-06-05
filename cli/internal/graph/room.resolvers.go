@@ -17,6 +17,11 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+const (
+	defaultRoomEventsLimit = 50
+	maxRoomEventsLimit     = 500
+)
+
 // Type is the resolver for the type field.
 //
 // Derived from `Room.kind` — the canonical kind discriminator since
@@ -196,10 +201,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		return nil, core.ErrNotRoomMember
 	}
 
-	var fetchLimit uint32 = 50
-	if limit != nil {
-		fetchLimit = uint32(*limit)
-	}
+	fetchLimit := roomEventsLimit(limit)
 
 	var result *core.RoomEventsResult
 	if after != nil && *after != "" {
@@ -207,7 +209,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		if err != nil {
 			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEventsAfter(ctx, core.KindOfRoom(obj), obj.Id, afterSeq, int(fetchLimit))
+		result, err = r.core.GetRoomEventsAfter(ctx, core.KindOfRoom(obj), obj.Id, afterSeq, fetchLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +222,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 			}
 			beforeSeq = &seq
 		}
-		result, err = r.core.GetRoomEvents(ctx, core.KindOfRoom(obj), obj.Id, int(fetchLimit), beforeSeq)
+		result, err = r.core.GetRoomEvents(ctx, core.KindOfRoom(obj), obj.Id, fetchLimit, beforeSeq)
 		if err != nil {
 			return nil, err
 		}
@@ -268,10 +270,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		return nil, core.ErrNotRoomMember
 	}
 
-	fetchLimit := 50
-	if limit != nil {
-		fetchLimit = int(*limit)
-	}
+	fetchLimit := roomEventsLimit(limit)
 
 	result, err := r.core.GetRoomEventsAround(ctx, core.KindOfRoom(obj), obj.Id, eventID, fetchLimit)
 	if err != nil {
@@ -370,3 +369,8 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 func (r *Resolver) Room() RoomResolver { return &roomResolver{r} }
 
 type roomResolver struct{ *Resolver }
+
+func roomEventsLimit(limit *int32) int {
+	limitVal, _ := paginationArgs(limit, nil, defaultRoomEventsLimit, maxRoomEventsLimit)
+	return limitVal
+}

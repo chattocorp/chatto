@@ -313,6 +313,32 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 	})
 }
 
+func TestRoomEventsLimit(t *testing.T) {
+	tests := []struct {
+		name  string
+		limit *int32
+		want  int
+	}{
+		{name: "nil uses default", limit: nil, want: defaultRoomEventsLimit},
+		{name: "negative uses default", limit: ptrInt32(-1), want: defaultRoomEventsLimit},
+		{name: "zero uses default", limit: ptrInt32(0), want: defaultRoomEventsLimit},
+		{name: "positive passes through", limit: ptrInt32(42), want: 42},
+		{name: "oversized clamps to max", limit: ptrInt32(2147483647), want: maxRoomEventsLimit},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := roomEventsLimit(tt.limit); got != tt.want {
+				t.Fatalf("roomEventsLimit() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func ptrInt32(v int32) *int32 {
+	return &v
+}
+
 // ============================================================================
 // RoomEventsAround Query Resolver Tests
 // ============================================================================
