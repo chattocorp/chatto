@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// THREAD EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 425-449: durable thread lifecycle/metadata events on evt.room.{roomId}.*
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+message ThreadCreatedEvent {
+  // Room ID - identifies which room owns the thread.
+  string room_id = 1;
+
+  // Event ID of the root MessagePostedEvent that identifies this thread.
+  string thread_root_event_id = 2;
+}

@@ -21,6 +21,7 @@ func (*SpaceMemberDeletedEvent) IsEventType()       {}
 func (*MessagePostedEvent) IsEventType()            {}
 func (*MessageEditedEvent) IsEventType()            {}
 func (*MessageRetractedEvent) IsEventType()         {}
+func (*ThreadCreatedEvent) IsEventType()            {}
 func (*AssetProcessingStartedEvent) IsEventType()   {}
 func (*AssetProcessingSucceededEvent) IsEventType() {}
 func (*AssetProcessingFailedEvent) IsEventType()    {}

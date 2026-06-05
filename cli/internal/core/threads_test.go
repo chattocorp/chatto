@@ -7,6 +7,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -31,6 +32,64 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		}
 		if msg.InReplyTo != "" {
 			t.Errorf("Root message should have empty InReplyTo, got %q", msg.InReplyTo)
+		}
+	})
+
+	t.Run("first thread reply emits ThreadCreatedEvent", func(t *testing.T) {
+		root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root for explicit thread creation", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Post root: %v", err)
+		}
+		reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "First explicit thread reply", nil, root.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("Post first reply: %v", err)
+		}
+
+		agg := events.RoomAggregate(room.Id)
+		threadCreatedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_created): %v", err)
+		}
+		var created *corev1.Event
+		for _, event := range threadCreatedEvents {
+			if event.GetThreadCreated().GetThreadRootEventId() == root.Id {
+				created = event
+				break
+			}
+		}
+		if created == nil {
+			t.Fatalf("expected ThreadCreatedEvent for root %s", root.Id)
+		}
+		createdEntry, ok := core.RoomTimeline.Get(created.Id)
+		if !ok {
+			t.Fatalf("ThreadCreatedEvent %s was not projected", created.Id)
+		}
+		replyEntry, ok := core.RoomTimeline.Get(reply.Id)
+		if !ok {
+			t.Fatalf("reply %s was not projected", reply.Id)
+		}
+		if createdEntry.StreamSeq >= replyEntry.StreamSeq {
+			t.Fatalf("ThreadCreatedEvent seq %d should come before first reply seq %d", createdEntry.StreamSeq, replyEntry.StreamSeq)
+		}
+		if !core.Threads.ThreadExists(root.Id) {
+			t.Fatalf("thread projection does not know root %s exists", root.Id)
+		}
+
+		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Second explicit thread reply", nil, root.Id, "", nil, false); err != nil {
+			t.Fatalf("Post second reply: %v", err)
+		}
+		threadCreatedEvents, _, err = core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_created) after second reply: %v", err)
+		}
+		countForRoot := 0
+		for _, event := range threadCreatedEvents {
+			if event.GetThreadCreated().GetThreadRootEventId() == root.Id {
+				countForRoot++
+			}
+		}
+		if countForRoot != 1 {
+			t.Fatalf("ThreadCreatedEvent count for root %s = %d, want 1", root.Id, countForRoot)
 		}
 	})
 

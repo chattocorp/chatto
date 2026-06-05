@@ -11,6 +11,7 @@ import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/room_group_events.proto";
 import "chatto/core/v1/config_events.proto";
+import "chatto/core/v1/thread_events.proto";
 import "chatto/core/v1/user_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -77,7 +78,7 @@ message Event {
     UserLeftRoomEvent user_left_room = 311;
     SpaceMemberDeletedEvent space_member_deleted = 320;
 
-    // ----- Messages (400-409) -----
+    // ----- Messages (400-424) -----
     MessagePostedEvent message_posted = 400;
     // Durable edit / retract variants for the EVT stream (ADR-033/034/035,
     // issue #597). The old live-only MessageUpdatedEvent/MessageDeletedEvent
@@ -85,7 +86,11 @@ message Event {
     MessageEditedEvent message_edited = 401;
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
-    // ----- Assets (450-459, durable) -----
+
+    // ----- Threads (425-449, durable, room-owned) -----
+    ThreadCreatedEvent thread_created = 425;
+
+    // ----- Assets (450-474, durable) -----
     // The asset aggregate. AssetCreated establishes content identity for
     // one uploaded or generated binary; AssetProcessingStarted/Succeeded/
     // Failed track derivative work; AssetDeleted terminates the lifecycle.

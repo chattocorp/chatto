@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,6 +53,94 @@ func (options postMessageOptions) shouldScheduleVideoProcessingForID(assetID str
 	}
 	_, ok := options.videoProcessingAssetIDs[assetID]
 	return ok
+}
+
+const maxThreadCreateAppendAttempts = 5
+
+func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg events.Aggregate, threadRootEventID string) (bool, error) {
+	if threadRootEventID == "" {
+		return false, nil
+	}
+	existing, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	if err != nil {
+		return false, err
+	}
+	for _, event := range existing {
+		if event.GetThreadCreated().GetThreadRootEventId() == threadRootEventID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context, agg events.Aggregate, messageEvent, threadCreatedEvent *corev1.Event, threadRootEventID string) (uint64, error) {
+	if threadCreatedEvent == nil || threadRootEventID == "" || c.Threads.ThreadExists(threadRootEventID) {
+		return c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, messageEvent)
+	}
+	if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
+		return 0, fmt.Errorf("check existing thread creation: %w", err)
+	} else if exists {
+		return c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, messageEvent)
+	}
+
+	roomFilter := agg.AllEventsFilter()
+	threadCreatedSubject := agg.Subject(events.EventThreadCreated)
+	messageSubject := agg.SubjectFor(messageEvent)
+	var lastErr error
+
+	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+		if err != nil {
+			return 0, fmt.Errorf("read room OCC tail: %w", err)
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+			{
+				Subject:       threadCreatedSubject,
+				Event:         threadCreatedEvent,
+				ExpectedSeq:   expectedSeq,
+				FilterSubject: roomFilter,
+				HasOCC:        true,
+			},
+			{
+				Subject: messageSubject,
+				Event:   messageEvent,
+			},
+		})
+		if err == nil {
+			messageSeq := seqs[len(seqs)-1]
+			if err := c.RoomTimelineProjector.WaitForSeq(ctx, messageSeq); err != nil {
+				return messageSeq, err
+			}
+			return messageSeq, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return 0, err
+		}
+		lastErr = err
+
+		currentSeq, seqErr := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+		if seqErr != nil {
+			return 0, fmt.Errorf("read room OCC tail after conflict: %w", seqErr)
+		}
+		if currentSeq > 0 {
+			if err := waitForSeqAll(ctx, currentSeq,
+				waitForProjection("room timeline", c.RoomTimelineProjector),
+				waitForProjection("threads", c.ThreadsProjector),
+			); err != nil {
+				return 0, err
+			}
+		}
+		if c.Threads.ThreadExists(threadRootEventID) {
+			return c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, messageEvent)
+		}
+		if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
+			return 0, fmt.Errorf("check existing thread creation after conflict: %w", err)
+		} else if exists {
+			return c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, messageEvent)
+		}
+	}
+
+	return 0, fmt.Errorf("append thread creation after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
 // PostMessage posts a message to a room. Publishes a
@@ -197,6 +286,19 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		},
 	})
+	var threadCreatedEvent *corev1.Event
+	if inThread != "" && !c.Threads.ThreadExists(inThread) {
+		threadCreatedEvent = newEvent(user_id, &corev1.Event{
+			Id:        NewEventID(),
+			CreatedAt: timestamppb.New(now),
+			Event: &corev1.Event_ThreadCreated{
+				ThreadCreated: &corev1.ThreadCreatedEvent{
+					RoomId:            room_id,
+					ThreadRootEventId: inThread,
+				},
+			},
+		})
+	}
 	// Schedule any video processing before MessagePosted so AssetProcessing-
 	// Started fires before subscribers see the message; the frontend uses
 	// the started marker to render the "Processing…" placeholder.
@@ -223,7 +325,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// has caught up, giving read-your-writes for subsequent reads from
 	// this request.
 	agg := events.RoomAggregate(room_id)
-	sequenceID, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event)
+	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, event, threadCreatedEvent, inThread)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
 	}
@@ -355,7 +457,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		c.notifyAllMessageSubscribers(ctx, kind, room_id, user_id, event.Id, alreadyNotified)
 	}
 
-	// Publish echo event to root subject if "also send to channel" was requested.
+	// Publish echo event to the message subject if "also send to channel" was requested.
 	// The echo references the original event_id, so resolvers can fold
 	// it back to the underlying body. The body is encrypted again for the
 	// echo event ID because v2 encryption authenticates the event context.

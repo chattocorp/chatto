@@ -766,6 +766,11 @@ type ComplexityRoot struct {
 		Stats      func(childComplexity int) int
 	}
 
+	ThreadCreatedEvent struct {
+		RoomId            func(childComplexity int) int
+		ThreadRootEventId func(childComplexity int) int
+	}
+
 	ThreadFollowChangedEvent struct {
 		IsFollowing       func(childComplexity int) int
 		RoomId            func(childComplexity int) int
@@ -4570,6 +4575,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SystemInfo.Stats(childComplexity), true
+
+	case "ThreadCreatedEvent.roomId":
+		if e.ComplexityRoot.ThreadCreatedEvent.RoomId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ThreadCreatedEvent.RoomId(childComplexity), true
+	case "ThreadCreatedEvent.threadRootEventId":
+		if e.ComplexityRoot.ThreadCreatedEvent.ThreadRootEventId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ThreadCreatedEvent.ThreadRootEventId(childComplexity), true
 
 	case "ThreadFollowChangedEvent.isFollowing":
 		if e.ComplexityRoot.ThreadFollowChangedEvent.IsFollowing == nil {
@@ -21264,6 +21282,52 @@ func (ec *executionContext) fieldContext_SystemInfo_stats(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _ThreadCreatedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.ThreadCreatedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ThreadCreatedEvent_roomId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ThreadCreatedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ThreadCreatedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _ThreadCreatedEvent_threadRootEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.ThreadCreatedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ThreadCreatedEvent_threadRootEventId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ThreadRootEventId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ThreadCreatedEvent_threadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ThreadCreatedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) _ThreadFollowChangedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.ThreadFollowChangedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -26970,6 +27034,11 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._ThreadFollowChangedEvent(ctx, sel, obj)
+	case *corev1.ThreadCreatedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._ThreadCreatedEvent(ctx, sel, obj)
 	case *corev1.SessionTerminatedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -36378,6 +36447,50 @@ func (ec *executionContext) _SystemInfo(ctx context.Context, sel ast.SelectionSe
 			}
 		case "stats":
 			out.Values[i] = ec._SystemInfo_stats(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var threadCreatedEventImplementors = []string{"ThreadCreatedEvent", "EventType"}
+
+func (ec *executionContext) _ThreadCreatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ThreadCreatedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, threadCreatedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ThreadCreatedEvent")
+		case "roomId":
+			out.Values[i] = ec._ThreadCreatedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "threadRootEventId":
+			out.Values[i] = ec._ThreadCreatedEvent_threadRootEventId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

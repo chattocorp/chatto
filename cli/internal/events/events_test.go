@@ -720,6 +720,15 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventMessageRetracted,
 		},
 		{
+			name: "ThreadCreated",
+			event: &corev1.Event{
+				Event: &corev1.Event_ThreadCreated{
+					ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: "R1", ThreadRootEventId: "M1"},
+				},
+			},
+			want: EventThreadCreated,
+		},
+		{
 			name: "UserKeyShredded",
 			event: &corev1.Event{
 				Event: &corev1.Event_UserKeyShredded{

@@ -62,6 +62,10 @@ func unwrapEVTEvent(event *corev1.Event) any {
 	case *corev1.Event_MessageRetracted:
 		return e.MessageRetracted
 
+	// ---- Threads ----
+	case *corev1.Event_ThreadCreated:
+		return e.ThreadCreated
+
 	// ---- Assets ----
 	case *corev1.Event_AssetCreated:
 		return e.AssetCreated

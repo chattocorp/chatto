@@ -74,6 +74,7 @@ const (
 	EventMessagePosted            = "message_posted"
 	EventMessageEdited            = "message_edited"
 	EventMessageRetracted         = "message_retracted"
+	EventThreadCreated            = "thread_created"
 	EventAssetCreated             = "asset_created"
 	EventAssetProcessingStarted   = "asset_processing_started"
 	EventAssetProcessingSucceeded = "asset_processing_succeeded"
@@ -192,6 +193,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageEdited
 	case *corev1.Event_MessageRetracted:
 		return EventMessageRetracted
+	case *corev1.Event_ThreadCreated:
+		return EventThreadCreated
 	case *corev1.Event_AssetCreated:
 		return EventAssetCreated
 	case *corev1.Event_AssetProcessingStarted:

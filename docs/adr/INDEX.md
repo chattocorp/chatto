@@ -41,7 +41,8 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | 2026-05-13 |
 | [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | 2026-05-23 |
 | [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections (supersedes ADR-006) | 2026-05-24 |
-| [ADR-034](ADR-034-single-event-stream.md) | Single Event Stream, Subject-Per-Aggregate | 2026-05-24 |
+| [ADR-034](ADR-034-single-event-stream.md) | Single Event Stream with Event-Type Subject Lanes | 2026-05-24 |
 | [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | 2026-05-24 |
 | [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | 2026-05-27 |
 | [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | 2026-05-31 |
+| [ADR-038](ADR-038-room-owned-thread-state.md) | Room-Owned Thread State | 2026-06-05 |

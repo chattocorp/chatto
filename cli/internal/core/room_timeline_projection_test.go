@@ -57,6 +57,20 @@ func postedEvent(o postedOpts) *corev1.Event {
 	}
 }
 
+func threadCreatedEvent(envID, roomID, rootEventID, actorID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   actorID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_ThreadCreated{
+			ThreadCreated: &corev1.ThreadCreatedEvent{
+				RoomId:            roomID,
+				ThreadRootEventId: rootEventID,
+			},
+		},
+	}
+}
+
 func editedEvent(envID, targetID, roomID, actorID, newBody string, at int) *corev1.Event {
 	return &corev1.Event{
 		Id:        envID,

@@ -39,6 +39,26 @@ func TestThreadProjection_RootMessageNotStored(t *testing.T) {
 	}
 }
 
+func TestThreadProjection_ThreadCreatedInitializesEmptyThread(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		threadCreatedEvent("ENV-THREAD", "R1", "ROOT", "U1", 1),
+	})
+
+	if !p.ThreadExists("ROOT") {
+		t.Fatal("ThreadExists(ROOT) = false, want true")
+	}
+	if got := p.ThreadCount(); got != 1 {
+		t.Errorf("ThreadCount = %d, want 1", got)
+	}
+	if got := p.ReplyCount("ROOT"); got != 0 {
+		t.Errorf("ReplyCount = %d, want 0", got)
+	}
+	if got := p.ThreadEvents("ROOT"); got != nil {
+		t.Errorf("ThreadEvents(ROOT) = %v, want nil before replies", got)
+	}
+}
+
 func TestThreadProjection_RepliesAppended(t *testing.T) {
 	p := NewThreadProjection()
 	applyAll(t, p, []*corev1.Event{

@@ -1,4 +1,4 @@
-# ADR-034: Single Event Stream, Subject-Per-Aggregate
+# ADR-034: Single Event Stream with Event-Type Subject Lanes
 
 **Date:** 2026-05-24
 
@@ -11,7 +11,7 @@ NATS JetStream supports either shape. The tradeoffs:
 - **One stream**: a single position to track, one backup target, one replication policy, one stream config to tune. Cross-aggregate retention is uniform. All operational tooling sees one resource.
 - **Many streams**: per-type retention and replication factors, bounded blast radius for corruption, independent throughput scaling. Multiplies the operational surface: backup orchestration, consumer fanout, subject-namespace coordination.
 
-A common worry with the single-stream shape is *ordering*: that "per-aggregate ordering" — events for room X are linearly ordered — would somehow require a dedicated stream. It does not. NATS provides per-subject sequence numbers within a single stream. The subject `evt.room.{roomId}` has its own monotonic sequence inside the larger stream, and OCC against `Nats-Expected-Last-Subject-Sequence` operates at that granularity. Per-subject ordering is a stream-level guarantee, not a stream-per-aggregate one.
+A common worry with the single-stream shape is *ordering*: that "per-aggregate ordering" — events for room X are linearly ordered — would somehow require a dedicated stream. It does not. NATS provides per-subject sequence numbers within a single stream. The subject `evt.room.{roomId}.message_posted` has its own monotonic sequence inside the larger stream, and OCC against `Nats-Expected-Last-Subject-Sequence` operates at that granularity. When an invariant spans multiple event-type lanes for the same aggregate, callers use wildcard-filter OCC against `evt.room.{roomId}.>`. Per-subject and per-filter ordering are stream-level guarantees, not stream-per-aggregate guarantees.
 
 Cross-aggregate ordering — "did the user join the room before or after sending this message?" — is intentionally not provided. Two events on different subjects have no guaranteed order relative to each other. Projections that need to relate state across aggregates do so through their own bookkeeping (e.g. a `RoomMemberJoined` event carrying a `joined_at` timestamp).
 
@@ -92,9 +92,9 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream conti
 
 - **One stream to back up, replicate, consume.** Operational surface stays small. `chatto backup` and clustering both treat the event log as a single resource. Operator mental model is simpler than "track N streams and reconcile their states."
 - **No fanout consumer multiplexing.** A projection that needs events for all rooms takes one consumer with a wildcard filter (`evt.room.>`). The per-process consumer count grows with projections, not aggregates.
-- **Subject cardinality is bounded by aggregate count.** Rooms, users, RBAC namespaces — orders of magnitude lower than per-message subjects. This is the property that makes the NATS subject index manageable, and the direct reason ADR-033 unlocks a RAM win.
+- **Subject cardinality is bounded by aggregate count × event types.** Rooms, users, RBAC namespaces, and a small fixed set of event-type lanes are orders of magnitude lower than per-message subjects. This is the property that makes the NATS subject index manageable, and the direct reason ADR-033 unlocks a RAM win.
 - **Single point of contention for hot streams.** Writes across all aggregates serialize through one stream leader. For Chatto's scale (one server per deployment, not a multi-tenant SaaS) this is acceptable. If we ever need to scale past a single stream's write throughput, [ADR-013](ADR-013-per-space-stream-sharding.md) shows the codebase can carry a sharding abstraction — that's a future option, not a current need.
-- **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}`. The framework wraps consumer creation around the projection's declared subjects.
+- **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}.>`. The framework wraps consumer creation around the projection's declared subjects.
 - **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
 - **Two streams during migration.** `EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
 - **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.

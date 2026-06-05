@@ -892,6 +892,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageEdited.GetRoomId()
 	case *corev1.Event_MessageRetracted:
 		return e.MessageRetracted.GetRoomId()
+	case *corev1.Event_ThreadCreated:
+		return e.ThreadCreated.GetRoomId()
 	case *corev1.Event_AssetCreated:
 		return ""
 	case *corev1.Event_ReactionAdded:

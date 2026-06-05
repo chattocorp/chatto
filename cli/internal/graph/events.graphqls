@@ -37,6 +37,8 @@ union EventType =
   | MessagePostedEvent
   | MessageEditedEvent
   | MessageRetractedEvent
+  # Threads
+  | ThreadCreatedEvent
   # Reactions
   | ReactionAddedEvent
   | ReactionRemovedEvent
@@ -79,6 +81,16 @@ union EventType =
   | SessionTerminatedEvent
   # Subscription liveness
   | HeartbeatEvent
+
+"""
+Event: a thread was created for a root room message.
+"""
+type ThreadCreatedEvent {
+  "The room that owns the thread."
+  roomId: ID!
+  "The root message event ID that identifies the thread."
+  threadRootEventId: ID!
+}
 
 # ==============================================================================
 # SERVER CONFIG EVENTS

@@ -65,5 +65,5 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 
 ## Related
 
-- **ADRs:** ADR-011 (message body / event split), ADR-026 (event identity via NanoID)
+- **ADRs:** ADR-011 (message body / event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-005 (Reactions)

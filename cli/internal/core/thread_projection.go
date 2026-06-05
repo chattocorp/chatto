@@ -56,6 +56,8 @@ func (p *ThreadProjection) Subjects() []string {
 //
 //   - MessagePostedEvent with in_thread != "" → append to the
 //     thread's slice, remember its event_id → thread mapping.
+//   - ThreadCreatedEvent → initialise the thread's bucket even before
+//     replies land.
 //   - MessageEditedEvent / MessageRetractedEvent whose target
 //     event_id is a known thread reply → append to that thread.
 //
@@ -83,6 +85,15 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserKeyShredded:
 		if userID := e.UserKeyShredded.GetUserId(); userID != "" {
 			p.shreddedUsers[userID] = struct{}{}
+		}
+
+	case *corev1.Event_ThreadCreated:
+		threadRoot := e.ThreadCreated.GetThreadRootEventId()
+		if threadRoot == "" {
+			return nil
+		}
+		if _, exists := p.byThread[threadRoot]; !exists {
+			p.byThread[threadRoot] = nil
 		}
 
 	case *corev1.Event_MessagePosted:
@@ -157,6 +168,15 @@ func (p *ThreadProjection) ThreadCount() int {
 	p.RLock()
 	defer p.RUnlock()
 	return len(p.byThread)
+}
+
+// ThreadExists reports whether an explicit ThreadCreatedEvent or at least one
+// reply has established this thread in the projection.
+func (p *ThreadProjection) ThreadExists(rootEventID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	_, ok := p.byThread[rootEventID]
+	return ok
 }
 
 // Stats returns aggregate counts useful for import/rollout diagnostics.

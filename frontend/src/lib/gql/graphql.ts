@@ -583,7 +583,7 @@ export type EventLogEntry = {
 };
 
 /** Union of every typed event payload exposed by GraphQL. */
-export type EventType = AssetDeletedEvent | AssetProcessingFailedEvent | AssetProcessingStartedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MentionStatusClearedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerConfigUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent | VideoProcessingCompletedEvent;
+export type EventType = AssetDeletedEvent | AssetProcessingFailedEvent | AssetProcessingStartedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MentionStatusClearedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerConfigUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadCreatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent | VideoProcessingCompletedEvent;
 
 /** Fit mode for image transformations. */
 export enum FitMode {
@@ -2999,6 +2999,15 @@ export type SystemInfo = {
   stats: ServerStats;
 };
 
+/** Event: a thread was created for a root room message. */
+export type ThreadCreatedEvent = {
+  __typename?: 'ThreadCreatedEvent';
+  /** The room that owns the thread. */
+  roomId: Scalars['ID']['output'];
+  /** The root message event ID that identifies the thread. */
+  threadRootEventId: Scalars['ID']['output'];
+};
+
 /**
  * Event: The user's thread follow state changed (followed or unfollowed).
  * Published to the user for multi-tab/multi-device sync.
@@ -3690,6 +3699,7 @@ export type RefreshMessageAttachmentUrlsQuery = { __typename?: 'Query', room?: {
         | { __typename: 'ServerUpdatedEvent' }
         | { __typename: 'ServerUserPreferencesUpdatedEvent' }
         | { __typename: 'SessionTerminatedEvent' }
+        | { __typename: 'ThreadCreatedEvent' }
         | { __typename: 'ThreadFollowChangedEvent' }
         | { __typename: 'UserCreatedEvent' }
         | { __typename: 'UserDeletedEvent' }
@@ -3748,6 +3758,7 @@ export type MessagePreviewQuery = { __typename?: 'Query', server: { __typename?:
         | { __typename: 'ServerUpdatedEvent' }
         | { __typename: 'ServerUserPreferencesUpdatedEvent' }
         | { __typename: 'SessionTerminatedEvent' }
+        | { __typename: 'ThreadCreatedEvent' }
         | { __typename: 'ThreadFollowChangedEvent' }
         | { __typename: 'UserCreatedEvent' }
         | { __typename: 'UserDeletedEvent' }
@@ -3968,6 +3979,7 @@ export type MyServerEventsSubscription = { __typename?: 'Subscription', myEvents
       | { __typename: 'ServerUpdatedEvent', name: string, description: string, logoUrl: string, bannerUrl: string }
       | { __typename: 'ServerUserPreferencesUpdatedEvent', timezone: string, timeFormat: TimeFormat }
       | { __typename: 'SessionTerminatedEvent', reason: string }
+      | { __typename: 'ThreadCreatedEvent' }
       | { __typename: 'ThreadFollowChangedEvent', isFollowing: boolean, tfcRoomId: string, tfcThreadRootEventId: string }
       | { __typename: 'UserCreatedEvent' }
       | { __typename: 'UserDeletedEvent' }
@@ -4148,6 +4160,7 @@ export type ThreadMessagesAllQuery = { __typename?: 'Query', room?: { __typename
         | { __typename?: 'ServerUpdatedEvent' }
         | { __typename?: 'ServerUserPreferencesUpdatedEvent' }
         | { __typename?: 'SessionTerminatedEvent' }
+        | { __typename?: 'ThreadCreatedEvent' }
         | { __typename?: 'ThreadFollowChangedEvent' }
         | { __typename?: 'UserCreatedEvent' }
         | { __typename?: 'UserDeletedEvent' }
@@ -4376,6 +4389,7 @@ export type RoomEventViewFragment = { __typename?: 'Event', id: string, createdA
     | { __typename: 'ServerUpdatedEvent' }
     | { __typename: 'ServerUserPreferencesUpdatedEvent' }
     | { __typename: 'SessionTerminatedEvent' }
+    | { __typename: 'ThreadCreatedEvent' }
     | { __typename: 'ThreadFollowChangedEvent' }
     | { __typename: 'UserCreatedEvent' }
     | { __typename: 'UserDeletedEvent' }
@@ -4445,6 +4459,7 @@ export type ResolveMessageLinkQuery = { __typename?: 'Query', room?: { __typenam
         | { __typename: 'ServerUpdatedEvent' }
         | { __typename: 'ServerUserPreferencesUpdatedEvent' }
         | { __typename: 'SessionTerminatedEvent' }
+        | { __typename: 'ThreadCreatedEvent' }
         | { __typename: 'ThreadFollowChangedEvent' }
         | { __typename: 'UserCreatedEvent' }
         | { __typename: 'UserDeletedEvent' }
