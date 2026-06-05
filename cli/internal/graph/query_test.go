@@ -188,6 +188,61 @@ func TestQueryResolver_Users(t *testing.T) {
 			t.Errorf("Expected nil users, got %+v", users)
 		}
 	})
+
+	t.Run("admin can search and paginate users", func(t *testing.T) {
+		for _, fixture := range []struct {
+			login       string
+			displayName string
+		}{
+			{login: "users-page-alpha", displayName: "Users Page Target Alpha"},
+			{login: "users-page-beta", displayName: "Users Page Target Beta"},
+			{login: "users-page-gamma", displayName: "Users Page Target Gamma"},
+			{login: "users-page-other", displayName: "Unrelated User"},
+		} {
+			if _, err := env.core.CreateUser(env.ctx, "system", fixture.login, fixture.displayName, "password123"); err != nil {
+				t.Fatalf("Failed to create user %s: %v", fixture.login, err)
+			}
+		}
+
+		search := "users page target"
+		limit := int32(1)
+		offset := int32(1)
+		users, err := env.resolver.Query().Users(env.authContext(), &search, &limit, &offset)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if users == nil {
+			t.Fatal("Expected users connection, got nil")
+		}
+		if users.TotalCount != 3 {
+			t.Errorf("Expected totalCount 3, got %d", users.TotalCount)
+		}
+		if !users.HasMore {
+			t.Error("Expected hasMore for middle page")
+		}
+		if len(users.Users) != 1 {
+			t.Fatalf("Expected 1 user in page, got %d", len(users.Users))
+		}
+		if users.Users[0].Login == "users-page-other" {
+			t.Error("Expected search filter to exclude unrelated user")
+		}
+
+		offset = 2
+		limit = 2
+		tail, err := env.resolver.Query().Users(env.authContext(), &search, &limit, &offset)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if tail.TotalCount != 3 {
+			t.Errorf("Expected tail totalCount 3, got %d", tail.TotalCount)
+		}
+		if tail.HasMore {
+			t.Error("Expected no more users beyond tail page")
+		}
+		if len(tail.Users) != 1 {
+			t.Fatalf("Expected 1 user in tail page, got %d", len(tail.Users))
+		}
+	})
 }
 
 // ============================================================================

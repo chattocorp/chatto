@@ -3,6 +3,7 @@ package graph
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
@@ -278,6 +279,63 @@ func TestRoomResolver_Members(t *testing.T) {
 		}
 		if len(members.Users) == 0 {
 			t.Error("Expected at least one member")
+		}
+	})
+
+	t.Run("room member pagination is sorted and reports metadata", func(t *testing.T) {
+		for _, fixture := range []struct {
+			login       string
+			displayName string
+		}{
+			{login: "member-page-charlie", displayName: "Charlie Member"},
+			{login: "member-page-alice", displayName: "Alice Member"},
+			{login: "member-page-bob", displayName: "Bob Member"},
+		} {
+			member, err := env.core.CreateUser(env.ctx, "system", fixture.login, fixture.displayName, "password123")
+			if err != nil {
+				t.Fatalf("Failed to create user %s: %v", fixture.login, err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id); err != nil {
+				t.Fatalf("Failed to join user %s: %v", fixture.login, err)
+			}
+		}
+
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			memberships, err := env.core.GetRoomMembersList(env.ctx, core.KindChannel, env.testRoom.Id)
+			if err != nil {
+				t.Fatalf("Failed to get room members: %v", err)
+			}
+			if len(memberships) == 4 {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("Timed out waiting for room membership projection, got %d members", len(memberships))
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		limit := int32(2)
+		offset := int32(1)
+		members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, &limit, &offset)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if members.TotalCount != 4 {
+			t.Errorf("Expected totalCount 4, got %d", members.TotalCount)
+		}
+		if !members.HasMore {
+			t.Error("Expected hasMore for middle member page")
+		}
+		if len(members.Users) != 2 {
+			t.Fatalf("Expected 2 members in page, got %d", len(members.Users))
+		}
+
+		wantLogins := []string{"member-page-bob", "member-page-charlie"}
+		for i, want := range wantLogins {
+			if members.Users[i].Login != want {
+				t.Errorf("Expected member %d login %q, got %q", i, want, members.Users[i].Login)
+			}
 		}
 	})
 
