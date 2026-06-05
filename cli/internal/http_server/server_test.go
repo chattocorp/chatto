@@ -94,6 +94,31 @@ func testContext(t *testing.T) context.Context {
 	return ctx
 }
 
+func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+
+	srv := newHTTPServer(":4000", handler)
+
+	if srv.Addr != ":4000" {
+		t.Fatalf("Addr = %q, want :4000", srv.Addr)
+	}
+	if srv.Handler == nil {
+		t.Fatal("Handler was not set")
+	}
+	if srv.ReadHeaderTimeout != httpServerReadHeaderTimeout {
+		t.Fatalf("ReadHeaderTimeout = %s, want %s", srv.ReadHeaderTimeout, httpServerReadHeaderTimeout)
+	}
+	if srv.IdleTimeout != httpServerIdleTimeout {
+		t.Fatalf("IdleTimeout = %s, want %s", srv.IdleTimeout, httpServerIdleTimeout)
+	}
+	if srv.ReadTimeout != 0 {
+		t.Fatalf("ReadTimeout = %s, want 0", srv.ReadTimeout)
+	}
+	if srv.WriteTimeout != 0 {
+		t.Fatalf("WriteTimeout = %s, want 0", srv.WriteTimeout)
+	}
+}
+
 // testHTTPServer creates an HTTPServer for testing with an embedded NATS server.
 // Returns the test server, a client with cookie jar, and ChattoCore.
 func setupTestHTTPServer(t *testing.T) (*httptest.Server, *http.Client, *core.ChattoCore) {

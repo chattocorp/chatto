@@ -43,6 +43,11 @@ type HTTPServer struct {
 	logger     *log.Logger
 }
 
+const (
+	httpServerReadHeaderTimeout = 10 * time.Second
+	httpServerIdleTimeout       = 2 * time.Minute
+)
+
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
 func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	logger := log.WithPrefix("server.HTTP")
@@ -80,6 +85,15 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	}
 
 	return s, nil
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: httpServerReadHeaderTimeout,
+		IdleTimeout:       httpServerIdleTimeout,
+	}
 }
 
 func (s *HTTPServer) setupRoutes() error {
@@ -159,27 +173,18 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}
 
 		// HTTPS server (started separately with ListenAndServeTLS)
-		tlsServer = &http.Server{
-			Addr:    s.addr,
-			Handler: s.router,
-			TLSConfig: &tls.Config{
-				GetCertificate: certManager.GetCertificate,
-				MinVersion:     tls.VersionTLS12,
-			},
+		tlsServer = newHTTPServer(s.addr, s.router)
+		tlsServer.TLSConfig = &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
 		}
 
 		// HTTP server for ACME challenges and HTTPS redirect
 		httpAddr := fmt.Sprintf(":%d", tlsConfig.HTTPPortOrDefault())
-		servers = append(servers, &http.Server{
-			Addr:    httpAddr,
-			Handler: certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS)),
-		})
+		servers = append(servers, newHTTPServer(httpAddr, certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS))))
 	} else {
 		// Plain HTTP server
-		servers = append(servers, &http.Server{
-			Addr:    s.addr,
-			Handler: s.router,
-		})
+		servers = append(servers, newHTTPServer(s.addr, s.router))
 	}
 
 	serverErr := make(chan error, len(servers)+1)
