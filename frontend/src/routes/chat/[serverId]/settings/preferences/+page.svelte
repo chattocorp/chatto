@@ -171,7 +171,7 @@
 
   const timeFormatOptions = [
     {
-      value: TimeFormat.Unspecified,
+      value: TimeFormat.Auto,
       label: 'Browser default',
       description: 'Use your browser locale to determine 12h or 24h format'
     },

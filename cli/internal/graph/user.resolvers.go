@@ -16,13 +16,13 @@ import (
 )
 
 // AvatarURL is the resolver for the avatarURL field.
-func (r *userResolver) AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error) {
+func (r *userResolver) AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32, fit *model.FitMode) (*string, error) {
 	var w, h *int
 	if width != nil && height != nil {
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetUserAvatarURL(ctx, obj.Id, w, h)
+	url, err := r.core.GetUserAvatarURL(ctx, obj.Id, w, h, fitModeString(fit))
 	if err != nil {
 		return nil, err
 	}

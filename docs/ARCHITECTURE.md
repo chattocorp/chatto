@@ -664,7 +664,7 @@ Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Cha
 
 ### Dynamic Image Transformation
 
-Chatto supports on-the-fly image transformation for attachments, allowing clients to request images at specific dimensions without pre-generating all possible sizes.
+Chatto supports on-the-fly image transformation for attachments, user avatars, and server branding images, allowing clients to request images at specific dimensions without pre-generating all possible sizes.
 
 **URL Structure:**
 
@@ -710,12 +710,21 @@ URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured 
 
 **GraphQL Integration:**
 
-The `Attachment` type exposes transform parameters as field arguments:
+The `Attachment`, `User`, and `ServerConfig` image fields expose transform parameters as field arguments:
 
 ```graphql
 type Attachment {
   url(width: Int, height: Int, fit: FitMode): String!
   thumbnailUrl(width: Int, height: Int, fit: FitMode): String
+}
+
+type User {
+  avatarUrl(width: Int, height: Int, fit: FitMode): String
+}
+
+type ServerConfig {
+  logoUrl(width: Int, height: Int, fit: FitMode): String
+  bannerUrl(width: Int, height: Int, fit: FitMode): String
 }
 
 enum FitMode {

@@ -13,7 +13,7 @@ export class UserSettingsState {
   timezone = $state<string | null>(null);
 
   /** Time display format preference. */
-  timeFormat = $state<TimeFormat>(TimeFormat.Unspecified);
+  timeFormat = $state<TimeFormat>(TimeFormat.Auto);
 
   /**
    * Effective timezone for Intl.DateTimeFormat.
@@ -42,7 +42,7 @@ export class UserSettingsState {
       this.timeFormat = settings.timeFormat;
     } else {
       this.timezone = null;
-      this.timeFormat = TimeFormat.Unspecified;
+      this.timeFormat = TimeFormat.Auto;
     }
   }
 }

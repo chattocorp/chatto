@@ -1,6 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { graphql } from './gql';
-import { PresenceStatus } from './gql/graphql';
+import { PresenceStatus, PresenceStatusInput } from './gql/graphql';
 
 const UpdateMyPresenceDoc = graphql(`
   mutation UpdateMyPresence($input: UpdateMyPresenceInput!) {
@@ -15,6 +15,17 @@ type ActivityState = 'active' | 'idle' | 'hidden';
 
 // Module-level singleton to prevent duplicate tracking
 let initialized = false;
+
+function presenceInputToStatus(status: PresenceStatusInput): PresenceStatus {
+  switch (status) {
+    case PresenceStatusInput.Online:
+      return PresenceStatus.Online;
+    case PresenceStatusInput.Away:
+      return PresenceStatus.Away;
+    case PresenceStatusInput.DoNotDisturb:
+      return PresenceStatus.DoNotDisturb;
+  }
+}
 
 /**
  * Initialize presence tracking. Uses idle detection and page visibility
@@ -36,8 +47,8 @@ export function initPresenceTracking(
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function setPresenceStatus(status: PresenceStatus) {
-    onStatusChange?.(status);
+  function setPresenceStatus(status: PresenceStatusInput) {
+    onStatusChange?.(presenceInputToStatus(status));
     for (const client of getClients()) {
       client
         .mutation(UpdateMyPresenceDoc, { input: { status } })
@@ -56,11 +67,11 @@ export function initPresenceTracking(
     currentState = newState;
 
     if (newState === 'active') {
-      setPresenceStatus(PresenceStatus.Online);
+      setPresenceStatus(PresenceStatusInput.Online);
       resetIdleTimer();
     } else {
       // idle or hidden
-      setPresenceStatus(PresenceStatus.Away);
+      setPresenceStatus(PresenceStatusInput.Away);
     }
   }
 

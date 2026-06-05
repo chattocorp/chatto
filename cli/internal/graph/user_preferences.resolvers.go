@@ -53,7 +53,7 @@ func (r *userResolver) Settings(ctx context.Context, obj *corev1.User) (*model.U
 	// Return default settings if none saved yet
 	if settings == nil {
 		return &model.UserSettings{
-			TimeFormat: model.TimeFormatUnspecified,
+			TimeFormat: model.TimeFormatAuto,
 		}, nil
 	}
 

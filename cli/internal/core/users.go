@@ -545,7 +545,7 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 	}
 
 	// Get current avatar URL (full resolution for events)
-	avatarURL, err := c.GetUserAvatarURL(ctx, userID, nil, nil)
+	avatarURL, err := c.GetUserAvatarURL(ctx, userID, nil, nil, "")
 	if err != nil {
 		c.logger.Warn("failed to get avatar URL for profile update event", "error", err, "user_id", userID)
 		avatarURL = ""
@@ -583,7 +583,7 @@ func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
 // GetUserAvatarURL returns the URL for a user's avatar.
 // If width and height are provided (non-nil), returns a URL to a resized version.
 // Returns empty string if no avatar is set.
-func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width, height *int) (string, error) {
+func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width, height *int, fit string) (string, error) {
 	avatar, err := c.GetUserAvatar(ctx, userID)
 	if err != nil {
 		return "", err
@@ -607,7 +607,10 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 
 	// Always use the standard server asset URL format - storage backend is an internal detail
 	if width != nil && height != nil {
-		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover"), nil
+		if fit == "" {
+			fit = "cover"
+		}
+		return c.GetTransformedServerAssetURL(assetID, *width, *height, fit), nil
 	}
 	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID)), nil
 }

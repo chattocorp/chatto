@@ -188,34 +188,37 @@ func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.Deprecate
 // GetServerLogoURL returns the URL for the server's logo, optionally
 // transformed to the given dimensions. Returns empty string when no logo
 // is set.
-func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int) (string, error) {
+func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int, fit string) (string, error) {
 	logo, err := c.GetServerLogo(ctx)
 	if err != nil || logo == nil {
 		return "", err
 	}
-	return c.serverAssetURL(logo, width, height), nil
+	return c.serverAssetURL(logo, width, height, fit), nil
 }
 
 // GetServerBannerURL returns the URL for the server's banner, optionally
 // transformed to the given dimensions. Returns empty string when no banner
 // is set.
-func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int) (string, error) {
+func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int, fit string) (string, error) {
 	banner, err := c.GetServerBanner(ctx)
 	if err != nil || banner == nil {
 		return "", err
 	}
-	return c.serverAssetURL(banner, width, height), nil
+	return c.serverAssetURL(banner, width, height, fit), nil
 }
 
 // serverAssetURL builds the public URL for an server-scoped asset,
 // optionally with transform parameters.
-func (c *ChattoCore) serverAssetURL(asset *corev1.DeprecatedAsset, width, height *int) string {
+func (c *ChattoCore) serverAssetURL(asset *corev1.DeprecatedAsset, width, height *int, fit string) string {
 	assetID := assetIDFromAsset(asset)
 	if assetID == "" {
 		return ""
 	}
 	if width != nil && height != nil {
-		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover")
+		if fit == "" {
+			fit = "cover"
+		}
+		return c.GetTransformedServerAssetURL(assetID, *width, *height, fit)
 	}
 	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID))
 }
@@ -282,12 +285,12 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 		}
 	}
 
-	logoURL, err := c.GetServerLogoURL(ctx, nil, nil)
+	logoURL, err := c.GetServerLogoURL(ctx, nil, nil, "")
 	if err != nil {
 		c.logger.Warn("failed to get instance logo URL for update event", "error", err)
 		logoURL = ""
 	}
-	bannerURL, err := c.GetServerBannerURL(ctx, nil, nil)
+	bannerURL, err := c.GetServerBannerURL(ctx, nil, nil, "")
 	if err != nil {
 		c.logger.Warn("failed to get instance banner URL for update event", "error", err)
 		bannerURL = ""

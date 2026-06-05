@@ -14,7 +14,7 @@ Time display format preference.
 """
 enum TimeFormat {
   "Use browser/locale default."
-  UNSPECIFIED
+  AUTO
   "12-hour format (e.g., 2:30 PM)."
   TWELVE_HOUR
   "24-hour format (e.g., 14:30)."
@@ -30,7 +30,7 @@ input UpdateSettingsInput {
   userId: ID!
   "IANA timezone name. Set to null to clear (revert to browser default)."
   timezone: String
-  "Time display format. Set to UNSPECIFIED to use browser locale default."
+  "Time display format. Set to AUTO to use browser locale default."
   timeFormat: TimeFormat
 }
 

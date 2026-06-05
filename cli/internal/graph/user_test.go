@@ -70,7 +70,7 @@ func TestUserResolver_AvatarURL(t *testing.T) {
 	resolver := env.resolver.User()
 
 	t.Run("returns nil when no avatar set", func(t *testing.T) {
-		url, err := resolver.AvatarURL(env.ctx, env.testUser, nil, nil)
+		url, err := resolver.AvatarURL(env.ctx, env.testUser, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -80,7 +80,7 @@ func TestUserResolver_AvatarURL(t *testing.T) {
 	})
 
 	t.Run("works without auth context (public field)", func(t *testing.T) {
-		url, err := resolver.AvatarURL(env.unauthContext(), env.testUser, nil, nil)
+		url, err := resolver.AvatarURL(env.unauthContext(), env.testUser, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -91,7 +91,7 @@ func TestUserResolver_AvatarURL(t *testing.T) {
 
 	t.Run("accepts width and height parameters", func(t *testing.T) {
 		w, h := int32(100), int32(100)
-		url, err := resolver.AvatarURL(env.ctx, env.testUser, &w, &h)
+		url, err := resolver.AvatarURL(env.ctx, env.testUser, &w, &h, nil)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -432,7 +432,7 @@ func TestMutation_UpdateMyPresence(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	t.Run("authenticated user can set online", func(t *testing.T) {
-		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusOnline})
+		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusInputOnline})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -442,7 +442,7 @@ func TestMutation_UpdateMyPresence(t *testing.T) {
 	})
 
 	t.Run("authenticated user can set away", func(t *testing.T) {
-		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusAway})
+		result, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusInputAway})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -451,15 +451,8 @@ func TestMutation_UpdateMyPresence(t *testing.T) {
 		}
 	})
 
-	t.Run("cannot set offline status", func(t *testing.T) {
-		_, err := mutation.UpdateMyPresence(env.authContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusOffline})
-		if err == nil {
-			t.Error("expected error when setting OFFLINE status")
-		}
-	})
-
 	t.Run("unauthenticated request fails", func(t *testing.T) {
-		_, err := mutation.UpdateMyPresence(env.unauthContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusOnline})
+		_, err := mutation.UpdateMyPresence(env.unauthContext(), model.UpdateMyPresenceInput{Status: model.PresenceStatusInputOnline})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}

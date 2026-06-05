@@ -6,11 +6,11 @@ type ServerConfig {
   "Server name, displayed in page titles. Defaults to 'Chatto'."
   serverName: String! @goField(forceResolver: true)
 
-  "URL to the server logo, if set. Pass width and height for a resized thumbnail."
-  logoUrl(width: Int, height: Int): String @goField(forceResolver: true)
+  "URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail."
+  logoUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
 
-  "URL to the server banner image, if set. Pass width and height for a resized thumbnail."
-  bannerUrl(width: Int, height: Int): String @goField(forceResolver: true)
+  "URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail."
+  bannerUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
 
   "Welcome message to display on the login screen (Markdown). Null if not configured."
   welcomeMessage: String @goField(forceResolver: true)

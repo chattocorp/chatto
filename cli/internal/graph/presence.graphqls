@@ -12,6 +12,19 @@ enum PresenceStatus {
   DO_NOT_DISTURB
 }
 
+"""
+Presence statuses clients may explicitly set. Going offline is represented by
+disconnecting and waiting for presence TTL expiry, not by sending OFFLINE.
+"""
+enum PresenceStatusInput {
+  "User is actively connected."
+  ONLINE
+  "User is connected but idle or inactive."
+  AWAY
+  "User has enabled do-not-disturb mode."
+  DO_NOT_DISTURB
+}
+
 extend type User {
   "Get user's presence status. Returns OFFLINE if not present."
   presenceStatus: PresenceStatus! @goField(forceResolver: true)
@@ -31,5 +44,5 @@ Input for updating the current user's presence status.
 """
 input UpdateMyPresenceInput {
   "The presence status to set."
-  status: PresenceStatus!
+  status: PresenceStatusInput!
 }

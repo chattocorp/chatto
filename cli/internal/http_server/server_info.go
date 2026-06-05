@@ -85,11 +85,11 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 	var bannerURL, iconURL string
 	if s.core != nil {
 		bw, bh := 1200, 630
-		if u, err := s.core.GetServerBannerURL(ctx, &bw, &bh); err == nil {
+		if u, err := s.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err == nil {
 			bannerURL = absolutizeAssetURL(c, u)
 		}
 		lw, lh := 256, 256
-		if u, err := s.core.GetServerLogoURL(ctx, &lw, &lh); err == nil {
+		if u, err := s.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err == nil {
 			iconURL = absolutizeAssetURL(c, u)
 		}
 	}

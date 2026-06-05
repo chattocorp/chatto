@@ -25,7 +25,7 @@ func protoTimeFormatToGQL(tf corev1.TimeFormat) model.TimeFormat {
 	case corev1.TimeFormat_TIME_FORMAT_24H:
 		return model.TimeFormatTwentyFourHour
 	default:
-		return model.TimeFormatUnspecified
+		return model.TimeFormatAuto
 	}
 }
 

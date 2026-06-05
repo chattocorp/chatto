@@ -7,7 +7,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -18,11 +17,6 @@ func (r *mutationResolver) UpdateMyPresence(ctx context.Context, input model.Upd
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
-	}
-
-	// OFFLINE is not a valid input — going offline means disconnecting (TTL expiry)
-	if input.Status == model.PresenceStatusOffline {
-		return false, fmt.Errorf("cannot set presence to OFFLINE; disconnect instead")
 	}
 
 	if err := r.core.SetPresence(ctx, user.Id, string(input.Status)); err != nil {

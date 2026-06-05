@@ -1896,6 +1896,19 @@ export enum PresenceStatus {
   Online = 'ONLINE'
 }
 
+/**
+ * Presence statuses clients may explicitly set. Going offline is represented by
+ * disconnecting and waiting for presence TTL expiry, not by sending OFFLINE.
+ */
+export enum PresenceStatusInput {
+  /** User is connected but idle or inactive. */
+  Away = 'AWAY',
+  /** User has enabled do-not-disturb mode. */
+  DoNotDisturb = 'DO_NOT_DISTURB',
+  /** User is actively connected. */
+  Online = 'ONLINE'
+}
+
 /** One named diagnostic count/byte bucket for a projection. */
 export type ProjectionMetric = {
   __typename?: 'ProjectionMetric';
@@ -2812,11 +2825,11 @@ export type ServerViewerCanManageUserArgs = {
  */
 export type ServerConfig = {
   __typename?: 'ServerConfig';
-  /** URL to the server banner image, if set. Pass width and height for a resized thumbnail. */
+  /** URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail. */
   bannerUrl?: Maybe<Scalars['String']['output']>;
   /** Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured. */
   description?: Maybe<Scalars['String']['output']>;
-  /** URL to the server logo, if set. Pass width and height for a resized thumbnail. */
+  /** URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail. */
   logoUrl?: Maybe<Scalars['String']['output']>;
   /** Message of the Day, displayed in the header bar. Null if not configured. */
   motd?: Maybe<Scalars['String']['output']>;
@@ -2832,6 +2845,7 @@ export type ServerConfig = {
  * These are settings that can be changed by admins at runtime.
  */
 export type ServerConfigBannerUrlArgs = {
+  fit?: InputMaybe<FitMode>;
   height?: InputMaybe<Scalars['Int']['input']>;
   width?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2842,6 +2856,7 @@ export type ServerConfigBannerUrlArgs = {
  * These are settings that can be changed by admins at runtime.
  */
 export type ServerConfigLogoUrlArgs = {
+  fit?: InputMaybe<FitMode>;
   height?: InputMaybe<Scalars['Int']['input']>;
   width?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -3076,12 +3091,12 @@ export type TierRoles = {
 
 /** Time display format preference. */
 export enum TimeFormat {
+  /** Use browser/locale default. */
+  Auto = 'AUTO',
   /** 12-hour format (e.g., 2:30 PM). */
   TwelveHour = 'TWELVE_HOUR',
   /** 24-hour format (e.g., 14:30). */
-  TwentyFourHour = 'TWENTY_FOUR_HOUR',
-  /** Use browser/locale default. */
-  Unspecified = 'UNSPECIFIED'
+  TwentyFourHour = 'TWENTY_FOUR_HOUR'
 }
 
 /** Input for unarchiving a room. */
@@ -3117,7 +3132,7 @@ export type UpdateMessageInput = {
 /** Input for updating the current user's presence status. */
 export type UpdateMyPresenceInput = {
   /** The presence status to set. */
-  status: PresenceStatus;
+  status: PresenceStatusInput;
 };
 
 /** Input for updating a user's profile. */
@@ -3191,7 +3206,7 @@ export type UpdateServerInput = {
  * Only provided fields will be updated; omitted fields are left unchanged.
  */
 export type UpdateSettingsInput = {
-  /** Time display format. Set to UNSPECIFIED to use browser locale default. */
+  /** Time display format. Set to AUTO to use browser locale default. */
   timeFormat?: InputMaybe<TimeFormat>;
   /** IANA timezone name. Set to null to clear (revert to browser default). */
   timezone?: InputMaybe<Scalars['String']['input']>;
@@ -3222,7 +3237,7 @@ export type UploadServerLogoInput = {
 /** A Chatto User. */
 export type User = {
   __typename?: 'User';
-  /** URL to the user's avatar image. Pass width and height for a resized thumbnail. */
+  /** URL to the user's avatar image. Pass width, height, and fit for a resized thumbnail. */
   avatarUrl?: Maybe<Scalars['String']['output']>;
   /** When the user account was created. Null for users created before this field was added. */
   createdAt?: Maybe<Scalars['Time']['output']>;
@@ -3270,6 +3285,7 @@ export type User = {
 
 /** A Chatto User. */
 export type UserAvatarUrlArgs = {
+  fit?: InputMaybe<FitMode>;
   height?: InputMaybe<Scalars['Int']['input']>;
   width?: InputMaybe<Scalars['Int']['input']>;
 };

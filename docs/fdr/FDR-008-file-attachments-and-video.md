@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-06-01
+**Last reviewed:** 2026-06-05
 
 ## Overview
 
@@ -13,7 +13,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Draft attachments persist across room switches inside the same session.
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the GraphQL mutation rejects them before storage.
-- Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode).
+- Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). GraphQL exposes the same transform parameters for attachments, user avatars, and server branding images.
 - When enabled, videos and animated GIFs are processed by the current server process after asset creation and message submission scheduling. This is best-effort and intentionally simple until a real durable worker queue exists.
 - Processing status: durable COMPLETED / FAILED outcomes are stored as room events. There is no new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
 - A thumbnail is generated from an early video frame.

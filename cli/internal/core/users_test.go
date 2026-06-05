@@ -1209,7 +1209,7 @@ func TestChattoCore_GetUserAvatarURL(t *testing.T) {
 	}
 
 	// No avatar initially - should return empty string
-	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1223,7 +1223,7 @@ func TestChattoCore_GetUserAvatarURL(t *testing.T) {
 	core.SetUserAvatar(ctx, user.Id, asset)
 
 	// Now should return URL
-	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1252,7 +1252,7 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 
 	t.Run("returns relative URL when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
@@ -1265,7 +1265,7 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
@@ -1279,7 +1279,7 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		defer func() { core.AssetBaseURL = "" }()
 
 		w, h := 64, 64
-		url, err := core.GetUserAvatarURL(ctx, user.Id, &w, &h)
+		url, err := core.GetUserAvatarURL(ctx, user.Id, &w, &h, "cover")
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
@@ -1357,7 +1357,7 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	}
 
 	// Verify avatar is set
-	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1372,7 +1372,7 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	}
 
 	// Verify avatar is gone
-	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL after deletion: %v", err)
 	}
@@ -1404,7 +1404,7 @@ func TestChattoCore_DeleteUserAvatar_NoAvatar(t *testing.T) {
 	}
 
 	// Verify still no avatar
-	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}

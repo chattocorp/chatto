@@ -980,9 +980,9 @@ type Server struct {
 type ServerConfig struct {
 	// Server name, displayed in page titles. Defaults to 'Chatto'.
 	ServerName string `json:"serverName"`
-	// URL to the server logo, if set. Pass width and height for a resized thumbnail.
+	// URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail.
 	LogoURL *string `json:"logoUrl,omitempty"`
-	// URL to the server banner image, if set. Pass width and height for a resized thumbnail.
+	// URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail.
 	BannerURL *string `json:"bannerUrl,omitempty"`
 	// Welcome message to display on the login screen (Markdown). Null if not configured.
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
@@ -1127,7 +1127,7 @@ type UpdateMessageInput struct {
 // Input for updating the current user's presence status.
 type UpdateMyPresenceInput struct {
 	// The presence status to set.
-	Status PresenceStatus `json:"status"`
+	Status PresenceStatusInput `json:"status"`
 }
 
 // Input for updating a user's profile.
@@ -1203,7 +1203,7 @@ type UpdateSettingsInput struct {
 	UserID string `json:"userId"`
 	// IANA timezone name. Set to null to clear (revert to browser default).
 	Timezone *string `json:"timezone,omitempty"`
-	// Time display format. Set to UNSPECIFIED to use browser locale default.
+	// Time display format. Set to AUTO to use browser locale default.
 	TimeFormat *TimeFormat `json:"timeFormat,omitempty"`
 }
 
@@ -1539,6 +1539,68 @@ func (e *PresenceStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e PresenceStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Presence statuses clients may explicitly set. Going offline is represented by
+// disconnecting and waiting for presence TTL expiry, not by sending OFFLINE.
+type PresenceStatusInput string
+
+const (
+	// User is actively connected.
+	PresenceStatusInputOnline PresenceStatusInput = "ONLINE"
+	// User is connected but idle or inactive.
+	PresenceStatusInputAway PresenceStatusInput = "AWAY"
+	// User has enabled do-not-disturb mode.
+	PresenceStatusInputDoNotDisturb PresenceStatusInput = "DO_NOT_DISTURB"
+)
+
+var AllPresenceStatusInput = []PresenceStatusInput{
+	PresenceStatusInputOnline,
+	PresenceStatusInputAway,
+	PresenceStatusInputDoNotDisturb,
+}
+
+func (e PresenceStatusInput) IsValid() bool {
+	switch e {
+	case PresenceStatusInputOnline, PresenceStatusInputAway, PresenceStatusInputDoNotDisturb:
+		return true
+	}
+	return false
+}
+
+func (e PresenceStatusInput) String() string {
+	return string(e)
+}
+
+func (e *PresenceStatusInput) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PresenceStatusInput(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PresenceStatusInput", str)
+	}
+	return nil
+}
+
+func (e PresenceStatusInput) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PresenceStatusInput) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PresenceStatusInput) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

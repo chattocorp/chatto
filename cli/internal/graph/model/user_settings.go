@@ -10,20 +10,20 @@ import (
 type TimeFormat string
 
 const (
-	TimeFormatUnspecified     TimeFormat = "UNSPECIFIED"
-	TimeFormatTwelveHour      TimeFormat = "TWELVE_HOUR"
-	TimeFormatTwentyFourHour  TimeFormat = "TWENTY_FOUR_HOUR"
+	TimeFormatAuto           TimeFormat = "AUTO"
+	TimeFormatTwelveHour     TimeFormat = "TWELVE_HOUR"
+	TimeFormatTwentyFourHour TimeFormat = "TWENTY_FOUR_HOUR"
 )
 
 var AllTimeFormat = []TimeFormat{
-	TimeFormatUnspecified,
+	TimeFormatAuto,
 	TimeFormatTwelveHour,
 	TimeFormatTwentyFourHour,
 }
 
 func (e TimeFormat) IsValid() bool {
 	switch e {
-	case TimeFormatUnspecified, TimeFormatTwelveHour, TimeFormatTwentyFourHour:
+	case TimeFormatAuto, TimeFormatTwelveHour, TimeFormatTwentyFourHour:
 		return true
 	}
 	return false

@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-06-02
+**Last reviewed:** 2026-06-05
 
 ## Overview
 
@@ -13,7 +13,7 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Login (username)** — editable by the user with a 30-day cooldown between changes. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
-- **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone.
+- **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
 
 ## Design Decisions

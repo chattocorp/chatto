@@ -296,7 +296,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 	}
 
 	avatarSize := 96
-	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize)
+	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize, "cover")
 
 	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, core.LegacySpaceIDForRoomKind(core.KindOfRoom(obj)), obj.Id)
 	token, err := core.GenerateVoiceCallToken(
