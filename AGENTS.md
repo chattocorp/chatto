@@ -13,6 +13,17 @@ This codebase keeps agent-relevant context in six places. Read the one that fits
 - **`docs/ARCHITECTURE.md`** — inventory of what currently exists (streams, KV buckets, subject patterns, GraphQL operations). Use when you need to know *what's where*, not *why*.
 - **`docs/GLOSSARY.md`** — one-line definitions of Chatto-specific terms (Server, Space, Echo, OCC, etc.). Skim when you encounter a word you don't recognize.
 
+### Project Status
+
+Please use the following facts when making decisions about features or implementation:
+
+- This project is currently in early development.
+- As of today, we have a handful of Chatto servers running the 0.0.x version lane that we want to eventually upgrade to 0.1.x. 0.1.x must be able to reliably import data from a 0.0.x server.
+- There are no servers deployed running 0.1.x yet, so we can still do breaking changes within this version lane.
+- The focus of 0.1.x is on stabilizing the core data model and APIs, improving documentation, and building out a solid foundation for future features. We want to avoid adding new features that aren't necessary for this stabilization effort.
+
+Please update this section as the project evolves, and refer to it when making decisions about features or implementation.
+
 ### Maintenance slash commands
 
 Periodic codebase upkeep — all propose-only unless noted:
