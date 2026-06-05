@@ -7,6 +7,14 @@ import { Steps, Aside } from "@astrojs/starlight/components";
 
 Chatto provides built-in CLI commands for backing up and restoring all server data. Backups capture the full state of your NATS JetStream storage — users, rooms, messages, memberships, assets, and more — into a single `.tar.gz` archive. Backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
 
+For small self-hosted servers, the recommended backup is a single encrypted archive that includes encryption keys:
+
+```bash
+chatto backup -c chatto.toml --encrypt --include-keys
+```
+
+This is the easiest backup to restore correctly. Keep the passphrase somewhere safe; anyone with the archive and passphrase can read the restored data.
+
 ## What's included
 
 Backups contain all persistent JetStream streams, KV buckets, and object stores:
@@ -20,14 +28,18 @@ Certain streams are intentionally excluded:
 
 | Stream | Reason |
 |--------|--------|
-| Encryption keys | Security: keeps backup data encrypted at rest. Back up keys separately. |
+| Encryption keys | Security: excluded by default, unless you pass `--include-keys`. |
 | User presence | Ephemeral (memory-only), reconstructed at runtime |
 | Call state | Ephemeral (memory-only), reconstructed by LiveKit webhooks |
 | Link preview cache | Regeneratable on demand |
 | Asset cache | Regeneratable (resized image variants) |
 
+<Aside type="tip">
+  If you do not run a separate KMS or key-management process, use `--encrypt --include-keys`. A monolithic encrypted backup is simpler to automate, easier to test, and harder to restore incorrectly.
+</Aside>
+
 <Aside type="caution">
-  Encryption keys are excluded from backups by design. Chatto encrypts message bodies and durable user PII, so restored accounts and encrypted content cannot be decrypted without the keys. See [Encryption key backup](#encryption-key-backup) below.
+  Backups are outside the account-deletion flow. If you restore an old backup that includes keys, or restore an old backup together with a matching key export, data deleted after that backup was created can become readable again. Set a backup-retention policy that matches your legal obligations.
 </Aside>
 
 <Aside type="note">
@@ -48,22 +60,28 @@ chatto backup -c chatto.toml -o /mnt/backups/chatto-daily.tar.gz
 
 ### Encrypted backups
 
-Use `--encrypt` to protect the backup archive with a passphrase. You'll be prompted to enter and confirm the passphrase:
+Use `--encrypt` to protect the backup archive with a passphrase. For small self-hosted servers, also pass `--include-keys` so the archive is self-contained:
 
 ```bash
-chatto backup -c chatto.toml --encrypt
+chatto backup -c chatto.toml --encrypt --include-keys
 ```
+
+You'll be prompted to enter and confirm the passphrase.
 
 Encrypted backups use `.tar.gz.age` as the file extension. The encryption format is [age](https://age-encryption.org) — a modern, audited file encryption tool. This means you can also inspect or decrypt your backups using the standalone `age` CLI if needed (see [Using the age CLI](#using-the-age-cli) below).
 
 For scripted or automated backups, pass the passphrase via flag or pipe it from stdin:
 
 ```bash
-chatto backup -c chatto.toml --encrypt --passphrase "$BACKUP_PASSPHRASE"
+chatto backup -c chatto.toml --encrypt --include-keys --passphrase "$BACKUP_PASSPHRASE"
 
 # Or pipe from a secrets manager
-vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --encrypt
+vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --encrypt --include-keys
 ```
+
+<Aside type="caution">
+  A backup made with `--include-keys` contains the keys needed to decrypt message bodies and durable user PII after restore. Always combine `--include-keys` with `--encrypt`, and treat the archive as sensitive material.
+</Aside>
 
 ## Restoring a backup
 
@@ -125,9 +143,13 @@ chatto restore backup.tar.gz -c chatto.toml --conflict=skip
 chatto restore backup.tar.gz -c chatto.toml --conflict=overwrite
 ```
 
-## Encryption key backup
+## Advanced: separate key backup
 
-Encryption key records are excluded from data backups by design — since Chatto encrypts message bodies and durable user PII, this ensures that a leaked backup archive doesn't expose that encrypted content. To fully restore accounts, profile indexes, and messages, export the KEK and wrapped-DEK records separately.
+By default, encryption key records are excluded from data backups. This keeps leaked data archives unable to decrypt their own message bodies or durable user PII.
+
+Most small self-hosted servers should use `chatto backup --encrypt --include-keys` instead. Use separate key exports only when you intentionally want data archives and key material stored or retained separately.
+
+To fully restore accounts, profile indexes, and messages from a backup that does not include keys, export the KEK and wrapped-DEK records separately.
 
 ### Exporting keys
 
@@ -158,23 +180,17 @@ Existing key records are never overwritten — only refs that do not already exi
 
 ## Complete disaster recovery
 
-For a full restore with encrypted message recovery:
+For a full restore from a monolithic encrypted backup:
 
 <Steps>
 
-1. **Restore the data backup**
+1. **Restore the backup**
 
    ```bash
    chatto restore backup.tar.gz.age -c chatto.toml
    ```
 
-2. **Import the encryption keys**
-
-   ```bash
-   chatto keys import keys.backup -c chatto.toml
-   ```
-
-3. **Start the server**
+2. **Start the server**
 
    ```bash
    chatto start -c chatto.toml
@@ -182,13 +198,19 @@ For a full restore with encrypted message recovery:
 
 </Steps>
 
+If your backup does not include keys, import the key export after restoring the data archive:
+
+```bash
+chatto keys import keys.backup -c chatto.toml
+```
+
 <Aside type="tip">
-  Without the key import step, the server will function normally — users can log in, browse rooms, and send new messages. Only previously encrypted message bodies will appear as unavailable.
+  Without keys in the backup or a separate key import, the server will function normally — users can log in, browse rooms, and send new messages. Only previously encrypted message bodies and durable profile data will appear as unavailable.
 </Aside>
 
 ## Automated backup script
 
-Here's a complete example backup script suitable for a cron job:
+Here's a complete monolithic backup script suitable for a cron job:
 
 ```bash
 #!/bin/bash
@@ -202,17 +224,23 @@ RETENTION_DAYS=14
 # Read passphrase from file
 PASSPHRASE=$(cat "$PASSPHRASE_FILE")
 
-# Create timestamped backup
+# Create timestamped encrypted backup with keys included
 TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 BACKUP_FILE="$BACKUP_DIR/$TIMESTAMP.tar.gz.age"
 
-chatto backup -c "$CONFIG" --encrypt --passphrase "$PASSPHRASE" -o "$BACKUP_FILE"
-chatto keys export -c "$CONFIG" -o "$BACKUP_DIR/$TIMESTAMP-keys.age" --passphrase "$PASSPHRASE"
+chatto backup -c "$CONFIG" --encrypt --include-keys --passphrase "$PASSPHRASE" -o "$BACKUP_FILE"
 
 # Remove backups older than retention period
 find "$BACKUP_DIR" -name "*.age" -mtime +$RETENTION_DAYS -delete
 
 echo "Backup complete: $BACKUP_FILE"
+```
+
+For split data and key backups, run a key export with the same retention policy:
+
+```bash
+chatto backup -c "$CONFIG" --encrypt --passphrase "$PASSPHRASE" -o "$BACKUP_FILE"
+chatto keys export -c "$CONFIG" -o "$BACKUP_DIR/$TIMESTAMP-keys.age" --passphrase "$PASSPHRASE"
 ```
 
 ## Using the age CLI
@@ -278,12 +306,27 @@ rm backup.tar.gz
 
 **Frequency:** Schedule backups based on your tolerance for data loss. For active servers, daily backups are a reasonable starting point.
 
-**Retention:** Keep multiple backup archives. A common pattern is daily backups retained for 14 days, plus weekly backups retained for 8 weeks.
+**Retention:** Keep multiple backup archives, but do not keep them forever. A common pattern is daily backups retained for 14 days, plus weekly backups retained for 8 weeks. If you use split data and key backups, apply the same retention window to both files.
 
-**Storage:** Store backups on a different volume or remote storage (S3, GCS) from the NATS data directory. A backup on the same disk as the data doesn't protect against disk failure.
+**Storage:** Store backups on a different volume or remote object storage, such as AWS S3, Cloudflare R2, Wasabi, or Backblaze B2. A backup on the same disk as the data doesn't protect against disk failure.
 
 **Encryption:** Always use `--encrypt` for backups stored on shared or remote storage. Even though message bodies are already encrypted, backups contain sensitive metadata (user info, room structure, membership lists).
 
-**Key separation:** Store key exports separately from data backups when possible. The two files together unlock everything — keeping them in different locations adds defense in depth.
+**Key separation:** Use a single encrypted backup with `--include-keys` unless you have a clear reason to split data and key material. Split backups add defense in depth, but they also add an extra file that must be backed up, retained, and restored correctly.
 
 **Testing:** Periodically test restores to a separate server to verify your backups are valid and your passphrase works.
+
+### Retention and account deletion
+
+Account deletion shreds the user's encryption keys in the live server and removes message-owned assets from active storage. Existing backups are not modified.
+
+If you restore a backup from before an account deletion and that backup includes the user's keys, the deleted user's encrypted message bodies and durable profile data can become readable again. The same is true when restoring a keyless data backup together with an old key export that still contains that user's keys. This is expected disaster-recovery behavior, but it matters for erasure requests.
+
+For self-hosted servers, retention is an operator policy:
+
+- If you use split data and key backups, apply the same retention window to Chatto backup archives and `chatto keys export` files.
+- Configure lifecycle rules on remote backup buckets instead of relying on Chatto to prune cloud storage.
+- If your backup bucket uses object versioning, expire noncurrent versions as well as current objects.
+- Include storage-provider snapshots, disk snapshots, and replicated backup buckets in your retention runbook.
+
+For S3-backed assets, Chatto deletes active asset objects when account deletion removes avatars, attachments, and derivatives. Bucket snapshots, object versions, and external backup copies are still controlled by your storage provider's lifecycle policy.

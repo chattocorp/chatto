@@ -120,13 +120,23 @@ TLS is **not required**. Chatto can also run plain HTTP, which is useful for loc
 
 ## Backup security
 
-Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. The `ENCRYPTION_KEYS` bucket is **deliberately excluded** from backups for security reasons:
+Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. For small self-hosted servers, use a monolithic encrypted backup that includes encryption keys:
+
+```bash
+chatto backup -c chatto.toml --encrypt --include-keys
+```
+
+This is the easiest backup to restore correctly when you do not run a separate KMS or key-management process.
+
+Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded from backups for security reasons:
 
 - `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
 
 `RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
-Encryption key records are exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Restores need those KEK and wrapped-DEK records to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
+Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the KEK and wrapped-DEK records to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
+
+Backups are outside the live account-deletion flow. Restoring an old backup that includes keys, or restoring an old data backup together with an old key export, can make data deleted after that backup readable again. Set retention on backup material, and use lifecycle rules for remote backup buckets, storage-provider snapshots, and versioned object storage.
 
 <LinkCard
   title="Backup & Restore"
