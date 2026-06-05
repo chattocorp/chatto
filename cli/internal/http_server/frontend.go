@@ -25,7 +25,17 @@ const (
 	cacheControlNoCache = "no-store, no-cache, must-revalidate"
 	// Hashed assets (in _app/) are immutable - cache for 1 year
 	cacheControlImmutable = "public, max-age=31536000, immutable"
+	// Report-only CSP preserves Chatto's multi-server client model while surfacing
+	// violations during development/staging before we consider enforcement.
+	contentSecurityPolicyReportOnly = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:; frame-src https://www.youtube-nocookie.com; worker-src 'self'"
 )
+
+func setFrontendSecurityHeaders(c *gin.Context) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("X-Frame-Options", "DENY")
+	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+	c.Header("Content-Security-Policy-Report-Only", contentSecurityPolicyReportOnly)
+}
 
 // extractImmutableETag extracts an ETag from a SvelteKit immutable asset path.
 // SvelteKit filenames include content hashes, e.g.:
@@ -144,9 +154,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 
 	// Security headers middleware - applied to all frontend routes
 	s.router.Use(func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		setFrontendSecurityHeaders(c)
 		c.Next()
 	})
 
@@ -188,7 +196,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		session := sessions.Default(c)
 		if userID := session.Get("user_id"); userID != nil {
 			session.Set("user_id", userID) // Mark session as modified
-			session.Save()                  // Now actually saves and refreshes cookie
+			session.Save()                 // Now actually saves and refreshes cookie
 		}
 	}
 

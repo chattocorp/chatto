@@ -295,9 +295,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	// Add the security headers middleware (same as in setupFrontendRoutes)
 	router.Use(func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		setFrontendSecurityHeaders(c)
 		c.Next()
 	})
 
@@ -314,5 +312,12 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
 		assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
 		assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
+		csp := w.Header().Get("Content-Security-Policy-Report-Only")
+		assert.NotEmpty(t, csp)
+		assert.Contains(t, csp, "default-src 'self'")
+		assert.Contains(t, csp, "connect-src 'self' http: https: ws: wss:")
+		assert.Contains(t, csp, "img-src 'self' data: blob: http: https:")
+		assert.Contains(t, csp, "media-src 'self' blob: http: https:")
+		assert.Contains(t, csp, "frame-src https://www.youtube-nocookie.com")
 	})
 }
