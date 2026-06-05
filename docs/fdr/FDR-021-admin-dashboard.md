@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-05
 
 ## Overview
 
@@ -9,9 +9,9 @@ The admin section gives owners and admins visibility into the server's operation
 
 ## Behavior
 
-- The admin UI lives under `/chat/admin/`. Non-admins see an "access denied" panel; the link is hidden from the chat header for them.
+- The admin UI lives under `/chat/[serverId]/server-admin/`. Non-admins see an "access denied" panel; the link is hidden from the chat header for them.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users (subject to outranking the target — see FDR-001).
-- **System Info page** — shows NATS connection status (server ID, version, round-trip latency), JetStream account limits and current usage (memory, storage, stream count, consumer count), and `ServerStats` (user count, channel room count, DM room count).
+- **System Info page** — shows NATS connection status (server ID, version, round-trip latency), JetStream account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `ServerStats` (user count, channel room count, DM room count).
 - **Audit log page** — chronological list of significant admin actions (user deletions, role changes, server config edits, etc.) for forensic review.
 
 ## Design Decisions
@@ -22,11 +22,11 @@ The admin section gives owners and admins visibility into the server's operation
 **Why:** Some operators want a "read-only admin" role that can investigate without making changes; some want users-but-not-system access for a customer-support persona. Tiered permissions let those roles be expressed without inventing parallel role systems.
 **Tradeoff:** Four permission strings instead of one. The default `admin` role grants all four, so out-of-the-box behavior matches expectations.
 
-### 2. Aggregate metrics only — no per-stream / per-bucket breakdowns
+### 2. Operational metadata, not conversation content
 
-**Decision:** The System Info page shows totals (overall stream count, overall memory usage, etc.) but not per-stream or per-bucket figures. Stream names, bucket names, and object-store identifiers are deliberately omitted.
-**Why:** Stream and bucket names embed room IDs and user IDs in many places. Exposing them would leak structural metadata that operators don't need for capacity planning and that a malicious admin could correlate against. Aggregates serve the operational need without the leak.
-**Tradeoff:** Debugging a specific bucket's growth requires direct NATS access via `nats` CLI. Acceptable for the operator persona that already has shell access for this kind of work.
+**Decision:** The System Info page can expose operational metadata such as stream/consumer state and projection diagnostics, but not message bodies, file contents, per-user activity trails, or per-room conversation summaries.
+**Why:** Operators need enough detail to diagnose lag, storage pressure, and projection growth. Those are system-health questions, not moderation questions. Keeping content and behavioral surveillance out of the admin dashboard preserves the privacy boundary while still making the server operable.
+**Tradeoff:** Some identifiers and subject filters are visible to admins with system access. That is acceptable for the operator persona, but any future content-level moderation surface should be a separate, explicit feature.
 
 ### 3. Privacy boundary: admins see metadata, not content
 
@@ -36,29 +36,29 @@ The admin section gives owners and admins visibility into the server's operation
 
 ### 4. Live data, not cached
 
-**Decision:** System Info fetches fresh data from NATS on every page load. No caching layer.
+**Decision:** System Info fetches fresh data from NATS and projection diagnostics on every page load. No caching layer.
 **Why:** The data is fundamentally point-in-time ("how much storage are we using right now?"). Caching would mean stale numbers shown to operators making capacity decisions. The fetch cost is low because NATS already has the data internally.
 **Tradeoff:** Refreshing the page hits NATS every time. Not a concern at admin-usage volume.
 
-### 5. Nested `admin` resolver, single auth check at the root
+### 5. Nested `admin` resolver with field-specific capability gates
 
-**Decision:** Admin queries are a nested `Query.admin` type that returns `nil` for non-admins. Fields under it (`users`, `members`, `systemInfo`, `auditLog`) don't need individual auth checks.
-**Why:** Without the nested shape, every admin field would need its own permission check — easy to forget when adding new ones, and easy to skew between fields. One gate at the root makes the boundary impossible to misplace.
-**Tradeoff:** A non-admin querying `admin { systemInfo }` gets back `null` rather than a permission error. The frontend has to differentiate "no admin access" from "admin access but no data"; the convention is clear and documented.
+**Decision:** Admin queries are grouped under a nested `Query.admin` type gated by `admin.access`, while sensitive fields still check their narrower capabilities (`admin.view-users`, `admin.view-system`, `admin.view-audit`) before returning data.
+**Why:** The nested shape gives the UI one obvious admin boundary, and the field-level checks let operators delegate user, system, and audit visibility independently.
+**Tradeoff:** A user may be able to enter the admin area but see permission denials or empty panels for specific sections. The UI has to reflect that capability split clearly.
 
 ## Permissions
 
 - `admin.access` — gates entry to the admin UI and the `Query.admin` resolver.
 - `admin.view-users` — gates `admin.users` and `admin.members` queries.
-- `admin.view-system` — gates `admin.systemInfo` and `admin.stats`.
+- `admin.view-system` — gates `admin.systemInfo`, `admin.projections`, and `admin.stats`.
 - `admin.view-audit` — gates `admin.auditLog`.
 - `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper (permission + outrank-target check).
 
 ## Related
 
-- **ADRs:** ADR-006 (KV as source of truth, streams as audit logs)
+- **ADRs:** ADR-001 (NATS JetStream as primary data store), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-036 (runtime state in `RUNTIME_STATE`)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-020 (Server Branding & Configuration), FDR-022 (User Profile), FDR-024 (Permission Inspection Tool), FDR-025 (User Search & Member Directory)
 
 ## Open Questions
 
-- An "operator-only" debugging surface that surfaces per-stream / per-bucket data behind a separate, more sensitive permission could help diagnose capacity issues without exposing structural metadata to all admins. Not currently planned.
+- A more sensitive operator-only surface for raw storage inspection or content moderation would need its own permission and audit model. Not currently planned.

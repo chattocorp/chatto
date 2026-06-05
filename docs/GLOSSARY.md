@@ -114,11 +114,13 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Stream** — JetStream append-only log. Chatto's event-sourcing stream is `EVT`; the older `SERVER_EVENTS` stream remains as pre-ES import evidence and for legacy restore/debugging tools, but runtime mutations no longer write it.
 
-**KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several (`RUNTIME_STATE`, `SERVER_CONFIG`, `SERVER_RBAC`, `INSTANCE`, …). Some buckets still hold latest-value runtime or legacy import state; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state.md).
+**KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several (`RUNTIME_STATE`, `SERVER_CONFIG`, `SERVER_RBAC`, `INSTANCE`, …). Some buckets still hold latest-value runtime or legacy import state; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
 
 **Subject** — NATS message topic. Chatto's subject conventions (`server.room.{kind}.{r}.msg.{id}`, `evt.room.{r}.{type}`, `live.sync.…`) are documented in `.claude/rules/nats-subjects.md`.
 
 **Event** — Durable domain fact stored on `EVT` using the `corev1.Event` wrapper. Contrast with *Live Event*.
+
+**Projection** — In-memory read model rebuilt from `EVT` and owned independently by each Chatto process. Projections serve current-state and timeline reads while `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
 
 **Live Event** — Transient `corev1.LiveEvent` published on `live.sync.>` (typing, notification sync, voice-call presence). Durable EVT facts reach live subscribers through the internal `live.evt.>` republish path after server-side projection readiness and authorization checks.
 
