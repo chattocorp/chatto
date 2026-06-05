@@ -117,13 +117,7 @@ func (s *HTTPServer) setupRoutes() error {
 		s.logger.Warn("webserver.cookie_encryption_secret is not set; session cookies are signed but NOT encrypted. Run `chatto init` on a fresh server to generate one, or add a hex-encoded 32-byte value to chatto.toml.")
 		sessionStore = cookie.NewStore(authKey)
 	}
-	sessionStore.Options(sessions.Options{
-		MaxAge:   60 * 60 * 24 * 90, // 90 days
-		HttpOnly: true,
-		Secure:   strings.HasPrefix(s.config.Webserver.URL, "https"),
-		Path:     "/",
-		SameSite: http.SameSiteLaxMode,
-	})
+	sessionStore.Options(cookieSessionOptions(s.config.Auth.TokenTTLOrDefault(), strings.HasPrefix(s.config.Webserver.URL, "https")))
 	s.router.Use(sessions.Sessions("chatto_session", sessionStore))
 
 	// Build allowed origins list once and share between CORS middleware and WebSocket CheckOrigin

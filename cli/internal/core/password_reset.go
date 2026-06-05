@@ -180,8 +180,14 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 			Event:   passwordResetCompletedEvent(ctx, tokenData.UserID),
 		},
 	}
+	if _, err := c.RevokeCookieSessionsForUser(ctx, tokenData.UserID); err != nil {
+		return err
+	}
 	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", nil); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
+	}
+	if err := c.PublishSessionTerminated(ctx, tokenData.UserID, "password_reset"); err != nil {
+		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", tokenData.UserID, "reason", "password_reset", "error", err)
 	}
 
 	return nil

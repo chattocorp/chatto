@@ -294,15 +294,17 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			}
 		}
 
-		// Create session
-		session.Set("user_id", user.Id)
-		if err := session.Save(); err != nil {
+		// Create server-side cookie session
+		if err := s.createCookieSession(c, user.Id, "oidc_login"); err != nil {
 			log.Error("Failed to save session", "error", err)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 			return
 		}
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, claims.Email); err != nil {
 			log.Error("Failed to append OIDC login audit event", "userId", user.Id, "error", err)
+			session = sessions.Default(c)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
 			session.Clear()
 			_ = session.Save()
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")

@@ -483,7 +483,19 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active user-PII DEK epoch. Verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
+Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active user-PII DEK epoch. Cookie-session records plus verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
+
+**RUNTIME_STATE auth/session keys:**
+
+| Key                                           | Description |
+| --------------------------------------------- | ----------- |
+| `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL |
+| `session.{hmac}`                              | Opaque bearer-token verifier with per-key TTL |
+| `grant.{hmac}`                                | OAuth authorization-code verifier with 5-minute per-key TTL |
+| `registration.{hmac}`                         | Email-first registration token verifier |
+| `email_verification.{hmac}`                   | Email verification token verifier |
+| `password_reset.{hmac}`                       | Password reset token verifier |
+| `account_deletion_token.{hmac}`               | Account deletion confirmation token verifier |
 
 **EVT auth audit subjects:**
 

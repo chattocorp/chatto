@@ -3,15 +3,9 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/models.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
-
-// AuditRequestMetadata captures request details that are safe to persist in
-// the durable audit log. Raw IP addresses, links, and tokens never belong here.
-message AuditRequestMetadata {
-  string user_agent = 1;
-  string ip_hash = 2;
-}
 
 message RegistrationLinkIssuedEvent {
   string email_hash = 1;

@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-06-02
+**Last reviewed:** 2026-06-05
 
 ## Overview
 
@@ -11,11 +11,11 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 - **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
 - **OAuth login** — operators can configure OAuth providers (e.g., Google). The login page shows provider buttons; clicking takes the user through the standard authorization-code flow.
-- **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries the user ID; the server resolves the current user from projections per request.
+- **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries an opaque session ID plus the user ID needed to derive the lookup key; the authoritative `CookieSession` protobuf record lives in `RUNTIME_STATE` under `cookie_session.{userId}.{hmac}` with a per-key TTL. The server validates the KV record and resolves the current user from projections per request.
 - **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL.
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
-- **Logout** — for cookie sessions: the server clears the session and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
-- **Session refresh** — the cookie TTL gets refreshed as the user actively uses the app (including on static file requests). Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
+- **Logout** — for cookie sessions: the server deletes the current cookie-session KV record, clears the cookie, and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
+- **Session refresh** — cookie-session KV TTL cannot be touched in place, so active sessions are rotated near expiry: the server creates a replacement `CookieSession` record with a fresh TTL, updates the browser cookie, and deletes the old record best-effort. Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
 - **Password reset tokens** — reset links are backed by `RUNTIME_STATE` HMAC-derived `password_reset.{hmac}` records with a 1-hour per-key TTL. Raw reset tokens and links are never written to `EVT` or backup archives.
 - **Server version handshake** — the WebSocket `connection_ack` payload includes the server's version. The frontend uses this to detect deployed-version drift and prompt the user to refresh.
 - **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, bearer-token issuance/revocation, OAuth authorization-code issuance/exchange, registration-link issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
@@ -24,8 +24,8 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 1. Cookie-based sessions for same-origin
 
-**Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The session stores only the user ID; the current user record is resolved from projections per request.
-**Why:** Cookies are the simplest mechanism for browser SPAs — the browser handles attachment, expiry, and HttpOnly protects against XSS-extracted tokens. WebSocket auth comes for free because the browser sends the cookie with the upgrade request. See ADR-017.
+**Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The cookie stores an opaque session ID and user ID, while the authoritative `CookieSession` protobuf record lives in `RUNTIME_STATE` with per-key TTL and safe request metadata. The current user record is resolved from projections per request.
+**Why:** Cookies are the simplest mechanism for browser SPAs — the browser handles attachment, expiry, and HttpOnly protects against XSS-extracted tokens. Storing the server-side session record in `RUNTIME_STATE` adds revocation for logout, password changes/resets, and account deletion while staying within Chatto's NATS-backed runtime-state model. WebSocket auth comes from the browser sending the cookie with the upgrade request. See ADR-017 and ADR-036.
 **Tradeoff:** Non-browser clients can't use cookies. The bearer token path exists for them.
 
 ### 2. Bearer tokens for cross-origin
@@ -36,7 +36,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 3. Sliding-window TTL for tokens (and cookies)
 
-**Decision:** Each successful token validation rewrites the runtime-state entry with a fresh per-key TTL (default 90 days). Cookies are similarly refreshed on every static-file request.
+**Decision:** Each successful token validation rewrites the runtime-state entry with a fresh per-key TTL (default 90 days). Cookie sessions use the same inactivity window but rotate near expiry instead of touching TTL in place.
 **Why:** Time-from-creation expiry would surprise users — "you've been logged in for 90 days, time to re-auth, even though you've been using the app daily". Sliding-window means active users stay logged in indefinitely; only genuinely inactive sessions expire.
 **Tradeoff:** A long-stolen token stays valid until it lapses or gets explicitly revoked. Operators concerned about this can lower the TTL or implement a "revoke all tokens for user" action (not currently exposed — see ADR-024).
 

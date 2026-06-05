@@ -58,6 +58,10 @@ Current occupants include:
 - Pending notifications: `notification.{userId}.{notificationId}`, with per-key
   90-day TTL.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
+- Embedded-SPA cookie-session records: `cookie_session.{userId}.{sessionHmac}`,
+  with per-key `auth.token_ttl` expiry. The value is a `CookieSession`
+  protobuf containing `user_id`, `created_at`, `expires_at`, source, and safe
+  request metadata.
 - Bearer auth token verifiers: `session.{hmac}`, with per-key
   `auth.token_ttl` sliding-window expiry.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
@@ -69,12 +73,12 @@ Current occupants include:
 - Link-preview cache entries: `link_preview.{urlHash}`, with per-key 24-hour
   TTL for successful previews and 1-hour TTL for failed fetches.
 
-The HMAC keys for bearer tokens, OAuth codes, and account workflow tokens are
+The HMAC keys for cookie sessions, bearer tokens, OAuth codes, and account workflow tokens are
 derived with `[core].secret_key` from the raw token/code plus a per-flow scope
 string. `RUNTIME_STATE` is included in backups, so active sessions and pending
 flows survive restore when the same secret is used; restoring with a different
 secret intentionally invalidates those credentials. Backup archives do not
-contain raw bearer tokens, links, or OAuth codes.
+contain raw cookie session IDs, bearer tokens, links, or OAuth codes.
 
 Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
 target. Uploaded assets are content and are declared with `AssetCreatedEvent`;
