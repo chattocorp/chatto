@@ -33,7 +33,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Read user ID before clearing session (needed for session terminated event)
 		session := sessions.Default(c)
-		userID, _ := session.Get("user_id").(string)
+		userID, cookieSessionID, _ := cookieSessionIDs(session)
 
 		// If authenticated via bearer token, revoke it
 		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
@@ -42,6 +42,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 					log.Warn("Failed to revoke bearer token on logout", "error", err)
 				}
 			}
+		}
+
+		if err := s.core.RevokeCookieSession(ctx, userID, cookieSessionID); err != nil {
+			log.Warn("Failed to revoke cookie session on logout", "error", err)
 		}
 
 		// Clear the session cookie
@@ -130,17 +134,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		// Create session
-		session := sessions.Default(c)
-		session.Set("user_id", user.Id)
-		err = session.Save()
-		if err != nil {
+		// Create server-side cookie session
+		if err := s.createCookieSession(c, user.Id, "password_login"); err != nil {
 			log.Error("Failed to save session", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
 			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
+			session := sessions.Default(c)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
 			session.Clear()
 			_ = session.Save()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
@@ -343,10 +347,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			// Don't fail — user was created successfully
 		}
 
-		// Create session
-		session := sessions.Default(c)
-		session.Set("user_id", user.Id)
-		if err := session.Save(); err != nil {
+		// Create server-side cookie session
+		if err := s.createCookieSession(c, user.Id, "registration_complete"); err != nil {
 			log.Error("Failed to save session", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return

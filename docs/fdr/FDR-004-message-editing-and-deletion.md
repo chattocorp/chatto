@@ -13,6 +13,7 @@ Authors can edit and delete their own messages; moderators with the right permis
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Deletions remove the message body and all attachments and replace the rendered message with a "[Message deleted]" placeholder.
 - Deleting an already-deleted message is a no-op.
+- Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
@@ -37,13 +38,19 @@ Authors can edit and delete their own messages; moderators with the right permis
 **Why:** A non-OCC update would risk silently overwriting concurrent edits — particularly bad when a moderator and the author both edit a message at once. See ADR-016.
 **Tradeoff:** Clients need retry logic. In practice, conflicts are rare enough that a single retry almost always succeeds.
 
-### 4. Echo propagation
+### 4. Edits don't re-resolve mentions
+
+**Decision:** Editing a message changes the visible body but does not add, remove, dismiss, or re-send mention notifications.
+**Why:** Mentions are post-time attention facts, not mutable properties of the latest body. This prevents retroactive pings and keeps edit replay independent from mutable usernames and private body payload retention. See FDR-006.
+**Tradeoff:** If an author needs to notify someone they forgot, they must send a new message. If they remove an `@name` while editing, the original notification still reflects that the mention happened.
+
+### 5. Echo propagation
 
 **Decision:** Thread replies and their channel echoes are separate message events linked by `echoOfEventId`. An edit or delete targeting the original reply is applied to both visible artifacts by the read model. A delete targeting the echo's own event ID hides only the echo artifact from the room timeline.
 **Why:** Message identity belongs to the EVT envelope, and `MessagePostedEvent` remains payload-only. The link preserves the user-facing "same reply shown twice" behavior without duplicating envelope metadata into payload fields. See FDR-003.
 **Tradeoff:** Frontend has to distinguish direct echo deletes from original-reply deletes: direct echo deletes remove the echo row, while original deletes tombstone any loaded echoes.
 
-### 5. Delete physically removes the body payload, not just hides it
+### 6. Delete physically removes the body payload, not just hides it
 
 **Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact, removes attachments from storage, and securely deletes body payload events where the storage backend supports it. Only the placeholder rendering remains.
 **Why:** GDPR. Soft-delete leaves user-generated content in the database, which is the wrong default for an open-source chat app where users expect "delete" to mean delete. Separating public message facts from body payloads preserves the conversation audit trail while allowing body material to be removed. See ADR-007.
@@ -57,4 +64,4 @@ Authors can edit and delete their own messages; moderators with the right permis
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-038 (room-owned thread state)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions)

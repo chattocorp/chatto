@@ -317,8 +317,16 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 			PasswordHash: hashedPassword,
 		},
 	}})
-	_, err = c.appendUserEvent(ctx, userID, event, "", nil)
-	return err
+	if _, err := c.RevokeCookieSessionsForUser(ctx, userID); err != nil {
+		return err
+	}
+	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+		return err
+	}
+	if err := c.PublishSessionTerminated(ctx, userID, "password_changed"); err != nil {
+		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "password_changed", "error", err)
+	}
+	return nil
 }
 
 // VerifyPassword verifies a user's password by login name or email and returns the user if valid.
@@ -956,6 +964,10 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to delete push subscriptions", "user_id", userID, "error", err)
 		// Continue - this is best-effort
 	}
+	if _, err := c.RevokeCookieSessionsForUser(ctx, userID); err != nil {
+		c.logger.Warn("Failed to revoke cookie sessions during deletion", "user_id", userID, "error", err)
+		// Continue - this is best-effort
+	}
 
 	// Delete avatar from object store if it exists
 	avatar, _ := c.GetUserAvatar(ctx, userID)
@@ -1001,6 +1013,9 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	serverSubject := subjects.LiveSyncUserEvent(userID, "user_deleted")
 	if err := c.publishLiveEvent(ctx, serverSubject, serverEvent); err != nil {
 		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
+	}
+	if err := c.PublishSessionTerminated(ctx, userID, "account_deleted"); err != nil {
+		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "error", err)
 	}
 
 	c.logger.Info("Deleted user account", "id", userID, "login", user.Login)

@@ -64,6 +64,25 @@ message VerifiedEmail {
   google.protobuf.Timestamp verified_at = 2;
 }
 
+// AuditRequestMetadata captures request details that are safe to persist in
+// auth audit facts and auth-adjacent runtime records. Raw IP addresses, links,
+// and tokens never belong here.
+message AuditRequestMetadata {
+  string user_agent = 1;
+  string ip_hash = 2;
+}
+
+// CookieSession is the server-side runtime-state record for the embedded SPA's
+// HTTP cookie session. The raw session ID is never stored in this payload; it is
+// represented only by the HMAC-derived RUNTIME_STATE key.
+message CookieSession {
+  string user_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string source = 4;
+  AuditRequestMetadata request = 5;
+}
+
 // DeprecatedAsset is the storage-pointer-only proto used for legacy values:
 // branding KV entries, avatar pointers on UserAvatarSetEvent, and the
 // Storage field on legacy embedded Attachment protos. Wire format matches

@@ -452,7 +452,7 @@ func TestAuthRoutes_Logout(t *testing.T) {
 	// Create and login a test user
 	login := "logoutuser"
 	password := "password123"
-	_, err := chattoCore.CreateUser(ctx, "system", login, "Test User", password)
+	user, err := chattoCore.CreateUser(ctx, "system", login, "Test User", password)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -474,6 +474,23 @@ func TestAuthRoutes_Logout(t *testing.T) {
 		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
 	}
 
+	deleted, err := chattoCore.RevokeCookieSessionsForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("Failed to inspect cookie session after login: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("Login created %d cookie sessions, want 1", deleted)
+	}
+
+	loginResp, err = client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to login again: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Second login failed with status %d", loginResp.StatusCode)
+	}
+
 	// Now logout
 	logoutResp, err := client.Post(ts.URL+"/auth/logout", "application/json", nil)
 	if err != nil {
@@ -492,6 +509,14 @@ func TestAuthRoutes_Logout(t *testing.T) {
 
 	if result["success"] != true {
 		t.Error("Expected success: true in response")
+	}
+
+	deleted, err = chattoCore.RevokeCookieSessionsForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("Failed to inspect cookie session after logout: %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("Logout left %d cookie sessions behind, want 0", deleted)
 	}
 }
 

@@ -196,23 +196,19 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	s.router.Any("/api/graphql", func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 
-		// Refresh session cookie for authenticated users to prevent expiration.
-		// Note: We must call Set() before Save() because gin-contrib/sessions only saves
-		// if the session has been "written" to. Get() alone doesn't mark it as modified.
 		session := sessions.Default(c)
-		if userID := session.Get("user_id"); userID != nil {
-			session.Set("user_id", userID)
-			session.Save()
-		} else {
+		if userID, _, ok := cookieSessionIDs(session); !ok {
 			// Log unauthenticated requests to help diagnose cookie/session issues
 			// (e.g., reverse proxy stripping Set-Cookie headers)
 			s.logger.Debug("GraphQL request without session",
 				"host", c.Request.Host,
 				"hasCookie", c.Request.Header.Get("Cookie") != "")
+		} else if userID == "" {
+			clearCookieSessionAuth(session)
 		}
 
 		// Inject authenticated user into request context
-		r := injectUserIntoContext(c, s.core)
+		r := s.injectUserIntoContext(c)
 		// Inject dataloaders for this request
 		r = injectDataloadersIntoContext(r, s.core)
 		h.ServeHTTP(c.Writer, r)

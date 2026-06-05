@@ -300,6 +300,58 @@ func TestGraphQL_Query_Viewer_Authenticated(t *testing.T) {
 	}
 }
 
+func TestGraphQL_Query_Viewer_CookieSessionRevoked(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	login := "graphqlrevoked"
+	password := "password123"
+	userID := env.createTestUser(t, login, password)
+
+	if !env.login(t, login, password) {
+		t.Fatal("Login failed")
+	}
+
+	resp := env.doGraphQL(t, `query { viewer { user { id login } } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Expected no errors before revocation, got: %v", resp.Errors)
+	}
+	var before struct {
+		Viewer *struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"viewer"`
+	}
+	if err := json.Unmarshal(resp.Data, &before); err != nil {
+		t.Fatalf("Failed to unmarshal pre-revocation response: %v", err)
+	}
+	if before.Viewer == nil {
+		t.Fatal("Expected authenticated viewer before revocation")
+	}
+
+	if _, err := env.core.RevokeCookieSessionsForUser(env.ctx, userID); err != nil {
+		t.Fatalf("RevokeCookieSessionsForUser: %v", err)
+	}
+
+	resp = env.doGraphQL(t, `query { viewer { user { id login } } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Expected no errors after revocation, got: %v", resp.Errors)
+	}
+	var after struct {
+		Viewer *struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"viewer"`
+	}
+	if err := json.Unmarshal(resp.Data, &after); err != nil {
+		t.Fatalf("Failed to unmarshal post-revocation response: %v", err)
+	}
+	if after.Viewer != nil {
+		t.Fatal("Expected viewer to be null after cookie session revocation")
+	}
+}
+
 // TestGraphQL_Query_Spaces_PublicDiscovery tests that the spaces query is public
 // PR(a) retired Query.spaces / Query.space(id). Unauthenticated discovery now
 // happens via the `instance` query, which exposes the deployment's name, logo,

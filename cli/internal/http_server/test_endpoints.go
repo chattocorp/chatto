@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/charmbracelet/log"
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/email"
@@ -172,10 +171,8 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 				}
 			}
 
-			// Create session
-			session := sessions.Default(c)
-			session.Set("user_id", newUser.Id)
-			if err := session.Save(); err != nil {
+			// Create server-side cookie session
+			if err := s.createCookieSession(c, newUser.Id, "test_oauth"); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
 				return
 			}
@@ -191,10 +188,8 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			return
 		}
 
-		// Create session for existing user
-		session := sessions.Default(c)
-		session.Set("user_id", existingUser.Id)
-		if err := session.Save(); err != nil {
+		// Create server-side cookie session for existing user
+		if err := s.createCookieSession(c, existingUser.Id, "test_oauth"); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
 			return
 		}

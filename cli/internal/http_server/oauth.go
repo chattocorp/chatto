@@ -37,7 +37,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		// If user is already authenticated and has pending OAuth params from
 		// a previous /oauth/authorize visit (e.g., after login on the login page),
 		// generate the code immediately without re-validating query params.
-		if userID, ok := session.Get("user_id").(string); ok && userID != "" {
+		if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
+			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 			if hasPendingOAuthAuthorize(session) {
 				s.completeOAuthAuthorize(c, userID)
 				return
@@ -99,7 +100,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		session.Save()
 
 		// If user is already authenticated, generate code immediately
-		if userID, ok := session.Get("user_id").(string); ok && userID != "" {
+		if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
+			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 			s.completeOAuthAuthorize(c, userID)
 			return
 		}
