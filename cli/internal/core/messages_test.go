@@ -47,7 +47,7 @@ func TestChattoCore_PostMessage(t *testing.T) {
 		t.Errorf("MessagePosted.RoomId = %s, want %s", messagePosted.RoomId, room.Id)
 	}
 
-	// Body is now lazy-loaded, fetch it separately using messageBodyId
+	// Body is lazy-loaded from the body projection using the message event ID.
 	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, roomEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
@@ -97,7 +97,7 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	}
 }
 
-func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
+func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -121,7 +121,7 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 		t.Fatal("Event should be a MessagePosted event")
 	}
 
-	// Verify the body can be fetched via GetMessageBody using messageBodyId
+	// Verify the body can be fetched via GetMessageBody using the message event ID.
 	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, roomEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
