@@ -219,13 +219,12 @@ message Attachment {
   string message_body_id = 10;
 }
 
-// MessageBody stores the actual content of a message.
-// Stored separately from events in KV buckets for GDPR compliance.
-// This allows individual message bodies to be deleted while preserving
-// the audit trail in the event stream.
-// Message bodies are always encrypted. Legacy bodies use the author's
-// per-user ChaCha20-Poly1305 key directly. New bodies use a versioned
-// envelope with a per-user message-body DEK epoch.
+// MessageBody stores the encrypted content and body-owned metadata of a
+// message. New bodies are carried by MessageBodyEvent so the encrypted
+// payload can be securely deleted while preserving public timeline facts.
+// Message bodies are always encrypted. Legacy bodies use the author's per-user
+// ChaCha20-Poly1305 key directly. V2 bodies use a per-user message-body DEK
+// epoch directly. V3 bodies use a one-time body DEK wrapped by that epoch.
 message MessageBody {
   string author_id = 1;
   google.protobuf.Timestamp created_at = 2;
@@ -234,18 +233,27 @@ message MessageBody {
   // Encryption envelope version. Empty/0 means legacy v1 direct per-user-key
   // encryption for backward compatibility with historical bodies. Version 2
   // means XChaCha20-Poly1305 body encryption with the author's referenced
-  // message-body DEK epoch.
+  // message-body DEK epoch. Version 3 means the body ciphertext uses a
+  // one-time body DEK, wrapped by the referenced per-user message-body DEK.
   int32 encryption_version = 4;
-  // V2 only: per-user message-body DEK epoch that encrypted this body.
+  // V2/V3: per-user message-body DEK epoch that encrypted or wrapped this body.
   int32 content_key_epoch = 5;
+  // V3 only: Event envelope ID of the MessageBodyEvent carrying this body.
+  // Included in AAD to prevent replaying old body payloads under new events.
+  string body_event_id = 6;
 
   // Encrypted message body ciphertext with auth tag. For legacy bodies this
-  // is ChaCha20-Poly1305. For v2 envelope bodies this is XChaCha20-Poly1305
-  // using the referenced message-body DEK.
+  // is ChaCha20-Poly1305. For v2 envelope bodies this uses the referenced
+  // message-body DEK. For v3 envelope bodies this uses the one-time body DEK.
   bytes encrypted_body = 20;
   // Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
-  // for v2 XChaCha20-Poly1305.
+  // for v2/v3 XChaCha20-Poly1305.
   bytes encryption_nonce = 21;
+  // V3 only: one-time body DEK encrypted with the per-user message-body DEK
+  // epoch referenced by content_key_epoch.
+  bytes wrapped_body_key = 22;
+  // V3 only: XChaCha20-Poly1305 nonce for wrapped_body_key.
+  bytes body_key_wrap_nonce = 23;
 
   // Legacy embedded attachment protos. Older bodies (and the legacy
   // import path) carry full Attachment records here. New bodies write

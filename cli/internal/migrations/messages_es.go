@@ -20,6 +20,7 @@ import (
 
 type migratedMessageEntry struct {
 	threadCreated *events.BatchEntry
+	bodyEvent     *events.BatchEntry
 	message       events.BatchEntry
 }
 
@@ -47,10 +48,11 @@ type migratedMessageEntry struct {
 //
 // # Source of truth after
 //
-//   - Each MessagePostedEvent is re-emitted on EVT at
-//     `evt.room.{R}.message_posted` with the body content embedded in
-//     the event payload. The embedded body and the Event envelope ID are the
-//     only message identity/content source of truth post-migration.
+//   - Each surviving body is re-emitted on EVT at
+//     `evt.room.{R}.message_body` immediately before its bodyless
+//     `evt.room.{R}.message_posted` fact. The message Event envelope ID is
+//     the stable message identity; body payloads live on private body event
+//     events so they can be securely deleted independently.
 //
 //   - Posts whose body has been deleted from SERVER_BODIES (legacy
 //     hard-delete) are imported with body=nil. The projection holds
@@ -184,8 +186,9 @@ func MigrateMessagesToES(
 
 		// Build the migrated event. Preserve the original envelope
 		// metadata (id, actor, created_at) so the timeline order and
-		// audit trail are preserved. Body is embedded; the message's durable
-		// identity remains the Event envelope ID.
+		// audit trail are preserved. Body content is carried by a preceding
+		// MessageBodyEvent; the message's durable identity remains the
+		// Event envelope ID.
 		//
 		// Message identity lives on the envelope. Recover it from the
 		// envelope id or, as a last resort for old payloads, the legacy
@@ -223,7 +226,6 @@ func MigrateMessagesToES(
 					MentionedUserIds:          posted.GetMentionedUserIds(),
 					EchoOfEventId:             posted.GetEchoOfEventId(),
 					EchoFromThreadRootEventId: posted.GetEchoFromThreadRootEventId(),
-					Body:                      body,
 				},
 			},
 		}
@@ -258,8 +260,33 @@ func MigrateMessagesToES(
 				threadCreated = &entry
 			}
 		}
+		var bodyEvent *events.BatchEntry
+		if body != nil {
+			bodyEventID := migratedMessageBodyEventID(envelopeID)
+			if body.GetBodyEventId() == "" {
+				body.BodyEventId = bodyEventID
+			}
+			entry := events.BatchEntry{
+				Subject: agg.Subject(events.EventMessageBody),
+				Event: &corev1.Event{
+					Id:        bodyEventID,
+					ActorId:   legacyEvent.GetActorId(),
+					CreatedAt: preserveTimestamp(legacyEvent.GetCreatedAt()),
+					Event: &corev1.Event_MessageBody{
+						MessageBody: &corev1.MessageBodyEvent{
+							RoomId:  roomID,
+							EventId: envelopeID,
+							Body:    body,
+						},
+					},
+				},
+			}
+			bodyEvent = &entry
+		}
+
 		batch.entries = append(batch.entries, migratedMessageEntry{
 			threadCreated: threadCreated,
+			bodyEvent:     bodyEvent,
 			message: events.BatchEntry{
 				Subject: subject,
 				Event:   newEvent,
@@ -350,6 +377,9 @@ func publishMessageMigrationRoom(
 			if entry.threadCreated != nil {
 				chunk = append(chunk, *entry.threadCreated)
 			}
+			if entry.bodyEvent != nil {
+				chunk = append(chunk, *entry.bodyEvent)
+			}
 			chunk = append(chunk, entry.message)
 		}
 		chunk[0].HasOCC = true
@@ -373,6 +403,10 @@ func publishMessageMigrationRoom(
 
 func migratedThreadCreatedEventID(roomID, threadRootEventID string) string {
 	return "thread_created." + roomID + "." + threadRootEventID
+}
+
+func migratedMessageBodyEventID(messageEventID string) string {
+	return "message_body." + messageEventID
 }
 
 // preserveTimestamp returns the original timestamp if non-nil, or a

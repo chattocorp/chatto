@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"bytes"
 	"testing"
 
 	"hmans.de/chatto/internal/core"
@@ -131,6 +132,80 @@ func TestMessagePostedEventResolver_Body(t *testing.T) {
 			t.Errorf("expected 'Test body content', got %s", *body)
 		}
 	})
+}
+
+func TestMessageEditedEventResolver_LoadsBodyFieldsFromProjection(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.MessageEditedEvent()
+
+	attachment, err := env.core.UploadAttachment(env.ctx, core.SystemActorID, env.testRoom.Id, "attachment.txt", "text/plain", bytes.NewReader([]byte("hello")))
+	if err != nil {
+		t.Fatalf("failed to upload attachment: %v", err)
+	}
+	post, err := env.core.PostMessage(
+		env.ctx,
+		core.KindChannel,
+		env.testRoom.Id,
+		env.testUser.Id,
+		"Original body",
+		[]string{attachment.Id},
+		"",
+		"",
+		&corev1.LinkPreview{
+			Url:   "https://example.com/original",
+			Title: "Original preview",
+		},
+		false,
+	)
+	if err != nil {
+		t.Fatalf("failed to post message: %v", err)
+	}
+	if err := env.core.EditMessage(env.ctx, env.testUser.Id, core.KindChannel, env.testRoom.Id, post.Id, "Edited body"); err != nil {
+		t.Fatalf("failed to edit message: %v", err)
+	}
+
+	edited := &corev1.MessageEditedEvent{
+		RoomId:  env.testRoom.Id,
+		EventId: post.Id,
+	}
+
+	body, err := resolver.Body(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("Body returned error: %v", err)
+	}
+	if body == nil || *body != "Edited body" {
+		t.Fatalf("Body = %v, want Edited body", body)
+	}
+
+	attachments, err := resolver.Attachments(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("Attachments returned error: %v", err)
+	}
+	if len(attachments) != 1 {
+		t.Fatalf("Attachments = %d, want 1", len(attachments))
+	}
+	if attachments[0].RoomId != env.testRoom.Id {
+		t.Fatalf("Attachment.RoomId = %q, want %q", attachments[0].RoomId, env.testRoom.Id)
+	}
+	if attachments[0].MessageBodyId != post.Id {
+		t.Fatalf("Attachment.MessageBodyId = %q, want %q", attachments[0].MessageBodyId, post.Id)
+	}
+
+	linkPreview, err := resolver.LinkPreview(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("LinkPreview returned error: %v", err)
+	}
+	if linkPreview == nil || linkPreview.Title != "Original preview" {
+		t.Fatalf("LinkPreview = %+v, want original preview", linkPreview)
+	}
+
+	updatedAt, err := resolver.UpdatedAt(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("UpdatedAt returned error: %v", err)
+	}
+	if updatedAt == nil {
+		t.Fatal("UpdatedAt = nil, want edit timestamp from projected body")
+	}
 }
 
 func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {

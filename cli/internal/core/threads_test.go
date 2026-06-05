@@ -1101,10 +1101,9 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 
 		// Echo and reply each have their own envelope id and encryption
 		// context, but decrypt to the same visible content.
-		reply := replyEvent.GetMessagePosted()
-		replyBody := reply.GetBody()
-		if replyBody == nil {
-			t.Fatal("reply has no embedded body")
+		replyBody, retracted, ok := core.RoomTimeline.LatestBody(replyEvent.Id)
+		if !ok || retracted || replyBody == nil {
+			t.Fatal("reply has no projected body")
 		}
 
 		roomEventsResult, _ := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
@@ -1112,13 +1111,18 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		var echoID string
 		for _, e := range roomEventsResult.Events {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
-				echoBody = msg.GetBody()
 				echoID = e.Id
 				break
 			}
 		}
+		if echoID != "" {
+			echoBody, retracted, ok = core.RoomTimeline.LatestBody(echoID)
+			if !ok || retracted {
+				echoBody = nil
+			}
+		}
 		if echoBody == nil {
-			t.Fatal("Echo not found in room events (or has no embedded body)")
+			t.Fatal("Echo not found in room events (or has no projected body)")
 		}
 		if echoID == "" {
 			t.Fatal("Echo event has no id")

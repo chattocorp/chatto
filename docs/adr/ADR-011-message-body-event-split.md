@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Historical note:** This ADR describes the pre-EVT message storage model. The per-space buckets named here were later consolidated into `SERVER_EVENTS` / `SERVER_BODIES` by ADR-030, and then superseded for durable messages by ADR-033/ADR-034. Current EVT messages embed encrypted bodies in `MessagePostedEvent.body`; message identity lives on the event envelope, not in a `messageBodyId` payload field. Legacy `SERVER_EVENTS` / `SERVER_BODIES` records remain import evidence only.
+**Historical note:** This ADR describes the pre-EVT message storage model. The per-space buckets named here were later consolidated into `SERVER_EVENTS` / `SERVER_BODIES` by ADR-030, then superseded for durable messages by ADR-033/ADR-034, and later reintroduced inside EVT as private `MessageBodyEvent` payload facts. Current `MessagePostedEvent` and `MessageEditedEvent` writes are bodyless; message identity lives on the event envelope, not in a `messageBodyId` payload field. Legacy `SERVER_EVENTS` / `SERVER_BODIES` records remain import evidence only.
 
 ## Context
 

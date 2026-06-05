@@ -26,14 +26,17 @@ import (
 // envelope id for direct lookup.
 type RoomTimelineProjection struct {
 	events.MemoryProjection
-	byRoom    map[string][]*TimelineEntry
-	byEventID map[string]*TimelineEntry
+	byRoom          map[string][]*TimelineEntry
+	byEventID       map[string]*TimelineEntry
+	appliedEventIDs map[string]struct{}
 	// latestBody is the derived current-body index. Updated as
 	// MessageEdited / MessageRetracted entries are applied so that
 	// LatestBody resolves in O(1) instead of an O(room size) walk
 	// of byRoom. A nil entry means "retracted"; absent means "no
-	// embedded body / not yet projected".
+	// body payload / not yet projected".
 	latestBody     map[string]*corev1.MessageBody
+	bodyEventSeqs  map[string][]uint64
+	currentBodySeq map[string]uint64
 	retractedFlags map[string]struct{}
 	// echoLinks maps an original message's event_id to the event_ids
 	// of any echoes pointing at it. Maintained as MessagePostedEvents
@@ -41,7 +44,7 @@ type RoomTimelineProjection struct {
 	// to fan mutations across linked messages — pre-cutover the
 	// echo + original shared a messageBodyId, so an edit on either
 	// updated both via the shared SERVER_BODIES entry; post-cutover
-	// each has its own embedded body and we need explicit
+	// each has its own projected body payload and we need explicit
 	// propagation.
 	echoLinks map[string][]string
 	// hiddenEchoes tracks echo MessagePostedEvents that were directly
@@ -110,7 +113,10 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
 		byRoom:            make(map[string][]*TimelineEntry),
 		byEventID:         make(map[string]*TimelineEntry),
+		appliedEventIDs:   make(map[string]struct{}),
 		latestBody:        make(map[string]*corev1.MessageBody),
+		bodyEventSeqs:     make(map[string][]uint64),
+		currentBodySeq:    make(map[string]uint64),
 		retractedFlags:    make(map[string]struct{}),
 		echoLinks:         make(map[string][]string),
 		hiddenEchoes:      make(map[string]struct{}),
@@ -155,9 +161,43 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	// no-op. The Projection.Apply contract is "Apply(e,n) twice ==
 	// Apply(e,n) once"; this is how we honour it.
 	if eid := event.GetId(); eid != "" {
-		if _, exists := p.byEventID[eid]; exists {
+		if _, exists := p.appliedEventIDs[eid]; exists {
 			return nil
 		}
+		p.appliedEventIDs[eid] = struct{}{}
+	}
+
+	if ev := event.GetMessageBody(); ev != nil {
+		targetID := ev.GetEventId()
+		body := ev.GetBody()
+		if targetID != "" && body != nil {
+			if body.GetBodyEventId() == "" {
+				body.BodyEventId = event.GetId()
+			} else if body.GetEncryptionVersion() >= 3 && body.GetBodyEventId() != event.GetId() {
+				return nil
+			}
+			if authorID := body.GetAuthorId(); authorID != "" {
+				if _, shredded := p.shreddedUsers[authorID]; shredded {
+					delete(p.latestBody, targetID)
+					p.retractedFlags[targetID] = struct{}{}
+				} else {
+					p.latestBody[targetID] = body
+					p.bodyEventSeqs[targetID] = append(p.bodyEventSeqs[targetID], seq)
+					p.currentBodySeq[targetID] = seq
+					delete(p.retractedFlags, targetID)
+				}
+			}
+			for _, assetID := range ownedAssetIDsFromBody(body) {
+				if assetID == "" {
+					continue
+				}
+				if _, exists := p.assetMessageOwner[assetID]; exists {
+					continue
+				}
+				p.assetMessageOwner[assetID] = assetMessageRef{roomID: roomID, messageEventID: targetID}
+			}
+		}
+		return nil
 	}
 
 	entry := &TimelineEntry{StreamSeq: seq, Event: event}
@@ -176,7 +216,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
 				delete(p.latestBody, targetID)
 				p.retractedFlags[targetID] = struct{}{}
-			} else {
+			} else if ev.MessagePosted.GetBody() != nil {
 				p.latestBody[targetID] = ev.MessagePosted.GetBody()
 				delete(p.retractedFlags, targetID)
 			}
@@ -201,7 +241,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 	case *corev1.Event_MessageEdited:
 		targetID := ev.MessageEdited.GetEventId()
-		if targetID != "" {
+		if targetID != "" && ev.MessageEdited.GetBody() != nil {
 			p.latestBody[targetID] = ev.MessageEdited.GetBody()
 			delete(p.retractedFlags, targetID)
 		}
@@ -434,6 +474,79 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 		return b, false, true
 	}
 	return nil, false, true
+}
+
+// BodyEventSeqs returns all projected MessageBodyEvent stream sequences for
+// a message, plus the current body sequence if one is still active.
+func (p *RoomTimelineProjection) BodyEventSeqs(eventID string) (seqs []uint64, current uint64, ok bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if eventID == "" {
+		return nil, 0, false
+	}
+	if _, exists := p.byEventID[eventID]; !exists {
+		return nil, 0, false
+	}
+	seqs = append([]uint64(nil), p.bodyEventSeqs[eventID]...)
+	return seqs, p.currentBodySeq[eventID], true
+}
+
+// ObsoleteBodyEventSeqs returns body event sequences that can be securely
+// deleted without losing the current body. For retracted messages, every body
+// event is obsolete. For active messages, every non-current body event is
+// obsolete.
+func (p *RoomTimelineProjection) ObsoleteBodyEventSeqs(eventID string) []uint64 {
+	p.RLock()
+	defer p.RUnlock()
+	if eventID == "" {
+		return nil
+	}
+	all := p.bodyEventSeqs[eventID]
+	if len(all) == 0 {
+		return nil
+	}
+	if _, retracted := p.retractedFlags[eventID]; retracted {
+		return append([]uint64(nil), all...)
+	}
+	if _, hidden := p.hiddenEchoes[eventID]; hidden {
+		return append([]uint64(nil), all...)
+	}
+	current := p.currentBodySeq[eventID]
+	out := make([]uint64, 0, len(all))
+	for _, seq := range all {
+		if seq != current {
+			out = append(out, seq)
+		}
+	}
+	return out
+}
+
+// AllObsoleteBodyEventSeqs returns every projected MessageBodyEvent seq
+// whose payload is no longer needed for the current message state.
+func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
+	p.RLock()
+	defer p.RUnlock()
+	var out []uint64
+	for eventID, all := range p.bodyEventSeqs {
+		if len(all) == 0 {
+			continue
+		}
+		if _, retracted := p.retractedFlags[eventID]; retracted {
+			out = append(out, all...)
+			continue
+		}
+		if _, hidden := p.hiddenEchoes[eventID]; hidden {
+			out = append(out, all...)
+			continue
+		}
+		current := p.currentBodySeq[eventID]
+		for _, seq := range all {
+			if seq != current {
+				out = append(out, seq)
+			}
+		}
+	}
+	return out
 }
 
 func (p *RoomTimelineProjection) echoOriginalIDLocked(eventID string) string {
@@ -892,6 +1005,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageEdited.GetRoomId()
 	case *corev1.Event_MessageRetracted:
 		return e.MessageRetracted.GetRoomId()
+	case *corev1.Event_MessageBody:
+		return e.MessageBody.GetRoomId()
 	case *corev1.Event_ThreadCreated:
 		return e.ThreadCreated.GetRoomId()
 	case *corev1.Event_AssetCreated:

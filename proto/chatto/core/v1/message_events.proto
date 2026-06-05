@@ -46,15 +46,9 @@ message MessagePostedEvent {
   // Thread root event ID — the thread this echo originates from (empty = not an echo)
   string echo_from_thread_root_event_id = 8;
 
-  // Embedded message body for the event-sourced (EVT) path.
-  //
-  // Set on every new MessagePostedEvent emitted on the EVT stream. The
-  // body content travels with the event instead of living in a separate
-  // SERVER_BODIES KV bucket, so the projections can rebuild full message
-  // state from EVT alone.
-  //
-  // Empty only for legacy SERVER_EVENTS records whose SERVER_BODIES entry
-  // had already been removed before the boot-time importer ran.
+  // Legacy embedded message body. New writes leave this unset and publish
+  // MessageBodyEvent instead so the encrypted payload can be securely
+  // deleted without deleting the public message-posted fact.
   MessageBody body = 9;
 
   // The message's durable event ID lives on the Event envelope. GraphQL exposes
@@ -69,9 +63,26 @@ message MessagePostedEvent {
 // retired legacy live-only payload shapes; they are no longer carried by the
 // durable Event envelope or the public GraphQL EventType union.
 
-// MessageEditedEvent is the durable event published when a message's body
-// is edited. Carries the full new body envelope; the projection overlays
-// the body onto the existing message entry.
+// MessageBodyEvent carries the encrypted body payload for a message post or
+// body update. It is durable, room-scoped projection input but is not delivered
+// as a public live event. The target message event remains MessagePostedEvent;
+// edits also emit a bodyless MessageEditedEvent as the public semantic signal.
+message MessageBodyEvent {
+  // Room ID — identifies which room this message body belongs to.
+  string room_id = 1;
+
+  // Event ID of the message whose current body is being set.
+  string event_id = 2;
+
+  // Encrypted body envelope. For v3 bodies body.body_event_id must match the
+  // outer Event envelope ID that carries this MessageBodyEvent.
+  MessageBody body = 3;
+}
+
+// MessageEditedEvent is the durable semantic event published when a message's
+// body or body metadata changes. New writes leave body unset and publish the
+// new body in a preceding MessageBodyEvent. The field remains decode-only
+// for existing EVT histories that embedded edited bodies here.
 message MessageEditedEvent {
   // Room ID — identifies which room this message belongs to.
   string room_id = 1;
@@ -81,8 +92,7 @@ message MessageEditedEvent {
   // actor_id.
   string event_id = 2;
 
-  // The new body envelope. Same MessageBody shape as on MessagePostedEvent
-  // — fresh ciphertext + nonce, attachments, link preview, updated_at.
+  // Legacy embedded body envelope. New writes leave this unset.
   MessageBody body = 3;
 }
 

@@ -86,6 +86,7 @@ message Event {
     MessageEditedEvent message_edited = 401;
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
+    MessageBodyEvent message_body = 404;
 
     // ----- Threads (425-449, durable, room-owned) -----
     ThreadCreatedEvent thread_created = 425;

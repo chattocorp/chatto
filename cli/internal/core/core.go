@@ -222,6 +222,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 			return fmt.Errorf("wait for projections current: %w", err)
 		}
+		c.secureDeleteObsoleteProjectedMessageBodyEvents(gctx)
 		// Apply config-designated owners to already-verified users on every
 		// boot. Changing owners.emails requires a process restart, so this
 		// is the natural point to materialize new config owners as RBAC

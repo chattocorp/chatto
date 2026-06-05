@@ -171,6 +171,64 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "body-event-author", "Body Event Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "body-event-viewer", "Body Event Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "body-event-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "private payload should not stream", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case ev := <-eventChan:
+			if evt := ev.EVTEvent(); evt != nil && evt.GetMessageBody() != nil {
+				t.Fatal("StreamMyEvents delivered private MessageBodyEvent")
+			}
+			msg := EventMessagePosted(ev)
+			if msg == nil {
+				continue
+			}
+			if ev.ID() != posted.Id {
+				t.Fatalf("posted event id = %q, want %q", ev.ID(), posted.Id)
+			}
+			return
+		case <-timeout:
+			t.Fatal("viewer never received public MessagePostedEvent")
+		}
+	}
+}
+
 func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

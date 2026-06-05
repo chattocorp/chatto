@@ -266,11 +266,15 @@ func (r *messageEditedEventResolver) Body(ctx context.Context, obj *corev1.Messa
 
 // Attachments is the resolver for the attachments field.
 func (r *messageEditedEventResolver) Attachments(ctx context.Context, obj *corev1.MessageEditedEvent) ([]*corev1.Attachment, error) {
-	if obj.Body == nil {
+	messageBody, err := r.core.GetFullMessageBodyByEventID(ctx, obj.EventId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load edited message body: %w", err)
+	}
+	if messageBody == nil {
 		return []*corev1.Attachment{}, nil
 	}
-	attachments := r.core.MessageBodyAttachments(obj.Body)
-	for _, att := range attachments {
+	attachments := make([]*corev1.Attachment, 0, len(messageBody.Attachments))
+	for _, att := range messageBody.Attachments {
 		if att == nil {
 			continue
 		}
@@ -278,24 +282,33 @@ func (r *messageEditedEventResolver) Attachments(ctx context.Context, obj *corev
 		if att.MessageBodyId == "" {
 			att.MessageBodyId = obj.EventId
 		}
+		attachments = append(attachments, att)
 	}
 	return attachments, nil
 }
 
 // LinkPreview is the resolver for the linkPreview field.
 func (r *messageEditedEventResolver) LinkPreview(ctx context.Context, obj *corev1.MessageEditedEvent) (*corev1.LinkPreview, error) {
-	if obj.Body == nil {
+	messageBody, err := r.core.GetFullMessageBodyByEventID(ctx, obj.EventId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load edited message body: %w", err)
+	}
+	if messageBody == nil {
 		return nil, nil
 	}
-	return obj.Body.LinkPreview, nil
+	return messageBody.LinkPreview, nil
 }
 
 // UpdatedAt is the resolver for the updatedAt field.
 func (r *messageEditedEventResolver) UpdatedAt(ctx context.Context, obj *corev1.MessageEditedEvent) (*timestamppb.Timestamp, error) {
-	if obj.Body == nil || obj.Body.UpdatedAt == nil {
+	messageBody, err := r.core.GetFullMessageBodyByEventID(ctx, obj.EventId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load edited message body: %w", err)
+	}
+	if messageBody == nil || messageBody.UpdatedAt == nil {
 		return nil, nil
 	}
-	return obj.Body.UpdatedAt, nil
+	return timestamppb.New(*messageBody.UpdatedAt), nil
 }
 
 // Body is the resolver for the body field.

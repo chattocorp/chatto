@@ -224,15 +224,14 @@ func TestMigrateMessagesToES_ImportsBodiesEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
-	if info.State.Msgs != 2 {
-		t.Fatalf("EVT msg count = %d, want 2", info.State.Msgs)
+	if info.State.Msgs != 4 {
+		t.Fatalf("EVT msg count = %d, want 4", info.State.Msgs)
 	}
 
-	// Both events landed on evt.room.R1.message_posted with the body embedded.
-	first := rig.readEvent(t, 1)
-	checkImportedMessage(t, first, "M1", "U1", "ciphertext-1")
-	second := rig.readEvent(t, 2)
-	checkImportedMessage(t, second, "M2", "U2", "ciphertext-2")
+	checkImportedBodyEvent(t, rig.readEvent(t, 1), "message_body.M1", "M1", "U1", "ciphertext-1")
+	checkImportedMessage(t, rig.readEvent(t, 2), "M1", "U1")
+	checkImportedBodyEvent(t, rig.readEvent(t, 3), "message_body.M2", "M2", "U2", "ciphertext-2")
+	checkImportedMessage(t, rig.readEvent(t, 4), "M2", "U2")
 }
 
 func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
@@ -271,21 +270,23 @@ func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
-	if info.State.Msgs != 3 {
-		t.Fatalf("EVT msg count = %d, want 3", info.State.Msgs)
+	if info.State.Msgs != 5 {
+		t.Fatalf("EVT msg count = %d, want 5", info.State.Msgs)
 	}
 
-	root := rig.readEvent(t, 1)
-	checkImportedMessage(t, root, "ROOT", "U1", "root")
+	checkImportedBodyEvent(t, rig.readEvent(t, 1), "message_body.ROOT", "ROOT", "U1", "root")
+	root := rig.readEvent(t, 2)
+	checkImportedMessage(t, root, "ROOT", "U1")
 	if root.GetMessagePosted().GetInThread() != "" {
 		t.Errorf("root in_thread = %q, want empty", root.GetMessagePosted().GetInThread())
 	}
 
-	created := rig.readEvent(t, 2)
+	created := rig.readEvent(t, 3)
 	checkImportedThreadCreated(t, created, "R1", "ROOT", "U2")
 
-	reply := rig.readEvent(t, 3)
-	checkImportedMessage(t, reply, "REPLY1", "U2", "reply-1")
+	checkImportedBodyEvent(t, rig.readEvent(t, 4), "message_body.REPLY1", "REPLY1", "U2", "reply-1")
+	reply := rig.readEvent(t, 5)
+	checkImportedMessage(t, reply, "REPLY1", "U2")
 	if got := reply.GetMessagePosted().GetInThread(); got != "ROOT" {
 		t.Errorf("reply in_thread = %q, want ROOT", got)
 	}
@@ -324,17 +325,19 @@ func TestMigrateMessagesToES_BackfillsMessageIdentityAndThreadRootFromEnvelopeOr
 		t.Fatalf("migration: %v", err)
 	}
 
-	root := rig.readEvent(t, 1)
-	checkImportedMessage(t, root, "ROOT", "U1", "root")
+	checkImportedBodyEvent(t, rig.readEvent(t, 1), "message_body.ROOT", "ROOT", "U1", "root")
+	root := rig.readEvent(t, 2)
+	checkImportedMessage(t, root, "ROOT", "U1")
 	if got := root.GetMessagePosted().GetInThread(); got != "" {
 		t.Errorf("root in_thread = %q, want empty", got)
 	}
 
-	created := rig.readEvent(t, 2)
+	created := rig.readEvent(t, 3)
 	checkImportedThreadCreated(t, created, "R1", "ROOT", "U2")
 
-	reply := rig.readEvent(t, 3)
-	checkImportedMessage(t, reply, "REPLY1", "U2", "reply")
+	checkImportedBodyEvent(t, rig.readEvent(t, 4), "message_body.REPLY1", "REPLY1", "U2", "reply")
+	reply := rig.readEvent(t, 5)
+	checkImportedMessage(t, reply, "REPLY1", "U2")
 	if got := reply.GetMessagePosted().GetInThread(); got != "ROOT" {
 		t.Errorf("reply in_thread = %q, want ROOT", got)
 	}
@@ -393,8 +396,8 @@ func TestMigrateMessagesToES_ReplayIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
-	if info.State.Msgs != 1 {
-		t.Errorf("EVT msg count after replay = %d, want 1 (idempotent at room level)", info.State.Msgs)
+	if info.State.Msgs != 2 {
+		t.Errorf("EVT msg count after replay = %d, want 2 (idempotent at room level)", info.State.Msgs)
 	}
 }
 
@@ -441,8 +444,8 @@ func TestMigrateMessagesToES_ResumesPartiallyImportedRoom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
-	if info.State.Msgs != 2 {
-		t.Errorf("EVT msg count = %d, want 2 (resumed after M1)", info.State.Msgs)
+	if info.State.Msgs != 3 {
+		t.Errorf("EVT msg count = %d, want 3 (resumed after M1)", info.State.Msgs)
 	}
 }
 
@@ -540,8 +543,8 @@ func TestMigrateMessagesToES_MultipleRoomsIsolated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
-	if info.State.Msgs != 2 {
-		t.Fatalf("EVT count = %d, want 2", info.State.Msgs)
+	if info.State.Msgs != 4 {
+		t.Fatalf("EVT count = %d, want 4", info.State.Msgs)
 	}
 
 	r1, err := rig.evtStream.GetLastMsgForSubject(rig.ctx, "evt.room.R1.message_posted")
@@ -561,10 +564,33 @@ func TestMigrateMessagesToES_MultipleRoomsIsolated(t *testing.T) {
 // Assertion helpers
 // =============================================================================
 
-// checkImportedMessage asserts that an event is a MessagePostedEvent
-// with the given envelope ID and embedded body matching the expected
-// ciphertext.
-func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor, wantCiphertext string) {
+func checkImportedBodyEvent(t *testing.T, ev *corev1.Event, wantEventID, wantMessageID, wantActor, wantCiphertext string) {
+	t.Helper()
+	if ev.GetId() != wantEventID {
+		t.Errorf("envelope id = %q, want %q", ev.GetId(), wantEventID)
+	}
+	if ev.GetActorId() != wantActor {
+		t.Errorf("actor id = %q, want %q", ev.GetActorId(), wantActor)
+	}
+	bodyEvent := ev.GetMessageBody()
+	if bodyEvent == nil {
+		t.Fatal("expected MessageBodyEvent payload")
+	}
+	if got := bodyEvent.GetEventId(); got != wantMessageID {
+		t.Errorf("body target event_id = %q, want %q", got, wantMessageID)
+	}
+	body := bodyEvent.GetBody()
+	if body == nil {
+		t.Fatal("expected body on imported body event event")
+	}
+	if got := string(body.GetEncryptedBody()); got != wantCiphertext {
+		t.Errorf("body ciphertext = %q, want %q", got, wantCiphertext)
+	}
+}
+
+// checkImportedMessage asserts that an event is a bodyless MessagePostedEvent
+// with the given envelope ID.
+func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor string) {
 	t.Helper()
 	if ev.GetId() != wantEventID {
 		t.Errorf("envelope id = %q, want %q", ev.GetId(), wantEventID)
@@ -576,12 +602,8 @@ func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor
 	if posted == nil {
 		t.Fatal("expected MessagePostedEvent payload")
 	}
-	body := posted.GetBody()
-	if body == nil {
-		t.Fatal("expected embedded body on imported event")
-	}
-	if got := string(body.GetEncryptedBody()); got != wantCiphertext {
-		t.Errorf("body ciphertext = %q, want %q", got, wantCiphertext)
+	if posted.GetBody() != nil {
+		t.Fatal("expected imported MessagePostedEvent to be bodyless")
 	}
 }
 

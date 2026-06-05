@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -84,6 +85,39 @@ func editedEvent(envID, targetID, roomID, actorID, newBody string, at int) *core
 					AuthorId:      actorID,
 					EncryptedBody: []byte(newBody),
 				},
+			},
+		},
+	}
+}
+
+func bodyEvent(envID, targetID, roomID, actorID, body string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   actorID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_MessageBody{
+			MessageBody: &corev1.MessageBodyEvent{
+				RoomId:  roomID,
+				EventId: targetID,
+				Body: &corev1.MessageBody{
+					AuthorId:          actorID,
+					BodyEventId:       envID,
+					EncryptionVersion: encryption.EnvelopeVersionV3,
+					EncryptedBody:     []byte(body),
+				},
+			},
+		},
+	}
+}
+
+func bodylessPostedEvent(envID, roomID, actorID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   actorID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId: roomID,
 			},
 		},
 	}
@@ -278,6 +312,75 @@ func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
 	// Unknown.
 	if _, ok := p.Get("nope"); ok {
 		t.Error("Get(nope) should be ok=false")
+	}
+}
+
+func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
+	p := NewRoomTimelineProjection()
+
+	if err := p.Apply(bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1), 1); err != nil {
+		t.Fatalf("Apply body event before post: %v", err)
+	}
+	if body, retracted, ok := p.LatestBody("ENV-M1"); ok || retracted || body != nil {
+		t.Fatalf("LatestBody before post = (%v, %v, %v), want not found", body, retracted, ok)
+	}
+
+	if err := p.Apply(bodylessPostedEvent("ENV-M1", "R1", "U1", 2), 2); err != nil {
+		t.Fatalf("Apply post: %v", err)
+	}
+	if got := p.RoomEventCount("R1"); got != 1 {
+		t.Fatalf("RoomEventCount = %d, want 1 (body event stays private)", got)
+	}
+	if _, ok := p.Get("ENV-BODY-1"); ok {
+		t.Fatal("private body event should not be returned by Get")
+	}
+	body, retracted, ok := p.LatestBody("ENV-M1")
+	if !ok || retracted || body == nil || string(body.GetEncryptedBody()) != "one" {
+		t.Fatalf("LatestBody after post = (%+v, %v, %v), want body one", body, retracted, ok)
+	}
+	seqs, current, ok := p.BodyEventSeqs("ENV-M1")
+	if !ok || current != 1 || len(seqs) != 1 || seqs[0] != 1 {
+		t.Fatalf("BodyEventSeqs = (%v, %d, %v), want ([1], 1, true)", seqs, current, ok)
+	}
+
+	if err := p.Apply(bodyEvent("ENV-BODY-2", "ENV-M1", "R1", "U1", "two", 3), 3); err != nil {
+		t.Fatalf("Apply replacement body event: %v", err)
+	}
+	body, retracted, ok = p.LatestBody("ENV-M1")
+	if !ok || retracted || body == nil || string(body.GetEncryptedBody()) != "two" {
+		t.Fatalf("LatestBody after replacement = (%+v, %v, %v), want body two", body, retracted, ok)
+	}
+	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1}) {
+		t.Fatalf("ObsoleteBodyEventSeqs active = %v, want [1]", got)
+	}
+	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1}) {
+		t.Fatalf("AllObsoleteBodyEventSeqs active = %v, want [1]", got)
+	}
+
+	if err := p.Apply(retractedEvent("ENV-RETRACT-M1", "ENV-M1", "R1", "U1", "", 4), 4); err != nil {
+		t.Fatalf("Apply retraction: %v", err)
+	}
+	if _, retracted, ok := p.LatestBody("ENV-M1"); !ok || !retracted {
+		t.Fatalf("LatestBody after retraction ok=%v retracted=%v, want retracted", ok, retracted)
+	}
+	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
+		t.Fatalf("ObsoleteBodyEventSeqs retracted = %v, want [1 3]", got)
+	}
+}
+
+func TestRoomTimeline_RejectsMismatchedMessageBodyEventID(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	bad := bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1)
+	bad.GetMessageBody().Body.BodyEventId = "OTHER-BODY"
+	applyAll(t, p, []*corev1.Event{
+		bad,
+		bodylessPostedEvent("ENV-M1", "R1", "U1", 2),
+	})
+	if body, retracted, ok := p.LatestBody("ENV-M1"); !ok || retracted || body != nil {
+		t.Fatalf("LatestBody after mismatched body event = (%+v, %v, %v), want no body", body, retracted, ok)
+	}
+	if seqs, current, ok := p.BodyEventSeqs("ENV-M1"); !ok || current != 0 || len(seqs) != 0 {
+		t.Fatalf("BodyEventSeqs after mismatched body event = (%v, %d, %v), want empty current", seqs, current, ok)
 	}
 }
 
