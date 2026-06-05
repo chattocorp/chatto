@@ -775,8 +775,9 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 **@Mentions:**
 
 - `@username` patterns in message body are extracted via regex (ASCII alphanumeric, underscore, hyphen)
-- Usernames are resolved to user IDs; only space members are included (non-members silently ignored)
+- Usernames are resolved to user IDs; only server members are included (non-members silently ignored)
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
+- Mention resolution is post-time only; later `MessageEditedEvent` facts update body content but do not add, remove, dismiss, or re-send mention notifications
 - Pending mention state is a notification record in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`); sidebar orange dots derive from pending notifications, not a separate mention flag.
 - Live notification published to `live.sync.user.{userId}.mentioned` for toast display
 - Mention notifications are dismissed when the user views the relevant room or thread, or explicitly dismisses them from the notification center.

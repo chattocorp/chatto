@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-05-27
+**Last reviewed:** 2026-06-05
 
 ## Overview
 
@@ -16,6 +16,7 @@ Users can mention each other in messages with `@username` syntax. A mention noti
 - Mentions inside code blocks, pre-formatted text, and blockquotes are not styled — they render as plain text.
 - Mentioning yourself does not produce a notification.
 - Mentioning a user who isn't a member of the server leaves the `@name` as plain text — the mention is not delivered.
+- Mentions are resolved when a message is first posted. Editing a message later does not add, remove, dismiss, or re-send mention notifications.
 
 ## Design Decisions
 
@@ -31,19 +32,25 @@ Users can mention each other in messages with `@username` syntax. A mention noti
 **Why:** Broadcast mentions are a common source of noise and abuse in chat apps. Without them, the cost of mentioning is bounded.
 **Tradeoff:** Operators who want a "shout into the room" mechanism have to use room-wide notifications (see FDR-012, `ALL_MESSAGES` notification level) — which is opt-in per user per room and lower-stakes.
 
-### 3. Echo events carry mentions but don't re-notify
+### 3. Mentions are post-time facts
+
+**Decision:** Mention delivery is decided when the message is posted. Later edits may change the visible message body, but they do not re-resolve mentions or change who was notified by the original post.
+**Why:** A mention notification is an attention event that already happened. Re-resolving mentions on edit would allow quiet retroactive pings, would make notifications depend on mutable usernames and edited body text, and would complicate replay now that message bodies are private payload facts.
+**Tradeoff:** An author who forgot to mention someone must send a new message rather than editing the old one to ping them. Removing an `@name` from the edited body also does not revoke an already-created notification.
+
+### 4. Echo events carry mentions but don't re-notify
 
 **Decision:** When a thread reply is echoed to the channel, `mentionedUserIds` is copied to the echo. The echo doesn't fire a second notification — the original reply already did.
 **Why:** The echo's mention rendering (highlight, link to profile) needs the field present, but the user shouldn't get notified twice. See FDR-003.
 **Tradeoff:** The frontend has to know that echo mentions don't trigger room-level mention indicators twice. The backend skips the notification on echo events.
 
-### 4. Mute trumps mention
+### 5. Mute trumps mention
 
 **Decision:** If the recipient has muted the room, the mention is rendered but does not produce a notification.
 **Why:** Mute is the user's strongest signal that they don't want pings from this room. Honoring it for everything except mentions would create surprise notifications.
 **Tradeoff:** Users in muted rooms might miss directed pings. The mute affordance is loud enough that this is a reasonable default; users who want differently shouldn't mute.
 
-### 5. Mention attention state is a notification
+### 6. Mention attention state is a notification
 
 **Decision:** A delivered mention creates a pending notification. Sidebar mention dots derive from pending notifications, not from a separate room-level mention-status key.
 **Why:** Mention attention state has the same lifecycle as other notifications: it is pending until the user views or dismisses it, syncs across devices, and expires with notification retention. Keeping it in the notification model avoids duplicated state.
