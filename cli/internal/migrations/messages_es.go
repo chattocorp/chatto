@@ -63,15 +63,14 @@ type migratedMessageEntry struct {
 //
 // # Idempotency and crash-safety
 //
-// Per-room: migrated message events are emitted in bounded atomic chunks.
-// Fresh thread imports include ThreadCreatedEvent immediately before the first
-// reply. Each chunk's first entry carries OCC against
-// `evt.room.{R}.message_posted` (directly or via a filter when the chunk starts
-// with `thread_created`); subsequent entries in the same chunk do not carry
-// dependent OCC because JetStream evaluates every batch entry against the
-// committed pre-batch state. On re-run, the importer reads existing message IDs
-// for the subject, verifies they match the legacy prefix, and resumes at the
-// first missing message.
+// Per-room: the importer treats `message_posted` as the commit point. Optional
+// `thread_created` and `message_body` side events are published before the
+// bodyless `message_posted` event for each legacy message, preserving the
+// body-before-event consistency rule from ADR-011 without relying on large
+// atomic batches. On re-run, the importer reads existing message IDs for the
+// subject, verifies they match the legacy prefix, and resumes at the first
+// missing message. Side events use deterministic event IDs and are skipped if a
+// previous boot already emitted them before crashing.
 //
 // # When this can be removed
 //
@@ -364,41 +363,87 @@ func publishMessageMigrationRoom(
 		return 0, len(entries), nil
 	}
 
+	agg := events.RoomAggregate(roomID)
+	threadCreatedSubject := agg.Subject(events.EventThreadCreated)
+	bodySubject := agg.Subject(events.EventMessageBody)
+	existingThreadIDs, threadExpectedSeq, err := publisher.SubjectEventIDs(ctx, threadCreatedSubject)
+	if err != nil {
+		return 0, 0, fmt.Errorf("read existing thread-created events: %w", err)
+	}
+	existingBodyIDs, bodyExpectedSeq, err := publisher.SubjectEventIDs(ctx, bodySubject)
+	if err != nil {
+		return 0, 0, fmt.Errorf("read existing message-body events: %w", err)
+	}
+	seenThreadIDs := stringSet(existingThreadIDs)
+	seenBodyIDs := stringSet(existingBodyIDs)
+
 	pending := entries[len(existingIDs):]
-	for start := 0; start < len(pending); start += messageMigrationBatchSize {
-		end := start + messageMigrationBatchSize
-		if end > len(pending) {
-			end = len(pending)
+	for _, entry := range pending {
+		if entry.threadCreated != nil {
+			threadExpectedSeq, err = appendMigrationSideEventIfMissing(ctx, publisher, *entry.threadCreated, threadExpectedSeq, seenThreadIDs)
+			if err != nil {
+				return imported, skipped, fmt.Errorf("append migrated thread event for message %s: %w", entry.message.Event.GetId(), err)
+			}
+		}
+		if entry.bodyEvent != nil {
+			bodyExpectedSeq, err = appendMigrationSideEventIfMissing(ctx, publisher, *entry.bodyEvent, bodyExpectedSeq, seenBodyIDs)
+			if err != nil {
+				return imported, skipped, fmt.Errorf("append migrated body event for message %s: %w", entry.message.Event.GetId(), err)
+			}
 		}
 
-		chunkMessages := pending[start:end]
-		chunk := make([]events.BatchEntry, 0, len(chunkMessages)*2)
-		for _, entry := range chunkMessages {
-			if entry.threadCreated != nil {
-				chunk = append(chunk, *entry.threadCreated)
-			}
-			if entry.bodyEvent != nil {
-				chunk = append(chunk, *entry.bodyEvent)
-			}
-			chunk = append(chunk, entry.message)
-		}
-		chunk[0].HasOCC = true
-		chunk[0].ExpectedSeq = expectedSeq
-		if chunk[0].Subject != subject {
-			chunk[0].FilterSubject = subject
-		}
-
-		seqs, err := publisher.AppendBatch(ctx, chunk)
+		seq, err := publisher.AppendAt(ctx, entry.message.Subject, entry.message.Event, expectedSeq)
 		if err != nil {
 			if errors.Is(err, events.ErrConflict) {
-				return imported, skipped, fmt.Errorf("message chunk OCC conflict after resume point %d: %w", len(existingIDs)+imported, err)
+				return imported, skipped, fmt.Errorf("message event OCC conflict after resume point %d: %w", len(existingIDs)+imported, err)
 			}
 			return imported, skipped, err
 		}
-		expectedSeq = seqs[len(seqs)-1]
-		imported += len(chunkMessages)
+		expectedSeq = seq
+		imported++
 	}
 	return imported, len(existingIDs), nil
+}
+
+func appendMigrationSideEventIfMissing(
+	ctx context.Context,
+	publisher *events.Publisher,
+	entry events.BatchEntry,
+	expectedSeq uint64,
+	seenIDs map[string]struct{},
+) (uint64, error) {
+	eventID := entry.Event.GetId()
+	if _, seen := seenIDs[eventID]; seen {
+		return expectedSeq, nil
+	}
+	seq, err := publisher.AppendAt(ctx, entry.Subject, entry.Event, expectedSeq)
+	if err == nil {
+		seenIDs[eventID] = struct{}{}
+		return seq, nil
+	}
+	if !errors.Is(err, events.ErrConflict) {
+		return expectedSeq, err
+	}
+
+	ids, lastSeq, readErr := publisher.SubjectEventIDs(ctx, entry.Subject)
+	if readErr != nil {
+		return expectedSeq, fmt.Errorf("refresh side event subject after OCC conflict: %w", readErr)
+	}
+	for _, id := range ids {
+		seenIDs[id] = struct{}{}
+	}
+	if _, seen := seenIDs[eventID]; seen {
+		return lastSeq, nil
+	}
+	return expectedSeq, err
+}
+
+func stringSet(values []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		out[value] = struct{}{}
+	}
+	return out
 }
 
 func migratedThreadCreatedEventID(roomID, threadRootEventID string) string {
