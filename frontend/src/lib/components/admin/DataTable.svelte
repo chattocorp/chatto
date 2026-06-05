@@ -38,7 +38,7 @@
   const keyFn = $derived(getKey ?? defaultGetKey);
 </script>
 
-<table class="w-full">
+<table class="w-full [&_thead_th]:whitespace-nowrap">
   <thead>
     <tr class="panel-header text-left text-sm text-muted">
       {@render header()}

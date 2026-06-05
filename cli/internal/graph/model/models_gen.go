@@ -493,6 +493,84 @@ type MoveRoomToSetInput struct {
 type Mutation struct {
 }
 
+// Basic state for one JetStream consumer.
+type NatsConsumerInfo struct {
+	// Stream this consumer belongs to.
+	Stream string `json:"stream"`
+	// Consumer name.
+	Name string `json:"name"`
+	// Durable name, empty for ephemeral consumers.
+	Durable string `json:"durable"`
+	// Single filter subject, if configured.
+	FilterSubject string `json:"filterSubject"`
+	// Multiple filter subjects, if configured.
+	FilterSubjects []string `json:"filterSubjects"`
+	// Ack policy, e.g. Explicit, All, or None.
+	AckPolicy string `json:"ackPolicy"`
+	// True for pull consumers; false for push consumers.
+	PullBased bool `json:"pullBased"`
+	// Whether a push consumer currently has an active subscription.
+	PushBound bool `json:"pushBound"`
+	// Messages matching the consumer that have not yet been delivered.
+	Pending int `json:"pending"`
+	// Delivered messages awaiting acknowledgement.
+	AckPending int32 `json:"ackPending"`
+	// Messages redelivered and still unacknowledged.
+	Redelivered int32 `json:"redelivered"`
+	// Active pull requests waiting for messages.
+	Waiting int32 `json:"waiting"`
+	// Most recently delivered consumer sequence.
+	DeliveredConsumerSequence string `json:"deliveredConsumerSequence"`
+	// Most recently delivered stream sequence.
+	DeliveredStreamSequence string `json:"deliveredStreamSequence"`
+	// Ack floor consumer sequence.
+	AckFloorConsumerSequence string `json:"ackFloorConsumerSequence"`
+	// Ack floor stream sequence.
+	AckFloorStreamSequence string `json:"ackFloorStreamSequence"`
+}
+
+// Current JetStream stream and consumer diagnostics.
+type NatsStats struct {
+	// Streams in the JetStream account.
+	Streams []*NatsStreamInfo `json:"streams"`
+	// Consumers across all streams.
+	Consumers []*NatsConsumerInfo `json:"consumers"`
+	// Total retained messages across listed streams.
+	TotalMessages int `json:"totalMessages"`
+	// Total retained bytes across listed streams.
+	TotalBytes int `json:"totalBytes"`
+	// Total consumer backlog across listed consumers.
+	TotalConsumerPending int `json:"totalConsumerPending"`
+	// Total delivered-but-unacknowledged messages across listed consumers.
+	TotalAckPending int32 `json:"totalAckPending"`
+}
+
+// Basic state for one JetStream stream.
+type NatsStreamInfo struct {
+	// Stream name.
+	Name string `json:"name"`
+	// Optional stream description.
+	Description string `json:"description"`
+	// Configured subject filters.
+	Subjects []string `json:"subjects"`
+	// Storage backend, e.g. File or Memory.
+	Storage string `json:"storage"`
+	// Messages currently retained.
+	Messages int `json:"messages"`
+	// Bytes currently retained.
+	Bytes int `json:"bytes"`
+	// First retained stream sequence.
+	FirstSequence string `json:"firstSequence"`
+	// Last stream sequence.
+	LastSequence string `json:"lastSequence"`
+	// Consumers currently attached to this stream.
+	ConsumerCount int32 `json:"consumerCount"`
+	// Configured replica count.
+	Replicas int32 `json:"replicas"`
+	// Cluster leader when running clustered JetStream, otherwise empty.
+	ClusterLeader string `json:"clusterLeader"`
+}
+
 // The complete explanation for one permission for one user at one scope.
 // Mirrors the algorithm of the permission resolver: the first trace entry
 // is the winning decision; subsequent entries are also-saw context.
@@ -958,12 +1036,14 @@ type StartDMInput struct {
 type Subscription struct {
 }
 
-// Aggregate operational metrics. Intentionally excludes per-stream / per-bucket / per-object-store breakdowns: those leak structural information (room IDs, user IDs, bucket names) without serving an operator use case the chatto CLI doesn't already cover.
+// Aggregate operational metrics.
 type SystemInfo struct {
 	// NATS connection status and server info.
 	Connection *ConnectionInfo `json:"connection"`
 	// JetStream account limits and usage (aggregate totals).
 	Account *AccountInfo `json:"account"`
+	// Current JetStream stream and consumer diagnostics.
+	Nats *NatsStats `json:"nats"`
 	// Deployment-level counts surfaced in the admin dashboard.
 	Stats *ServerStats `json:"stats"`
 }

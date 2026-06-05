@@ -368,9 +368,15 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 		DmRoomCount:      int32(coreStats.DMRoomCount),
 	}
 
+	natsStats, err := r.core.GetJetStreamStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NATS stats: %w", err)
+	}
+
 	systemInfo := &model.SystemInfo{
 		Connection: connection,
 		Account:    account,
+		Nats:       natsStatsToModel(natsStats),
 		Stats:      stats,
 	}
 

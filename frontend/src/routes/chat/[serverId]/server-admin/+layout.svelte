@@ -28,10 +28,9 @@
     const generalBase = resolve('/chat/[serverId]/server-admin/general', params);
     const membersBase = resolve('/chat/[serverId]/server-admin/members', params);
     const roomsBase = adminBase + '/rooms';
-    const rolesBase = adminBase + '/roles';
+    const permissionsBase = adminBase + '/permissions';
     const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
-    const projectionsBase = adminBase + '/projections';
     const eventLogBase = adminBase + '/event-log';
 
     // General settings page requires space.manage permission
@@ -53,8 +52,8 @@
       return () => spacePermissions.current.canManageRooms;
     }
 
-    // Roles pages: space.roles.manage OR instance.admin.view-roles
-    if (pathname.startsWith(rolesBase)) {
+    // Permissions pages: space.roles.manage OR instance.admin.view-roles
+    if (pathname.startsWith(permissionsBase)) {
       return () =>
         spacePermissions.current.canManageRoles ||
         serverPerms.current.canAdminViewRoles;
@@ -67,11 +66,6 @@
 
     // System info (NATS/JetStream stats) — admin.view-system
     if (pathname.startsWith(systemBase)) {
-      return () => serverPerms.current.canAdminViewSystem;
-    }
-
-    // Projection state (runtime ES health) - admin.view-system
-    if (pathname.startsWith(projectionsBase)) {
       return () => serverPerms.current.canAdminViewSystem;
     }
 

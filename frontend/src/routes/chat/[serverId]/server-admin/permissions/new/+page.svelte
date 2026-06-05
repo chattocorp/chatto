@@ -79,7 +79,7 @@
     }
 
     // Navigate to the new role's detail page
-    goto(resolve('/chat/[serverId]/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: name.trim() }));
+    goto(resolve('/chat/[serverId]/server-admin/permissions/[name]', { serverId: serverIdToSegment(getActiveServer()), name: name.trim() }));
   }
 
 </script>
@@ -90,8 +90,8 @@
   <PaneHeader
     title="Create Role"
     subtitle="Create a new role for this space"
-    backHref={resolve('/chat/[serverId]/server-admin/roles', { serverId: serverIdToSegment(getActiveServer()) })}
-    backLabel="Back to roles"
+    backHref={resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverIdToSegment(getActiveServer()) })}
+    backLabel="Back to permissions"
     showMobileNav
   />
 

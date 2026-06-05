@@ -38,7 +38,7 @@
 
   function openRoleDetail(role: { roleName: string }) {
     goto(
-      resolve('/chat/[serverId]/server-admin/roles/[name]', {
+      resolve('/chat/[serverId]/server-admin/permissions/[name]', {
         serverId: serverSegment,
         name: role.roleName
       })
@@ -46,17 +46,17 @@
   }
 </script>
 
-<PageTitle title="Roles | Space Admin" />
+<PageTitle title="Permissions | Space Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Roles" subtitle="Manage space roles and permissions" showMobileNav />
+  <PaneHeader title="Permissions" subtitle="Manage space roles and permissions" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
       <Hint tone="danger">{error}</Hint>
     {:else}
       {#if canManageRoles}
-        <Panel title="Roles">
+        <Panel title="Role Presets">
           <p class="mb-4 text-muted">
             Roles bundle permissions for groups of users — for example a "moderator" role that
             can moderate messages, or a "dev team" role with access to engineering rooms.
@@ -65,7 +65,7 @@
           <Button
             variant="primary"
             size="sm"
-            href={resolve('/chat/[serverId]/server-admin/roles/new', {
+            href={resolve('/chat/[serverId]/server-admin/permissions/new', {
               serverId: serverSegment
             })}
           >

@@ -16,7 +16,7 @@ import (
 // RolePermissionMatrix is the resolver for the rolePermissionMatrix field.
 // Authorization: caller must hold `role.manage` at server scope — the same
 // gate that lets them edit role grants/denials through the existing
-// /server-admin/roles editor.
+// /server-admin/permissions editor.
 func (r *queryResolver) RolePermissionMatrix(ctx context.Context, roleName string) (*model.RolePermissionMatrix, error) {
 	caller, err := requireAuth(ctx)
 	if err != nil {

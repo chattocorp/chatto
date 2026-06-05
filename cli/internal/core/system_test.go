@@ -76,6 +76,38 @@ func TestChattoCore_GetAccountInfo(t *testing.T) {
 	})
 }
 
+func TestChattoCore_GetJetStreamStats(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	stats, err := core.GetJetStreamStats(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stats == nil {
+		t.Fatal("expected non-nil stats")
+	}
+	if len(stats.Streams) == 0 {
+		t.Fatal("expected at least one stream")
+	}
+
+	var foundEVT bool
+	for _, stream := range stats.Streams {
+		if stream.Name == "EVT" {
+			foundEVT = true
+		}
+		if stream.Name == "" {
+			t.Error("stream should expose a name")
+		}
+		if stream.Storage == "" {
+			t.Errorf("stream %q should expose storage", stream.Name)
+		}
+	}
+	if !foundEVT {
+		t.Error("expected EVT stream in stats")
+	}
+}
+
 func TestConnectionInfo_Fields(t *testing.T) {
 	t.Run("ConnectionInfo has all expected fields", func(t *testing.T) {
 		info := ConnectionInfo{

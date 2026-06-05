@@ -370,6 +370,48 @@ type ComplexityRoot struct {
 		UploadServerLogo           func(childComplexity int, input model.UploadServerLogoInput) int
 	}
 
+	NatsConsumerInfo struct {
+		AckFloorConsumerSequence  func(childComplexity int) int
+		AckFloorStreamSequence    func(childComplexity int) int
+		AckPending                func(childComplexity int) int
+		AckPolicy                 func(childComplexity int) int
+		DeliveredConsumerSequence func(childComplexity int) int
+		DeliveredStreamSequence   func(childComplexity int) int
+		Durable                   func(childComplexity int) int
+		FilterSubject             func(childComplexity int) int
+		FilterSubjects            func(childComplexity int) int
+		Name                      func(childComplexity int) int
+		Pending                   func(childComplexity int) int
+		PullBased                 func(childComplexity int) int
+		PushBound                 func(childComplexity int) int
+		Redelivered               func(childComplexity int) int
+		Stream                    func(childComplexity int) int
+		Waiting                   func(childComplexity int) int
+	}
+
+	NatsStats struct {
+		Consumers            func(childComplexity int) int
+		Streams              func(childComplexity int) int
+		TotalAckPending      func(childComplexity int) int
+		TotalBytes           func(childComplexity int) int
+		TotalConsumerPending func(childComplexity int) int
+		TotalMessages        func(childComplexity int) int
+	}
+
+	NatsStreamInfo struct {
+		Bytes         func(childComplexity int) int
+		ClusterLeader func(childComplexity int) int
+		ConsumerCount func(childComplexity int) int
+		Description   func(childComplexity int) int
+		FirstSequence func(childComplexity int) int
+		LastSequence  func(childComplexity int) int
+		Messages      func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Replicas      func(childComplexity int) int
+		Storage       func(childComplexity int) int
+		Subjects      func(childComplexity int) int
+	}
+
 	NewDirectMessageNotificationEvent struct {
 		ConversationName func(childComplexity int) int
 		RoomId           func(childComplexity int) int
@@ -720,6 +762,7 @@ type ComplexityRoot struct {
 	SystemInfo struct {
 		Account    func(childComplexity int) int
 		Connection func(childComplexity int) int
+		Nats       func(childComplexity int) int
 		Stats      func(childComplexity int) int
 	}
 
@@ -2840,6 +2883,207 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.UploadServerLogo(childComplexity, args["input"].(model.UploadServerLogoInput)), true
 
+	case "NatsConsumerInfo.ackFloorConsumerSequence":
+		if e.ComplexityRoot.NatsConsumerInfo.AckFloorConsumerSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.AckFloorConsumerSequence(childComplexity), true
+	case "NatsConsumerInfo.ackFloorStreamSequence":
+		if e.ComplexityRoot.NatsConsumerInfo.AckFloorStreamSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.AckFloorStreamSequence(childComplexity), true
+	case "NatsConsumerInfo.ackPending":
+		if e.ComplexityRoot.NatsConsumerInfo.AckPending == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.AckPending(childComplexity), true
+	case "NatsConsumerInfo.ackPolicy":
+		if e.ComplexityRoot.NatsConsumerInfo.AckPolicy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.AckPolicy(childComplexity), true
+	case "NatsConsumerInfo.deliveredConsumerSequence":
+		if e.ComplexityRoot.NatsConsumerInfo.DeliveredConsumerSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.DeliveredConsumerSequence(childComplexity), true
+	case "NatsConsumerInfo.deliveredStreamSequence":
+		if e.ComplexityRoot.NatsConsumerInfo.DeliveredStreamSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.DeliveredStreamSequence(childComplexity), true
+	case "NatsConsumerInfo.durable":
+		if e.ComplexityRoot.NatsConsumerInfo.Durable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.Durable(childComplexity), true
+	case "NatsConsumerInfo.filterSubject":
+		if e.ComplexityRoot.NatsConsumerInfo.FilterSubject == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.FilterSubject(childComplexity), true
+	case "NatsConsumerInfo.filterSubjects":
+		if e.ComplexityRoot.NatsConsumerInfo.FilterSubjects == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.FilterSubjects(childComplexity), true
+	case "NatsConsumerInfo.name":
+		if e.ComplexityRoot.NatsConsumerInfo.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.Name(childComplexity), true
+	case "NatsConsumerInfo.pending":
+		if e.ComplexityRoot.NatsConsumerInfo.Pending == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.Pending(childComplexity), true
+	case "NatsConsumerInfo.pullBased":
+		if e.ComplexityRoot.NatsConsumerInfo.PullBased == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.PullBased(childComplexity), true
+	case "NatsConsumerInfo.pushBound":
+		if e.ComplexityRoot.NatsConsumerInfo.PushBound == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.PushBound(childComplexity), true
+	case "NatsConsumerInfo.redelivered":
+		if e.ComplexityRoot.NatsConsumerInfo.Redelivered == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.Redelivered(childComplexity), true
+	case "NatsConsumerInfo.stream":
+		if e.ComplexityRoot.NatsConsumerInfo.Stream == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.Stream(childComplexity), true
+	case "NatsConsumerInfo.waiting":
+		if e.ComplexityRoot.NatsConsumerInfo.Waiting == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsConsumerInfo.Waiting(childComplexity), true
+
+	case "NatsStats.consumers":
+		if e.ComplexityRoot.NatsStats.Consumers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStats.Consumers(childComplexity), true
+	case "NatsStats.streams":
+		if e.ComplexityRoot.NatsStats.Streams == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStats.Streams(childComplexity), true
+	case "NatsStats.totalAckPending":
+		if e.ComplexityRoot.NatsStats.TotalAckPending == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStats.TotalAckPending(childComplexity), true
+	case "NatsStats.totalBytes":
+		if e.ComplexityRoot.NatsStats.TotalBytes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStats.TotalBytes(childComplexity), true
+	case "NatsStats.totalConsumerPending":
+		if e.ComplexityRoot.NatsStats.TotalConsumerPending == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStats.TotalConsumerPending(childComplexity), true
+	case "NatsStats.totalMessages":
+		if e.ComplexityRoot.NatsStats.TotalMessages == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStats.TotalMessages(childComplexity), true
+
+	case "NatsStreamInfo.bytes":
+		if e.ComplexityRoot.NatsStreamInfo.Bytes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Bytes(childComplexity), true
+	case "NatsStreamInfo.clusterLeader":
+		if e.ComplexityRoot.NatsStreamInfo.ClusterLeader == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.ClusterLeader(childComplexity), true
+	case "NatsStreamInfo.consumerCount":
+		if e.ComplexityRoot.NatsStreamInfo.ConsumerCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.ConsumerCount(childComplexity), true
+	case "NatsStreamInfo.description":
+		if e.ComplexityRoot.NatsStreamInfo.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Description(childComplexity), true
+	case "NatsStreamInfo.firstSequence":
+		if e.ComplexityRoot.NatsStreamInfo.FirstSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.FirstSequence(childComplexity), true
+	case "NatsStreamInfo.lastSequence":
+		if e.ComplexityRoot.NatsStreamInfo.LastSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.LastSequence(childComplexity), true
+	case "NatsStreamInfo.messages":
+		if e.ComplexityRoot.NatsStreamInfo.Messages == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Messages(childComplexity), true
+	case "NatsStreamInfo.name":
+		if e.ComplexityRoot.NatsStreamInfo.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Name(childComplexity), true
+	case "NatsStreamInfo.replicas":
+		if e.ComplexityRoot.NatsStreamInfo.Replicas == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Replicas(childComplexity), true
+	case "NatsStreamInfo.storage":
+		if e.ComplexityRoot.NatsStreamInfo.Storage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Storage(childComplexity), true
+	case "NatsStreamInfo.subjects":
+		if e.ComplexityRoot.NatsStreamInfo.Subjects == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NatsStreamInfo.Subjects(childComplexity), true
+
 	case "NewDirectMessageNotificationEvent.conversationName":
 		if e.ComplexityRoot.NewDirectMessageNotificationEvent.ConversationName == nil {
 			break
@@ -4314,6 +4558,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SystemInfo.Connection(childComplexity), true
+	case "SystemInfo.nats":
+		if e.ComplexityRoot.SystemInfo.Nats == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SystemInfo.Nats(childComplexity), true
 	case "SystemInfo.stats":
 		if e.ComplexityRoot.SystemInfo.Stats == nil {
 			break
@@ -5354,6 +5604,90 @@ func (ec *executionContext) childFields_MarkThreadAsReadResult(ctx context.Conte
 	return nil, fmt.Errorf("no field named %q was found under type MarkThreadAsReadResult", field.Name)
 }
 
+func (ec *executionContext) childFields_NatsConsumerInfo(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "stream":
+		return ec.fieldContext_NatsConsumerInfo_stream(ctx, field)
+	case "name":
+		return ec.fieldContext_NatsConsumerInfo_name(ctx, field)
+	case "durable":
+		return ec.fieldContext_NatsConsumerInfo_durable(ctx, field)
+	case "filterSubject":
+		return ec.fieldContext_NatsConsumerInfo_filterSubject(ctx, field)
+	case "filterSubjects":
+		return ec.fieldContext_NatsConsumerInfo_filterSubjects(ctx, field)
+	case "ackPolicy":
+		return ec.fieldContext_NatsConsumerInfo_ackPolicy(ctx, field)
+	case "pullBased":
+		return ec.fieldContext_NatsConsumerInfo_pullBased(ctx, field)
+	case "pushBound":
+		return ec.fieldContext_NatsConsumerInfo_pushBound(ctx, field)
+	case "pending":
+		return ec.fieldContext_NatsConsumerInfo_pending(ctx, field)
+	case "ackPending":
+		return ec.fieldContext_NatsConsumerInfo_ackPending(ctx, field)
+	case "redelivered":
+		return ec.fieldContext_NatsConsumerInfo_redelivered(ctx, field)
+	case "waiting":
+		return ec.fieldContext_NatsConsumerInfo_waiting(ctx, field)
+	case "deliveredConsumerSequence":
+		return ec.fieldContext_NatsConsumerInfo_deliveredConsumerSequence(ctx, field)
+	case "deliveredStreamSequence":
+		return ec.fieldContext_NatsConsumerInfo_deliveredStreamSequence(ctx, field)
+	case "ackFloorConsumerSequence":
+		return ec.fieldContext_NatsConsumerInfo_ackFloorConsumerSequence(ctx, field)
+	case "ackFloorStreamSequence":
+		return ec.fieldContext_NatsConsumerInfo_ackFloorStreamSequence(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type NatsConsumerInfo", field.Name)
+}
+
+func (ec *executionContext) childFields_NatsStats(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "streams":
+		return ec.fieldContext_NatsStats_streams(ctx, field)
+	case "consumers":
+		return ec.fieldContext_NatsStats_consumers(ctx, field)
+	case "totalMessages":
+		return ec.fieldContext_NatsStats_totalMessages(ctx, field)
+	case "totalBytes":
+		return ec.fieldContext_NatsStats_totalBytes(ctx, field)
+	case "totalConsumerPending":
+		return ec.fieldContext_NatsStats_totalConsumerPending(ctx, field)
+	case "totalAckPending":
+		return ec.fieldContext_NatsStats_totalAckPending(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type NatsStats", field.Name)
+}
+
+func (ec *executionContext) childFields_NatsStreamInfo(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "name":
+		return ec.fieldContext_NatsStreamInfo_name(ctx, field)
+	case "description":
+		return ec.fieldContext_NatsStreamInfo_description(ctx, field)
+	case "subjects":
+		return ec.fieldContext_NatsStreamInfo_subjects(ctx, field)
+	case "storage":
+		return ec.fieldContext_NatsStreamInfo_storage(ctx, field)
+	case "messages":
+		return ec.fieldContext_NatsStreamInfo_messages(ctx, field)
+	case "bytes":
+		return ec.fieldContext_NatsStreamInfo_bytes(ctx, field)
+	case "firstSequence":
+		return ec.fieldContext_NatsStreamInfo_firstSequence(ctx, field)
+	case "lastSequence":
+		return ec.fieldContext_NatsStreamInfo_lastSequence(ctx, field)
+	case "consumerCount":
+		return ec.fieldContext_NatsStreamInfo_consumerCount(ctx, field)
+	case "replicas":
+		return ec.fieldContext_NatsStreamInfo_replicas(ctx, field)
+	case "clusterLeader":
+		return ec.fieldContext_NatsStreamInfo_clusterLeader(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type NatsStreamInfo", field.Name)
+}
+
 func (ec *executionContext) childFields_PermissionExplanation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "permission":
@@ -5776,6 +6110,8 @@ func (ec *executionContext) childFields_SystemInfo(ctx context.Context, field gr
 		return ec.fieldContext_SystemInfo_connection(ctx, field)
 	case "account":
 		return ec.fieldContext_SystemInfo_account(ctx, field)
+	case "nats":
+		return ec.fieldContext_SystemInfo_nats(ctx, field)
 	case "stats":
 		return ec.fieldContext_SystemInfo_stats(ctx, field)
 	}
@@ -14201,6 +14537,783 @@ func (ec *executionContext) fieldContext_Mutation_updateSettings(ctx context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _NatsConsumerInfo_stream(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_stream(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Stream, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_stream(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_durable(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_durable(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Durable, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_durable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_filterSubject(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_filterSubject(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FilterSubject, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_filterSubject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_filterSubjects(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_filterSubjects(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FilterSubjects, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_filterSubjects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_ackPolicy(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_ackPolicy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AckPolicy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_ackPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_pullBased(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_pullBased(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PullBased, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_pullBased(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_pushBound(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_pushBound(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PushBound, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_pushBound(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_pending(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_pending(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Pending, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt642int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_pending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_ackPending(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_ackPending(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AckPending, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_ackPending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_redelivered(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_redelivered(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Redelivered, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_redelivered(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_waiting(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_waiting(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Waiting, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_waiting(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_deliveredConsumerSequence(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_deliveredConsumerSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DeliveredConsumerSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_deliveredConsumerSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_deliveredStreamSequence(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_deliveredStreamSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DeliveredStreamSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_deliveredStreamSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_ackFloorConsumerSequence(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_ackFloorConsumerSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AckFloorConsumerSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_ackFloorConsumerSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsConsumerInfo_ackFloorStreamSequence(ctx context.Context, field graphql.CollectedField, obj *model.NatsConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsConsumerInfo_ackFloorStreamSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AckFloorStreamSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsConsumerInfo_ackFloorStreamSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsConsumerInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStats_streams(ctx context.Context, field graphql.CollectedField, obj *model.NatsStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStats_streams(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Streams, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.NatsStreamInfo) graphql.Marshaler {
+			return ec.marshalNNatsStreamInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsStreamInfoᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStats_streams(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NatsStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_NatsStreamInfo(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NatsStats_consumers(ctx context.Context, field graphql.CollectedField, obj *model.NatsStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStats_consumers(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Consumers, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.NatsConsumerInfo) graphql.Marshaler {
+			return ec.marshalNNatsConsumerInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsConsumerInfoᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStats_consumers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NatsStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_NatsConsumerInfo(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NatsStats_totalMessages(ctx context.Context, field graphql.CollectedField, obj *model.NatsStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStats_totalMessages(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalMessages, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt642int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStats_totalMessages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStats", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStats_totalBytes(ctx context.Context, field graphql.CollectedField, obj *model.NatsStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStats_totalBytes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalBytes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt642int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStats_totalBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStats", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStats_totalConsumerPending(ctx context.Context, field graphql.CollectedField, obj *model.NatsStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStats_totalConsumerPending(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalConsumerPending, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt642int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStats_totalConsumerPending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStats", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStats_totalAckPending(ctx context.Context, field graphql.CollectedField, obj *model.NatsStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStats_totalAckPending(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalAckPending, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStats_totalAckPending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStats", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_description(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_description(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_subjects(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_subjects(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Subjects, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_subjects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_storage(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_storage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Storage, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_storage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_messages(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_messages(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Messages, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt642int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_bytes(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_bytes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Bytes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt642int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_bytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_firstSequence(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_firstSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FirstSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_firstSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_lastSequence(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_lastSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_lastSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_consumerCount(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_consumerCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConsumerCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_consumerCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_replicas(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_replicas(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Replicas, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NatsStreamInfo_clusterLeader(ctx context.Context, field graphql.CollectedField, obj *model.NatsStreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NatsStreamInfo_clusterLeader(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ClusterLeader, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NatsStreamInfo_clusterLeader(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NatsStreamInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _NewDirectMessageNotificationEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.NewDirectMessageNotificationEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -20082,6 +21195,38 @@ func (ec *executionContext) fieldContext_SystemInfo_account(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_AccountInfo(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SystemInfo_nats(ctx context.Context, field graphql.CollectedField, obj *model.SystemInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SystemInfo_nats(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Nats, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.NatsStats) graphql.Marshaler {
+			return ec.marshalNNatsStats2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsStats(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SystemInfo_nats(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SystemInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_NatsStats(ctx, field)
 		},
 	}
 	return fc, nil
@@ -29980,6 +31125,273 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
+var natsConsumerInfoImplementors = []string{"NatsConsumerInfo"}
+
+func (ec *executionContext) _NatsConsumerInfo(ctx context.Context, sel ast.SelectionSet, obj *model.NatsConsumerInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, natsConsumerInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NatsConsumerInfo")
+		case "stream":
+			out.Values[i] = ec._NatsConsumerInfo_stream(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._NatsConsumerInfo_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durable":
+			out.Values[i] = ec._NatsConsumerInfo_durable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "filterSubject":
+			out.Values[i] = ec._NatsConsumerInfo_filterSubject(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "filterSubjects":
+			out.Values[i] = ec._NatsConsumerInfo_filterSubjects(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ackPolicy":
+			out.Values[i] = ec._NatsConsumerInfo_ackPolicy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pullBased":
+			out.Values[i] = ec._NatsConsumerInfo_pullBased(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pushBound":
+			out.Values[i] = ec._NatsConsumerInfo_pushBound(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pending":
+			out.Values[i] = ec._NatsConsumerInfo_pending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ackPending":
+			out.Values[i] = ec._NatsConsumerInfo_ackPending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "redelivered":
+			out.Values[i] = ec._NatsConsumerInfo_redelivered(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "waiting":
+			out.Values[i] = ec._NatsConsumerInfo_waiting(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deliveredConsumerSequence":
+			out.Values[i] = ec._NatsConsumerInfo_deliveredConsumerSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deliveredStreamSequence":
+			out.Values[i] = ec._NatsConsumerInfo_deliveredStreamSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ackFloorConsumerSequence":
+			out.Values[i] = ec._NatsConsumerInfo_ackFloorConsumerSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ackFloorStreamSequence":
+			out.Values[i] = ec._NatsConsumerInfo_ackFloorStreamSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var natsStatsImplementors = []string{"NatsStats"}
+
+func (ec *executionContext) _NatsStats(ctx context.Context, sel ast.SelectionSet, obj *model.NatsStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, natsStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NatsStats")
+		case "streams":
+			out.Values[i] = ec._NatsStats_streams(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumers":
+			out.Values[i] = ec._NatsStats_consumers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalMessages":
+			out.Values[i] = ec._NatsStats_totalMessages(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalBytes":
+			out.Values[i] = ec._NatsStats_totalBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalConsumerPending":
+			out.Values[i] = ec._NatsStats_totalConsumerPending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalAckPending":
+			out.Values[i] = ec._NatsStats_totalAckPending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var natsStreamInfoImplementors = []string{"NatsStreamInfo"}
+
+func (ec *executionContext) _NatsStreamInfo(ctx context.Context, sel ast.SelectionSet, obj *model.NatsStreamInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, natsStreamInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NatsStreamInfo")
+		case "name":
+			out.Values[i] = ec._NatsStreamInfo_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._NatsStreamInfo_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subjects":
+			out.Values[i] = ec._NatsStreamInfo_subjects(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "storage":
+			out.Values[i] = ec._NatsStreamInfo_storage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "messages":
+			out.Values[i] = ec._NatsStreamInfo_messages(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bytes":
+			out.Values[i] = ec._NatsStreamInfo_bytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstSequence":
+			out.Values[i] = ec._NatsStreamInfo_firstSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastSequence":
+			out.Values[i] = ec._NatsStreamInfo_lastSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumerCount":
+			out.Values[i] = ec._NatsStreamInfo_consumerCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replicas":
+			out.Values[i] = ec._NatsStreamInfo_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "clusterLeader":
+			out.Values[i] = ec._NatsStreamInfo_clusterLeader(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var newDirectMessageNotificationEventImplementors = []string{"NewDirectMessageNotificationEvent", "EventType"}
 
 func (ec *executionContext) _NewDirectMessageNotificationEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.NewDirectMessageNotificationEvent) graphql.Marshaler {
@@ -34959,6 +36371,11 @@ func (ec *executionContext) _SystemInfo(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "nats":
+			out.Values[i] = ec._SystemInfo_nats(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "stats":
 			out.Values[i] = ec._SystemInfo_stats(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -37816,6 +39233,68 @@ func (ec *executionContext) marshalNMarkThreadAsReadResult2ᚖhmansᚗdeᚋchatt
 func (ec *executionContext) unmarshalNMoveRoomToSetInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMoveRoomToSetInput(ctx context.Context, v any) (model.MoveRoomToSetInput, error) {
 	res, err := ec.unmarshalInputMoveRoomToSetInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNNatsConsumerInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsConsumerInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NatsConsumerInfo) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNatsConsumerInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsConsumerInfo(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNatsConsumerInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsConsumerInfo(ctx context.Context, sel ast.SelectionSet, v *model.NatsConsumerInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NatsConsumerInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNatsStats2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsStats(ctx context.Context, sel ast.SelectionSet, v *model.NatsStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NatsStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNatsStreamInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsStreamInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NatsStreamInfo) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNatsStreamInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsStreamInfo(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNatsStreamInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNatsStreamInfo(ctx context.Context, sel ast.SelectionSet, v *model.NatsStreamInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NatsStreamInfo(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNNotificationItem2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationItem(ctx context.Context, sel ast.SelectionSet, v model.NotificationItem) graphql.Marshaler {

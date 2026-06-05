@@ -45,12 +45,92 @@ type AccountInfo {
   consumersUsed: Int!
 }
 
-"Aggregate operational metrics. Intentionally excludes per-stream / per-bucket / per-object-store breakdowns: those leak structural information (room IDs, user IDs, bucket names) without serving an operator use case the chatto CLI doesn't already cover."
+"Basic state for one JetStream stream."
+type NatsStreamInfo {
+  "Stream name."
+  name: String!
+  "Optional stream description."
+  description: String!
+  "Configured subject filters."
+  subjects: [String!]!
+  "Storage backend, e.g. File or Memory."
+  storage: String!
+  "Messages currently retained."
+  messages: Int64!
+  "Bytes currently retained."
+  bytes: Int64!
+  "First retained stream sequence."
+  firstSequence: String!
+  "Last stream sequence."
+  lastSequence: String!
+  "Consumers currently attached to this stream."
+  consumerCount: Int!
+  "Configured replica count."
+  replicas: Int!
+  "Cluster leader when running clustered JetStream, otherwise empty."
+  clusterLeader: String!
+}
+
+"Basic state for one JetStream consumer."
+type NatsConsumerInfo {
+  "Stream this consumer belongs to."
+  stream: String!
+  "Consumer name."
+  name: String!
+  "Durable name, empty for ephemeral consumers."
+  durable: String!
+  "Single filter subject, if configured."
+  filterSubject: String!
+  "Multiple filter subjects, if configured."
+  filterSubjects: [String!]!
+  "Ack policy, e.g. Explicit, All, or None."
+  ackPolicy: String!
+  "True for pull consumers; false for push consumers."
+  pullBased: Boolean!
+  "Whether a push consumer currently has an active subscription."
+  pushBound: Boolean!
+  "Messages matching the consumer that have not yet been delivered."
+  pending: Int64!
+  "Delivered messages awaiting acknowledgement."
+  ackPending: Int!
+  "Messages redelivered and still unacknowledged."
+  redelivered: Int!
+  "Active pull requests waiting for messages."
+  waiting: Int!
+  "Most recently delivered consumer sequence."
+  deliveredConsumerSequence: String!
+  "Most recently delivered stream sequence."
+  deliveredStreamSequence: String!
+  "Ack floor consumer sequence."
+  ackFloorConsumerSequence: String!
+  "Ack floor stream sequence."
+  ackFloorStreamSequence: String!
+}
+
+"Current JetStream stream and consumer diagnostics."
+type NatsStats {
+  "Streams in the JetStream account."
+  streams: [NatsStreamInfo!]!
+  "Consumers across all streams."
+  consumers: [NatsConsumerInfo!]!
+  "Total retained messages across listed streams."
+  totalMessages: Int64!
+  "Total retained bytes across listed streams."
+  totalBytes: Int64!
+  "Total consumer backlog across listed consumers."
+  totalConsumerPending: Int64!
+  "Total delivered-but-unacknowledged messages across listed consumers."
+  totalAckPending: Int!
+}
+
+"Aggregate operational metrics."
 type SystemInfo {
   "NATS connection status and server info."
   connection: ConnectionInfo!
   "JetStream account limits and usage (aggregate totals)."
   account: AccountInfo!
+  "Current JetStream stream and consumer diagnostics."
+  nats: NatsStats!
   "Deployment-level counts surfaced in the admin dashboard."
   stats: ServerStats!
 }

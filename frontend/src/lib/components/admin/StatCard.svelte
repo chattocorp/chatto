@@ -28,7 +28,7 @@
     <div class="rounded-lg p-3 {colorClasses[color].bg}">
       <span class="{icon} text-2xl {colorClasses[color].text}"></span>
     </div>
-    <div>
+    <div class="min-w-0">
       <div class="text-3xl font-bold">{value}</div>
       <div class="text-sm text-muted">{label}</div>
       {#if subtitle}

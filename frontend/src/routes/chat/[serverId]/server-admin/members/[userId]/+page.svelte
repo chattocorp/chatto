@@ -500,7 +500,7 @@
               </label>
               {#if canManageRoles}
                 <a
-                  href={resolve('/chat/[serverId]/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: role.name })}
+                  href={resolve('/chat/[serverId]/server-admin/permissions/[name]', { serverId: serverIdToSegment(getActiveServer()), name: role.name })}
                   class="link shrink-0 text-sm"
                 >
                   Edit

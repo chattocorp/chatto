@@ -151,13 +151,13 @@
       deleting = false;
       showDeleteConfirm = false;
     } else {
-      // Navigate back to roles list
-      goto(resolve('/chat/[serverId]/server-admin/roles', { serverId: serverSegment }));
+      // Navigate back to permissions list
+      goto(resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }));
     }
   }
 
-  const rolesHref = $derived(
-    resolve('/chat/[serverId]/server-admin/roles', { serverId: serverSegment })
+  const permissionsHref = $derived(
+    resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment })
   );
 
   const metadataChanged = $derived(
@@ -171,8 +171,8 @@
   <PaneHeader
     title="Edit Role"
     subtitle={role?.displayName ?? 'Loading...'}
-    backHref={rolesHref}
-    backLabel="Back to roles"
+    backHref={permissionsHref}
+    backLabel="Back to permissions"
     showMobileNav
   />
 
