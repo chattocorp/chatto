@@ -290,10 +290,19 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		rawBytes += roomBytes
 	}
 
+	var visibleEntries, visibleBytes int64
+	for roomID, roomEntries := range p.visibleByRoom {
+		visibleBytes += projectionMapEntryOverhead + int64(len(roomID))
+		for range roomEntries {
+			visibleEntries++
+			visibleBytes += projectionSliceEntryOverhead
+		}
+	}
 	var eventIndexBytes int64
 	for eventID := range p.byEventID {
 		eventIndexBytes += projectionMapEntryOverhead + int64(len(eventID))
 	}
+	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
 	var latestBodyBytes int64
 	for eventID, body := range p.latestBody {
 		latestBodyBytes += projectionMapEntryOverhead + int64(len(eventID))
@@ -301,10 +310,23 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 			latestBodyBytes += int64(proto.Size(body))
 		}
 	}
+	var bodyEventSeqsBytes, bodyEventSeqs int64
+	for eventID, seqs := range p.bodyEventSeqs {
+		bodyEventSeqsBytes += projectionMapEntryOverhead + int64(len(eventID))
+		for range seqs {
+			bodyEventSeqs++
+			bodyEventSeqsBytes += projectionSliceEntryOverhead + 8
+		}
+	}
+	var currentBodySeqBytes int64
+	for eventID := range p.currentBodySeq {
+		currentBodySeqBytes += projectionMapEntryOverhead + int64(len(eventID)) + 8
+	}
 	var retractedBytes int64
 	for eventID := range p.retractedFlags {
 		retractedBytes += projectionMapEntryOverhead + int64(len(eventID))
 	}
+	hiddenEchoBytes := estimateStringSetBytes(p.hiddenEchoes)
 	var echoBytes, echoLinks int64
 	for eventID, echoes := range p.echoLinks {
 		echoBytes += projectionMapEntryOverhead + int64(len(eventID))
@@ -313,16 +335,65 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 			echoBytes += projectionSliceEntryOverhead + int64(len(echoID))
 		}
 	}
+	var assetCreationBytes int64
+	for assetID, event := range p.assetCreations {
+		assetCreationBytes += projectionMapEntryOverhead + int64(len(assetID))
+		if event != nil {
+			assetCreationBytes += int64(proto.Size(event))
+		}
+	}
+	var assetChildrenBytes, assetChildLinks int64
+	for assetID, children := range p.assetChildren {
+		assetChildrenBytes += projectionMapEntryOverhead + int64(len(assetID))
+		for _, childID := range children {
+			assetChildLinks++
+			assetChildrenBytes += projectionSliceEntryOverhead + int64(len(childID))
+		}
+	}
+	var videoManifestBytes int64
+	for assetID, manifest := range p.videoManifests {
+		videoManifestBytes += projectionMapEntryOverhead + int64(len(assetID))
+		if manifest == nil {
+			continue
+		}
+		if manifest.Started != nil {
+			videoManifestBytes += int64(proto.Size(manifest.Started))
+		}
+		if manifest.Succeeded != nil {
+			videoManifestBytes += int64(proto.Size(manifest.Succeeded))
+		}
+		if manifest.Failed != nil {
+			videoManifestBytes += int64(proto.Size(manifest.Failed))
+		}
+	}
+	var assetOwnerBytes int64
+	for assetID, owner := range p.assetMessageOwner {
+		assetOwnerBytes += projectionMapEntryOverhead + int64(len(assetID)+len(owner.roomID)+len(owner.messageEventID))
+	}
+	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
 
-	totalBytes := rawBytes + eventIndexBytes + latestBodyBytes + retractedBytes + echoBytes
+	totalBytes := rawBytes + visibleBytes + eventIndexBytes + appliedEventIDsBytes +
+		latestBodyBytes + bodyEventSeqsBytes + currentBodySeqBytes + retractedBytes +
+		hiddenEchoBytes + echoBytes + assetCreationBytes + assetChildrenBytes +
+		videoManifestBytes + assetOwnerBytes + shreddedUserBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "timeline_entries", Value: entries, Bytes: rawBytes},
+		{Name: "visible_timeline_index", Value: visibleEntries, Bytes: visibleBytes},
 		{Name: "message_posts", Value: messagePosts, Bytes: 0},
 		{Name: "event_id_index", Value: int64(len(p.byEventID)), Bytes: eventIndexBytes},
+		{Name: "applied_event_ids", Value: int64(len(p.appliedEventIDs)), Bytes: appliedEventIDsBytes},
 		{Name: "latest_body_index", Value: int64(len(p.latestBody)), Bytes: latestBodyBytes},
+		{Name: "body_event_seqs", Value: bodyEventSeqs, Bytes: bodyEventSeqsBytes},
+		{Name: "current_body_seq_index", Value: int64(len(p.currentBodySeq)), Bytes: currentBodySeqBytes},
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
+		{Name: "hidden_echoes", Value: int64(len(p.hiddenEchoes)), Bytes: hiddenEchoBytes},
 		{Name: "echo_links", Value: echoLinks, Bytes: echoBytes},
+		{Name: "asset_creations", Value: int64(len(p.assetCreations)), Bytes: assetCreationBytes},
+		{Name: "asset_child_links", Value: assetChildLinks, Bytes: assetChildrenBytes},
+		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: videoManifestBytes},
+		{Name: "asset_message_owner_index", Value: int64(len(p.assetMessageOwner)), Bytes: assetOwnerBytes},
+		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},
 	}
 }
 
@@ -346,12 +417,16 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 	for eventID, threadID := range p.messageToThread {
 		indexBytes += projectionMapEntryOverhead + int64(len(eventID)+len(threadID))
 	}
-	totalBytes := rawBytes + indexBytes
+	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
+	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
+	totalBytes := rawBytes + indexBytes + appliedEventIDsBytes + shreddedUserBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "threads", Value: int64(len(p.byThread)), Bytes: 0},
 		{Name: "thread_entries", Value: entries, Bytes: rawBytes},
 		{Name: "replies", Value: replies, Bytes: 0},
 		{Name: "message_to_thread_index", Value: int64(len(p.messageToThread)), Bytes: indexBytes},
+		{Name: "applied_event_ids", Value: int64(len(p.appliedEventIDs)), Bytes: appliedEventIDsBytes},
+		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},
 	}
 }
 
@@ -482,4 +557,12 @@ func timelineEntryEstimatedBytes(entry *TimelineEntry) int64 {
 		return projectionSliceEntryOverhead
 	}
 	return projectionSliceEntryOverhead + int64(proto.Size(entry.Event)) + 8
+}
+
+func estimateStringSetBytes(values map[string]struct{}) int64 {
+	var bytes int64
+	for value := range values {
+		bytes += projectionMapEntryOverhead + int64(len(value))
+	}
+	return bytes
 }

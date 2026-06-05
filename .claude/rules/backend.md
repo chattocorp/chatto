@@ -41,11 +41,15 @@ NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS 
 
 ## Room Event Query Behavior
 
-`GetRoomEvents` uses three optimized code paths based on room size and query type:
+`GetRoomEvents`, `GetRoomEventsAfter`, and `GetRoomEventsAround` read from
+the in-memory `RoomTimelineProjection`, not directly from JetStream consumers.
+The projection keeps both the raw per-room log and a derived visible-room index
+used by the room timeline APIs.
 
-- **Small room fast path**: Uses `stream.Info(WithSubjectFilter)` to check total event count. If ≤ `limit`, fetches everything in one consumer with `DeliverAllPolicy`
-- **Initial load (large rooms)**: Uses `GetLastMsgForSubject` (O(1) lookup) to find the room's last event sequence, then starts a consumer near the end using `DeliverByStartSequencePolicy` with progressive multipliers (3×, 10×, 50×). Falls back to `DeliverAllPolicy` if needed
-- **Pagination (large rooms)**: Uses `beforeTime` as the cursor. Tries a single 30-day window, falling back to `DeliverAllPolicy` if insufficient events are found
+- **Initial room load**: Walks the visible-room index newest-first, fetches `limit+1` visible entries to compute `HasOlder`, then reverses to the API's chronological oldest-first contract.
+- **Backward pagination**: Uses the opaque stream-sequence cursor as an exclusive upper bound against the visible-room index.
+- **Forward pagination**: Walks the same visible-room index oldest-first from the cursor and fetches `limit+1` entries to compute `HasNewer`.
+- **Jump-to-message reads**: `GetRoomEventsAround` uses the visible-room index to center a window on the target event, so folded noise such as thread replies, edits, reactions, asset processing events, and directly hidden echoes does not distort the visible target index.
 
 **Important**: `room_last_msg_at` in the RUNTIME bucket only tracks MESSAGE timestamps, not join/leave events. This is intentional for sorting by "recent activity" (conversations with recent messages). Don't rely on this field to determine when the most recent _event_ occurred.
 

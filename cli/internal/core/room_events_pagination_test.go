@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_GetRoomEventsAroundReturnsChronologicalWindow(t *testing.T) {
@@ -106,6 +108,141 @@ func TestChattoCore_RoomEventQueriesClampLimits(t *testing.T) {
 	})
 }
 
+func TestChattoCore_GetRoomEventsUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
+	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
+		editedEvent("EDIT-M1", "M1", "R1", "U1", "1 edited", 3),
+		reactionAddedEvent("REACT-M1", "R1", "M1", "U2", "thumbsup"),
+		attachmentDeclaredEvent("R1", "A1", "image/png"),
+		postedEvent(postedOpts{envelopeID: "M2", roomID: "R1", actorID: "U1", body: "2", at: 6}),
+		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U1", body: "3", at: 7}),
+		postedEvent(postedOpts{envelopeID: "ECHO-M1", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "REPLY-M1", echoFromThreadRootEventID: "M1", at: 8}),
+		retractedEvent("RETRACT-ECHO-M1", "ECHO-M1", "R1", "U2", "", 9),
+		postedEvent(postedOpts{envelopeID: "M4", roomID: "R1", actorID: "U1", body: "4", at: 10}),
+	})
+
+	result, err := core.GetRoomEvents(context.Background(), KindChannel, "R1", 3, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+
+	assertRoomEventIDs(t, result.Events, []string{"M2", "M3", "M4"})
+	if !result.HasOlder {
+		t.Error("HasOlder = false, want true")
+	}
+	if result.HasNewer {
+		t.Error("HasNewer = true, want false")
+	}
+	if result.StartCursorSeq != 6 {
+		t.Errorf("StartCursorSeq = %d, want 6", result.StartCursorSeq)
+	}
+	if result.EndCursorSeq != 10 {
+		t.Errorf("EndCursorSeq = %d, want 10", result.EndCursorSeq)
+	}
+}
+
+func TestChattoCore_GetRoomEventsAfterUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
+	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
+		editedEvent("EDIT-M1", "M1", "R1", "U1", "1 edited", 3),
+		reactionAddedEvent("REACT-M1", "R1", "M1", "U2", "thumbsup"),
+		postedEvent(postedOpts{envelopeID: "M2", roomID: "R1", actorID: "U1", body: "2", at: 5}),
+		postedEvent(postedOpts{envelopeID: "ECHO-M1", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "REPLY-M1", echoFromThreadRootEventID: "M1", at: 6}),
+		retractedEvent("RETRACT-ECHO-M1", "ECHO-M1", "R1", "U2", "", 7),
+		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U1", body: "3", at: 8}),
+		attachmentDeclaredEvent("R1", "A1", "image/png"),
+		postedEvent(postedOpts{envelopeID: "M4", roomID: "R1", actorID: "U1", body: "4", at: 10}),
+	})
+
+	result, err := core.GetRoomEventsAfter(context.Background(), KindChannel, "R1", 1, 2)
+	if err != nil {
+		t.Fatalf("GetRoomEventsAfter: %v", err)
+	}
+
+	assertRoomEventIDs(t, result.Events, []string{"M2", "M3"})
+	if !result.HasOlder {
+		t.Error("HasOlder = false, want true")
+	}
+	if !result.HasNewer {
+		t.Error("HasNewer = false, want true")
+	}
+	if result.StartCursorSeq != 5 {
+		t.Errorf("StartCursorSeq = %d, want 5", result.StartCursorSeq)
+	}
+	if result.EndCursorSeq != 8 {
+		t.Errorf("EndCursorSeq = %d, want 8", result.EndCursorSeq)
+	}
+}
+
+func TestChattoCore_GetRoomEventsAroundUsesDerivedVisibleTimelineWithHiddenEcho(t *testing.T) {
+	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ECHO-M1", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "REPLY-M1", echoFromThreadRootEventID: "M1", at: 3}),
+		retractedEvent("RETRACT-ECHO-M1", "ECHO-M1", "R1", "U2", "", 4),
+		postedEvent(postedOpts{envelopeID: "M2", roomID: "R1", actorID: "U1", body: "2", at: 5}),
+		editedEvent("EDIT-M2", "M2", "R1", "U1", "2 edited", 6),
+		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U1", body: "3", at: 7}),
+		postedEvent(postedOpts{envelopeID: "M4", roomID: "R1", actorID: "U1", body: "4", at: 8}),
+	})
+
+	result, err := core.GetRoomEventsAround(context.Background(), KindChannel, "R1", "M2", 3)
+	if err != nil {
+		t.Fatalf("GetRoomEventsAround: %v", err)
+	}
+
+	assertRoomEventIDs(t, result.Events, []string{"M1", "M2", "M3"})
+	if result.TargetIndex != 1 {
+		t.Errorf("TargetIndex = %d, want 1", result.TargetIndex)
+	}
+	if result.HasOlder {
+		t.Error("HasOlder = true, want false")
+	}
+	if !result.HasNewer {
+		t.Error("HasNewer = false, want true")
+	}
+}
+
+func TestChattoCore_GetDMRoomEventsUsesDerivedVisibleTimeline(t *testing.T) {
+	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "DM-M1", roomID: "DM1", actorID: "U1", body: "1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "DM-REPLY-M1", roomID: "DM1", actorID: "U2", body: "reply", inThread: "DM-M1", at: 2}),
+		editedEvent("DM-EDIT-M1", "DM-M1", "DM1", "U1", "1 edited", 3),
+		reactionAddedEvent("DM-REACT-M1", "DM1", "DM-M1", "U2", "thumbsup"),
+		postedEvent(postedOpts{envelopeID: "DM-M2", roomID: "DM1", actorID: "U2", body: "2", at: 5}),
+		postedEvent(postedOpts{envelopeID: "DM-ECHO-M1", roomID: "DM1", actorID: "U2", body: "echo", echoOfEventID: "DM-REPLY-M1", echoFromThreadRootEventID: "DM-M1", at: 6}),
+		retractedEvent("DM-RETRACT-ECHO-M1", "DM-ECHO-M1", "DM1", "U2", "", 7),
+		postedEvent(postedOpts{envelopeID: "DM-M3", roomID: "DM1", actorID: "U1", body: "3", at: 8}),
+		postedEvent(postedOpts{envelopeID: "DM-M4", roomID: "DM1", actorID: "U2", body: "4", at: 9}),
+	})
+
+	page, err := core.GetRoomEvents(context.Background(), KindDM, "DM1", 2, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	assertRoomEventIDs(t, page.Events, []string{"DM-M3", "DM-M4"})
+	if !page.HasOlder {
+		t.Error("HasOlder = false, want true")
+	}
+
+	around, err := core.GetRoomEventsAround(context.Background(), KindDM, "DM1", "DM-M2", 3)
+	if err != nil {
+		t.Fatalf("GetRoomEventsAround: %v", err)
+	}
+	assertRoomEventIDs(t, around.Events, []string{"DM-M1", "DM-M2", "DM-M3"})
+	if around.TargetIndex != 1 {
+		t.Errorf("TargetIndex = %d, want 1", around.TargetIndex)
+	}
+	if around.HasOlder {
+		t.Error("HasOlder = true, want false")
+	}
+	if !around.HasNewer {
+		t.Error("HasNewer = false, want true")
+	}
+}
+
 func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCore {
 	t.Helper()
 	projection := NewRoomTimelineProjection()
@@ -124,6 +261,27 @@ func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCor
 		}
 	}
 	return &ChattoCore{RoomTimeline: projection}
+}
+
+func testCoreWithRoomTimelineEvents(t *testing.T, events []*corev1.Event) *ChattoCore {
+	t.Helper()
+	projection := NewRoomTimelineProjection()
+	applyAll(t, projection, events)
+	return &ChattoCore{RoomTimeline: projection}
+}
+
+func reactionAddedEvent(envID, roomID, messageID, actorID, emoji string) *corev1.Event {
+	return &corev1.Event{
+		Id:      envID,
+		ActorId: actorID,
+		Event: &corev1.Event_ReactionAdded{
+			ReactionAdded: &corev1.ReactionAddedEvent{
+				RoomId:         roomID,
+				MessageEventId: messageID,
+				Emoji:          emoji,
+			},
+		},
+	}
 }
 
 func assertRoomEventIDs(t *testing.T, events []*RoomEvent, want []string) {

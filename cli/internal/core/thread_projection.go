@@ -31,6 +31,7 @@ type ThreadProjection struct {
 	events.MemoryProjection
 	byThread        map[string][]*TimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
+	appliedEventIDs map[string]struct{}
 	shreddedUsers   map[string]struct{}
 }
 
@@ -39,6 +40,7 @@ func NewThreadProjection() *ThreadProjection {
 	return &ThreadProjection{
 		byThread:        make(map[string][]*TimelineEntry),
 		messageToThread: make(map[string]string),
+		appliedEventIDs: make(map[string]struct{}),
 		shreddedUsers:   make(map[string]struct{}),
 	}
 }
@@ -70,14 +72,15 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	// Idempotency: skip if we've already applied this envelope id.
-	if eid := event.GetId(); eid != "" {
-		for _, threadEntries := range p.byThread {
-			for _, te := range threadEntries {
-				if te.Event.GetId() == eid {
-					return nil
-				}
-			}
+	eid := event.GetId()
+	if eid != "" {
+		if _, exists := p.appliedEventIDs[eid]; exists {
+			return nil
+		}
+	}
+	markApplied := func() {
+		if eid != "" {
+			p.appliedEventIDs[eid] = struct{}{}
 		}
 	}
 
@@ -85,6 +88,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserKeyShredded:
 		if userID := e.UserKeyShredded.GetUserId(); userID != "" {
 			p.shreddedUsers[userID] = struct{}{}
+			markApplied()
 		}
 
 	case *corev1.Event_ThreadCreated:
@@ -95,6 +99,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		if _, exists := p.byThread[threadRoot]; !exists {
 			p.byThread[threadRoot] = nil
 		}
+		markApplied()
 
 	case *corev1.Event_MessagePosted:
 		m := e.MessagePosted
@@ -108,6 +113,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
 		p.messageToThread[replyID] = threadRoot
+		markApplied()
 
 	case *corev1.Event_MessageEdited:
 		threadRoot, ok := p.messageToThread[e.MessageEdited.GetEventId()]
@@ -115,6 +121,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 			return nil // target isn't a known thread reply
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
+		markApplied()
 
 	case *corev1.Event_MessageRetracted:
 		threadRoot, ok := p.messageToThread[e.MessageRetracted.GetEventId()]
@@ -122,6 +129,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 			return nil
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
+		markApplied()
 	}
 	return nil
 }

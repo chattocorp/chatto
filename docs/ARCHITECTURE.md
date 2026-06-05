@@ -291,6 +291,7 @@ messages/threads, reactions, RBAC, and auth workflow audit facts.
 - `EVT` is the source of truth.
 - Boot importers seed `EVT` from pre-ES KV/`SERVER_EVENTS` data when those resources exist.
 - Reads come from in-memory projections rebuilt from `EVT`.
+- Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded facts such as edits, retractions, reactions, assets, and thread replies; visible readers skip or fold those facts before serving the room timeline.
 - Writes append to `EVT` only; legacy KV/stream data is not maintained as a mirror.
 - Read-your-writes is provided by waiting for the local projector to reach the append sequence.
 
@@ -783,6 +784,13 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
 - Thread reply lists, reply counts, participants, followed-thread pages, and last-reply timestamps are derived from the `ThreadProjection`.
+
+**Read Path:**
+
+- Room-level message history is served from `RoomTimelineProjection`, which keeps the raw room event log plus derived indexes for latest body state, hidden echoes, assets, and room-visible timeline entries.
+- Initial loads and cursor pagination walk the derived visible-room index so thread replies, edits, retractions, reactions, asset-processing facts, and directly hidden echoes do not count as separate room timeline rows.
+- `eventsAround` uses the same visible-room index to center jump-to-message windows on the target's visible position.
+- Thread panes read the root message from `RoomTimelineProjection` and replies from `ThreadProjection`.
 
 **@Mentions:**
 
