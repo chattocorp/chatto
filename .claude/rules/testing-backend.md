@@ -8,7 +8,7 @@ Patterns and gotchas for Go tests in `cli/`. See `testing-frontend.md` for Vites
 
 ## Run Go Tests via `mise test-cli`
 
-Always use `mise test-cli`, **not** `go test` directly. The `http_server` package requires `-tags test_endpoints` to enable mock email endpoints used by tests. Running without this tag causes test failures with 404 errors on test endpoints like `/auth/test/last-email`.
+Always run Go tests through `mise` so the repo toolchain is active. For full-suite checkpoints, use `mise test-cli`, **not** plain `go test ./...`. The `http_server` package requires `-tags test_endpoints` to enable mock email/webhook endpoints used by tests. Running without this tag causes test failures with 404 errors on test endpoints like `/auth/test/last-email`.
 
 ## Iterate with targeted runs; reserve `mise test-cli` for checkpoints
 
@@ -19,12 +19,17 @@ The full suite takes 90–180s (tracked in #625). While iterating on a change, *
   mise x -- go test ./internal/<pkg> -run TestX -timeout 30s
   ```
   Multiple tests via regex: `-run "TestX|TestY"`.
+- **If the package is `internal/http_server`, add `-tags test_endpoints`:**
+  ```
+  mise x -- go test -tags test_endpoints ./internal/http_server -run TestX -timeout 30s
+  ```
+  The same applies to any cross-package targeted run that includes `./internal/http_server`. Without the tag, tests that touch `/auth/test/*` or `/webhooks/test/*` compile those routes out and fail with misleading 404s.
 - **Always set `-timeout`.** A hung test will otherwise peg the session for the Go default of 10 minutes. 30s for unit-ish tests, 60s for ones that exercise live-event delivery.
 - On a suspected flake, retry with `-count=3 -timeout 60s` to confirm flake-vs-bug before reading the failure as definitive.
 - Reserve `mise test-cli` for "I think I'm done with this chunk" checkpoints, not feedback-loop iteration.
 - Inside `cli/`, you can call `mise x -- go test …` directly; outside, prefix with `cd cli && …` or use absolute paths.
 
-The same goes for cross-package work: prefer `mise x -- go test ./internal/core/ ./internal/graph/ -run TestX -timeout 60s` over the whole suite when you're chasing a specific change's blast radius.
+The same goes for cross-package work: prefer `mise x -- go test ./internal/core/ ./internal/graph/ -run TestX -timeout 60s` over the whole suite when you're chasing a specific change's blast radius. If that targeted set includes `./internal/http_server`, use `mise x -- go test -tags test_endpoints ...`.
 
 ## Use Table-Driven Tests Where Possible
 
