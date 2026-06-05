@@ -32,6 +32,7 @@ client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 enabled = true
 host = 'mailpit.chatto-tools.orb.local'
 port = 1025
+tls = 'opportunistic'
 from = 'Chatto Local Development <chatto@chatto.run>'
 
 [video]

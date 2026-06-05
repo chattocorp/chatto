@@ -35,6 +35,7 @@ func TestMailer_Integration_SendSuccess(t *testing.T) {
 		Enabled: true,
 		Host:    "127.0.0.1",
 		Port:    server.PortNumber(),
+		TLS:     config.SMTPTLSOpportunistic,
 		From:    "sender@example.com",
 	})
 
@@ -85,6 +86,30 @@ func TestMailer_Integration_SendSuccess(t *testing.T) {
 	}
 }
 
+func TestMailer_Integration_DefaultTLSRejectsPlaintextServer(t *testing.T) {
+	server := startMockServer(t, smtpmock.ConfigurationAttr{})
+
+	mailer := email.NewMailer(config.SMTPConfig{
+		Enabled: true,
+		Host:    "127.0.0.1",
+		Port:    server.PortNumber(),
+		From:    "sender@example.com",
+	})
+
+	err := mailer.Send(email.Message{
+		To:      "recipient@example.com",
+		Subject: "Secure Test",
+		Body:    "Testing default TLS policy",
+	})
+	if err == nil {
+		t.Fatal("expected error when plaintext server does not support STARTTLS, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "STARTTLS") {
+		t.Errorf("expected STARTTLS-related error, got %q", err.Error())
+	}
+}
+
 func TestMailer_Integration_AuthNotSupported(t *testing.T) {
 	// go-smtp-mock does not support SMTP AUTH
 	// This test verifies that we get an appropriate error when auth is configured
@@ -95,6 +120,7 @@ func TestMailer_Integration_AuthNotSupported(t *testing.T) {
 		Enabled:  true,
 		Host:     "127.0.0.1",
 		Port:     server.PortNumber(),
+		TLS:      config.SMTPTLSOpportunistic,
 		From:     "sender@example.com",
 		Username: "testuser",
 		Password: "testpass",
@@ -171,6 +197,7 @@ func TestMailer_Integration_InvalidToAddress(t *testing.T) {
 		Enabled: true,
 		Host:    "127.0.0.1",
 		Port:    server.PortNumber(),
+		TLS:     config.SMTPTLSOpportunistic,
 		From:    "sender@example.com",
 	})
 
@@ -195,6 +222,7 @@ func TestMailer_Integration_MultipleMessages(t *testing.T) {
 		Enabled: true,
 		Host:    "127.0.0.1",
 		Port:    server.PortNumber(),
+		TLS:     config.SMTPTLSOpportunistic,
 		From:    "sender@example.com",
 	})
 
@@ -230,6 +258,7 @@ func TestMailer_Integration_BlacklistedRecipient(t *testing.T) {
 		Enabled: true,
 		Host:    "127.0.0.1",
 		Port:    server.PortNumber(),
+		TLS:     config.SMTPTLSOpportunistic,
 		From:    "sender@example.com",
 	})
 

@@ -230,7 +230,11 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_PORT" toml="smtp.port">
-  SMTP port. Common values: `587` (TLS), `465` (SSL), `25` (unencrypted).
+  SMTP port. Common value: `587` (STARTTLS).
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_TLS" toml="smtp.tls" default="mandatory">
+  SMTP TLS policy. Use `mandatory` to require STARTTLS. Use `opportunistic` only when the SMTP server cannot support mandatory STARTTLS and plaintext fallback is explicitly acceptable.
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_USERNAME" toml="smtp.username">

@@ -126,6 +126,33 @@ signing_secret = "file-assets-secret"
 	}
 }
 
+func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
+	t.Setenv("CHATTO_SMTP_TLS", "opportunistic")
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+
+	if got := cfg.SMTP.TLSPolicyOrDefault(); got != SMTPTLSOpportunistic {
+		t.Errorf("expected SMTP TLS policy %q from env, got %q", SMTPTLSOpportunistic, got)
+	}
+}
+
 func TestTLSConfig_CacheDirOrDefault(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -708,6 +735,36 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 				c.SMTP.From = "noreply@example.com"
 			},
 			wantError: false,
+		},
+		{
+			name: "valid config with explicit mandatory SMTP TLS",
+			modify: func(c *ChattoConfig) {
+				c.SMTP.Enabled = true
+				c.SMTP.Host = "smtp.example.com"
+				c.SMTP.Port = 587
+				c.SMTP.TLS = SMTPTLSMandatory
+				c.SMTP.From = "noreply@example.com"
+			},
+			wantError: false,
+		},
+		{
+			name: "valid config with explicit opportunistic SMTP TLS",
+			modify: func(c *ChattoConfig) {
+				c.SMTP.Enabled = true
+				c.SMTP.Host = "smtp.example.com"
+				c.SMTP.Port = 587
+				c.SMTP.TLS = SMTPTLSOpportunistic
+				c.SMTP.From = "noreply@example.com"
+			},
+			wantError: false,
+		},
+		{
+			name: "invalid SMTP TLS policy fails",
+			modify: func(c *ChattoConfig) {
+				c.SMTP.TLS = "plaintext"
+			},
+			wantError: true,
+			errorMsg:  "smtp.tls must be one of: mandatory, opportunistic",
 		},
 		{
 			name: "SMTP enabled without host fails",
