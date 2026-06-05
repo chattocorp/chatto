@@ -113,8 +113,7 @@ func MigrateMessagesToES(
 	}
 	numPending := info.NumPending
 	if numPending == 0 {
-		_, err := BackfillThreadCreatedEventsFromMessages(ctx, publisher, logger)
-		return err
+		return nil
 	}
 
 	var imported, skipped, bodyMissing int
@@ -125,8 +124,7 @@ func MigrateMessagesToES(
 		return fmt.Errorf("fetch migration messages: %w", err)
 	}
 	if msgs == nil {
-		_, err := BackfillThreadCreatedEventsFromMessages(ctx, publisher, logger)
-		return err
+		return nil
 	}
 	type roomBatch struct {
 		entries     []migratedMessageEntry
@@ -283,10 +281,6 @@ func MigrateMessagesToES(
 		skipped += roomSkipped
 	}
 
-	backfilled, err := BackfillThreadCreatedEventsFromMessages(ctx, publisher, logger)
-	if err != nil {
-		return fmt.Errorf("backfill thread creation events: %w", err)
-	}
 	if imported > 0 || skipped > 0 {
 		logger.Info(
 			"messages ES migration: seeded events from legacy SERVER_EVENTS + SERVER_BODIES",
@@ -294,7 +288,6 @@ func MigrateMessagesToES(
 			"messages_skipped", skipped,
 			"rooms_processed", len(roomBatches),
 			"bodies_missing", bodyMissing,
-			"thread_created_backfilled", backfilled,
 			"duration_ms", time.Since(startedAt).Milliseconds(),
 		)
 	}
@@ -376,96 +369,6 @@ func publishMessageMigrationRoom(
 		imported += len(chunkMessages)
 	}
 	return imported, len(existingIDs), nil
-}
-
-type threadCreateCandidate struct {
-	roomID            string
-	threadRootEventID string
-	actorID           string
-	createdAt         *timestamppb.Timestamp
-}
-
-// BackfillThreadCreatedEventsFromMessages scans EVT room messages and appends
-// missing ThreadCreatedEvent facts for already-imported thread replies. This is
-// intentionally idempotent so deployments that ran messages_es before
-// ThreadCreatedEvent existed can be repaired on a later boot.
-func BackfillThreadCreatedEventsFromMessages(ctx context.Context, publisher *events.Publisher, logger *log.Logger) (int, error) {
-	roomEvents, _, err := publisher.SubjectEvents(ctx, events.RoomSubjectFilter())
-	if err != nil {
-		return 0, fmt.Errorf("read room events: %w", err)
-	}
-
-	existing := make(map[string]map[string]struct{})
-	candidates := make(map[string]map[string]threadCreateCandidate)
-	var order []threadCreateCandidate
-	for _, event := range roomEvents {
-		if created := event.GetThreadCreated(); created != nil {
-			roomID := created.GetRoomId()
-			threadRoot := created.GetThreadRootEventId()
-			if roomID == "" || threadRoot == "" {
-				continue
-			}
-			if existing[roomID] == nil {
-				existing[roomID] = make(map[string]struct{})
-			}
-			existing[roomID][threadRoot] = struct{}{}
-			continue
-		}
-
-		posted := event.GetMessagePosted()
-		if posted == nil || posted.GetInThread() == "" || posted.GetRoomId() == "" {
-			continue
-		}
-		roomID := posted.GetRoomId()
-		threadRoot := posted.GetInThread()
-		if candidates[roomID] == nil {
-			candidates[roomID] = make(map[string]threadCreateCandidate)
-		}
-		if _, seen := candidates[roomID][threadRoot]; seen {
-			continue
-		}
-		candidate := threadCreateCandidate{
-			roomID:            roomID,
-			threadRootEventID: threadRoot,
-			actorID:           event.GetActorId(),
-			createdAt:         preserveTimestamp(event.GetCreatedAt()),
-		}
-		candidates[roomID][threadRoot] = candidate
-		order = append(order, candidate)
-	}
-
-	var backfilled int
-	for _, candidate := range order {
-		if existing[candidate.roomID] != nil {
-			if _, ok := existing[candidate.roomID][candidate.threadRootEventID]; ok {
-				continue
-			}
-		}
-		agg := events.RoomAggregate(candidate.roomID)
-		threadCreated := &corev1.Event{
-			Id:        migratedThreadCreatedEventID(candidate.roomID, candidate.threadRootEventID),
-			ActorId:   candidate.actorID,
-			CreatedAt: candidate.createdAt,
-			Event: &corev1.Event_ThreadCreated{
-				ThreadCreated: &corev1.ThreadCreatedEvent{
-					RoomId:            candidate.roomID,
-					ThreadRootEventId: candidate.threadRootEventID,
-				},
-			},
-		}
-		if _, err := publisher.AppendEventually(ctx, agg.Subject(events.EventThreadCreated), threadCreated); err != nil {
-			return backfilled, fmt.Errorf("append thread_created room=%s root=%s: %w", candidate.roomID, candidate.threadRootEventID, err)
-		}
-		if existing[candidate.roomID] == nil {
-			existing[candidate.roomID] = make(map[string]struct{})
-		}
-		existing[candidate.roomID][candidate.threadRootEventID] = struct{}{}
-		backfilled++
-	}
-	if backfilled > 0 {
-		logger.Info("messages ES migration: backfilled thread creation events", "thread_created_backfilled", backfilled)
-	}
-	return backfilled, nil
 }
 
 func migratedThreadCreatedEventID(roomID, threadRootEventID string) string {

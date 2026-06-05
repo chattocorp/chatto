@@ -340,53 +340,6 @@ func TestMigrateMessagesToES_BackfillsMessageIdentityAndThreadRootFromEnvelopeOr
 	}
 }
 
-func TestMigrateMessagesToES_BackfillsThreadCreatedForAlreadyImportedReplies(t *testing.T) {
-	rig := setupMessagesRig(t)
-
-	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
-		Id:        "ROOT",
-		ActorId:   "U1",
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
-		},
-	}); err != nil {
-		t.Fatalf("seed root: %v", err)
-	}
-	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
-		Id:        "REPLY1",
-		ActorId:   "U2",
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT", InReplyTo: "ROOT"},
-		},
-	}); err != nil {
-		t.Fatalf("seed reply: %v", err)
-	}
-
-	for i := 0; i < 2; i++ {
-		if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
-			t.Fatalf("migration run %d: %v", i+1, err)
-		}
-	}
-
-	info, err := rig.evtStream.Info(rig.ctx)
-	if err != nil {
-		t.Fatalf("evt info: %v", err)
-	}
-	if info.State.Msgs != 3 {
-		t.Fatalf("EVT msg count = %d, want 3 after idempotent backfill", info.State.Msgs)
-	}
-	threadEvents, _, err := rig.publisher.SubjectEvents(rig.ctx, "evt.room.R1.thread_created")
-	if err != nil {
-		t.Fatalf("read thread_created events: %v", err)
-	}
-	if len(threadEvents) != 1 {
-		t.Fatalf("thread_created count = %d, want 1", len(threadEvents))
-	}
-	checkImportedThreadCreated(t, threadEvents[0], "R1", "ROOT", "U2")
-}
-
 func TestMigrateMessagesToES_MissingBodyImportsAsNil(t *testing.T) {
 	// Legacy hard-delete: body wiped from SERVER_BODIES, post envelope
 	// still in SERVER_EVENTS. Migration imports the envelope with
