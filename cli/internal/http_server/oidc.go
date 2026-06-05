@@ -1,27 +1,37 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
+	"hmans.de/chatto/internal/core/linkpreview"
 )
 
 // Session keys for the OIDC login flow (PKCE).
 const (
 	sessionKeyOIDCState        = "oidc_state"
 	sessionKeyOIDCCodeVerifier = "oidc_code_verifier"
+
+	oidcAvatarFetchTimeout = 10 * time.Second
+	oidcAvatarMaxBytes     = 5 * 1024 * 1024
 )
+
+var oidcAvatarClient = linkpreview.NewSSRFSafeClient(oidcAvatarFetchTimeout)
 
 // oidcProvider holds the lazily-initialized OIDC provider, oauth2 config, and
 // token verifier. Initialized on first login attempt. Retries on failure.
@@ -370,7 +380,7 @@ func fetchAndUploadAvatarFromURL(ctx context.Context, avatarURL string, s *HTTPS
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := oidcAvatarClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -380,7 +390,15 @@ func fetchAndUploadAvatarFromURL(ctx context.Context, avatarURL string, s *HTTPS
 		return nil
 	}
 
-	asset, err := s.core.UploadUserAvatar(ctx, userID, resp.Body)
+	avatarData, err := io.ReadAll(io.LimitReader(resp.Body, oidcAvatarMaxBytes+1))
+	if err != nil {
+		return err
+	}
+	if len(avatarData) > oidcAvatarMaxBytes {
+		return fmt.Errorf("avatar exceeds maximum size of %d bytes", oidcAvatarMaxBytes)
+	}
+
+	asset, err := s.core.UploadUserAvatar(ctx, userID, bytes.NewReader(avatarData))
 	if err != nil {
 		return err
 	}
