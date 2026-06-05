@@ -24,7 +24,7 @@ export class SpaceRolesPage {
 
   /** The page heading */
   get pageHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 });
+    return this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 });
   }
 
   /**
@@ -90,10 +90,10 @@ export class SpaceRolesPage {
     return this.page.getByRole('button', { name: 'Cancel' });
   }
 
-  /** The Back to Roles arrow link in the pane header */
+  /** The Back to Permissions arrow link in the pane header */
   get backToRolesButton(): Locator {
-    // PaneHeader's backHref renders an <a> with aria-label="Back to roles".
-    return this.page.getByRole('link', { name: 'Back to roles' });
+    // PaneHeader's backHref renders an <a> with aria-label="Back to permissions".
+    return this.page.getByRole('link', { name: 'Back to permissions' });
   }
 
   // --- Navigation ---
@@ -258,7 +258,7 @@ export class SpaceRolesPage {
         'SpaceRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
       );
     }
-    if (!this.page.url().endsWith(`/admin/roles`)) {
+    if (!this.page.url().endsWith(`/server-admin/permissions`)) {
       await this.page.goto(routes.serverAdminRoles);
       await expect(this.pageHeading).toBeVisible();
     }
@@ -507,7 +507,7 @@ export class SpaceRolesPage {
 
   /**
    * Clicking a role's column header at space scope routes to the role
-   * detail page (`/admin/roles/[name]`), which carries "Edit Role" + the
+   * detail page (`/server-admin/permissions/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */
   async expectRoleDetailPage(roleName: string): Promise<void> {

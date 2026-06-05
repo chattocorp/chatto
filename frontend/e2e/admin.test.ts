@@ -351,7 +351,7 @@ test.describe('Admin Granular Permissions', () => {
     await regularContext.close();
   });
 
-  test('user without admin.view-roles sees access denied on /chat/-/admin/roles', async ({
+  test('user without admin.view-roles sees access denied on permissions', async ({
     page,
     browser
   }) => {
@@ -804,7 +804,7 @@ test.describe('Instance Role Permission Denials', () => {
     // Deny.
     const displayName = 'UI Denial Test Role';
     await adminPage.gotoRoles();
-    await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
 
     const cell = page.locator(
       `td[data-role="${roleName}"][data-permission="message.post"] button`
@@ -823,7 +823,7 @@ test.describe('Instance Role Permission Denials', () => {
 
     // Reload and verify the denial persists.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
     const cellAfterReload = page.locator(
       `td[data-role="${roleName}"][data-permission="message.post"] button`
     );

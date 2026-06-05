@@ -2,8 +2,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Space Admin pages (/chat/-/{spaceId}/admin/*).
- * Covers General (name, branding) and Roles pages.
+ * Page object for the Space Admin pages.
+ * Covers General (name, branding) and Permissions pages.
  */
 export class SpaceAdminPage {
   constructor(readonly page: Page) {}
@@ -30,9 +30,9 @@ export class SpaceAdminPage {
     return this.page.locator('nav a', { hasText: 'Rooms' });
   }
 
-  /** Sidebar navigation item for Roles settings */
+  /** Sidebar navigation item for Permissions settings */
   get rolesNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Roles' });
+    return this.page.locator('nav a', { hasText: 'Permissions' });
   }
 
   /** Sidebar navigation item for the Members settings page. */
@@ -47,7 +47,7 @@ export class SpaceAdminPage {
 
   /** Admin placeholder message (shown when user has partial permissions) */
   get adminPlaceholderMessage(): Locator {
-    return this.page.getByText('Select a section from the sidebar to get started.');
+    return this.page.getByText('Server Dashboard coming soon');
   }
 
   /** General settings heading (shown when user has space.manage permission) */

@@ -73,9 +73,15 @@ export const serverAdmin = (sub?: string) =>
 	sub ? `/chat/${HOME}/server-admin/${sub}` : `/chat/${HOME}/server-admin`;
 export const serverAdminGeneral = serverAdmin('general');
 export const serverAdminRooms = serverAdmin('rooms');
-export const serverAdminRoles = serverAdmin('roles');
-export const serverAdminRolesNew = serverAdmin('roles/new');
-export const serverAdminRole = (roleName: string) => serverAdmin(`roles/${roleName}`);
+export const serverAdminPermissions = serverAdmin('permissions');
+export const serverAdminPermissionsNew = serverAdmin('permissions/new');
+export const serverAdminPermission = (roleName: string) =>
+  serverAdmin(`permissions/${roleName}`);
+// Back-compat aliases for tests and page objects that still use the older
+// "roles" naming for the role-permission editor.
+export const serverAdminRoles = serverAdminPermissions;
+export const serverAdminRolesNew = serverAdminPermissionsNew;
+export const serverAdminRole = serverAdminPermission;
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
 export const serverAdminSecurity = serverAdmin('security');
@@ -91,8 +97,8 @@ export const adminUsers = serverAdminMembers;
 export const adminUser = serverAdminMember;
 export const adminSpaces = serverAdmin();
 export const adminSystem = serverAdminSystem;
-export const adminRoles = serverAdminRoles;
-export const adminRole = serverAdminRole;
+export const adminRoles = serverAdminPermissions;
+export const adminRole = serverAdminPermission;
 // Legacy "instance settings" page motd/welcome/blocked — split across the
 // /general (messages) and /security (blocked usernames) tabs now.
 export const adminServerSettings = serverAdminGeneral;

@@ -4,7 +4,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the unified server-admin interface (/chat/-/server-admin).
- * Handles admin navigation, dashboard, members, system, runtime, and roles pages.
+ * Handles admin navigation, dashboard, members, system, runtime, and permissions pages.
  *
  * The legacy /chat/-/admin route tree was folded into server-admin once the
  * "instance" vs "space" distinction collapsed; the back-compat aliases in
@@ -46,9 +46,9 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'System' });
   }
 
-  /** Roles link in sidebar */
+  /** Permissions link in sidebar */
   get rolesLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Roles' });
+    return this.sidebar.getByRole('link', { name: 'Permissions' });
   }
 
   /** Back-to-chat link (chrome admin nav uses the label "Back to Server"). */
@@ -100,7 +100,7 @@ export class AdminPage {
   }
 
   /**
-   * Navigate to the admin roles page.
+   * Navigate to the admin permissions page.
    */
   async gotoRoles(): Promise<void> {
     await this.page.goto(routes.adminRoles);
@@ -277,7 +277,7 @@ export class AdminPage {
     await expect(checkbox).not.toBeChecked({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
-  // --- Roles Page ---
+  // --- Permissions Page ---
 
   /**
    * Get the Create Role button.
@@ -300,7 +300,7 @@ export class AdminPage {
    */
   async expectDashboardVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-    await expect(this.page.getByText('Server overview and statistics')).toBeVisible();
+    await expect(this.page.getByText('Server Dashboard coming soon')).toBeVisible();
   }
 
   /**
@@ -324,14 +324,16 @@ export class AdminPage {
    */
   async expectSystemPageVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'System' })).toBeVisible();
-    await expect(this.page.getByText('NATS/JetStream status and aggregate usage')).toBeVisible();
+    await expect(this.page.getByText('NATS, JetStream, and projection health')).toBeVisible();
   }
 
   /**
-   * Assert that the roles page is visible.
+   * Assert that the permissions page is visible.
    */
   async expectRolesPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 })).toBeVisible();
+    await expect(
+      this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 })
+    ).toBeVisible();
   }
 
   /**
@@ -371,14 +373,15 @@ export class AdminPage {
    * Assert that a sidebar link is NOT visible (limited permissions).
    */
   async expectSidebarLinkNotVisible(
-    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles'
+    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
     const linkMap = {
       Dashboard: this.dashboardLink,
       Users: this.usersLink,
       Spaces: this.spacesLink,
       System: this.systemLink,
-      Roles: this.rolesLink
+      Roles: this.rolesLink,
+      Permissions: this.rolesLink
     };
     await expect(linkMap[linkName]).not.toBeVisible();
   }
@@ -387,14 +390,15 @@ export class AdminPage {
    * Assert that a sidebar link IS visible.
    */
   async expectSidebarLinkVisible(
-    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles'
+    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
     const linkMap = {
       Dashboard: this.dashboardLink,
       Users: this.usersLink,
       Spaces: this.spacesLink,
       System: this.systemLink,
-      Roles: this.rolesLink
+      Roles: this.rolesLink,
+      Permissions: this.rolesLink
     };
     await expect(linkMap[linkName]).toBeVisible();
   }
@@ -414,10 +418,10 @@ export class AdminPage {
   }
 
   /**
-   * Assert dashboard stats are visible.
+   * Assert the placeholder dashboard is visible.
    */
   async expectDashboardStatsVisible(): Promise<void> {
-    await expect(this.mainContent.getByText('Registered Users')).toBeVisible();
+    await expect(this.mainContent.getByText('Server Dashboard coming soon')).toBeVisible();
   }
 
   /**
@@ -472,8 +476,10 @@ export class AdminPage {
    * Assert that system stat cards are visible.
    */
   async expectSystemStatsVisible(): Promise<void> {
-    await expect(this.mainContent.getByText('Storage')).toBeVisible();
-    await expect(this.mainContent.getByText('Memory')).toBeVisible();
+    await expect(this.mainContent.getByText('Account Storage')).toBeVisible();
+    await expect(
+      this.mainContent.locator('.text-sm', { hasText: /^Memory$/ }).first()
+    ).toBeVisible();
     await expect(
       this.mainContent.locator('.text-sm', { hasText: /^Streams$/ }).first()
     ).toBeVisible();
