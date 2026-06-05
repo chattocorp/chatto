@@ -28,7 +28,7 @@ export const OPERATIONS: Op[] = [
   {
     name: "Query.users",
     category: "query",
-    query: "query { users { id login } }",
+    query: "query { users(limit: 5) { users { id login } } }",
     vars: () => ({}),
   },
   {

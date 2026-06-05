@@ -96,12 +96,14 @@ export function useRoomData(getProps: () => { roomId: string }) {
               viewerCanManageOthersMessage
               viewerCanEchoMessage
               viewerCanManageRoom
-              members {
-                id
-                login
-                displayName
-                avatarUrl(width: 96, height: 96)
-                presenceStatus
+              members(limit: 100) {
+                users {
+                  id
+                  login
+                  displayName
+                  avatarUrl(width: 96, height: 96)
+                  presenceStatus
+                }
               }
             }
             server {
@@ -144,7 +146,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
           canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
           canManageRoom: resp.data.room.viewerCanManageRoom,
-          members: resp.data.room.members.map((m) => ({
+          members: resp.data.room.members.users.map((m) => ({
             id: m.id,
             login: m.login,
             displayName: m.displayName,
@@ -175,12 +177,14 @@ export function useRoomData(getProps: () => { roomId: string }) {
           query GetDMRoomMembers($roomId: ID!) {
             room(roomId: $roomId) {
               id
-              members {
-                id
-                login
-                displayName
-                avatarUrl(width: 96, height: 96)
-                presenceStatus
+              members(limit: 100) {
+                users {
+                  id
+                  login
+                  displayName
+                  avatarUrl(width: 96, height: 96)
+                  presenceStatus
+                }
               }
             }
             viewer {
@@ -199,7 +203,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
           return;
         }
         dmData = {
-          participants: resp.data.room.members,
+          participants: resp.data.room.members.users,
           currentUserId: resp.data.viewer?.user.id ?? null
         };
       });

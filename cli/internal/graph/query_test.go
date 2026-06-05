@@ -163,7 +163,7 @@ func TestQueryResolver_Users(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		users, err := env.resolver.Query().Users(env.unauthContext())
+		users, err := env.resolver.Query().Users(env.unauthContext(), nil, nil, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -180,7 +180,7 @@ func TestQueryResolver_Users(t *testing.T) {
 			t.Fatalf("Failed to create regular user: %v", err)
 		}
 
-		users, err := env.resolver.Query().Users(env.authContextForUser(regularUser))
+		users, err := env.resolver.Query().Users(env.authContextForUser(regularUser), nil, nil, nil)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected core.ErrPermissionDenied, got %v", err)
 		}

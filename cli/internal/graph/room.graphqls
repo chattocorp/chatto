@@ -21,8 +21,13 @@ type Room {
   name: String!
   "Optional description of the room's purpose."
   description: String
-  "List of members in this room."
-  members: [User!]! @goField(forceResolver: true)
+  "List members in this room."
+  members(
+    "Maximum number of results to return (default 20, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): RoomMembersConnection! @goField(forceResolver: true)
   """
   Whether the room has unread messages for the current user.
   Returns false if user is not a member or room has no new messages.
@@ -92,4 +97,14 @@ type Room {
 
   "Participants currently in this room's voice call. Empty list if no call is active or LiveKit is not configured."
   callParticipants: [CallParticipant!]! @goField(forceResolver: true)
+}
+
+"Paginated list of room members with metadata."
+type RoomMembersConnection {
+  "The users who are members of this room."
+  users: [User!]!
+  "Total count of members before pagination."
+  totalCount: Int!
+  "Whether there are more members beyond this page."
+  hasMore: Boolean!
 }

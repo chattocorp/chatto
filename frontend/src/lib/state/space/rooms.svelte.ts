@@ -39,8 +39,10 @@ const MyRoomsQuery = graphql(`
             level
             effectiveLevel
           }
-          members {
-            ...UserAvatarUser
+          members(limit: 100) {
+            users {
+              ...UserAvatarUser
+            }
           }
         }
       }
@@ -127,7 +129,7 @@ export class RoomsStore {
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
-        members: r.members.map((m: typeof r.members[number]) => useFragment(UserAvatarUserFragmentDoc, m))
+        members: r.members.users.map((m: typeof r.members.users[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initRooms(visible);
     }

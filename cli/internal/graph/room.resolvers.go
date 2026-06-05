@@ -8,6 +8,8 @@ package graph
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -28,7 +30,7 @@ func (r *roomResolver) Type(ctx context.Context, obj *corev1.Room) (model.RoomTy
 }
 
 // Members is the resolver for the members field.
-func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1.User, error) {
+func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -62,8 +64,23 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 			users = append(users, u)
 		}
 	}
+	sort.Slice(users, func(i, j int) bool {
+		left := strings.ToLower(users[i].DisplayName)
+		right := strings.ToLower(users[j].DisplayName)
+		if left == right {
+			return strings.ToLower(users[i].Login) < strings.ToLower(users[j].Login)
+		}
+		return left < right
+	})
 
-	return users, nil
+	limitVal, offsetVal := paginationArgs(limit, offset, 20, 100)
+	page, totalCount, hasMore := paginateSlice(users, limitVal, offsetVal)
+
+	return &model.RoomMembersConnection{
+		Users:      page,
+		TotalCount: int32(totalCount),
+		HasMore:    hasMore,
+	}, nil
 }
 
 // HasUnread is the resolver for the hasUnread field.

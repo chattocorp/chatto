@@ -33,12 +33,14 @@ export function useRoomMembersSync(
       graphql(`
         query GetRoomMembersForStore($roomId: ID!) {
           room(roomId: $roomId) {
-            members {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+            members(limit: 100) {
+              users {
+                id
+                login
+                displayName
+                avatarUrl(width: 96, height: 96)
+                presenceStatus
+              }
             }
           }
         }
@@ -51,7 +53,7 @@ export function useRoomMembersSync(
     }
 
     return (
-      resp.data?.room?.members.map((m) => ({
+      resp.data?.room?.members.users.map((m) => ({
         id: m.id,
         login: m.login,
         displayName: m.displayName,

@@ -34,17 +34,7 @@ func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search 
 	if search != nil {
 		searchStr = *search
 	}
-	limitVal := 20
-	if limit != nil && *limit > 0 {
-		limitVal = int(*limit)
-		if limitVal > 100 {
-			limitVal = 100
-		}
-	}
-	offsetVal := 0
-	if offset != nil && *offset >= 0 {
-		offsetVal = int(*offset)
-	}
+	limitVal, offsetVal := paginationArgs(limit, offset, 20, 100)
 
 	members, totalCount, err := r.core.GetServerMembers(ctx, searchStr, limitVal, offsetVal)
 	if err != nil {

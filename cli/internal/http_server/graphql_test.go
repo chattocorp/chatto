@@ -395,7 +395,7 @@ func TestGraphQL_Query_Users_RequiresAdmin(t *testing.T) {
 	env.createTestUser(t, "regular", "password123")
 	env.login(t, "regular", "password123")
 
-	resp := env.doGraphQL(t, `query { users { id login } }`, nil)
+	resp := env.doGraphQL(t, `query { users(limit: 5) { users { id login } } }`, nil)
 
 	// Should get authorization error
 	if len(resp.Errors) == 0 {
@@ -418,24 +418,31 @@ func TestGraphQL_Query_Users_AdminSucceeds(t *testing.T) {
 	}
 	env.login(t, "adminuser", "password123")
 
-	resp := env.doGraphQL(t, `query { users { id login } }`, nil)
+	resp := env.doGraphQL(t, `query { users(limit: 5) { users { id login } totalCount hasMore } }`, nil)
 
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected no errors for admin, got: %v", resp.Errors)
 	}
 
 	var data struct {
-		Users []struct {
-			ID    string `json:"id"`
-			Login string `json:"login"`
+		Users struct {
+			Users []struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"users"`
+			TotalCount int  `json:"totalCount"`
+			HasMore    bool `json:"hasMore"`
 		} `json:"users"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if len(data.Users) == 0 {
+	if len(data.Users.Users) == 0 {
 		t.Error("Expected at least one user")
+	}
+	if data.Users.TotalCount == 0 {
+		t.Error("Expected non-zero totalCount")
 	}
 }
 

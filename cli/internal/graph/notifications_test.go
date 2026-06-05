@@ -36,15 +36,15 @@ func TestViewerResolver_Notifications(t *testing.T) {
 
 	t.Run("authenticated user can get notifications (empty list)", func(t *testing.T) {
 		ctx := env.authContext()
-		notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx))
+		notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx), nil, nil)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
 		if notifications == nil {
-			t.Fatal("expected non-nil notifications slice")
+			t.Fatal("expected non-nil notifications connection")
 		}
-		if len(notifications) != 0 {
-			t.Errorf("expected empty notifications, got %d", len(notifications))
+		if len(notifications.Items) != 0 {
+			t.Errorf("expected empty notifications, got %d", len(notifications.Items))
 		}
 	})
 
@@ -65,11 +65,11 @@ func TestViewerResolver_Notifications(t *testing.T) {
 		}
 
 		ctx := env.authContext()
-		notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx))
+		notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx), nil, nil)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		if len(notifications) == 0 {
+		if len(notifications.Items) == 0 {
 			t.Error("expected at least one notification after being mentioned")
 		}
 	})
@@ -262,11 +262,11 @@ func TestNotificationItemFieldResolvers(t *testing.T) {
 
 	// Get notification
 	ctx := env.authContext()
-	notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx))
+	notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx), nil, nil)
 	if err != nil {
 		t.Fatalf("failed to get notifications: %v", err)
 	}
-	if len(notifications) == 0 {
+	if len(notifications.Items) == 0 {
 		t.Skip("No notification created - skipping field resolver tests")
 	}
 
@@ -274,6 +274,6 @@ func TestNotificationItemFieldResolvers(t *testing.T) {
 	// The convertNotification function in notifications.resolvers.go handles the conversion
 	t.Run("notification has valid id and timestamp", func(t *testing.T) {
 		// Just verify we got notifications - the field resolvers work if we get here
-		t.Logf("Got %d notifications", len(notifications))
+		t.Logf("Got %d notifications", len(notifications.Items))
 	})
 }

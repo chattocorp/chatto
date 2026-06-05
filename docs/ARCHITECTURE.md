@@ -102,7 +102,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `user(userId)`                     | Get a user by ID.                                                                      |
 | `userByLogin(login)`               | Get a user by login (returns null if not found).                                       |
-| `users`                            | List all users (server admin only).                                                    |
+| `users(search, limit, offset)`     | Paginated user directory (server admin only).                                          |
 | `userPermissionMatrix(userId)`     | Effective allow/deny matrix for a user (admin surface; `role.manage` + outrank gate).  |
 | `permissionExplanation(userId, …)` | Per-permission resolver explainer (self-inspection or admin).                          |
 
@@ -110,7 +110,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`. |
+| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`; `members` is offset-paginated. |
 
 **RBAC introspection** ([`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls))
 
@@ -761,7 +761,7 @@ Messages are persisted as durable `EVT` facts with encrypted message bodies embe
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
-- Thread reply lists, reply counts, participants, and last-reply timestamps are derived from the `ThreadProjection`.
+- Thread reply lists, reply counts, participants, followed-thread pages, and last-reply timestamps are derived from the `ThreadProjection`.
 
 **@Mentions:**
 

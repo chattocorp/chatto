@@ -28,12 +28,27 @@ type FollowedThread {
   hasUnread: Boolean!
 }
 
+"Paginated list of followed threads with metadata."
+type FollowedThreadsConnection {
+  "The followed threads in this page."
+  threads: [FollowedThread!]!
+  "Total count of followed threads before pagination."
+  totalCount: Int!
+  "Whether there are more followed threads beyond this page."
+  hasMore: Boolean!
+}
+
 extend type Viewer {
   """
   Threads the current user is following on the server, sorted by last
   activity (newest first). Requires server membership.
   """
-  followedThreads: [FollowedThread!]! @goField(forceResolver: true)
+  followedThreads(
+    "Maximum number of results to return (default 20, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): FollowedThreadsConnection! @goField(forceResolver: true)
 
   """
   Whether the current user has any unread followed threads. Lightweight

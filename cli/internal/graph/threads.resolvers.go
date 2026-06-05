@@ -62,7 +62,7 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 // FollowedThreads is the resolver for the followedThreads field.
 // Authorization: viewer existence already guarantees auth; we still gate on
 // server membership so non-members can't introspect followed-thread state.
-func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer) ([]*model.FollowedThread, error) {
+func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer, limit *int32, offset *int32) (*model.FollowedThreadsConnection, error) {
 	kind := core.KindChannel
 	user, err := requireSpaceMember(ctx, r.core, kind)
 	if err != nil {
@@ -74,8 +74,11 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer)
 		return nil, err
 	}
 
-	result := make([]*model.FollowedThread, 0, len(threads))
-	for _, t := range threads {
+	limitVal, offsetVal := paginationArgs(limit, offset, 20, 100)
+	page, totalCount, hasMore := paginateSlice(threads, limitVal, offsetVal)
+
+	result := make([]*model.FollowedThread, 0, len(page))
+	for _, t := range page {
 		var lastReplyAt *timestamppb.Timestamp
 		if t.LastReplyAt != nil {
 			lastReplyAt = timestamppb.New(*t.LastReplyAt)
@@ -91,7 +94,11 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer)
 		})
 	}
 
-	return result, nil
+	return &model.FollowedThreadsConnection{
+		Threads:    result,
+		TotalCount: int32(totalCount),
+		HasMore:    hasMore,
+	}, nil
 }
 
 // HasUnreadFollowedThreads is the resolver for the hasUnreadFollowedThreads field.

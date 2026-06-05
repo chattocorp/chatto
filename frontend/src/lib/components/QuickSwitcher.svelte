@@ -63,8 +63,10 @@
             id
             name
             type
-            members {
-              ...UserAvatarUser
+            members(limit: 100) {
+              users {
+                ...UserAvatarUser
+              }
             }
           }
         }
@@ -118,7 +120,7 @@
         if (roomsResult?.data?.viewer?.user) {
           for (const room of roomsResult.data.viewer.user.rooms) {
             if (room.type === RoomType.Dm) {
-              const participants = room.members.map((m) =>
+              const participants = room.members.users.map((m) =>
                 useFragment(UserAvatarUserFragmentDoc, m)
               );
               const others = participants.filter((p) => p.id !== currentUserId);

@@ -226,6 +226,12 @@ type ComplexityRoot struct {
 		ThreadRootEventID  func(childComplexity int) int
 	}
 
+	FollowedThreadsConnection struct {
+		HasMore    func(childComplexity int) int
+		Threads    func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
 	HeartbeatEvent struct {
 		Alive func(childComplexity int) int
 	}
@@ -435,6 +441,12 @@ type ComplexityRoot struct {
 		RoomID         func(childComplexity int) int
 	}
 
+	NotificationsConnection struct {
+		HasMore    func(childComplexity int) int
+		Items      func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
 	PermissionExplanation struct {
 		DecidedAt     func(childComplexity int) int
 		DecidedByRole func(childComplexity int) int
@@ -487,7 +499,7 @@ type ComplexityRoot struct {
 		User                  func(childComplexity int, userID string) int
 		UserByLogin           func(childComplexity int, login string) int
 		UserPermissionMatrix  func(childComplexity int, userID string) int
-		Users                 func(childComplexity int) int
+		Users                 func(childComplexity int, search *string, limit *int32, offset *int32) int
 		Viewer                func(childComplexity int) int
 	}
 
@@ -569,7 +581,7 @@ type ComplexityRoot struct {
 		GroupId                      func(childComplexity int) int
 		HasUnread                    func(childComplexity int) int
 		Id                           func(childComplexity int) int
-		Members                      func(childComplexity int) int
+		Members                      func(childComplexity int, limit *int32, offset *int32) int
 		Name                         func(childComplexity int) int
 		RoomPermissionOverrides      func(childComplexity int) int
 		Type                         func(childComplexity int) int
@@ -643,6 +655,12 @@ type ComplexityRoot struct {
 
 	RoomMarkedAsReadEvent struct {
 		RoomId func(childComplexity int) int
+	}
+
+	RoomMembersConnection struct {
+		HasMore    func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+		Users      func(childComplexity int) int
 	}
 
 	RoomMessageNotificationItem struct {
@@ -871,6 +889,12 @@ type ComplexityRoot struct {
 		ThreadRootEventId func(childComplexity int) int
 	}
 
+	UsersConnection struct {
+		HasMore    func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+		Users      func(childComplexity int) int
+	}
+
 	VideoProcessing struct {
 		DurationMs        func(childComplexity int) int
 		Height            func(childComplexity int) int
@@ -907,10 +931,10 @@ type ComplexityRoot struct {
 		CanAdminViewUsers        func(childComplexity int) int
 		CanStartDMs              func(childComplexity int) int
 		CanViewAdmin             func(childComplexity int) int
-		FollowedThreads          func(childComplexity int) int
+		FollowedThreads          func(childComplexity int, limit *int32, offset *int32) int
 		HasNotifications         func(childComplexity int) int
 		HasUnreadFollowedThreads func(childComplexity int) int
-		Notifications            func(childComplexity int) int
+		Notifications            func(childComplexity int, limit *int32, offset *int32) int
 		User                     func(childComplexity int) int
 	}
 
@@ -1107,7 +1131,7 @@ type QueryResolver interface {
 	Room(ctx context.Context, roomID string) (*corev1.Room, error)
 	User(ctx context.Context, userID string) (*corev1.User, error)
 	UserByLogin(ctx context.Context, login string) (*corev1.User, error)
-	Users(ctx context.Context) ([]*corev1.User, error)
+	Users(ctx context.Context, search *string, limit *int32, offset *int32) (*model.UsersConnection, error)
 	Admin(ctx context.Context) (*model.AdminQueries, error)
 	LinkPreview(ctx context.Context, url string) (*corev1.LinkPreview, error)
 	PermissionExplanation(ctx context.Context, userID string, roomID *string) ([]*model.PermissionExplanation, error)
@@ -1131,7 +1155,7 @@ type RoleResolver interface {
 type RoomResolver interface {
 	Type(ctx context.Context, obj *corev1.Room) (model.RoomType, error)
 
-	Members(ctx context.Context, obj *corev1.Room) ([]*corev1.User, error)
+	Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error)
 	HasUnread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostInThread(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -1243,9 +1267,9 @@ type ViewerResolver interface {
 	CanAdminManageRoles(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewSystem(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewAudit(ctx context.Context, obj *model.Viewer) (bool, error)
-	Notifications(ctx context.Context, obj *model.Viewer) ([]model.NotificationItem, error)
+	Notifications(ctx context.Context, obj *model.Viewer, limit *int32, offset *int32) (*model.NotificationsConnection, error)
 	HasNotifications(ctx context.Context, obj *model.Viewer) (bool, error)
-	FollowedThreads(ctx context.Context, obj *model.Viewer) ([]*model.FollowedThread, error)
+	FollowedThreads(ctx context.Context, obj *model.Viewer, limit *int32, offset *int32) (*model.FollowedThreadsConnection, error)
 	HasUnreadFollowedThreads(ctx context.Context, obj *model.Viewer) (bool, error)
 }
 
@@ -1905,6 +1929,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.FollowedThread.ThreadRootEventID(childComplexity), true
+
+	case "FollowedThreadsConnection.hasMore":
+		if e.ComplexityRoot.FollowedThreadsConnection.HasMore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FollowedThreadsConnection.HasMore(childComplexity), true
+	case "FollowedThreadsConnection.threads":
+		if e.ComplexityRoot.FollowedThreadsConnection.Threads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FollowedThreadsConnection.Threads(childComplexity), true
+	case "FollowedThreadsConnection.totalCount":
+		if e.ComplexityRoot.FollowedThreadsConnection.TotalCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FollowedThreadsConnection.TotalCount(childComplexity), true
 
 	case "HeartbeatEvent.alive":
 		if e.ComplexityRoot.HeartbeatEvent.Alive == nil {
@@ -3159,6 +3202,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.NotificationLevelChangedEvent.RoomID(childComplexity), true
 
+	case "NotificationsConnection.hasMore":
+		if e.ComplexityRoot.NotificationsConnection.HasMore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationsConnection.HasMore(childComplexity), true
+	case "NotificationsConnection.items":
+		if e.ComplexityRoot.NotificationsConnection.Items == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationsConnection.Items(childComplexity), true
+	case "NotificationsConnection.totalCount":
+		if e.ComplexityRoot.NotificationsConnection.TotalCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationsConnection.TotalCount(childComplexity), true
+
 	case "PermissionExplanation.decidedAt":
 		if e.ComplexityRoot.PermissionExplanation.DecidedAt == nil {
 			break
@@ -3431,7 +3493,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Query.Users(childComplexity), true
+		args, err := ec.field_Query_users_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Users(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Query.viewer":
 		if e.ComplexityRoot.Query.Viewer == nil {
 			break
@@ -3785,7 +3852,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Room.Members(childComplexity), true
+		args, err := ec.field_Room_members_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Room.Members(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Room.name":
 		if e.ComplexityRoot.Room.Name == nil {
 			break
@@ -4054,6 +4126,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RoomMarkedAsReadEvent.RoomId(childComplexity), true
+
+	case "RoomMembersConnection.hasMore":
+		if e.ComplexityRoot.RoomMembersConnection.HasMore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMembersConnection.HasMore(childComplexity), true
+	case "RoomMembersConnection.totalCount":
+		if e.ComplexityRoot.RoomMembersConnection.TotalCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMembersConnection.TotalCount(childComplexity), true
+	case "RoomMembersConnection.users":
+		if e.ComplexityRoot.RoomMembersConnection.Users == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMembersConnection.Users(childComplexity), true
 
 	case "RoomMessageNotificationItem.actor":
 		if e.ComplexityRoot.RoomMessageNotificationItem.Actor == nil {
@@ -4944,6 +5035,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.UserTypingEvent.ThreadRootEventId(childComplexity), true
 
+	case "UsersConnection.hasMore":
+		if e.ComplexityRoot.UsersConnection.HasMore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsersConnection.HasMore(childComplexity), true
+	case "UsersConnection.totalCount":
+		if e.ComplexityRoot.UsersConnection.TotalCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsersConnection.TotalCount(childComplexity), true
+	case "UsersConnection.users":
+		if e.ComplexityRoot.UsersConnection.Users == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UsersConnection.Users(childComplexity), true
+
 	case "VideoProcessing.durationMs":
 		if e.ComplexityRoot.VideoProcessing.DurationMs == nil {
 			break
@@ -5108,7 +5218,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Viewer.FollowedThreads(childComplexity), true
+		args, err := ec.field_Viewer_followedThreads_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Viewer.FollowedThreads(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Viewer.hasNotifications":
 		if e.ComplexityRoot.Viewer.HasNotifications == nil {
 			break
@@ -5126,7 +5241,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Viewer.Notifications(childComplexity), true
+		args, err := ec.field_Viewer_notifications_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Viewer.Notifications(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Viewer.user":
 		if e.ComplexityRoot.Viewer.User == nil {
 			break
@@ -5582,6 +5702,18 @@ func (ec *executionContext) childFields_FollowedThread(ctx context.Context, fiel
 	return nil, fmt.Errorf("no field named %q was found under type FollowedThread", field.Name)
 }
 
+func (ec *executionContext) childFields_FollowedThreadsConnection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "threads":
+		return ec.fieldContext_FollowedThreadsConnection_threads(ctx, field)
+	case "totalCount":
+		return ec.fieldContext_FollowedThreadsConnection_totalCount(ctx, field)
+	case "hasMore":
+		return ec.fieldContext_FollowedThreadsConnection_hasMore(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type FollowedThreadsConnection", field.Name)
+}
+
 func (ec *executionContext) childFields_LinkPreview(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "url":
@@ -5704,6 +5836,18 @@ func (ec *executionContext) childFields_NatsStreamInfo(ctx context.Context, fiel
 		return ec.fieldContext_NatsStreamInfo_clusterLeader(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type NatsStreamInfo", field.Name)
+}
+
+func (ec *executionContext) childFields_NotificationsConnection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "items":
+		return ec.fieldContext_NotificationsConnection_items(ctx, field)
+	case "totalCount":
+		return ec.fieldContext_NotificationsConnection_totalCount(ctx, field)
+	case "hasMore":
+		return ec.fieldContext_NotificationsConnection_hasMore(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type NotificationsConnection", field.Name)
 }
 
 func (ec *executionContext) childFields_PermissionExplanation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5994,6 +6138,18 @@ func (ec *executionContext) childFields_RoomGroupUserPermissions(ctx context.Con
 	return nil, fmt.Errorf("no field named %q was found under type RoomGroupUserPermissions", field.Name)
 }
 
+func (ec *executionContext) childFields_RoomMembersConnection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "users":
+		return ec.fieldContext_RoomMembersConnection_users(ctx, field)
+	case "totalCount":
+		return ec.fieldContext_RoomMembersConnection_totalCount(ctx, field)
+	case "hasMore":
+		return ec.fieldContext_RoomMembersConnection_hasMore(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RoomMembersConnection", field.Name)
+}
+
 func (ec *executionContext) childFields_RoomNotificationPreferenceItem(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "roomId":
@@ -6262,6 +6418,18 @@ func (ec *executionContext) childFields_UserSettings(ctx context.Context, field 
 		return ec.fieldContext_UserSettings_timeFormat(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type UserSettings", field.Name)
+}
+
+func (ec *executionContext) childFields_UsersConnection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "users":
+		return ec.fieldContext_UsersConnection_users(ctx, field)
+	case "totalCount":
+		return ec.fieldContext_UsersConnection_totalCount(ctx, field)
+	case "hasMore":
+		return ec.fieldContext_UsersConnection_hasMore(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type UsersConnection", field.Name)
 }
 
 func (ec *executionContext) childFields_VideoProcessing(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -7762,6 +7930,36 @@ func (ec *executionContext) field_Query_user_args(ctx context.Context, rawArgs m
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "search",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Room_event_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7825,6 +8023,28 @@ func (ec *executionContext) field_Room_events_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["after"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Room_members_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
 	return args, nil
 }
 
@@ -8033,6 +8253,50 @@ func (ec *executionContext) field_User_rooms_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["type"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Viewer_followedThreads_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Viewer_notifications_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
 	return args, nil
 }
 
@@ -10602,6 +10866,84 @@ func (ec *executionContext) _FollowedThread_hasUnread(ctx context.Context, field
 }
 func (ec *executionContext) fieldContext_FollowedThread_hasUnread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("FollowedThread", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _FollowedThreadsConnection_threads(ctx context.Context, field graphql.CollectedField, obj *model.FollowedThreadsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_FollowedThreadsConnection_threads(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Threads, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.FollowedThread) graphql.Marshaler {
+			return ec.marshalNFollowedThread2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_FollowedThreadsConnection_threads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FollowedThreadsConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_FollowedThread(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FollowedThreadsConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.FollowedThreadsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_FollowedThreadsConnection_totalCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_FollowedThreadsConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("FollowedThreadsConnection", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _FollowedThreadsConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.FollowedThreadsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_FollowedThreadsConnection_hasMore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HasMore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_FollowedThreadsConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("FollowedThreadsConnection", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _HeartbeatEvent_alive(ctx context.Context, field graphql.CollectedField, obj *corev1.HeartbeatEvent) (ret graphql.Marshaler) {
@@ -15594,6 +15936,75 @@ func (ec *executionContext) fieldContext_NotificationLevelChangedEvent_effective
 	return graphql.NewScalarFieldContext("NotificationLevelChangedEvent", field, true, true, errors.New("field of type NotificationLevel does not have child fields"))
 }
 
+func (ec *executionContext) _NotificationsConnection_items(ctx context.Context, field graphql.CollectedField, obj *model.NotificationsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NotificationsConnection_items(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.NotificationItem) graphql.Marshaler {
+			return ec.marshalNNotificationItem2ᚕhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationItemᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NotificationsConnection_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NotificationsConnection", field, false, false, errors.New("field of type NotificationItem does not have child fields"))
+}
+
+func (ec *executionContext) _NotificationsConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.NotificationsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NotificationsConnection_totalCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NotificationsConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NotificationsConnection", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _NotificationsConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.NotificationsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NotificationsConnection_hasMore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HasMore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NotificationsConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NotificationsConnection", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _PermissionExplanation_permission(ctx context.Context, field graphql.CollectedField, obj *model.PermissionExplanation) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16305,25 +16716,37 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 			return ec.fieldContext_Query_users(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Query().Users(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Users(ctx, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.UsersConnection) graphql.Marshaler {
+			return ec.marshalNUsersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Query_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_User(ctx, field)
+			return ec.childFields_UsersConnection(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_users_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -17940,25 +18363,37 @@ func (ec *executionContext) _Room_members(ctx context.Context, field graphql.Col
 			return ec.fieldContext_Room_members(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Room().Members(ctx, obj)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Room().Members(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomMembersConnection) graphql.Marshaler {
+			return ec.marshalNRoomMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomMembersConnection(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Room_members(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Room_members(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Room",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_User(ctx, field)
+			return ec.childFields_RoomMembersConnection(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Room_members_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -19214,6 +19649,84 @@ func (ec *executionContext) _RoomMarkedAsReadEvent_roomId(ctx context.Context, f
 }
 func (ec *executionContext) fieldContext_RoomMarkedAsReadEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("RoomMarkedAsReadEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _RoomMembersConnection_users(ctx context.Context, field graphql.CollectedField, obj *model.RoomMembersConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomMembersConnection_users(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Users, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.User) graphql.Marshaler {
+			return ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomMembersConnection_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomMembersConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_User(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomMembersConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.RoomMembersConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomMembersConnection_totalCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomMembersConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoomMembersConnection", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _RoomMembersConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.RoomMembersConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomMembersConnection_hasMore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HasMore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomMembersConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoomMembersConnection", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _RoomMessageNotificationItem_id(ctx context.Context, field graphql.CollectedField, obj *model.RoomMessageNotificationItem) (ret graphql.Marshaler) {
@@ -22689,6 +23202,84 @@ func (ec *executionContext) fieldContext_UserTypingEvent_threadRootEventId(_ con
 	return graphql.NewScalarFieldContext("UserTypingEvent", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
+func (ec *executionContext) _UsersConnection_users(ctx context.Context, field graphql.CollectedField, obj *model.UsersConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsersConnection_users(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Users, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.User) graphql.Marshaler {
+			return ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsersConnection_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsersConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_User(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsersConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.UsersConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsersConnection_totalCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsersConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsersConnection", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _UsersConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.UsersConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UsersConnection_hasMore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HasMore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UsersConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UsersConnection", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _VideoProcessing_status(ctx context.Context, field graphql.CollectedField, obj *model.VideoProcessing) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -23355,18 +23946,39 @@ func (ec *executionContext) _Viewer_notifications(ctx context.Context, field gra
 			return ec.fieldContext_Viewer_notifications(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Viewer().Notifications(ctx, obj)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Viewer().Notifications(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []model.NotificationItem) graphql.Marshaler {
-			return ec.marshalNNotificationItem2ᚕhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationItemᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.NotificationsConnection) graphql.Marshaler {
+			return ec.marshalNNotificationsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationsConnection(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Viewer_notifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Viewer", field, true, true, errors.New("field of type NotificationItem does not have child fields"))
+func (ec *executionContext) fieldContext_Viewer_notifications(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_NotificationsConnection(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Viewer_notifications_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Viewer_hasNotifications(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
@@ -23401,25 +24013,37 @@ func (ec *executionContext) _Viewer_followedThreads(ctx context.Context, field g
 			return ec.fieldContext_Viewer_followedThreads(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Viewer().FollowedThreads(ctx, obj)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Viewer().FollowedThreads(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []*model.FollowedThread) graphql.Marshaler {
-			return ec.marshalNFollowedThread2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.FollowedThreadsConnection) graphql.Marshaler {
+			return ec.marshalNFollowedThreadsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadsConnection(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Viewer_followedThreads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Viewer_followedThreads(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Viewer",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_FollowedThread(ctx, field)
+			return ec.childFields_FollowedThreadsConnection(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Viewer_followedThreads_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -29373,6 +29997,55 @@ func (ec *executionContext) _FollowedThread(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var followedThreadsConnectionImplementors = []string{"FollowedThreadsConnection"}
+
+func (ec *executionContext) _FollowedThreadsConnection(ctx context.Context, sel ast.SelectionSet, obj *model.FollowedThreadsConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, followedThreadsConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FollowedThreadsConnection")
+		case "threads":
+			out.Values[i] = ec._FollowedThreadsConnection_threads(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._FollowedThreadsConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasMore":
+			out.Values[i] = ec._FollowedThreadsConnection_hasMore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var heartbeatEventImplementors = []string{"HeartbeatEvent", "EventType"}
 
 func (ec *executionContext) _HeartbeatEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.HeartbeatEvent) graphql.Marshaler {
@@ -31772,6 +32445,55 @@ func (ec *executionContext) _NotificationLevelChangedEvent(ctx context.Context, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var notificationsConnectionImplementors = []string{"NotificationsConnection"}
+
+func (ec *executionContext) _NotificationsConnection(ctx context.Context, sel ast.SelectionSet, obj *model.NotificationsConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, notificationsConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NotificationsConnection")
+		case "items":
+			out.Values[i] = ec._NotificationsConnection_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._NotificationsConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasMore":
+			out.Values[i] = ec._NotificationsConnection_hasMore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -34316,6 +35038,55 @@ func (ec *executionContext) _RoomMarkedAsReadEvent(ctx context.Context, sel ast.
 			out.Values[i] = graphql.MarshalString("RoomMarkedAsReadEvent")
 		case "roomId":
 			out.Values[i] = ec._RoomMarkedAsReadEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roomMembersConnectionImplementors = []string{"RoomMembersConnection"}
+
+func (ec *executionContext) _RoomMembersConnection(ctx context.Context, sel ast.SelectionSet, obj *model.RoomMembersConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomMembersConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoomMembersConnection")
+		case "users":
+			out.Values[i] = ec._RoomMembersConnection_users(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._RoomMembersConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasMore":
+			out.Values[i] = ec._RoomMembersConnection_hasMore(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -37594,6 +38365,55 @@ func (ec *executionContext) _UserTypingEvent(ctx context.Context, sel ast.Select
 	return out
 }
 
+var usersConnectionImplementors = []string{"UsersConnection"}
+
+func (ec *executionContext) _UsersConnection(ctx context.Context, sel ast.SelectionSet, obj *model.UsersConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, usersConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UsersConnection")
+		case "users":
+			out.Values[i] = ec._UsersConnection_users(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._UsersConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasMore":
+			out.Values[i] = ec._UsersConnection_hasMore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var videoProcessingImplementors = []string{"VideoProcessing"}
 
 func (ec *executionContext) _VideoProcessing(ctx context.Context, sel ast.SelectionSet, obj *model.VideoProcessing) graphql.Marshaler {
@@ -39176,6 +39996,20 @@ func (ec *executionContext) marshalNFollowedThread2ᚖhmansᚗdeᚋchattoᚋinte
 	return ec._FollowedThread(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNFollowedThreadsConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadsConnection(ctx context.Context, sel ast.SelectionSet, v model.FollowedThreadsConnection) graphql.Marshaler {
+	return ec._FollowedThreadsConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFollowedThreadsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadsConnection(ctx context.Context, sel ast.SelectionSet, v *model.FollowedThreadsConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FollowedThreadsConnection(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNGrantPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantPermissionInput(ctx context.Context, v any) (model.GrantPermissionInput, error) {
 	res, err := ec.unmarshalInputGrantPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -39444,6 +40278,20 @@ func (ec *executionContext) unmarshalNNotificationLevel2hmansᚗdeᚋchattoᚋin
 
 func (ec *executionContext) marshalNNotificationLevel2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationLevel(ctx context.Context, sel ast.SelectionSet, v model.NotificationLevel) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNNotificationsConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationsConnection(ctx context.Context, sel ast.SelectionSet, v model.NotificationsConnection) graphql.Marshaler {
+	return ec._NotificationsConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNNotificationsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationsConnection(ctx context.Context, sel ast.SelectionSet, v *model.NotificationsConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NotificationsConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNPermissionDecisionKind2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐPermissionDecisionKind(ctx context.Context, v any) (model.PermissionDecisionKind, error) {
@@ -39816,6 +40664,20 @@ func (ec *executionContext) marshalNRoomGroupUserPermissions2ᚖhmansᚗdeᚋcha
 		return graphql.Null
 	}
 	return ec._RoomGroupUserPermissions(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNRoomMembersConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomMembersConnection(ctx context.Context, sel ast.SelectionSet, v model.RoomMembersConnection) graphql.Marshaler {
+	return ec._RoomMembersConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRoomMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomMembersConnection(ctx context.Context, sel ast.SelectionSet, v *model.RoomMembersConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RoomMembersConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNRoomNotificationPreferenceItem2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomNotificationPreferenceItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RoomNotificationPreferenceItem) graphql.Marshaler {
@@ -40277,6 +41139,20 @@ func (ec *executionContext) marshalNUserSettings2ᚖhmansᚗdeᚋchattoᚋintern
 		return graphql.Null
 	}
 	return ec._UserSettings(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNUsersConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx context.Context, sel ast.SelectionSet, v model.UsersConnection) graphql.Marshaler {
+	return ec._UsersConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUsersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx context.Context, sel ast.SelectionSet, v *model.UsersConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._UsersConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNVideoProcessingStatus2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVideoProcessingStatus(ctx context.Context, v any) (model.VideoProcessingStatus, error) {

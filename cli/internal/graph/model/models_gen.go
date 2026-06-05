@@ -361,6 +361,16 @@ type FollowThreadInput struct {
 	ThreadRootEventID string `json:"threadRootEventId"`
 }
 
+// Paginated list of followed threads with metadata.
+type FollowedThreadsConnection struct {
+	// The followed threads in this page.
+	Threads []*FollowedThread `json:"threads"`
+	// Total count of followed threads before pagination.
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more followed threads beyond this page.
+	HasMore bool `json:"hasMore"`
+}
+
 // Input for granting a permission to a role.
 type GrantPermissionInput struct {
 	// The role to grant the permission to.
@@ -569,6 +579,16 @@ type NatsStreamInfo struct {
 	Replicas int32 `json:"replicas"`
 	// Cluster leader when running clustered JetStream, otherwise empty.
 	ClusterLeader string `json:"clusterLeader"`
+}
+
+// Paginated list of notifications with metadata.
+type NotificationsConnection struct {
+	// The notifications in this page, newest first.
+	Items []NotificationItem `json:"items"`
+	// Total count of notifications before pagination.
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more notifications beyond this page.
+	HasMore bool `json:"hasMore"`
 }
 
 // The complete explanation for one permission for one user at one scope.
@@ -861,6 +881,16 @@ type RoomGroupUserPermissions struct {
 	Permissions []string `json:"permissions"`
 	// Permissions explicitly denied to this user on this set.
 	PermissionDenials []string `json:"permissionDenials"`
+}
+
+// Paginated list of room members with metadata.
+type RoomMembersConnection struct {
+	// The users who are members of this room.
+	Users []*corev1.User `json:"users"`
+	// Total count of members before pagination.
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more members beyond this page.
+	HasMore bool `json:"hasMore"`
 }
 
 // A user's notification preference for a specific room.
@@ -1286,6 +1316,16 @@ type UserPermissionScope struct {
 	// For room scopes, the parent group's ID — so the UI can nest rooms under
 	// their group column. Empty string for server / group scopes.
 	ParentGroupID string `json:"parentGroupId"`
+}
+
+// Paginated list of users with metadata.
+type UsersConnection struct {
+	// The users in this page.
+	Users []*corev1.User `json:"users"`
+	// Total count of users matching the search (before pagination).
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more users beyond this page.
+	HasMore bool `json:"hasMore"`
 }
 
 // The viewer's notification preference for the server or a room.

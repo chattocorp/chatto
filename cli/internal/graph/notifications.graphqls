@@ -12,6 +12,16 @@ union NotificationItem =
   | ReplyNotificationItem
   | RoomMessageNotificationItem
 
+"Paginated list of notifications with metadata."
+type NotificationsConnection {
+  "The notifications in this page, newest first."
+  items: [NotificationItem!]!
+  "Total count of notifications before pagination."
+  totalCount: Int!
+  "Whether there are more notifications beyond this page."
+  hasMore: Boolean!
+}
+
 """
 Notification for new DM messages.
 Created when someone sends a message in a DM conversation you're part of.
@@ -74,8 +84,13 @@ type ReplyNotificationItem {
 }
 
 extend type Viewer {
-  "All notifications for the current user, newest first."
-  notifications: [NotificationItem!]! @goField(forceResolver: true)
+  "Notifications for the current user, newest first."
+  notifications(
+    "Maximum number of results to return (default 50, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): NotificationsConnection! @goField(forceResolver: true)
 
   "Whether the current user has any notifications (for bell icon indicator)."
   hasNotifications: Boolean! @goField(forceResolver: true)

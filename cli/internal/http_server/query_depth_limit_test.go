@@ -32,23 +32,27 @@ func TestGraphQL_QueryDepthLimit_RejectsDeeplyNestedQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	// Build a query that exceeds the depth limit of 12.
-	// Use circular references: viewer → user → rooms → members → rooms → ...
+	// Use circular references: viewer → user → rooms → members → users → rooms → ...
 	// where each nesting introduces a User → rooms → User cycle.
 	query := `query {
 		viewer {
 			user {
 				rooms {
 					members {
-						rooms {
-							members {
-								rooms {
-									members {
+						users {
+							rooms {
+								members {
+									users {
 										rooms {
 											members {
-												rooms {
-													members {
-														rooms {
-															id
+												users {
+													rooms {
+														members {
+															users {
+																rooms {
+																	id
+																}
+															}
 														}
 													}
 												}
@@ -157,16 +161,20 @@ func TestGraphQL_QueryDepthLimit_FragmentSpreadsCountDepth(t *testing.T) {
 		fragment DeepUser on User {
 			rooms {
 				members {
-					rooms {
-						members {
-							rooms {
-								members {
+					users {
+						rooms {
+							members {
+								users {
 									rooms {
 										members {
-											rooms {
-												members {
-													rooms {
-														id
+											users {
+												rooms {
+													members {
+														users {
+															rooms {
+																id
+															}
+														}
 													}
 												}
 											}
