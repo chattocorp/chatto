@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -189,6 +192,34 @@ func (env *graphqlTestEnv) doGraphQL(t *testing.T, query string, variables map[s
 	return &gqlResp
 }
 
+func (env *graphqlTestEnv) doRawGraphQL(t *testing.T, body string, contentLength *int64) (*http.Response, *graphqlResponse) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/api/graphql", io.NopCloser(strings.NewReader(body)))
+	if err != nil {
+		t.Fatalf("Failed to create GraphQL request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if contentLength == nil {
+		req.ContentLength = -1
+	} else {
+		req.ContentLength = *contentLength
+	}
+
+	resp, err := env.client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send GraphQL request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var gqlResp graphqlResponse
+	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
+		t.Fatalf("Failed to decode GraphQL response: %v", err)
+	}
+
+	return resp, &gqlResp
+}
+
 // login authenticates a user and returns true if successful
 func (env *graphqlTestEnv) login(t *testing.T, login, password string) bool {
 	t.Helper()
@@ -262,6 +293,86 @@ func TestGraphQL_Query_Viewer_Unauthenticated(t *testing.T) {
 
 	if data.Viewer != nil {
 		t.Error("Expected viewer to be null for unauthenticated user")
+	}
+}
+
+func TestGraphQL_JSONRequestBodyLimit_AcceptsBodyWithinLimit(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `query { server { version } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Expected request within body limit to succeed, got errors: %v", resp.Errors)
+	}
+}
+
+func TestGraphQL_JSONRequestBodyLimit_RejectsContentLengthOverLimit(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+	body := oversizedGraphQLJSONBody(t)
+	contentLength := int64(len(body))
+
+	resp, gqlResp := env.doRawGraphQL(t, body, &contentLength)
+
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("StatusCode = %d, want %d", resp.StatusCode, http.StatusRequestEntityTooLarge)
+	}
+	assertGraphQLBodyLimitError(t, gqlResp, graphQLJSONMaxRequestBodySize)
+}
+
+func TestGraphQL_JSONRequestBodyLimit_RejectsUnknownLengthBodyOverLimit(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+	body := oversizedGraphQLJSONBody(t)
+
+	resp, gqlResp := env.doRawGraphQL(t, body, nil)
+
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("StatusCode = %d, want %d", resp.StatusCode, http.StatusRequestEntityTooLarge)
+	}
+	assertGraphQLBodyLimitError(t, gqlResp, graphQLJSONMaxRequestBodySize)
+}
+
+func TestGraphQL_JSONRequestBodyLimit_IgnoresMultipartRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	body := strings.Repeat("x", int(graphQLJSONMaxRequestBodySize)+1)
+	req := httptest.NewRequest(http.MethodPost, "/api/graphql", strings.NewReader(body))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=test")
+	req.ContentLength = int64(len(body))
+	ctx.Request = req
+
+	if !limitGraphQLJSONRequestBody(ctx) {
+		t.Fatal("multipart request should bypass the JSON request body limit")
+	}
+}
+
+func mustMarshalGraphQLBody(t *testing.T, req graphqlRequest) string {
+	t.Helper()
+	body, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("Failed to marshal GraphQL request: %v", err)
+	}
+	return string(body)
+}
+
+func oversizedGraphQLJSONBody(t *testing.T) string {
+	t.Helper()
+	return mustMarshalGraphQLBody(t, graphqlRequest{
+		Query: `query($value: String!) { server { version } }`,
+		Variables: map[string]any{
+			"value": strings.Repeat("x", int(graphQLJSONMaxRequestBodySize)),
+		},
+	})
+}
+
+func assertGraphQLBodyLimitError(t *testing.T, resp *graphqlResponse, limit int64) {
+	t.Helper()
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Expected one GraphQL error, got %d: %v", len(resp.Errors), resp.Errors)
+	}
+	want := "GraphQL request body exceeds maximum size of " + strconv.FormatInt(limit, 10) + " bytes"
+	if resp.Errors[0].Message != want {
+		t.Fatalf("Error message = %q, want %q", resp.Errors[0].Message, want)
 	}
 }
 

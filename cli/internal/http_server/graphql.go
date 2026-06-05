@@ -1,7 +1,11 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,6 +27,8 @@ import (
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/pkg/gqldepthlimit"
 )
+
+const graphQLJSONMaxRequestBodySize int64 = 1 << 20 // 1 MiB
 
 func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	// Ensure logger is initialized (tests may bypass NewHTTPServer)
@@ -196,6 +202,10 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	s.router.Any("/api/graphql", func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 
+		if !limitGraphQLJSONRequestBody(c) {
+			return
+		}
+
 		session := sessions.Default(c)
 		if userID, _, ok := cookieSessionIDs(session); !ok {
 			// Log unauthenticated requests to help diagnose cookie/session issues
@@ -217,5 +227,48 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	p := playground.Handler("CHATTO API Playground", "/api/graphql")
 	s.router.GET("/api/playground", func(c *gin.Context) {
 		p.ServeHTTP(c.Writer, c.Request)
+	})
+}
+
+func limitGraphQLJSONRequestBody(c *gin.Context) bool {
+	if c.Request.Method != http.MethodPost {
+		return true
+	}
+
+	mediaType, _, err := mime.ParseMediaType(c.Request.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return true
+	}
+
+	limit := graphQLJSONMaxRequestBodySize
+
+	if c.Request.ContentLength > limit {
+		rejectGraphQLRequestBodyTooLarge(c, limit)
+		return false
+	}
+
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, limit+1))
+	_ = c.Request.Body.Close()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"errors": []gin.H{{"message": "could not read GraphQL request body"}},
+		})
+		return false
+	}
+	if int64(len(body)) > limit {
+		rejectGraphQLRequestBodyTooLarge(c, limit)
+		return false
+	}
+
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	c.Request.ContentLength = int64(len(body))
+	return true
+}
+
+func rejectGraphQLRequestBodyTooLarge(c *gin.Context, limit int64) {
+	c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{
+		"errors": []gin.H{{
+			"message": fmt.Sprintf("GraphQL request body exceeds maximum size of %d bytes", limit),
+		}},
 	})
 }
