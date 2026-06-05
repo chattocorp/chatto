@@ -182,6 +182,7 @@
           disabled={isLoading}
           required
           autocomplete="username"
+          autofocus
         />
 
         <TextInput
