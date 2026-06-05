@@ -60,6 +60,11 @@ write path appends `ThreadCreatedEvent` before that first reply in the same
 atomic batch so projections never observe a first reply without the explicit
 thread lifecycle fact.
 
+Legacy message import does the same for fresh imports and also runs an
+idempotent backfill over existing EVT `MessagePostedEvent` thread replies, so
+servers that already completed the message ES migration still gain the explicit
+thread lifecycle facts.
+
 The room aggregate is the consistency boundary for room-local conversation
 state. Commands that post a thread reply, close a thread, reopen a thread, or
 change thread labels read the room/thread projection, then append to the room

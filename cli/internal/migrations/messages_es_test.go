@@ -271,19 +271,20 @@ func TestMigrateMessagesToES_ImportsThreadReplies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evt info: %v", err)
 	}
-	if info.State.Msgs != 2 {
-		t.Fatalf("EVT msg count = %d, want 2", info.State.Msgs)
+	if info.State.Msgs != 3 {
+		t.Fatalf("EVT msg count = %d, want 3", info.State.Msgs)
 	}
 
-	// Both root and reply land on the same per-room subject; in_thread
-	// distinguishes them.
 	root := rig.readEvent(t, 1)
 	checkImportedMessage(t, root, "ROOT", "U1", "root")
 	if root.GetMessagePosted().GetInThread() != "" {
 		t.Errorf("root in_thread = %q, want empty", root.GetMessagePosted().GetInThread())
 	}
 
-	reply := rig.readEvent(t, 2)
+	created := rig.readEvent(t, 2)
+	checkImportedThreadCreated(t, created, "R1", "ROOT", "U2")
+
+	reply := rig.readEvent(t, 3)
 	checkImportedMessage(t, reply, "REPLY1", "U2", "reply-1")
 	if got := reply.GetMessagePosted().GetInThread(); got != "ROOT" {
 		t.Errorf("reply in_thread = %q, want ROOT", got)
@@ -329,11 +330,61 @@ func TestMigrateMessagesToES_BackfillsMessageIdentityAndThreadRootFromEnvelopeOr
 		t.Errorf("root in_thread = %q, want empty", got)
 	}
 
-	reply := rig.readEvent(t, 2)
+	created := rig.readEvent(t, 2)
+	checkImportedThreadCreated(t, created, "R1", "ROOT", "U2")
+
+	reply := rig.readEvent(t, 3)
 	checkImportedMessage(t, reply, "REPLY1", "U2", "reply")
 	if got := reply.GetMessagePosted().GetInThread(); got != "ROOT" {
 		t.Errorf("reply in_thread = %q, want ROOT", got)
 	}
+}
+
+func TestMigrateMessagesToES_BackfillsThreadCreatedForAlreadyImportedReplies(t *testing.T) {
+	rig := setupMessagesRig(t)
+
+	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
+		Id:        "ROOT",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+		},
+	}); err != nil {
+		t.Fatalf("seed root: %v", err)
+	}
+	if _, err := rig.publisher.Append(rig.ctx, "evt.room.R1.message_posted", &corev1.Event{
+		Id:        "REPLY1",
+		ActorId:   "U2",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT", InReplyTo: "ROOT"},
+		},
+	}); err != nil {
+		t.Fatalf("seed reply: %v", err)
+	}
+
+	for i := 0; i < 2; i++ {
+		if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
+			t.Fatalf("migration run %d: %v", i+1, err)
+		}
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
+	if info.State.Msgs != 3 {
+		t.Fatalf("EVT msg count = %d, want 3 after idempotent backfill", info.State.Msgs)
+	}
+	threadEvents, _, err := rig.publisher.SubjectEvents(rig.ctx, "evt.room.R1.thread_created")
+	if err != nil {
+		t.Fatalf("read thread_created events: %v", err)
+	}
+	if len(threadEvents) != 1 {
+		t.Fatalf("thread_created count = %d, want 1", len(threadEvents))
+	}
+	checkImportedThreadCreated(t, threadEvents[0], "R1", "ROOT", "U2")
 }
 
 func TestMigrateMessagesToES_MissingBodyImportsAsNil(t *testing.T) {
@@ -578,5 +629,22 @@ func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor
 	}
 	if got := string(body.GetEncryptedBody()); got != wantCiphertext {
 		t.Errorf("body ciphertext = %q, want %q", got, wantCiphertext)
+	}
+}
+
+func checkImportedThreadCreated(t *testing.T, ev *corev1.Event, wantRoomID, wantThreadRootID, wantActor string) {
+	t.Helper()
+	if ev.GetActorId() != wantActor {
+		t.Errorf("actor id = %q, want %q", ev.GetActorId(), wantActor)
+	}
+	created := ev.GetThreadCreated()
+	if created == nil {
+		t.Fatal("expected ThreadCreatedEvent payload")
+	}
+	if got := created.GetRoomId(); got != wantRoomID {
+		t.Errorf("room_id = %q, want %q", got, wantRoomID)
+	}
+	if got := created.GetThreadRootEventId(); got != wantThreadRootID {
+		t.Errorf("thread_root_event_id = %q, want %q", got, wantThreadRootID)
 	}
 }
