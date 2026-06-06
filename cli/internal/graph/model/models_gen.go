@@ -78,10 +78,10 @@ type AdminQueries struct {
 	// Inspect runtime state and rough memory estimates for event-sourced projections.
 	Projections []*ProjectionState `json:"projections"`
 	// Resolve the explicit grants and denials configured for a role on a
-	// specific set. Returns empty arrays if neither side has any keys.
+	// specific room group. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
 	// Resolve the explicit grants and denials configured for a user on a
-	// specific set (user-level overrides at set scope).
+	// specific room group (user-level overrides at room-group scope).
 	GroupUserPermissions *RoomGroupUserPermissions `json:"groupUserPermissions"`
 	// List all available server permission identifiers.
 	ServerPermissions []string `json:"serverPermissions"`
@@ -212,7 +212,7 @@ type CreateRoleInput struct {
 
 // Input for creating a new room group.
 type CreateRoomGroupInput struct {
-	// Display name for the new set (e.g., 'Engineering', 'Public').
+	// Display name for the new room group (e.g., 'Engineering', 'Public').
 	Name string `json:"name"`
 	// Optional operator-facing description.
 	Description *string `json:"description,omitempty"`
@@ -224,10 +224,10 @@ type CreateRoomInput struct {
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
 	Description *string `json:"description,omitempty"`
-	// Optional room-set ID to place the new room in. Required once the
-	// room-sets feature is fully wired (see ADR-031); during the transition
-	// it may be omitted, in which case the room is created without a set.
-	GroupID *string `json:"groupId,omitempty"`
+	// Room group ID to place the new channel room in. Channel room creation
+	// requires an explicit group; DM rooms are created through the DM APIs and
+	// do not use this input.
+	GroupID string `json:"groupId"`
 }
 
 // Input for deleting an attachment from a message.
@@ -276,9 +276,9 @@ type DeleteRoleInput struct {
 	Name string `json:"name"`
 }
 
-// Input for deleting a room group. Fails if the set still contains any rooms.
+// Input for deleting a room group. Fails if the room group still contains any rooms.
 type DeleteRoomGroupInput struct {
-	// The set's ID.
+	// The room group's ID.
 	ID string `json:"id"`
 }
 
@@ -408,7 +408,7 @@ type GrantUserPermissionInput struct {
 // Input for granting a permission on a room group. The subject is either a role
 // (by name) or a user (by ID).
 type GroupPermissionInput struct {
-	// The set to scope the grant to.
+	// The room group to scope the grant to.
 	GroupID string `json:"groupId"`
 	// Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.)
 	Subject string `json:"subject"`
@@ -490,12 +490,12 @@ type MarkThreadAsReadResult struct {
 	PreviousReadAt *timestamppb.Timestamp `json:"previousReadAt,omitempty"`
 }
 
-// Input for moving a room into a different set. Requires room.manage in
-// both the source and target set (ADR-031).
+// Input for moving a room into a different room group. Requires room.manage in
+// both the source and target room group (ADR-031).
 type MoveRoomToSetInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
-	// The destination set.
+	// The destination room group.
 	GroupID string `json:"groupId"`
 }
 
@@ -722,9 +722,9 @@ type ReorderRolesInput struct {
 }
 
 // Input for reordering all room groups. The order must include every existing
-// set ID exactly once; partial or unknown lists are rejected.
+// room group ID exactly once; partial or unknown lists are rejected.
 type ReorderRoomGroupsInput struct {
-	// Set IDs in the desired display order, first to last.
+	// Room group IDs in the desired display order, first to last.
 	OrderedIds []string `json:"orderedIds"`
 }
 
@@ -856,30 +856,31 @@ type RoomEventsConnection struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Per-set role permission inspector. Returns the explicit grants and denials
-// configured on a set for a given role (no inheritance — to see the effective
-// permissions resolve per-room or per-user via the resolver instead).
+// Per-room-group role permission inspector. Returns the explicit grants and
+// denials configured on a room group for a given role (no inheritance — to
+// see the effective permissions resolve per-room or per-user via the resolver
+// instead).
 type RoomGroupRolePermissions struct {
-	// The set these permissions belong to.
+	// The room group these permissions belong to.
 	GroupID string `json:"groupId"`
 	// The role these permissions apply to.
 	RoleName string `json:"roleName"`
-	// Permissions explicitly granted to this role on this set.
+	// Permissions explicitly granted to this role on this room group.
 	Permissions []string `json:"permissions"`
-	// Permissions explicitly denied to this role on this set.
+	// Permissions explicitly denied to this role on this room group.
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
-// Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
-// direct user-level grants/denials.
+// Per-room-group user permission inspector. Mirrors RoomGroupRolePermissions
+// for direct user-level grants/denials.
 type RoomGroupUserPermissions struct {
-	// The set these permissions belong to.
+	// The room group these permissions belong to.
 	GroupID string `json:"groupId"`
 	// The user these permissions apply to.
 	UserID string `json:"userId"`
-	// Permissions explicitly granted to this user on this set.
+	// Permissions explicitly granted to this user on this room group.
 	Permissions []string `json:"permissions"`
-	// Permissions explicitly denied to this user on this set.
+	// Permissions explicitly denied to this user on this room group.
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
@@ -1182,7 +1183,7 @@ type UpdateRoleInput struct {
 
 // Input for updating an existing room group.
 type UpdateRoomGroupInput struct {
-	// The set's ID.
+	// The room group's ID.
 	ID string `json:"id"`
 	// Display name.
 	Name string `json:"name"`

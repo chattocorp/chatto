@@ -190,11 +190,11 @@ input CreateRoomInput {
   "Optional description of the room's purpose."
   description: String
   """
-  Optional room-set ID to place the new room in. Required once the
-  room-sets feature is fully wired (see ADR-031); during the transition
-  it may be omitted, in which case the room is created without a set.
+  Room group ID to place the new channel room in. Channel room creation
+  requires an explicit group; DM rooms are created through the DM APIs and
+  do not use this input.
   """
-  groupId: ID
+  groupId: ID!
 }
 
 """

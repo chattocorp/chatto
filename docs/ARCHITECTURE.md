@@ -262,7 +262,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | Objects | `SERVER_ASSETS`               | Message attachments                         |
 | Legacy import KV | `INSTANCE`          | Users, verified emails, branding, display preferences, and push subscriptions from pre-ES deployments |
 | Legacy import KV | `INSTANCE_CONFIG`   | Server configuration from pre-ES deployments |
-| Legacy import KV | `SERVER_CONFIG`     | Rooms, memberships, room sets/layout, and notification preferences from pre-ES deployments |
+| Legacy import KV | `SERVER_CONFIG`     | Rooms, memberships, room groups/layout, and notification preferences from pre-ES deployments |
 | Legacy import KV | `SERVER_RBAC`       | RBAC seed data from pre-ES deployments |
 | Legacy import KV | `SERVER_RUNTIME`    | Read markers, thread follows, migration sentinels, and video processing state from pre-ES deployments |
 | Legacy import KV | `SERVER_BODIES`     | Pre-ES message bodies and attachment metadata |
@@ -458,7 +458,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; copied best-effort into `MEMORY_CACHE` on boot if present, not provisioned on fresh boot |
 | `INSTANCE`                    | File    | Yes      | Legacy import source for users, verified emails, branding, display preferences, and push subscriptions; not provisioned on fresh boot |
 | `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source; not provisioned on fresh boot |
-| `SERVER_CONFIG`               | File    | Yes      | Legacy rooms, memberships, room sets/layout, and notification preferences import source; not provisioned on fresh boot |
+| `SERVER_CONFIG`               | File    | Yes      | Legacy rooms, memberships, room groups/layout, and notification preferences import source; not provisioned on fresh boot |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data import source; not provisioned on fresh boot |
 | `SERVER_RUNTIME`              | File    | Yes      | Legacy read markers, thread follows, migration sentinels, and video processing state import source; not provisioned on fresh boot |
 | `SERVER_BODIES`               | File    | Yes      | Legacy message bodies and attachment metadata import source; not provisioned on fresh boot |
@@ -540,12 +540,12 @@ Room and membership keys in this legacy import bucket carry a `kind` segment (`c
 
 | Key                                                  | Description                                      |
 | ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `set_id` referencing its `RoomSet` (ADR-031). |
-| `room.dm.{roomId}`                                   | Direct-message room (no `set_id` — DMs aren't part of any room set). |
+| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `group_id` referencing its room group (ADR-031). |
+| `room.dm.{roomId}`                                   | Direct-message room (no `group_id` — DMs aren't part of any room group). |
 | `room_name_index.{lowercaseName}`                    | Atomic name claim → room ID. Channels only; DMs have empty names. Enforces case-insensitive uniqueness without a read-then-write race. |
 | `room_membership.channel.{roomId}.{userId}`          | Channel membership (room-first ordering matches `room.{kind}.{X}`)  |
 | `room_membership.dm.{roomId}.{userId}`               | DM membership                                    |
-| `room_layout`                                        | Single proto holding the ordered list of `RoomSet`s (and each set's ordered room IDs). Updated atomically with OCC. |
+| `room_layout`                                        | Single proto holding the ordered list of room groups (and each group's ordered room IDs). Updated atomically with OCC. |
 
 Useful filter patterns:
 

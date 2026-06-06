@@ -25806,7 +25806,7 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 			it.Description = data
 		case "groupId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}

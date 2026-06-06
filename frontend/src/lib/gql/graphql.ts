@@ -91,12 +91,12 @@ export type AdminQueries = {
   eventLogEntry?: Maybe<EventLogEntry>;
   /**
    * Resolve the explicit grants and denials configured for a role on a
-   * specific set. Returns empty arrays if neither side has any keys.
+   * specific room group. Returns empty arrays if neither side has any keys.
    */
   groupRolePermissions: RoomGroupRolePermissions;
   /**
    * Resolve the explicit grants and denials configured for a user on a
-   * specific set (user-level overrides at set scope).
+   * specific room group (user-level overrides at room-group scope).
    */
   groupUserPermissions: RoomGroupUserPermissions;
   /** Inspect runtime state and rough memory estimates for event-sourced projections. */
@@ -397,7 +397,7 @@ export type CreateRoleInput = {
 export type CreateRoomGroupInput = {
   /** Optional operator-facing description. */
   description?: InputMaybe<Scalars['String']['input']>;
-  /** Display name for the new set (e.g., 'Engineering', 'Public'). */
+  /** Display name for the new room group (e.g., 'Engineering', 'Public'). */
   name: Scalars['String']['input'];
 };
 
@@ -406,11 +406,11 @@ export type CreateRoomInput = {
   /** Optional description of the room's purpose. */
   description?: InputMaybe<Scalars['String']['input']>;
   /**
-   * Optional room-set ID to place the new room in. Required once the
-   * room-sets feature is fully wired (see ADR-031); during the transition
-   * it may be omitted, in which case the room is created without a set.
+   * Room group ID to place the new channel room in. Channel room creation
+   * requires an explicit group; DM rooms are created through the DM APIs and
+   * do not use this input.
    */
-  groupId?: InputMaybe<Scalars['ID']['input']>;
+  groupId: Scalars['ID']['input'];
   /** The name of the new room. */
   name: Scalars['String']['input'];
 };
@@ -479,9 +479,9 @@ export type DeleteRoleInput = {
   name: Scalars['String']['input'];
 };
 
-/** Input for deleting a room group. Fails if the set still contains any rooms. */
+/** Input for deleting a room group. Fails if the room group still contains any rooms. */
 export type DeleteRoomGroupInput = {
-  /** The set's ID. */
+  /** The room group's ID. */
   id: Scalars['ID']['input'];
 };
 
@@ -692,7 +692,7 @@ export type GrantUserPermissionInput = {
  * (by name) or a user (by ID).
  */
 export type GroupPermissionInput = {
-  /** The set to scope the grant to. */
+  /** The room group to scope the grant to. */
   groupId: Scalars['ID']['input'];
   /** Permission identifier (e.g., 'message.post'). */
   permission: Scalars['String']['input'];
@@ -950,11 +950,11 @@ export type MessageRetractedEvent = {
 };
 
 /**
- * Input for moving a room into a different set. Requires room.manage in
- * both the source and target set (ADR-031).
+ * Input for moving a room into a different room group. Requires room.manage in
+ * both the source and target room group (ADR-031).
  */
 export type MoveRoomToSetInput = {
-  /** The destination set. */
+  /** The destination room group. */
   groupId: Scalars['ID']['input'];
   /** The room to move. */
   roomId: Scalars['ID']['input'];
@@ -1063,8 +1063,8 @@ export type Mutation = {
    */
   deleteRole: Scalars['Boolean']['output'];
   /**
-   * Delete a room group. Rejected if the set still contains rooms — operators
-   * must move all rooms out first. Requires `role.manage`.
+   * Delete a room group. Rejected if the room group still contains rooms —
+   * operators must move all rooms out first. Requires `role.manage`.
    */
   deleteRoomGroup: Scalars['Boolean']['output'];
   /** Delete the server banner. Requires server.manage permission. */
@@ -1158,9 +1158,9 @@ export type Mutation = {
    */
   markThreadAsRead: MarkThreadAsReadResult;
   /**
-   * Move a room into a different set. The caller must have `room.manage`
-   * in both the source set and the target set (ADR-031). Permission overrides
-   * on the room itself are preserved.
+   * Move a room into a different room group. The caller must have
+   * `room.manage` in both the source room group and the target room group
+   * (ADR-031). Permission overrides on the room itself are preserved.
    */
   moveRoomToSet: Room;
   /** Post a message to a room. Automatically marks the room as read since the user is viewing it. */
@@ -1181,7 +1181,7 @@ export type Mutation = {
   reorderRoles: Array<Role>;
   /**
    * Reorder all room groups. The provided ID list must contain every existing
-   * set exactly once. Requires `role.manage`.
+   * room group exactly once. Requires `role.manage`.
    */
   reorderRoomGroups: Array<RoomGroup>;
   /**
@@ -2041,8 +2041,9 @@ export type Query = {
    * rolePermissions.
    *
    * Pass `roomId` for per-room override editing (inherits from the room's
-   * set), `groupId` for set-scope editing (no inheritance — sets are
-   * top-level for channel-room permissions). Pass neither for server scope.
+   * room group), `groupId` for room-group-scope editing (no inheritance —
+   * room groups are top-level for channel-room permissions). Pass neither
+   * for server scope.
    * Passing both is rejected.
    */
   tierRoles?: Maybe<TierRoles>;
@@ -2188,10 +2189,10 @@ export type ReorderRolesInput = {
 
 /**
  * Input for reordering all room groups. The order must include every existing
- * set ID exactly once; partial or unknown lists are rejected.
+ * room group ID exactly once; partial or unknown lists are rejected.
  */
 export type ReorderRoomGroupsInput = {
-  /** Set IDs in the desired display order, first to last. */
+  /** Room group IDs in the desired display order, first to last. */
   orderedIds: Array<Scalars['ID']['input']>;
 };
 
@@ -2365,23 +2366,25 @@ export type Room = {
   /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<Event>;
   /**
-   * Fetch historical events for this room (default limit: 50). Use the
-   * opaque `before` cursor for backward pagination and `after` for forward
-   * pagination — pass the `startCursor` / `endCursor` from a previous
-   * `RoomEventsConnection` response. Cursors are opaque strings; clients
-   * must not attempt to parse them.
+   * Fetch historical events for this room (default limit: 50, max: 500;
+   * larger values are silently clamped). Use the opaque `before` cursor
+   * for backward pagination and `after` for forward pagination — pass the
+   * `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+   * response. Cursors are opaque strings; clients must not attempt to
+   * parse them.
    */
   events: RoomEventsConnection;
   /**
-   * Fetch events in this room centered around a specific event.
+   * Fetch events in this room centered around a specific event (default
+   * limit: 50, max: 500; larger values are silently clamped).
    * Returns a window of events with the target event roughly in the middle.
    * Used for "jump to message" when clicking reply links to messages not in the loaded range.
    */
   eventsAround: RoomEventsAroundResult;
   /**
    * Channel rooms belong to exactly one RoomGroup; this field identifies which
-   * one. Empty string for DM rooms — those don't participate in the set
-   * layout (see ADR-031).
+   * one. DM rooms return an empty string sentinel because they do not
+   * participate in room-group layout or ACLs (see ADR-031).
    */
   groupId: Scalars['ID']['output'];
   /**
@@ -2539,42 +2542,43 @@ export type RoomGroup = {
   __typename?: 'RoomGroup';
   /** Operator-facing description; may be empty. */
   description: Scalars['String']['output'];
-  /** Unique ID for this set. */
+  /** Unique ID for this room group. */
   id: Scalars['ID']['output'];
-  /** Display name for this set (e.g., 'General', 'Projects'). */
+  /** Display name for this room group (e.g., 'General', 'Projects'). */
   name: Scalars['String']['output'];
-  /** Ordered list of rooms in this set. */
+  /** Ordered list of channel rooms in this room group. */
   rooms: Array<Room>;
 };
 
 /**
- * Per-set role permission inspector. Returns the explicit grants and denials
- * configured on a set for a given role (no inheritance — to see the effective
- * permissions resolve per-room or per-user via the resolver instead).
+ * Per-room-group role permission inspector. Returns the explicit grants and
+ * denials configured on a room group for a given role (no inheritance — to
+ * see the effective permissions resolve per-room or per-user via the resolver
+ * instead).
  */
 export type RoomGroupRolePermissions = {
   __typename?: 'RoomGroupRolePermissions';
-  /** The set these permissions belong to. */
+  /** The room group these permissions belong to. */
   groupId: Scalars['ID']['output'];
-  /** Permissions explicitly denied to this role on this set. */
+  /** Permissions explicitly denied to this role on this room group. */
   permissionDenials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this role on this set. */
+  /** Permissions explicitly granted to this role on this room group. */
   permissions: Array<Scalars['String']['output']>;
   /** The role these permissions apply to. */
   roleName: Scalars['String']['output'];
 };
 
 /**
- * Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
- * direct user-level grants/denials.
+ * Per-room-group user permission inspector. Mirrors RoomGroupRolePermissions
+ * for direct user-level grants/denials.
  */
 export type RoomGroupUserPermissions = {
   __typename?: 'RoomGroupUserPermissions';
-  /** The set these permissions belong to. */
+  /** The room group these permissions belong to. */
   groupId: Scalars['ID']['output'];
-  /** Permissions explicitly denied to this user on this set. */
+  /** Permissions explicitly denied to this user on this room group. */
   permissionDenials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this user on this set. */
+  /** Permissions explicitly granted to this user on this room group. */
   permissions: Array<Scalars['String']['output']>;
   /** The user these permissions apply to. */
   userId: Scalars['ID']['output'];
@@ -2586,7 +2590,7 @@ export type RoomGroupUserPermissions = {
  */
 export type RoomGroupsUpdatedEvent = {
   __typename?: 'RoomGroupsUpdatedEvent';
-  /** Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets. */
+  /** Always true. Vestigial — clients only need the event arrival to trigger a refetch of room groups. */
   changed: Scalars['Boolean']['output'];
 };
 
@@ -3219,7 +3223,7 @@ export type UpdateRoleInput = {
 export type UpdateRoomGroupInput = {
   /** Optional description. */
   description?: InputMaybe<Scalars['String']['input']>;
-  /** The set's ID. */
+  /** The room group's ID. */
   id: Scalars['ID']['input'];
   /** Display name. */
   name: Scalars['String']['input'];
