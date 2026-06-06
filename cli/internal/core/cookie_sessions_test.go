@@ -103,6 +103,36 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	}
 }
 
+func TestChattoCore_CookieSessionRevocationCutoffRejectsStaleAuthentication(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "cookie-cutoff-user", "Cookie Cutoff User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authenticatedAt := time.Now()
+	sessionID, _, err := core.CreateCookieSessionAt(ctx, user.Id, "password_login", authenticatedAt)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionAt: %v", err)
+	}
+
+	if err := core.EstablishCredentialRevocation(ctx, user.Id); err != nil {
+		t.Fatalf("EstablishCredentialRevocation: %v", err)
+	}
+	if _, err := core.ValidateCookieSession(ctx, user.Id, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
+	}
+	if _, _, err := core.CreateCookieSessionAt(ctx, user.Id, "password_login", authenticatedAt); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("stale CreateCookieSessionAt err = %v, want ErrCookieSessionNotFound", err)
+	}
+	if fresh, _, err := core.CreateCookieSessionAt(ctx, user.Id, "password_login", time.Now()); err != nil {
+		t.Fatalf("fresh CreateCookieSessionAt should succeed: %v", err)
+	} else if _, err := core.ValidateCookieSession(ctx, user.Id, fresh); err != nil {
+		t.Fatalf("fresh cookie session should validate: %v", err)
+	}
+}
+
 func TestChattoCore_ValidateCookieSessionRejectsExpiredPayload(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

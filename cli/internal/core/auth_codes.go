@@ -139,8 +139,18 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		return "", "", ErrAuthCodeInvalidVerifier
 	}
 
+	if err := c.RequireAuthenticationAllowed(ctx, codeData.UserID, codeData.CreatedAt); err != nil {
+		if !errors.Is(err, ErrAuthenticationRevoked) {
+			return "", "", err
+		}
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "auth_revoked"); err != nil {
+			return "", "", err
+		}
+		return "", "", ErrAuthCodeNotFound
+	}
+
 	// Issue a bearer token
-	token, err := c.CreateAuthTokenWithSource(ctx, codeData.UserID, "oauth_code_exchange")
+	token, err := c.CreateAuthTokenWithSourceAt(ctx, codeData.UserID, "oauth_code_exchange", codeData.CreatedAt)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
 	}

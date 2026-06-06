@@ -16,6 +16,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
 - **Logout** — for cookie sessions: the server deletes the current cookie-session KV record, clears the cookie, and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
 - **Session refresh** — cookie-session KV TTL cannot be touched in place, so active sessions are rotated near expiry: the server creates a replacement `CookieSession` record with a fresh TTL, updates the browser cookie, and deletes the old record best-effort. Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
+- **Password and account lifecycle revocation** — password resets and password changes advance `auth_revoked_before.{userId}` before the new password hash event is appended. Cookie sessions, bearer tokens, and OAuth authorization-code exchange compare their authentication time to this cutoff, so credentials authenticated before the cutoff are rejected even if their runtime records are created after a revoke scan starts. Revoke-all scans still delete matching `cookie_session.*` and `session.*` records as cleanup. Account deletion also best-effort deletes a user's cookie sessions and bearer tokens.
 - **Password reset tokens** — reset links are backed by `RUNTIME_STATE` HMAC-derived `password_reset.{hmac}` records with a 1-hour per-key TTL. Raw reset tokens and links are never written to `EVT` or backup archives.
 - **Server version handshake** — the WebSocket `connection_ack` payload includes the server's version. The frontend uses this to detect deployed-version drift and prompt the user to refresh.
 - **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, bearer-token issuance/revocation, OAuth authorization-code issuance/exchange, registration-link issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
@@ -30,7 +31,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 2. Bearer tokens for cross-origin
 
-**Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys. Tokens are validated by KV lookup; revocation is one delete.
+**Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys. Tokens are validated by KV lookup plus the per-user `auth_revoked_before.{userId}` cutoff; single-token revocation is one delete, and user-wide cleanup scans `session.*` for records owned by that user.
 **Why:** Cookies are scoped to one origin and `SameSite=Lax` blocks them on cross-origin requests. Tokens are origin-agnostic. We chose opaque tokens over JWTs because Chatto still resolves the current user and permissions server-side per request — JWT's "stateless validation" advantage gives little here, while opaque tokens give instant revocation and natural TTL via KV's built-in expiry. See ADR-024.
 **Tradeoff:** Tokens stored in `localStorage` are vulnerable to XSS; cookie sessions are not. Cross-origin clients accept this tradeoff in exchange for being able to authenticate at all. Operators must keep `[core].secret_key` stable across restores to preserve active bearer-token sessions.
 
@@ -38,7 +39,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 **Decision:** Each successful token validation rewrites the runtime-state entry with a fresh per-key TTL (default 90 days). Cookie sessions use the same inactivity window but rotate near expiry instead of touching TTL in place.
 **Why:** Time-from-creation expiry would surprise users — "you've been logged in for 90 days, time to re-auth, even though you've been using the app daily". Sliding-window means active users stay logged in indefinitely; only genuinely inactive sessions expire.
-**Tradeoff:** A long-stolen token stays valid until it lapses or gets explicitly revoked. Operators concerned about this can lower the TTL or implement a "revoke all tokens for user" action (not currently exposed — see ADR-024).
+**Tradeoff:** A long-stolen token stays valid until it lapses, gets explicitly revoked, or the user's password lifecycle advances the auth cutoff. Operators concerned about shorter compromise windows can lower the TTL.
 
 ### 4. WebSocket auth at HTTP upgrade
 
@@ -93,5 +94,5 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 
 ## Open Questions
 
-- A "revoke all tokens for this user" affordance for admins. Currently tokens are revoked one at a time by KV key. Useful in the case of a compromised user.
+- A "revoke all tokens for this user" admin affordance. Core supports revoke-all for password/account lifecycle flows, but there is no dedicated admin UI action yet.
 - A code-exchange OAuth callback flow to keep the token out of the URL/history. Not currently planned.

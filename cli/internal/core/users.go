@@ -311,16 +311,23 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
+	authRevocation, err := c.BeginCredentialRevocation(ctx, userID)
+	if err != nil {
+		return err
+	}
+	defer authRevocation.Rollback(ctx)
+
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
 			UserId:       userID,
 			PasswordHash: hashedPassword,
 		},
 	}})
-	if _, err := c.RevokeCookieSessionsForUser(ctx, userID); err != nil {
+	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
 		return err
 	}
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+	authRevocation.Commit()
+	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "password_changed"); err != nil {
 		return err
 	}
 	if err := c.PublishSessionTerminated(ctx, userID, "password_changed"); err != nil {
@@ -359,8 +366,8 @@ func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, pass
 // verifyUserPassword is an internal helper that verifies a password for an already-fetched user.
 func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, password string, dummyHash []byte) (*corev1.User, error) {
 
-	// Retrieve password hash from separate KV storage
-	passwordHash, ok := c.Users.PasswordHash(user.Id)
+	// Retrieve password hash from the user projection.
+	passwordHash, passwordSetAt, ok := c.Users.PasswordHashWithSetAt(user.Id)
 	if !ok {
 		// No password set (OAuth-only user) - run dummy bcrypt to match timing
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
@@ -370,6 +377,12 @@ func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, 
 	err := bcrypt.CompareHashAndPassword(passwordHash, []byte(password))
 	if err != nil {
 		return nil, fmt.Errorf("invalid credentials")
+	}
+	if err := c.RequireAuthenticationAllowed(ctx, user.Id, passwordSetAt); err != nil {
+		if errors.Is(err, ErrAuthenticationRevoked) {
+			return nil, fmt.Errorf("invalid credentials")
+		}
+		return nil, err
 	}
 
 	return user, nil
@@ -964,8 +977,12 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to delete push subscriptions", "user_id", userID, "error", err)
 		// Continue - this is best-effort
 	}
-	if _, err := c.RevokeCookieSessionsForUser(ctx, userID); err != nil {
-		c.logger.Warn("Failed to revoke cookie sessions during deletion", "user_id", userID, "error", err)
+	if err := c.EstablishCredentialRevocation(ctx, userID); err != nil {
+		c.logger.Warn("Failed to establish auth revocation cutoff during deletion", "user_id", userID, "error", err)
+		// Continue - this is best-effort
+	}
+	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {
+		c.logger.Warn("Failed to revoke runtime credentials during deletion", "user_id", userID, "error", err)
 		// Continue - this is best-effort
 	}
 

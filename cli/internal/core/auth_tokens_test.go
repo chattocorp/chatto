@@ -1,8 +1,10 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestChattoCore_CreateAuthToken(t *testing.T) {
@@ -164,5 +166,84 @@ func TestChattoCore_MultipleTokensPerUser(t *testing.T) {
 	}
 	if userID2 != user.Id {
 		t.Errorf("Token2 returned wrong user ID %q, want %q", userID2, user.Id)
+	}
+}
+
+func TestChattoCore_RevokeAllAuthTokensForUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "revoke-all-user", "Revoke All User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	otherUser, err := core.CreateUser(ctx, "", "revoke-all-other", "Revoke All Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	token1, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken 1: %v", err)
+	}
+	token2, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken 2: %v", err)
+	}
+	otherToken, err := core.CreateAuthToken(ctx, otherUser.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken other: %v", err)
+	}
+
+	revoked, err := core.RevokeAllAuthTokensForUserWithReason(ctx, user.Id, "password_reset")
+	if err != nil {
+		t.Fatalf("RevokeAllAuthTokensForUserWithReason: %v", err)
+	}
+	if revoked != 2 {
+		t.Fatalf("revoked = %d, want 2", revoked)
+	}
+
+	if _, err := core.ValidateAuthToken(ctx, token1); err != ErrAuthTokenNotFound {
+		t.Fatalf("token1 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token2); err != ErrAuthTokenNotFound {
+		t.Fatalf("token2 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if gotUserID, err := core.ValidateAuthToken(ctx, otherToken); err != nil {
+		t.Fatalf("other token should remain valid: %v", err)
+	} else if gotUserID != otherUser.Id {
+		t.Fatalf("other token user ID = %q, want %q", gotUserID, otherUser.Id)
+	}
+}
+
+func TestChattoCore_AuthTokenRevocationCutoffRejectsStaleAuthentication(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "cutoff-token-user", "Cutoff Token User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authenticatedAt := time.Now()
+	token, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", authenticatedAt)
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSourceAt: %v", err)
+	}
+
+	if err := core.EstablishCredentialRevocation(ctx, user.Id); err != nil {
+		t.Fatalf("EstablishCredentialRevocation: %v", err)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", authenticatedAt); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("stale CreateAuthTokenWithSourceAt err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if fresh, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", time.Now()); err != nil {
+		t.Fatalf("fresh CreateAuthTokenWithSourceAt should succeed: %v", err)
+	} else if gotUserID, err := core.ValidateAuthToken(ctx, fresh); err != nil {
+		t.Fatalf("fresh token should validate: %v", err)
+	} else if gotUserID != user.Id {
+		t.Fatalf("fresh token user ID = %q, want %q", gotUserID, user.Id)
 	}
 }

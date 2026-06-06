@@ -31,6 +31,10 @@ const authTokenKeyPrefix = "session."
 type AuthTokenData struct {
 	UserID    string    `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
+	// AuthenticatedAt is when the credential flow became authenticated. It can
+	// be earlier than CreatedAt when token issuance races with password
+	// revocation after password/OAuth verification has already completed.
+	AuthenticatedAt time.Time `json:"authenticated_at,omitempty"`
 }
 
 // ============================================================================
@@ -59,13 +63,29 @@ func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string
 // security-safe issuance fact in EVT. The raw token remains only in the return
 // value and the HMAC-derived RUNTIME_STATE key.
 func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, source string) (string, error) {
+	return c.CreateAuthTokenWithSourceAt(ctx, userID, source, time.Now())
+}
+
+// CreateAuthTokenWithSourceAt creates a new opaque bearer token for an
+// authentication that happened at authenticatedAt. For password logins this is
+// the time credential verification started, so tokens minted after a concurrent
+// password revocation can still be rejected.
+func (c *ChattoCore) CreateAuthTokenWithSourceAt(ctx context.Context, userID, source string, authenticatedAt time.Time) (string, error) {
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authenticatedAt); err != nil {
+		if errors.Is(err, ErrAuthenticationRevoked) {
+			return "", ErrAuthTokenNotFound
+		}
+		return "", err
+	}
+
 	token := NewAuthToken()
 	createdAt := time.Now()
 	key := c.authTokenKey(token)
 
 	data, err := json.Marshal(AuthTokenData{
-		UserID:    userID,
-		CreatedAt: createdAt,
+		UserID:          userID,
+		CreatedAt:       createdAt,
+		AuthenticatedAt: authenticatedAt,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth token: %w", err)
@@ -103,12 +123,26 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
 	}
+	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.authenticatedAt()); err != nil {
+		if !errors.Is(err, ErrAuthenticationRevoked) {
+			return "", err
+		}
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", ErrAuthTokenNotFound
+	}
 
 	// Rewrite to reset TTL (sliding window expiry).
 	// Fire-and-forget — validation succeeds even if the re-put fails.
 	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.authTokenTTL())
 
 	return tokenData.UserID, nil
+}
+
+func (d AuthTokenData) authenticatedAt() time.Time {
+	if !d.AuthenticatedAt.IsZero() {
+		return d.AuthenticatedAt
+	}
+	return d.CreatedAt
 }
 
 // RevokeAuthToken deletes a bearer token, immediately invalidating it.
@@ -148,6 +182,66 @@ func (c *ChattoCore) RevokeAuthTokenWithReason(ctx context.Context, token, reaso
 		return fmt.Errorf("failed to revoke auth token: %w", err)
 	}
 	return nil
+}
+
+// RevokeAllAuthTokensForUser deletes all bearer tokens for a user. It is used
+// by password changes/resets and account deletion flows that need immediate
+// bearer-token revocation across clients.
+func (c *ChattoCore) RevokeAllAuthTokensForUser(ctx context.Context, userID string) (int, error) {
+	return c.RevokeAllAuthTokensForUserWithReason(ctx, userID, "explicit")
+}
+
+// RevokeAllAuthTokensForUserWithReason deletes all bearer tokens for a user and
+// records a revocation audit fact for each token that existed.
+func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, userID, reason string) (int, error) {
+	if userID == "" {
+		return 0, nil
+	}
+
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, authTokenKeyPrefix+"*")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to list auth tokens: %w", err)
+	}
+
+	var keys []string
+	for key := range lister.Keys() {
+		keys = append(keys, key)
+	}
+
+	revoked := 0
+	for _, key := range keys {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return revoked, fmt.Errorf("failed to get auth token for revoke-all: %w", err)
+		}
+
+		var tokenData AuthTokenData
+		if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
+			c.logger.Warn("Skipping malformed auth token during revoke-all", "key", key, "error", err)
+			continue
+		}
+		if tokenData.UserID != userID {
+			continue
+		}
+
+		if err := c.recordBearerTokenRevoked(ctx, userID, reason); err != nil {
+			return revoked, err
+		}
+		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return revoked, fmt.Errorf("failed to revoke auth token: %w", err)
+		}
+		revoked++
+	}
+	return revoked, nil
 }
 
 func (c *ChattoCore) updateRuntimeStateTokenTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {

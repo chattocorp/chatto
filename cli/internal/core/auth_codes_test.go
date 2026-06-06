@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -77,6 +78,35 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	}
 	if validatedUserID != user.Id {
 		t.Errorf("ValidateAuthToken returned userID %q, want %q", validatedUserID, user.Id)
+	}
+}
+
+func TestChattoCore_ExchangeAuthCodeRejectsCodeIssuedBeforeRevocationCutoff(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "auth-code-cutoff-user", "Auth Code Cutoff User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+	redirectURI := "https://example.com/callback"
+	code, err := core.CreateAuthCode(ctx, user.Id, redirectURI, challenge, "S256")
+	if err != nil {
+		t.Fatalf("CreateAuthCode: %v", err)
+	}
+	if err := core.EstablishCredentialRevocation(ctx, user.Id); err != nil {
+		t.Fatalf("EstablishCredentialRevocation: %v", err)
+	}
+
+	token, userID, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
+	if !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("ExchangeAuthCode err = %v, want ErrAuthCodeNotFound", err)
+	}
+	if token != "" || userID != "" {
+		t.Fatalf("ExchangeAuthCode returned token=%q userID=%q, want empty", token, userID)
 	}
 }
 

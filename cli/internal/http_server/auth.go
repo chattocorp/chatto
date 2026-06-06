@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
@@ -124,6 +125,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Verify credentials by login name
 		ctx := c.Request.Context()
+		authenticatedAt := time.Now()
 		user, err := s.core.VerifyPassword(ctx, login, loginRequest.Password)
 		if err != nil {
 			if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
@@ -135,7 +137,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create server-side cookie session
-		if err := s.createCookieSession(c, user.Id, "password_login"); err != nil {
+		if err := s.createCookieSessionAt(c, user.Id, "password_login", authenticatedAt); err != nil {
 			log.Error("Failed to save session", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
@@ -159,7 +161,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Issue a bearer token (cross-origin clients use this instead of the session cookie)
-		if token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "password_login"); err == nil {
+		if token, err := s.core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", authenticatedAt); err == nil {
 			response["token"] = token
 		} else {
 			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)

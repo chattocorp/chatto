@@ -17,7 +17,11 @@ const (
 )
 
 func (s *HTTPServer) createCookieSession(c *gin.Context, userID, source string) error {
-	sessionID, _, err := s.core.CreateCookieSession(c.Request.Context(), userID, source)
+	return s.createCookieSessionAt(c, userID, source, time.Now())
+}
+
+func (s *HTTPServer) createCookieSessionAt(c *gin.Context, userID, source string, authenticatedAt time.Time) error {
+	sessionID, _, err := s.core.CreateCookieSessionAt(c.Request.Context(), userID, source, authenticatedAt)
 	if err != nil {
 		return err
 	}

@@ -62,8 +62,13 @@ Current occupants include:
   with per-key `auth.token_ttl` expiry. The value is a `CookieSession`
   protobuf containing `user_id`, `created_at`, `expires_at`, source, and safe
   request metadata.
+- Auth revocation cutoffs: `auth_revoked_before.{userId}`, stored as
+  RFC3339Nano timestamps. Password changes/resets advance this before appending
+  the replacement password-hash event; cookie sessions, bearer tokens, and
+  OAuth authorization-code exchange reject credentials authenticated before it.
 - Bearer auth token verifiers: `session.{hmac}`, with per-key
-  `auth.token_ttl` sliding-window expiry.
+  `auth.token_ttl` sliding-window expiry. User-wide cleanup scans these records
+  and deletes entries whose stored user ID matches.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL.
 - Account workflow token verifiers: `registration.{hmac}`,
