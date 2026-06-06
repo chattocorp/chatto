@@ -166,15 +166,15 @@ type AdminServerConfig {
 "Input for updating server configuration."
 input UpdateServerConfigInput {
   "Welcome message shown on the login page. Set to empty string to clear."
-  welcomeMessage: String
+  welcomeMessage: String @length(max: 10000)
   "Server name for page titles. Set to empty string to use default."
-  serverName: String
+  serverName: String @length(max: 80)
   "Message of the Day for the header. Set to empty string to clear."
-  motd: String
+  motd: String @length(max: 1000)
   "Blocked usernames (newline-separated). Set to empty string to clear."
-  blockedUsernames: String
+  blockedUsernames: String @length(max: 10000)
   "Short server description for OG link-preview metadata. Set to empty string to clear."
-  description: String
+  description: String @length(max: 500)
 }
 
 extend type AdminQueries {

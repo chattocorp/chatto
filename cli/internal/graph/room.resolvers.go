@@ -17,11 +17,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const (
-	defaultRoomEventsLimit = 50
-	maxRoomEventsLimit     = 500
-)
-
 // Type is the resolver for the type field.
 //
 // Derived from `Room.kind` — the canonical kind discriminator since
@@ -369,8 +364,3 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 func (r *Resolver) Room() RoomResolver { return &roomResolver{r} }
 
 type roomResolver struct{ *Resolver }
-
-func roomEventsLimit(limit *int32) int {
-	limitVal, _ := paginationArgs(limit, nil, defaultRoomEventsLimit, maxRoomEventsLimit)
-	return limitVal
-}

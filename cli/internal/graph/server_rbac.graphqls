@@ -22,9 +22,9 @@ input CreateRoleInput {
   "Role identifier (lowercase alphanumeric + underscores, max 32 chars)."
   name: String!
   "Human-readable display name."
-  displayName: String!
+  displayName: String! @length(max: 80)
   "Role description."
-  description: String!
+  description: String! @length(max: 500)
 }
 
 "Input for updating an existing role."
@@ -32,9 +32,9 @@ input UpdateRoleInput {
   "Role identifier of the role to update."
   name: String!
   "Human-readable display name."
-  displayName: String!
+  displayName: String! @length(max: 80)
   "Role description."
-  description: String!
+  description: String! @length(max: 500)
 }
 
 """

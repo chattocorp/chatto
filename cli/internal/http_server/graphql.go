@@ -39,9 +39,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	// Configure GraphQL server with injected dependencies
 	resolver := graph.NewResolver(s.core, s.config.Owners, s.config.Auth, s.config.Push, s.config.Video, s.config.LiveKit, s.version)
 
-	config := graph.Config{
-		Resolvers: resolver,
-	}
+	config := graph.NewConfig(resolver)
 
 	h := handler.New(graph.NewExecutableSchema(config))
 

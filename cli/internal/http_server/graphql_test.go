@@ -532,7 +532,7 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 	// Try to post a message
 	resp := env.doGraphQL(t, `mutation($input: PostMessageInput!) {
 		postMessage(input: $input) {
-			event { id }
+			id
 		}
 	}`, map[string]any{
 		"input": map[string]any{
@@ -545,6 +545,117 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 	if len(resp.Errors) == 0 {
 		t.Error("Expected error for non-member posting message")
 	}
+}
+
+func TestGraphQL_LengthDirective_RejectsOverlongNestedInputField(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `mutation($input: PostMessageInput!) {
+		postMessage(input: $input) {
+			id
+		}
+	}`, map[string]any{
+		"input": map[string]any{
+			"roomId": "Rtest",
+			"body":   "hello",
+			"linkPreview": map[string]any{
+				"url":   "https://example.com",
+				"title": strings.Repeat("t", core.MaxLinkPreviewTitleLength+1),
+			},
+		},
+	})
+
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Expected one GraphQL validation error, got %d: %#v", len(resp.Errors), resp.Errors)
+	}
+	if !graphQLErrorPathContains(resp.Errors[0].Path, "linkPreview") || !graphQLErrorPathContains(resp.Errors[0].Path, "title") {
+		t.Fatalf("Expected error path to include nested input field, got message=%q path=%#v", resp.Errors[0].Message, resp.Errors[0].Path)
+	}
+	if !strings.Contains(resp.Errors[0].Message, "must be at most 300 bytes") {
+		t.Fatalf("Expected length validation message, got %q", resp.Errors[0].Message)
+	}
+}
+
+func TestGraphQL_LengthDirective_RejectsOverlongLinkPreviewImageAssetID(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `mutation($input: PostMessageInput!) {
+		postMessage(input: $input) {
+			id
+		}
+	}`, map[string]any{
+		"input": map[string]any{
+			"roomId": "Rtest",
+			"body":   "hello",
+			"linkPreview": map[string]any{
+				"url":          "https://example.com",
+				"imageAssetId": strings.Repeat("a", core.MaxLinkPreviewImageAssetIDLength+1),
+			},
+		},
+	})
+
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Expected one GraphQL validation error, got %d: %#v", len(resp.Errors), resp.Errors)
+	}
+	if !graphQLErrorPathContains(resp.Errors[0].Path, "linkPreview") || !graphQLErrorPathContains(resp.Errors[0].Path, "imageAssetId") {
+		t.Fatalf("Expected error path to include imageAssetId input field, got message=%q path=%#v", resp.Errors[0].Message, resp.Errors[0].Path)
+	}
+	if !strings.Contains(resp.Errors[0].Message, "must be at most 15 bytes") {
+		t.Fatalf("Expected length validation message, got %q", resp.Errors[0].Message)
+	}
+}
+
+func TestGraphQL_LengthDirective_RejectsOverlongLinkPreviewQueryURL(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `query($url: String!) {
+		linkPreview(url: $url) {
+			url
+		}
+	}`, map[string]any{
+		"url": strings.Repeat("u", core.MaxLinkPreviewURLLength+1),
+	})
+
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Expected one GraphQL validation error, got %d: %#v", len(resp.Errors), resp.Errors)
+	}
+	if !graphQLErrorPathContains(resp.Errors[0].Path, "linkPreview") || !graphQLErrorPathContains(resp.Errors[0].Path, "url") {
+		t.Fatalf("Expected error path to include linkPreview url argument, got message=%q path=%#v", resp.Errors[0].Message, resp.Errors[0].Path)
+	}
+	if !strings.Contains(resp.Errors[0].Message, "must be at most 2048 bytes") {
+		t.Fatalf("Expected length validation message, got %q", resp.Errors[0].Message)
+	}
+}
+
+func TestGraphQL_LengthDirective_AllowsNullNullableInputField(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `mutation($input: UpdateServerInput!) {
+		updateServer(input: $input) {
+			config { serverName }
+		}
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":        "Test Server",
+			"description": nil,
+		},
+	})
+
+	if len(resp.Errors) == 0 {
+		t.Fatal("Expected resolver authentication error")
+	}
+	if strings.Contains(resp.Errors[0].Message, "must be at most") {
+		t.Fatalf("Expected null nullable field to bypass length validation, got %q", resp.Errors[0].Message)
+	}
+}
+
+func graphQLErrorPathContains(path []any, want string) bool {
+	for _, segment := range path {
+		if segment == want {
+			return true
+		}
+	}
+	return false
 }
 
 // ============================================================================

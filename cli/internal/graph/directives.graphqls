@@ -24,6 +24,12 @@ directive @goExtraField(
 ) repeatable on OBJECT | INPUT_OBJECT
 
 """
+Validates the UTF-8 byte length of a string argument or input field.
+Null and omitted nullable values are allowed; core validation remains authoritative.
+"""
+directive @length(min: Int, max: Int!, message: String) on ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
+
+"""
 Custom scalar for date/time values, formatted as RFC3339.
 """
 scalar Time @goModel(model: "hmans.de/chatto/internal/graph.Time")

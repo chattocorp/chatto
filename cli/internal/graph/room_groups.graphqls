@@ -50,9 +50,9 @@ Input for creating a new room group.
 """
 input CreateRoomGroupInput {
   "Display name for the new set (e.g., 'Engineering', 'Public')."
-  name: String!
+  name: String! @length(max: 80)
   "Optional operator-facing description."
-  description: String
+  description: String @length(max: 500)
 }
 
 """
@@ -62,9 +62,9 @@ input UpdateRoomGroupInput {
   "The set's ID."
   id: ID!
   "Display name."
-  name: String!
+  name: String! @length(max: 80)
   "Optional description."
-  description: String
+  description: String @length(max: 500)
 }
 
 """
