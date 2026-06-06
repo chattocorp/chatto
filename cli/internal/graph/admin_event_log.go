@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,13 @@ const (
 	defaultEventLogPageSize = 50
 	maxEventLogPageSize     = 200
 )
+
+func eventLogTotalCount(messages uint64) (int64, error) {
+	if messages > uint64(math.MaxInt64) {
+		return 0, fmt.Errorf("event log total count %d exceeds Int64 range", messages)
+	}
+	return int64(messages), nil
+}
 
 // fetchEventLogPage walks EVT backwards from startSeq (inclusive)
 // and returns up to `limit` entries newest-first. Stops early at the

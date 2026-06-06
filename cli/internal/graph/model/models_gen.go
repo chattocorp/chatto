@@ -327,8 +327,8 @@ type EventLogConnection struct {
 	HasOlder bool `json:"hasOlder"`
 	// Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries.
 	EndCursor *string `json:"endCursor,omitempty"`
-	// Total messages currently in EVT — an operational metric, not bounded by `limit`.
-	TotalCount int32 `json:"totalCount"`
+	// Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int.
+	TotalCount int64 `json:"totalCount"`
 }
 
 // One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033.

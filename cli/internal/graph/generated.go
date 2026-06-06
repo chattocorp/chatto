@@ -10520,15 +10520,15 @@ func (ec *executionContext) _EventLogConnection_totalCount(ctx context.Context, 
 			return obj.TotalCount, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
-			return ec.marshalNInt2int32(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v int64) graphql.Marshaler {
+			return ec.marshalNInt642int64(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_EventLogConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("EventLogConnection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("EventLogConnection", field, false, false, errors.New("field of type Int64 does not have child fields"))
 }
 
 func (ec *executionContext) _EventLogEntry_sequence(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {

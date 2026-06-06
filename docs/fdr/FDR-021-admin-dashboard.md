@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -13,6 +13,7 @@ The admin section gives owners and admins visibility into the server's operation
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users (subject to outranking the target — see FDR-001).
 - **System Info page** — shows NATS connection status (server ID, version, round-trip latency), JetStream account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `ServerStats` (user count, channel room count, DM room count).
 - **Audit log page** — chronological list of significant admin actions (user deletions, role changes, server config edits, etc.) for forensic review.
+- The audit/event-log GraphQL connection returns `totalCount` as `Int64` because it reflects retained stream message counts, which can exceed GraphQL's 32-bit `Int` range on long-running servers.
 
 ## Design Decisions
 

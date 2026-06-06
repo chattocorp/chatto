@@ -216,8 +216,8 @@ type EventLogConnection {
   hasOlder: Boolean!
   "Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries."
   endCursor: String
-  "Total messages currently in EVT — an operational metric, not bounded by `limit`."
-  totalCount: Int!
+  "Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int."
+  totalCount: Int64! @goField(type: "int64")
 }
 
 extend type AdminQueries {

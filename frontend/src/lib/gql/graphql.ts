@@ -555,8 +555,8 @@ export type EventLogConnection = {
   entries: Array<EventLogEntry>;
   /** True if older entries exist beyond this page. */
   hasOlder: Scalars['Boolean']['output'];
-  /** Total messages currently in EVT — an operational metric, not bounded by `limit`. */
-  totalCount: Scalars['Int']['output'];
+  /** Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int. */
+  totalCount: Scalars['Int64']['output'];
 };
 
 /** One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033. */
@@ -2365,15 +2365,17 @@ export type Room = {
   /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<Event>;
   /**
-   * Fetch historical events for this room (default limit: 50). Use the
-   * opaque `before` cursor for backward pagination and `after` for forward
-   * pagination — pass the `startCursor` / `endCursor` from a previous
-   * `RoomEventsConnection` response. Cursors are opaque strings; clients
-   * must not attempt to parse them.
+   * Fetch historical events for this room (default limit: 50, max: 500;
+   * larger values are silently clamped). Use the opaque `before` cursor
+   * for backward pagination and `after` for forward pagination — pass the
+   * `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+   * response. Cursors are opaque strings; clients must not attempt to
+   * parse them.
    */
   events: RoomEventsConnection;
   /**
-   * Fetch events in this room centered around a specific event.
+   * Fetch events in this room centered around a specific event (default
+   * limit: 50, max: 500; larger values are silently clamped).
    * Returns a window of events with the target event roughly in the middle.
    * Used for "jump to message" when clicking reply links to messages not in the loaded range.
    */
@@ -4595,7 +4597,7 @@ export type AdminEventLogQueryVariables = Exact<{
 }>;
 
 
-export type AdminEventLogQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', eventLog: { __typename?: 'EventLogConnection', hasOlder: boolean, endCursor?: string | null, totalCount: number, entries: Array<{ __typename?: 'EventLogEntry', sequence: string, subject: string, aggregateType: string, aggregateId: string, eventType: string, eventId: string, actorId: string, createdAt: any }> } } | null };
+export type AdminEventLogQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', eventLog: { __typename?: 'EventLogConnection', hasOlder: boolean, endCursor?: string | null, totalCount: any, entries: Array<{ __typename?: 'EventLogEntry', sequence: string, subject: string, aggregateType: string, aggregateId: string, eventType: string, eventId: string, actorId: string, createdAt: any }> } } | null };
 
 export type AdminEventLogEntryQueryVariables = Exact<{
   sequence: Scalars['String']['input'];
