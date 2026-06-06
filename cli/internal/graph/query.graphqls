@@ -5,10 +5,10 @@ type Query {
   "Get a specific room by ID."
   room(roomId: ID!): Room
 
-  "Get a specific user by ID."
+  "Get a specific user by ID. Requires authentication."
   user(userId: ID!): User
 
-  "Get a specific user by login. Returns null if not found."
+  "Get a specific user by login. Requires authentication. Returns null if not found."
   userByLogin(login: String!): User
 
   """

@@ -129,7 +129,7 @@ func TestQueryResolver_User(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("get existing user", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.ctx, env.testUser.Id)
+		user, err := env.resolver.Query().User(env.authContext(), env.testUser.Id)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -144,9 +144,61 @@ func TestQueryResolver_User(t *testing.T) {
 	})
 
 	t.Run("get non-existent user", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.ctx, "nonexistent")
+		user, err := env.resolver.Query().User(env.authContext(), "nonexistent")
 		if err == nil {
 			t.Fatal("Expected error for non-existent user")
+		}
+
+		if user != nil {
+			t.Errorf("Expected nil user, got %+v", user)
+		}
+	})
+
+	t.Run("requires authentication", func(t *testing.T) {
+		user, err := env.resolver.Query().User(env.unauthContext(), env.testUser.Id)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
+		}
+
+		if user != nil {
+			t.Errorf("Expected nil user, got %+v", user)
+		}
+	})
+}
+
+func TestQueryResolver_UserByLogin(t *testing.T) {
+	env := setupTestResolver(t)
+
+	t.Run("get existing user", func(t *testing.T) {
+		user, err := env.resolver.Query().UserByLogin(env.authContext(), env.testUser.Login)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if user == nil {
+			t.Fatal("Expected user, got nil")
+		}
+
+		if user.Id != env.testUser.Id {
+			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, user.Id)
+		}
+	})
+
+	t.Run("get non-existent user returns nil", func(t *testing.T) {
+		user, err := env.resolver.Query().UserByLogin(env.authContext(), "nonexistent")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if user != nil {
+			t.Errorf("Expected nil user, got %+v", user)
+		}
+	})
+
+	t.Run("requires authentication", func(t *testing.T) {
+		user, err := env.resolver.Query().UserByLogin(env.unauthContext(), env.testUser.Login)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
 
 		if user != nil {

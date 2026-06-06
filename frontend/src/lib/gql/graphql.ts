@@ -2046,9 +2046,9 @@ export type Query = {
    * Passing both is rejected.
    */
   tierRoles?: Maybe<TierRoles>;
-  /** Get a specific user by ID. */
+  /** Get a specific user by ID. Requires authentication. */
   user?: Maybe<User>;
-  /** Get a specific user by login. Returns null if not found. */
+  /** Get a specific user by login. Requires authentication. Returns null if not found. */
   userByLogin?: Maybe<User>;
   /**
    * Permission matrix for a specific user. Authorization: viewer must
@@ -2365,15 +2365,17 @@ export type Room = {
   /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<Event>;
   /**
-   * Fetch historical events for this room (default limit: 50). Use the
-   * opaque `before` cursor for backward pagination and `after` for forward
-   * pagination — pass the `startCursor` / `endCursor` from a previous
-   * `RoomEventsConnection` response. Cursors are opaque strings; clients
-   * must not attempt to parse them.
+   * Fetch historical events for this room (default limit: 50, max: 500;
+   * larger values are silently clamped). Use the opaque `before` cursor
+   * for backward pagination and `after` for forward pagination — pass the
+   * `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+   * response. Cursors are opaque strings; clients must not attempt to
+   * parse them.
    */
   events: RoomEventsConnection;
   /**
-   * Fetch events in this room centered around a specific event.
+   * Fetch events in this room centered around a specific event (default
+   * limit: 50, max: 500; larger values are silently clamped).
    * Returns a window of events with the target event roughly in the middle.
    * Used for "jump to message" when clicking reply links to messages not in the loaded range.
    */
@@ -3031,7 +3033,8 @@ export type Subscription = {
    *   notifications, thread-follow sync, server membership, room layout
    *   changes, session termination) — scoped per event type:
    *   - Config events: delivered to all authenticated users.
-   *   - User profile updates: broadcast (profiles are public).
+   *   - User profile updates: broadcast to authenticated users (profiles are
+   *     public within the server).
    *   - Private user events (notification sync, preferences, session
    *     termination, server membership changes): delivered only to the target
    *     user. Powers cross-tab/cross-device sync.

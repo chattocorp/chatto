@@ -14,7 +14,8 @@ type Subscription {
     notifications, thread-follow sync, server membership, room layout
     changes, session termination) — scoped per event type:
     - Config events: delivered to all authenticated users.
-    - User profile updates: broadcast (profiles are public).
+    - User profile updates: broadcast to authenticated users (profiles are
+      public within the server).
     - Private user events (notification sync, preferences, session
       termination, server membership changes): delivered only to the target
       user. Powers cross-tab/cross-device sync.
