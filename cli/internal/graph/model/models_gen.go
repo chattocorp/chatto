@@ -1709,9 +1709,12 @@ func (e RoomType) MarshalJSON() ([]byte, error) {
 type UserPermissionDecision string
 
 const (
+	// The permission is explicitly granted.
 	UserPermissionDecisionAllow UserPermissionDecision = "ALLOW"
-	UserPermissionDecisionDeny  UserPermissionDecision = "DENY"
-	UserPermissionDecisionNone  UserPermissionDecision = "NONE"
+	// The permission is explicitly denied.
+	UserPermissionDecisionDeny UserPermissionDecision = "DENY"
+	// No explicit grant or denial applies at this scope.
+	UserPermissionDecisionNone UserPermissionDecision = "NONE"
 )
 
 var AllUserPermissionDecision = []UserPermissionDecision{
