@@ -971,6 +971,7 @@ type Server struct {
 	// Returns null if the user is not a member.
 	Member *corev1.User `json:"member,omitempty"`
 	// List members of this server with optional search and pagination.
+	// This is the canonical member directory surface and is available to any authenticated user.
 	// Search matches login and display name (case-insensitive partial match).
 	Members *ServerMembersConnection `json:"members"`
 	// List all roles on this server.
@@ -1316,16 +1317,6 @@ type UserPermissionScope struct {
 	// For room scopes, the parent group's ID — so the UI can nest rooms under
 	// their group column. Empty string for server / group scopes.
 	ParentGroupID string `json:"parentGroupId"`
-}
-
-// Paginated list of users with metadata.
-type UsersConnection struct {
-	// The users in this page.
-	Users []*corev1.User `json:"users"`
-	// Total count of users matching the search (before pagination).
-	TotalCount int32 `json:"totalCount"`
-	// Whether there are more users beyond this page.
-	HasMore bool `json:"hasMore"`
 }
 
 // The viewer's notification preference for the server or a room.

@@ -324,7 +324,7 @@ Owners pass every permission check through the standard hierarchy
 walk (owner is position 1000, the highest rank). They have access to:
 
 - `/admin` routes in the frontend
-- `Query.admin` and `Query.users` in GraphQL
+- `Query.admin` in GraphQL; member-directory reads use authenticated `Server.members`
 - System monitoring data (NATS stats, streams, KV buckets)
 - Everything else (the owner role's grants cover all permissions)
 

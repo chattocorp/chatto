@@ -2058,11 +2058,6 @@ export type Query = {
    * Self-introspection is not allowed; the matrix is an admin surface.
    */
   userPermissionMatrix?: Maybe<UserPermissionMatrix>;
-  /**
-   * List users on this server. Requires server admin.
-   * Search matches login and display name (case-insensitive partial match).
-   */
-  users: UsersConnection;
   /** The current authenticated user's server-level permissions. Null if not authenticated. */
   viewer?: Maybe<Viewer>;
 };
@@ -2122,14 +2117,6 @@ export type QueryUserByLoginArgs = {
 /** Root query type for fetching data. */
 export type QueryUserPermissionMatrixArgs = {
   userId: Scalars['ID']['input'];
-};
-
-
-/** Root query type for fetching data. */
-export type QueryUsersArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 /**
@@ -2365,15 +2352,17 @@ export type Room = {
   /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<Event>;
   /**
-   * Fetch historical events for this room (default limit: 50). Use the
-   * opaque `before` cursor for backward pagination and `after` for forward
-   * pagination — pass the `startCursor` / `endCursor` from a previous
-   * `RoomEventsConnection` response. Cursors are opaque strings; clients
-   * must not attempt to parse them.
+   * Fetch historical events for this room (default limit: 50, max: 500;
+   * larger values are silently clamped). Use the opaque `before` cursor
+   * for backward pagination and `after` for forward pagination — pass the
+   * `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+   * response. Cursors are opaque strings; clients must not attempt to
+   * parse them.
    */
   events: RoomEventsConnection;
   /**
-   * Fetch events in this room centered around a specific event.
+   * Fetch events in this room centered around a specific event (default
+   * limit: 50, max: 500; larger values are silently clamped).
    * Returns a window of events with the target event roughly in the middle.
    * Used for "jump to message" when clicking reply links to messages not in the loaded range.
    */
@@ -2717,6 +2706,7 @@ export type Server = {
   memberCount: Scalars['Int']['output'];
   /**
    * List members of this server with optional search and pagination.
+   * This is the canonical member directory surface and is available to any authenticated user.
    * Search matches login and display name (case-insensitive partial match).
    */
   members: ServerMembersConnection;
@@ -3534,17 +3524,6 @@ export type UserTypingEvent = {
   roomId: Scalars['ID']['output'];
   /** If typing in a thread, the root message event ID. Null for main room typing. */
   threadRootEventId?: Maybe<Scalars['ID']['output']>;
-};
-
-/** Paginated list of users with metadata. */
-export type UsersConnection = {
-  __typename?: 'UsersConnection';
-  /** Whether there are more users beyond this page. */
-  hasMore: Scalars['Boolean']['output'];
-  /** Total count of users matching the search (before pagination). */
-  totalCount: Scalars['Int']['output'];
-  /** The users in this page. */
-  users: Array<User>;
 };
 
 /** Video processing state for a video attachment. */

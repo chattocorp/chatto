@@ -500,7 +500,6 @@ type ComplexityRoot struct {
 		User                  func(childComplexity int, userID string) int
 		UserByLogin           func(childComplexity int, login string) int
 		UserPermissionMatrix  func(childComplexity int, userID string) int
-		Users                 func(childComplexity int, search *string, limit *int32, offset *int32) int
 		Viewer                func(childComplexity int) int
 	}
 
@@ -890,12 +889,6 @@ type ComplexityRoot struct {
 		ThreadRootEventId func(childComplexity int) int
 	}
 
-	UsersConnection struct {
-		HasMore    func(childComplexity int) int
-		TotalCount func(childComplexity int) int
-		Users      func(childComplexity int) int
-	}
-
 	VideoProcessing struct {
 		DurationMs        func(childComplexity int) int
 		Height            func(childComplexity int) int
@@ -1132,7 +1125,6 @@ type QueryResolver interface {
 	Room(ctx context.Context, roomID string) (*corev1.Room, error)
 	User(ctx context.Context, userID string) (*corev1.User, error)
 	UserByLogin(ctx context.Context, login string) (*corev1.User, error)
-	Users(ctx context.Context, search *string, limit *int32, offset *int32) (*model.UsersConnection, error)
 	Admin(ctx context.Context) (*model.AdminQueries, error)
 	LinkPreview(ctx context.Context, url string) (*corev1.LinkPreview, error)
 	PermissionExplanation(ctx context.Context, userID string, roomID *string) ([]*model.PermissionExplanation, error)
@@ -3489,17 +3481,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.UserPermissionMatrix(childComplexity, args["userId"].(string)), true
-	case "Query.users":
-		if e.ComplexityRoot.Query.Users == nil {
-			break
-		}
-
-		args, err := ec.field_Query_users_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.Users(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Query.viewer":
 		if e.ComplexityRoot.Query.Viewer == nil {
 			break
@@ -5036,25 +5017,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.UserTypingEvent.ThreadRootEventId(childComplexity), true
 
-	case "UsersConnection.hasMore":
-		if e.ComplexityRoot.UsersConnection.HasMore == nil {
-			break
-		}
-
-		return e.ComplexityRoot.UsersConnection.HasMore(childComplexity), true
-	case "UsersConnection.totalCount":
-		if e.ComplexityRoot.UsersConnection.TotalCount == nil {
-			break
-		}
-
-		return e.ComplexityRoot.UsersConnection.TotalCount(childComplexity), true
-	case "UsersConnection.users":
-		if e.ComplexityRoot.UsersConnection.Users == nil {
-			break
-		}
-
-		return e.ComplexityRoot.UsersConnection.Users(childComplexity), true
-
 	case "VideoProcessing.durationMs":
 		if e.ComplexityRoot.VideoProcessing.DurationMs == nil {
 			break
@@ -6419,18 +6381,6 @@ func (ec *executionContext) childFields_UserSettings(ctx context.Context, field 
 		return ec.fieldContext_UserSettings_timeFormat(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type UserSettings", field.Name)
-}
-
-func (ec *executionContext) childFields_UsersConnection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "users":
-		return ec.fieldContext_UsersConnection_users(ctx, field)
-	case "totalCount":
-		return ec.fieldContext_UsersConnection_totalCount(ctx, field)
-	case "hasMore":
-		return ec.fieldContext_UsersConnection_hasMore(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type UsersConnection", field.Name)
 }
 
 func (ec *executionContext) childFields_VideoProcessing(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -7996,36 +7946,6 @@ func (ec *executionContext) field_Query_user_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["userId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "search",
-		func(ctx context.Context, v any) (*string, error) {
-			return ec.unmarshalOString2ᚖstring(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["search"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["limit"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["offset"] = arg2
 	return args, nil
 }
 
@@ -16800,50 +16720,6 @@ func (ec *executionContext) fieldContext_Query_userByLogin(ctx context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_users(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Query_users(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Users(ctx, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.UsersConnection) graphql.Marshaler {
-			return ec.marshalNUsersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_UsersConnection(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_users_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_admin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -23293,84 +23169,6 @@ func (ec *executionContext) _UserTypingEvent_threadRootEventId(ctx context.Conte
 }
 func (ec *executionContext) fieldContext_UserTypingEvent_threadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("UserTypingEvent", field, false, false, errors.New("field of type ID does not have child fields"))
-}
-
-func (ec *executionContext) _UsersConnection_users(ctx context.Context, field graphql.CollectedField, obj *model.UsersConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_UsersConnection_users(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Users, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_UsersConnection_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "UsersConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_User(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _UsersConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.UsersConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_UsersConnection_totalCount(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.TotalCount, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
-			return ec.marshalNInt2int32(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_UsersConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("UsersConnection", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _UsersConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.UsersConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_UsersConnection_hasMore(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.HasMore, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
-			return ec.marshalNBoolean2bool(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_UsersConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("UsersConnection", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _VideoProcessing_status(ctx context.Context, field graphql.CollectedField, obj *model.VideoProcessing) (ret graphql.Marshaler) {
@@ -33637,28 +33435,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "users":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_users(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "admin":
 			field := field
 
@@ -39094,55 +38870,6 @@ func (ec *executionContext) _UserTypingEvent(ctx context.Context, sel ast.Select
 	return out
 }
 
-var usersConnectionImplementors = []string{"UsersConnection"}
-
-func (ec *executionContext) _UsersConnection(ctx context.Context, sel ast.SelectionSet, obj *model.UsersConnection) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, usersConnectionImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("UsersConnection")
-		case "users":
-			out.Values[i] = ec._UsersConnection_users(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "totalCount":
-			out.Values[i] = ec._UsersConnection_totalCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "hasMore":
-			out.Values[i] = ec._UsersConnection_hasMore(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var videoProcessingImplementors = []string{"VideoProcessing"}
 
 func (ec *executionContext) _VideoProcessing(ctx context.Context, sel ast.SelectionSet, obj *model.VideoProcessing) graphql.Marshaler {
@@ -41878,20 +41605,6 @@ func (ec *executionContext) marshalNUserSettings2ᚖhmansᚗdeᚋchattoᚋintern
 		return graphql.Null
 	}
 	return ec._UserSettings(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNUsersConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx context.Context, sel ast.SelectionSet, v model.UsersConnection) graphql.Marshaler {
-	return ec._UsersConnection(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNUsersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx context.Context, sel ast.SelectionSet, v *model.UsersConnection) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._UsersConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNVideoProcessingStatus2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVideoProcessingStatus(ctx context.Context, v any) (model.VideoProcessingStatus, error) {

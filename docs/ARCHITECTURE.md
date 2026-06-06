@@ -102,7 +102,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `user(userId)`                     | Get a user by ID.                                                                      |
 | `userByLogin(login)`               | Get a user by login (returns null if not found).                                       |
-| `users(search, limit, offset)`     | Paginated user directory (server admin only).                                          |
+| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).                       |
 | `userPermissionMatrix(userId)`     | Effective allow/deny matrix for a user (admin surface; `role.manage` + outrank gate).  |
 | `permissionExplanation(userId, …)` | Per-permission resolver explainer (self-inspection or admin).                          |
 

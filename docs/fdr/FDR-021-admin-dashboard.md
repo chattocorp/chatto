@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -49,7 +49,7 @@ The admin section gives owners and admins visibility into the server's operation
 ## Permissions
 
 - `admin.access` — gates entry to the admin UI and the `Query.admin` resolver.
-- `admin.view-users` — gates `admin.users` and `admin.members` queries.
+- `admin.view-users` — gates the admin Users page and user-management affordances. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
 - `admin.view-system` — gates `admin.systemInfo`, `admin.projections`, and `admin.stats`.
 - `admin.view-audit` — gates `admin.auditLog`.
 - `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper (permission + outrank-target check).

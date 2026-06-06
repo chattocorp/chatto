@@ -659,63 +659,51 @@ func graphQLErrorPathContains(path []any, want string) bool {
 }
 
 // ============================================================================
-// Admin Tests
+// Member Directory Tests
 // ============================================================================
 
-func TestGraphQL_Query_Users_RequiresAdmin(t *testing.T) {
+func TestGraphQL_Query_ServerMembers_RequiresAuthentication(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Create regular user (no role assigned).
-	env.createTestUser(t, "regular", "password123")
-	env.login(t, "regular", "password123")
+	resp := env.doGraphQL(t, `query { server { members(limit: 5) { users { id login } } } }`, nil)
 
-	resp := env.doGraphQL(t, `query { users(limit: 5) { users { id login } } }`, nil)
-
-	// Should get authorization error
 	if len(resp.Errors) == 0 {
-		t.Error("Expected error for non-admin querying users")
+		t.Error("Expected error for unauthenticated member directory query")
 	}
 }
 
-func TestGraphQL_Query_Users_AdminSucceeds(t *testing.T) {
-	adminEmail := "admin@example.com"
-	// Create server with admin config (uses verified emails for admin check)
-	env := setupGraphQLTestServerWithConfig(t, config.OwnersConfig{
-		Emails: []string{adminEmail},
-	})
+func TestGraphQL_Query_ServerMembers_AuthenticatedUserSucceeds(t *testing.T) {
+	env := setupGraphQLTestServer(t)
 
-	// Create admin user and verify their email to match config
-	// Note: Username "admin" is blocked by default, so we use "adminuser"
-	adminID := env.createTestUser(t, "adminuser", "password123")
-	if err := env.core.AddVerifiedEmailDirect(env.ctx, adminID, adminEmail); err != nil {
-		t.Fatalf("Failed to verify admin email: %v", err)
-	}
-	env.login(t, "adminuser", "password123")
+	env.createTestUser(t, "memberuser", "password123")
+	env.login(t, "memberuser", "password123")
 
-	resp := env.doGraphQL(t, `query { users(limit: 5) { users { id login } totalCount hasMore } }`, nil)
+	resp := env.doGraphQL(t, `query { server { members(limit: 5) { users { id login } totalCount hasMore } } }`, nil)
 
 	if len(resp.Errors) > 0 {
-		t.Errorf("Expected no errors for admin, got: %v", resp.Errors)
+		t.Errorf("Expected no errors for authenticated member, got: %v", resp.Errors)
 	}
 
 	var data struct {
-		Users struct {
-			Users []struct {
-				ID    string `json:"id"`
-				Login string `json:"login"`
-			} `json:"users"`
-			TotalCount int  `json:"totalCount"`
-			HasMore    bool `json:"hasMore"`
-		} `json:"users"`
+		Server struct {
+			Members struct {
+				Users []struct {
+					ID    string `json:"id"`
+					Login string `json:"login"`
+				} `json:"users"`
+				TotalCount int  `json:"totalCount"`
+				HasMore    bool `json:"hasMore"`
+			} `json:"members"`
+		} `json:"server"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if len(data.Users.Users) == 0 {
+	if len(data.Server.Members.Users) == 0 {
 		t.Error("Expected at least one user")
 	}
-	if data.Users.TotalCount == 0 {
+	if data.Server.Members.TotalCount == 0 {
 		t.Error("Expected non-zero totalCount")
 	}
 }

@@ -7,18 +7,15 @@ package graph
 
 import (
 	"context"
-	"errors"
 
-	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Member is the resolver for the member field.
 func (r *serverResolver) Member(ctx context.Context, obj *model.Server, userID string) (*corev1.User, error) {
-	caller := auth.ForContext(ctx)
-	if caller == nil {
-		return nil, errors.New("authentication required")
+	if _, err := requireAuth(ctx); err != nil {
+		return nil, err
 	}
 
 	return r.core.GetUser(ctx, userID)
@@ -26,8 +23,8 @@ func (r *serverResolver) Member(ctx context.Context, obj *model.Server, userID s
 
 // Members is the resolver for the members field.
 func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search *string, limit *int32, offset *int32) (*model.ServerMembersConnection, error) {
-	if auth.ForContext(ctx) == nil {
-		return nil, errors.New("authentication required")
+	if _, err := requireAuth(ctx); err != nil {
+		return nil, err
 	}
 
 	searchStr := ""
