@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -1927,6 +1928,15 @@ func TestAuthRoutes_Login_ReturnsToken(t *testing.T) {
 
 	if !strings.HasPrefix(token, "cht_AT") {
 		t.Errorf("Token %q should start with 'cht_AT'", token)
+	}
+}
+
+func TestAuthRoutes_LoginStaleSessionErrorIsInvalidCredentials(t *testing.T) {
+	if !isStaleLoginSessionError(core.ErrCookieSessionNotFound) {
+		t.Fatal("stale cookie-session creation should be treated as invalid credentials")
+	}
+	if isStaleLoginSessionError(errors.New("other error")) {
+		t.Fatal("unrelated session creation errors should not be treated as invalid credentials")
 	}
 }
 

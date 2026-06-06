@@ -22,6 +22,10 @@ var (
 	invalidCharsRegex = regexp.MustCompile(`[^a-z0-9._-]`)
 )
 
+func isStaleLoginSessionError(err error) bool {
+	return errors.Is(err, core.ErrCookieSessionNotFound)
+}
+
 func (s *HTTPServer) setupAuthRoutes() {
 	auth := s.router.Group("/auth")
 	auth.Use(func(c *gin.Context) {
@@ -138,6 +142,14 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Create server-side cookie session
 		if err := s.createCookieSessionAt(c, user.Id, "password_login", authenticatedAt); err != nil {
+			if isStaleLoginSessionError(err) {
+				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
+					log.Warn("Failed to append stale-login audit event", "error", auditErr)
+				}
+				log.Warn("Login became stale before session creation", "login", login, "userId", user.Id)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+				return
+			}
 			log.Error("Failed to save session", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return

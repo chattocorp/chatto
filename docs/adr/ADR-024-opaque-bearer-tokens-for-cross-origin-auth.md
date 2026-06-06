@@ -40,7 +40,7 @@ Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing
 **Token lifecycle:**
 - Created on login, registration, bootstrap, and OAuth callback
 - Validated by looking up the HMAC-derived `session.{hmac}` key in `RUNTIME_STATE` and reading the stored user ID
-- Rejected when the token's authentication time is before `auth_revoked_before.{userId}`, which password resets and password changes advance before appending the new password hash event
+- Rejected when the token's authentication time is before the maximum cutoff marker in `auth_revoked_before.{userId}`, which password resets and password changes update with KV optimistic locking before appending the new password hash event
 - Revoked by deleting the key (idempotent)
 - Cleaned up for a whole user by scanning `session.*` records, matching the stored user ID, and deleting each match; password resets, password changes, and account deletion use this path after advancing the cutoff
 
@@ -58,5 +58,5 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 - **No token refresh complexity**: Long-lived tokens with server-side TTL are simple. If a token expires, the client re-authenticates. No refresh token dance.
 - **Instant revocation**: Deleting a KV key immediately invalidates the token. No blocklist management or "wait for JWT expiry" window.
 - **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
-- **No reverse index**: user-wide cleanup does a `session.*` prefix scan and matches the stored user ID. The revocation guarantee comes from `auth_revoked_before.{userId}`, so concurrent issuance cannot survive by missing the scan. A secondary index can be added later if token counts make scans too expensive.
+- **No reverse index**: user-wide cleanup does a `session.*` prefix scan and matches the stored user ID. The revocation guarantee comes from the max cutoff marker in `auth_revoked_before.{userId}`, so concurrent issuance cannot survive by missing the scan. A secondary index can be added later if token counts make scans too expensive.
 - **OAuth token delivery**: OAuth callbacks append `?token=...` to the redirect URL. This is simple but means the token briefly appears in browser history and server logs. For v1 this is acceptable; a more secure code-exchange flow can be added later if needed.

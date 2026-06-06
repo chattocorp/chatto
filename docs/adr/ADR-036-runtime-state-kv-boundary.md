@@ -62,10 +62,12 @@ Current occupants include:
   with per-key `auth.token_ttl` expiry. The value is a `CookieSession`
   protobuf containing `user_id`, `created_at`, `expires_at`, source, and safe
   request metadata.
-- Auth revocation cutoffs: `auth_revoked_before.{userId}`, stored as
-  RFC3339Nano timestamps. Password changes/resets advance this before appending
-  the replacement password-hash event; cookie sessions, bearer tokens, and
-  OAuth authorization-code exchange reject credentials authenticated before it.
+- Auth revocation cutoffs: `auth_revoked_before.{userId}`, stored as a JSON
+  set of RFC3339Nano cutoff markers. Password changes/resets add a marker
+  before appending the replacement password-hash event and remove only their
+  own marker if the append fails; cookie sessions, bearer tokens, and OAuth
+  authorization-code exchange reject credentials authenticated before the
+  maximum marker.
 - Bearer auth token verifiers: `session.{hmac}`, with per-key
   `auth.token_ttl` sliding-window expiry. User-wide cleanup scans these records
   and deletes entries whose stored user ID matches.
