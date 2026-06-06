@@ -22,7 +22,7 @@ export type Scalars = {
   Upload: { input: any; output: any; }
 };
 
-/** JetStream account limits and usage. */
+/** Point-in-time storage-account limits and usage. Intended for operator diagnostics. */
 export type AccountInfo = {
   __typename?: 'AccountInfo';
   /** Consumer limit (-1 for unlimited) */
@@ -82,12 +82,12 @@ export type AdminMutationsUpdateUserArgs = {
   input: AdminUpdateUserInput;
 };
 
-/** Admin-only queries. Returns null if the user is not an server admin. */
+/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
 export type AdminQueries = {
   __typename?: 'AdminQueries';
-  /** Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before. */
+  /** Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before. */
   eventLog: EventLogConnection;
-  /** Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist. */
+  /** Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist. */
   eventLogEntry?: Maybe<EventLogEntry>;
   /**
    * Resolve the explicit grants and denials configured for a role on a
@@ -99,38 +99,38 @@ export type AdminQueries = {
    * specific set (user-level overrides at set scope).
    */
   groupUserPermissions: RoomGroupUserPermissions;
-  /** Inspect runtime state and rough memory estimates for event-sourced projections. */
+  /** Inspect point-in-time runtime state and rough memory estimates for event-sourced projections. */
   projections: Array<ProjectionState>;
   /** Get server configuration. */
   serverConfig: AdminServerConfig;
   /** List all available server permission identifiers. */
   serverPermissions: Array<Scalars['String']['output']>;
-  /** Get aggregate operational metrics (NATS/JetStream connection + account-level usage). */
+  /** Get point-in-time operator diagnostics for connection, storage, and deployment counts. */
   systemInfo: SystemInfo;
 };
 
 
-/** Admin-only queries. Returns null if the user is not an server admin. */
+/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
 export type AdminQueriesEventLogArgs = {
   before?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
-/** Admin-only queries. Returns null if the user is not an server admin. */
+/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
 export type AdminQueriesEventLogEntryArgs = {
   sequence: Scalars['String']['input'];
 };
 
 
-/** Admin-only queries. Returns null if the user is not an server admin. */
+/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
 export type AdminQueriesGroupRolePermissionsArgs = {
   groupId: Scalars['ID']['input'];
   roleName: Scalars['String']['input'];
 };
 
 
-/** Admin-only queries. Returns null if the user is not an server admin. */
+/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
 export type AdminQueriesGroupUserPermissionsArgs = {
   groupId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
@@ -366,7 +366,7 @@ export type ClearUsernameCooldownInput = {
   userId: Scalars['ID']['input'];
 };
 
-/** Information about the NATS connection. */
+/** Point-in-time diagnostic information about the backing message broker connection. */
 export type ConnectionInfo = {
   __typename?: 'ConnectionInfo';
   /** Whether the connection to NATS is currently active. */
@@ -546,7 +546,7 @@ export type Event = {
   id: Scalars['ID']['output'];
 };
 
-/** A page of EventLogEntries, newest first. */
+/** A page of diagnostic event-log entries, newest first. */
 export type EventLogConnection = {
   __typename?: 'EventLogConnection';
   /** Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries. */
@@ -555,30 +555,30 @@ export type EventLogConnection = {
   entries: Array<EventLogEntry>;
   /** True if older entries exist beyond this page. */
   hasOlder: Scalars['Boolean']['output'];
-  /** Total messages currently in EVT — an operational metric, not bounded by `limit`. */
+  /** Total retained event-log entries currently visible to the diagnostic view; not bounded by `limit`. */
   totalCount: Scalars['Int']['output'];
 };
 
-/** One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033. */
+/** One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed. */
 export type EventLogEntry = {
   __typename?: 'EventLogEntry';
   /** ID of the actor who triggered the event. May also be a synthetic actor like 'system:migration' or 'system:bootstrap'. */
   actorId: Scalars['String']['output'];
-  /** Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons). */
+  /** Diagnostic aggregate identifier derived from storage metadata. */
   aggregateId: Scalars['String']['output'];
-  /** Aggregate type parsed from the subject (e.g. 'room', 'config'). */
+  /** Diagnostic aggregate category derived from storage metadata. */
   aggregateType: Scalars['String']['output'];
   /** When the event was created (per the event payload, not the stream). */
   createdAt: Scalars['Time']['output'];
   /** Per-event unique identifier from event.id. */
   eventId: Scalars['String']['output'];
-  /** Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant. */
+  /** Diagnostic event variant label. Empty if the payload cannot be classified. */
   eventType: Scalars['String']['output'];
-  /** Protobuf payload encoded as JSON for human inspection. */
+  /** Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape. */
   payloadJson: Scalars['String']['output'];
-  /** Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int. */
+  /** Monotonic event-log sequence, serialized as a String so large values do not overflow GraphQL Int. */
   sequence: Scalars['String']['output'];
-  /** NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server'). */
+  /** Diagnostic storage subject. Useful for operators, but clients should not parse it as a stable product contract. */
   subject: Scalars['String']['output'];
 };
 
@@ -1657,7 +1657,7 @@ export type MutationUploadServerLogoArgs = {
   input: UploadServerLogoInput;
 };
 
-/** Basic state for one JetStream consumer. */
+/** Diagnostic state for one storage consumer. Raw consumer names and subjects are operator-facing diagnostics, not product concepts. */
 export type NatsConsumerInfo = {
   __typename?: 'NatsConsumerInfo';
   /** Ack floor consumer sequence. */
@@ -1694,7 +1694,7 @@ export type NatsConsumerInfo = {
   waiting: Scalars['Int']['output'];
 };
 
-/** Current JetStream stream and consumer diagnostics. */
+/** Current stream and consumer diagnostics. Values are point-in-time and may change between refreshes. */
 export type NatsStats = {
   __typename?: 'NatsStats';
   /** Consumers across all streams. */
@@ -1711,7 +1711,7 @@ export type NatsStats = {
   totalMessages: Scalars['Int64']['output'];
 };
 
-/** Basic state for one JetStream stream. */
+/** Diagnostic state for one retained storage stream. Raw names and subjects are operator-facing diagnostics, not product concepts. */
 export type NatsStreamInfo = {
   __typename?: 'NatsStreamInfo';
   /** Bytes currently retained. */
@@ -1936,13 +1936,13 @@ export type ProjectionMetric = {
   __typename?: 'ProjectionMetric';
   /** Estimated bytes associated with this metric. Zero when the metric is count-only. */
   bytes: Scalars['Int64']['output'];
-  /** Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'. */
+  /** Diagnostic metric identifier, e.g. 'timeline_entries' or 'event_id_index'. Names may evolve with projection implementation. */
   name: Scalars['String']['output'];
   /** Count associated with this metric. */
   value: Scalars['Int64']['output'];
 };
 
-/** Runtime state for one event-sourced projection. */
+/** Point-in-time runtime state for one event-sourced projection. */
 export type ProjectionState = {
   __typename?: 'ProjectionState';
   /** estimatedBytes divided by entryCount, or zero when entryCount is zero. */
@@ -1953,9 +1953,9 @@ export type ProjectionState = {
   estimatedBytes: Scalars['Int64']['output'];
   /** Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence. */
   lag: Scalars['Int64']['output'];
-  /** Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow. */
+  /** Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow. */
   lastAppliedSequence: Scalars['String']['output'];
-  /** Highest EVT stream sequence currently matching this projection's subject filters. */
+  /** Highest event-log sequence currently matching this projection's subject filters. */
   matchingStreamSequence: Scalars['String']['output'];
   /** Breakdown of the projection's current state. */
   metrics: Array<ProjectionMetric>;
@@ -1963,9 +1963,9 @@ export type ProjectionState = {
   name: Scalars['String']['output'];
   /** Whether the projector run loop has started. */
   started: Scalars['Boolean']['output'];
-  /** Highest sequence in the EVT stream, regardless of whether this projection consumes it. */
+  /** Highest sequence in the event log, regardless of whether this projection consumes it. */
   streamLastSequence: Scalars['String']['output'];
-  /** NATS subject filters consumed by this projection. */
+  /** Diagnostic storage subject filters consumed by this projection. */
   subjects: Array<Scalars['String']['output']>;
 };
 
@@ -2365,15 +2365,17 @@ export type Room = {
   /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<Event>;
   /**
-   * Fetch historical events for this room (default limit: 50). Use the
-   * opaque `before` cursor for backward pagination and `after` for forward
-   * pagination — pass the `startCursor` / `endCursor` from a previous
-   * `RoomEventsConnection` response. Cursors are opaque strings; clients
-   * must not attempt to parse them.
+   * Fetch historical events for this room (default limit: 50, max: 500;
+   * larger values are silently clamped). Use the opaque `before` cursor
+   * for backward pagination and `after` for forward pagination — pass the
+   * `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+   * response. Cursors are opaque strings; clients must not attempt to
+   * parse them.
    */
   events: RoomEventsConnection;
   /**
-   * Fetch events in this room centered around a specific event.
+   * Fetch events in this room centered around a specific event (default
+   * limit: 50, max: 500; larger values are silently clamped).
    * Returns a window of events with the target event roughly in the middle.
    * Used for "jump to message" when clicking reply links to messages not in the loaded range.
    */
@@ -3052,7 +3054,7 @@ export type Subscription = {
   myEvents: Event;
 };
 
-/** Aggregate operational metrics. */
+/** Point-in-time operator diagnostics for this deployment. */
 export type SystemInfo = {
   __typename?: 'SystemInfo';
   /** JetStream account limits and usage (aggregate totals). */

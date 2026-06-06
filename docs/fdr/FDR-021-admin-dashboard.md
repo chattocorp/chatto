@@ -1,18 +1,18 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
-The admin section gives owners and admins visibility into the server's operational state: user counts, room counts, NATS/JetStream resource usage, and audit logs. It deliberately exposes only aggregate operational data — never message content, never per-user activity logs, never per-room conversation summaries.
+The admin section gives owners and admins visibility into the server's operational state: user counts, room counts, storage resource usage, projection health, and audit/event-log diagnostics. It deliberately exposes operational metadata — never message content, never per-user activity logs, never per-room conversation summaries.
 
 ## Behavior
 
 - The admin UI lives under `/chat/[serverId]/server-admin/`. Non-admins see an "access denied" panel; the link is hidden from the chat header for them.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users (subject to outranking the target — see FDR-001).
-- **System Info page** — shows NATS connection status (server ID, version, round-trip latency), JetStream account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `ServerStats` (user count, channel room count, DM room count).
-- **Audit log page** — chronological list of significant admin actions (user deletions, role changes, server config edits, etc.) for forensic review.
+- **System Info page** — shows backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `admin.systemInfo.stats` (user count, channel room count, DM room count).
+- **Audit log page** — chronological diagnostic event-log view for forensic review. The list view uses `admin.eventLog`; the detail view uses `admin.eventLogEntry` to show the raw payload JSON for human inspection.
 
 ## Design Decisions
 
@@ -40,7 +40,13 @@ The admin section gives owners and admins visibility into the server's operation
 **Why:** The data is fundamentally point-in-time ("how much storage are we using right now?"). Caching would mean stale numbers shown to operators making capacity decisions. The fetch cost is low because NATS already has the data internally.
 **Tradeoff:** Refreshing the page hits NATS every time. Not a concern at admin-usage volume.
 
-### 5. Nested `admin` resolver with field-specific capability gates
+### 5. Diagnostic values are operator tooling, not product contracts
+
+**Decision:** Raw storage subjects, stream/consumer names, payload JSON, projection metric names, and memory estimates are documented as diagnostic values. The GraphQL fields are intentional operator APIs, but clients should not parse those raw values as stable product-domain data.
+**Why:** Operators need visibility into what the runtime is doing, especially during the 0.1 stabilization lane. At the same time, these values reflect storage and projection implementation details that may evolve as the event-sourcing model settles.
+**Tradeoff:** Third-party admin clients can display diagnostics but should treat raw strings and JSON as best-effort inspection data. If a future integration needs a stable audit export format, it should get a dedicated schema instead of depending on diagnostic payloads.
+
+### 6. Nested `admin` resolver with field-specific capability gates
 
 **Decision:** Admin queries are grouped under a nested `Query.admin` type gated by `admin.access`, while sensitive fields still check their narrower capabilities (`admin.view-users`, `admin.view-system`, `admin.view-audit`) before returning data.
 **Why:** The nested shape gives the UI one obvious admin boundary, and the field-level checks let operators delegate user, system, and audit visibility independently.
@@ -49,9 +55,9 @@ The admin section gives owners and admins visibility into the server's operation
 ## Permissions
 
 - `admin.access` — gates entry to the admin UI and the `Query.admin` resolver.
-- `admin.view-users` — gates `admin.users` and `admin.members` queries.
-- `admin.view-system` — gates `admin.systemInfo`, `admin.projections`, and `admin.stats`.
-- `admin.view-audit` — gates `admin.auditLog`.
+- `admin.view-users` — gates user-management views and user-sensitive fields such as other users' verified email addresses and login cooldowns.
+- `admin.view-system` — gates `admin.systemInfo` and `admin.projections`.
+- `admin.view-audit` — gates `admin.eventLog` and `admin.eventLogEntry`.
 - `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper (permission + outrank-target check).
 
 ## Related

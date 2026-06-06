@@ -235,17 +235,21 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 ### Admin sub-API
 
-`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access, so the nested fields don't need individual auth checks (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
+`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access; individual nested fields can still apply narrower permissions such as `admin.view-system` or `admin.view-audit` (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
+
+Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
 
 | Field                                            | Type      | Description                                                                                  |
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
-| `admin.systemInfo`                               | Query     | Aggregate operational metrics: NATS connection + JetStream account usage totals.            |
+| `admin.systemInfo`                               | Query     | Point-in-time operator diagnostics: connection, storage-account usage, stream/consumer state, and deployment counts. |
 | `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
 | `admin.serverPermissions`                        | Query     | List every available server permission identifier (catalog).                                 |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
+| `admin.eventLog(limit, before)`                  | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200).                    |
+| `admin.eventLogEntry(sequence)`                  | Query     | Diagnostic event-log entry lookup by sequence.                                               |
+| `admin.projections`                              | Query     | Projection lag, rough memory estimates, and diagnostic metric buckets.                       |
 | `admin.updateServerConfig(input)`                | Mutation  | Update server configuration.                                                                 |
-| `admin.resetServerConfig`                        | Mutation  | Reset server configuration to defaults.                                                      |
 | `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
 | `admin.clearUsernameCooldown(userId)`            | Mutation  | Manually clear a user's login change cooldown.                                               |
 

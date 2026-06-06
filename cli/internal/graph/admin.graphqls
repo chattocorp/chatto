@@ -1,6 +1,6 @@
-"Admin-only queries. Returns null if the user is not an server admin."
+"Admin-only query namespace for operator tooling. Returns null if the user is not a server admin."
 type AdminQueries {
-  "Get aggregate operational metrics (NATS/JetStream connection + account-level usage)."
+  "Get point-in-time operator diagnostics for connection, storage, and deployment counts."
   systemInfo: SystemInfo!
 }
 
@@ -9,7 +9,7 @@ extend type Query {
   admin: AdminQueries
 }
 
-"Information about the NATS connection."
+"Point-in-time diagnostic information about the backing message broker connection."
 type ConnectionInfo {
   "Whether the connection to NATS is currently active."
   connected: Boolean!
@@ -25,7 +25,7 @@ type ConnectionInfo {
   rtt: String!
 }
 
-"JetStream account limits and usage."
+"Point-in-time storage-account limits and usage. Intended for operator diagnostics."
 type AccountInfo {
   "Memory limit in bytes (-1 for unlimited)"
   memory: Int64!
@@ -45,7 +45,7 @@ type AccountInfo {
   consumersUsed: Int!
 }
 
-"Basic state for one JetStream stream."
+"Diagnostic state for one retained storage stream. Raw names and subjects are operator-facing diagnostics, not product concepts."
 type NatsStreamInfo {
   "Stream name."
   name: String!
@@ -71,7 +71,7 @@ type NatsStreamInfo {
   clusterLeader: String!
 }
 
-"Basic state for one JetStream consumer."
+"Diagnostic state for one storage consumer. Raw consumer names and subjects are operator-facing diagnostics, not product concepts."
 type NatsConsumerInfo {
   "Stream this consumer belongs to."
   stream: String!
@@ -107,7 +107,7 @@ type NatsConsumerInfo {
   ackFloorStreamSequence: String!
 }
 
-"Current JetStream stream and consumer diagnostics."
+"Current stream and consumer diagnostics. Values are point-in-time and may change between refreshes."
 type NatsStats {
   "Streams in the JetStream account."
   streams: [NatsStreamInfo!]!
@@ -123,7 +123,7 @@ type NatsStats {
   totalAckPending: Int!
 }
 
-"Aggregate operational metrics."
+"Point-in-time operator diagnostics for this deployment."
 type SystemInfo {
   "NATS connection status and server info."
   connection: ConnectionInfo!
@@ -183,20 +183,20 @@ extend type AdminQueries {
 }
 
 # =============================================================================
-# Event Log (EVT inspection)
+# Event Log Diagnostics
 # =============================================================================
 
-"One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033."
+"One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed."
 type EventLogEntry {
-  "Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int."
+  "Monotonic event-log sequence, serialized as a String so large values do not overflow GraphQL Int."
   sequence: String!
-  "NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server')."
+  "Diagnostic storage subject. Useful for operators, but clients should not parse it as a stable product contract."
   subject: String!
-  "Aggregate type parsed from the subject (e.g. 'room', 'config')."
+  "Diagnostic aggregate category derived from storage metadata."
   aggregateType: String!
-  "Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons)."
+  "Diagnostic aggregate identifier derived from storage metadata."
   aggregateId: String!
-  "Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant."
+  "Diagnostic event variant label. Empty if the payload cannot be classified."
   eventType: String!
   "Per-event unique identifier from event.id."
   eventId: String!
@@ -204,11 +204,11 @@ type EventLogEntry {
   actorId: String!
   "When the event was created (per the event payload, not the stream)."
   createdAt: Time!
-  "Protobuf payload encoded as JSON for human inspection."
+  "Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape."
   payloadJson: String!
 }
 
-"A page of EventLogEntries, newest first."
+"A page of diagnostic event-log entries, newest first."
 type EventLogConnection {
   "Entries on this page, ordered newest → oldest."
   entries: [EventLogEntry!]!
@@ -216,14 +216,14 @@ type EventLogConnection {
   hasOlder: Boolean!
   "Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries."
   endCursor: String
-  "Total messages currently in EVT — an operational metric, not bounded by `limit`."
+  "Total retained event-log entries currently visible to the diagnostic view; not bounded by `limit`."
   totalCount: Int!
 }
 
 extend type AdminQueries {
-  "Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before."
+  "Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before."
   eventLog(limit: Int, before: String): EventLogConnection! @goField(forceResolver: true)
-  "Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist."
+  "Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist."
   eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)
 }
 
@@ -233,7 +233,7 @@ extend type AdminQueries {
 
 "One named diagnostic count/byte bucket for a projection."
 type ProjectionMetric {
-  "Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'."
+  "Diagnostic metric identifier, e.g. 'timeline_entries' or 'event_id_index'. Names may evolve with projection implementation."
   name: String!
   "Count associated with this metric."
   value: Int64!
@@ -241,19 +241,19 @@ type ProjectionMetric {
   bytes: Int64!
 }
 
-"Runtime state for one event-sourced projection."
+"Point-in-time runtime state for one event-sourced projection."
 type ProjectionState {
   "Human-readable projection name."
   name: String!
-  "NATS subject filters consumed by this projection."
+  "Diagnostic storage subject filters consumed by this projection."
   subjects: [String!]!
   "Whether the projector run loop has started."
   started: Boolean!
-  "Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow."
+  "Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow."
   lastAppliedSequence: String!
-  "Highest EVT stream sequence currently matching this projection's subject filters."
+  "Highest event-log sequence currently matching this projection's subject filters."
   matchingStreamSequence: String!
-  "Highest sequence in the EVT stream, regardless of whether this projection consumes it."
+  "Highest sequence in the event log, regardless of whether this projection consumes it."
   streamLastSequence: String!
   "Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence."
   lag: Int64!
@@ -268,7 +268,7 @@ type ProjectionState {
 }
 
 extend type AdminQueries {
-  "Inspect runtime state and rough memory estimates for event-sourced projections."
+  "Inspect point-in-time runtime state and rough memory estimates for event-sourced projections."
   projections: [ProjectionState!]! @goField(forceResolver: true)
 }
 
