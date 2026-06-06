@@ -959,7 +959,7 @@ type Server struct {
 	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
 	// Whether the current user can manage this server (has server.manage permission).
 	ViewerCanManageServer bool `json:"viewerCanManageServer"`
-	// Whether the current user can create rooms (has rooms.create permission).
+	// Whether the current user can create rooms (has room.create permission).
 	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
 	// Whether the current user can manage rooms (has room.manage permission).
 	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
@@ -981,9 +981,9 @@ type Server struct {
 	AvailablePermissions []string `json:"availablePermissions"`
 	// Get the current user's permissions on this server.
 	ViewerPermissions []string `json:"viewerPermissions"`
-	// Whether the current user can manage roles (has admin.roles.manage permission).
+	// Whether the current user can manage roles (has role.manage permission).
 	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
-	// Whether the current user can assign roles to users (has admin.roles.assign permission).
+	// Whether the current user can assign roles to users (has role.assign permission).
 	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
 	// UI hint reporting whether the viewer outranks the target user by role
 	// hierarchy. **This is a rank check only**, not an authorization gate —

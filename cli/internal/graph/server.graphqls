@@ -91,7 +91,7 @@ type Server {
   viewerHasAnyAdminPermission: Boolean! @goField(forceResolver: true)
   "Whether the current user can manage this server (has server.manage permission)."
   viewerCanManageServer: Boolean! @goField(forceResolver: true)
-  "Whether the current user can create rooms (has rooms.create permission)."
+  "Whether the current user can create rooms (has room.create permission)."
   viewerCanCreateRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can manage rooms (has room.manage permission)."
   viewerCanManageRooms: Boolean! @goField(forceResolver: true)

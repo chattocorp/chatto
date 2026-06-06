@@ -5,13 +5,13 @@ type Mutation {
   "Create a new room."
   createRoom(input: CreateRoomInput!): Room!
 
-  "Update an existing room's name and description. Requires rooms.manage permission."
+  "Update an existing room's name and description. Requires room.manage permission."
   updateRoom(input: UpdateRoomInput!): Room!
 
-  "Archive a room. Hides it from sidebar and Browse Rooms. Requires rooms.manage permission."
+  "Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission."
   archiveRoom(input: ArchiveRoomInput!): Room!
 
-  "Unarchive a previously archived room. Requires rooms.manage permission."
+  "Unarchive a previously archived room. Requires room.manage permission."
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
   """
@@ -91,8 +91,8 @@ type Mutation {
   """
   Delete a message body for GDPR compliance.
   The message remains as a retracted/deleted entry, but the content is removed.
-  Requires either delete_any_message permission (moderator) or delete_own_message permission
-  and ownership of the message.
+  Requires message.manage to delete another user's message; authors can delete
+  their own messages.
   Returns true on success.
   """
   deleteMessage(input: DeleteMessageInput!): Boolean!

@@ -971,13 +971,13 @@ export type Mutation = {
   addReaction: Scalars['Boolean']['output'];
   /** Admin mutations. Returns null if user lacks admin permission. */
   admin?: Maybe<AdminMutations>;
-  /** Archive a room. Hides it from sidebar and Browse Rooms. Requires rooms.manage permission. */
+  /** Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission. */
   archiveRoom: Room;
   /**
    * Assign an server role to a user. Idempotent - assigning an already-assigned
    * role succeeds silently. Returns true on success.
    * Note: The 'everyone' role is implicit for all users and cannot be assigned.
-   * Requires: admin.users.manage permission.
+   * Requires: role.assign permission and outranking the target user.
    * Errors: If role doesn't exist or is 'everyone'.
    */
   assignRole: Scalars['Boolean']['output'];
@@ -990,14 +990,14 @@ export type Mutation = {
    * Clear any grant or denial state for a permission on a role, restoring neutral state.
    * Idempotent - clearing when no state exists succeeds silently. Returns true on success.
    * After clearing, this role neither grants nor denies the permission.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   clearPermissionState: Scalars['Boolean']['output'];
   /**
    * Clear room-level grant and denial for a permission on a role.
    * Returns the permission to neutral (inherit from server defaults).
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    */
   clearRoomPermission: Scalars['Boolean']['output'];
   /**
@@ -1011,7 +1011,7 @@ export type Mutation = {
   /**
    * Create a new custom server role. Returns the created role with empty permissions.
    * System role names ('owner', 'admin', 'moderator', 'everyone') cannot be used.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role name already exists or is a system role name.
    */
   createRole: Role;
@@ -1039,8 +1039,8 @@ export type Mutation = {
   /**
    * Delete a message body for GDPR compliance.
    * The message remains as a retracted/deleted entry, but the content is removed.
-   * Requires either delete_any_message permission (moderator) or delete_own_message permission
-   * and ownership of the message.
+   * Requires message.manage to delete another user's message; authors can delete
+   * their own messages.
    * Returns true on success.
    */
   deleteMessage: Scalars['Boolean']['output'];
@@ -1058,7 +1058,7 @@ export type Mutation = {
    * Delete a custom server role and all associated data. Returns true on success.
    * Deletes: role definition, all permission grants, and all user role assignments.
    * System roles ('owner', 'admin', 'moderator', 'everyone') cannot be deleted.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or is a system role.
    */
   deleteRole: Scalars['Boolean']['output'];
@@ -1078,14 +1078,14 @@ export type Mutation = {
    * permission, regardless of what other roles grant it (deny-override pattern).
    * Clears any existing grant for the same permission. Returns true on success.
    * Note: Admin role is immune to role denials; denying a permission on admin has no effect.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   denyPermission: Scalars['Boolean']['output'];
   /**
    * Deny a permission for a role at room level. Overrides server-level state for this room.
    * Clears any existing grant for the same permission in this room.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    */
   denyRoomPermission: Scalars['Boolean']['output'];
   /**
@@ -1109,14 +1109,14 @@ export type Mutation = {
   /**
    * Grant a permission to a role. Idempotent - granting an already-granted
    * permission succeeds silently. Returns true on success.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   grantPermission: Scalars['Boolean']['output'];
   /**
    * Grant a permission to a role at room level. Overrides server-level state for this room.
    * Clears any existing denial for the same permission in this room.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    */
   grantRoomPermission: Scalars['Boolean']['output'];
   /**
@@ -1175,7 +1175,7 @@ export type Mutation = {
    * Reorder server roles. Accepts an ordered list of custom role names.
    * System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
    * Positions are assigned based on array index (first role = position 1, second = 2, etc).
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Returns: All server roles, sorted by position.
    */
   reorderRoles: Array<Role>;
@@ -1201,7 +1201,7 @@ export type Mutation = {
    * permission succeeds silently. Returns true on success.
    * Note: This only removes grants, not denials. Use clearPermissionState to remove both.
    * Note: Admin role has all permissions implicitly; revoking from admin has no effect.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   revokePermission: Scalars['Boolean']['output'];
@@ -1210,7 +1210,7 @@ export type Mutation = {
    * role succeeds silently. Returns true on success.
    * Note: Users cannot revoke their own admin role (prevents self-lockout).
    * Note: The 'everyone' role is implicit and cannot be revoked.
-   * Requires: admin.users.manage permission.
+   * Requires: role.assign permission and outranking the target user.
    * Errors: If role doesn't exist, is 'everyone', or user tries to revoke own admin role.
    */
   revokeRole: Scalars['Boolean']['output'];
@@ -1238,7 +1238,7 @@ export type Mutation = {
    * Requires authentication.
    */
   subscribeToPush: Scalars['Boolean']['output'];
-  /** Unarchive a previously archived room. Requires rooms.manage permission. */
+  /** Unarchive a previously archived room. Requires room.manage permission. */
   unarchiveRoom: Room;
   /** Unfollow a thread to stop receiving reply notifications. Requires room membership. */
   unfollowThread: Scalars['Boolean']['output'];
@@ -1274,11 +1274,11 @@ export type Mutation = {
   /**
    * Update an server role's display name and description. Returns the updated role.
    * Role name cannot be changed after creation. System roles cannot be edited.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist.
    */
   updateRole: Role;
-  /** Update an existing room's name and description. Requires rooms.manage permission. */
+  /** Update an existing room's name and description. Requires room.manage permission. */
   updateRoom: Room;
   /** Update a room group's name/description. Requires `role.manage`. */
   updateRoomGroup: RoomGroup;
@@ -2365,15 +2365,17 @@ export type Room = {
   /** Fetch a single event in this room by event ID. Returns null if not found. */
   event?: Maybe<Event>;
   /**
-   * Fetch historical events for this room (default limit: 50). Use the
-   * opaque `before` cursor for backward pagination and `after` for forward
-   * pagination — pass the `startCursor` / `endCursor` from a previous
-   * `RoomEventsConnection` response. Cursors are opaque strings; clients
-   * must not attempt to parse them.
+   * Fetch historical events for this room (default limit: 50, max: 500;
+   * larger values are silently clamped). Use the opaque `before` cursor
+   * for backward pagination and `after` for forward pagination — pass the
+   * `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+   * response. Cursors are opaque strings; clients must not attempt to
+   * parse them.
    */
   events: RoomEventsConnection;
   /**
-   * Fetch events in this room centered around a specific event.
+   * Fetch events in this room centered around a specific event (default
+   * limit: 50, max: 500; larger values are silently clamped).
    * Returns a window of events with the target event roughly in the middle.
    * Used for "jump to message" when clicking reply links to messages not in the loaded range.
    */
@@ -2767,11 +2769,11 @@ export type Server = {
   version: Scalars['String']['output'];
   /** True if video processing is enabled, allowing video attachments to be uploaded. */
   videoProcessingEnabled: Scalars['Boolean']['output'];
-  /** Whether the current user can assign roles to users (has admin.roles.assign permission). */
+  /** Whether the current user can assign roles to users (has role.assign permission). */
   viewerCanAssignRoles: Scalars['Boolean']['output'];
-  /** Whether the current user can create rooms (has rooms.create permission). */
+  /** Whether the current user can create rooms (has room.create permission). */
   viewerCanCreateRoom: Scalars['Boolean']['output'];
-  /** Whether the current user can manage roles (has admin.roles.manage permission). */
+  /** Whether the current user can manage roles (has role.manage permission). */
   viewerCanManageRoles: Scalars['Boolean']['output'];
   /** Whether the current user can manage rooms (has room.manage permission). */
   viewerCanManageRooms: Scalars['Boolean']['output'];
