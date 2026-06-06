@@ -1,9 +1,28 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
+
+// StringLengthError is returned when a persisted user-controlled string exceeds
+// the field's durable storage limit.
+type StringLengthError struct {
+	Field string
+	Max   int
+}
+
+func (e *StringLengthError) Error() string {
+	return fmt.Sprintf("%s cannot exceed %d bytes", e.Field, e.Max)
+}
+
+func validateStringMaxLength(field, value string, max int) error {
+	if len(value) > max {
+		return &StringLengthError{Field: field, Max: max}
+	}
+	return nil
+}
 
 // ValidateDisplayName validates a display name for allowed characters.
 // Allowed: letters (any script), digits, marks (diacritics), emoji/symbols,

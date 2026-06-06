@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -172,6 +173,81 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 		if successCount.Load() == 0 {
 			t.Error("expected at least one successful update")
 		}
+	})
+}
+
+func TestConfigManager_ServerConfigStringLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	valid := &configv1.ServerConfig{
+		ServerName:       strings.Repeat("n", MaxServerNameLength),
+		Description:      strings.Repeat("d", MaxServerDescriptionLength),
+		WelcomeMessage:   strings.Repeat("w", MaxServerWelcomeMessageLength),
+		Motd:             strings.Repeat("m", MaxServerMOTDLength),
+		BlockedUsernames: strings.Repeat("u", MaxLoginLength),
+	}
+	if err := core.configManager.SetServerConfig(ctx, "test", valid); err != nil {
+		t.Fatalf("SetServerConfig at max lengths: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		cfg   *configv1.ServerConfig
+		field string
+		max   int
+	}{
+		{
+			name:  "server name",
+			cfg:   &configv1.ServerConfig{ServerName: strings.Repeat("n", MaxServerNameLength+1)},
+			field: "server name",
+			max:   MaxServerNameLength,
+		},
+		{
+			name:  "server description",
+			cfg:   &configv1.ServerConfig{Description: strings.Repeat("d", MaxServerDescriptionLength+1)},
+			field: "server description",
+			max:   MaxServerDescriptionLength,
+		},
+		{
+			name:  "server welcome message",
+			cfg:   &configv1.ServerConfig{WelcomeMessage: strings.Repeat("w", MaxServerWelcomeMessageLength+1)},
+			field: "server welcome message",
+			max:   MaxServerWelcomeMessageLength,
+		},
+		{
+			name:  "server MOTD",
+			cfg:   &configv1.ServerConfig{Motd: strings.Repeat("m", MaxServerMOTDLength+1)},
+			field: "server MOTD",
+			max:   MaxServerMOTDLength,
+		},
+		{
+			name:  "blocked usernames total",
+			cfg:   &configv1.ServerConfig{BlockedUsernames: strings.Repeat("u", MaxServerBlockedUsernamesLength+1)},
+			field: "server blocked usernames",
+			max:   MaxServerBlockedUsernamesLength,
+		},
+		{
+			name:  "blocked username entry",
+			cfg:   &configv1.ServerConfig{BlockedUsernames: strings.Repeat("u", MaxLoginLength+1)},
+			field: "blocked username",
+			max:   MaxLoginLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run("set "+tt.name, func(t *testing.T) {
+			err := core.configManager.SetServerConfig(ctx, "test", tt.cfg)
+			assertStringLengthError(t, err, tt.field, tt.max)
+		})
+	}
+
+	t.Run("update rejects over-limit value", func(t *testing.T) {
+		_, err := core.configManager.UpdateServerConfigFunc(ctx, "test", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+			current.ServerName = strings.Repeat("n", MaxServerNameLength+1)
+			return current, nil
+		})
+		assertStringLengthError(t, err, "server name", MaxServerNameLength)
 	})
 }
 

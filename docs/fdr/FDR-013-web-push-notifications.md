@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -11,6 +11,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 - The browser prompts the user for notification permission when they enable push.
 - On granting permission, the browser creates a subscription using the server's VAPID public key. The subscription details (endpoint URL, keys) are sent to the server and stored.
+- Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
 - Push payloads include a title, a truncated message preview (max 100 chars, broken at word boundaries), and a navigation URL.
 - Clicking a push notification navigates to the relevant room, thread, or DM.

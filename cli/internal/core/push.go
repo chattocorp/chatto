@@ -50,6 +50,10 @@ func (c *ChattoCore) SavePushSubscription(
 	userID string,
 	endpoint, p256dh, auth, userAgent string,
 ) (*corev1.PushSubscription, error) {
+	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent); err != nil {
+		return nil, err
+	}
+
 	subscription := &corev1.PushSubscription{
 		Endpoint:  endpoint,
 		P256Dh:    p256dh,
@@ -74,6 +78,22 @@ func (c *ChattoCore) SavePushSubscription(
 		"endpoint_hash", hashEndpoint(endpoint))
 
 	return subscription, nil
+}
+
+func validatePushSubscription(endpoint, p256dh, auth, userAgent string) error {
+	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("push p256dh key", p256dh, MaxPushKeyLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("push auth secret", auth, MaxPushAuthLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("push user agent", userAgent, MaxPushUserAgentLength); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeletePushSubscription removes a push subscription by endpoint.

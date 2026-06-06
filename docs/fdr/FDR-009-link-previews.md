@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -14,6 +14,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the message is sent, the preview data ships with it and is stored as part of the message body.
+- Client-provided preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes.
 - After posting, the message author can delete the preview from the message without deleting the message.
 
 ## Design Decisions
@@ -47,6 +48,12 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 **Decision:** Preview images are fetched once, resized to 1200×630 max, converted to WebP, and stored as assets on the Chatto server.
 **Why:** Hot-linking preview images from third-party sites means broken previews when those sites change URLs, plus a privacy leak (the third party sees every Chatto user's fetch). Storing locally fixes both.
 **Tradeoff:** Per-server storage cost. Acceptable given asset deduplication and the small fixed size cap.
+
+### 6. Stored preview metadata is bounded
+
+**Decision:** Preview metadata attached to a sent message is accepted only within generous per-field size limits.
+**Why:** Preview data is client-provided at send time and stored with the message body. Bounding it keeps a single message from carrying arbitrarily large URL metadata.
+**Tradeoff:** A page with unusually large metadata requires the client to trim or omit the preview before sending.
 
 ## Permissions
 

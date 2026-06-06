@@ -431,6 +431,9 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 	if err := ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
+	if err := validateRoleMetadata(displayName, description); err != nil {
+		return nil, err
+	}
 	if IsSystemRole(name) {
 		return nil, ErrRoleAlreadyExists
 	}
@@ -476,6 +479,10 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 // UpdateServerRole updates an existing role's metadata.
 // The role name cannot be changed.
 func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
+	if err := validateRoleMetadata(displayName, description); err != nil {
+		return nil, err
+	}
+
 	var updated *corev1.Role
 	if _, err := c.appendRBACEvent(ctx, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleDisplayNameChanged{
 		RbacRoleDisplayNameChanged: &corev1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: displayName},

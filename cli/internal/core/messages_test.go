@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -376,6 +377,108 @@ func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
 			t.Errorf("Expected ErrMessageTooLong, got: %v", err)
 		}
 	})
+}
+
+func TestChattoCore_EditMessage_BodyTooLong(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "editlength", "editlength", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "original", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	t.Run("edit at max length succeeds", func(t *testing.T) {
+		if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, strings.Repeat("a", MaxMessageBodyLength)); err != nil {
+			t.Fatalf("EditMessage at max length: %v", err)
+		}
+	})
+
+	t.Run("edit over max length fails", func(t *testing.T) {
+		err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, strings.Repeat("a", MaxMessageBodyLength+1))
+		if !errors.Is(err, ErrMessageTooLong) {
+			t.Fatalf("EditMessage error = %v, want ErrMessageTooLong", err)
+		}
+	})
+}
+
+func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Previews", "Preview discussion")
+	user, _ := core.CreateUser(ctx, "system", "previewuser", "previewuser", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	t.Run("link preview at max lengths succeeds", func(t *testing.T) {
+		embedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength)
+		preview := &corev1.LinkPreview{
+			Url:         strings.Repeat("u", MaxLinkPreviewURLLength),
+			Title:       strings.Repeat("t", MaxLinkPreviewTitleLength),
+			Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength),
+			SiteName:    strings.Repeat("s", MaxLinkPreviewSiteNameLength),
+			EmbedType:   strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
+			EmbedId:     &embedID,
+		}
+		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", preview, false); err != nil {
+			t.Fatalf("PostMessage with max-length link preview: %v", err)
+		}
+	})
+
+	overLimitEmbedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength+1)
+	tests := []struct {
+		name    string
+		preview *corev1.LinkPreview
+		field   string
+		max     int
+	}{
+		{
+			name:    "URL",
+			preview: &corev1.LinkPreview{Url: strings.Repeat("u", MaxLinkPreviewURLLength+1)},
+			field:   "link preview URL",
+			max:     MaxLinkPreviewURLLength,
+		},
+		{
+			name:    "title",
+			preview: &corev1.LinkPreview{Title: strings.Repeat("t", MaxLinkPreviewTitleLength+1)},
+			field:   "link preview title",
+			max:     MaxLinkPreviewTitleLength,
+		},
+		{
+			name:    "description",
+			preview: &corev1.LinkPreview{Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength+1)},
+			field:   "link preview description",
+			max:     MaxLinkPreviewDescriptionLength,
+		},
+		{
+			name:    "site name",
+			preview: &corev1.LinkPreview{SiteName: strings.Repeat("s", MaxLinkPreviewSiteNameLength+1)},
+			field:   "link preview site name",
+			max:     MaxLinkPreviewSiteNameLength,
+		},
+		{
+			name:    "embed type",
+			preview: &corev1.LinkPreview{EmbedType: strings.Repeat("e", MaxLinkPreviewEmbedTypeLength+1)},
+			field:   "link preview embed type",
+			max:     MaxLinkPreviewEmbedTypeLength,
+		},
+		{
+			name:    "embed ID",
+			preview: &corev1.LinkPreview{EmbedId: &overLimitEmbedID},
+			field:   "link preview embed ID",
+			max:     MaxLinkPreviewEmbedIDLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", tt.preview, false)
+			assertStringLengthError(t, err, tt.field, tt.max)
+		})
+	}
 }
 
 // TestChattoCore_PostMessage_InvisibleChars tests that messages with only invisible Unicode

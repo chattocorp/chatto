@@ -218,6 +218,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if len(body) > MaxMessageBodyLength {
 		return nil, ErrMessageTooLong
 	}
+	if err := validateLinkPreview(linkPreview); err != nil {
+		return nil, err
+	}
 
 	// Validate that message has either body or attachments.
 	// HasVisibleContent rejects messages with only invisible Unicode characters.
@@ -714,6 +717,10 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 //
 // Authorization: Caller must verify the actor is the author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
 func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string) error {
+	if len(newBody) > MaxMessageBodyLength {
+		return ErrMessageTooLong
+	}
+
 	// Block edits in archived rooms.
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
@@ -884,6 +891,31 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 		return fmt.Errorf("publish MessageEditedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 	}
 	return fmt.Errorf("publish MessageEditedEvent: retry loop exited unexpectedly")
+}
+
+func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
+	if linkPreview == nil {
+		return nil
+	}
+	if err := validateStringMaxLength("link preview URL", linkPreview.GetUrl(), MaxLinkPreviewURLLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("link preview title", linkPreview.GetTitle(), MaxLinkPreviewTitleLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("link preview description", linkPreview.GetDescription(), MaxLinkPreviewDescriptionLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("link preview site name", linkPreview.GetSiteName(), MaxLinkPreviewSiteNameLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("link preview embed type", linkPreview.GetEmbedType(), MaxLinkPreviewEmbedTypeLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("link preview embed ID", linkPreview.GetEmbedId(), MaxLinkPreviewEmbedIDLength); err != nil {
+		return err
+	}
+	return nil
 }
 
 // editEmbeddedBody is the shared engine behind partial-edit

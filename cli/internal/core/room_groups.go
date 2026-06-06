@@ -51,8 +51,8 @@ var (
 // Name is trimmed; description may be empty.
 func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, description string) (*corev1.RoomGroup, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, ErrRoomGroupNameEmpty
+	if err := validateRoomGroupMetadata(name, description); err != nil {
+		return nil, err
 	}
 
 	group := &corev1.RoomGroup{
@@ -91,8 +91,8 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 // is untouched; only metadata changes.
 func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name, description string) (*corev1.RoomGroup, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, ErrRoomGroupNameEmpty
+	if err := validateRoomGroupMetadata(name, description); err != nil {
+		return nil, err
 	}
 
 	if !c.RoomGroups.Exists(groupID) {
@@ -117,6 +117,19 @@ func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name
 
 	updated, _ := c.RoomGroups.Get(groupID)
 	return updated, nil
+}
+
+func validateRoomGroupMetadata(name, description string) error {
+	if name == "" {
+		return ErrRoomGroupNameEmpty
+	}
+	if err := validateStringMaxLength("room group name", name, MaxRoomGroupNameLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("room group description", description, MaxRoomGroupDescriptionLength); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetRoomGroup reads a single group from the RoomGroups projection.

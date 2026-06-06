@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"hmans.de/chatto/internal/config"
@@ -1349,6 +1350,44 @@ func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
 	if !errors.Is(err, ErrInvalidRoleName) {
 		t.Errorf("Expected ErrInvalidRoleName, got %v", err)
 	}
+}
+
+func TestChattoCore_RoleMetadataLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	t.Run("create accepts values at max length", func(t *testing.T) {
+		role, err := core.CreateServerRole(
+			ctx,
+			"maxrole",
+			strings.Repeat("d", MaxRoleDisplayNameLength),
+			strings.Repeat("x", MaxRoleDescriptionLength),
+		)
+		if err != nil {
+			t.Fatalf("CreateServerRole at max lengths: %v", err)
+		}
+		if len(role.DisplayName) != MaxRoleDisplayNameLength || len(role.Description) != MaxRoleDescriptionLength {
+			t.Fatalf("role lengths = displayName:%d description:%d", len(role.DisplayName), len(role.Description))
+		}
+	})
+
+	t.Run("create rejects over-limit display name", func(t *testing.T) {
+		_, err := core.CreateServerRole(ctx, "longdisplay", strings.Repeat("d", MaxRoleDisplayNameLength+1), "")
+		assertStringLengthError(t, err, "role display name", MaxRoleDisplayNameLength)
+	})
+
+	t.Run("create rejects over-limit description", func(t *testing.T) {
+		_, err := core.CreateServerRole(ctx, "longdescription", "Role", strings.Repeat("d", MaxRoleDescriptionLength+1))
+		assertStringLengthError(t, err, "role description", MaxRoleDescriptionLength)
+	})
+
+	t.Run("update rejects over-limit metadata", func(t *testing.T) {
+		if _, err := core.CreateServerRole(ctx, "editable", "Editable", ""); err != nil {
+			t.Fatalf("CreateServerRole: %v", err)
+		}
+		_, err := core.UpdateServerRole(ctx, "editable", strings.Repeat("d", MaxRoleDisplayNameLength+1), "")
+		assertStringLengthError(t, err, "role display name", MaxRoleDisplayNameLength)
+	})
 }
 
 func TestChattoCore_CreateRole_Duplicate(t *testing.T) {

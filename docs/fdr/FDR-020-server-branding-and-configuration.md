@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-05-30
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -16,6 +16,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 - **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; resized variants served via signed URLs.
 - **Banner** — shown on the login page and in OG previews. Same upload/serve pipeline as the logo.
 - **Blocked usernames** — newline-separated list checked at signup. Matches are rejected before account creation.
+- Text configuration is bounded before storage: server name 80 bytes, description 500 bytes, MOTD 1,000 bytes, welcome message 10,000 bytes, blocked-usernames field 10,000 bytes, and each blocked username no longer than a normal username.
 
 ## Design Decisions
 
@@ -55,7 +56,13 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** Few operators will blocklist many usernames. A separate "blocked usernames" admin page with add/remove operations would be overkill for the volume. A text area is the smallest viable UI.
 **Tradeoff:** Large lists could become awkward to edit. None of the live deployments have lists big enough for this to matter.
 
-### 7. Edit window is a constant exposed via GraphQL, not a config field
+### 7. Runtime text config has fixed size caps
+
+**Decision:** Runtime-editable server text fields have fixed server-side size limits rather than operator-tunable limits.
+**Why:** These values are public presentation/configuration text, not bulk content. Fixed limits keep event payloads and admin forms bounded while preserving enough room for normal operator usage.
+**Tradeoff:** Operators who want unusually large welcome copy or blocklists have to shorten the content instead of raising a config value.
+
+### 8. Edit window is a constant exposed via GraphQL, not a config field
 
 **Decision:** `Server.messageEditWindowSeconds` is queryable but read-only. The value comes from a Go constant (`core.MessageEditWindow = 3 * time.Hour`); the GraphQL schema doesn't include it in `UpdateServerConfigInput`.
 **Why:** The frontend needs to know the window to render countdown timers and disable the edit affordance at the right moment, so exposing it via GraphQL is necessary. But making it operator-tunable opens space for inconsistent UX across servers without clear benefit — and the value isn't sensitive enough to need server-by-server control.

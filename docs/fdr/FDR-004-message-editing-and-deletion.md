@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -11,6 +11,7 @@ Authors can edit and delete their own messages; moderators with the right permis
 
 - Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
+- Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Deletions remove the message body and all attachments and replace the rendered message with a "[Message deleted]" placeholder.
 - Deleting an already-deleted message is a no-op.
 - Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.

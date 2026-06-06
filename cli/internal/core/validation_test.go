@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -285,5 +286,16 @@ func TestHasVisibleContent(t *testing.T) {
 				t.Errorf("HasVisibleContent(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func assertStringLengthError(t *testing.T, err error, field string, max int) {
+	t.Helper()
+	var lengthErr *StringLengthError
+	if !errors.As(err, &lengthErr) {
+		t.Fatalf("error = %v, want *StringLengthError", err)
+	}
+	if lengthErr.Field != field || lengthErr.Max != max {
+		t.Fatalf("StringLengthError = {Field:%q Max:%d}, want {Field:%q Max:%d}", lengthErr.Field, lengthErr.Max, field, max)
 	}
 }

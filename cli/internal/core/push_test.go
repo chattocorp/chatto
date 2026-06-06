@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -155,6 +156,77 @@ func TestSavePushSubscription(t *testing.T) {
 			t.Errorf("Expected 1 subscription after update, got %d", len(subs))
 		}
 	})
+}
+
+func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-limits"
+
+	t.Run("accepts values at max length", func(t *testing.T) {
+		_, err := core.SavePushSubscription(
+			ctx,
+			userID,
+			strings.Repeat("e", MaxPushEndpointLength),
+			strings.Repeat("p", MaxPushKeyLength),
+			strings.Repeat("a", MaxPushAuthLength),
+			strings.Repeat("u", MaxPushUserAgentLength),
+		)
+		if err != nil {
+			t.Fatalf("SavePushSubscription at max lengths: %v", err)
+		}
+	})
+
+	tests := []struct {
+		name      string
+		endpoint  string
+		p256dh    string
+		auth      string
+		userAgent string
+		field     string
+		max       int
+	}{
+		{
+			name:     "endpoint",
+			endpoint: strings.Repeat("e", MaxPushEndpointLength+1),
+			p256dh:   "key",
+			auth:     "auth",
+			field:    "push endpoint",
+			max:      MaxPushEndpointLength,
+		},
+		{
+			name:     "p256dh",
+			endpoint: "https://push.example.com/limits-p256dh",
+			p256dh:   strings.Repeat("p", MaxPushKeyLength+1),
+			auth:     "auth",
+			field:    "push p256dh key",
+			max:      MaxPushKeyLength,
+		},
+		{
+			name:     "auth",
+			endpoint: "https://push.example.com/limits-auth",
+			p256dh:   "key",
+			auth:     strings.Repeat("a", MaxPushAuthLength+1),
+			field:    "push auth secret",
+			max:      MaxPushAuthLength,
+		},
+		{
+			name:      "user agent",
+			endpoint:  "https://push.example.com/limits-user-agent",
+			p256dh:    "key",
+			auth:      "auth",
+			userAgent: strings.Repeat("u", MaxPushUserAgentLength+1),
+			field:     "push user agent",
+			max:       MaxPushUserAgentLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := core.SavePushSubscription(ctx, userID, tt.endpoint, tt.p256dh, tt.auth, tt.userAgent)
+			assertStringLengthError(t, err, tt.field, tt.max)
+		})
+	}
 }
 
 func TestGetAllPushSubscriptions(t *testing.T) {
