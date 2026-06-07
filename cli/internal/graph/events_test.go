@@ -338,6 +338,63 @@ func TestAssetProcessingSucceededEventResolver_MessageEventID(t *testing.T) {
 	}
 }
 
+func TestEventResolver_ActorIDNullForSystemEvents(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.Event()
+
+	got, err := resolver.ActorID(env.authContext(), core.NewEVTEventEnvelope(&corev1.Event{}))
+	if err != nil {
+		t.Fatalf("ActorID returned error: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("ActorID for empty actor = %v, want nil", got)
+	}
+
+	got, err = resolver.ActorID(env.authContext(), core.NewEVTEventEnvelope(&corev1.Event{ActorId: "U123"}))
+	if err != nil {
+		t.Fatalf("ActorID returned error: %v", err)
+	}
+	if got == nil || *got != "U123" {
+		t.Fatalf("ActorID = %v, want U123", got)
+	}
+}
+
+func TestNullableEventResolvers_EmptyStringsBecomeNull(t *testing.T) {
+	env := setupTestResolver(t)
+
+	roomID, err := env.resolver.AssetProcessingStartedEvent().RoomID(env.authContext(), &corev1.AssetProcessingStartedEvent{AssetId: "A-missing"})
+	if err != nil {
+		t.Fatalf("AssetProcessingStartedEvent.RoomID returned error: %v", err)
+	}
+	if roomID != nil {
+		t.Fatalf("AssetProcessingStartedEvent.RoomID = %v, want nil", roomID)
+	}
+
+	messageEventID, err := env.resolver.AssetProcessingStartedEvent().MessageEventID(env.authContext(), &corev1.AssetProcessingStartedEvent{})
+	if err != nil {
+		t.Fatalf("AssetProcessingStartedEvent.MessageEventID returned error: %v", err)
+	}
+	if messageEventID != nil {
+		t.Fatalf("AssetProcessingStartedEvent.MessageEventID = %v, want nil", messageEventID)
+	}
+
+	timezone, err := env.resolver.ServerUserPreferencesUpdatedEvent().Timezone(env.authContext(), &corev1.ServerUserPreferencesUpdatedEvent{})
+	if err != nil {
+		t.Fatalf("ServerUserPreferencesUpdatedEvent.Timezone returned error: %v", err)
+	}
+	if timezone != nil {
+		t.Fatalf("ServerUserPreferencesUpdatedEvent.Timezone = %v, want nil", timezone)
+	}
+
+	avatarURL, err := env.resolver.UserProfileUpdatedEvent().AvatarURL(env.authContext(), &corev1.UserProfileUpdatedEvent{})
+	if err != nil {
+		t.Fatalf("UserProfileUpdatedEvent.AvatarURL returned error: %v", err)
+	}
+	if avatarURL != nil {
+		t.Fatalf("UserProfileUpdatedEvent.AvatarURL = %v, want nil", avatarURL)
+	}
+}
+
 func testAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1.Event {
 	return &corev1.Event{
 		Id: "ENV-DECLARED-" + attachmentID,
