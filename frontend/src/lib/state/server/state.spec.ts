@@ -61,8 +61,8 @@ describe('ServerInfoState.init()', () => {
       data: {
         server: {
           directRegistrationEnabled: false,
-          config: {
-            serverName: 'Acme',
+          profile: {
+            name: 'Acme',
             welcomeMessage: 'welcome',
             description: 'a server for acme',
             logoUrl: 'https://icon',
@@ -92,8 +92,8 @@ describe('ServerInfoState.init()', () => {
         data: {
           server: {
             directRegistrationEnabled: false,
-            config: {
-              serverName: 'Acme',
+            profile: {
+              name: 'Acme',
               welcomeMessage: 'welcome',
               description: 'a server for acme',
               logoUrl: 'https://icon',
@@ -112,7 +112,7 @@ describe('ServerInfoState.init()', () => {
             maxUploadSize: 100,
             maxVideoUploadSize: 200,
             messageEditWindowSeconds: 7200,
-            config: {
+            profile: {
               motd: 'hello'
             }
           }

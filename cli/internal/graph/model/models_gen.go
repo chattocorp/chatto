@@ -920,8 +920,8 @@ type Server struct {
 	Version string `json:"version"`
 	// List of enabled SSO provider names (e.g., 'google', 'github').
 	EnabledAuthProviders []string `json:"enabledAuthProviders"`
-	// Runtime-editable configuration settings.
-	Config *ServerConfig `json:"config"`
+	// Public-facing identity and branding for this server.
+	Profile *ServerProfile `json:"profile"`
 	// True if Web Push notifications are enabled on this server.
 	PushNotificationsEnabled bool `json:"pushNotificationsEnabled"`
 	// VAPID public key for Web Push subscriptions. Null if push is disabled.
@@ -1006,11 +1006,20 @@ type Server struct {
 	UserEffectiveDenials []string `json:"userEffectiveDenials"`
 }
 
-// Runtime-editable server configuration.
-// These are settings that can be changed by admins at runtime.
-type ServerConfig struct {
-	// Server name, displayed in page titles. Defaults to 'Chatto'.
-	ServerName string `json:"serverName"`
+// Paginated list of server members with metadata.
+type ServerMembersConnection struct {
+	// The users who are members of this server.
+	Users []*corev1.User `json:"users"`
+	// Total count of members matching the search (before pagination).
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more members beyond this page.
+	HasMore bool `json:"hasMore"`
+}
+
+// How this server presents itself in logged-out and multi-server UI.
+type ServerProfile struct {
+	// Display name for this server. Defaults to 'Chatto'.
+	Name string `json:"name"`
 	// URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail.
 	LogoURL *string `json:"logoUrl,omitempty"`
 	// URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail.
@@ -1021,16 +1030,6 @@ type ServerConfig struct {
 	Motd *string `json:"motd,omitempty"`
 	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
 	Description *string `json:"description,omitempty"`
-}
-
-// Paginated list of server members with metadata.
-type ServerMembersConnection struct {
-	// The users who are members of this server.
-	Users []*corev1.User `json:"users"`
-	// Total count of members matching the search (before pagination).
-	TotalCount int32 `json:"totalCount"`
-	// Whether there are more members beyond this page.
-	HasMore bool `json:"hasMore"`
 }
 
 // Aggregate counts for the deployment. Operator-facing only.

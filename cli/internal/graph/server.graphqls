@@ -1,10 +1,9 @@
 """
-Runtime-editable server configuration.
-These are settings that can be changed by admins at runtime.
+How this server presents itself in logged-out and multi-server UI.
 """
-type ServerConfig {
-  "Server name, displayed in page titles. Defaults to 'Chatto'."
-  serverName: String! @public @goField(forceResolver: true)
+type ServerProfile {
+  "Display name for this server. Defaults to 'Chatto'."
+  name: String! @public @goField(forceResolver: true)
 
   "URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail."
   logoUrl(width: Int, height: Int, fit: FitMode): String @public @goField(forceResolver: true)
@@ -33,8 +32,8 @@ type Server {
   "List of enabled SSO provider names (e.g., 'google', 'github')."
   enabledAuthProviders: [String!]! @public
 
-  "Runtime-editable configuration settings."
-  config: ServerConfig! @public @goField(forceResolver: true)
+  "Public-facing identity and branding for this server."
+  profile: ServerProfile! @public @goField(forceResolver: true)
 
   "True if Web Push notifications are enabled on this server."
   pushNotificationsEnabled: Boolean! @goField(forceResolver: true)

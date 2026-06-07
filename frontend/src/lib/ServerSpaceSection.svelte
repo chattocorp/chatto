@@ -55,8 +55,8 @@
   const InstanceInitQuery = graphql(`
     query InstanceInit {
       server {
-        config {
-          serverName
+        profile {
+          name
           logoUrl(width: 96, height: 96)
         }
         viewerHasUnreadRooms
@@ -136,8 +136,8 @@
     }
 
     if (server) {
-      displayName = server.config.serverName;
-      logoUrl = server.config.logoUrl ?? null;
+      displayName = server.profile.name;
+      logoUrl = server.profile.logoUrl ?? null;
       loaded = true;
     }
   }
@@ -150,8 +150,8 @@
         graphql(`
           query InstanceIconRefresh {
             server {
-              config {
-                serverName
+              profile {
+                name
                 logoUrl(width: 96, height: 96)
               }
             }
@@ -162,8 +162,8 @@
       .toPromise();
 
     if (result.data?.server) {
-      displayName = result.data.server.config.serverName;
-      logoUrl = result.data.server.config.logoUrl ?? null;
+      displayName = result.data.server.profile.name;
+      logoUrl = result.data.server.profile.logoUrl ?? null;
     }
   }
 

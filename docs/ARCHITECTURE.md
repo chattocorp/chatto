@@ -723,7 +723,7 @@ URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured 
 
 **GraphQL Integration:**
 
-The `Attachment`, `User`, and `ServerConfig` image fields expose transform parameters as field arguments:
+The `Attachment`, `User`, and `ServerProfile` image fields expose transform parameters as field arguments:
 
 ```graphql
 type Attachment {
@@ -735,7 +735,7 @@ type User {
   avatarUrl(width: Int, height: Int, fit: FitMode): String
 }
 
-type ServerConfig {
+type ServerProfile {
   logoUrl(width: Int, height: Int, fit: FitMode): String
   bannerUrl(width: Int, height: Int, fit: FitMode): String
 }

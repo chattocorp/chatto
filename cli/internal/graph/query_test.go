@@ -160,8 +160,8 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 				server {
 					version
 					enabledAuthProviders
-					config {
-						serverName
+					profile {
+						name
 					}
 					directRegistrationEnabled
 				}
@@ -176,9 +176,9 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 			Server *struct {
 				Version              string   `json:"version"`
 				EnabledAuthProviders []string `json:"enabledAuthProviders"`
-				Config               struct {
-					ServerName string `json:"serverName"`
-				} `json:"config"`
+				Profile              struct {
+					Name string `json:"name"`
+				} `json:"profile"`
 				DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
 			} `json:"server"`
 		}
@@ -188,7 +188,7 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 		if data.Server == nil {
 			t.Fatal("Expected server data, got nil")
 		}
-		if data.Server.Config.ServerName == "" {
+		if data.Server.Profile.Name == "" {
 			t.Fatal("Expected public server name to be populated")
 		}
 	})
@@ -278,7 +278,7 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 					livekitUrl
 					maxUploadSize
 					messageEditWindowSeconds
-					config {
+					profile {
 						motd
 					}
 				}
@@ -1054,15 +1054,15 @@ func TestQueryResolver_Server(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// Get the config from the instance
-		configResolver := resolver.ServerConfig()
-		serverConfig, err := resolver.Server().Config(context.Background(), instance)
+		// Get the profile from the instance
+		profileResolver := resolver.ServerProfile()
+		serverProfile, err := resolver.Server().Profile(context.Background(), instance)
 		if err != nil {
-			t.Fatalf("Unexpected error getting config: %v", err)
+			t.Fatalf("Unexpected error getting profile: %v", err)
 		}
 
 		// Check welcome message is nil when core is not initialized
-		welcomeMsg, err := configResolver.WelcomeMessage(context.Background(), serverConfig)
+		welcomeMsg, err := profileResolver.WelcomeMessage(context.Background(), serverProfile)
 		if err != nil {
 			t.Fatalf("Unexpected error getting welcome message: %v", err)
 		}

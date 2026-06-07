@@ -450,7 +450,7 @@ func TestGraphQL_Query_Server_PublicDiscovery(t *testing.T) {
 	_ = env.createTestUser(t, "spacesuser", "password123")
 
 	t.Run("unauthenticated user can read instance metadata", func(t *testing.T) {
-		resp := env.doGraphQL(t, `query { server { version config { serverName } } }`, nil)
+		resp := env.doGraphQL(t, `query { server { version profile { name } } }`, nil)
 		if len(resp.Errors) > 0 {
 			t.Errorf("Expected no errors for public discovery, got: %v", resp.Errors)
 		}
@@ -609,7 +609,7 @@ func TestGraphQL_LengthDirective_AllowsNullNullableInputField(t *testing.T) {
 
 	resp := env.doGraphQL(t, `mutation($input: UpdateServerInput!) {
 		updateServer(input: $input) {
-			config { serverName }
+			profile { name }
 		}
 	}`, map[string]any{
 		"input": map[string]any{

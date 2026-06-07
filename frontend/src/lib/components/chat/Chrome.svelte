@@ -99,8 +99,8 @@
         graphql(`
           query ValidateSpaceAccess {
             server {
-              config {
-                serverName
+              profile {
+                name
                 bannerUrl(width: 480, height: 252)
               }
               viewerHasAnyAdminPermission
@@ -128,8 +128,8 @@
 
     const inst = result.data.server;
     return {
-      name: inst.config.serverName,
-      bannerUrl: inst.config.bannerUrl ?? null,
+      name: inst.profile.name,
+      bannerUrl: inst.profile.bannerUrl ?? null,
       hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
       canManage: inst.viewerCanManageServer,
       canManageRooms: inst.viewerCanManageRooms,

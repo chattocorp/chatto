@@ -61,8 +61,8 @@ export class ServerInfoState {
           query GetServerInfo {
             server {
               directRegistrationEnabled
-              config {
-                serverName
+              profile {
+                name
                 welcomeMessage
                 description
                 logoUrl(width: 256, height: 256)
@@ -89,11 +89,11 @@ export class ServerInfoState {
       }
 
       if (resp.data?.server) {
-        this.name = resp.data.server.config.serverName;
-        this.welcomeMessage = resp.data.server.config.welcomeMessage ?? null;
-        this.description = resp.data.server.config.description ?? null;
-        this.iconUrl = resp.data.server.config.logoUrl ?? null;
-        this.bannerUrl = resp.data.server.config.bannerUrl ?? null;
+        this.name = resp.data.server.profile.name;
+        this.welcomeMessage = resp.data.server.profile.welcomeMessage ?? null;
+        this.description = resp.data.server.profile.description ?? null;
+        this.iconUrl = resp.data.server.profile.logoUrl ?? null;
+        this.bannerUrl = resp.data.server.profile.bannerUrl ?? null;
         this.directRegistrationEnabled = resp.data.server.directRegistrationEnabled;
       }
     } catch (err) {
@@ -126,7 +126,7 @@ export class ServerInfoState {
               maxUploadSize
               maxVideoUploadSize
               messageEditWindowSeconds
-              config {
+              profile {
                 motd
               }
             }
@@ -142,7 +142,7 @@ export class ServerInfoState {
     }
 
     if (resp.data?.server) {
-      this.motd = resp.data.server.config.motd ?? null;
+      this.motd = resp.data.server.profile.motd ?? null;
       this.pushNotificationsEnabled = resp.data.server.pushNotificationsEnabled;
       this.vapidPublicKey = resp.data.server.vapidPublicKey ?? null;
       this.livekitUrl = resp.data.server.livekitUrl ?? null;

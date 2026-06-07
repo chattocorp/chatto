@@ -22,7 +22,7 @@ func TestGraphQL_QueryDepthLimit_AcceptsShallowQuery(t *testing.T) {
 func TestGraphQL_QueryDepthLimit_AcceptsModerateQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `query { server { version config { serverName welcomeMessage } } }`, nil)
+	resp := env.doGraphQL(t, `query { server { version profile { name welcomeMessage } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected moderate query to succeed, got errors: %v", resp.Errors)
 	}
@@ -132,8 +132,8 @@ func TestGraphQL_QueryDepthLimit_InlineFragmentsDoNotAddDepth(t *testing.T) {
 		server {
 			version
 			... on Server {
-				config {
-					serverName
+				profile {
+					name
 				}
 			}
 		}
@@ -228,7 +228,7 @@ func TestGraphQL_ComplexityLimit_RejectsExcessiveQuery(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("query {")
 	for i := range 100 {
-		b.WriteString(fmt.Sprintf("\n  i%d: server { version config { serverName logoUrl welcomeMessage description } }", i))
+		b.WriteString(fmt.Sprintf("\n  i%d: server { version profile { name logoUrl welcomeMessage description } }", i))
 	}
 	b.WriteString("\n}")
 
