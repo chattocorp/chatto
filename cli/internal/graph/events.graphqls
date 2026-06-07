@@ -559,7 +559,7 @@ Event: The channel-room groups (ordering, names, or membership) were updated.
 Clients should refetch `Server.roomGroups` to get the new shape.
 """
 type RoomGroupsUpdatedEvent {
-  "Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets."
+  "Always true. Vestigial — clients only need the event arrival to trigger a refetch of room groups."
   changed: Boolean! @goField(forceResolver: true)
 }
 

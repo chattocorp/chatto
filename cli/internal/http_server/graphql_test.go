@@ -790,6 +790,21 @@ func TestGraphQL_ErrorFormat(t *testing.T) {
 	}
 }
 
+func TestGraphQL_CreateRoom_RequiresGroupID(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `mutation {
+		createRoom(input: { name: "missing-group" }) { id }
+	}`, nil)
+
+	if len(resp.Errors) == 0 {
+		t.Fatal("Expected validation error for missing groupId")
+	}
+	if !strings.Contains(resp.Errors[0].Message, "groupId") {
+		t.Fatalf("Expected missing groupId error, got: %v", resp.Errors)
+	}
+}
+
 func TestGraphQL_Variables(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 

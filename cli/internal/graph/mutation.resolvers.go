@@ -34,10 +34,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 		desc = *input.Description
 	}
 
-	groupID := ""
-	if input.GroupID != nil {
-		groupID = *input.GroupID
-	}
+	groupID := input.GroupID
 
 	// Authorization: check CanCreateRoom permission, scoped to the target
 	// group when one is specified. A role granted room.create at server

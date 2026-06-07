@@ -39,19 +39,23 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 }
 
 // User is the resolver for the user field.
-// Note: User profiles are intentionally public within the server.
-// This is required for displaying message authors, member lists, etc.
-// Authentication is not required as user data is non-sensitive.
+// User profiles are visible to authenticated server users.
 func (r *queryResolver) User(ctx context.Context, userID string) (*corev1.User, error) {
-	// No authorization - public user profiles
+	if _, err := requireAuth(ctx); err != nil {
+		return nil, err
+	}
+
 	return r.core.GetUser(ctx, userID)
 }
 
 // UserByLogin is the resolver for the userByLogin field.
 // Returns the user with the given login name, or null if not found.
-// Note: User profiles are intentionally public within the server.
+// User profiles are visible to authenticated server users.
 func (r *queryResolver) UserByLogin(ctx context.Context, login string) (*corev1.User, error) {
-	// No authorization - public user profiles
+	if _, err := requireAuth(ctx); err != nil {
+		return nil, err
+	}
+
 	user, err := r.core.GetUserByLogin(ctx, login)
 	if err != nil {
 		// Return nil instead of error for "not found" cases

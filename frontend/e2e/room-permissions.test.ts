@@ -67,11 +67,22 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
 
 async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   const roomName = name ?? `room${Date.now()}`;
+  const groupResp = await page.request.post('/api/graphql', {
+    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+    data: { query: `query { server { roomGroups { id } } }` }
+  });
+  expect(groupResp.ok()).toBeTruthy();
+  const groupData = await groupResp.json();
+  const groupId = groupData.data?.server?.roomGroups?.[0]?.id;
+  if (!groupId) {
+    throw new Error(`No room group available for e2e room creation: ${JSON.stringify(groupData)}`);
+  }
+
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-      variables: { input: { name: roomName } }
+      variables: { input: { name: roomName, groupId } }
     }
   });
   expect(resp.ok()).toBeTruthy();

@@ -91,12 +91,12 @@ export type AdminQueries = {
   eventLogEntry?: Maybe<EventLogEntry>;
   /**
    * Resolve the explicit grants and denials configured for a role on a
-   * specific set. Returns empty arrays if neither side has any keys.
+   * specific room group. Returns empty arrays if neither side has any keys.
    */
   groupRolePermissions: RoomGroupRolePermissions;
   /**
    * Resolve the explicit grants and denials configured for a user on a
-   * specific set (user-level overrides at set scope).
+   * specific room group (user-level overrides at room-group scope).
    */
   groupUserPermissions: RoomGroupUserPermissions;
   /** Inspect point-in-time runtime state and rough memory estimates for event-sourced projections. */
@@ -397,7 +397,7 @@ export type CreateRoleInput = {
 export type CreateRoomGroupInput = {
   /** Optional operator-facing description. */
   description?: InputMaybe<Scalars['String']['input']>;
-  /** Display name for the new set (e.g., 'Engineering', 'Public'). */
+  /** Display name for the new room group (e.g., 'Engineering', 'Public'). */
   name: Scalars['String']['input'];
 };
 
@@ -406,11 +406,11 @@ export type CreateRoomInput = {
   /** Optional description of the room's purpose. */
   description?: InputMaybe<Scalars['String']['input']>;
   /**
-   * Optional room-set ID to place the new room in. Required once the
-   * room-sets feature is fully wired (see ADR-031); during the transition
-   * it may be omitted, in which case the room is created without a set.
+   * Room group ID to place the new channel room in. Channel room creation
+   * requires an explicit group; DM rooms are created through the DM APIs and
+   * do not use this input.
    */
-  groupId?: InputMaybe<Scalars['ID']['input']>;
+  groupId: Scalars['ID']['input'];
   /** The name of the new room. */
   name: Scalars['String']['input'];
 };
@@ -479,9 +479,9 @@ export type DeleteRoleInput = {
   name: Scalars['String']['input'];
 };
 
-/** Input for deleting a room group. Fails if the set still contains any rooms. */
+/** Input for deleting a room group. Fails if the room group still contains any rooms. */
 export type DeleteRoomGroupInput = {
-  /** The set's ID. */
+  /** The room group's ID. */
   id: Scalars['ID']['input'];
 };
 
@@ -555,8 +555,8 @@ export type EventLogConnection = {
   entries: Array<EventLogEntry>;
   /** True if older entries exist beyond this page. */
   hasOlder: Scalars['Boolean']['output'];
-  /** Total retained event-log entries currently visible to the diagnostic view; not bounded by `limit`. */
-  totalCount: Scalars['Int']['output'];
+  /** Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int. */
+  totalCount: Scalars['Int64']['output'];
 };
 
 /** One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed. */
@@ -692,7 +692,7 @@ export type GrantUserPermissionInput = {
  * (by name) or a user (by ID).
  */
 export type GroupPermissionInput = {
-  /** The set to scope the grant to. */
+  /** The room group to scope the grant to. */
   groupId: Scalars['ID']['input'];
   /** Permission identifier (e.g., 'message.post'). */
   permission: Scalars['String']['input'];
@@ -950,11 +950,11 @@ export type MessageRetractedEvent = {
 };
 
 /**
- * Input for moving a room into a different set. Requires room.manage in
- * both the source and target set (ADR-031).
+ * Input for moving a room into a different room group. Requires room.manage in
+ * both the source and target room group (ADR-031).
  */
 export type MoveRoomToSetInput = {
-  /** The destination set. */
+  /** The destination room group. */
   groupId: Scalars['ID']['input'];
   /** The room to move. */
   roomId: Scalars['ID']['input'];
@@ -971,13 +971,13 @@ export type Mutation = {
   addReaction: Scalars['Boolean']['output'];
   /** Admin mutations. Returns null if user lacks admin permission. */
   admin?: Maybe<AdminMutations>;
-  /** Archive a room. Hides it from sidebar and Browse Rooms. Requires rooms.manage permission. */
+  /** Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission. */
   archiveRoom: Room;
   /**
    * Assign an server role to a user. Idempotent - assigning an already-assigned
    * role succeeds silently. Returns true on success.
    * Note: The 'everyone' role is implicit for all users and cannot be assigned.
-   * Requires: admin.users.manage permission.
+   * Requires: role.assign permission and outranking the target user.
    * Errors: If role doesn't exist or is 'everyone'.
    */
   assignRole: Scalars['Boolean']['output'];
@@ -990,14 +990,14 @@ export type Mutation = {
    * Clear any grant or denial state for a permission on a role, restoring neutral state.
    * Idempotent - clearing when no state exists succeeds silently. Returns true on success.
    * After clearing, this role neither grants nor denies the permission.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   clearPermissionState: Scalars['Boolean']['output'];
   /**
    * Clear room-level grant and denial for a permission on a role.
    * Returns the permission to neutral (inherit from server defaults).
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    */
   clearRoomPermission: Scalars['Boolean']['output'];
   /**
@@ -1011,7 +1011,7 @@ export type Mutation = {
   /**
    * Create a new custom server role. Returns the created role with empty permissions.
    * System role names ('owner', 'admin', 'moderator', 'everyone') cannot be used.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role name already exists or is a system role name.
    */
   createRole: Role;
@@ -1039,8 +1039,8 @@ export type Mutation = {
   /**
    * Delete a message body for GDPR compliance.
    * The message remains as a retracted/deleted entry, but the content is removed.
-   * Requires either delete_any_message permission (moderator) or delete_own_message permission
-   * and ownership of the message.
+   * Requires message.manage to delete another user's message; authors can delete
+   * their own messages.
    * Returns true on success.
    */
   deleteMessage: Scalars['Boolean']['output'];
@@ -1058,13 +1058,13 @@ export type Mutation = {
    * Delete a custom server role and all associated data. Returns true on success.
    * Deletes: role definition, all permission grants, and all user role assignments.
    * System roles ('owner', 'admin', 'moderator', 'everyone') cannot be deleted.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or is a system role.
    */
   deleteRole: Scalars['Boolean']['output'];
   /**
-   * Delete a room group. Rejected if the set still contains rooms — operators
-   * must move all rooms out first. Requires `role.manage`.
+   * Delete a room group. Rejected if the room group still contains rooms —
+   * operators must move all rooms out first. Requires `role.manage`.
    */
   deleteRoomGroup: Scalars['Boolean']['output'];
   /** Delete the server banner. Requires server.manage permission. */
@@ -1078,14 +1078,14 @@ export type Mutation = {
    * permission, regardless of what other roles grant it (deny-override pattern).
    * Clears any existing grant for the same permission. Returns true on success.
    * Note: Admin role is immune to role denials; denying a permission on admin has no effect.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   denyPermission: Scalars['Boolean']['output'];
   /**
    * Deny a permission for a role at room level. Overrides server-level state for this room.
    * Clears any existing grant for the same permission in this room.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    */
   denyRoomPermission: Scalars['Boolean']['output'];
   /**
@@ -1109,14 +1109,14 @@ export type Mutation = {
   /**
    * Grant a permission to a role. Idempotent - granting an already-granted
    * permission succeeds silently. Returns true on success.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   grantPermission: Scalars['Boolean']['output'];
   /**
    * Grant a permission to a role at room level. Overrides server-level state for this room.
    * Clears any existing denial for the same permission in this room.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    */
   grantRoomPermission: Scalars['Boolean']['output'];
   /**
@@ -1158,9 +1158,9 @@ export type Mutation = {
    */
   markThreadAsRead: MarkThreadAsReadResult;
   /**
-   * Move a room into a different set. The caller must have `room.manage`
-   * in both the source set and the target set (ADR-031). Permission overrides
-   * on the room itself are preserved.
+   * Move a room into a different room group. The caller must have
+   * `room.manage` in both the source room group and the target room group
+   * (ADR-031). Permission overrides on the room itself are preserved.
    */
   moveRoomToSet: Room;
   /** Post a message to a room. Automatically marks the room as read since the user is viewing it. */
@@ -1175,13 +1175,13 @@ export type Mutation = {
    * Reorder server roles. Accepts an ordered list of custom role names.
    * System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
    * Positions are assigned based on array index (first role = position 1, second = 2, etc).
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Returns: All server roles, sorted by position.
    */
   reorderRoles: Array<Role>;
   /**
    * Reorder all room groups. The provided ID list must contain every existing
-   * set exactly once. Requires `role.manage`.
+   * room group exactly once. Requires `role.manage`.
    */
   reorderRoomGroups: Array<RoomGroup>;
   /**
@@ -1201,7 +1201,7 @@ export type Mutation = {
    * permission succeeds silently. Returns true on success.
    * Note: This only removes grants, not denials. Use clearPermissionState to remove both.
    * Note: Admin role has all permissions implicitly; revoking from admin has no effect.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist or permission is invalid.
    */
   revokePermission: Scalars['Boolean']['output'];
@@ -1210,7 +1210,7 @@ export type Mutation = {
    * role succeeds silently. Returns true on success.
    * Note: Users cannot revoke their own admin role (prevents self-lockout).
    * Note: The 'everyone' role is implicit and cannot be revoked.
-   * Requires: admin.users.manage permission.
+   * Requires: role.assign permission and outranking the target user.
    * Errors: If role doesn't exist, is 'everyone', or user tries to revoke own admin role.
    */
   revokeRole: Scalars['Boolean']['output'];
@@ -1238,7 +1238,7 @@ export type Mutation = {
    * Requires authentication.
    */
   subscribeToPush: Scalars['Boolean']['output'];
-  /** Unarchive a previously archived room. Requires rooms.manage permission. */
+  /** Unarchive a previously archived room. Requires room.manage permission. */
   unarchiveRoom: Room;
   /** Unfollow a thread to stop receiving reply notifications. Requires room membership. */
   unfollowThread: Scalars['Boolean']['output'];
@@ -1274,11 +1274,11 @@ export type Mutation = {
   /**
    * Update an server role's display name and description. Returns the updated role.
    * Role name cannot be changed after creation. System roles cannot be edited.
-   * Requires: admin.roles.manage permission.
+   * Requires: role.manage permission.
    * Errors: If role doesn't exist.
    */
   updateRole: Role;
-  /** Update an existing room's name and description. Requires rooms.manage permission. */
+  /** Update an existing room's name and description. Requires room.manage permission. */
   updateRoom: Room;
   /** Update a room group's name/description. Requires `role.manage`. */
   updateRoomGroup: RoomGroup;
@@ -2041,14 +2041,15 @@ export type Query = {
    * rolePermissions.
    *
    * Pass `roomId` for per-room override editing (inherits from the room's
-   * set), `groupId` for set-scope editing (no inheritance — sets are
-   * top-level for channel-room permissions). Pass neither for server scope.
+   * room group), `groupId` for room-group-scope editing (no inheritance —
+   * room groups are top-level for channel-room permissions). Pass neither
+   * for server scope.
    * Passing both is rejected.
    */
   tierRoles?: Maybe<TierRoles>;
-  /** Get a specific user by ID. */
+  /** Get a specific user by ID. Requires authentication. */
   user?: Maybe<User>;
-  /** Get a specific user by login. Returns null if not found. */
+  /** Get a specific user by login. Requires authentication. Returns null if not found. */
   userByLogin?: Maybe<User>;
   /**
    * Permission matrix for a specific user. Authorization: viewer must
@@ -2188,10 +2189,10 @@ export type ReorderRolesInput = {
 
 /**
  * Input for reordering all room groups. The order must include every existing
- * set ID exactly once; partial or unknown lists are rejected.
+ * room group ID exactly once; partial or unknown lists are rejected.
  */
 export type ReorderRoomGroupsInput = {
-  /** Set IDs in the desired display order, first to last. */
+  /** Room group IDs in the desired display order, first to last. */
   orderedIds: Array<Scalars['ID']['input']>;
 };
 
@@ -2382,8 +2383,8 @@ export type Room = {
   eventsAround: RoomEventsAroundResult;
   /**
    * Channel rooms belong to exactly one RoomGroup; this field identifies which
-   * one. Empty string for DM rooms — those don't participate in the set
-   * layout (see ADR-031).
+   * one. DM rooms return an empty string sentinel because they do not
+   * participate in room-group layout or ACLs (see ADR-031).
    */
   groupId: Scalars['ID']['output'];
   /**
@@ -2541,42 +2542,43 @@ export type RoomGroup = {
   __typename?: 'RoomGroup';
   /** Operator-facing description; may be empty. */
   description: Scalars['String']['output'];
-  /** Unique ID for this set. */
+  /** Unique ID for this room group. */
   id: Scalars['ID']['output'];
-  /** Display name for this set (e.g., 'General', 'Projects'). */
+  /** Display name for this room group (e.g., 'General', 'Projects'). */
   name: Scalars['String']['output'];
-  /** Ordered list of rooms in this set. */
+  /** Ordered list of channel rooms in this room group. */
   rooms: Array<Room>;
 };
 
 /**
- * Per-set role permission inspector. Returns the explicit grants and denials
- * configured on a set for a given role (no inheritance — to see the effective
- * permissions resolve per-room or per-user via the resolver instead).
+ * Per-room-group role permission inspector. Returns the explicit grants and
+ * denials configured on a room group for a given role (no inheritance — to
+ * see the effective permissions resolve per-room or per-user via the resolver
+ * instead).
  */
 export type RoomGroupRolePermissions = {
   __typename?: 'RoomGroupRolePermissions';
-  /** The set these permissions belong to. */
+  /** The room group these permissions belong to. */
   groupId: Scalars['ID']['output'];
-  /** Permissions explicitly denied to this role on this set. */
+  /** Permissions explicitly denied to this role on this room group. */
   permissionDenials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this role on this set. */
+  /** Permissions explicitly granted to this role on this room group. */
   permissions: Array<Scalars['String']['output']>;
   /** The role these permissions apply to. */
   roleName: Scalars['String']['output'];
 };
 
 /**
- * Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
- * direct user-level grants/denials.
+ * Per-room-group user permission inspector. Mirrors RoomGroupRolePermissions
+ * for direct user-level grants/denials.
  */
 export type RoomGroupUserPermissions = {
   __typename?: 'RoomGroupUserPermissions';
-  /** The set these permissions belong to. */
+  /** The room group these permissions belong to. */
   groupId: Scalars['ID']['output'];
-  /** Permissions explicitly denied to this user on this set. */
+  /** Permissions explicitly denied to this user on this room group. */
   permissionDenials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this user on this set. */
+  /** Permissions explicitly granted to this user on this room group. */
   permissions: Array<Scalars['String']['output']>;
   /** The user these permissions apply to. */
   userId: Scalars['ID']['output'];
@@ -2588,7 +2590,7 @@ export type RoomGroupUserPermissions = {
  */
 export type RoomGroupsUpdatedEvent = {
   __typename?: 'RoomGroupsUpdatedEvent';
-  /** Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets. */
+  /** Always true. Vestigial — clients only need the event arrival to trigger a refetch of room groups. */
   changed: Scalars['Boolean']['output'];
 };
 
@@ -2769,11 +2771,11 @@ export type Server = {
   version: Scalars['String']['output'];
   /** True if video processing is enabled, allowing video attachments to be uploaded. */
   videoProcessingEnabled: Scalars['Boolean']['output'];
-  /** Whether the current user can assign roles to users (has admin.roles.assign permission). */
+  /** Whether the current user can assign roles to users (has role.assign permission). */
   viewerCanAssignRoles: Scalars['Boolean']['output'];
-  /** Whether the current user can create rooms (has rooms.create permission). */
+  /** Whether the current user can create rooms (has room.create permission). */
   viewerCanCreateRoom: Scalars['Boolean']['output'];
-  /** Whether the current user can manage roles (has admin.roles.manage permission). */
+  /** Whether the current user can manage roles (has role.manage permission). */
   viewerCanManageRoles: Scalars['Boolean']['output'];
   /** Whether the current user can manage rooms (has room.manage permission). */
   viewerCanManageRooms: Scalars['Boolean']['output'];
@@ -3033,7 +3035,8 @@ export type Subscription = {
    *   notifications, thread-follow sync, server membership, room layout
    *   changes, session termination) — scoped per event type:
    *   - Config events: delivered to all authenticated users.
-   *   - User profile updates: broadcast (profiles are public).
+   *   - User profile updates: broadcast to authenticated users (profiles are
+   *     public within the server).
    *   - Private user events (notification sync, preferences, session
    *     termination, server membership changes): delivered only to the target
    *     user. Powers cross-tab/cross-device sync.
@@ -3221,7 +3224,7 @@ export type UpdateRoleInput = {
 export type UpdateRoomGroupInput = {
   /** Optional description. */
   description?: InputMaybe<Scalars['String']['input']>;
-  /** The set's ID. */
+  /** The room group's ID. */
   id: Scalars['ID']['input'];
   /** Display name. */
   name: Scalars['String']['input'];
@@ -3419,8 +3422,11 @@ export type UserPermissionCell = {
 
 /** Trinary decision used in the user-permission matrix. */
 export enum UserPermissionDecision {
+  /** The permission is explicitly granted. */
   Allow = 'ALLOW',
+  /** The permission is explicitly denied. */
   Deny = 'DENY',
+  /** No explicit grant or denial applies at this scope. */
   None = 'NONE'
 }
 
@@ -4597,7 +4603,7 @@ export type AdminEventLogQueryVariables = Exact<{
 }>;
 
 
-export type AdminEventLogQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', eventLog: { __typename?: 'EventLogConnection', hasOlder: boolean, endCursor?: string | null, totalCount: number, entries: Array<{ __typename?: 'EventLogEntry', sequence: string, subject: string, aggregateType: string, aggregateId: string, eventType: string, eventId: string, actorId: string, createdAt: any }> } } | null };
+export type AdminEventLogQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', eventLog: { __typename?: 'EventLogConnection', hasOlder: boolean, endCursor?: string | null, totalCount: any, entries: Array<{ __typename?: 'EventLogEntry', sequence: string, subject: string, aggregateType: string, aggregateId: string, eventType: string, eventId: string, actorId: string, createdAt: any }> } } | null };
 
 export type AdminEventLogEntryQueryVariables = Exact<{
   sequence: Scalars['String']['input'];

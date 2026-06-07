@@ -1036,7 +1036,7 @@ func (x *UserKeyShreddedEvent) GetUserId() string {
 
 // UserDEKGeneratedEvent records the creation of one per-user data-encryption
 // key epoch. Message bodies and PII payloads reference purpose-specific
-// epochs; the wrapped key material lives in ENCRYPTION_KEYS under
+// epochs; the wrapped key material lives in RUNTIME_STATE under
 // content_key_ref so it can be shredded independently of immutable EVT history.
 type UserDEKGeneratedEvent struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`

@@ -531,10 +531,10 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 	s.logger.Debug("Serving transformed server asset", "asset_id", key, "signed_path", signedPath)
 
 	s.serveTransformedAsset(c, transformRequest{
-		ResourceID1: "server",
+		ResourceID1: core.ServerAssetSignResource,
 		ResourceID2: key,
 		SignedPath:  signedPath,
-		CachePrefix: "server",
+		CachePrefix: core.ServerAssetSignResource,
 		AssetID:     key,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			// Probe both NATS and S3 backends

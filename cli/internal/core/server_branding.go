@@ -85,7 +85,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 		Name:    assetID,
 		Headers: headers,
 	}
-	info, err := c.storage.serverStore.Put(ctx, meta, bytes.NewReader(webpData))
+	info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(webpData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload %s: %w", kind, err)
 	}

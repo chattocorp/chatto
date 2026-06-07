@@ -31,7 +31,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
-- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs and KMS wrapping-key refs from the `ENCRYPTION_KEYS` bucket, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
+- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
 - The login is freed up for re-use.
@@ -82,8 +82,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 7. KMS service boundary, even though it's in-process
 
-**Decision:** KEK creation, DEK wrapping/unwrapping, and KEK shredding go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or Chatto user IDs. DEK record create/load/shred stays in application-owned `ENCRYPTION_KEYS` storage.
-**Why:** A clean KMS boundary is what makes future extraction to Vault / AWS KMS / HSM possible without turning the external KMS into Chatto's DEK registry. See ADR-007.
+**Decision:** KEK creation, DEK wrapping/unwrapping, and KEK shredding go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or Chatto user IDs. DEK record create/load/shred stays in application-owned `RUNTIME_STATE` storage.
+**Why:** A clean KMS boundary is what makes future extraction to Vault / AWS KMS / HSM possible without turning the external KMS into Chatto's DEK registry. Keeping wrapped DEKs in `RUNTIME_STATE` also preserves them in normal data backups without backing up the KEKs needed to unwrap them. See ADR-007.
 **Tradeoff:** A tiny indirection layer for what's currently an in-process call. Legacy direct-key body decrypt still has a local raw-KEK compatibility path until old bodies age out.
 
 ### 8. Login is freed on deletion
