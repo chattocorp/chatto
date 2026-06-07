@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 
 	"hmans.de/chatto/internal/config"
@@ -10,7 +11,7 @@ import (
 // Email Verification Tests
 // ============================================================================
 
-func TestChattoCore_VerifyEmail(t *testing.T) {
+func TestChattoCore_VerifyEmailCode(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -20,14 +21,12 @@ func TestChattoCore_VerifyEmail(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Create verification token
-		token, err := core.CreateEmailVerificationToken(ctx, user.Id, "verify@example.com")
+		code, err := core.CreateEmailVerificationCode(ctx, user.Id, "verify@example.com")
 		if err != nil {
-			t.Fatalf("Failed to create token: %v", err)
+			t.Fatalf("Failed to create code: %v", err)
 		}
 
-		// Verify email
-		userID, err := core.VerifyEmail(ctx, token)
+		userID, err := core.VerifyEmailCode(ctx, user.Id, "verify@example.com", code)
 		if err != nil {
 			t.Fatalf("Failed to verify email: %v", err)
 		}
@@ -45,9 +44,9 @@ func TestChattoCore_VerifyEmail(t *testing.T) {
 		}
 	})
 
-	t.Run("returns error for invalid token", func(t *testing.T) {
-		_, err := core.VerifyEmail(ctx, "invalid-token")
-		if err != ErrTokenNotFound {
+	t.Run("returns error for missing code record", func(t *testing.T) {
+		_, err := core.VerifyEmailCode(ctx, "missing-user", "missing@example.com", "123456")
+		if !errors.Is(err, ErrTokenNotFound) {
 			t.Errorf("Expected ErrTokenNotFound, got %v", err)
 		}
 	})
@@ -61,9 +60,9 @@ func TestChattoCore_VerifyEmail(t *testing.T) {
 
 		// Create second user and try to verify same email
 		user2, _ := core.CreateUser(ctx, "system", "claim-test-user2", "User 2", "password123")
-		token, _ := core.CreateEmailVerificationToken(ctx, user2.Id, "claimed@example.com")
+		code, _ := core.CreateEmailVerificationCode(ctx, user2.Id, "claimed@example.com")
 
-		_, err := core.VerifyEmail(ctx, token)
+		_, err := core.VerifyEmailCode(ctx, user2.Id, "claimed@example.com", code)
 		if err != ErrEmailAlreadyVerified {
 			t.Errorf("Expected ErrEmailAlreadyVerified, got %v", err)
 		}
@@ -77,8 +76,8 @@ func TestChattoCore_VerifyEmail(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "idempotent-test-user", "Test User", "password123")
 
 		// First verification succeeds
-		token1, _ := core.CreateEmailVerificationToken(ctx, user.Id, "idempotent@example.com")
-		_, err := core.VerifyEmail(ctx, token1)
+		code1, _ := core.CreateEmailVerificationCode(ctx, user.Id, "idempotent@example.com")
+		_, err := core.VerifyEmailCode(ctx, user.Id, "idempotent@example.com", code1)
 		if err != nil {
 			t.Fatalf("First verification failed: %v", err)
 		}
@@ -91,8 +90,8 @@ func TestChattoCore_VerifyEmail(t *testing.T) {
 
 		// Second verification with same email (idempotent case)
 		// This should succeed without deleting the claim
-		token2, _ := core.CreateEmailVerificationToken(ctx, user.Id, "idempotent@example.com")
-		_, err = core.VerifyEmail(ctx, token2)
+		code2, _ := core.CreateEmailVerificationCode(ctx, user.Id, "idempotent@example.com")
+		_, err = core.VerifyEmailCode(ctx, user.Id, "idempotent@example.com", code2)
 		if err != nil {
 			t.Fatalf("Idempotent verification failed: %v", err)
 		}
@@ -101,6 +100,49 @@ func TestChattoCore_VerifyEmail(t *testing.T) {
 		claimed, _ = core.IsEmailClaimed(ctx, "idempotent@example.com")
 		if !claimed {
 			t.Error("Email should still be claimed after idempotent verification")
+		}
+	})
+
+	t.Run("invalid attempts exhaust code", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "attempt-email-user", "Attempt User", "password123")
+		code, err := core.CreateEmailVerificationCode(ctx, user.Id, "attempt-email@example.com")
+		if err != nil {
+			t.Fatalf("CreateEmailVerificationCode: %v", err)
+		}
+		wrongCode := "000000"
+		if code == wrongCode {
+			wrongCode = "111111"
+		}
+
+		for i := 1; i < EmailVerificationCodeMaxAttempts; i++ {
+			_, err := core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
+			if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
+				t.Fatalf("attempt %d error = %v, want ErrEmailVerificationCodeInvalid", i, err)
+			}
+		}
+		_, err = core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
+		if !errors.Is(err, ErrEmailVerificationCodeExhausted) {
+			t.Fatalf("exhaustion error = %v, want ErrEmailVerificationCodeExhausted", err)
+		}
+	})
+
+	t.Run("resend invalidates previous code", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "resend-email-user", "Resend User", "password123")
+		firstCode, err := core.CreateEmailVerificationCode(ctx, user.Id, "resend-email@example.com")
+		if err != nil {
+			t.Fatalf("first CreateEmailVerificationCode: %v", err)
+		}
+		secondCode, err := core.CreateEmailVerificationCode(ctx, user.Id, "resend-email@example.com")
+		if err != nil {
+			t.Fatalf("second CreateEmailVerificationCode: %v", err)
+		}
+
+		_, err = core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", firstCode)
+		if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
+			t.Fatalf("first code error = %v, want ErrEmailVerificationCodeInvalid", err)
+		}
+		if _, err := core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", secondCode); err != nil {
+			t.Fatalf("second code should verify: %v", err)
 		}
 	})
 }

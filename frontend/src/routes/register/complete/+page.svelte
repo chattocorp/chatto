@@ -90,7 +90,7 @@
   }
 </script>
 
-<PageTitle title="Complete Registration" />
+  <PageTitle title="Complete Registration" />
 
 <AuthLayout>
   <h1 class="mb-6 text-center text-2xl font-bold">Complete Registration</h1>
@@ -99,12 +99,12 @@
     <div
       class="rounded-lg bg-red-100 p-4 text-center text-red-800 dark:bg-red-900/30 dark:text-red-200"
     >
-      <p class="mb-2 font-medium">Invalid registration link</p>
-      <p class="text-sm">This link is invalid or has expired.</p>
+      <p class="mb-2 font-medium">Invalid registration code</p>
+      <p class="text-sm">This registration session is invalid or has expired.</p>
     </div>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/register')} class="link">Request a new link</a>
+      <a href={resolve('/register')} class="link">Request a new code</a>
     </p>
   {:else}
     <form onsubmit={handleSubmit} class="flex flex-col gap-4">

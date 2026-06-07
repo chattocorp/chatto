@@ -7,13 +7,13 @@ import "chatto/core/v1/models.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
-message RegistrationLinkIssuedEvent {
+message RegistrationVerificationCodeIssuedEvent {
   string email_hash = 1;
   google.protobuf.Timestamp expires_at = 2;
   AuditRequestMetadata request = 3;
 }
 
-message EmailVerificationLinkIssuedEvent {
+message EmailVerificationCodeIssuedEvent {
   string user_id = 1;
   string email_hash = 2;
   google.protobuf.Timestamp expires_at = 3;

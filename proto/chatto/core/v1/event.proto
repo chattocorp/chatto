@@ -175,10 +175,11 @@ message Event {
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
 
     // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
-    // These facts are intentionally minimal: no raw token, link, IP address,
-    // password, auth code, bearer token, or unhashed email is persisted in EVT.
-    RegistrationLinkIssuedEvent registration_link_issued = 900;
-    EmailVerificationLinkIssuedEvent email_verification_link_issued = 901;
+    // These facts are intentionally minimal: no raw token, verification code,
+    // link, IP address, password, auth code, bearer token, or unhashed email is
+    // persisted in EVT.
+    RegistrationVerificationCodeIssuedEvent registration_verification_code_issued = 900;
+    EmailVerificationCodeIssuedEvent email_verification_code_issued = 901;
     PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
     AccountDeletionConfirmationIssuedEvent account_deletion_confirmation_issued = 903;
     PasswordResetCompletedEvent password_reset_completed = 904;

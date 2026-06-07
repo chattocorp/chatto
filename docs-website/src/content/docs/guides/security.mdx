@@ -37,7 +37,7 @@ Session cookies are always signed with `webserver.cookie_signing_secret`. They a
 
 ### Email verification
 
-Registration sends a verification link with a 24-hour token. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
+Registration sends a six-digit verification code with a 15-minute TTL. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
 
 The registration endpoint always returns `200 OK` regardless of whether the email is already claimed, so it cannot be used as an oracle to enumerate registered addresses.
 
@@ -132,7 +132,7 @@ Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded 
 
 - `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
 
-`RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
+`RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
 Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the KEK and wrapped-DEK records to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
@@ -192,7 +192,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | ----------------------------------- | ------------------------------------------- | -------------- |
 | Per-user KEK and wrapped DEK records | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
 | Bearer/session token verifiers      | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw tokens) |
-| Account-flow link/code verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw links/codes) |
+| Account-flow code/link verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw codes/links) |
 | Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |
 | Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |
 | Cookie encryption secret (optional) | `chatto.toml` (`webserver.cookie_encryption_secret`) | n/a    |

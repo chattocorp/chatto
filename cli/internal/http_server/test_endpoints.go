@@ -29,6 +29,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - DELETE /auth/test/emails - Clear all captured emails
 //   - POST /auth/test/verify-email - Directly verify a user's email
 //   - POST /auth/test/create-user - Directly create a user without registration flow
+//   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/oauth-authorize - Mint an OAuth authorization code without UI interaction
 func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
@@ -109,8 +110,28 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		})
 	})
 
-	// Test-only endpoint to create a registration token (bypasses email delivery).
-	// Returns the token so E2E tests can navigate directly to /register/complete?token=...
+	// Test-only endpoint to create a registration code (bypasses email delivery).
+	// Returns the code so E2E tests can exercise the production code-entry flow.
+	auth.POST("test/create-registration-code", func(c *gin.Context) {
+		var req struct {
+			Email string `json:"email" binding:"required,email"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		code, err := s.core.CreateRegistrationCode(c.Request.Context(), req.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": code, "email": req.Email})
+	})
+
+	// Test-only endpoint to create a registration completion token (bypasses
+	// email delivery and code entry). Prefer create-registration-code for
+	// end-to-end registration-flow coverage.
 	auth.POST("test/create-registration-token", func(c *gin.Context) {
 		var req struct {
 			Email string `json:"email" binding:"required,email"`

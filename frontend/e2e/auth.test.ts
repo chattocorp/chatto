@@ -44,11 +44,8 @@ test.describe('Return URL after login', () => {
     // saving the returnUrl in sessionStorage
     await page.waitForURL('/');
 
-    // Register via the two-step flow (uses test endpoint for token)
-    const token = await authPage.createRegistrationTokenViaTestEndpoint(testEmail);
-    await authPage.gotoRegisterComplete(token);
-    await authPage.fillRegistrationCompleteForm(testLogin, testPassword, testPassword);
-    await authPage.createAccountButton.click();
+    // Register via the email → code → account-details flow
+    await authPage.register(testLogin, testEmail, testPassword);
 
     // Should be redirected to the original URL, not /chat
     await page.waitForURL(routes.admin);
@@ -174,7 +171,7 @@ test.describe('Authentication', () => {
       const testEmail = `regtest${timestamp}@example.com`;
       const testPassword = 'testpassword123';
 
-      // Register via the POM (uses test endpoint for token)
+      // Register via the POM using the email → code → account-details flow
       await authPage.register(testLogin, testEmail, testPassword);
 
       // Verify we're logged in
@@ -253,7 +250,7 @@ test.describe('Authentication', () => {
       // First, create a user via API
       await authPage.createUserViaApi(testLogin, testPassword);
 
-      // Create a registration token and try to use the same username
+      // Create a registration completion token and try to use the same username
       const testEmail = `dupuser${timestamp}@example.com`;
       const token = await authPage.createRegistrationTokenViaTestEndpoint(testEmail);
       await authPage.gotoRegisterComplete(token);
@@ -267,8 +264,8 @@ test.describe('Authentication', () => {
     test('shows invalid token message when token is missing', async ({ page }) => {
       await page.goto('/register/complete');
 
-      // Should show invalid registration link message
-      await expect(page.getByText('Invalid registration link')).toBeVisible();
+      // Should show invalid registration code message
+      await expect(page.getByText('Invalid registration code')).toBeVisible();
     });
 
     test('shows error for invalid token on submit', async ({ authPage }) => {

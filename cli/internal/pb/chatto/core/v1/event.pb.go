@@ -123,8 +123,8 @@ type Event struct {
 	//	*Event_RbacPermissionGranted
 	//	*Event_RbacPermissionDenied
 	//	*Event_RbacPermissionCleared
-	//	*Event_RegistrationLinkIssued
-	//	*Event_EmailVerificationLinkIssued
+	//	*Event_RegistrationVerificationCodeIssued
+	//	*Event_EmailVerificationCodeIssued
 	//	*Event_PasswordResetLinkIssued
 	//	*Event_AccountDeletionConfirmationIssued
 	//	*Event_PasswordResetCompleted
@@ -804,19 +804,19 @@ func (x *Event) GetRbacPermissionCleared() *RbacPermissionClearedEvent {
 	return nil
 }
 
-func (x *Event) GetRegistrationLinkIssued() *RegistrationLinkIssuedEvent {
+func (x *Event) GetRegistrationVerificationCodeIssued() *RegistrationVerificationCodeIssuedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_RegistrationLinkIssued); ok {
-			return x.RegistrationLinkIssued
+		if x, ok := x.Event.(*Event_RegistrationVerificationCodeIssued); ok {
+			return x.RegistrationVerificationCodeIssued
 		}
 	}
 	return nil
 }
 
-func (x *Event) GetEmailVerificationLinkIssued() *EmailVerificationLinkIssuedEvent {
+func (x *Event) GetEmailVerificationCodeIssued() *EmailVerificationCodeIssuedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_EmailVerificationLinkIssued); ok {
-			return x.EmailVerificationLinkIssued
+		if x, ok := x.Event.(*Event_EmailVerificationCodeIssued); ok {
+			return x.EmailVerificationCodeIssued
 		}
 	}
 	return nil
@@ -1241,15 +1241,16 @@ type Event_RbacPermissionCleared struct {
 	RbacPermissionCleared *RbacPermissionClearedEvent `protobuf:"bytes,812,opt,name=rbac_permission_cleared,json=rbacPermissionCleared,proto3,oneof"`
 }
 
-type Event_RegistrationLinkIssued struct {
+type Event_RegistrationVerificationCodeIssued struct {
 	// ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
-	// These facts are intentionally minimal: no raw token, link, IP address,
-	// password, auth code, bearer token, or unhashed email is persisted in EVT.
-	RegistrationLinkIssued *RegistrationLinkIssuedEvent `protobuf:"bytes,900,opt,name=registration_link_issued,json=registrationLinkIssued,proto3,oneof"`
+	// These facts are intentionally minimal: no raw token, verification code,
+	// link, IP address, password, auth code, bearer token, or unhashed email is
+	// persisted in EVT.
+	RegistrationVerificationCodeIssued *RegistrationVerificationCodeIssuedEvent `protobuf:"bytes,900,opt,name=registration_verification_code_issued,json=registrationVerificationCodeIssued,proto3,oneof"`
 }
 
-type Event_EmailVerificationLinkIssued struct {
-	EmailVerificationLinkIssued *EmailVerificationLinkIssuedEvent `protobuf:"bytes,901,opt,name=email_verification_link_issued,json=emailVerificationLinkIssued,proto3,oneof"`
+type Event_EmailVerificationCodeIssued struct {
+	EmailVerificationCodeIssued *EmailVerificationCodeIssuedEvent `protobuf:"bytes,901,opt,name=email_verification_code_issued,json=emailVerificationCodeIssued,proto3,oneof"`
 }
 
 type Event_PasswordResetLinkIssued struct {
@@ -1442,9 +1443,9 @@ func (*Event_RbacPermissionDenied) isEvent_Event() {}
 
 func (*Event_RbacPermissionCleared) isEvent_Event() {}
 
-func (*Event_RegistrationLinkIssued) isEvent_Event() {}
+func (*Event_RegistrationVerificationCodeIssued) isEvent_Event() {}
 
-func (*Event_EmailVerificationLinkIssued) isEvent_Event() {}
+func (*Event_EmailVerificationCodeIssued) isEvent_Event() {}
 
 func (*Event_PasswordResetLinkIssued) isEvent_Event() {}
 
@@ -1476,7 +1477,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\"\x93D\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\"\xb9D\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1548,9 +1549,9 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x11rbac_role_revoked\x18\xa6\x06 \x01(\v2$.chatto.core.v1.RbacRoleRevokedEventH\x00R\x0frbacRoleRevoked\x12e\n" +
 	"\x17rbac_permission_granted\x18\xaa\x06 \x01(\v2*.chatto.core.v1.RbacPermissionGrantedEventH\x00R\x15rbacPermissionGranted\x12b\n" +
 	"\x16rbac_permission_denied\x18\xab\x06 \x01(\v2).chatto.core.v1.RbacPermissionDeniedEventH\x00R\x14rbacPermissionDenied\x12e\n" +
-	"\x17rbac_permission_cleared\x18\xac\x06 \x01(\v2*.chatto.core.v1.RbacPermissionClearedEventH\x00R\x15rbacPermissionCleared\x12h\n" +
-	"\x18registration_link_issued\x18\x84\a \x01(\v2+.chatto.core.v1.RegistrationLinkIssuedEventH\x00R\x16registrationLinkIssued\x12x\n" +
-	"\x1eemail_verification_link_issued\x18\x85\a \x01(\v20.chatto.core.v1.EmailVerificationLinkIssuedEventH\x00R\x1bemailVerificationLinkIssued\x12l\n" +
+	"\x17rbac_permission_cleared\x18\xac\x06 \x01(\v2*.chatto.core.v1.RbacPermissionClearedEventH\x00R\x15rbacPermissionCleared\x12\x8d\x01\n" +
+	"%registration_verification_code_issued\x18\x84\a \x01(\v27.chatto.core.v1.RegistrationVerificationCodeIssuedEventH\x00R\"registrationVerificationCodeIssued\x12x\n" +
+	"\x1eemail_verification_code_issued\x18\x85\a \x01(\v20.chatto.core.v1.EmailVerificationCodeIssuedEventH\x00R\x1bemailVerificationCodeIssued\x12l\n" +
 	"\x1apassword_reset_link_issued\x18\x86\a \x01(\v2,.chatto.core.v1.PasswordResetLinkIssuedEventH\x00R\x17passwordResetLinkIssued\x12\x8a\x01\n" +
 	"$account_deletion_confirmation_issued\x18\x87\a \x01(\v26.chatto.core.v1.AccountDeletionConfirmationIssuedEventH\x00R!accountDeletionConfirmationIssued\x12h\n" +
 	"\x18password_reset_completed\x18\x88\a \x01(\v2+.chatto.core.v1.PasswordResetCompletedEventH\x00R\x16passwordResetCompleted\x12O\n" +
@@ -1651,8 +1652,8 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*RbacPermissionGrantedEvent)(nil),              // 66: chatto.core.v1.RbacPermissionGrantedEvent
 	(*RbacPermissionDeniedEvent)(nil),               // 67: chatto.core.v1.RbacPermissionDeniedEvent
 	(*RbacPermissionClearedEvent)(nil),              // 68: chatto.core.v1.RbacPermissionClearedEvent
-	(*RegistrationLinkIssuedEvent)(nil),             // 69: chatto.core.v1.RegistrationLinkIssuedEvent
-	(*EmailVerificationLinkIssuedEvent)(nil),        // 70: chatto.core.v1.EmailVerificationLinkIssuedEvent
+	(*RegistrationVerificationCodeIssuedEvent)(nil), // 69: chatto.core.v1.RegistrationVerificationCodeIssuedEvent
+	(*EmailVerificationCodeIssuedEvent)(nil),        // 70: chatto.core.v1.EmailVerificationCodeIssuedEvent
 	(*PasswordResetLinkIssuedEvent)(nil),            // 71: chatto.core.v1.PasswordResetLinkIssuedEvent
 	(*AccountDeletionConfirmationIssuedEvent)(nil),  // 72: chatto.core.v1.AccountDeletionConfirmationIssuedEvent
 	(*PasswordResetCompletedEvent)(nil),             // 73: chatto.core.v1.PasswordResetCompletedEvent
@@ -1736,8 +1737,8 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	66, // 65: chatto.core.v1.Event.rbac_permission_granted:type_name -> chatto.core.v1.RbacPermissionGrantedEvent
 	67, // 66: chatto.core.v1.Event.rbac_permission_denied:type_name -> chatto.core.v1.RbacPermissionDeniedEvent
 	68, // 67: chatto.core.v1.Event.rbac_permission_cleared:type_name -> chatto.core.v1.RbacPermissionClearedEvent
-	69, // 68: chatto.core.v1.Event.registration_link_issued:type_name -> chatto.core.v1.RegistrationLinkIssuedEvent
-	70, // 69: chatto.core.v1.Event.email_verification_link_issued:type_name -> chatto.core.v1.EmailVerificationLinkIssuedEvent
+	69, // 68: chatto.core.v1.Event.registration_verification_code_issued:type_name -> chatto.core.v1.RegistrationVerificationCodeIssuedEvent
+	70, // 69: chatto.core.v1.Event.email_verification_code_issued:type_name -> chatto.core.v1.EmailVerificationCodeIssuedEvent
 	71, // 70: chatto.core.v1.Event.password_reset_link_issued:type_name -> chatto.core.v1.PasswordResetLinkIssuedEvent
 	72, // 71: chatto.core.v1.Event.account_deletion_confirmation_issued:type_name -> chatto.core.v1.AccountDeletionConfirmationIssuedEvent
 	73, // 72: chatto.core.v1.Event.password_reset_completed:type_name -> chatto.core.v1.PasswordResetCompletedEvent
@@ -1841,8 +1842,8 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_RbacPermissionGranted)(nil),
 		(*Event_RbacPermissionDenied)(nil),
 		(*Event_RbacPermissionCleared)(nil),
-		(*Event_RegistrationLinkIssued)(nil),
-		(*Event_EmailVerificationLinkIssued)(nil),
+		(*Event_RegistrationVerificationCodeIssued)(nil),
+		(*Event_EmailVerificationCodeIssued)(nil),
 		(*Event_PasswordResetLinkIssued)(nil),
 		(*Event_AccountDeletionConfirmationIssued)(nil),
 		(*Event_PasswordResetCompleted)(nil),
