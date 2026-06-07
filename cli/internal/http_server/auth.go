@@ -152,6 +152,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
+		if s.passwordLoginSessionCreatedHook != nil {
+			s.passwordLoginSessionCreatedHook(c, user.Id, authGeneration)
+		}
 
 		session := sessions.Default(c)
 		cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)

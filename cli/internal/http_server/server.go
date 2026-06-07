@@ -41,6 +41,9 @@ type HTTPServer struct {
 	addr       string
 	version    string
 	logger     *log.Logger
+
+	// Optional test hook used to make password-login revocation races deterministic.
+	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
 }
 
 const (

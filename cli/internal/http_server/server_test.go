@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -123,6 +124,10 @@ func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 // testHTTPServer creates an HTTPServer for testing with an embedded NATS server.
 // Returns the test server, a client with cookie jar, and ChattoCore.
 func setupTestHTTPServer(t *testing.T) (*httptest.Server, *http.Client, *core.ChattoCore) {
+	return setupTestHTTPServerWithHook(t, nil)
+}
+
+func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*httptest.Server, *http.Client, *core.ChattoCore) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -164,6 +169,9 @@ func setupTestHTTPServer(t *testing.T) (*httptest.Server, *http.Client, *core.Ch
 		router: router,
 		core:   chattoCore,
 		mailer: nil, // Not needed for testing
+	}
+	if configure != nil {
+		configure(s)
 	}
 
 	// Set up auth routes only (skip GraphQL and other routes for focused testing)
@@ -1940,6 +1948,82 @@ func TestAuthRoutes_LoginStaleCredentialErrorIsInvalidCredentials(t *testing.T) 
 	}
 	if isStaleLoginCredentialError(errors.New("other error")) {
 		t.Fatal("unrelated credential creation errors should not be treated as invalid credentials")
+	}
+}
+
+func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing.T) {
+	var capture struct {
+		sync.Mutex
+		userID    string
+		sessionID string
+		err       error
+	}
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
+			sessionUserID, sessionID, ok := cookieSessionIDs(sessions.Default(c))
+
+			capture.Lock()
+			defer capture.Unlock()
+
+			if !ok {
+				capture.err = errors.New("cookie session was not saved before hook")
+				return
+			}
+			if sessionUserID != userID {
+				capture.err = errors.New("cookie session user did not match login user")
+				return
+			}
+
+			capture.userID = sessionUserID
+			capture.sessionID = sessionID
+			capture.err = s.core.SetPasswordHash(c.Request.Context(), userID, "newpassword456")
+		}
+	})
+	ctx := testContext(t)
+
+	if _, err := chattoCore.CreateUser(ctx, "", "staleissuer", "Stale Issuer", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	loginBody := map[string]string{"login": "staleissuer", "password": "password123"}
+	body, _ := json.Marshal(loginBody)
+	resp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Login request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	capture.Lock()
+	hookErr := capture.err
+	capturedUserID := capture.userID
+	capturedSessionID := capture.sessionID
+	capture.Unlock()
+
+	if hookErr != nil {
+		t.Fatalf("password-login hook failed: %v", hookErr)
+	}
+	if capturedUserID == "" || capturedSessionID == "" {
+		t.Fatal("password-login hook did not capture a cookie session")
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Login status = %d, want 401", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Decode login response: %v", err)
+	}
+	if result["error"] != "Invalid credentials" {
+		t.Fatalf("Login error = %v, want Invalid credentials", result["error"])
+	}
+	if _, ok := result["token"]; ok {
+		t.Fatal("Stale login response should not include a bearer token")
+	}
+
+	if _, err := chattoCore.ValidateCookieSession(ctx, capturedUserID, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
 	}
 }
 
