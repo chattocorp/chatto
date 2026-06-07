@@ -157,7 +157,11 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		return "", "", ErrAuthCodeInvalidVerifier
 	}
 
-	resolvedGeneration, err := c.ResolveCredentialAuthGeneration(ctx, codeData.UserID, codeData.AuthGeneration, codeData.CreatedAt)
+	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+		UserID:         codeData.UserID,
+		CreatedAt:      codeData.CreatedAt,
+		AuthGeneration: codeData.AuthGeneration,
+	})
 	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", "", err
@@ -167,10 +171,10 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		}
 		return "", "", ErrAuthCodeNotFound
 	}
-	codeData.AuthGeneration = resolvedGeneration
+	codeData.AuthGeneration = validation.AuthGeneration
 
 	// Issue a bearer token
-	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, codeData.UserID, "oauth_code_exchange", codeData.AuthGeneration)
+	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, validation.UserID, "oauth_code_exchange", validation.AuthGeneration)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
 	}
@@ -182,7 +186,7 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		return "", "", err
 	}
 
-	return token, codeData.UserID, nil
+	return token, validation.UserID, nil
 }
 
 // ============================================================================

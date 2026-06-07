@@ -122,7 +122,11 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
 	}
-	resolvedGeneration, err := c.ResolveCredentialAuthGeneration(ctx, tokenData.UserID, tokenData.AuthGeneration, tokenData.CreatedAt)
+	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+		UserID:         tokenData.UserID,
+		CreatedAt:      tokenData.CreatedAt,
+		AuthGeneration: tokenData.AuthGeneration,
+	})
 	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", err
@@ -131,8 +135,8 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 		return "", ErrAuthTokenNotFound
 	}
 	value := entry.Value()
-	if tokenData.AuthGeneration != resolvedGeneration {
-		tokenData.AuthGeneration = resolvedGeneration
+	if validation.ShouldPersistAuthGeneration {
+		tokenData.AuthGeneration = validation.AuthGeneration
 		if upgraded, err := json.Marshal(tokenData); err == nil {
 			value = upgraded
 		}
@@ -142,7 +146,7 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	// Fire-and-forget — validation succeeds even if the re-put fails.
 	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.authTokenTTL())
 
-	return tokenData.UserID, nil
+	return validation.UserID, nil
 }
 
 // RevokeAuthToken deletes a bearer token, immediately invalidating it.

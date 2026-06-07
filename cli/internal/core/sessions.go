@@ -115,7 +115,11 @@ func (c *ChattoCore) ValidateCookieSession(ctx context.Context, userID, sessionI
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrCookieSessionNotFound
 	}
-	resolvedGeneration, err := c.ResolveCredentialAuthGeneration(ctx, userID, record.GetAuthGeneration(), record.GetCreatedAt().AsTime())
+	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+		UserID:         userID,
+		CreatedAt:      record.GetCreatedAt().AsTime(),
+		AuthGeneration: record.GetAuthGeneration(),
+	})
 	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return nil, err
@@ -123,8 +127,8 @@ func (c *ChattoCore) ValidateCookieSession(ctx context.Context, userID, sessionI
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrCookieSessionNotFound
 	}
-	if record.GetAuthGeneration() != resolvedGeneration {
-		record.AuthGeneration = resolvedGeneration
+	if validation.ShouldPersistAuthGeneration {
+		record.AuthGeneration = validation.AuthGeneration
 		if data, err := proto.Marshal(&record); err == nil {
 			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), time.Until(expiresAtPB.AsTime()))
 		}
