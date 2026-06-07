@@ -135,16 +135,10 @@ type AssignRoleInput struct {
 
 // A participant currently in a voice call.
 type CallParticipant struct {
-	// The user's ID.
-	UserID string `json:"userId"`
-	// The user's display name.
-	DisplayName string `json:"displayName"`
-	// The user's login handle.
-	Login string `json:"login"`
-	// The user's avatar URL (may be null if no avatar is set).
-	AvatarURL *string `json:"avatarUrl,omitempty"`
-	// Unix timestamp (seconds) when the user joined the call.
-	JoinedAt int32 `json:"joinedAt"`
+	// The user currently participating in the call.
+	User *corev1.User `json:"user"`
+	// When the user joined the call.
+	JoinedAt *timestamppb.Timestamp `json:"joinedAt"`
 }
 
 // Input for clearing permission state on a role.
@@ -492,7 +486,7 @@ type MarkThreadAsReadResult struct {
 
 // Input for moving a room into a different room group. Requires room.manage in
 // both the source and target room group (ADR-031).
-type MoveRoomToSetInput struct {
+type MoveRoomToGroupInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
 	// The destination room group.
@@ -933,9 +927,9 @@ type Server struct {
 	// True if video processing is enabled, allowing video attachments to be uploaded.
 	VideoProcessingEnabled bool `json:"videoProcessingEnabled"`
 	// Maximum upload size for regular attachments (images, files) in bytes.
-	MaxUploadSize int32 `json:"maxUploadSize"`
+	MaxUploadSize int64 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
-	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
+	MaxVideoUploadSize int64 `json:"maxVideoUploadSize"`
 	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window.
 	MessageEditWindowSeconds int32 `json:"messageEditWindowSeconds"`
 	// List of rooms on this server.

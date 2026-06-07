@@ -97,24 +97,24 @@
           typingThreadRootEventId: threadRootEventId
         }
         ... on VideoProcessingCompletedEvent {
-          roomId
+          processingRoomId: roomId
           attachmentId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetProcessingStartedEvent {
-          roomId
+          processingRoomId: roomId
           assetId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetProcessingSucceededEvent {
-          roomId
+          processingRoomId: roomId
           assetId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetProcessingFailedEvent {
-          roomId
+          processingRoomId: roomId
           assetId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetDeletedEvent {
           deletedRoomId: roomId

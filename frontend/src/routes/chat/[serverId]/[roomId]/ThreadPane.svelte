@@ -116,11 +116,14 @@
       eventData.roomId === roomId &&
       eventData.threadRootEventId === threadRootEventId
     ) {
-      typingIndicator.removeTypingUser(serverEvent.actorId);
+      const actorId = serverEvent.actorId;
+      if (actorId) {
+        typingIndicator.removeTypingUser(actorId);
+      }
 
       if (
         currentUser.user &&
-        serverEvent.actorId !== currentUser.user.id &&
+        actorId !== currentUser.user.id &&
         appState.isPresent
       ) {
         void markThreadAsRead(threadRootEventId, serverEvent.id);

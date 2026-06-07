@@ -89,7 +89,7 @@ input ReorderRoomGroupsInput {
 Input for moving a room into a different room group. Requires room.manage in
 both the source and target room group (ADR-031).
 """
-input MoveRoomToSetInput {
+input MoveRoomToGroupInput {
   "The room to move."
   roomId: ID!
   "The destination room group."
@@ -145,7 +145,7 @@ extend type Mutation {
   `room.manage` in both the source room group and the target room group
   (ADR-031). Permission overrides on the room itself are preserved.
   """
-  moveRoomToSet(input: MoveRoomToSetInput!): Room!
+  moveRoomToGroup(input: MoveRoomToGroupInput!): Room!
 
   """
   Reorder rooms inside a single group. The provided ID list must contain

@@ -198,6 +198,13 @@ func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	return event.GetRoomId()
 }
 
+func nilIfEmpty(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
 func assetDimensions(asset *corev1.AssetRecord) (int32, int32) {
 	if asset == nil {
 		return 0, 0

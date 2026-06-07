@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
@@ -181,6 +183,14 @@ func (r *roomResolver) ViewerCanManageRoom(ctx context.Context, obj *corev1.Room
 	return r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindOfRoom(obj), obj.Id, core.PermRoomManage)
 }
 
+// GroupID is the resolver for the groupId field.
+func (r *roomResolver) GroupID(ctx context.Context, obj *corev1.Room) (*string, error) {
+	if core.KindOfRoom(obj) == core.KindDM {
+		return nil, nil
+	}
+	return nilIfEmpty(obj.GetGroupId()), nil
+}
+
 // Events is the resolver for the events field.
 func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
 	user, err := requireAuth(ctx)
@@ -345,16 +355,13 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 
 	result := make([]*model.CallParticipant, len(participants))
 	for i, p := range participants {
-		var avatarURL *string
-		if p.AvatarURL != "" {
-			avatarURL = &p.AvatarURL
-		}
 		result[i] = &model.CallParticipant{
-			UserID:      p.UserID,
-			DisplayName: p.DisplayName,
-			Login:       p.Login,
-			AvatarURL:   avatarURL,
-			JoinedAt:    int32(p.JoinedAt),
+			User: &corev1.User{
+				Id:          p.UserID,
+				Login:       p.Login,
+				DisplayName: p.DisplayName,
+			},
+			JoinedAt: timestamppb.New(time.Unix(p.JoinedAt, 0)),
 		}
 	}
 	return result, nil

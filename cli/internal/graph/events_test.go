@@ -326,15 +326,15 @@ func TestAssetProcessingSucceededEventResolver_MessageEventID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MessageEventID returned error: %v", err)
 	}
-	if got != "M1" {
-		t.Fatalf("MessageEventID = %q, want M1 (read off the event)", got)
+	if got == nil || *got != "M1" {
+		t.Fatalf("MessageEventID = %v, want M1 (read off the event)", got)
 	}
 
-	// One-shot migration events don't carry it; the resolver yields empty.
+	// One-shot migration events don't carry it; the resolver yields null.
 	if got, err := resolver.MessageEventID(env.authContext(), &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"}); err != nil {
 		t.Fatalf("MessageEventID returned error: %v", err)
-	} else if got != "" {
-		t.Fatalf("MessageEventID without stamp = %q, want empty", got)
+	} else if got != nil {
+		t.Fatalf("MessageEventID without stamp = %v, want nil", got)
 	}
 }
 

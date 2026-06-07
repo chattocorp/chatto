@@ -74,9 +74,9 @@
     }
   `);
 
-  const MoveRoomToSetMutation = graphql(`
-    mutation AdminMoveRoomToSet($input: MoveRoomToSetInput!) {
-      moveRoomToSet(input: $input) {
+  const MoveRoomToGroupMutation = graphql(`
+    mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {
+      moveRoomToGroup(input: $input) {
         id
       }
     }
@@ -123,7 +123,7 @@
   const updateGroupMutation = useMutation(UpdateRoomGroupMutation);
   const deleteGroupMutation = useMutation(DeleteRoomGroupMutation);
   const reorderGroupsMutation = useMutation(ReorderRoomGroupsMutation);
-  const moveRoomMutation = useMutation(MoveRoomToSetMutation);
+  const moveRoomMutation = useMutation(MoveRoomToGroupMutation);
   const reorderRoomsMutation = useMutation(ReorderRoomsInGroupMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
@@ -272,7 +272,7 @@
   // --- Drag-and-drop handlers ---
   //
   // Two distinct mutations cover room drags:
-  //   - cross-group → `moveRoomToSet` per room that changed groups
+  //   - cross-group → `moveRoomToGroup` per room that changed groups
   //   - within-group reorder → `reorderRoomsInGroup` per group whose
   //     room order changed
   // svelte-dnd-action fires onfinalize on both source and target zones
@@ -923,4 +923,3 @@
     be able to access it again.
   </ConfirmDialog>
 {/if}
-

@@ -156,7 +156,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.roomId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
-      activeCallRooms.handleLeave(event.roomId, spaceEvent.actorId);
+      activeCallRooms.handleLeave(event.roomId, spaceEvent.actorId ?? null);
     }
   });
 

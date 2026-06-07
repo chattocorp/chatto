@@ -201,7 +201,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `deleteRoomGroup`                 | Delete a room group (must be empty).                                                         |
 | `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
 | `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
-| `moveRoomToSet`                   | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
+| `moveRoomToGroup`                 | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
 | `grantGroupPermission`            | Grant a permission to a role at group scope (overrides server defaults).                     |
 | `denyGroupPermission`             | Deny a permission to a role at group scope.                                                  |
 | `clearGroupPermissionState`       | Remove both grant and denial at group scope.                                                 |

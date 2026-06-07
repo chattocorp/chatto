@@ -275,7 +275,13 @@ export abstract class MessageListStore {
     }
 
     // From here on, only events scoped to this room are interesting.
-    if ('roomId' in eventData && eventData.roomId !== this.roomId) return;
+    const eventRoomId =
+      'roomId' in eventData
+        ? eventData.roomId
+        : 'processingRoomId' in eventData
+          ? eventData.processingRoomId
+          : null;
+    if (eventRoomId != null && eventRoomId !== this.roomId) return;
 
     // Apply deletions locally — the post-deletion state is deterministic
     // (body=null, attachments=[]) and we already know the affected event id,
@@ -293,13 +299,20 @@ export abstract class MessageListStore {
 
     if (
       eventData.__typename === 'ReactionAddedEvent' ||
-      eventData.__typename === 'ReactionRemovedEvent' ||
+      eventData.__typename === 'ReactionRemovedEvent'
+    ) {
+      this.refetchByMessageEventId(eventData.messageEventId);
+      return;
+    }
+
+    if (
       eventData.__typename === 'VideoProcessingCompletedEvent' ||
       eventData.__typename === 'AssetProcessingStartedEvent' ||
       eventData.__typename === 'AssetProcessingSucceededEvent' ||
       eventData.__typename === 'AssetProcessingFailedEvent'
     ) {
-      this.refetchByMessageEventId(eventData.messageEventId);
+      if (!eventData.processingMessageEventId) return;
+      this.refetchByMessageEventId(eventData.processingMessageEventId);
       return;
     }
 

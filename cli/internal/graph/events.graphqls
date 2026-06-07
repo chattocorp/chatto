@@ -11,8 +11,8 @@ type Event {
   id: ID! @goField(forceResolver: true)
   "When this event was created."
   createdAt: Time! @goField(forceResolver: true)
-  "The ID of the user who triggered this event."
-  actorId: ID! @goField(forceResolver: true)
+  "The ID of the user who triggered this event. Null for system/synthetic events."
+  actorId: ID @goField(forceResolver: true)
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
   "The concrete event data."
@@ -107,8 +107,6 @@ type ServerConfigUpdatedEvent {
   motd: String
   "The updated welcome message (null if cleared)."
   welcomeMessage: String
-  "The updated blocked usernames (null if cleared)."
-  blockedUsernames: String
 }
 
 # ==============================================================================
@@ -145,8 +143,8 @@ type UserProfileUpdatedEvent {
   userId: ID!
   "The user's updated display name."
   displayName: String!
-  "The user's avatar URL (empty string if no avatar)."
-  avatarUrl: String!
+  "The user's avatar URL, or null if no avatar is set."
+  avatarUrl: String @goField(forceResolver: true)
   "The user's current login/username."
   login: String!
 }
@@ -156,8 +154,8 @@ Event: The current user's display preferences were updated.
 Published to the user across all sessions for multi-tab sync.
 """
 type ServerUserPreferencesUpdatedEvent {
-  "IANA timezone name (empty string = browser default)."
-  timezone: String!
+  "IANA timezone name, or null to use the browser default."
+  timezone: String @goField(forceResolver: true)
   "Time display format."
   timeFormat: TimeFormat! @goField(forceResolver: true)
 }
@@ -185,12 +183,12 @@ Event: The server was updated.
 type ServerUpdatedEvent {
   "The server's updated name."
   name: String!
-  "The server's description (empty if not set)."
-  description: String!
-  "The server's logo URL (empty if no logo)."
-  logoUrl: String!
-  "The server's banner URL (empty if no banner)."
-  bannerUrl: String!
+  "The server's description, or null if not set."
+  description: String @goField(forceResolver: true)
+  "The server's logo URL, or null if no logo is set."
+  logoUrl: String @goField(forceResolver: true)
+  "The server's banner URL, or null if no banner is set."
+  bannerUrl: String @goField(forceResolver: true)
 }
 
 # ==============================================================================
@@ -205,8 +203,8 @@ type RoomCreatedEvent {
   roomId: ID!
   "The room's name."
   name: String!
-  "The room's description."
-  description: String!
+  "The room's description, or null if not set."
+  description: String @goField(forceResolver: true)
 }
 
 """
@@ -217,8 +215,8 @@ type RoomUpdatedEvent {
   roomId: ID!
   "The room's updated name."
   name: String!
-  "The room's updated description."
-  description: String!
+  "The room's updated description, or null if not set."
+  description: String @goField(forceResolver: true)
 }
 
 """
@@ -406,12 +404,12 @@ Published when a video attachment finishes transcoding. The frontend uses this
 to refetch the message and display the video player.
 """
 type VideoProcessingCompletedEvent {
-  "The room ID."
-  roomId: ID!
+  "The room ID, when available."
+  roomId: ID @goField(forceResolver: true)
   "The original attachment ID that was processed."
   attachmentId: ID!
-  "The event ID of the message containing the processed attachment."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the processed attachment, when available."
+  messageEventId: ID @goField(forceResolver: true)
 }
 
 """
@@ -419,36 +417,36 @@ Event: asset processing has been enqueued. Emitted before SucceededEvent or
 FailedEvent so subscribers can render a "processing…" placeholder.
 """
 type AssetProcessingStartedEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
+  "The room ID, when the processed asset is still associated with a room message."
+  roomId: ID @goField(forceResolver: true)
   "The original asset ID whose processing has been enqueued."
   assetId: ID!
-  "The event ID of the message containing the attachment, when message-owned."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the attachment, when message-owned and still available."
+  messageEventId: ID @goField(forceResolver: true)
 }
 
 """
 Event: asset processing produced a durable derivative manifest.
 """
 type AssetProcessingSucceededEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
+  "The room ID, when the processed asset is still associated with a room message."
+  roomId: ID @goField(forceResolver: true)
   "The original asset ID that was processed."
   assetId: ID!
-  "The event ID of the message containing the processed attachment, when message-owned."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the processed attachment, when message-owned and still available."
+  messageEventId: ID @goField(forceResolver: true)
 }
 
 """
 Event: asset processing reached a durable failed/unavailable outcome.
 """
 type AssetProcessingFailedEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
+  "The room ID, when the processed asset is still associated with a room message."
+  roomId: ID @goField(forceResolver: true)
   "The original asset ID that failed processing."
   assetId: ID!
-  "The event ID of the message containing the attachment, when message-owned."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the attachment, when message-owned and still available."
+  messageEventId: ID @goField(forceResolver: true)
   "Stable machine-readable reason."
   reasonCode: String! @goField(forceResolver: true)
 }
@@ -568,7 +566,7 @@ type RoomGroupsUpdatedEvent {
 # ==============================================================================
 
 """
-Synthetic event emitted by the server on the `myServerEvents` subscription
+Synthetic event emitted by the server on the `myEvents` subscription
 every ~25 seconds. It has no payload — clients use its arrival cadence to
 detect a dead subscription on an otherwise-healthy WebSocket and trigger
 a reconnect. Safe to ignore in event handlers.
@@ -643,7 +641,7 @@ type Attachment {
   "The MIME type (e.g., 'image/jpeg', 'video/mp4')."
   contentType: String!
   "The file size in bytes."
-  size: Int! @goField(forceResolver: true)
+  size: Int64! @goField(forceResolver: true, type: "int64")
   "Image width in pixels (0 for non-images)."
   width: Int!
   "Image height in pixels (0 for non-images)."
