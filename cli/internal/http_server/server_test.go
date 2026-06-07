@@ -1931,12 +1931,15 @@ func TestAuthRoutes_Login_ReturnsToken(t *testing.T) {
 	}
 }
 
-func TestAuthRoutes_LoginStaleSessionErrorIsInvalidCredentials(t *testing.T) {
-	if !isStaleLoginSessionError(core.ErrCookieSessionNotFound) {
+func TestAuthRoutes_LoginStaleCredentialErrorIsInvalidCredentials(t *testing.T) {
+	if !isStaleLoginCredentialError(core.ErrCookieSessionNotFound) {
 		t.Fatal("stale cookie-session creation should be treated as invalid credentials")
 	}
-	if isStaleLoginSessionError(errors.New("other error")) {
-		t.Fatal("unrelated session creation errors should not be treated as invalid credentials")
+	if !isStaleLoginCredentialError(core.ErrAuthTokenNotFound) {
+		t.Fatal("stale bearer-token creation should be treated as invalid credentials")
+	}
+	if isStaleLoginCredentialError(errors.New("other error")) {
+		t.Fatal("unrelated credential creation errors should not be treated as invalid credentials")
 	}
 }
 

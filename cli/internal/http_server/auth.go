@@ -21,8 +21,8 @@ var (
 	invalidCharsRegex = regexp.MustCompile(`[^a-z0-9._-]`)
 )
 
-func isStaleLoginSessionError(err error) bool {
-	return errors.Is(err, core.ErrCookieSessionNotFound)
+func isStaleLoginCredentialError(err error) bool {
+	return errors.Is(err, core.ErrCookieSessionNotFound) || errors.Is(err, core.ErrAuthTokenNotFound)
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
@@ -140,7 +140,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Create server-side cookie session
 		if err := s.createCookieSessionForGeneration(c, user.Id, "password_login", authGeneration); err != nil {
-			if isStaleLoginSessionError(err) {
+			if isStaleLoginCredentialError(err) {
 				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
 					log.Warn("Failed to append stale-login audit event", "error", auditErr)
 				}
@@ -152,11 +152,38 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
+
+		session := sessions.Default(c)
+		cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+		bearerToken := ""
+
+		// Issue a bearer token (cross-origin clients use this instead of the session cookie).
+		// If the password changed after VerifyPasswordWithAuthGeneration, the proven
+		// generation is stale; undo the cookie session and fail the login cleanly.
+		token, err := s.core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration)
+		if err != nil {
+			if isStaleLoginCredentialError(err) {
+				_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+				clearCookieSessionAuth(session)
+				_ = session.Save()
+				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
+					log.Warn("Failed to append stale-login audit event", "error", auditErr)
+				}
+				log.Warn("Login became stale before bearer token creation", "login", login, "userId", user.Id)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+				return
+			}
+			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
+		} else {
+			bearerToken = token
+		}
+
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
 			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
-			session := sessions.Default(c)
-			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
 			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			if bearerToken != "" {
+				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_audit_failed")
+			}
 			session.Clear()
 			_ = session.Save()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
@@ -170,11 +197,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		// Issue a bearer token (cross-origin clients use this instead of the session cookie)
-		if token, err := s.core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration); err == nil {
-			response["token"] = token
-		} else {
-			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
+		if bearerToken != "" {
+			response["token"] = bearerToken
 		}
 
 		c.JSON(http.StatusOK, response)
