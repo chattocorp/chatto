@@ -227,6 +227,7 @@
 				placeholder="you@example.com"
 				disabled={isLoading}
 				required
+				autofocus
 				autocomplete="email"
 				error={emailError}
 			/>
