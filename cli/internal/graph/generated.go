@@ -20281,20 +20281,7 @@ func (ec *executionContext) _Server_pushNotificationsEnabled(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().PushNotificationsEnabled(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -20317,20 +20304,7 @@ func (ec *executionContext) _Server_vapidPublicKey(ctx context.Context, field gr
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().VapidPublicKey(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -20353,20 +20327,7 @@ func (ec *executionContext) _Server_livekitUrl(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().LivekitURL(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -20425,20 +20386,7 @@ func (ec *executionContext) _Server_videoProcessingEnabled(ctx context.Context, 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().VideoProcessingEnabled(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -20461,20 +20409,7 @@ func (ec *executionContext) _Server_maxUploadSize(ctx context.Context, field gra
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MaxUploadSize(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -20497,20 +20432,7 @@ func (ec *executionContext) _Server_maxVideoUploadSize(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MaxVideoUploadSize(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -20533,20 +20455,7 @@ func (ec *executionContext) _Server_messageEditWindowSeconds(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MessageEditWindowSeconds(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21479,20 +21388,7 @@ func (ec *executionContext) _ServerConfig_motd(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.ServerConfig().Motd(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},

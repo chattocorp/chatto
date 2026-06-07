@@ -27,7 +27,7 @@ Use gqlgen directives to control code generation:
 
 GraphQL fields require authentication by default. Add `@public` only to fields
 that intentionally allow anonymous callers. In practice this should be limited
-to server metadata/configuration needed before login or before the client has
+to server identity, branding, and login metadata needed before the client has
 attached an authenticated server session.
 
 Do not add `@public` to fields that expose user, room, message, admin,

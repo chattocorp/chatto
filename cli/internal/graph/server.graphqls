@@ -16,7 +16,7 @@ type ServerConfig {
   welcomeMessage: String @public @goField(forceResolver: true)
 
   "Message of the Day, displayed in the header bar. Null if not configured."
-  motd: String @public @goField(forceResolver: true)
+  motd: String @goField(forceResolver: true)
 
   "Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured."
   description: String @public @goField(forceResolver: true)
@@ -37,28 +37,28 @@ type Server {
   config: ServerConfig! @public @goField(forceResolver: true)
 
   "True if Web Push notifications are enabled on this server."
-  pushNotificationsEnabled: Boolean! @public @goField(forceResolver: true)
+  pushNotificationsEnabled: Boolean! @goField(forceResolver: true)
 
   "VAPID public key for Web Push subscriptions. Null if push is disabled."
-  vapidPublicKey: String @public @goField(forceResolver: true)
+  vapidPublicKey: String @goField(forceResolver: true)
 
   "LiveKit WebSocket URL for voice calls. Null if voice calls are disabled."
-  livekitUrl: String @public @goField(forceResolver: true)
+  livekitUrl: String @goField(forceResolver: true)
 
   "True if direct (email/password) registration is enabled on this server."
   directRegistrationEnabled: Boolean! @public @goField(forceResolver: true)
 
   "True if video processing is enabled, allowing video attachments to be uploaded."
-  videoProcessingEnabled: Boolean! @public @goField(forceResolver: true)
+  videoProcessingEnabled: Boolean! @goField(forceResolver: true)
 
   "Maximum upload size for regular attachments (images, files) in bytes."
-  maxUploadSize: Int! @public @goField(forceResolver: true)
+  maxUploadSize: Int! @goField(forceResolver: true)
 
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
-  maxVideoUploadSize: Int! @public @goField(forceResolver: true)
+  maxVideoUploadSize: Int! @goField(forceResolver: true)
 
   "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window."
-  messageEditWindowSeconds: Int! @public @goField(forceResolver: true)
+  messageEditWindowSeconds: Int! @goField(forceResolver: true)
 
   """
   List of rooms on this server.

@@ -113,6 +113,12 @@ export class ServerStateStore {
 			// initial data without the UI knowing.
 			$effect(() => {
 				if (this.currentUser.user) {
+					this.serverInfo.refreshAuthenticatedSettings().catch((err) => {
+						console.error(
+							`[server:${this.#registered.url}] failed to load authenticated server settings`,
+							err
+						);
+					});
 					void this.rooms.refresh();
 					void this.roomDirectory.refresh();
 				}
