@@ -13,8 +13,10 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -284,6 +286,102 @@ func TestOAuthToken_CORS(t *testing.T) {
 
 	if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
 		t.Errorf("expected CORS origin * on POST, got %q", origin)
+	}
+}
+
+func TestCookieSessionRotationClearsStaleGeneration(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	user, err := s.core.CreateUser(ctx, "", "rotate-stale-user", "Rotate Stale User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := s.core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	if err := s.core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	s.router.GET("/test/rotate-stale-session", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set(sessionKeyUserID, user.Id)
+		session.Set(sessionKeyCookieSessionID, "old-session")
+		if err := session.Save(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		staleRecord := &corev1.CookieSession{
+			UserId:         user.Id,
+			CreatedAt:      timestamppb.New(time.Now().Add(-time.Hour)),
+			ExpiresAt:      timestamppb.New(time.Now().Add(time.Hour)),
+			Source:         "password_login",
+			AuthGeneration: authGeneration,
+		}
+		s.rotateCookieSessionIfNeeded(c, user.Id, "old-session", staleRecord)
+
+		userID, sessionID, ok := cookieSessionIDs(session)
+		if ok || userID != "" || sessionID != "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "session auth was not cleared"})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest("GET", "/test/rotate-stale-session", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("stale rotation status = %d, want 204: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthAuthorizeDoesNotMintCodeForStaleGeneration(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	user, err := s.core.CreateUser(ctx, "", "oauth-stale-user", "OAuth Stale User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := s.core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	if err := s.core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := core.GenerateCodeChallenge(verifier)
+	s.router.GET("/test/complete-stale-oauth", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set(sessionKeyOAuthRedirectURI, "https://example.com/callback")
+		session.Set(sessionKeyOAuthCodeChallenge, challenge)
+		session.Set(sessionKeyOAuthCodeMethod, "S256")
+		session.Set(sessionKeyOAuthState, "state123")
+		if err := session.Save(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		s.completeOAuthAuthorize(c, user.Id, authGeneration)
+	})
+
+	req := httptest.NewRequest("GET", "/test/complete-stale-oauth", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code < http.StatusBadRequest {
+		t.Fatalf("stale OAuth authorize status = %d, want error response", w.Code)
+	}
+	if location := w.Header().Get("Location"); strings.Contains(location, "code=") {
+		t.Fatalf("stale OAuth authorize minted code in Location %q", w.Header().Get("Location"))
 	}
 }
 

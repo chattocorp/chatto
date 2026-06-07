@@ -194,7 +194,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
-  TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Tokens older than this are automatically invalidated.
+  Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
 </EnvVar>
 
 ### OIDC

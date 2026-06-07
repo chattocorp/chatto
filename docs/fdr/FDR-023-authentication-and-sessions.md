@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-07
 
 ## Overview
 
