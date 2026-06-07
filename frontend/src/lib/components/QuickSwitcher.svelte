@@ -46,9 +46,9 @@
   const ServerQuery = graphql(`
     query QuickSwitcherServer {
       server {
-        config {
-          serverName
-          logoUrl(width: 96, height: 96)
+        profile {
+          name
+          logoUrl
         }
       }
     }
@@ -100,8 +100,8 @@
         const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
 
         const logo: SpaceLogo = {
-          name: serverResult?.data?.server?.config.serverName ?? serverName,
-          logoUrl: serverResult?.data?.server?.config.logoUrl ?? null
+          name: serverResult?.data?.server?.profile.name ?? serverName,
+          logoUrl: serverResult?.data?.server?.profile.logoUrl ?? null
         };
         const currentUserId = roomsResult?.data?.viewer?.user.id ?? undefined;
 

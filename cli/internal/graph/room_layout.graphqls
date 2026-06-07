@@ -4,12 +4,12 @@ a permission container — each room group has its own ACL, with individual
 rooms able to override on a per (role, permission) basis (see ADR-031).
 """
 type RoomGroup {
-  "Unique ID for this set."
+  "Unique ID for this room group."
   id: ID!
-  "Display name for this set (e.g., 'General', 'Projects')."
+  "Display name for this room group (e.g., 'General', 'Projects')."
   name: String!
   "Operator-facing description; may be empty."
   description: String!
-  "Ordered list of rooms in this set."
+  "Ordered list of channel rooms in this room group."
   rooms: [Room!]! @goField(forceResolver: true)
 }

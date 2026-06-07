@@ -5,13 +5,13 @@ type Mutation {
   "Create a new room."
   createRoom(input: CreateRoomInput!): Room!
 
-  "Update an existing room's name and description. Requires rooms.manage permission."
+  "Update an existing room's name and description. Requires room.manage permission."
   updateRoom(input: UpdateRoomInput!): Room!
 
-  "Archive a room. Hides it from sidebar and Browse Rooms. Requires rooms.manage permission."
+  "Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission."
   archiveRoom(input: ArchiveRoomInput!): Room!
 
-  "Unarchive a previously archived room. Requires rooms.manage permission."
+  "Unarchive a previously archived room. Requires room.manage permission."
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
   """
@@ -88,8 +88,8 @@ type Mutation {
   """
   Delete a message body for GDPR compliance.
   The message remains as a retracted/deleted entry, but the content is removed.
-  Requires either delete_any_message permission (moderator) or delete_own_message permission
-  and ownership of the message.
+  Requires message.manage to delete another user's message; authors can delete
+  their own messages.
   Returns true on success.
   """
   deleteMessage(input: DeleteMessageInput!): Boolean!
@@ -187,11 +187,11 @@ input CreateRoomInput {
   "Optional description of the room's purpose."
   description: String
   """
-  Optional room-set ID to place the new room in. Required once the
-  room-sets feature is fully wired (see ADR-031); during the transition
-  it may be omitted, in which case the room is created without a set.
+  Room group ID to place the new channel room in. Channel room creation
+  requires an explicit group; DM rooms are created through the DM APIs and
+  do not use this input.
   """
-  groupId: ID
+  groupId: ID!
 }
 
 """
@@ -213,7 +213,7 @@ input PostMessageInput {
   "The ID of the room to post to."
   roomId: ID!
   "The message content. Optional if attachments are provided."
-  body: String
+  body: String @length(max: 10000)
   "Optional file attachments (images, videos, etc.)."
   attachments: [Upload!]
   "Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post)."
@@ -279,7 +279,7 @@ input UpdateMessageInput {
   "The event ID of the message to update."
   eventId: ID!
   "The new message content."
-  body: String!
+  body: String! @length(max: 10000)
 }
 
 """

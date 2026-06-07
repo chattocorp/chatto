@@ -63,8 +63,8 @@ type Room {
   archived: Boolean!
   """
   Channel rooms belong to exactly one RoomGroup; this field identifies which
-  one. Empty string for DM rooms — those don't participate in the set
-  layout (see ADR-031).
+  one. DM rooms return an empty string sentinel because they do not
+  participate in room-group layout or ACLs (see ADR-031).
   """
   groupId: ID!
 

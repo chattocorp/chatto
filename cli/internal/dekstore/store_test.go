@@ -23,7 +23,7 @@ func setupStore(t *testing.T) (*Store, context.Context) {
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
 	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:  "TEST_ENCRYPTION_KEYS",
+		Bucket:  "TEST_RUNTIME_STATE",
 		History: 1,
 	})
 	require.NoError(t, err)

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"testing"
 
@@ -126,6 +127,15 @@ func TestEventLog_AuthorizationDenied(t *testing.T) {
 
 	_, err = adminQ.EventLogEntry(ctx, nil, "1")
 	require.True(t, errors.Is(err, core.ErrPermissionDenied), "EventLogEntry should deny non-auditor, got: %v", err)
+}
+
+func TestEventLogTotalCountUsesWideInteger(t *testing.T) {
+	count, err := eventLogTotalCount(uint64(math.MaxInt32) + 1)
+	require.NoError(t, err)
+	require.Equal(t, int64(math.MaxInt32)+1, count)
+
+	_, err = eventLogTotalCount(uint64(math.MaxInt64) + 1)
+	require.Error(t, err)
 }
 
 func TestStreamMsgToEventLogEntryParsesAuthAggregate(t *testing.T) {

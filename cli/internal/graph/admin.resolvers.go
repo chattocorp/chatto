@@ -155,6 +155,10 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 	if err != nil {
 		return nil, fmt.Errorf("stream info: %w", err)
 	}
+	totalCount, err := eventLogTotalCount(info.State.Msgs)
+	if err != nil {
+		return nil, err
+	}
 
 	pageSize := defaultEventLogPageSize
 	if limit != nil {
@@ -179,7 +183,7 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 				Entries:    []*model.EventLogEntry{},
 				HasOlder:   false,
 				EndCursor:  nil,
-				TotalCount: int32(info.State.Msgs),
+				TotalCount: totalCount,
 			}, nil
 		}
 		startSeq = parsed - 1
@@ -192,7 +196,7 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 
 	conn := &model.EventLogConnection{
 		Entries:    entries,
-		TotalCount: int32(info.State.Msgs),
+		TotalCount: totalCount,
 	}
 	if len(entries) > 0 {
 		oldestSeq := entries[len(entries)-1].Sequence
@@ -265,7 +269,7 @@ func (r *adminQueriesResolver) Projections(ctx context.Context, obj *model.Admin
 }
 
 // UpdateServerConfig is the resolver for the updateServerConfig field.
-func (r *mutationResolver) UpdateServerConfig(ctx context.Context, input model.UpdateServerConfigInput) (*model.ServerConfig, error) {
+func (r *mutationResolver) UpdateServerConfig(ctx context.Context, input model.UpdateServerConfigInput) (*model.ServerProfile, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

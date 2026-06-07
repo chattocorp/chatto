@@ -62,8 +62,8 @@
           graphql(`
             query ServerSettingsModal {
               server {
-                config {
-                  serverName
+                profile {
+                  name
                   description
                   motd
                   welcomeMessage
@@ -96,12 +96,12 @@
       }
 
       loaded = true;
-      name = result.data.server.config.serverName;
-      description = result.data.server.config.description ?? '';
-      motd = result.data.server.config.motd ?? '';
-      welcomeMessage = result.data.server.config.welcomeMessage ?? '';
-      logoUrl = result.data.server.config.logoUrl ?? null;
-      bannerUrl = result.data.server.config.bannerUrl ?? null;
+      name = result.data.server.profile.name;
+      description = result.data.server.profile.description ?? '';
+      motd = result.data.server.profile.motd ?? '';
+      welcomeMessage = result.data.server.profile.welcomeMessage ?? '';
+      logoUrl = result.data.server.profile.logoUrl ?? null;
+      bannerUrl = result.data.server.profile.bannerUrl ?? null;
     } catch (_e) {
       error = 'Failed to load instance';
     } finally {
@@ -128,7 +128,7 @@
           graphql(`
             mutation UpdateServerSettingsModal($input: UpdateServerConfigInput!) {
               updateServerConfig(input: $input) {
-                serverName
+                name
                 description
                 motd
                 welcomeMessage
@@ -181,7 +181,7 @@
           graphql(`
             mutation UploadInstanceLogo($input: UploadServerLogoInput!) {
               uploadServerLogo(input: $input) {
-                config {
+                profile {
                   logoUrl
                 }
               }
@@ -195,7 +195,7 @@
         throw new Error(result.error.message);
       }
 
-      logoUrl = result.data?.uploadServerLogo.config.logoUrl ?? null;
+      logoUrl = result.data?.uploadServerLogo.profile.logoUrl ?? null;
       toast.success('Logo uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload logo');
@@ -228,7 +228,7 @@
           graphql(`
             mutation DeleteInstanceLogo {
               deleteServerLogo {
-                config {
+                profile {
                   logoUrl
                 }
               }
@@ -270,7 +270,7 @@
           graphql(`
             mutation UploadInstanceBanner($input: UploadServerBannerInput!) {
               uploadServerBanner(input: $input) {
-                config {
+                profile {
                   bannerUrl
                 }
               }
@@ -284,7 +284,7 @@
         throw new Error(result.error.message);
       }
 
-      bannerUrl = result.data?.uploadServerBanner.config.bannerUrl ?? null;
+      bannerUrl = result.data?.uploadServerBanner.profile.bannerUrl ?? null;
       toast.success('Banner uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload banner');
@@ -317,7 +317,7 @@
           graphql(`
             mutation DeleteInstanceBanner {
               deleteServerBanner {
-                config {
+                profile {
                   bannerUrl
                 }
               }

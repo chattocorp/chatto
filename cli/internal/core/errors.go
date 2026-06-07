@@ -223,4 +223,7 @@ const (
 
 	// MaxLinkPreviewEmbedIDLength is the maximum length of a client-provided link preview embed ID in bytes.
 	MaxLinkPreviewEmbedIDLength = 256
+
+	// MaxLinkPreviewImageAssetIDLength is the maximum length of a client-provided link preview image asset ID in bytes.
+	MaxLinkPreviewImageAssetIDLength = 15
 )

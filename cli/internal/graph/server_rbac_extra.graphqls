@@ -11,10 +11,10 @@ extend type Server {
   "Get the current user's permissions on this server."
   viewerPermissions: [String!]! @goField(forceResolver: true)
 
-  "Whether the current user can manage roles (has admin.roles.manage permission)."
+  "Whether the current user can manage roles (has role.manage permission)."
   viewerCanManageRoles: Boolean! @goField(forceResolver: true)
 
-  "Whether the current user can assign roles to users (has admin.roles.assign permission)."
+  "Whether the current user can assign roles to users (has role.assign permission)."
   viewerCanAssignRoles: Boolean! @goField(forceResolver: true)
 
   """
@@ -84,21 +84,21 @@ extend type Mutation {
   """
   Grant a permission to a role at room level. Overrides server-level state for this room.
   Clears any existing denial for the same permission in this room.
-  Requires: admin.roles.manage permission.
+  Requires: role.manage permission.
   """
   grantRoomPermission(input: GrantRoomPermissionInput!): Boolean!
 
   """
   Deny a permission for a role at room level. Overrides server-level state for this room.
   Clears any existing grant for the same permission in this room.
-  Requires: admin.roles.manage permission.
+  Requires: role.manage permission.
   """
   denyRoomPermission(input: DenyRoomPermissionInput!): Boolean!
 
   """
   Clear room-level grant and denial for a permission on a role.
   Returns the permission to neutral (inherit from server defaults).
-  Requires: admin.roles.manage permission.
+  Requires: role.manage permission.
   """
   clearRoomPermission(input: ClearRoomPermissionInput!): Boolean!
 }

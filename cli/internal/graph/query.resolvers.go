@@ -7,11 +7,8 @@ package graph
 
 import (
 	"context"
-	"sort"
-	"strings"
 
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -39,84 +36,21 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 }
 
 // User is the resolver for the user field.
-// Note: User profiles are intentionally public within the server.
-// This is required for displaying message authors, member lists, etc.
-// Authentication is not required as user data is non-sensitive.
+// User profiles are visible to authenticated server users.
 func (r *queryResolver) User(ctx context.Context, userID string) (*corev1.User, error) {
-	// No authorization - public user profiles
 	return r.core.GetUser(ctx, userID)
 }
 
 // UserByLogin is the resolver for the userByLogin field.
 // Returns the user with the given login name, or null if not found.
-// Note: User profiles are intentionally public within the server.
+// User profiles are visible to authenticated server users.
 func (r *queryResolver) UserByLogin(ctx context.Context, login string) (*corev1.User, error) {
-	// No authorization - public user profiles
 	user, err := r.core.GetUserByLogin(ctx, login)
 	if err != nil {
 		// Return nil instead of error for "not found" cases
 		return nil, nil
 	}
 	return user, nil
-}
-
-// Users is the resolver for the users field.
-func (r *queryResolver) Users(ctx context.Context, search *string, limit *int32, offset *int32) (*model.UsersConnection, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Authorization: server admin only (checks both RBAC and config-based admin)
-	isAdmin, err := r.isServerAdmin(ctx, user.Id)
-	if err != nil {
-		return nil, err
-	}
-	if !isAdmin {
-		return nil, core.ErrPermissionDenied
-	}
-
-	users, err := r.core.ListUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	searchLower := ""
-	if search != nil {
-		searchLower = strings.ToLower(strings.TrimSpace(*search))
-	}
-	if searchLower != "" {
-		filtered := make([]*corev1.User, 0, len(users))
-		for _, u := range users {
-			if strings.Contains(strings.ToLower(u.Login), searchLower) ||
-				strings.Contains(strings.ToLower(u.DisplayName), searchLower) {
-				filtered = append(filtered, u)
-			}
-		}
-		users = filtered
-	}
-
-	sort.Slice(users, func(i, j int) bool {
-		if users[i].CreatedAt == nil && users[j].CreatedAt == nil {
-			return strings.ToLower(users[i].Login) < strings.ToLower(users[j].Login)
-		}
-		if users[i].CreatedAt == nil {
-			return false
-		}
-		if users[j].CreatedAt == nil {
-			return true
-		}
-		return users[i].CreatedAt.AsTime().Before(users[j].CreatedAt.AsTime())
-	})
-
-	limitVal, offsetVal := paginationArgs(limit, offset, 20, 100)
-	page, totalCount, hasMore := paginateSlice(users, limitVal, offsetVal)
-
-	return &model.UsersConnection{
-		Users:      page,
-		TotalCount: int32(totalCount),
-		HasMore:    hasMore,
-	}, nil
 }
 
 // Query returns QueryResolver implementation.

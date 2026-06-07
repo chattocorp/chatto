@@ -44,15 +44,15 @@ func serverConfigToModel(cfg *configv1.ServerConfig, blockedUsernames string) *m
 }
 
 // publicServerConfigToModel converts a protobuf ServerConfig to the public
-// GraphQL ServerConfig shape, excluding admin-only fields.
-func publicServerConfigToModel(cfg *configv1.ServerConfig) *model.ServerConfig {
+// GraphQL ServerProfile shape, excluding admin-only fields.
+func publicServerConfigToModel(cfg *configv1.ServerConfig) *model.ServerProfile {
 	if cfg == nil {
-		return &model.ServerConfig{ServerName: "Chatto"}
+		return &model.ServerProfile{Name: "Chatto"}
 	}
 
-	serverName := cfg.ServerName
-	if serverName == "" {
-		serverName = "Chatto"
+	name := cfg.ServerName
+	if name == "" {
+		name = "Chatto"
 	}
 
 	var welcomeMessage *string
@@ -70,8 +70,8 @@ func publicServerConfigToModel(cfg *configv1.ServerConfig) *model.ServerConfig {
 		description = &cfg.Description
 	}
 
-	return &model.ServerConfig{
-		ServerName:     serverName,
+	return &model.ServerProfile{
+		Name:           name,
 		WelcomeMessage: welcomeMessage,
 		Motd:           motd,
 		Description:    description,

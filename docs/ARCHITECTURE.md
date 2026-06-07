@@ -73,7 +73,7 @@ Key files: [`cli/internal/core/core.go`](cli/internal/core/core.go)
 
 - **NATS**: At the core, Chatto uses a series of NATS JetStream streams, KV buckets and object storage. Data stored in these is defined as Protocol Buffers (see `proto/`).
 - **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets and streams. It provides a ChattoCore struct with methods for all operations (spaces, users, rooms, messages, memberships).
-- **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. GraphQL resolvers call Core methods directly, performing authentication and authorization before each call.
+- **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. Fields require authentication by default unless marked public in the schema; resolvers call Core methods directly and enforce operation-specific authorization before each call.
 - **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to GraphQL API over HTTP/WebSocket.
 - **Email**: Optional SMTP integration for transactional emails (verification, password reset). Configured via `[smtp]` in config. The `internal/email` package provides a `Mailer` that returns `ErrSMTPDisabled` when SMTP is not configured, allowing callers to handle gracefully.
 
@@ -81,7 +81,7 @@ Key files: [`cli/internal/core/core.go`](cli/internal/core/core.go)
 
 Key files: [`cli/internal/graph/`](cli/internal/graph/) (schemas in `*.graphqls` files, resolvers in `*.resolvers.go`)
 
-The GraphQL API is the primary client-facing interface for Chatto. It provides queries, mutations, and a single unified subscription over HTTP and WebSocket connections. Authentication is cookie-session-based; user registration, login, password reset, email verification, and OAuth flows are REST endpoints (under `/auth/...`) rather than GraphQL mutations.
+The GraphQL API is the primary client-facing interface for Chatto. It provides queries, mutations, and a single unified subscription over HTTP and WebSocket connections. Fields require authentication by default unless explicitly marked public in the schema. Authentication is cookie-session-based; user registration, login, password reset, email verification, and OAuth flows are REST endpoints (under `/auth/...`) rather than GraphQL mutations.
 
 The schema is modular: each feature area lives in its own `.graphqls` file and extends the root `Query` / `Mutation` / `Subscription` types. The operations below group by user-facing area, not by source file.
 
@@ -100,9 +100,9 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `user(userId)`                     | Get a user by ID.                                                                      |
-| `userByLogin(login)`               | Get a user by login (returns null if not found).                                       |
-| `users(search, limit, offset)`     | Paginated user directory (server admin only).                                          |
+| `user(userId)`                     | Authenticated lookup of a user by ID.                                                  |
+| `userByLogin(login)`               | Authenticated lookup of a user by login (returns null if not found).                   |
+| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).                       |
 | `userPermissionMatrix(userId)`     | Effective allow/deny matrix for a user (admin surface; `role.manage` + outrank gate).  |
 | `permissionExplanation(userId, …)` | Per-permission resolver explainer (self-inspection or admin).                          |
 
@@ -235,15 +235,20 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 ### Admin sub-API
 
-`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access. Admin-only operations are spread across multiple schema files but hang off these two types.
+`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access; individual nested fields can still apply narrower permissions such as `admin.view-system` or `admin.view-audit` (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
+
+Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
 
 | Field                                            | Type      | Description                                                                                  |
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
-| `admin.systemInfo`                               | Query     | Aggregate operational metrics: NATS connection + JetStream account usage totals.            |
+| `admin.systemInfo`                               | Query     | Point-in-time operator diagnostics: connection, storage-account usage, stream/consumer state, and deployment counts. |
 | `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
 | `admin.serverPermissions`                        | Query     | List every available server permission identifier (catalog).                                 |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
+| `admin.eventLog(limit, before)`                  | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200).                    |
+| `admin.eventLogEntry(sequence)`                  | Query     | Diagnostic event-log entry lookup by sequence.                                               |
+| `admin.projections`                              | Query     | Projection lag, rough memory estimates, and diagnostic metric buckets.                       |
 | `admin.resetServerConfig`                        | Mutation  | Reset server configuration to defaults.                                                      |
 | `admin.updateBlockedUsernames(input)`            | Mutation  | Update the newline-separated blocked-username list.                                          |
 | `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
@@ -255,14 +260,13 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
-| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
+| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
 | KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
-| Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | `SERVER_ASSETS`               | Message attachments                         |
+| Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
 | Legacy import KV | `INSTANCE`          | Users, verified emails, branding, display preferences, and push subscriptions from pre-ES deployments |
 | Legacy import KV | `INSTANCE_CONFIG`   | Server configuration from pre-ES deployments |
-| Legacy import KV | `SERVER_CONFIG`     | Rooms, memberships, room sets/layout, and notification preferences from pre-ES deployments |
+| Legacy import KV | `SERVER_CONFIG`     | Rooms, memberships, room groups/layout, and notification preferences from pre-ES deployments |
 | Legacy import KV | `SERVER_RBAC`       | RBAC seed data from pre-ES deployments |
 | Legacy import KV | `SERVER_RUNTIME`    | Read markers, thread follows, migration sentinels, and video processing state from pre-ES deployments |
 | Legacy import KV | `SERVER_BODIES`     | Pre-ES message bodies and attachment metadata |
@@ -450,15 +454,15 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
-| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
 | `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
-| `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and app-owned wrapped DEK records (excluded for security) |
+| `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Legacy retired standalone link-preview cache; current entries live in `RUNTIME_STATE` |
 | `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
 | `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; copied best-effort into `MEMORY_CACHE` on boot if present, not provisioned on fresh boot |
 | `INSTANCE`                    | File    | Yes      | Legacy import source for users, verified emails, branding, display preferences, and push subscriptions; not provisioned on fresh boot |
 | `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source; not provisioned on fresh boot |
-| `SERVER_CONFIG`               | File    | Yes      | Legacy rooms, memberships, room sets/layout, and notification preferences import source; not provisioned on fresh boot |
+| `SERVER_CONFIG`               | File    | Yes      | Legacy rooms, memberships, room groups/layout, and notification preferences import source; not provisioned on fresh boot |
 | `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data import source; not provisioned on fresh boot |
 | `SERVER_RUNTIME`              | File    | Yes      | Legacy read markers, thread follows, migration sentinels, and video processing state import source; not provisioned on fresh boot |
 | `SERVER_BODIES`               | File    | Yes      | Legacy message bodies and attachment metadata import source; not provisioned on fresh boot |
@@ -529,10 +533,9 @@ Notes: Server configuration now lives in EVT config events and is served from th
 | Key             | Description                       |
 | --------------- | --------------------------------- |
 | `kek.{keyRef}`  | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref; legacy raw 32-byte compatibility is also accepted |
-| `dek.{keyRef}`  | Protobuf `UserDataEncryptionKey` wrapped purpose-scoped DEK record addressed by opaque app content-key ref |
 | `user.{userId}` | Raw 32-byte legacy direct-key message-body compatibility path only |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. New built-in KMS writes store KEKs as protobuf `UserKeyEncryptionKey` records under `kek.*` refs, while raw 32-byte `kek.*` records remain readable for compatibility with older exports. New message bodies and durable user PII store wrapped, purpose-scoped DEK epochs as app-owned protobuf `UserDataEncryptionKey` records under `dek.*` refs; the user EVT stream stores `UserDEKGeneratedEvent` audit facts with the purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata. Legacy bodies use the local raw `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded content-key refs or wrapping-key refs renders their encrypted content permanently unreadable.
+Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. New built-in KMS writes store KEKs as protobuf `UserKeyEncryptionKey` records under `kek.*` refs, while raw 32-byte `kek.*` records remain readable for compatibility with older exports. Legacy bodies use the local raw `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded content-key refs or wrapping-key refs renders their encrypted content permanently unreadable.
 
 **SERVER\_CONFIG keys:**
 
@@ -540,12 +543,12 @@ Room and membership keys in this legacy import bucket carry a `kind` segment (`c
 
 | Key                                                  | Description                                      |
 | ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `set_id` referencing its `RoomSet` (ADR-031). |
-| `room.dm.{roomId}`                                   | Direct-message room (no `set_id` — DMs aren't part of any room set). |
+| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `group_id` referencing its room group (ADR-031). |
+| `room.dm.{roomId}`                                   | Direct-message room (no `group_id` — DMs aren't part of any room group). |
 | `room_name_index.{lowercaseName}`                    | Atomic name claim → room ID. Channels only; DMs have empty names. Enforces case-insensitive uniqueness without a read-then-write race. |
 | `room_membership.channel.{roomId}.{userId}`          | Channel membership (room-first ordering matches `room.{kind}.{X}`)  |
 | `room_membership.dm.{roomId}.{userId}`               | DM membership                                    |
-| `room_layout`                                        | Single proto holding the ordered list of `RoomSet`s (and each set's ordered room IDs). Updated atomically with OCC. |
+| `room_layout`                                        | Single proto holding the ordered list of room groups (and each group's ordered room IDs). Updated atomically with OCC. |
 
 Useful filter patterns:
 
@@ -595,8 +598,9 @@ survives restart but is not content/domain history. See
 | `session.{hmac}` | Opaque bearer auth token JSON. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. |
 | `grant.{hmac}` | OAuth authorization code JSON. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
 | `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
+| `dek.{contentKeyRef}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). No TTL; shredded on account deletion. |
 
-Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens or raw link/code values.
+Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 
 **SERVER\_RUNTIME keys:**
 
@@ -645,17 +649,10 @@ Notes: Legacy source for `MigrateReactionsToES`. Current reaction writes append 
 
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
-| `INSTANCE_ASSETS`           | User avatars, server icon/banner (bucket name retained from pre-rename) |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
-| `SERVER_ASSETS`             | Message attachments                               |
+| `SERVER_ASSETS`             | Asset binaries (avatars, server icon/banner, link previews, message attachments) |
 
-**INSTANCE_ASSETS keys:**
-
-| Key          | Description                         |
-| ------------ | ----------------------------------- |
-| `{assetId}`  | User avatars, space icons, etc.     |
-
-Notes: Content-Type stored in object headers. S2 compression enabled. Server logo and banner bytes remain here when backed by the NATS object store; the current logo/banner pointers are imported into and updated through EVT config events.
+Pre-0.1 servers stored user avatars, server logo/banner, and link-preview images in `INSTANCE_ASSETS`. On 0.1 boot, Chatto copies those objects into `SERVER_ASSETS` with the same object names and headers before importing legacy pointers, then deletes the legacy `INSTANCE_ASSETS` object store. Fresh/current deployments do not create `INSTANCE_ASSETS`.
 
 **ASSET_CACHE keys:**
 
@@ -664,20 +661,19 @@ Notes: Content-Type stored in object headers. S2 compression enabled. Server log
 | `attachment.{attachmentId}.{paramsHash}`  | Cached WebP image at specific dimensions     |
 | `server.{assetId}.{paramsHash}`           | Cached WebP transform of a server asset      |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled. Pre-ADR-030-Phase-4 entries written under a `{server|DM}.…` prefix are no longer looked up after the kind-less URL switchover and age out via TTL.
+Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled. Pre-ADR-030-Phase-4 entries written under a `{server|DM}.…` prefix are no longer looked up after the kind-less URL switchover and age out via TTL.
 
-**SERVER\_ASSETS keys (primary + DM, post phase 4e):**
+**SERVER\_ASSETS keys:**
 
 | Key                   | Description                                     |
 | --------------------- | ----------------------------------------------- |
-| `{attachmentId}`      | Original attachment files (images, videos, etc.)|
-| `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
+| `{assetId}`           | User avatars, server branding images, link-preview images, original attachment files, and derivative binaries |
 
-Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`) rather than inside `Asset`. Future room or server asset owners should add explicit owner branches when those features start emitting asset events. Message-owned assets are also embedded as `Attachment` protos inside the owning `MessageBody` for message rendering and signed URL back-pointers. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. Boot migrations backfill asset creation events from legacy message attachments and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
+Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers where available. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`) rather than inside `Asset`. Future room or server asset owners should add explicit owner branches when those features start emitting asset events. Message-owned assets are also embedded as `Attachment` protos inside the owning `MessageBody` for message rendering and signed URL back-pointers. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. Boot migrations copy pre-0.1 `INSTANCE_ASSETS` objects into `SERVER_ASSETS`, backfill asset creation events from legacy message attachments, and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 
-Chatto supports on-the-fly image transformation for attachments, user avatars, and server branding images, allowing clients to request images at specific dimensions without pre-generating all possible sizes.
+Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions.
 
 **URL Structure:**
 
@@ -723,7 +719,7 @@ URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured 
 
 **GraphQL Integration:**
 
-The `Attachment`, `User`, and `ServerConfig` image fields expose transform parameters as field arguments:
+The `Attachment` and `User` image fields expose transform parameters as field arguments:
 
 ```graphql
 type Attachment {
@@ -735,9 +731,9 @@ type User {
   avatarUrl(width: Int, height: Int, fit: FitMode): String
 }
 
-type ServerConfig {
-  logoUrl(width: Int, height: Int, fit: FitMode): String
-  bannerUrl(width: Int, height: Int, fit: FitMode): String
+type ServerProfile {
+  logoUrl: String
+  bannerUrl: String
 }
 
 enum FitMode {
@@ -747,7 +743,7 @@ enum FitMode {
 }
 ```
 
-When arguments are provided, the resolver returns a signed transform URL. Without arguments, the original/default thumbnail URL is returned for backward compatibility.
+For `Attachment` and `User` images, arguments return a signed transform URL. Without arguments, the original/default thumbnail URL is returned for backward compatibility. Public `ServerProfile` image fields intentionally return canonical asset URLs without transform arguments so anonymous server discovery cannot mint unbounded resize variants.
 
 **Caching:**
 
@@ -763,7 +759,7 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `ENCRYPTION_KEYS` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `RUNTIME_STATE` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
 
 **Message Identifiers:**
 

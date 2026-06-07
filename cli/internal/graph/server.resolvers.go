@@ -24,9 +24,9 @@ func (r *queryResolver) Server(ctx context.Context) (*model.Server, error) {
 	}, nil
 }
 
-// Config is the resolver for the config field.
-func (r *serverResolver) Config(ctx context.Context, obj *model.Server) (*model.ServerConfig, error) {
-	return &model.ServerConfig{}, nil
+// Profile is the resolver for the profile field.
+func (r *serverResolver) Profile(ctx context.Context, obj *model.Server) (*model.ServerProfile, error) {
+	return &model.ServerProfile{}, nil
 }
 
 // PushNotificationsEnabled is the resolver for the pushNotificationsEnabled field.
@@ -237,8 +237,8 @@ func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Se
 	return false, nil
 }
 
-// ServerName is the resolver for the serverName field.
-func (r *serverConfigResolver) ServerName(ctx context.Context, obj *model.ServerConfig) (string, error) {
+// Name is the resolver for the name field.
+func (r *serverProfileResolver) Name(ctx context.Context, obj *model.ServerProfile) (string, error) {
 	if r.core == nil {
 		return "Chatto", nil
 	}
@@ -250,13 +250,8 @@ func (r *serverConfigResolver) ServerName(ctx context.Context, obj *model.Server
 }
 
 // LogoURL is the resolver for the logoUrl field.
-func (r *serverConfigResolver) LogoURL(ctx context.Context, obj *model.ServerConfig, width *int32, height *int32, fit *model.FitMode) (*string, error) {
-	var w, h *int
-	if width != nil && height != nil {
-		wv, hv := int(*width), int(*height)
-		w, h = &wv, &hv
-	}
-	url, err := r.core.GetServerLogoURL(ctx, w, h, fitModeString(fit))
+func (r *serverProfileResolver) LogoURL(ctx context.Context, obj *model.ServerProfile) (*string, error) {
+	url, err := r.core.GetServerLogoURL(ctx, nil, nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -267,13 +262,8 @@ func (r *serverConfigResolver) LogoURL(ctx context.Context, obj *model.ServerCon
 }
 
 // BannerURL is the resolver for the bannerUrl field.
-func (r *serverConfigResolver) BannerURL(ctx context.Context, obj *model.ServerConfig, width *int32, height *int32, fit *model.FitMode) (*string, error) {
-	var w, h *int
-	if width != nil && height != nil {
-		wv, hv := int(*width), int(*height)
-		w, h = &wv, &hv
-	}
-	url, err := r.core.GetServerBannerURL(ctx, w, h, fitModeString(fit))
+func (r *serverProfileResolver) BannerURL(ctx context.Context, obj *model.ServerProfile) (*string, error) {
+	url, err := r.core.GetServerBannerURL(ctx, nil, nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +274,7 @@ func (r *serverConfigResolver) BannerURL(ctx context.Context, obj *model.ServerC
 }
 
 // WelcomeMessage is the resolver for the welcomeMessage field.
-func (r *serverConfigResolver) WelcomeMessage(ctx context.Context, obj *model.ServerConfig) (*string, error) {
+func (r *serverProfileResolver) WelcomeMessage(ctx context.Context, obj *model.ServerProfile) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -299,7 +289,7 @@ func (r *serverConfigResolver) WelcomeMessage(ctx context.Context, obj *model.Se
 }
 
 // Motd is the resolver for the motd field.
-func (r *serverConfigResolver) Motd(ctx context.Context, obj *model.ServerConfig) (*string, error) {
+func (r *serverProfileResolver) Motd(ctx context.Context, obj *model.ServerProfile) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -314,7 +304,7 @@ func (r *serverConfigResolver) Motd(ctx context.Context, obj *model.ServerConfig
 }
 
 // Description is the resolver for the description field.
-func (r *serverConfigResolver) Description(ctx context.Context, obj *model.ServerConfig) (*string, error) {
+func (r *serverProfileResolver) Description(ctx context.Context, obj *model.ServerProfile) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -331,8 +321,8 @@ func (r *serverConfigResolver) Description(ctx context.Context, obj *model.Serve
 // Server returns ServerResolver implementation.
 func (r *Resolver) Server() ServerResolver { return &serverResolver{r} }
 
-// ServerConfig returns ServerConfigResolver implementation.
-func (r *Resolver) ServerConfig() ServerConfigResolver { return &serverConfigResolver{r} }
+// ServerProfile returns ServerProfileResolver implementation.
+func (r *Resolver) ServerProfile() ServerProfileResolver { return &serverProfileResolver{r} }
 
 type serverResolver struct{ *Resolver }
-type serverConfigResolver struct{ *Resolver }
+type serverProfileResolver struct{ *Resolver }

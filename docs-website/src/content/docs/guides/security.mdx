@@ -47,7 +47,7 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 ## Authorization
 
-Chatto enforces authorization at the **API boundary**: GraphQL resolvers check permissions before calling into the core domain layer, while the core itself is pure business logic and assumes its caller is authorized. This separation lets internal callers (NATS handlers, background jobs) reuse domain functions without redundant permission checks.
+Chatto enforces access control at the **API boundary**: GraphQL fields require authentication by default unless they are explicitly public, and resolvers check permissions before calling into the core domain layer. The core itself is pure business logic and assumes its caller is authorized, which lets internal callers reuse domain functions without redundant permission checks.
 
 Chatto uses a role-based permission system with four built-in roles (everyone / moderator / admin / owner), custom roles, room-specific overrides, and per-user grants and denies. The full model is covered on its own page:
 

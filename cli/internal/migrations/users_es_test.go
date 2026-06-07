@@ -403,12 +403,17 @@ func setupUserMigrationKMS(t *testing.T, ctx context.Context) (kms.KeyWrapper, *
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	encryptionKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:  "TEST_ENCRYPTION_KEYS",
 		Storage: jetstream.MemoryStorage,
 	})
 	require.NoError(t, err)
-	return kms.NewBuiltin(kv, testLogger()), dekstore.New(kv, testLogger())
+	runtimeStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  "TEST_RUNTIME_STATE",
+		Storage: jetstream.MemoryStorage,
+	})
+	require.NoError(t, err)
+	return kms.NewBuiltin(encryptionKV, testLogger()), dekstore.New(runtimeStateKV, testLogger())
 }
 
 func decryptImportedUserString(t *testing.T, contentKey []byte, eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) string {

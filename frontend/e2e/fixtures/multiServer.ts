@@ -109,7 +109,7 @@ export async function createSpaceOnRemote(
 			Authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify({
-			query: `query { server { config { serverName } } }`
+			query: `query { server { profile { name } } }`
 		})
 	});
 

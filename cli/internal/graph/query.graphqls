@@ -5,34 +5,11 @@ type Query {
   "Get a specific room by ID."
   room(roomId: ID!): Room
 
-  "Get a specific user by ID."
+  "Get a specific user by ID. Requires authentication."
   user(userId: ID!): User
 
-  "Get a specific user by login. Returns null if not found."
+  "Get a specific user by login. Requires authentication. Returns null if not found."
   userByLogin(login: String!): User
-
-  """
-  List users on this server. Requires server admin.
-  Search matches login and display name (case-insensitive partial match).
-  """
-  users(
-    "Search by login or display name."
-    search: String
-    "Maximum number of results to return (default 20, max 100)."
-    limit: Int
-    "Offset for pagination."
-    offset: Int
-  ): UsersConnection!
-}
-
-"Paginated list of users with metadata."
-type UsersConnection {
-  "The users in this page."
-  users: [User!]!
-  "Total count of users matching the search (before pagination)."
-  totalCount: Int!
-  "Whether there are more users beyond this page."
-  hasMore: Boolean!
 }
 
 """

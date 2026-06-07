@@ -14,7 +14,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the message is sent, the preview data ships with it and is stored as part of the message body.
-- Client-provided preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes.
+- Client-provided preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes.
 - After posting, the message author can delete the preview from the message without deleting the message.
 
 ## Design Decisions

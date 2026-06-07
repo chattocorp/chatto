@@ -906,6 +906,9 @@ func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
 	if err := validateStringMaxLength("link preview description", linkPreview.GetDescription(), MaxLinkPreviewDescriptionLength); err != nil {
 		return err
 	}
+	if err := validateStringMaxLength("link preview image asset ID", linkPreview.GetImageAssetId(), MaxLinkPreviewImageAssetIDLength); err != nil {
+		return err
+	}
 	if err := validateStringMaxLength("link preview site name", linkPreview.GetSiteName(), MaxLinkPreviewSiteNameLength); err != nil {
 		return err
 	}

@@ -71,8 +71,11 @@ type UserPermissionCell {
 Trinary decision used in the user-permission matrix.
 """
 enum UserPermissionDecision {
+  "The permission is explicitly granted."
   ALLOW
+  "The permission is explicitly denied."
   DENY
+  "No explicit grant or denial applies at this scope."
   NONE
 }
 

@@ -415,13 +415,15 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 
 	t.Run("link preview at max lengths succeeds", func(t *testing.T) {
 		embedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength)
+		imageAssetID := strings.Repeat("a", MaxLinkPreviewImageAssetIDLength)
 		preview := &corev1.LinkPreview{
-			Url:         strings.Repeat("u", MaxLinkPreviewURLLength),
-			Title:       strings.Repeat("t", MaxLinkPreviewTitleLength),
-			Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength),
-			SiteName:    strings.Repeat("s", MaxLinkPreviewSiteNameLength),
-			EmbedType:   strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
-			EmbedId:     &embedID,
+			Url:          strings.Repeat("u", MaxLinkPreviewURLLength),
+			Title:        strings.Repeat("t", MaxLinkPreviewTitleLength),
+			Description:  strings.Repeat("d", MaxLinkPreviewDescriptionLength),
+			ImageAssetId: &imageAssetID,
+			SiteName:     strings.Repeat("s", MaxLinkPreviewSiteNameLength),
+			EmbedType:    strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
+			EmbedId:      &embedID,
 		}
 		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", preview, false); err != nil {
 			t.Fatalf("PostMessage with max-length link preview: %v", err)
@@ -429,6 +431,7 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 	})
 
 	overLimitEmbedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength+1)
+	overLimitImageAssetID := strings.Repeat("a", MaxLinkPreviewImageAssetIDLength+1)
 	tests := []struct {
 		name    string
 		preview *corev1.LinkPreview
@@ -452,6 +455,12 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 			preview: &corev1.LinkPreview{Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength+1)},
 			field:   "link preview description",
 			max:     MaxLinkPreviewDescriptionLength,
+		},
+		{
+			name:    "image asset ID",
+			preview: &corev1.LinkPreview{ImageAssetId: &overLimitImageAssetID},
+			field:   "link preview image asset ID",
+			max:     MaxLinkPreviewImageAssetIDLength,
 		},
 		{
 			name:    "site name",

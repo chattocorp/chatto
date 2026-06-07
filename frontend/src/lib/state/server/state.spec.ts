@@ -19,6 +19,25 @@ function makeClient(result: {
   } as unknown as Client;
 }
 
+function makeClientSequence(results: Array<{
+  data?: unknown;
+  error?: { message: string; networkError?: Error } | null;
+}>): Client {
+  return {
+    query: vi.fn().mockImplementation(() => {
+      const result = results.shift() ?? {};
+      return {
+        toPromise: vi.fn().mockResolvedValue({
+          data: result.data ?? null,
+          error: result.error ?? null
+        })
+      };
+    }),
+    mutation: vi.fn(),
+    subscription: vi.fn()
+  } as unknown as Client;
+}
+
 /** Build a urql Client mock whose query rejects (synchronous throw inside the chain). */
 function makeRejectingClient(err: Error): Client {
   return {
@@ -42,16 +61,8 @@ describe('ServerInfoState.init()', () => {
       data: {
         server: {
           directRegistrationEnabled: false,
-          pushNotificationsEnabled: true,
-          vapidPublicKey: 'vap',
-          livekitUrl: 'wss://lk',
-          videoProcessingEnabled: true,
-          maxUploadSize: 100,
-          maxVideoUploadSize: 200,
-          messageEditWindowSeconds: 7200,
-          config: {
-            serverName: 'Acme',
-            motd: 'hello',
+          profile: {
+            name: 'Acme',
             welcomeMessage: 'welcome',
             description: 'a server for acme',
             logoUrl: 'https://icon',
@@ -67,9 +78,60 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
-    expect(state.videoProcessingEnabled).toBe(true);
-    expect(state.messageEditWindowSeconds).toBe(7200);
+    expect(state.welcomeMessage).toBe('welcome');
+    expect(state.description).toBe('a server for acme');
+    expect(state.directRegistrationEnabled).toBe(false);
+    expect(state.videoProcessingEnabled).toBe(false);
+    expect(state.messageEditWindowSeconds).toBe(3 * 60 * 60);
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('loads authenticated runtime settings separately', async () => {
+    const client = makeClientSequence([
+      {
+        data: {
+          server: {
+            directRegistrationEnabled: false,
+            profile: {
+              name: 'Acme',
+              welcomeMessage: 'welcome',
+              description: 'a server for acme',
+              logoUrl: 'https://icon',
+              bannerUrl: 'https://banner'
+            }
+          }
+        }
+      },
+      {
+        data: {
+          server: {
+            pushNotificationsEnabled: true,
+            vapidPublicKey: 'vap',
+            livekitUrl: 'wss://lk',
+            videoProcessingEnabled: true,
+            maxUploadSize: 100,
+            maxVideoUploadSize: 200,
+            messageEditWindowSeconds: 7200,
+            profile: {
+              motd: 'hello'
+            }
+          }
+        }
+      }
+    ]);
+    const state = new ServerInfoState(client, 'https://acme.test');
+
+    await state.init();
+    await state.refreshAuthenticatedSettings();
+
+    expect(state.motd).toBe('hello');
+    expect(state.pushNotificationsEnabled).toBe(true);
+    expect(state.vapidPublicKey).toBe('vap');
+    expect(state.livekitUrl).toBe('wss://lk');
+    expect(state.videoProcessingEnabled).toBe(true);
+    expect(state.maxUploadSize).toBe(100);
+    expect(state.maxVideoUploadSize).toBe(200);
+    expect(state.messageEditWindowSeconds).toBe(7200);
   });
 
   it('logs and sets error when urql returns a network error (CORS/unreachable)', async () => {

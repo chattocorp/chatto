@@ -52,10 +52,17 @@ async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace>
 }
 
 async function createRoomViaAPI(page: Page, name: string): Promise<string> {
+  const groupData = await gqlRequest<{ server: { roomGroups: { id: string }[] } }>(
+    page,
+    `query { server { roomGroups { id } } }`
+  );
+  const groupId = groupData.server.roomGroups[0]?.id;
+  if (!groupId) throw new Error('No room group available for e2e room creation');
+
   const data = await gqlRequest<{ createRoom: { id: string; name: string } }>(
     page,
     `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-    { input: { name } }
+    { input: { name, groupId } }
   );
   return data.createRoom.id;
 }

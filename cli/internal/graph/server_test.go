@@ -262,6 +262,76 @@ func TestRoomResolver_Type(t *testing.T) {
 	})
 }
 
+func TestServerResolver_Members(t *testing.T) {
+	env := setupTestResolver(t)
+	server := &model.Server{}
+
+	t.Run("unauthenticated user is rejected", func(t *testing.T) {
+		members, err := env.resolver.Server().Members(env.unauthContext(), server, nil, nil, nil)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
+		}
+		if members != nil {
+			t.Errorf("Expected nil members, got %+v", members)
+		}
+	})
+
+	t.Run("authenticated user can search and paginate members", func(t *testing.T) {
+		regularUser := env.createVerifiedUser(t, "server-member-browser", "Server Member Browser", "password123")
+
+		for _, fixture := range []struct {
+			login       string
+			displayName string
+		}{
+			{login: "server-members-page-alpha", displayName: "Server Members Page Target Alpha"},
+			{login: "server-members-page-beta", displayName: "Server Members Page Target Beta"},
+			{login: "server-members-page-gamma", displayName: "Server Members Page Target Gamma"},
+			{login: "server-members-page-other", displayName: "Unrelated User"},
+		} {
+			env.createVerifiedUser(t, fixture.login, fixture.displayName, "password123")
+		}
+
+		search := "server members page target"
+		limit := int32(1)
+		offset := int32(1)
+		members, err := env.resolver.Server().Members(env.authContextForUser(regularUser), server, &search, &limit, &offset)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if members == nil {
+			t.Fatal("Expected members connection, got nil")
+		}
+		if members.TotalCount != 3 {
+			t.Errorf("Expected totalCount 3, got %d", members.TotalCount)
+		}
+		if !members.HasMore {
+			t.Error("Expected hasMore for middle page")
+		}
+		if len(members.Users) != 1 {
+			t.Fatalf("Expected 1 user in page, got %d", len(members.Users))
+		}
+		if members.Users[0].Login == "server-members-page-other" {
+			t.Error("Expected search filter to exclude unrelated user")
+		}
+
+		offset = 2
+		limit = 2
+		tail, err := env.resolver.Server().Members(env.authContextForUser(regularUser), server, &search, &limit, &offset)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if tail.TotalCount != 3 {
+			t.Errorf("Expected tail totalCount 3, got %d", tail.TotalCount)
+		}
+		if tail.HasMore {
+			t.Error("Expected no more members beyond tail page")
+		}
+		if len(tail.Users) != 1 {
+			t.Fatalf("Expected 1 user in tail page, got %d", len(tail.Users))
+		}
+	})
+}
+
 // ============================================================================
 // Room Field Resolver Tests
 // ============================================================================

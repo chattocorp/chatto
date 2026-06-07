@@ -71,20 +71,20 @@ export async function loginAsAdminAndUsePrimarySpace(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query { server { config { serverName } } }`
+      query: `query { server { profile { name } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
   const instance = data.data?.server;
   if (!instance) {
-    throw new Error('Server query returned no data — bootstrap config likely broken');
+    throw new Error('Server query returned no data — bootstrap profile likely broken');
   }
   // Post-ADR-030 the kind discriminator stands in for what used to be a
   // per-deployment space ID.
   return {
     id: 'server',
-    name: instance.config.serverName
+    name: instance.profile.name
   };
 }
 
@@ -431,4 +431,3 @@ export function generateRoleName(prefix: string): string {
   }
   return prefix + suffix;
 }
-

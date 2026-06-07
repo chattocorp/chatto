@@ -1,6 +1,5 @@
 /**
- * Server info state — server-wide configuration like name, MOTD, etc.
- * Available without authentication.
+ * Server info state — public branding plus authenticated runtime settings.
  */
 
 import { graphql } from '$lib/gql';
@@ -23,7 +22,7 @@ export class ServerInfoState {
   videoProcessingEnabled = $state(false);
   maxUploadSize = $state(25 * 1024 * 1024); // default 25 MB
   maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
-  messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten from GetServerInfo
+  messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten after auth
 
   loading = $state(true);
 
@@ -62,20 +61,12 @@ export class ServerInfoState {
           query GetServerInfo {
             server {
               directRegistrationEnabled
-              pushNotificationsEnabled
-              vapidPublicKey
-              livekitUrl
-              videoProcessingEnabled
-              maxUploadSize
-              maxVideoUploadSize
-              messageEditWindowSeconds
-              config {
-                serverName
-                motd
+              profile {
+                name
                 welcomeMessage
                 description
-                logoUrl(width: 256, height: 256)
-                bannerUrl(width: 1200, height: 630)
+                logoUrl
+                bannerUrl
               }
             }
           }
@@ -98,20 +89,12 @@ export class ServerInfoState {
       }
 
       if (resp.data?.server) {
-        this.name = resp.data.server.config.serverName;
-        this.motd = resp.data.server.config.motd ?? null;
-        this.welcomeMessage = resp.data.server.config.welcomeMessage ?? null;
-        this.description = resp.data.server.config.description ?? null;
-        this.iconUrl = resp.data.server.config.logoUrl ?? null;
-        this.bannerUrl = resp.data.server.config.bannerUrl ?? null;
+        this.name = resp.data.server.profile.name;
+        this.welcomeMessage = resp.data.server.profile.welcomeMessage ?? null;
+        this.description = resp.data.server.profile.description ?? null;
+        this.iconUrl = resp.data.server.profile.logoUrl ?? null;
+        this.bannerUrl = resp.data.server.profile.bannerUrl ?? null;
         this.directRegistrationEnabled = resp.data.server.directRegistrationEnabled;
-        this.pushNotificationsEnabled = resp.data.server.pushNotificationsEnabled;
-        this.vapidPublicKey = resp.data.server.vapidPublicKey ?? null;
-        this.livekitUrl = resp.data.server.livekitUrl ?? null;
-        this.videoProcessingEnabled = resp.data.server.videoProcessingEnabled;
-        this.maxUploadSize = resp.data.server.maxUploadSize;
-        this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
-        this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
       }
     } catch (err) {
       // Defensive: anything thrown during the query or above .then body.
@@ -123,6 +106,50 @@ export class ServerInfoState {
       );
     } finally {
       this.loading = false;
+    }
+  }
+
+  /**
+   * Fetch authenticated server settings used by the in-app UI. This runs only
+   * after the store knows the viewer is authenticated.
+   */
+  async refreshAuthenticatedSettings(): Promise<void> {
+    const resp = await this.#client
+      .query(
+        graphql(`
+          query GetAuthenticatedServerSettings {
+            server {
+              pushNotificationsEnabled
+              vapidPublicKey
+              livekitUrl
+              videoProcessingEnabled
+              maxUploadSize
+              maxVideoUploadSize
+              messageEditWindowSeconds
+              profile {
+                motd
+              }
+            }
+          }
+        `),
+        {},
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    if (resp.error) {
+      throw resp.error;
+    }
+
+    if (resp.data?.server) {
+      this.motd = resp.data.server.profile.motd ?? null;
+      this.pushNotificationsEnabled = resp.data.server.pushNotificationsEnabled;
+      this.vapidPublicKey = resp.data.server.vapidPublicKey ?? null;
+      this.livekitUrl = resp.data.server.livekitUrl ?? null;
+      this.videoProcessingEnabled = resp.data.server.videoProcessingEnabled;
+      this.maxUploadSize = resp.data.server.maxUploadSize;
+      this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
+      this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
     }
   }
 

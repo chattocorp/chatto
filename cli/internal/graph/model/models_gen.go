@@ -25,7 +25,7 @@ type NotificationItem interface {
 	IsNotificationItem()
 }
 
-// JetStream account limits and usage.
+// Point-in-time storage-account limits and usage. Intended for operator diagnostics.
 type AccountInfo struct {
 	// Memory limit in bytes (-1 for unlimited)
 	Memory int `json:"memory"`
@@ -65,23 +65,23 @@ type AdminMutations struct {
 	ClearUsernameCooldown bool `json:"clearUsernameCooldown"`
 }
 
-// Admin-only queries. Returns null if the user is not an server admin.
+// Admin-only query namespace for operator tooling. Returns null if the user is not a server admin.
 type AdminQueries struct {
-	// Get aggregate operational metrics (NATS/JetStream connection + account-level usage).
+	// Get point-in-time operator diagnostics for connection, storage, and deployment counts.
 	SystemInfo *SystemInfo `json:"systemInfo"`
 	// Get server configuration.
 	ServerConfig *AdminServerConfig `json:"serverConfig"`
-	// Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before.
+	// Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before.
 	EventLog *EventLogConnection `json:"eventLog"`
-	// Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist.
+	// Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist.
 	EventLogEntry *EventLogEntry `json:"eventLogEntry,omitempty"`
-	// Inspect runtime state and rough memory estimates for event-sourced projections.
+	// Inspect point-in-time runtime state and rough memory estimates for event-sourced projections.
 	Projections []*ProjectionState `json:"projections"`
 	// Resolve the explicit grants and denials configured for a role on a
-	// specific set. Returns empty arrays if neither side has any keys.
+	// specific room group. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
 	// Resolve the explicit grants and denials configured for a user on a
-	// specific set (user-level overrides at set scope).
+	// specific room group (user-level overrides at room-group scope).
 	GroupUserPermissions *RoomGroupUserPermissions `json:"groupUserPermissions"`
 	// List all available server permission identifiers.
 	ServerPermissions []string `json:"serverPermissions"`
@@ -184,7 +184,7 @@ type ClearUsernameCooldownInput struct {
 	UserID string `json:"userId"`
 }
 
-// Information about the NATS connection.
+// Point-in-time diagnostic information about the backing message broker connection.
 type ConnectionInfo struct {
 	// Whether the connection to NATS is currently active.
 	Connected bool `json:"connected"`
@@ -212,7 +212,7 @@ type CreateRoleInput struct {
 
 // Input for creating a new room group.
 type CreateRoomGroupInput struct {
-	// Display name for the new set (e.g., 'Engineering', 'Public').
+	// Display name for the new room group (e.g., 'Engineering', 'Public').
 	Name string `json:"name"`
 	// Optional operator-facing description.
 	Description *string `json:"description,omitempty"`
@@ -224,10 +224,10 @@ type CreateRoomInput struct {
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
 	Description *string `json:"description,omitempty"`
-	// Optional room-set ID to place the new room in. Required once the
-	// room-sets feature is fully wired (see ADR-031); during the transition
-	// it may be omitted, in which case the room is created without a set.
-	GroupID *string `json:"groupId,omitempty"`
+	// Room group ID to place the new channel room in. Channel room creation
+	// requires an explicit group; DM rooms are created through the DM APIs and
+	// do not use this input.
+	GroupID string `json:"groupId"`
 }
 
 // Input for deleting an attachment from a message.
@@ -276,9 +276,9 @@ type DeleteRoleInput struct {
 	Name string `json:"name"`
 }
 
-// Input for deleting a room group. Fails if the set still contains any rooms.
+// Input for deleting a room group. Fails if the room group still contains any rooms.
 type DeleteRoomGroupInput struct {
-	// The set's ID.
+	// The room group's ID.
 	ID string `json:"id"`
 }
 
@@ -319,7 +319,7 @@ type DismissNotificationInput struct {
 	NotificationID string `json:"notificationId"`
 }
 
-// A page of EventLogEntries, newest first.
+// A page of diagnostic event-log entries, newest first.
 type EventLogConnection struct {
 	// Entries on this page, ordered newest → oldest.
 	Entries []*EventLogEntry `json:"entries"`
@@ -327,21 +327,21 @@ type EventLogConnection struct {
 	HasOlder bool `json:"hasOlder"`
 	// Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries.
 	EndCursor *string `json:"endCursor,omitempty"`
-	// Total messages currently in EVT — an operational metric, not bounded by `limit`.
-	TotalCount int32 `json:"totalCount"`
+	// Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int.
+	TotalCount int64 `json:"totalCount"`
 }
 
-// One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033.
+// One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed.
 type EventLogEntry struct {
-	// Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int.
+	// Monotonic event-log sequence, serialized as a String so large values do not overflow GraphQL Int.
 	Sequence string `json:"sequence"`
-	// NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server').
+	// Diagnostic storage subject. Useful for operators, but clients should not parse it as a stable product contract.
 	Subject string `json:"subject"`
-	// Aggregate type parsed from the subject (e.g. 'room', 'config').
+	// Diagnostic aggregate category derived from storage metadata.
 	AggregateType string `json:"aggregateType"`
-	// Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons).
+	// Diagnostic aggregate identifier derived from storage metadata.
 	AggregateID string `json:"aggregateId"`
-	// Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant.
+	// Diagnostic event variant label. Empty if the payload cannot be classified.
 	EventType string `json:"eventType"`
 	// Per-event unique identifier from event.id.
 	EventID string `json:"eventId"`
@@ -349,7 +349,7 @@ type EventLogEntry struct {
 	ActorID string `json:"actorId"`
 	// When the event was created (per the event payload, not the stream).
 	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
-	// Protobuf payload encoded as JSON for human inspection.
+	// Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape.
 	PayloadJSON string `json:"payloadJson"`
 }
 
@@ -408,7 +408,7 @@ type GrantUserPermissionInput struct {
 // Input for granting a permission on a room group. The subject is either a role
 // (by name) or a user (by ID).
 type GroupPermissionInput struct {
-	// The set to scope the grant to.
+	// The room group to scope the grant to.
 	GroupID string `json:"groupId"`
 	// Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.)
 	Subject string `json:"subject"`
@@ -490,12 +490,12 @@ type MarkThreadAsReadResult struct {
 	PreviousReadAt *timestamppb.Timestamp `json:"previousReadAt,omitempty"`
 }
 
-// Input for moving a room into a different set. Requires room.manage in
-// both the source and target set (ADR-031).
+// Input for moving a room into a different room group. Requires room.manage in
+// both the source and target room group (ADR-031).
 type MoveRoomToSetInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
-	// The destination set.
+	// The destination room group.
 	GroupID string `json:"groupId"`
 }
 
@@ -503,7 +503,7 @@ type MoveRoomToSetInput struct {
 type Mutation struct {
 }
 
-// Basic state for one JetStream consumer.
+// Diagnostic state for one storage consumer. Raw consumer names and subjects are operator-facing diagnostics, not product concepts.
 type NatsConsumerInfo struct {
 	// Stream this consumer belongs to.
 	Stream string `json:"stream"`
@@ -539,7 +539,7 @@ type NatsConsumerInfo struct {
 	AckFloorStreamSequence string `json:"ackFloorStreamSequence"`
 }
 
-// Current JetStream stream and consumer diagnostics.
+// Current stream and consumer diagnostics. Values are point-in-time and may change between refreshes.
 type NatsStats struct {
 	// Streams in the JetStream account.
 	Streams []*NatsStreamInfo `json:"streams"`
@@ -555,7 +555,7 @@ type NatsStats struct {
 	TotalAckPending int32 `json:"totalAckPending"`
 }
 
-// Basic state for one JetStream stream.
+// Diagnostic state for one retained storage stream. Raw names and subjects are operator-facing diagnostics, not product concepts.
 type NatsStreamInfo struct {
 	// Stream name.
 	Name string `json:"name"`
@@ -641,7 +641,7 @@ type PostMessageInput struct {
 
 // One named diagnostic count/byte bucket for a projection.
 type ProjectionMetric struct {
-	// Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'.
+	// Diagnostic metric identifier, e.g. 'timeline_entries' or 'event_id_index'. Names may evolve with projection implementation.
 	Name string `json:"name"`
 	// Count associated with this metric.
 	Value int `json:"value"`
@@ -649,19 +649,19 @@ type ProjectionMetric struct {
 	Bytes int `json:"bytes"`
 }
 
-// Runtime state for one event-sourced projection.
+// Point-in-time runtime state for one event-sourced projection.
 type ProjectionState struct {
 	// Human-readable projection name.
 	Name string `json:"name"`
-	// NATS subject filters consumed by this projection.
+	// Diagnostic storage subject filters consumed by this projection.
 	Subjects []string `json:"subjects"`
 	// Whether the projector run loop has started.
 	Started bool `json:"started"`
-	// Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow.
+	// Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow.
 	LastAppliedSequence string `json:"lastAppliedSequence"`
-	// Highest EVT stream sequence currently matching this projection's subject filters.
+	// Highest event-log sequence currently matching this projection's subject filters.
 	MatchingStreamSequence string `json:"matchingStreamSequence"`
-	// Highest sequence in the EVT stream, regardless of whether this projection consumes it.
+	// Highest sequence in the event log, regardless of whether this projection consumes it.
 	StreamLastSequence string `json:"streamLastSequence"`
 	// Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence.
 	Lag int `json:"lag"`
@@ -722,9 +722,9 @@ type ReorderRolesInput struct {
 }
 
 // Input for reordering all room groups. The order must include every existing
-// set ID exactly once; partial or unknown lists are rejected.
+// room group ID exactly once; partial or unknown lists are rejected.
 type ReorderRoomGroupsInput struct {
-	// Set IDs in the desired display order, first to last.
+	// Room group IDs in the desired display order, first to last.
 	OrderedIds []string `json:"orderedIds"`
 }
 
@@ -856,30 +856,31 @@ type RoomEventsConnection struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Per-set role permission inspector. Returns the explicit grants and denials
-// configured on a set for a given role (no inheritance — to see the effective
-// permissions resolve per-room or per-user via the resolver instead).
+// Per-room-group role permission inspector. Returns the explicit grants and
+// denials configured on a room group for a given role (no inheritance — to
+// see the effective permissions resolve per-room or per-user via the resolver
+// instead).
 type RoomGroupRolePermissions struct {
-	// The set these permissions belong to.
+	// The room group these permissions belong to.
 	GroupID string `json:"groupId"`
 	// The role these permissions apply to.
 	RoleName string `json:"roleName"`
-	// Permissions explicitly granted to this role on this set.
+	// Permissions explicitly granted to this role on this room group.
 	Permissions []string `json:"permissions"`
-	// Permissions explicitly denied to this role on this set.
+	// Permissions explicitly denied to this role on this room group.
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
-// Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
-// direct user-level grants/denials.
+// Per-room-group user permission inspector. Mirrors RoomGroupRolePermissions
+// for direct user-level grants/denials.
 type RoomGroupUserPermissions struct {
-	// The set these permissions belong to.
+	// The room group these permissions belong to.
 	GroupID string `json:"groupId"`
 	// The user these permissions apply to.
 	UserID string `json:"userId"`
-	// Permissions explicitly granted to this user on this set.
+	// Permissions explicitly granted to this user on this room group.
 	Permissions []string `json:"permissions"`
-	// Permissions explicitly denied to this user on this set.
+	// Permissions explicitly denied to this user on this room group.
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
@@ -919,8 +920,8 @@ type Server struct {
 	Version string `json:"version"`
 	// List of enabled SSO provider names (e.g., 'google', 'github').
 	EnabledAuthProviders []string `json:"enabledAuthProviders"`
-	// Runtime-editable configuration settings.
-	Config *ServerConfig `json:"config"`
+	// Public-facing identity and branding for this server.
+	Profile *ServerProfile `json:"profile"`
 	// True if Web Push notifications are enabled on this server.
 	PushNotificationsEnabled bool `json:"pushNotificationsEnabled"`
 	// VAPID public key for Web Push subscriptions. Null if push is disabled.
@@ -959,13 +960,13 @@ type Server struct {
 	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
 	// Whether the current user can manage this server (has server.manage permission).
 	ViewerCanManageServer bool `json:"viewerCanManageServer"`
-	// Whether the current user can create rooms (has rooms.create permission).
+	// Whether the current user can create rooms (has room.create permission).
 	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
 	// Whether the current user can manage rooms (has room.manage permission).
 	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
 	// Whether the current user has any unread messages in rooms they've joined.
 	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
-	// The current user's server-level notification preference. Null if not authenticated.
+	// The current user's server-level notification preference.
 	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
 	// Get a single member of this server by user ID.
 	// Returns null if the user is not a member.
@@ -981,9 +982,9 @@ type Server struct {
 	AvailablePermissions []string `json:"availablePermissions"`
 	// Get the current user's permissions on this server.
 	ViewerPermissions []string `json:"viewerPermissions"`
-	// Whether the current user can manage roles (has admin.roles.manage permission).
+	// Whether the current user can manage roles (has role.manage permission).
 	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
-	// Whether the current user can assign roles to users (has admin.roles.assign permission).
+	// Whether the current user can assign roles to users (has role.assign permission).
 	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
 	// UI hint reporting whether the viewer outranks the target user by role
 	// hierarchy. **This is a rank check only**, not an authorization gate —
@@ -1005,23 +1006,6 @@ type Server struct {
 	UserEffectiveDenials []string `json:"userEffectiveDenials"`
 }
 
-// Runtime-editable server configuration.
-// These are settings that can be changed by admins at runtime.
-type ServerConfig struct {
-	// Server name, displayed in page titles. Defaults to 'Chatto'.
-	ServerName string `json:"serverName"`
-	// URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail.
-	LogoURL *string `json:"logoUrl,omitempty"`
-	// URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail.
-	BannerURL *string `json:"bannerUrl,omitempty"`
-	// Welcome message to display on the login screen (Markdown). Null if not configured.
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
-	// Message of the Day, displayed in the header bar. Null if not configured.
-	Motd *string `json:"motd,omitempty"`
-	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
-	Description *string `json:"description,omitempty"`
-}
-
 // Paginated list of server members with metadata.
 type ServerMembersConnection struct {
 	// The users who are members of this server.
@@ -1030,6 +1014,22 @@ type ServerMembersConnection struct {
 	TotalCount int32 `json:"totalCount"`
 	// Whether there are more members beyond this page.
 	HasMore bool `json:"hasMore"`
+}
+
+// How this server presents itself in logged-out and multi-server UI.
+type ServerProfile struct {
+	// Display name for this server. Defaults to 'Chatto'.
+	Name string `json:"name"`
+	// URL to the server logo, if set.
+	LogoURL *string `json:"logoUrl,omitempty"`
+	// URL to the server banner image, if set.
+	BannerURL *string `json:"bannerUrl,omitempty"`
+	// Welcome message to display on the login screen (Markdown). Null if not configured.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+	// Message of the Day, displayed in the header bar. Null if not configured.
+	Motd *string `json:"motd,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
+	Description *string `json:"description,omitempty"`
 }
 
 // Aggregate counts for the deployment. Operator-facing only.
@@ -1066,7 +1066,7 @@ type StartDMInput struct {
 type Subscription struct {
 }
 
-// Aggregate operational metrics.
+// Point-in-time operator diagnostics for this deployment.
 type SystemInfo struct {
 	// NATS connection status and server info.
 	Connection *ConnectionInfo `json:"connection"`
@@ -1188,7 +1188,7 @@ type UpdateRoleInput struct {
 
 // Input for updating an existing room group.
 type UpdateRoomGroupInput struct {
-	// The set's ID.
+	// The room group's ID.
 	ID string `json:"id"`
 	// Display name.
 	Name string `json:"name"`
@@ -1308,16 +1308,6 @@ type UserPermissionScope struct {
 	// For room scopes, the parent group's ID — so the UI can nest rooms under
 	// their group column. Empty string for server / group scopes.
 	ParentGroupID string `json:"parentGroupId"`
-}
-
-// Paginated list of users with metadata.
-type UsersConnection struct {
-	// The users in this page.
-	Users []*corev1.User `json:"users"`
-	// Total count of users matching the search (before pagination).
-	TotalCount int32 `json:"totalCount"`
-	// Whether there are more users beyond this page.
-	HasMore bool `json:"hasMore"`
 }
 
 // The viewer's notification preference for the server or a room.
@@ -1701,9 +1691,12 @@ func (e RoomType) MarshalJSON() ([]byte, error) {
 type UserPermissionDecision string
 
 const (
+	// The permission is explicitly granted.
 	UserPermissionDecisionAllow UserPermissionDecision = "ALLOW"
-	UserPermissionDecisionDeny  UserPermissionDecision = "DENY"
-	UserPermissionDecisionNone  UserPermissionDecision = "NONE"
+	// The permission is explicitly denied.
+	UserPermissionDecisionDeny UserPermissionDecision = "DENY"
+	// No explicit grant or denial applies at this scope.
+	UserPermissionDecisionNone UserPermissionDecision = "NONE"
 )
 
 var AllUserPermissionDecision = []UserPermissionDecision{
