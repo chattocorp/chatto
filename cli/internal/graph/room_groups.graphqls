@@ -36,6 +36,7 @@ extend type AdminQueries {
   specific room group. Returns empty arrays if neither side has any keys.
   """
   groupRolePermissions(groupId: ID!, roleName: String!): RoomGroupRolePermissions!
+    @authenticated
     @goField(forceResolver: true)
 
   """
@@ -43,6 +44,7 @@ extend type AdminQueries {
   specific room group (user-level overrides at room-group scope).
   """
   groupUserPermissions(groupId: ID!, userId: ID!): RoomGroupUserPermissions!
+    @authenticated
     @goField(forceResolver: true)
 }
 
@@ -123,45 +125,45 @@ input GroupPermissionInput {
 
 extend type Mutation {
   "Create a new room group. Requires `role.manage`."
-  createRoomGroup(input: CreateRoomGroupInput!): RoomGroup!
+  createRoomGroup(input: CreateRoomGroupInput!): RoomGroup! @authenticated
 
   "Update a room group's name/description. Requires `role.manage`."
-  updateRoomGroup(input: UpdateRoomGroupInput!): RoomGroup!
+  updateRoomGroup(input: UpdateRoomGroupInput!): RoomGroup! @authenticated
 
   """
   Delete a room group. Rejected if the room group still contains rooms —
   operators must move all rooms out first. Requires `role.manage`.
   """
-  deleteRoomGroup(input: DeleteRoomGroupInput!): Boolean!
+  deleteRoomGroup(input: DeleteRoomGroupInput!): Boolean! @authenticated
 
   """
   Reorder all room groups. The provided ID list must contain every existing
   room group exactly once. Requires `role.manage`.
   """
-  reorderRoomGroups(input: ReorderRoomGroupsInput!): [RoomGroup!]!
+  reorderRoomGroups(input: ReorderRoomGroupsInput!): [RoomGroup!]! @authenticated
 
   """
   Move a room into a different room group. The caller must have
   `room.manage` in both the source room group and the target room group
   (ADR-031). Permission overrides on the room itself are preserved.
   """
-  moveRoomToSet(input: MoveRoomToSetInput!): Room!
+  moveRoomToSet(input: MoveRoomToSetInput!): Room! @authenticated
 
   """
   Reorder rooms inside a single group. The provided ID list must contain
   every current room in that group exactly once. Requires `role.manage`.
   """
-  reorderRoomsInGroup(input: ReorderRoomsInGroupInput!): RoomGroup!
+  reorderRoomsInGroup(input: ReorderRoomsInGroupInput!): RoomGroup! @authenticated
 
   "Grant a permission on a room group (role or user subject). Requires `role.manage`."
-  grantGroupPermission(input: GroupPermissionInput!): Boolean!
+  grantGroupPermission(input: GroupPermissionInput!): Boolean! @authenticated
 
   "Deny a permission on a room group (role or user subject). Requires `role.manage`."
-  denyGroupPermission(input: GroupPermissionInput!): Boolean!
+  denyGroupPermission(input: GroupPermissionInput!): Boolean! @authenticated
 
   """
   Clear both grant and denial for a permission on a room group, returning the
   subject to neutral. Requires `role.manage`.
   """
-  clearGroupPermissionState(input: GroupPermissionInput!): Boolean!
+  clearGroupPermissionState(input: GroupPermissionInput!): Boolean! @authenticated
 }

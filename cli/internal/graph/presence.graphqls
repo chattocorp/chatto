@@ -36,7 +36,7 @@ extend type Mutation {
   Status applies to the current user on this server.
   OFFLINE is not a valid input — to go offline, simply disconnect.
   """
-  updateMyPresence(input: UpdateMyPresenceInput!): Boolean!
+  updateMyPresence(input: UpdateMyPresenceInput!): Boolean! @authenticated
 }
 
 """

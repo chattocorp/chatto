@@ -48,7 +48,7 @@ extend type Query {
   Returns null if the URL cannot be previewed.
   Requires authentication.
   """
-  linkPreview(url: String! @length(max: 2048)): LinkPreview
+  linkPreview(url: String! @length(max: 2048)): LinkPreview @authenticated
 }
 
 extend type MessagePostedEvent {

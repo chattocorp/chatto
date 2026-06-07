@@ -58,15 +58,15 @@ extend type User {
   Returns one entry per joined room with its notification level.
   Self-only: only the user themselves can query this.
   """
-  roomNotificationPreferences: [RoomNotificationPreferenceItem!]! @goField(forceResolver: true)
+  roomNotificationPreferences: [RoomNotificationPreferenceItem!]! @authenticated @goField(forceResolver: true)
 }
 
 extend type Mutation {
   "Set the current user's server-level notification level. Pass DEFAULT to clear."
-  setServerNotificationLevel(input: SetServerNotificationLevelInput!): ViewerNotificationPreference!
+  setServerNotificationLevel(input: SetServerNotificationLevelInput!): ViewerNotificationPreference! @authenticated
 
   "Set the current user's notification level for a room. Pass DEFAULT to clear."
-  setRoomNotificationLevel(input: SetRoomNotificationLevelInput!): ViewerNotificationPreference!
+  setRoomNotificationLevel(input: SetRoomNotificationLevelInput!): ViewerNotificationPreference! @authenticated
 }
 
 """

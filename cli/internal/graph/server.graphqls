@@ -69,14 +69,14 @@ type Server {
   channels and DMs together. Pass `type: CHANNEL` for channels-only consumers
   (e.g. the admin room-management UI); pass `type: DM` for DMs-only consumers.
   """
-  rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
+  rooms(type: RoomType): [Room!]! @authenticated @goField(forceResolver: true)
 
   """
   Ordered list of channel-room groups (ADR-031). Every server boots with at
   least the seed "Lobby" group; the list is never empty for a configured
   server.
   """
-  roomGroups: [RoomGroup!]! @goField(forceResolver: true)
+  roomGroups: [RoomGroup!]! @authenticated @goField(forceResolver: true)
 
   "Number of members on this server."
   memberCount: Int! @goField(forceResolver: true)

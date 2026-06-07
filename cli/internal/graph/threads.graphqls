@@ -48,11 +48,11 @@ extend type Viewer {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): FollowedThreadsConnection! @goField(forceResolver: true)
+  ): FollowedThreadsConnection! @authenticated @goField(forceResolver: true)
 
   """
   Whether the current user has any unread followed threads. Lightweight
   query for sidebar unread indicators. Requires server membership.
   """
-  hasUnreadFollowedThreads: Boolean! @goField(forceResolver: true)
+  hasUnreadFollowedThreads: Boolean! @authenticated @goField(forceResolver: true)
 }

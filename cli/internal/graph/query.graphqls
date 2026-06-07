@@ -3,7 +3,7 @@ Root query type for fetching data.
 """
 type Query {
   "Get a specific room by ID."
-  room(roomId: ID!): Room
+  room(roomId: ID!): Room @authenticated
 
   "Get a specific user by ID. Requires authentication."
   user(userId: ID!): User @authenticated
@@ -22,7 +22,7 @@ type Query {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): UsersConnection!
+  ): UsersConnection! @authenticated
 }
 
 "Paginated list of users with metadata."

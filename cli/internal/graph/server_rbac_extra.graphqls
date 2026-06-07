@@ -1,9 +1,9 @@
 extend type Server {
   "List all roles on this server."
-  roles: [Role!]! @goField(forceResolver: true)
+  roles: [Role!]! @authenticated @goField(forceResolver: true)
 
   "Get a single role by name. Returns null if not found."
-  role(name: String!): Role @goField(forceResolver: true)
+  role(name: String!): Role @authenticated @goField(forceResolver: true)
 
   "List all available permission identifiers."
   availablePermissions: [String!]! @goField(forceResolver: true)
@@ -28,7 +28,7 @@ extend type Server {
   viewerCanManageUser(userId: ID!): Boolean! @goField(forceResolver: true)
 
   "Get users assigned to a specific role."
-  roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
+  roleUsers(roleName: String!): [User!]! @authenticated @goField(forceResolver: true)
 
   """
   Get a user's effective allowed permissions at server scope. Combines
@@ -36,14 +36,14 @@ extend type Server {
   `denyUserPermission`) — the same answer the authorization resolver
   produces. For per-decision provenance use the permission explainer.
   """
-  userEffectivePermissions(userId: ID!): [String!]! @goField(forceResolver: true)
+  userEffectivePermissions(userId: ID!): [String!]! @authenticated @goField(forceResolver: true)
 
   """
   Get a user's effective denied permissions at server scope. Mirrors
   `userEffectivePermissions` but lists permissions whose first decision
   is a deny.
   """
-  userEffectiveDenials(userId: ID!): [String!]! @goField(forceResolver: true)
+  userEffectiveDenials(userId: ID!): [String!]! @authenticated @goField(forceResolver: true)
 }
 
 # ============================================================================
@@ -74,7 +74,7 @@ type RoleRoomPermissions {
 
 extend type Room {
   "Room-level permission overrides for all roles."
-  roomPermissionOverrides: [RoleRoomPermissions!]! @goField(forceResolver: true)
+  roomPermissionOverrides: [RoleRoomPermissions!]! @authenticated @goField(forceResolver: true)
 
   "Permissions configurable at room scope."
   availableRoomPermissions: [String!]! @goField(forceResolver: true)
@@ -86,21 +86,21 @@ extend type Mutation {
   Clears any existing denial for the same permission in this room.
   Requires: role.manage permission.
   """
-  grantRoomPermission(input: GrantRoomPermissionInput!): Boolean!
+  grantRoomPermission(input: GrantRoomPermissionInput!): Boolean! @authenticated
 
   """
   Deny a permission for a role at room level. Overrides server-level state for this room.
   Clears any existing grant for the same permission in this room.
   Requires: role.manage permission.
   """
-  denyRoomPermission(input: DenyRoomPermissionInput!): Boolean!
+  denyRoomPermission(input: DenyRoomPermissionInput!): Boolean! @authenticated
 
   """
   Clear room-level grant and denial for a permission on a role.
   Returns the permission to neutral (inherit from server defaults).
   Requires: role.manage permission.
   """
-  clearRoomPermission(input: ClearRoomPermissionInput!): Boolean!
+  clearRoomPermission(input: ClearRoomPermissionInput!): Boolean! @authenticated
 }
 
 """

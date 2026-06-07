@@ -23,7 +23,7 @@ extend type Mutation {
   Returns true if successful.
   Requires authentication.
   """
-  subscribeToPush(input: PushSubscriptionInput!): Boolean!
+  subscribeToPush(input: PushSubscriptionInput!): Boolean! @authenticated
     @goField(forceResolver: true)
 
   """
@@ -32,7 +32,7 @@ extend type Mutation {
   Returns true if a subscription was removed, false if it didn't exist.
   Requires authentication.
   """
-  unsubscribeFromPush(input: UnsubscribeFromPushInput!): Boolean!
+  unsubscribeFromPush(input: UnsubscribeFromPushInput!): Boolean! @authenticated
     @goField(forceResolver: true)
 }
 

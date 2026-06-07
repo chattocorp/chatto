@@ -4,7 +4,7 @@ extend type Mutation {
   If a conversation already exists with exactly these participants, returns the existing one.
   The current user is automatically included as a participant.
   """
-  startDM(input: StartDMInput!): Room!
+  startDM(input: StartDMInput!): Room! @authenticated
 }
 
 """

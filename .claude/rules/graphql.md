@@ -25,10 +25,14 @@ Use gqlgen directives to control code generation:
 
 ### `@authenticated`
 
-Add this to fields that only require a logged-in caller and no target-specific
-authorization. Keep permission checks, room membership checks, self-vs-target
-rules, and outranking rules in resolver helpers where the resolver has the
-needed context.
+Add this to fields that reject anonymous callers. The directive documents and
+enforces the logged-in precondition at the schema boundary; keep permission
+checks, room membership checks, self-vs-target rules, and outranking rules in
+resolver helpers where the resolver has the needed context.
+
+Do not add this to fields that intentionally return `null`, `false`, or empty
+collections for anonymous callers, such as soft viewer/admin namespace roots or
+UI hint fields.
 
 ```graphql
 type Query {

@@ -98,7 +98,7 @@ extend type Query {
     roleName: String!
     "Optional room scope."
     roomId: ID
-  ): RoleAcrossTiers @goField(forceResolver: true)
+  ): RoleAcrossTiers @authenticated @goField(forceResolver: true)
 
   """
   Return the full permission matrix at a tier: every applicable role
@@ -116,5 +116,5 @@ extend type Query {
     roomId: ID
     "Optional room-group scope (ADR-031)."
     groupId: ID
-  ): TierRoles @goField(forceResolver: true)
+  ): TierRoles @authenticated @goField(forceResolver: true)
 }

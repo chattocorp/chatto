@@ -33,5 +33,5 @@ type Subscription {
 
   Only delivers new events — no replay of historical traffic.
   """
-  myEvents: Event!
+  myEvents: Event! @authenticated
 }

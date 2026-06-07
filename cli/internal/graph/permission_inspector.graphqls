@@ -66,5 +66,5 @@ extend type Query {
     userId: ID!
     "Optional room scope."
     roomId: ID
-  ): [PermissionExplanation!]! @goField(forceResolver: true)
+  ): [PermissionExplanation!]! @authenticated @goField(forceResolver: true)
 }

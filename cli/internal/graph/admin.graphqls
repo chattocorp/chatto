@@ -1,7 +1,7 @@
 "Admin-only queries. Returns null if the user is not an server admin."
 type AdminQueries {
   "Get aggregate operational metrics (NATS/JetStream connection + account-level usage)."
-  systemInfo: SystemInfo!
+  systemInfo: SystemInfo! @authenticated
 }
 
 extend type Query {
@@ -179,7 +179,7 @@ input UpdateServerConfigInput {
 
 extend type AdminQueries {
   "Get server configuration."
-  serverConfig: AdminServerConfig! @goField(forceResolver: true)
+  serverConfig: AdminServerConfig! @authenticated @goField(forceResolver: true)
 }
 
 # =============================================================================
@@ -222,9 +222,9 @@ type EventLogConnection {
 
 extend type AdminQueries {
   "Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before."
-  eventLog(limit: Int, before: String): EventLogConnection! @goField(forceResolver: true)
+  eventLog(limit: Int, before: String): EventLogConnection! @authenticated @goField(forceResolver: true)
   "Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist."
-  eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)
+  eventLogEntry(sequence: String!): EventLogEntry @authenticated @goField(forceResolver: true)
 }
 
 # =============================================================================
@@ -269,17 +269,17 @@ type ProjectionState {
 
 extend type AdminQueries {
   "Inspect runtime state and rough memory estimates for event-sourced projections."
-  projections: [ProjectionState!]! @goField(forceResolver: true)
+  projections: [ProjectionState!]! @authenticated @goField(forceResolver: true)
 }
 
 "Admin mutations for configuration management."
 type AdminMutations {
   "Update server configuration. Returns the updated config section."
-  updateServerConfig(input: UpdateServerConfigInput!): AdminServerConfig! @goField(forceResolver: true)
+  updateServerConfig(input: UpdateServerConfigInput!): AdminServerConfig! @authenticated @goField(forceResolver: true)
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile."
-  updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
+  updateUser(input: AdminUpdateUserInput!): User! @authenticated @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
-  clearUsernameCooldown(input: ClearUsernameCooldownInput!): Boolean! @goField(forceResolver: true)
+  clearUsernameCooldown(input: ClearUsernameCooldownInput!): Boolean! @authenticated @goField(forceResolver: true)
 }
 
 "Input for AdminMutations.clearUsernameCooldown."
