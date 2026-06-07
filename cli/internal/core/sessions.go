@@ -110,17 +110,24 @@ func (c *ChattoCore) ValidateCookieSession(ctx context.Context, userID, sessionI
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrCookieSessionNotFound
 	}
-	if err := c.RequireAuthenticationAllowed(ctx, userID, record.GetAuthGeneration()); err != nil {
+	expiresAtPB := record.GetExpiresAt()
+	if expiresAtPB == nil || !time.Now().Before(expiresAtPB.AsTime()) {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return nil, ErrCookieSessionNotFound
+	}
+	resolvedGeneration, err := c.ResolveCredentialAuthGeneration(ctx, userID, record.GetAuthGeneration(), record.GetCreatedAt().AsTime())
+	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return nil, err
 		}
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrCookieSessionNotFound
 	}
-	expiresAtPB := record.GetExpiresAt()
-	if expiresAtPB == nil || !time.Now().Before(expiresAtPB.AsTime()) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
+	if record.GetAuthGeneration() != resolvedGeneration {
+		record.AuthGeneration = resolvedGeneration
+		if data, err := proto.Marshal(&record); err == nil {
+			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), time.Until(expiresAtPB.AsTime()))
+		}
 	}
 
 	return &record, nil

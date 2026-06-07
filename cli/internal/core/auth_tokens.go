@@ -122,17 +122,25 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
 	}
-	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
+	resolvedGeneration, err := c.ResolveCredentialAuthGeneration(ctx, tokenData.UserID, tokenData.AuthGeneration, tokenData.CreatedAt)
+	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", err
 		}
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return "", ErrAuthTokenNotFound
 	}
+	value := entry.Value()
+	if tokenData.AuthGeneration != resolvedGeneration {
+		tokenData.AuthGeneration = resolvedGeneration
+		if upgraded, err := json.Marshal(tokenData); err == nil {
+			value = upgraded
+		}
+	}
 
 	// Rewrite to reset TTL (sliding window expiry).
 	// Fire-and-forget — validation succeeds even if the re-put fails.
-	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.authTokenTTL())
+	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.authTokenTTL())
 
 	return tokenData.UserID, nil
 }

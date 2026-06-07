@@ -41,6 +41,7 @@ Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing
 - Created on login, registration, bootstrap, and OAuth callback
 - Validated by looking up the HMAC-derived `session.{hmac}` key in `RUNTIME_STATE` and reading the stored user ID
 - Rejected when the token's stored auth generation differs from the current user auth generation derived from durable user events
+- Legacy records with no stored auth generation unmarshal as generation `0`; validation upgrades them to the current generation when their `created_at` is not older than the current password event
 - Revoked by deleting the key (idempotent)
 - Cleaned up for a whole user by scanning `session.*` records, matching the stored user ID, and deleting each match; password resets, password changes, and account deletion use this path after advancing the user's auth generation
 

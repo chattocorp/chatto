@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 )
@@ -62,6 +63,37 @@ func (c *ChattoCore) RequireAuthenticationAllowed(ctx context.Context, userID st
 		return ErrAuthenticationRevoked
 	}
 	return nil
+}
+
+// ResolveCredentialAuthGeneration validates a stored credential generation and
+// returns the generation that should be retained on the credential.
+//
+// Credentials written before auth_generation existed unmarshal as generation 0.
+// For compatibility, those records are grandfathered when their CreatedAt is
+// not older than the user's current password hash event, then upgraded in
+// place by the caller. Legacy imported password hashes only have the legacy
+// user record timestamp, so this intentionally preserves upgraded 0.0.x
+// credentials until a new 0.1.x password change/reset advances the generation.
+func (c *ChattoCore) ResolveCredentialAuthGeneration(ctx context.Context, userID string, authGeneration uint64, credentialCreatedAt time.Time) (uint64, error) {
+	currentGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if authGeneration == currentGeneration {
+		return currentGeneration, nil
+	}
+	if authGeneration != 0 {
+		return 0, ErrAuthenticationRevoked
+	}
+	if currentGeneration == 0 {
+		return 0, nil
+	}
+
+	_, passwordSetAt, hasPassword := c.Users.PasswordHashWithSetAt(userID)
+	if !hasPassword || credentialCreatedAt.IsZero() || credentialCreatedAt.Before(passwordSetAt) {
+		return 0, ErrAuthenticationRevoked
+	}
+	return currentGeneration, nil
 }
 
 func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userID string) error {

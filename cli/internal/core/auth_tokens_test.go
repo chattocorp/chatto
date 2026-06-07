@@ -1,9 +1,13 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestChattoCore_CreateAuthToken(t *testing.T) {
@@ -251,5 +255,86 @@ func TestChattoCore_AuthTokenGenerationRejectsStaleAuthentication(t *testing.T) 
 		t.Fatalf("fresh token should validate: %v", err)
 	} else if gotUserID != user.Id {
 		t.Fatalf("fresh token user ID = %q, want %q", gotUserID, user.Id)
+	}
+}
+
+func TestChattoCore_ValidateAuthTokenGrandfathersLegacyGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "legacy-token-user", "Legacy Token User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+
+	token := NewAuthToken()
+	key := core.authTokenKey(token)
+	data, err := json.Marshal(AuthTokenData{
+		UserID:    user.Id,
+		CreatedAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy token: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(core.authTokenTTL())); err != nil {
+		t.Fatalf("store legacy token: %v", err)
+	}
+
+	gotUserID, err := core.ValidateAuthToken(ctx, token)
+	if err != nil {
+		t.Fatalf("ValidateAuthToken: %v", err)
+	}
+	if gotUserID != user.Id {
+		t.Fatalf("ValidateAuthToken user ID = %q, want %q", gotUserID, user.Id)
+	}
+
+	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("get upgraded token: %v", err)
+	}
+	var upgraded AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &upgraded); err != nil {
+		t.Fatalf("unmarshal upgraded token: %v", err)
+	}
+	if upgraded.AuthGeneration != authGeneration {
+		t.Fatalf("upgraded auth generation = %d, want %d", upgraded.AuthGeneration, authGeneration)
+	}
+}
+
+func TestChattoCore_ValidateAuthTokenRejectsLegacyGenerationBeforePasswordChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "legacy-token-stale-user", "Legacy Token Stale User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	legacyCreatedAt := time.Now()
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	token := NewAuthToken()
+	key := core.authTokenKey(token)
+	data, err := json.Marshal(AuthTokenData{
+		UserID:    user.Id,
+		CreatedAt: legacyCreatedAt,
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy token: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(core.authTokenTTL())); err != nil {
+		t.Fatalf("store legacy token: %v", err)
+	}
+
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("legacy stale token lookup error = %v, want ErrKeyNotFound", err)
 	}
 }

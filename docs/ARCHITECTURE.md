@@ -490,7 +490,7 @@ Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is p
 
 | Key                                           | Description |
 | --------------------------------------------- | ----------- |
-| `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL and auth generation |
+| `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL and auth generation; generation `0` is the legacy no-field value and is upgraded on compatible validation |
 | `session.{hmac}`                              | Opaque bearer-token verifier with per-key TTL and auth generation |
 | `grant.{hmac}`                                | OAuth authorization-code verifier with 5-minute per-key TTL and auth generation |
 | `registration.{hmac}`                         | Email-first registration token verifier |
@@ -592,7 +592,7 @@ survives restart but is not content/domain history. See
 | `email_verification.{hmac}` | Email verification token JSON with user ID and email. Uses per-key 24-hour TTL. |
 | `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
 | `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
-| `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. |
+| `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. Generation `0` means a legacy pre-`auth_generation` credential and is upgraded on validation when still compatible with the current password event. |
 | `grant.{hmac}` | OAuth authorization code JSON with the user auth generation it was issued against. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
 | `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
 

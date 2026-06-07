@@ -157,7 +157,8 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		return "", "", ErrAuthCodeInvalidVerifier
 	}
 
-	if err := c.RequireAuthenticationAllowed(ctx, codeData.UserID, codeData.AuthGeneration); err != nil {
+	resolvedGeneration, err := c.ResolveCredentialAuthGeneration(ctx, codeData.UserID, codeData.AuthGeneration, codeData.CreatedAt)
+	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", "", err
 		}
@@ -166,6 +167,7 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		}
 		return "", "", ErrAuthCodeNotFound
 	}
+	codeData.AuthGeneration = resolvedGeneration
 
 	// Issue a bearer token
 	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, codeData.UserID, "oauth_code_exchange", codeData.AuthGeneration)
