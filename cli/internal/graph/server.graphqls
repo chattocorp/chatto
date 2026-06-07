@@ -4,22 +4,22 @@ These are settings that can be changed by admins at runtime.
 """
 type ServerConfig {
   "Server name, displayed in page titles. Defaults to 'Chatto'."
-  serverName: String! @goField(forceResolver: true)
+  serverName: String! @public @goField(forceResolver: true)
 
   "URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail."
-  logoUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
+  logoUrl(width: Int, height: Int, fit: FitMode): String @public @goField(forceResolver: true)
 
   "URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail."
-  bannerUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
+  bannerUrl(width: Int, height: Int, fit: FitMode): String @public @goField(forceResolver: true)
 
   "Welcome message to display on the login screen (Markdown). Null if not configured."
-  welcomeMessage: String @goField(forceResolver: true)
+  welcomeMessage: String @public @goField(forceResolver: true)
 
   "Message of the Day, displayed in the header bar. Null if not configured."
-  motd: String @goField(forceResolver: true)
+  motd: String @public @goField(forceResolver: true)
 
   "Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured."
-  description: String @goField(forceResolver: true)
+  description: String @public @goField(forceResolver: true)
 }
 
 """
@@ -28,37 +28,37 @@ Some fields don't require authentication and are available on the login page.
 """
 type Server {
   "The application version."
-  version: String!
+  version: String! @public
 
   "List of enabled SSO provider names (e.g., 'google', 'github')."
-  enabledAuthProviders: [String!]!
+  enabledAuthProviders: [String!]! @public
 
   "Runtime-editable configuration settings."
-  config: ServerConfig! @goField(forceResolver: true)
+  config: ServerConfig! @public @goField(forceResolver: true)
 
   "True if Web Push notifications are enabled on this server."
-  pushNotificationsEnabled: Boolean! @goField(forceResolver: true)
+  pushNotificationsEnabled: Boolean! @public @goField(forceResolver: true)
 
   "VAPID public key for Web Push subscriptions. Null if push is disabled."
-  vapidPublicKey: String @goField(forceResolver: true)
+  vapidPublicKey: String @public @goField(forceResolver: true)
 
   "LiveKit WebSocket URL for voice calls. Null if voice calls are disabled."
-  livekitUrl: String @goField(forceResolver: true)
+  livekitUrl: String @public @goField(forceResolver: true)
 
   "True if direct (email/password) registration is enabled on this server."
-  directRegistrationEnabled: Boolean! @goField(forceResolver: true)
+  directRegistrationEnabled: Boolean! @public @goField(forceResolver: true)
 
   "True if video processing is enabled, allowing video attachments to be uploaded."
-  videoProcessingEnabled: Boolean! @goField(forceResolver: true)
+  videoProcessingEnabled: Boolean! @public @goField(forceResolver: true)
 
   "Maximum upload size for regular attachments (images, files) in bytes."
-  maxUploadSize: Int! @goField(forceResolver: true)
+  maxUploadSize: Int! @public @goField(forceResolver: true)
 
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
-  maxVideoUploadSize: Int! @goField(forceResolver: true)
+  maxVideoUploadSize: Int! @public @goField(forceResolver: true)
 
   "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window."
-  messageEditWindowSeconds: Int! @goField(forceResolver: true)
+  messageEditWindowSeconds: Int! @public @goField(forceResolver: true)
 
   """
   List of rooms on this server.
@@ -69,37 +69,37 @@ type Server {
   channels and DMs together. Pass `type: CHANNEL` for channels-only consumers
   (e.g. the admin room-management UI); pass `type: DM` for DMs-only consumers.
   """
-  rooms(type: RoomType): [Room!]! @authenticated @goField(forceResolver: true)
+  rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
 
   """
   Ordered list of channel-room groups (ADR-031). Every server boots with at
   least the seed "Lobby" group; the list is never empty for a configured
   server.
   """
-  roomGroups: [RoomGroup!]! @authenticated @goField(forceResolver: true)
+  roomGroups: [RoomGroup!]! @goField(forceResolver: true)
 
   "Number of members on this server."
-  memberCount: Int! @goField(forceResolver: true)
+  memberCount: Int! @public @goField(forceResolver: true)
 
   "Number of rooms on this server."
-  roomCount: Int! @goField(forceResolver: true)
+  roomCount: Int! @public @goField(forceResolver: true)
 
   "Number of assets (attachments) uploaded to this server."
-  assetCount: Int! @goField(forceResolver: true)
+  assetCount: Int! @public @goField(forceResolver: true)
 
   "Whether the current user has any admin.* permission (for showing the Admin link)."
-  viewerHasAnyAdminPermission: Boolean! @goField(forceResolver: true)
+  viewerHasAnyAdminPermission: Boolean! @public @goField(forceResolver: true)
   "Whether the current user can manage this server (has server.manage permission)."
-  viewerCanManageServer: Boolean! @goField(forceResolver: true)
+  viewerCanManageServer: Boolean! @public @goField(forceResolver: true)
   "Whether the current user can create rooms (has room.create permission)."
-  viewerCanCreateRoom: Boolean! @goField(forceResolver: true)
+  viewerCanCreateRoom: Boolean! @public @goField(forceResolver: true)
   "Whether the current user can manage rooms (has room.manage permission)."
-  viewerCanManageRooms: Boolean! @goField(forceResolver: true)
+  viewerCanManageRooms: Boolean! @public @goField(forceResolver: true)
   "Whether the current user has any unread messages in rooms they've joined."
-  viewerHasUnreadRooms: Boolean! @goField(forceResolver: true)
+  viewerHasUnreadRooms: Boolean! @public @goField(forceResolver: true)
 }
 
 extend type Query {
   "Get information about this Chatto server. No authentication required."
-  server: Server! @goField(forceResolver: true)
+  server: Server! @public @goField(forceResolver: true)
 }

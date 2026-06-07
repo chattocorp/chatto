@@ -23,20 +23,23 @@ gqlgen is schema-first. Follow this workflow for GraphQL changes:
 
 Use gqlgen directives to control code generation:
 
-### `@authenticated`
+### `@public`
 
-Add this to fields that reject anonymous callers. The directive documents and
-enforces the logged-in precondition at the schema boundary; keep permission
-checks, room membership checks, self-vs-target rules, and outranking rules in
-resolver helpers where the resolver has the needed context.
+GraphQL fields require authentication by default. Add `@public` only to fields
+that intentionally allow anonymous callers. This includes bootstrap data needed
+before login and soft namespace roots or UI hints that deliberately return
+`null`, `false`, or empty collections for anonymous callers.
 
-Do not add this to fields that intentionally return `null`, `false`, or empty
-collections for anonymous callers, such as soft viewer/admin namespace roots or
-UI hint fields.
+Do not add `@public` to fields that expose user, room, message, admin, or
+mutation data. Keep permission checks, room membership checks, self-vs-target
+rules, and outranking rules in resolver helpers where the resolver has the
+needed context; `@public` only controls the anonymous/authenticated boundary.
 
 ```graphql
 type Query {
-  user(userId: ID!): User @authenticated
+  server: Server! @public @goField(forceResolver: true)
+  viewer: Viewer @public @goField(forceResolver: true)
+  user(userId: ID!): User # Authenticated by default
 }
 ```
 

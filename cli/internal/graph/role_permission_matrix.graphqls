@@ -45,6 +45,5 @@ extend type Query {
   particular user receives.
   """
   rolePermissionMatrix(roleName: String!): RolePermissionMatrix
-    @authenticated
     @goField(forceResolver: true)
 }

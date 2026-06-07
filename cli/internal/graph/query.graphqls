@@ -3,13 +3,13 @@ Root query type for fetching data.
 """
 type Query {
   "Get a specific room by ID."
-  room(roomId: ID!): Room @authenticated
+  room(roomId: ID!): Room
 
   "Get a specific user by ID. Requires authentication."
-  user(userId: ID!): User @authenticated
+  user(userId: ID!): User
 
   "Get a specific user by login. Requires authentication. Returns null if not found."
-  userByLogin(login: String!): User @authenticated
+  userByLogin(login: String!): User
 
   """
   List users on this server. Requires server admin.
@@ -22,7 +22,7 @@ type Query {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): UsersConnection! @authenticated
+  ): UsersConnection!
 }
 
 "Paginated list of users with metadata."

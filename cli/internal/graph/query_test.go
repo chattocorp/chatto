@@ -132,6 +132,7 @@ func executeGraphQL(t *testing.T, env *testEnv, ctx context.Context, query strin
 	t.Helper()
 
 	exec := executor.New(NewExecutableSchema(NewConfig(env.resolver)))
+	exec.AroundFields(DefaultAuthFieldMiddleware)
 	ctx = graphql.StartOperationTrace(ctx)
 	now := graphql.Now()
 	opCtx, errs := exec.CreateOperationContext(ctx, &graphql.RawParams{
@@ -148,6 +149,81 @@ func executeGraphQL(t *testing.T, env *testEnv, ctx context.Context, query strin
 
 	responseHandler, responseCtx := exec.DispatchOperation(ctx, opCtx)
 	return responseHandler(responseCtx)
+}
+
+func TestGraphQLDefaultAuthentication(t *testing.T) {
+	env := setupTestResolver(t)
+
+	t.Run("public server bootstrap fields allow unauthenticated callers", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query ServerBootstrap {
+				server {
+					version
+					enabledAuthProviders
+					config {
+						serverName
+					}
+					directRegistrationEnabled
+					viewerCanCreateRoom
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
+		}
+
+		var data struct {
+			Server *struct {
+				Version              string   `json:"version"`
+				EnabledAuthProviders []string `json:"enabledAuthProviders"`
+				Config               struct {
+					ServerName string `json:"serverName"`
+				} `json:"config"`
+				DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
+				ViewerCanCreateRoom       bool `json:"viewerCanCreateRoom"`
+			} `json:"server"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.Server == nil {
+			t.Fatal("Expected server data, got nil")
+		}
+		if data.Server.Config.ServerName == "" {
+			t.Fatal("Expected public server name to be populated")
+		}
+	})
+
+	t.Run("soft viewer root allows unauthenticated callers", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query Viewer {
+				viewer {
+					user {
+						id
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
+		}
+
+		var data struct {
+			Viewer *struct {
+				User struct {
+					ID string `json:"id"`
+				} `json:"user"`
+			} `json:"viewer"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.Viewer != nil {
+			t.Errorf("Expected nil viewer, got %+v", data.Viewer)
+		}
+	})
 }
 
 func TestQueryResolver_User(t *testing.T) {

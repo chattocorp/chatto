@@ -113,5 +113,5 @@ extend type Query {
 
   Self-introspection is not allowed; the matrix is an admin surface.
   """
-  userPermissionMatrix(userId: ID!): UserPermissionMatrix @authenticated @goField(forceResolver: true)
+  userPermissionMatrix(userId: ID!): UserPermissionMatrix @goField(forceResolver: true)
 }

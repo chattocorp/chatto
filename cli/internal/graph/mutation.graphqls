@@ -3,16 +3,16 @@ Root mutation type for modifying data.
 """
 type Mutation {
   "Create a new room."
-  createRoom(input: CreateRoomInput!): Room! @authenticated
+  createRoom(input: CreateRoomInput!): Room!
 
   "Update an existing room's name and description. Requires room.manage permission."
-  updateRoom(input: UpdateRoomInput!): Room! @authenticated
+  updateRoom(input: UpdateRoomInput!): Room!
 
   "Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission."
-  archiveRoom(input: ArchiveRoomInput!): Room! @authenticated
+  archiveRoom(input: ArchiveRoomInput!): Room!
 
   "Unarchive a previously archived room. Requires room.manage permission."
-  unarchiveRoom(input: UnarchiveRoomInput!): Room! @authenticated
+  unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
   """
   Join every room in a group that the caller has `room.join` for and
@@ -20,65 +20,65 @@ type Mutation {
   joined (already-joined and non-joinable rooms are silently skipped).
   Powers the "Join all" affordance in the room directory.
   """
-  joinGroup(input: JoinGroupInput!): [ID!]! @authenticated
+  joinGroup(input: JoinGroupInput!): [ID!]!
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
-  postMessage(input: PostMessageInput!): Event! @authenticated
+  postMessage(input: PostMessageInput!): Event!
 
   "Update the server's name. Requires server.manage permission."
-  updateServer(input: UpdateServerInput!): Server! @authenticated
+  updateServer(input: UpdateServerInput!): Server!
 
   "Upload a logo for the server. Requires server.manage permission."
-  uploadServerLogo(input: UploadServerLogoInput!): Server! @authenticated
+  uploadServerLogo(input: UploadServerLogoInput!): Server!
 
   "Delete the server logo. Requires server.manage permission."
-  deleteServerLogo: Server! @authenticated
+  deleteServerLogo: Server!
 
   "Upload a banner for the server. Requires server.manage permission."
-  uploadServerBanner(input: UploadServerBannerInput!): Server! @authenticated
+  uploadServerBanner(input: UploadServerBannerInput!): Server!
 
   "Delete the server banner. Requires server.manage permission."
-  deleteServerBanner: Server! @authenticated
+  deleteServerBanner: Server!
 
   "Join the specified room. Returns the joined room."
-  joinRoom(input: JoinRoomInput!): Room! @authenticated
+  joinRoom(input: JoinRoomInput!): Room!
 
   "Leave the specified room."
-  leaveRoom(input: LeaveRoomInput!): Boolean! @authenticated
+  leaveRoom(input: LeaveRoomInput!): Boolean!
 
   """
   Mark a room as read for the current user.
   Stores the room's current last root message event ID as the user's read marker.
   Returns the timestamps of the new and previous last-read events.
   """
-  markRoomAsRead(input: MarkRoomAsReadInput!): MarkRoomAsReadResult! @authenticated
+  markRoomAsRead(input: MarkRoomAsReadInput!): MarkRoomAsReadResult!
 
   """
   Mark a thread as read by the current user.
   Stores the current timestamp and returns the previous timestamp.
   Used for showing unread separators in thread panes.
   """
-  markThreadAsRead(input: MarkThreadAsReadInput!): MarkThreadAsReadResult! @authenticated
+  markThreadAsRead(input: MarkThreadAsReadInput!): MarkThreadAsReadResult!
 
   "Follow a thread to receive notifications on new replies. Requires room membership."
-  followThread(input: FollowThreadInput!): Boolean! @authenticated
+  followThread(input: FollowThreadInput!): Boolean!
 
   "Unfollow a thread to stop receiving reply notifications. Requires room membership."
-  unfollowThread(input: UnfollowThreadInput!): Boolean! @authenticated
+  unfollowThread(input: UnfollowThreadInput!): Boolean!
 
   """
   Add an emoji reaction to a message.
   The emoji parameter must be a shortcode name (e.g., "thumbsup", "heart").
   Returns true if the reaction was added, false if it already existed.
   """
-  addReaction(input: AddReactionInput!): Boolean! @authenticated
+  addReaction(input: AddReactionInput!): Boolean!
 
   """
   Remove an emoji reaction from a message.
   The emoji parameter must be a shortcode name (e.g., "thumbsup", "heart").
   Returns true if the reaction was removed, false if it didn't exist.
   """
-  removeReaction(input: RemoveReactionInput!): Boolean! @authenticated
+  removeReaction(input: RemoveReactionInput!): Boolean!
 
   """
   Send a typing indicator to other users in the room.
@@ -86,7 +86,7 @@ type Mutation {
   while typing and implement 6-second timeout-based clearing.
   Returns true on success.
   """
-  sendTypingIndicator(input: SendTypingIndicatorInput!): Boolean! @authenticated
+  sendTypingIndicator(input: SendTypingIndicatorInput!): Boolean!
 
   """
   Delete a message body for GDPR compliance.
@@ -95,27 +95,27 @@ type Mutation {
   their own messages.
   Returns true on success.
   """
-  deleteMessage(input: DeleteMessageInput!): Boolean! @authenticated
+  deleteMessage(input: DeleteMessageInput!): Boolean!
 
   """
   Update a message body. Only the message author can update their own messages,
   within 3 hours of posting. The edit window may be configurable in the future.
   Returns true on success.
   """
-  updateMessage(input: UpdateMessageInput!): Boolean! @authenticated
+  updateMessage(input: UpdateMessageInput!): Boolean!
 
   """
   Delete an attachment from a message. Only the message author can delete their attachments.
   Removes the attachment from the message.
   Returns true on success.
   """
-  deleteAttachment(input: DeleteAttachmentInput!): Boolean! @authenticated
+  deleteAttachment(input: DeleteAttachmentInput!): Boolean!
 
   """
   Delete a link preview from a message. Only the message author can delete their link previews.
   Returns true on success.
   """
-  deleteLinkPreview(input: DeleteLinkPreviewInput!): Boolean! @authenticated
+  deleteLinkPreview(input: DeleteLinkPreviewInput!): Boolean!
 
   """
   Update a user's profile. Supports updating display name and/or login.
@@ -126,7 +126,7 @@ type Mutation {
   either is an owner or outranks the target user by role hierarchy.
   Returns the updated user.
   """
-  updateProfile(input: UpdateProfileInput!): User! @authenticated
+  updateProfile(input: UpdateProfileInput!): User!
 
   """
   Upload an avatar for a user. Image will be resized to 256x256 max
@@ -134,14 +134,14 @@ type Mutation {
   holds `role.assign` AND either is an owner or outranks the target
   user by role hierarchy. Returns the updated user.
   """
-  uploadAvatar(input: UploadAvatarInput!): User! @authenticated
+  uploadAvatar(input: UploadAvatarInput!): User!
 
   """
   Delete a user's avatar. Authorization: caller is self, OR caller
   holds `role.assign` AND either is an owner or outranks the target
   user by role hierarchy. Returns the updated user.
   """
-  deleteAvatar(input: DeleteAvatarInput!): User! @authenticated
+  deleteAvatar(input: DeleteAvatarInput!): User!
 
   """
   Request account deletion by generating a confirmation token.
@@ -149,7 +149,7 @@ type Mutation {
   This two-step process protects against XSS attacks.
   Returns the confirmation token.
   """
-  requestAccountDeletion: String! @authenticated
+  requestAccountDeletion: String!
 
   """
   Permanently delete the current user's account.
@@ -160,7 +160,7 @@ type Mutation {
   Requires a confirmationToken obtained from requestAccountDeletion.
   Returns true on success.
   """
-  deleteMyAccount(input: DeleteMyAccountInput!): Boolean! @authenticated
+  deleteMyAccount(input: DeleteMyAccountInput!): Boolean!
 }
 
 """

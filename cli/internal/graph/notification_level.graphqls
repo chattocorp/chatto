@@ -31,12 +31,12 @@ type ViewerNotificationPreference {
 
 extend type Server {
   "The current user's server-level notification preference. Null if not authenticated."
-  viewerNotificationPreference: ViewerNotificationPreference @goField(forceResolver: true)
+  viewerNotificationPreference: ViewerNotificationPreference @public @goField(forceResolver: true)
 }
 
 extend type Room {
   "The current user's notification preference for this room. Null if not authenticated."
-  viewerNotificationPreference: ViewerNotificationPreference @goField(forceResolver: true)
+  viewerNotificationPreference: ViewerNotificationPreference @public @goField(forceResolver: true)
 }
 
 """
@@ -58,15 +58,15 @@ extend type User {
   Returns one entry per joined room with its notification level.
   Self-only: only the user themselves can query this.
   """
-  roomNotificationPreferences: [RoomNotificationPreferenceItem!]! @authenticated @goField(forceResolver: true)
+  roomNotificationPreferences: [RoomNotificationPreferenceItem!]! @goField(forceResolver: true)
 }
 
 extend type Mutation {
   "Set the current user's server-level notification level. Pass DEFAULT to clear."
-  setServerNotificationLevel(input: SetServerNotificationLevelInput!): ViewerNotificationPreference! @authenticated
+  setServerNotificationLevel(input: SetServerNotificationLevelInput!): ViewerNotificationPreference!
 
   "Set the current user's notification level for a room. Pass DEFAULT to clear."
-  setRoomNotificationLevel(input: SetRoomNotificationLevelInput!): ViewerNotificationPreference! @authenticated
+  setRoomNotificationLevel(input: SetRoomNotificationLevelInput!): ViewerNotificationPreference!
 }
 
 """

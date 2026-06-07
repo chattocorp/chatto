@@ -45,5 +45,5 @@ extend type Mutation {
   caller holds `role.assign` AND either is an owner or outranks the
   target user by role hierarchy. Returns the updated settings.
   """
-  updateSettings(input: UpdateSettingsInput!): UserSettings! @authenticated
+  updateSettings(input: UpdateSettingsInput!): UserSettings!
 }

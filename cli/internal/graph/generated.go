@@ -72,8 +72,8 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
-	Authenticated func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
-	Length        func(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (res any, err error)
+	Length func(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (res any, err error)
+	Public func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -8654,20 +8654,7 @@ func (ec *executionContext) _AdminMutations_updateServerConfig(ctx context.Conte
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminMutations().UpdateServerConfig(ctx, obj, fc.Args["input"].(model.UpdateServerConfigInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.AdminServerConfig
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminServerConfig) graphql.Marshaler {
 			return ec.marshalNAdminServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminServerConfig(ctx, selections, v)
 		},
@@ -8711,20 +8698,7 @@ func (ec *executionContext) _AdminMutations_updateUser(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminMutations().UpdateUser(ctx, obj, fc.Args["input"].(model.AdminUpdateUserInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -8768,20 +8742,7 @@ func (ec *executionContext) _AdminMutations_clearUsernameCooldown(ctx context.Co
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminMutations().ClearUsernameCooldown(ctx, obj, fc.Args["input"].(model.ClearUsernameCooldownInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -8824,20 +8785,7 @@ func (ec *executionContext) _AdminQueries_systemInfo(ctx context.Context, field 
 		func(ctx context.Context) (any, error) {
 			return obj.SystemInfo, nil
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.SystemInfo
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.SystemInfo) graphql.Marshaler {
 			return ec.marshalNSystemInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSystemInfo(ctx, selections, v)
 		},
@@ -8869,20 +8817,7 @@ func (ec *executionContext) _AdminQueries_serverConfig(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.AdminQueries().ServerConfig(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.AdminServerConfig
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminServerConfig) graphql.Marshaler {
 			return ec.marshalNAdminServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminServerConfig(ctx, selections, v)
 		},
@@ -8915,20 +8850,7 @@ func (ec *executionContext) _AdminQueries_eventLog(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminQueries().EventLog(ctx, obj, fc.Args["limit"].(*int32), fc.Args["before"].(*string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.EventLogConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.EventLogConnection) graphql.Marshaler {
 			return ec.marshalNEventLogConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogConnection(ctx, selections, v)
 		},
@@ -8972,20 +8894,7 @@ func (ec *executionContext) _AdminQueries_eventLogEntry(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminQueries().EventLogEntry(ctx, obj, fc.Args["sequence"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.EventLogEntry
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.EventLogEntry) graphql.Marshaler {
 			return ec.marshalOEventLogEntry2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEventLogEntry(ctx, selections, v)
 		},
@@ -9028,20 +8937,7 @@ func (ec *executionContext) _AdminQueries_projections(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.AdminQueries().Projections(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.ProjectionState
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.ProjectionState) graphql.Marshaler {
 			return ec.marshalNProjectionState2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐProjectionStateᚄ(ctx, selections, v)
 		},
@@ -9074,20 +8970,7 @@ func (ec *executionContext) _AdminQueries_groupRolePermissions(ctx context.Conte
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminQueries().GroupRolePermissions(ctx, obj, fc.Args["groupId"].(string), fc.Args["roleName"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomGroupRolePermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomGroupRolePermissions) graphql.Marshaler {
 			return ec.marshalNRoomGroupRolePermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupRolePermissions(ctx, selections, v)
 		},
@@ -9131,20 +9014,7 @@ func (ec *executionContext) _AdminQueries_groupUserPermissions(ctx context.Conte
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.AdminQueries().GroupUserPermissions(ctx, obj, fc.Args["groupId"].(string), fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomGroupUserPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomGroupUserPermissions) graphql.Marshaler {
 			return ec.marshalNRoomGroupUserPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupUserPermissions(ctx, selections, v)
 		},
@@ -9187,20 +9057,7 @@ func (ec *executionContext) _AdminQueries_serverPermissions(ctx context.Context,
 		func(ctx context.Context) (any, error) {
 			return obj.ServerPermissions, nil
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -12274,20 +12131,7 @@ func (ec *executionContext) _MessagePostedEvent_threadReplies(ctx context.Contex
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.MessagePostedEvent().ThreadReplies(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []core.EventEnvelope
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []core.EventEnvelope) graphql.Marshaler {
 			return ec.marshalNEvent2ᚕhmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelopeᚄ(ctx, selections, v)
 		},
@@ -12421,20 +12265,7 @@ func (ec *executionContext) _Mutation_createRoom(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateRoom(ctx, fc.Args["input"].(model.CreateRoomInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -12478,20 +12309,7 @@ func (ec *executionContext) _Mutation_updateRoom(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateRoom(ctx, fc.Args["input"].(model.UpdateRoomInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -12535,20 +12353,7 @@ func (ec *executionContext) _Mutation_archiveRoom(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ArchiveRoom(ctx, fc.Args["input"].(model.ArchiveRoomInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -12592,20 +12397,7 @@ func (ec *executionContext) _Mutation_unarchiveRoom(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UnarchiveRoom(ctx, fc.Args["input"].(model.UnarchiveRoomInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -12649,20 +12441,7 @@ func (ec *executionContext) _Mutation_joinGroup(ctx context.Context, field graph
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().JoinGroup(ctx, fc.Args["input"].(model.JoinGroupInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNID2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -12706,20 +12485,7 @@ func (ec *executionContext) _Mutation_postMessage(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().PostMessage(ctx, fc.Args["input"].(model.PostMessageInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal core.EventEnvelope
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
 			return ec.marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx, selections, v)
 		},
@@ -12763,20 +12529,7 @@ func (ec *executionContext) _Mutation_updateServer(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateServer(ctx, fc.Args["input"].(model.UpdateServerInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.Server
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -12820,20 +12573,7 @@ func (ec *executionContext) _Mutation_uploadServerLogo(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UploadServerLogo(ctx, fc.Args["input"].(model.UploadServerLogoInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.Server
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -12876,20 +12616,7 @@ func (ec *executionContext) _Mutation_deleteServerLogo(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Mutation().DeleteServerLogo(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.Server
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -12922,20 +12649,7 @@ func (ec *executionContext) _Mutation_uploadServerBanner(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UploadServerBanner(ctx, fc.Args["input"].(model.UploadServerBannerInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.Server
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -12978,20 +12692,7 @@ func (ec *executionContext) _Mutation_deleteServerBanner(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Mutation().DeleteServerBanner(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.Server
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -13024,20 +12725,7 @@ func (ec *executionContext) _Mutation_joinRoom(ctx context.Context, field graphq
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().JoinRoom(ctx, fc.Args["input"].(model.JoinRoomInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -13081,20 +12769,7 @@ func (ec *executionContext) _Mutation_leaveRoom(ctx context.Context, field graph
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().LeaveRoom(ctx, fc.Args["input"].(model.LeaveRoomInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13138,20 +12813,7 @@ func (ec *executionContext) _Mutation_markRoomAsRead(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().MarkRoomAsRead(ctx, fc.Args["input"].(model.MarkRoomAsReadInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.MarkRoomAsReadResult
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.MarkRoomAsReadResult) graphql.Marshaler {
 			return ec.marshalNMarkRoomAsReadResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkRoomAsReadResult(ctx, selections, v)
 		},
@@ -13195,20 +12857,7 @@ func (ec *executionContext) _Mutation_markThreadAsRead(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().MarkThreadAsRead(ctx, fc.Args["input"].(model.MarkThreadAsReadInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.MarkThreadAsReadResult
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.MarkThreadAsReadResult) graphql.Marshaler {
 			return ec.marshalNMarkThreadAsReadResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsReadResult(ctx, selections, v)
 		},
@@ -13252,20 +12901,7 @@ func (ec *executionContext) _Mutation_followThread(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().FollowThread(ctx, fc.Args["input"].(model.FollowThreadInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13309,20 +12945,7 @@ func (ec *executionContext) _Mutation_unfollowThread(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UnfollowThread(ctx, fc.Args["input"].(model.UnfollowThreadInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13366,20 +12989,7 @@ func (ec *executionContext) _Mutation_addReaction(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().AddReaction(ctx, fc.Args["input"].(model.AddReactionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13423,20 +13033,7 @@ func (ec *executionContext) _Mutation_removeReaction(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RemoveReaction(ctx, fc.Args["input"].(model.RemoveReactionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13480,20 +13077,7 @@ func (ec *executionContext) _Mutation_sendTypingIndicator(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().SendTypingIndicator(ctx, fc.Args["input"].(model.SendTypingIndicatorInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13537,20 +13121,7 @@ func (ec *executionContext) _Mutation_deleteMessage(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteMessage(ctx, fc.Args["input"].(model.DeleteMessageInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13594,20 +13165,7 @@ func (ec *executionContext) _Mutation_updateMessage(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateMessage(ctx, fc.Args["input"].(model.UpdateMessageInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13651,20 +13209,7 @@ func (ec *executionContext) _Mutation_deleteAttachment(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteAttachment(ctx, fc.Args["input"].(model.DeleteAttachmentInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13708,20 +13253,7 @@ func (ec *executionContext) _Mutation_deleteLinkPreview(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteLinkPreview(ctx, fc.Args["input"].(model.DeleteLinkPreviewInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -13765,20 +13297,7 @@ func (ec *executionContext) _Mutation_updateProfile(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateProfile(ctx, fc.Args["input"].(model.UpdateProfileInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -13822,20 +13341,7 @@ func (ec *executionContext) _Mutation_uploadAvatar(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UploadAvatar(ctx, fc.Args["input"].(model.UploadAvatarInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -13879,20 +13385,7 @@ func (ec *executionContext) _Mutation_deleteAvatar(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteAvatar(ctx, fc.Args["input"].(model.DeleteAvatarInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -13935,20 +13428,7 @@ func (ec *executionContext) _Mutation_requestAccountDeletion(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Mutation().RequestAccountDeletion(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
 			return ec.marshalNString2string(ctx, selections, v)
 		},
@@ -13972,20 +13452,7 @@ func (ec *executionContext) _Mutation_deleteMyAccount(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteMyAccount(ctx, fc.Args["input"].(model.DeleteMyAccountInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14028,7 +13495,20 @@ func (ec *executionContext) _Mutation_admin(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Mutation().Admin(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.AdminMutations
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminMutations) graphql.Marshaler {
 			return ec.marshalOAdminMutations2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminMutations(ctx, selections, v)
 		},
@@ -14061,20 +13541,7 @@ func (ec *executionContext) _Mutation_startDM(ctx context.Context, field graphql
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().StartDm(ctx, fc.Args["input"].(model.StartDMInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -14118,20 +13585,7 @@ func (ec *executionContext) _Mutation_setServerNotificationLevel(ctx context.Con
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().SetServerNotificationLevel(ctx, fc.Args["input"].(model.SetServerNotificationLevelInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.ViewerNotificationPreference
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ViewerNotificationPreference) graphql.Marshaler {
 			return ec.marshalNViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference(ctx, selections, v)
 		},
@@ -14175,20 +13629,7 @@ func (ec *executionContext) _Mutation_setRoomNotificationLevel(ctx context.Conte
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().SetRoomNotificationLevel(ctx, fc.Args["input"].(model.SetRoomNotificationLevelInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.ViewerNotificationPreference
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ViewerNotificationPreference) graphql.Marshaler {
 			return ec.marshalNViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference(ctx, selections, v)
 		},
@@ -14232,20 +13673,7 @@ func (ec *executionContext) _Mutation_dismissNotification(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DismissNotification(ctx, fc.Args["input"].(model.DismissNotificationInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14288,20 +13716,7 @@ func (ec *executionContext) _Mutation_dismissAllNotifications(ctx context.Contex
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Mutation().DismissAllNotifications(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -14325,20 +13740,7 @@ func (ec *executionContext) _Mutation_updateMyPresence(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateMyPresence(ctx, fc.Args["input"].(model.UpdateMyPresenceInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14382,20 +13784,7 @@ func (ec *executionContext) _Mutation_subscribeToPush(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().SubscribeToPush(ctx, fc.Args["input"].(model.PushSubscriptionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14439,20 +13828,7 @@ func (ec *executionContext) _Mutation_unsubscribeFromPush(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UnsubscribeFromPush(ctx, fc.Args["input"].(model.UnsubscribeFromPushInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14496,20 +13872,7 @@ func (ec *executionContext) _Mutation_createRoomGroup(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateRoomGroup(ctx, fc.Args["input"].(model.CreateRoomGroupInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomGroupModel
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomGroupModel) graphql.Marshaler {
 			return ec.marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModel(ctx, selections, v)
 		},
@@ -14553,20 +13916,7 @@ func (ec *executionContext) _Mutation_updateRoomGroup(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateRoomGroup(ctx, fc.Args["input"].(model.UpdateRoomGroupInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomGroupModel
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomGroupModel) graphql.Marshaler {
 			return ec.marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModel(ctx, selections, v)
 		},
@@ -14610,20 +13960,7 @@ func (ec *executionContext) _Mutation_deleteRoomGroup(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteRoomGroup(ctx, fc.Args["input"].(model.DeleteRoomGroupInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14667,20 +14004,7 @@ func (ec *executionContext) _Mutation_reorderRoomGroups(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ReorderRoomGroups(ctx, fc.Args["input"].(model.ReorderRoomGroupsInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.RoomGroupModel
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.RoomGroupModel) graphql.Marshaler {
 			return ec.marshalNRoomGroup2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModelᚄ(ctx, selections, v)
 		},
@@ -14724,20 +14048,7 @@ func (ec *executionContext) _Mutation_moveRoomToSet(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().MoveRoomToSet(ctx, fc.Args["input"].(model.MoveRoomToSetInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -14781,20 +14092,7 @@ func (ec *executionContext) _Mutation_reorderRoomsInGroup(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ReorderRoomsInGroup(ctx, fc.Args["input"].(model.ReorderRoomsInGroupInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomGroupModel
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomGroupModel) graphql.Marshaler {
 			return ec.marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModel(ctx, selections, v)
 		},
@@ -14838,20 +14136,7 @@ func (ec *executionContext) _Mutation_grantGroupPermission(ctx context.Context, 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().GrantGroupPermission(ctx, fc.Args["input"].(model.GroupPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14895,20 +14180,7 @@ func (ec *executionContext) _Mutation_denyGroupPermission(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DenyGroupPermission(ctx, fc.Args["input"].(model.GroupPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -14952,20 +14224,7 @@ func (ec *executionContext) _Mutation_clearGroupPermissionState(ctx context.Cont
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ClearGroupPermissionState(ctx, fc.Args["input"].(model.GroupPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15009,20 +14268,7 @@ func (ec *executionContext) _Mutation_grantPermission(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().GrantPermission(ctx, fc.Args["input"].(model.GrantPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15066,20 +14312,7 @@ func (ec *executionContext) _Mutation_revokePermission(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RevokePermission(ctx, fc.Args["input"].(model.RevokePermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15123,20 +14356,7 @@ func (ec *executionContext) _Mutation_denyPermission(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DenyPermission(ctx, fc.Args["input"].(model.DenyPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15180,20 +14400,7 @@ func (ec *executionContext) _Mutation_clearPermissionState(ctx context.Context, 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ClearPermissionState(ctx, fc.Args["input"].(model.ClearPermissionStateInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15237,20 +14444,7 @@ func (ec *executionContext) _Mutation_createRole(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateRole(ctx, fc.Args["input"].(model.CreateRoleInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *core.RoleWithPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *core.RoleWithPermissions) graphql.Marshaler {
 			return ec.marshalNRole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions(ctx, selections, v)
 		},
@@ -15294,20 +14488,7 @@ func (ec *executionContext) _Mutation_updateRole(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateRole(ctx, fc.Args["input"].(model.UpdateRoleInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *core.RoleWithPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *core.RoleWithPermissions) graphql.Marshaler {
 			return ec.marshalNRole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions(ctx, selections, v)
 		},
@@ -15351,20 +14532,7 @@ func (ec *executionContext) _Mutation_deleteRole(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteRole(ctx, fc.Args["input"].(model.DeleteRoleInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15408,20 +14576,7 @@ func (ec *executionContext) _Mutation_assignRole(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().AssignRole(ctx, fc.Args["input"].(model.AssignRoleInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15465,20 +14620,7 @@ func (ec *executionContext) _Mutation_revokeRole(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RevokeRole(ctx, fc.Args["input"].(model.RevokeRoleInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15522,20 +14664,7 @@ func (ec *executionContext) _Mutation_reorderRoles(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ReorderRoles(ctx, fc.Args["input"].(model.ReorderRolesInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*core.RoleWithPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*core.RoleWithPermissions) graphql.Marshaler {
 			return ec.marshalNRole2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissionsᚄ(ctx, selections, v)
 		},
@@ -15579,20 +14708,7 @@ func (ec *executionContext) _Mutation_grantUserPermission(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().GrantUserPermission(ctx, fc.Args["input"].(model.GrantUserPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15636,20 +14752,7 @@ func (ec *executionContext) _Mutation_denyUserPermission(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DenyUserPermission(ctx, fc.Args["input"].(model.DenyUserPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15693,20 +14796,7 @@ func (ec *executionContext) _Mutation_clearUserPermissionState(ctx context.Conte
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ClearUserPermissionState(ctx, fc.Args["input"].(model.ClearUserPermissionStateInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15750,20 +14840,7 @@ func (ec *executionContext) _Mutation_grantRoomPermission(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().GrantRoomPermission(ctx, fc.Args["input"].(model.GrantRoomPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15807,20 +14884,7 @@ func (ec *executionContext) _Mutation_denyRoomPermission(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DenyRoomPermission(ctx, fc.Args["input"].(model.DenyRoomPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15864,20 +14928,7 @@ func (ec *executionContext) _Mutation_clearRoomPermission(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ClearRoomPermission(ctx, fc.Args["input"].(model.ClearRoomPermissionInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -15921,20 +14972,7 @@ func (ec *executionContext) _Mutation_updateSettings(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateSettings(ctx, fc.Args["input"].(model.UpdateSettingsInput))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.UserSettings
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.UserSettings) graphql.Marshaler {
 			return ec.marshalNUserSettings2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserSettings(ctx, selections, v)
 		},
@@ -17656,20 +16694,7 @@ func (ec *executionContext) _Query_room(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Room(ctx, fc.Args["roomId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 			return ec.marshalORoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
 		},
@@ -17713,20 +16738,7 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().User(ctx, fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -17770,20 +16782,7 @@ func (ec *executionContext) _Query_userByLogin(ctx context.Context, field graphq
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().UserByLogin(ctx, fc.Args["login"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -17827,20 +16826,7 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Users(ctx, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.UsersConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.UsersConnection) graphql.Marshaler {
 			return ec.marshalNUsersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUsersConnection(ctx, selections, v)
 		},
@@ -17883,7 +16869,20 @@ func (ec *executionContext) _Query_admin(ctx context.Context, field graphql.Coll
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Admin(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.AdminQueries
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminQueries) graphql.Marshaler {
 			return ec.marshalOAdminQueries2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminQueries(ctx, selections, v)
 		},
@@ -17916,20 +16915,7 @@ func (ec *executionContext) _Query_linkPreview(ctx context.Context, field graphq
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().LinkPreview(ctx, fc.Args["url"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.LinkPreview
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.LinkPreview) graphql.Marshaler {
 			return ec.marshalOLinkPreview2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐLinkPreview(ctx, selections, v)
 		},
@@ -17973,20 +16959,7 @@ func (ec *executionContext) _Query_permissionExplanation(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().PermissionExplanation(ctx, fc.Args["userId"].(string), fc.Args["roomId"].(*string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.PermissionExplanation
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.PermissionExplanation) graphql.Marshaler {
 			return ec.marshalNPermissionExplanation2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐPermissionExplanationᚄ(ctx, selections, v)
 		},
@@ -18030,20 +17003,7 @@ func (ec *executionContext) _Query_rolePermissionMatrix(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().RolePermissionMatrix(ctx, fc.Args["roleName"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RolePermissionMatrix
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RolePermissionMatrix) graphql.Marshaler {
 			return ec.marshalORolePermissionMatrix2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRolePermissionMatrix(ctx, selections, v)
 		},
@@ -18087,20 +17047,7 @@ func (ec *executionContext) _Query_rolePermissions(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().RolePermissions(ctx, fc.Args["roleName"].(string), fc.Args["roomId"].(*string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoleAcrossTiers
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoleAcrossTiers) graphql.Marshaler {
 			return ec.marshalORoleAcrossTiers2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoleAcrossTiers(ctx, selections, v)
 		},
@@ -18144,20 +17091,7 @@ func (ec *executionContext) _Query_tierRoles(ctx context.Context, field graphql.
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().TierRoles(ctx, fc.Args["roomId"].(*string), fc.Args["groupId"].(*string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.TierRoles
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.TierRoles) graphql.Marshaler {
 			return ec.marshalOTierRoles2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierRoles(ctx, selections, v)
 		},
@@ -18200,7 +17134,20 @@ func (ec *executionContext) _Query_server(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Server(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.Server
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -18232,7 +17179,20 @@ func (ec *executionContext) _Query_viewer(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Viewer(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.Viewer
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
 			return ec.marshalOViewer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewer(ctx, selections, v)
 		},
@@ -18265,20 +17225,7 @@ func (ec *executionContext) _Query_userPermissionMatrix(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().UserPermissionMatrix(ctx, fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.UserPermissionMatrix
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.UserPermissionMatrix) graphql.Marshaler {
 			return ec.marshalOUserPermissionMatrix2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionMatrix(ctx, selections, v)
 		},
@@ -18321,20 +17268,7 @@ func (ec *executionContext) _Query_activeCallRoomIds(ctx context.Context, field 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().ActiveCallRoomIds(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNID2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -19578,20 +18512,7 @@ func (ec *executionContext) _Room_members(ctx context.Context, field graphql.Col
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Room().Members(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomMembersConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomMembersConnection) graphql.Marshaler {
 			return ec.marshalNRoomMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomMembersConnection(ctx, selections, v)
 		},
@@ -19634,7 +18555,20 @@ func (ec *executionContext) _Room_hasUnread(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().HasUnread(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19657,7 +18591,20 @@ func (ec *executionContext) _Room_viewerCanPostMessage(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanPostMessage(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19680,7 +18627,20 @@ func (ec *executionContext) _Room_viewerCanPostInThread(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanPostInThread(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19703,7 +18663,20 @@ func (ec *executionContext) _Room_viewerCanReact(ctx context.Context, field grap
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanReact(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19726,7 +18699,20 @@ func (ec *executionContext) _Room_viewerCanManageOthersMessage(ctx context.Conte
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanManageOthersMessage(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19749,7 +18735,20 @@ func (ec *executionContext) _Room_viewerCanListRoom(ctx context.Context, field g
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanListRoom(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19772,7 +18771,20 @@ func (ec *executionContext) _Room_viewerCanJoinRoom(ctx context.Context, field g
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanJoinRoom(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19795,7 +18807,20 @@ func (ec *executionContext) _Room_viewerCanEchoMessage(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanEchoMessage(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19818,7 +18843,20 @@ func (ec *executionContext) _Room_viewerCanManageRoom(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanManageRoom(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19888,20 +18926,7 @@ func (ec *executionContext) _Room_events(ctx context.Context, field graphql.Coll
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Room().Events(ctx, obj, fc.Args["limit"].(*int32), fc.Args["before"].(*string), fc.Args["after"].(*string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomEventsConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomEventsConnection) graphql.Marshaler {
 			return ec.marshalNRoomEventsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomEventsConnection(ctx, selections, v)
 		},
@@ -19945,20 +18970,7 @@ func (ec *executionContext) _Room_event(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Room().Event(ctx, obj, fc.Args["eventId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal core.EventEnvelope
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
 			return ec.marshalOEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx, selections, v)
 		},
@@ -20002,20 +19014,7 @@ func (ec *executionContext) _Room_eventsAround(ctx context.Context, field graphq
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Room().EventsAround(ctx, obj, fc.Args["eventId"].(string), fc.Args["limit"].(*int32))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.RoomEventsAroundResult
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomEventsAroundResult) graphql.Marshaler {
 			return ec.marshalNRoomEventsAroundResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomEventsAroundResult(ctx, selections, v)
 		},
@@ -20058,20 +19057,7 @@ func (ec *executionContext) _Room_voiceCallToken(ctx context.Context, field grap
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().VoiceCallToken(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *core.VoiceCallToken
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *core.VoiceCallToken) graphql.Marshaler {
 			return ec.marshalOVoiceCallToken2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐVoiceCallToken(ctx, selections, v)
 		},
@@ -20103,20 +19089,7 @@ func (ec *executionContext) _Room_callParticipants(ctx context.Context, field gr
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().CallParticipants(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.CallParticipant
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.CallParticipant) graphql.Marshaler {
 			return ec.marshalNCallParticipant2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCallParticipantᚄ(ctx, selections, v)
 		},
@@ -20148,7 +19121,20 @@ func (ec *executionContext) _Room_viewerNotificationPreference(ctx context.Conte
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerNotificationPreference(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.ViewerNotificationPreference
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ViewerNotificationPreference) graphql.Marshaler {
 			return ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference(ctx, selections, v)
 		},
@@ -20180,20 +19166,7 @@ func (ec *executionContext) _Room_roomPermissionOverrides(ctx context.Context, f
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().RoomPermissionOverrides(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.RoleRoomPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.RoleRoomPermissions) graphql.Marshaler {
 			return ec.marshalNRoleRoomPermissions2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoleRoomPermissionsᚄ(ctx, selections, v)
 		},
@@ -20225,7 +19198,20 @@ func (ec *executionContext) _Room_availableRoomPermissions(ctx context.Context, 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().AvailableRoomPermissions(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -21360,7 +20346,20 @@ func (ec *executionContext) _Server_version(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return obj.Version, nil
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
 			return ec.marshalNString2string(ctx, selections, v)
 		},
@@ -21383,7 +20382,20 @@ func (ec *executionContext) _Server_enabledAuthProviders(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return obj.EnabledAuthProviders, nil
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -21406,7 +20418,20 @@ func (ec *executionContext) _Server_config(ctx context.Context, field graphql.Co
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().Config(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.ServerConfig
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ServerConfig) graphql.Marshaler {
 			return ec.marshalNServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerConfig(ctx, selections, v)
 		},
@@ -21438,7 +20463,20 @@ func (ec *executionContext) _Server_pushNotificationsEnabled(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().PushNotificationsEnabled(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21461,7 +20499,20 @@ func (ec *executionContext) _Server_vapidPublicKey(ctx context.Context, field gr
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().VapidPublicKey(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -21484,7 +20535,20 @@ func (ec *executionContext) _Server_livekitUrl(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().LivekitURL(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -21507,7 +20571,20 @@ func (ec *executionContext) _Server_directRegistrationEnabled(ctx context.Contex
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().DirectRegistrationEnabled(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21530,7 +20607,20 @@ func (ec *executionContext) _Server_videoProcessingEnabled(ctx context.Context, 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().VideoProcessingEnabled(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21553,7 +20643,20 @@ func (ec *executionContext) _Server_maxUploadSize(ctx context.Context, field gra
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MaxUploadSize(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal int32
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21576,7 +20679,20 @@ func (ec *executionContext) _Server_maxVideoUploadSize(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MaxVideoUploadSize(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal int32
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21599,7 +20715,20 @@ func (ec *executionContext) _Server_messageEditWindowSeconds(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MessageEditWindowSeconds(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal int32
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21623,20 +20752,7 @@ func (ec *executionContext) _Server_rooms(ctx context.Context, field graphql.Col
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().Rooms(ctx, obj, fc.Args["type"].(*model.RoomType))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ(ctx, selections, v)
 		},
@@ -21679,20 +20795,7 @@ func (ec *executionContext) _Server_roomGroups(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().RoomGroups(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.RoomGroupModel
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.RoomGroupModel) graphql.Marshaler {
 			return ec.marshalNRoomGroup2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModelᚄ(ctx, selections, v)
 		},
@@ -21724,7 +20827,20 @@ func (ec *executionContext) _Server_memberCount(ctx context.Context, field graph
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MemberCount(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal int32
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21747,7 +20863,20 @@ func (ec *executionContext) _Server_roomCount(ctx context.Context, field graphql
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().RoomCount(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal int32
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21770,7 +20899,20 @@ func (ec *executionContext) _Server_assetCount(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().AssetCount(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal int32
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -21793,7 +20935,20 @@ func (ec *executionContext) _Server_viewerHasAnyAdminPermission(ctx context.Cont
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerHasAnyAdminPermission(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21816,7 +20971,20 @@ func (ec *executionContext) _Server_viewerCanManageServer(ctx context.Context, f
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanManageServer(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21839,7 +21007,20 @@ func (ec *executionContext) _Server_viewerCanCreateRoom(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanCreateRoom(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21862,7 +21043,20 @@ func (ec *executionContext) _Server_viewerCanManageRooms(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanManageRooms(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21885,7 +21079,20 @@ func (ec *executionContext) _Server_viewerHasUnreadRooms(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerHasUnreadRooms(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21908,7 +21115,20 @@ func (ec *executionContext) _Server_viewerNotificationPreference(ctx context.Con
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerNotificationPreference(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.ViewerNotificationPreference
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ViewerNotificationPreference) graphql.Marshaler {
 			return ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference(ctx, selections, v)
 		},
@@ -21941,20 +21161,7 @@ func (ec *executionContext) _Server_member(ctx context.Context, field graphql.Co
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().Member(ctx, obj, fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -21998,20 +21205,7 @@ func (ec *executionContext) _Server_members(ctx context.Context, field graphql.C
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().Members(ctx, obj, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.ServerMembersConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ServerMembersConnection) graphql.Marshaler {
 			return ec.marshalNServerMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerMembersConnection(ctx, selections, v)
 		},
@@ -22054,20 +21248,7 @@ func (ec *executionContext) _Server_roles(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().Roles(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*core.RoleWithPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*core.RoleWithPermissions) graphql.Marshaler {
 			return ec.marshalNRole2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissionsᚄ(ctx, selections, v)
 		},
@@ -22100,20 +21281,7 @@ func (ec *executionContext) _Server_role(ctx context.Context, field graphql.Coll
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().Role(ctx, obj, fc.Args["name"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *core.RoleWithPermissions
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *core.RoleWithPermissions) graphql.Marshaler {
 			return ec.marshalORole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions(ctx, selections, v)
 		},
@@ -22156,7 +21324,20 @@ func (ec *executionContext) _Server_availablePermissions(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().AvailablePermissions(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -22179,7 +21360,20 @@ func (ec *executionContext) _Server_viewerPermissions(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerPermissions(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -22202,7 +21396,20 @@ func (ec *executionContext) _Server_viewerCanManageRoles(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanManageRoles(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -22225,7 +21432,20 @@ func (ec *executionContext) _Server_viewerCanAssignRoles(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanAssignRoles(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -22249,7 +21469,20 @@ func (ec *executionContext) _Server_viewerCanManageUser(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().ViewerCanManageUser(ctx, obj, fc.Args["userId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -22293,20 +21526,7 @@ func (ec *executionContext) _Server_roleUsers(ctx context.Context, field graphql
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().RoleUsers(ctx, obj, fc.Args["roleName"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.User) graphql.Marshaler {
 			return ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ(ctx, selections, v)
 		},
@@ -22350,20 +21570,7 @@ func (ec *executionContext) _Server_userEffectivePermissions(ctx context.Context
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().UserEffectivePermissions(ctx, obj, fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -22407,20 +21614,7 @@ func (ec *executionContext) _Server_userEffectiveDenials(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().UserEffectiveDenials(ctx, obj, fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -22463,7 +21657,20 @@ func (ec *executionContext) _ServerConfig_serverName(ctx context.Context, field 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.ServerConfig().ServerName(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
 			return ec.marshalNString2string(ctx, selections, v)
 		},
@@ -22487,7 +21694,20 @@ func (ec *executionContext) _ServerConfig_logoUrl(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.ServerConfig().LogoURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -22531,7 +21751,20 @@ func (ec *executionContext) _ServerConfig_bannerUrl(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.ServerConfig().BannerURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -22574,7 +21807,20 @@ func (ec *executionContext) _ServerConfig_welcomeMessage(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.ServerConfig().WelcomeMessage(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -22597,7 +21843,20 @@ func (ec *executionContext) _ServerConfig_motd(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.ServerConfig().Motd(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -22620,7 +21879,20 @@ func (ec *executionContext) _ServerConfig_description(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.ServerConfig().Description(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
 			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
@@ -23066,20 +22338,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().MyEvents(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal core.EventEnvelope
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
 			return ec.marshalNEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx, selections, v)
 		},
@@ -23831,20 +23090,7 @@ func (ec *executionContext) _User_rooms(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.User().Rooms(ctx, obj, fc.Args["type"].(*model.RoomType))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*corev1.Room
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*corev1.Room) graphql.Marshaler {
 			return ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ(ctx, selections, v)
 		},
@@ -23956,20 +23202,7 @@ func (ec *executionContext) _User_roomNotificationPreferences(ctx context.Contex
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.User().RoomNotificationPreferences(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal []*model.RoomNotificationPreferenceItem
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.RoomNotificationPreferenceItem) graphql.Marshaler {
 			return ec.marshalNRoomNotificationPreferenceItem2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomNotificationPreferenceItemᚄ(ctx, selections, v)
 		},
@@ -25191,20 +24424,7 @@ func (ec *executionContext) _Viewer_user(ctx context.Context, field graphql.Coll
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().User(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *corev1.User
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -25236,20 +24456,7 @@ func (ec *executionContext) _Viewer_canViewAdmin(ctx context.Context, field grap
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanViewAdmin(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25272,20 +24479,7 @@ func (ec *executionContext) _Viewer_canStartDMs(ctx context.Context, field graph
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanStartDMs(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25308,20 +24502,7 @@ func (ec *executionContext) _Viewer_canAdminViewUsers(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanAdminViewUsers(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25344,20 +24525,7 @@ func (ec *executionContext) _Viewer_canAdminManageUsers(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanAdminManageUsers(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25380,20 +24548,7 @@ func (ec *executionContext) _Viewer_canAdminViewRoles(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanAdminViewRoles(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25416,20 +24571,7 @@ func (ec *executionContext) _Viewer_canAdminManageRoles(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanAdminManageRoles(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25452,20 +24594,7 @@ func (ec *executionContext) _Viewer_canAdminViewSystem(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanAdminViewSystem(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25488,20 +24617,7 @@ func (ec *executionContext) _Viewer_canAdminViewAudit(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().CanAdminViewAudit(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25525,20 +24641,7 @@ func (ec *executionContext) _Viewer_notifications(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Viewer().Notifications(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.NotificationsConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.NotificationsConnection) graphql.Marshaler {
 			return ec.marshalNNotificationsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationsConnection(ctx, selections, v)
 		},
@@ -25581,20 +24684,7 @@ func (ec *executionContext) _Viewer_hasNotifications(ctx context.Context, field 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().HasNotifications(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -25618,20 +24708,7 @@ func (ec *executionContext) _Viewer_followedThreads(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Viewer().FollowedThreads(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal *model.FollowedThreadsConnection
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.FollowedThreadsConnection) graphql.Marshaler {
 			return ec.marshalNFollowedThreadsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadsConnection(ctx, selections, v)
 		},
@@ -25674,20 +24751,7 @@ func (ec *executionContext) _Viewer_hasUnreadFollowedThreads(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Viewer().HasUnreadFollowedThreads(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Authenticated == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive authenticated is not implemented")
-				}
-				return ec.Directives.Authenticated(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},

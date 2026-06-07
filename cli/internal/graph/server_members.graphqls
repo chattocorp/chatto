@@ -13,7 +13,7 @@ extend type Server {
   Get a single member of this server by user ID.
   Returns null if the user is not a member.
   """
-  member(userId: ID!): User @authenticated @goField(forceResolver: true)
+  member(userId: ID!): User @goField(forceResolver: true)
 
   """
   List members of this server with optional search and pagination.
@@ -26,5 +26,5 @@ extend type Server {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): ServerMembersConnection! @authenticated @goField(forceResolver: true)
+  ): ServerMembersConnection! @goField(forceResolver: true)
 }

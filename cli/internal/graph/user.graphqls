@@ -28,7 +28,7 @@ type User {
   Pass `type: CHANNEL` for channels-only consumers; pass `type: DM` for DMs-only.
   Null returns both (channels + the caller's DMs).
   """
-  rooms(type: RoomType): [Room!]! @authenticated @goField(forceResolver: true)
+  rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
   "Roles assigned to this user. Visible to any authenticated user."
   roles: [String!]! @goField(forceResolver: true)
   "Whether the currently authenticated user can delete this account."

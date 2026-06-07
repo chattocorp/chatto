@@ -42,6 +42,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	config := graph.NewConfig(resolver)
 
 	h := handler.New(graph.NewExecutableSchema(config))
+	h.AroundFields(graph.DefaultAuthFieldMiddleware)
 
 	// Add request timing middleware
 	h.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {

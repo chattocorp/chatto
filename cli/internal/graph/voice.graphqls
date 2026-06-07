@@ -36,7 +36,7 @@ extend type Query {
   Returns empty list if LiveKit is not configured.
   Requires server membership.
   """
-  activeCallRoomIds: [ID!]! @authenticated
+  activeCallRoomIds: [ID!]!
 }
 
 # ==============================================================================

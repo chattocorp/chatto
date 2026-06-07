@@ -316,7 +316,7 @@ type MessagePostedEvent {
   this message is itself a thread reply. Replies are returned in chronological
   order and do not include this root event.
   """
-  threadReplies: [Event!]! @authenticated @goField(forceResolver: true)
+  threadReplies: [Event!]! @goField(forceResolver: true)
 }
 
 """

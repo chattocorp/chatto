@@ -90,18 +90,18 @@ extend type Viewer {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): NotificationsConnection! @authenticated @goField(forceResolver: true)
+  ): NotificationsConnection! @goField(forceResolver: true)
 
   "Whether the current user has any notifications (for bell icon indicator)."
-  hasNotifications: Boolean! @authenticated @goField(forceResolver: true)
+  hasNotifications: Boolean! @goField(forceResolver: true)
 }
 
 extend type Mutation {
   "Dismiss a single notification. Returns true if it existed and was dismissed."
-  dismissNotification(input: DismissNotificationInput!): Boolean! @authenticated
+  dismissNotification(input: DismissNotificationInput!): Boolean!
 
   "Dismiss all notifications for the current user. Returns count of dismissed notifications."
-  dismissAllNotifications: Int! @authenticated
+  dismissAllNotifications: Int!
 }
 
 """

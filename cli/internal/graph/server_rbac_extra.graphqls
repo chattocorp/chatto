@@ -1,21 +1,21 @@
 extend type Server {
   "List all roles on this server."
-  roles: [Role!]! @authenticated @goField(forceResolver: true)
+  roles: [Role!]! @goField(forceResolver: true)
 
   "Get a single role by name. Returns null if not found."
-  role(name: String!): Role @authenticated @goField(forceResolver: true)
+  role(name: String!): Role @goField(forceResolver: true)
 
   "List all available permission identifiers."
-  availablePermissions: [String!]! @goField(forceResolver: true)
+  availablePermissions: [String!]! @public @goField(forceResolver: true)
 
   "Get the current user's permissions on this server."
-  viewerPermissions: [String!]! @goField(forceResolver: true)
+  viewerPermissions: [String!]! @public @goField(forceResolver: true)
 
   "Whether the current user can manage roles (has role.manage permission)."
-  viewerCanManageRoles: Boolean! @goField(forceResolver: true)
+  viewerCanManageRoles: Boolean! @public @goField(forceResolver: true)
 
   "Whether the current user can assign roles to users (has role.assign permission)."
-  viewerCanAssignRoles: Boolean! @goField(forceResolver: true)
+  viewerCanAssignRoles: Boolean! @public @goField(forceResolver: true)
 
   """
   UI hint reporting whether the viewer outranks the target user by role
@@ -25,10 +25,10 @@ extend type Server {
   affordances; never as the sole basis for permitting a mutation. See
   `.claude/rules/authorization.md` (`permission AND OutranksUser`).
   """
-  viewerCanManageUser(userId: ID!): Boolean! @goField(forceResolver: true)
+  viewerCanManageUser(userId: ID!): Boolean! @public @goField(forceResolver: true)
 
   "Get users assigned to a specific role."
-  roleUsers(roleName: String!): [User!]! @authenticated @goField(forceResolver: true)
+  roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
 
   """
   Get a user's effective allowed permissions at server scope. Combines
@@ -36,14 +36,14 @@ extend type Server {
   `denyUserPermission`) — the same answer the authorization resolver
   produces. For per-decision provenance use the permission explainer.
   """
-  userEffectivePermissions(userId: ID!): [String!]! @authenticated @goField(forceResolver: true)
+  userEffectivePermissions(userId: ID!): [String!]! @goField(forceResolver: true)
 
   """
   Get a user's effective denied permissions at server scope. Mirrors
   `userEffectivePermissions` but lists permissions whose first decision
   is a deny.
   """
-  userEffectiveDenials(userId: ID!): [String!]! @authenticated @goField(forceResolver: true)
+  userEffectiveDenials(userId: ID!): [String!]! @goField(forceResolver: true)
 }
 
 # ============================================================================
@@ -74,10 +74,10 @@ type RoleRoomPermissions {
 
 extend type Room {
   "Room-level permission overrides for all roles."
-  roomPermissionOverrides: [RoleRoomPermissions!]! @authenticated @goField(forceResolver: true)
+  roomPermissionOverrides: [RoleRoomPermissions!]! @goField(forceResolver: true)
 
   "Permissions configurable at room scope."
-  availableRoomPermissions: [String!]! @goField(forceResolver: true)
+  availableRoomPermissions: [String!]! @public @goField(forceResolver: true)
 }
 
 extend type Mutation {
@@ -86,21 +86,21 @@ extend type Mutation {
   Clears any existing denial for the same permission in this room.
   Requires: role.manage permission.
   """
-  grantRoomPermission(input: GrantRoomPermissionInput!): Boolean! @authenticated
+  grantRoomPermission(input: GrantRoomPermissionInput!): Boolean!
 
   """
   Deny a permission for a role at room level. Overrides server-level state for this room.
   Clears any existing grant for the same permission in this room.
   Requires: role.manage permission.
   """
-  denyRoomPermission(input: DenyRoomPermissionInput!): Boolean! @authenticated
+  denyRoomPermission(input: DenyRoomPermissionInput!): Boolean!
 
   """
   Clear room-level grant and denial for a permission on a role.
   Returns the permission to neutral (inherit from server defaults).
   Requires: role.manage permission.
   """
-  clearRoomPermission(input: ClearRoomPermissionInput!): Boolean! @authenticated
+  clearRoomPermission(input: ClearRoomPermissionInput!): Boolean!
 }
 
 """
