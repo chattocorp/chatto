@@ -568,6 +568,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.DeprecatedA
 			c.logger.Info("Cleaned up orphaned S3 asset", "asset_id", s3Asset.Key, "s3_key", s3Key)
 		}
 	}
+	c.deleteCachedResizesForServerAsset(ctx, assetIDFromAsset(asset), "orphaned asset", "")
 }
 
 // deleteAsset deletes a server asset from its storage backend (NATS or S3).
@@ -593,6 +594,24 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.DeprecatedAs
 		} else {
 			c.logger.Info("Deleted old S3 "+assetType, "owner_id", ownerID, "asset_id", s3Asset.Key, "s3_key", s3Key)
 		}
+	}
+	c.deleteCachedResizesForServerAsset(ctx, assetIDFromAsset(asset), assetType, ownerID)
+}
+
+func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) {
+	deletedCount, cacheErr := c.DeleteCachedResizesForServerAsset(ctx, assetID)
+	if cacheErr != nil {
+		c.logger.Warn("Failed to delete cached resizes for server asset",
+			"asset_id", assetID,
+			"asset_type", assetType,
+			"owner_id", ownerID,
+			"error", cacheErr)
+	} else if deletedCount > 0 {
+		c.logger.Debug("Deleted cached resizes for server asset",
+			"asset_id", assetID,
+			"asset_type", assetType,
+			"owner_id", ownerID,
+			"deleted_count", deletedCount)
 	}
 }
 

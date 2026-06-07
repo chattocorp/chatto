@@ -663,7 +663,7 @@ Notes: Content-Type stored in object headers. S2 compression enabled. Server log
 | `attachment.{attachmentId}.{paramsHash}`  | Cached WebP image at specific dimensions     |
 | `server.{assetId}.{paramsHash}`           | Cached WebP transform of a server asset      |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled. Pre-ADR-030-Phase-4 entries written under a `{server|DM}.…` prefix are no longer looked up after the kind-less URL switchover and age out via TTL.
+Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled. Pre-ADR-030-Phase-4 entries written under a `{server|DM}.…` prefix are no longer looked up after the kind-less URL switchover and age out via TTL.
 
 **SERVER\_ASSETS keys (primary + DM, post phase 4e):**
 

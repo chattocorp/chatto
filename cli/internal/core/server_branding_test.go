@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -57,5 +58,35 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	}
 	if got != nil {
 		t.Fatalf("expected logo to be cleared, got %+v", got)
+	}
+}
+
+func TestChattoCore_DeleteServerBranding_CleansUpCache(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	logo, err := core.UploadServerLogo(ctx, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("UploadServerLogo failed: %v", err)
+	}
+	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
+		t.Fatalf("SetServerLogo failed: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(ServerAssetSignResource, assetIDFromAsset(logo), 64, 64, "cover")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("StoreCachedResize failed: %v", err)
+	}
+
+	if err := core.DeleteServerLogo(ctx, "admin"); err != nil {
+		t.Fatalf("DeleteServerLogo failed: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("GetCachedResize failed: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Server branding cache entry should be deleted")
 	}
 }

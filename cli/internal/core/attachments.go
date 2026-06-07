@@ -595,12 +595,22 @@ func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.Attachm
 }
 
 // DeleteAttachmentFromStorage deletes an attachment's binary and its
-// cached resizes. Requires `Storage` to be populated.
+// cached resizes. When Storage is missing for legacy imported derivatives,
+// it falls back to known backend key layouts by attachment ID.
 func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
-	if attachment == nil || attachment.Storage == nil {
-		return fmt.Errorf("attachment has no storage info")
+	if attachment == nil {
+		return fmt.Errorf("attachment is nil")
 	}
 
+	deleteErr := c.deleteAttachmentBinary(ctx, attachment)
+	c.deleteCachedResizesForAttachment(ctx, attachment.Id)
+	return deleteErr
+}
+
+func (c *ChattoCore) deleteAttachmentBinary(ctx context.Context, attachment *corev1.Attachment) error {
+	if attachment.Storage == nil {
+		return c.deleteAttachmentBinaryByID(ctx, attachment.Id)
+	}
 	switch storage := attachment.Storage.Asset.(type) {
 	case *corev1.DeprecatedAsset_Nats:
 		store, err := c.GetAttachmentsStore(ctx)
@@ -622,19 +632,58 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	default:
 		return fmt.Errorf("attachment %s has unknown storage backend", attachment.Id)
 	}
+	return nil
+}
 
-	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachment.Id)
+func (c *ChattoCore) deleteAttachmentBinaryByID(ctx context.Context, attachmentID string) error {
+	if attachmentID == "" {
+		return fmt.Errorf("attachment has no id")
+	}
+
+	var natsErr error
+	store, err := c.GetAttachmentsStore(ctx)
+	if err != nil {
+		natsErr = fmt.Errorf("failed to get attachments store: %w", err)
+	} else if err := store.Delete(ctx, attachmentID); err == nil {
+		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachmentID, "key", attachmentID)
+		return nil
+	} else {
+		natsErr = fmt.Errorf("failed to delete attachment from NATS: %w", err)
+	}
+
+	if c.s3Client != nil {
+		var s3Err error
+		for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
+			if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
+				s3Err = err
+				continue
+			}
+			if err := c.s3Client.DeleteObjectFromBucket(ctx, c.s3Client.Bucket(), s3Key); err != nil {
+				s3Err = err
+				continue
+			}
+			c.logger.Debug("Deleted S3 attachment", "attachment_id", attachmentID, "s3_key", s3Key)
+			return nil
+		}
+		if s3Err != nil {
+			return fmt.Errorf("failed to delete attachment %s from known backends: nats: %v; s3: %w", attachmentID, natsErr, s3Err)
+		}
+	}
+
+	return natsErr
+}
+
+func (c *ChattoCore) deleteCachedResizesForAttachment(ctx context.Context, attachmentID string) {
+	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for attachment",
-			"attachment_id", attachment.Id,
+			"attachment_id", attachmentID,
 			"error", cacheErr)
 	} else if deletedCount > 0 {
 		c.logger.Debug("Deleted cached resizes for attachment",
-			"attachment_id", attachment.Id,
+			"attachment_id", attachmentID,
 			"deleted_count", deletedCount)
 	}
-
-	return nil
 }
 
 // DeleteVideoDerivativesForAttachment deletes generated thumbnail/variant
@@ -797,6 +846,12 @@ func (c *ChattoCore) probePresignedAttachmentURL(ctx context.Context, attachment
 // signed-URL signer for attachment transform URLs (after the locator).
 // Stable so existing signatures continue to verify across deployments.
 const AttachmentSignResource = "attachment"
+
+// ServerAssetSignResource is the first resource component fed to the
+// signed-URL signer for server asset transform URLs and the cache prefix for
+// transformed server assets (avatars, logos, banners, and similar public
+// server-scoped images).
+const ServerAssetSignResource = "server"
 
 // AttachmentURLTTL is how long an attachment URL stays valid after it's
 // signed. Short on purpose: the signed locator is a standalone capability
@@ -971,8 +1026,8 @@ func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string)
 // Format: /assets/server/{key}/t/{params}.{signature}
 // where {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}
 func (c *ChattoCore) GetTransformedServerAssetURL(key string, width, height int, fit string) string {
-	// Generate signed transform path component using "server" as the first resource ID
-	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, "server", key, width, height, fit)
+	// Generate signed transform path component using the server asset resource ID.
+	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, ServerAssetSignResource, key, width, height, fit)
 
 	// Return signed transform URL
 	return c.assetURL(fmt.Sprintf("/assets/server/%s/t/%s", key, signedPath))
@@ -1049,10 +1104,19 @@ func (c *ChattoCore) DeleteCachedResizesForAttachment(ctx context.Context, attac
 	return c.DeleteCachedResizesForKey(ctx, AttachmentSignResource, attachmentID)
 }
 
+// DeleteCachedResizesForServerAsset deletes all cached resizes for a server
+// asset such as a user avatar or server branding image.
+func (c *ChattoCore) DeleteCachedResizesForServerAsset(ctx context.Context, assetID string) (int, error) {
+	return c.DeleteCachedResizesForKey(ctx, ServerAssetSignResource, assetID)
+}
+
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
 // Returns the number of deleted cache entries and any error encountered.
 // Does nothing if the cache is disabled.
 func (c *ChattoCore) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
+	if prefix == "" || assetKey == "" {
+		return 0, nil
+	}
 	if c.storage.imageCacheStore == nil {
 		return 0, nil
 	}
