@@ -77,9 +77,10 @@ func (x *UserKeyEncryptionKey) GetAlgorithm() string {
 }
 
 // UserDataEncryptionKey is the wrapped data-encryption-key record stored in
-// ENCRYPTION_KEYS under UserDEKGeneratedEvent.content_key_ref. It is
-// deliberately outside EVT so crypto-shredding can destroy key material
-// without mutating event history.
+// RUNTIME_STATE under UserDEKGeneratedEvent.content_key_ref. It is deliberately
+// outside EVT so crypto-shredding can destroy key material without mutating
+// event history, but it remains part of normal data backups because the record
+// is unusable without the KMS KEK referenced by wrapping_key_ref.
 type UserDataEncryptionKey struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	EncryptedContentKey []byte                 `protobuf:"bytes,1,opt,name=encrypted_content_key,json=encryptedContentKey,proto3" json:"encrypted_content_key,omitempty"`

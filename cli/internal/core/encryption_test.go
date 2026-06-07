@@ -98,6 +98,10 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotEmpty(t, storedContentKey.GetEncryptedContentKey(), "wrapped DEK should be stored in DEK storage")
 	require.NotEmpty(t, storedContentKey.GetContentKeyNonce(), "wrapped DEK nonce should be stored in DEK storage")
 	require.Equal(t, contentKeyEvent.GetWrappingKeyRef(), storedContentKey.GetWrappingKeyRef())
+	_, err = core.storage.runtimeStateKV.Get(ctx, contentKeyEvent.GetContentKeyRef())
+	require.NoError(t, err, "wrapped DEK should be stored in RUNTIME_STATE")
+	_, err = core.storage.encryptionKV.Get(ctx, contentKeyEvent.GetContentKeyRef())
+	require.Error(t, err, "wrapped DEK should not be stored in ENCRYPTION_KEYS")
 
 	// Verify we can read the message back (decrypted)
 	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
@@ -301,7 +305,7 @@ func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 	stored.WrappingKeyRef = storedWrappingKeyRef
 	data, err := proto.Marshal(stored)
 	require.NoError(t, err)
-	_, err = core.storage.encryptionKV.Put(ctx, contentKeyEvent.GetContentKeyRef(), data)
+	_, err = core.storage.runtimeStateKV.Put(ctx, contentKeyEvent.GetContentKeyRef(), data)
 	require.NoError(t, err)
 
 	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))

@@ -650,7 +650,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	encMgr := &encryptionManager{
 		keyWrapper:  builtinKMS,
 		legacyKeys:  builtinKMS,
-		contentKeys: dekstore.New(storage.encryptionKV, logger.WithPrefix("core.dekstore")),
+		contentKeys: dekstore.New(storage.runtimeStateKV, logger.WithPrefix("core.dekstore")),
 	}
 
 	// Initialize S3 client if S3 storage is configured
@@ -841,10 +841,10 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 // when they already exist.
 type storage struct {
 	serverStore     jetstream.ObjectStore
-	encryptionKV    jetstream.KeyValue // Encryption keys (excluded from backups)
+	encryptionKV    jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
 	serverKV        jetstream.KeyValue // INSTANCE        - legacy user/config import source
 	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - legacy runtime configuration import source
-	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state
+	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
 
 	// Legacy import resources. Fresh ES-only deployments do not create these;
 	// boot importers treat nil handles as empty sources.
@@ -883,11 +883,13 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create INSTANCE object store: %w", err)
 	}
 
-	// Initialize encryption keys KV bucket (excluded from backups for security)
-	// Keys are stored separately so backups contain only encrypted data, not the keys to decrypt it
+	// Initialize KMS KEK bucket (excluded from backups for security). App-owned
+	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
+	// content together with its wrapped content-key registry, but not the KEKs
+	// needed to unwrap it.
 	encryptionKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:      "ENCRYPTION_KEYS",
-		Description: "User encryption keys (excluded from backups)",
+		Description: "KMS key-encryption keys (excluded from backups)",
 		Storage:     jetstream.FileStorage,
 		History:     1,
 		Replicas:    cfg.Replicas,

@@ -40,8 +40,10 @@ The storage boundary is:
 - If a value is binary/object data, it belongs in the appropriate object store.
 - Administrator-managed configuration stays in the existing configuration
   buckets because it is configuration, not runtime state.
-- KMS key material stays in `ENCRYPTION_KEYS` because its backup and security
-  rules are intentionally different from ordinary runtime state.
+- KMS KEK material stays in `ENCRYPTION_KEYS` because its backup and security
+  rules are intentionally different from ordinary runtime state. App-owned
+  wrapped DEK records live in `RUNTIME_STATE`; they are backed up with the
+  encrypted data they describe, but are unusable without the excluded KEKs.
 
 `RUNTIME_STATE` is persisted and configured for latest-value use:
 
@@ -72,6 +74,9 @@ Current occupants include:
   workflow.
 - Link-preview cache entries: `link_preview.{urlHash}`, with per-key 24-hour
   TTL for successful previews and 1-hour TTL for failed fetches.
+- App-owned wrapped DEK records: `dek.{contentKeyRef}`, one protobuf
+  `UserDataEncryptionKey` per purpose-scoped user DEK epoch. These records have
+  no TTL and are shredded on account deletion.
 
 The HMAC keys for cookie sessions, bearer tokens, OAuth codes, and account workflow tokens are
 derived with `[core].secret_key` from the raw token/code plus a per-flow scope
@@ -105,8 +110,9 @@ canonical state.
   tokens, because their keys are HMAC-derived from `[core].secret_key`.
 - Per-key TTL becomes available for tokens and similar runtime values without
   splitting each feature into its own bucket.
-- Security-sensitive exceptions remain explicit. In particular,
-  `ENCRYPTION_KEYS` is not folded into this bucket.
+- Security-sensitive exceptions remain explicit. In particular, KMS KEKs in
+  `ENCRYPTION_KEYS` are not folded into this bucket; only app-owned wrapped DEK
+  records live in `RUNTIME_STATE`.
 - `MEMORY_CACHE` is the companion non-durable bucket for cross-process
   volatile state. It uses memory storage, one version per key, the deployment's
   replica count, no global TTL, and a limit-marker TTL for expiring presence
