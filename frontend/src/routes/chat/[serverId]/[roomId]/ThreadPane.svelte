@@ -296,7 +296,10 @@
     events={threadEvents}
     alwaysScrollToBottom={false}
     showNewMessagesIndicator={true}
-    enablePagination={false}
+    enablePagination={true}
+    isLoadingMore={store.isLoadingMore}
+    hasReachedStart={store.hasReachedStart}
+    onLoadMore={() => store.loadMore()}
     filterThreadReplies={false}
     {updateCounter}
     enableLastEditableFinder={true}

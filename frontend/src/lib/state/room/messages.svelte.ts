@@ -92,16 +92,26 @@ const RefetchOneQuery = graphql(`
 `);
 
 const ThreadEventsQuery = graphql(`
-  query ThreadMessagesAll($roomId: ID!, $threadRootEventId: ID!) {
+  query ThreadMessagesPage(
+    $roomId: ID!
+    $threadRootEventId: ID!
+    $limit: Int
+    $before: String
+    $after: String
+  ) {
     room(roomId: $roomId) {
       event(eventId: $threadRootEventId) {
         ...RoomEventView
         event {
           ... on MessagePostedEvent {
-            threadReplies {
+            threadReplies(limit: $limit, before: $before, after: $after) {
               events {
                 ...RoomEventView
               }
+              startCursor
+              endCursor
+              hasOlder
+              hasNewer
             }
           }
         }
@@ -117,6 +127,13 @@ const PAGE_SIZE = 50;
 // ---------------------------------------------------------------------------
 
 type RawEvent = FragmentType<typeof RoomEventViewFragmentDoc>;
+type EventConnectionPage = {
+  events: readonly RawEvent[];
+  startCursor?: string | null;
+  endCursor?: string | null;
+  hasOlder: boolean;
+  hasNewer: boolean;
+};
 
 function unmask(raw: readonly RawEvent[]): RoomEventViewFragment[] {
   return raw
@@ -126,6 +143,16 @@ function unmask(raw: readonly RawEvent[]): RoomEventViewFragment[] {
 
 function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
   return actor ? (actor as { id?: string }).id : undefined;
+}
+
+function threadRepliesConnection(root: {
+  event?: {
+    __typename?: string;
+    threadReplies?: EventConnectionPage;
+  } | null;
+} | null | undefined): EventConnectionPage | null {
+  if (root?.event?.__typename !== 'MessagePostedEvent') return null;
+  return root.event.threadReplies ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -895,12 +922,17 @@ export class RoomMessagesStore extends MessageListStore {
 // ---------------------------------------------------------------------------
 
 /**
- * Message store for a single thread. Loads root + replies in one query,
- * doesn't paginate, and only accepts MessagePostedEvents that target this
- * thread. System events (joined/left/etc.) are ignored.
+ * Message store for a single thread. Loads the root plus a paginated reply
+ * page, and only accepts MessagePostedEvents that target this thread. System
+ * events (joined/left/etc.) are ignored.
  */
 export class ThreadMessagesStore extends MessageListStore {
+  isLoadingMore = $state(false);
+  hasReachedStart = $state(false);
+
   private threadRootEventId = '';
+  private oldestCursor: string | undefined;
+  private newestCursor: string | undefined;
 
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): RoomEventViewFragment[] {
@@ -923,16 +955,59 @@ export class ThreadMessagesStore extends MessageListStore {
 
   protected catchUp(): void {
     if (!this.threadRootEventId) return;
-    // Silent: do NOT flip isInitialLoading. fetchThread merges results
-    // with existing events via replaceMergingExisting, so the stale view
-    // stays on screen until the new data lands.
-    this.fetchThread(this.startLoad());
+    const thisLoad = this.startLoad();
+    if (this.events.length === 0) {
+      this.fetchThread(thisLoad);
+    } else {
+      this.catchUpForward(thisLoad);
+    }
   }
 
   async refetchAll(): Promise<void> {
     const snapshot = [...this.threadEvents];
     for (const event of snapshot) {
       await this.refetchOne(event.id);
+    }
+  }
+
+  async loadMore(): Promise<void> {
+    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+
+    const before = this.oldestCursor;
+    this.isLoadingMore = true;
+
+    try {
+      const result = await this.client
+        .query(ThreadEventsQuery, {
+          roomId: this.roomId,
+          threadRootEventId: this.threadRootEventId,
+          limit: PAGE_SIZE,
+          before
+        })
+        .toPromise();
+
+      const page = threadRepliesConnection(result.data?.room?.event);
+      if (!page) return;
+
+      const olderReplies = unmask(page.events);
+      if (olderReplies.length === 0) {
+        this.hasReachedStart = true;
+      } else {
+        if (page.startCursor) {
+          this.oldestCursor = page.startCursor;
+        }
+        const added = this.prependEvents(olderReplies);
+        this.sortThreadEvents();
+        if (added === 0) this.hasReachedStart = true;
+      }
+
+      if (!page.hasOlder) this.hasReachedStart = true;
+    } catch (error) {
+      console.error('ThreadMessagesStore: loadMore failed:', error);
+    } finally {
+      await tick();
+      await new Promise((r) => requestAnimationFrame(r));
+      this.isLoadingMore = false;
     }
   }
 
@@ -955,11 +1030,19 @@ export class ThreadMessagesStore extends MessageListStore {
   // Private — fetch
   // -------------------------------------------------------------------------
 
+  protected resetState(): void {
+    super.resetState();
+    this.oldestCursor = undefined;
+    this.newestCursor = undefined;
+    this.hasReachedStart = false;
+  }
+
   private fetchThread(thisLoad: number): void {
     this.client
       .query(ThreadEventsQuery, {
         roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId
+        threadRootEventId: this.threadRootEventId,
+        limit: PAGE_SIZE
       })
       .toPromise()
       .then((result) => {
@@ -970,9 +1053,13 @@ export class ThreadMessagesStore extends MessageListStore {
           // Merge with any subscription events that arrived during the
           // in-flight query (e.g. the user's own reply or a fast cross-user
           // reply). Overwriting would drop them.
-          const replies =
-            root.event?.__typename === 'MessagePostedEvent' ? root.event.threadReplies.events : [];
+          const page = threadRepliesConnection(root);
+          const replies = page?.events ?? [];
           this.replaceMergingExisting([root, ...replies]);
+          this.sortThreadEvents();
+          this.oldestCursor = page?.startCursor ?? undefined;
+          this.newestCursor = page?.endCursor ?? undefined;
+          this.hasReachedStart = !(page?.hasOlder ?? false);
         }
         this.isInitialLoading = false;
       })
@@ -981,6 +1068,61 @@ export class ThreadMessagesStore extends MessageListStore {
         console.error('ThreadMessagesStore: fetch failed:', error);
         this.isInitialLoading = false;
       });
+  }
+
+  private catchUpForward(thisLoad: number): void {
+    if (!this.newestCursor) {
+      this.fetchThread(thisLoad);
+      return;
+    }
+
+    const after = this.newestCursor;
+    this.client
+      .query(ThreadEventsQuery, {
+        roomId: this.roomId,
+        threadRootEventId: this.threadRootEventId,
+        limit: PAGE_SIZE,
+        after
+      })
+      .toPromise()
+      .then((result) => {
+        if (this.isStale(thisLoad)) return;
+        if (result.error) {
+          console.error('ThreadMessagesStore: catchUp error:', result.error);
+          return;
+        }
+
+        const page = threadRepliesConnection(result.data?.room?.event);
+        if (!page) return;
+
+        const newerReplies = unmask(page.events);
+        if (page.endCursor) {
+          this.newestCursor = page.endCursor;
+        }
+
+        this.appendMany(newerReplies);
+        this.sortThreadEvents();
+
+        if (page.hasNewer) {
+          this.fetchThread(thisLoad);
+        }
+      })
+      .catch((error: unknown) => {
+        if (this.isStale(thisLoad)) return;
+        console.error('ThreadMessagesStore: catchUp failed:', error);
+      });
+  }
+
+  private sortThreadEvents(): void {
+    this.events = [...this.events].sort((a, b) => {
+      if (a.id === this.threadRootEventId) return -1;
+      if (b.id === this.threadRootEventId) return 1;
+
+      const aTime = Date.parse(a.createdAt);
+      const bTime = Date.parse(b.createdAt);
+      if (aTime !== bTime) return aTime - bTime;
+      return a.id.localeCompare(b.id);
+    });
   }
 }
 
