@@ -4,7 +4,8 @@ func NewConfig(resolver ResolverRoot) Config {
 	return Config{
 		Resolvers: resolver,
 		Directives: DirectiveRoot{
-			Length: lengthDirective,
+			Authenticated: authenticatedDirective,
+			Length:        lengthDirective,
 		},
 	}
 }

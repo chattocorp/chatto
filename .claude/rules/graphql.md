@@ -23,6 +23,19 @@ gqlgen is schema-first. Follow this workflow for GraphQL changes:
 
 Use gqlgen directives to control code generation:
 
+### `@authenticated`
+
+Add this to fields that only require a logged-in caller and no target-specific
+authorization. Keep permission checks, room membership checks, self-vs-target
+rules, and outranking rules in resolver helpers where the resolver has the
+needed context.
+
+```graphql
+type Query {
+  user(userId: ID!): User @authenticated
+}
+```
+
 ### `@goField(forceResolver: true)`
 
 Add this to fields that have custom resolvers. This:

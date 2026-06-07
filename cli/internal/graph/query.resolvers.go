@@ -41,10 +41,6 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 // User is the resolver for the user field.
 // User profiles are visible to authenticated server users.
 func (r *queryResolver) User(ctx context.Context, userID string) (*corev1.User, error) {
-	if _, err := requireAuth(ctx); err != nil {
-		return nil, err
-	}
-
 	return r.core.GetUser(ctx, userID)
 }
 
@@ -52,10 +48,6 @@ func (r *queryResolver) User(ctx context.Context, userID string) (*corev1.User, 
 // Returns the user with the given login name, or null if not found.
 // User profiles are visible to authenticated server users.
 func (r *queryResolver) UserByLogin(ctx context.Context, login string) (*corev1.User, error) {
-	if _, err := requireAuth(ctx); err != nil {
-		return nil, err
-	}
-
 	user, err := r.core.GetUserByLogin(ctx, login)
 	if err != nil {
 		// Return nil instead of error for "not found" cases

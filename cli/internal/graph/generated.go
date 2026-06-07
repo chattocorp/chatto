@@ -72,7 +72,8 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
-	Length func(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (res any, err error)
+	Authenticated func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
+	Length        func(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -16724,7 +16725,20 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().User(ctx, fc.Args["userId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Authenticated == nil {
+					var zeroVal *corev1.User
+					return zeroVal, errors.New("directive authenticated is not implemented")
+				}
+				return ec.Directives.Authenticated(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},
@@ -16768,7 +16782,20 @@ func (ec *executionContext) _Query_userByLogin(ctx context.Context, field graphq
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().UserByLogin(ctx, fc.Args["login"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Authenticated == nil {
+					var zeroVal *corev1.User
+					return zeroVal, errors.New("directive authenticated is not implemented")
+				}
+				return ec.Directives.Authenticated(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *corev1.User) graphql.Marshaler {
 			return ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser(ctx, selections, v)
 		},

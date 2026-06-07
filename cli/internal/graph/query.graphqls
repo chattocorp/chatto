@@ -6,10 +6,10 @@ type Query {
   room(roomId: ID!): Room
 
   "Get a specific user by ID. Requires authentication."
-  user(userId: ID!): User
+  user(userId: ID!): User @authenticated
 
   "Get a specific user by login. Requires authentication. Returns null if not found."
-  userByLogin(login: String!): User
+  userByLogin(login: String!): User @authenticated
 
   """
   List users on this server. Requires server admin.

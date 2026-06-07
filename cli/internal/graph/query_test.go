@@ -2,10 +2,13 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"testing"
 
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/executor"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
@@ -125,43 +128,118 @@ func TestViewerResolver_User(t *testing.T) {
 	})
 }
 
+func executeGraphQL(t *testing.T, env *testEnv, ctx context.Context, query string, variables map[string]any) *graphql.Response {
+	t.Helper()
+
+	exec := executor.New(NewExecutableSchema(NewConfig(env.resolver)))
+	ctx = graphql.StartOperationTrace(ctx)
+	now := graphql.Now()
+	opCtx, errs := exec.CreateOperationContext(ctx, &graphql.RawParams{
+		Query:     query,
+		Variables: variables,
+		ReadTime: graphql.TraceTiming{
+			Start: now,
+			End:   now,
+		},
+	})
+	if len(errs) != 0 {
+		return exec.DispatchError(ctx, errs)
+	}
+
+	responseHandler, responseCtx := exec.DispatchOperation(ctx, opCtx)
+	return responseHandler(responseCtx)
+}
+
 func TestQueryResolver_User(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("get existing user", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.authContext(), env.testUser.Id)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserById($userId: ID!) {
+				user(userId: $userId) {
+					id
+					login
+				}
+			}
+		`, map[string]any{"userId": env.testUser.Id})
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
 		}
 
-		if user == nil {
+		var data struct {
+			User *struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"user"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+
+		if data.User == nil {
 			t.Fatal("Expected user, got nil")
 		}
-
-		if user.Id != env.testUser.Id {
-			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, user.Id)
+		if data.User.ID != env.testUser.Id {
+			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, data.User.ID)
+		}
+		if data.User.Login != env.testUser.Login {
+			t.Errorf("Expected login %s, got %s", env.testUser.Login, data.User.Login)
 		}
 	})
 
 	t.Run("get non-existent user", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.authContext(), "nonexistent")
-		if err == nil {
-			t.Fatal("Expected error for non-existent user")
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserById($userId: ID!) {
+				user(userId: $userId) {
+					id
+				}
+			}
+		`, map[string]any{"userId": "nonexistent"})
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL error for non-existent user")
 		}
 
-		if user != nil {
-			t.Errorf("Expected nil user, got %+v", user)
+		var data struct {
+			User *struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.User != nil {
+			t.Errorf("Expected nil user, got %+v", data.User)
 		}
 	})
 
 	t.Run("requires authentication", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.unauthContext(), env.testUser.Id)
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query UserById($userId: ID!) {
+				user(userId: $userId) {
+					id
+				}
+			}
+		`, map[string]any{"userId": env.testUser.Id})
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
 		}
 
-		if user != nil {
-			t.Errorf("Expected nil user, got %+v", user)
+		var data struct {
+			User *struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.User != nil {
+			t.Errorf("Expected nil user, got %+v", data.User)
 		}
 	})
 }
@@ -170,39 +248,91 @@ func TestQueryResolver_UserByLogin(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("get existing user", func(t *testing.T) {
-		user, err := env.resolver.Query().UserByLogin(env.authContext(), env.testUser.Login)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserByLogin($login: String!) {
+				userByLogin(login: $login) {
+					id
+					login
+				}
+			}
+		`, map[string]any{"login": env.testUser.Login})
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
 		}
 
-		if user == nil {
+		var data struct {
+			UserByLogin *struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"userByLogin"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.UserByLogin == nil {
 			t.Fatal("Expected user, got nil")
 		}
-
-		if user.Id != env.testUser.Id {
-			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, user.Id)
+		if data.UserByLogin.ID != env.testUser.Id {
+			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, data.UserByLogin.ID)
+		}
+		if data.UserByLogin.Login != env.testUser.Login {
+			t.Errorf("Expected login %s, got %s", env.testUser.Login, data.UserByLogin.Login)
 		}
 	})
 
 	t.Run("get non-existent user returns nil", func(t *testing.T) {
-		user, err := env.resolver.Query().UserByLogin(env.authContext(), "nonexistent")
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserByLogin($login: String!) {
+				userByLogin(login: $login) {
+					id
+				}
+			}
+		`, map[string]any{"login": "nonexistent"})
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
 		}
 
-		if user != nil {
-			t.Errorf("Expected nil user, got %+v", user)
+		var data struct {
+			UserByLogin *struct {
+				ID string `json:"id"`
+			} `json:"userByLogin"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.UserByLogin != nil {
+			t.Errorf("Expected nil user, got %+v", data.UserByLogin)
 		}
 	})
 
 	t.Run("requires authentication", func(t *testing.T) {
-		user, err := env.resolver.Query().UserByLogin(env.unauthContext(), env.testUser.Login)
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query UserByLogin($login: String!) {
+				userByLogin(login: $login) {
+					id
+				}
+			}
+		`, map[string]any{"login": env.testUser.Login})
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
 		}
 
-		if user != nil {
-			t.Errorf("Expected nil user, got %+v", user)
+		var data struct {
+			UserByLogin *struct {
+				ID string `json:"id"`
+			} `json:"userByLogin"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.UserByLogin != nil {
+			t.Errorf("Expected nil user, got %+v", data.UserByLogin)
 		}
 	})
 }

@@ -7,6 +7,13 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+func authenticatedDirective(ctx context.Context, obj any, next graphql.Resolver) (any, error) {
+	if _, err := requireAuth(ctx); err != nil {
+		return nil, err
+	}
+	return next(ctx)
+}
+
 func lengthDirective(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (any, error) {
 	res, err := next(ctx)
 	if err != nil {

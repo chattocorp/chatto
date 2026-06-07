@@ -182,7 +182,7 @@ the ability to create rooms only in specific groups.
 | Query | Auth Required | Additional Check |
 |-------|---------------|------------------|
 | `me` | No | Returns null if unauthenticated |
-| `user(id)` | No | Public user profiles |
+| `user(userId)` / `userByLogin(login)` | Yes | Member profiles are public to authenticated users |
 | `users` | Yes | Server admin only |
 | `spaces` | No | Discovery - lists all spaces |
 | `space(id)` | No | Discovery - view any space |

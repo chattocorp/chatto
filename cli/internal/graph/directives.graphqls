@@ -24,6 +24,11 @@ directive @goExtraField(
 ) repeatable on OBJECT | INPUT_OBJECT
 
 """
+Requires the caller to be authenticated.
+"""
+directive @authenticated on FIELD_DEFINITION
+
+"""
 Validates the UTF-8 byte length of a string argument or input field.
 Null and omitted nullable values are allowed; core validation remains authoritative.
 """
