@@ -22,7 +22,7 @@ It should be no surprise that we are working hard to move towards a release that
 
 ## Development with Conductor
 
-[Conductor](https://conductor.build) workspaces run the dev stack natively via `mise dev` — no Docker. The `run` script in `conductor.json` wires Conductor's assigned `$CONDUCTOR_PORT` (and `+1` / `+2`) into the env vars `mise dev` reads:
+[Conductor](https://conductor.build) workspaces run the dev stack natively via `mise dev` — no Docker. The `run` script in `.conductor/settings.toml` wires Conductor's assigned `$CONDUCTOR_PORT` (and `+1` / `+2`) into the env vars `mise dev` reads:
 
 | Port              | Process                              |
 | ----------------- | ------------------------------------ |
@@ -31,6 +31,8 @@ It should be no surprise that we are working hard to move towards a release that
 | `+2`              | Embedded NATS                        |
 
 Outside Conductor, plain `mise dev` uses the defaults from `cli/chatto.toml` (Vite 5173, backend 4000, NATS 4555).
+
+The repository-level Conductor settings are shared in `.conductor/settings.toml`. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
 
 Each instance is bootstrapped with the same dev credentials (configured in `cli/chatto.toml` under `[[bootstrap.users]]`):
 

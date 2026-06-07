@@ -83,15 +83,6 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		t.Fatal("Failed to create ENCRYPTION_KEYS bucket:", err)
 	}
 
-	userDataEncryptionKey, err := proto.Marshal(&corev1.UserDataEncryptionKey{
-		EncryptedContentKey: []byte("wrapped"),
-		ContentKeyNonce:     []byte("nonce"),
-		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
-		WrappingKeyRef:      "kek.DEKRef01",
-	})
-	if err != nil {
-		t.Fatal("marshal user data encryption key:", err)
-	}
 	userKeyEncryptionKey, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
 		Key:       []byte("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"),
 		Algorithm: "builtin-xchacha20-poly1305-v1",
@@ -106,7 +97,6 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		"user.charlie":  []byte("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"),
 		"kek.DEKRef01":  userKeyEncryptionKey,
 		"kek.LegacyRaw": []byte("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR"),
-		"dek.Ref01":     userDataEncryptionKey,
 	}
 
 	for k, v := range testKeys {
@@ -174,8 +164,7 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to create destination ENCRYPTION_KEYS bucket:", err)
 	}
-
-	imported, skipped, err := importKeys(ctx, dstKV, decrypted)
+	imported, skippedExisting, skippedWrappedDEKs, err := importKeys(ctx, dstKV, decrypted)
 	if err != nil {
 		t.Fatal("importKeys failed:", err)
 	}
@@ -183,8 +172,11 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 	if imported != len(testKeys) {
 		t.Errorf("Imported %d keys, want %d", imported, len(testKeys))
 	}
-	if skipped != 0 {
-		t.Errorf("Skipped %d keys, want 0", skipped)
+	if skippedExisting != 0 {
+		t.Errorf("Skipped existing %d keys, want 0", skippedExisting)
+	}
+	if skippedWrappedDEKs != 0 {
+		t.Errorf("Skipped wrapped DEKs %d, want 0", skippedWrappedDEKs)
 	}
 
 	// --- Verify: keys survived the round-trip ---
@@ -230,15 +222,57 @@ func TestImportKeysRejectsInvalidExportBeforeWriting(t *testing.T) {
 
 	valid := ExportedKey{KeyRef: "kek.valid", Key: []byte("VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV")}
 	invalid := ExportedKey{KeyRef: "other.bad", Key: []byte("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")}
-	imported, skipped, err := importKeys(ctx, kv, []ExportedKey{valid, invalid})
+	imported, skippedExisting, skippedWrappedDEKs, err := importKeys(ctx, kv, []ExportedKey{valid, invalid})
 	if err == nil {
 		t.Fatal("importKeys should reject unknown prefixes")
 	}
-	if imported != 0 || skipped != 0 {
-		t.Fatalf("importKeys imported=%d skipped=%d, want 0/0", imported, skipped)
+	if imported != 0 || skippedExisting != 0 || skippedWrappedDEKs != 0 {
+		t.Fatalf("importKeys imported=%d skipped_existing=%d skipped_wrapped_deks=%d, want 0/0/0", imported, skippedExisting, skippedWrappedDEKs)
 	}
 	if _, err := kv.Get(ctx, "kek.valid"); err == nil {
 		t.Fatal("valid key was written despite later invalid export record")
+	}
+}
+
+func TestImportKeysSkipsWrappedDEKExportsWithoutBlockingKEKs(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, _, js := startTestNATS(t)
+	kv, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  "ENCRYPTION_KEYS",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatal("Failed to create ENCRYPTION_KEYS bucket:", err)
+	}
+
+	wrappedDEK, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+		EncryptedContentKey: []byte("wrapped"),
+		ContentKeyNonce:     []byte("nonce"),
+		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
+		WrappingKeyRef:      "kek.valid",
+	})
+	if err != nil {
+		t.Fatal("marshal wrapped DEK:", err)
+	}
+
+	keys := []ExportedKey{
+		{KeyRef: "kek.valid", Key: []byte("VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV")},
+		{KeyRef: "dek.old", Key: wrappedDEK},
+	}
+	imported, skippedExisting, skippedWrappedDEKs, err := importKeys(ctx, kv, keys)
+	if err != nil {
+		t.Fatal("importKeys failed:", err)
+	}
+	if imported != 1 || skippedExisting != 0 || skippedWrappedDEKs != 1 {
+		t.Fatalf("importKeys imported=%d skipped_existing=%d skipped_wrapped_deks=%d, want 1/0/1", imported, skippedExisting, skippedWrappedDEKs)
+	}
+	if _, err := kv.Get(ctx, "kek.valid"); err != nil {
+		t.Fatalf("expected KEK to import: %v", err)
+	}
+	if _, err := kv.Get(ctx, "dek.old"); err == nil {
+		t.Fatal("wrapped DEK should not be imported into ENCRYPTION_KEYS")
 	}
 }
 
@@ -265,16 +299,22 @@ func TestImportKeysRejectsMalformedKnownRecords(t *testing.T) {
 	}
 	for _, test := range []ExportedKey{
 		{KeyRef: "kek.bad", Key: []byte("short")},
-		{KeyRef: "dek.bad", Key: malformedDEK},
 		{KeyRef: "user.bad", Key: []byte("short")},
 	} {
-		imported, skipped, err := importKeys(ctx, kv, []ExportedKey{test})
+		imported, skippedExisting, skippedWrappedDEKs, err := importKeys(ctx, kv, []ExportedKey{test})
 		if err == nil {
 			t.Fatalf("importKeys should reject malformed record %s", keyRefForImport(test))
 		}
-		if imported != 0 || skipped != 0 {
-			t.Fatalf("importKeys imported=%d skipped=%d, want 0/0", imported, skipped)
+		if imported != 0 || skippedExisting != 0 || skippedWrappedDEKs != 0 {
+			t.Fatalf("importKeys imported=%d skipped_existing=%d skipped_wrapped_deks=%d, want 0/0/0", imported, skippedExisting, skippedWrappedDEKs)
 		}
+	}
+	imported, skippedExisting, skippedWrappedDEKs, err := importKeys(ctx, kv, []ExportedKey{{KeyRef: "dek.bad", Key: malformedDEK}})
+	if err != nil {
+		t.Fatalf("wrapped DEK export should be skipped before validation: %v", err)
+	}
+	if imported != 0 || skippedExisting != 0 || skippedWrappedDEKs != 1 {
+		t.Fatalf("wrapped DEK import imported=%d skipped_existing=%d skipped_wrapped_deks=%d, want 0/0/1", imported, skippedExisting, skippedWrappedDEKs)
 	}
 }
 

@@ -13,7 +13,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 - **Description** — used in OG metadata for link previews when sharing the server URL.
 - **Welcome message** — shown on the login page. Markdown is supported.
 - **MOTD (message of the day)** — appears in a banner across the top of the chat surface for all members. Broadcasts to live clients when changed.
-- **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; resized variants served via signed URLs.
+- **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; the public GraphQL profile exposes its canonical URL without transform arguments.
 - **Banner** — shown on the login page and in OG previews. Same upload/serve pipeline as the logo.
 - **Blocked usernames** — newline-separated list checked at signup. Matches are rejected before account creation.
 - Text configuration is bounded before storage: server name 80 bytes, description 500 bytes, MOTD 1,000 bytes, welcome message 10,000 bytes, blocked-usernames field 10,000 bytes, and each blocked username no longer than a normal username.

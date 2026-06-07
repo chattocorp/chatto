@@ -3,9 +3,35 @@ package graph
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
 )
+
+func publicDirective(ctx context.Context, obj any, next graphql.Resolver) (any, error) {
+	return next(ctx)
+}
+
+func DefaultAuthFieldMiddleware(ctx context.Context, next graphql.Resolver) (any, error) {
+	if publicField(graphql.GetFieldContext(ctx)) {
+		return next(ctx)
+	}
+
+	if _, err := requireAuth(ctx); err != nil {
+		return nil, err
+	}
+	return next(ctx)
+}
+
+func publicField(fc *graphql.FieldContext) bool {
+	if fc == nil {
+		return false
+	}
+	if strings.HasPrefix(fc.Object, "__") || strings.HasPrefix(fc.Field.Name, "__") {
+		return true
+	}
+	return fc.Field.Definition != nil && fc.Field.Definition.Directives.ForName("public") != nil
+}
 
 func lengthDirective(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (any, error) {
 	res, err := next(ctx)

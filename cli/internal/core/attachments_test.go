@@ -975,6 +975,90 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	}
 }
 
+func TestChattoCore_DeleteAttachment_CleansUpCacheWithoutStorageMetadata(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "image.png", "image/png", bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(AttachmentSignResource, attachment.Id, 200, 150, "contain")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store cached resize: %v", err)
+	}
+
+	storageLess := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+	if err := core.DeleteAttachmentFromStorage(ctx, storageLess); err != nil {
+		t.Fatalf("Failed to delete storage-less attachment: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Cache entry should be deleted for storage-less attachment")
+	}
+
+	if _, _, err := core.GetAttachment(ctx, attachment.Id); err == nil {
+		t.Fatal("Expected backing attachment binary to be deleted")
+	}
+}
+
+func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "assetcleanup", "Asset Cleanup", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+
+	original, err := core.UploadAttachment(ctx, user.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("fake video bytes")))
+	if err != nil {
+		t.Fatalf("Failed to upload original video: %v", err)
+	}
+	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(64, 64)))
+	if err != nil {
+		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
+	}
+
+	thumbnailCacheKey := ImageCacheKey(AttachmentSignResource, thumbnail.Id, 128, 128, "cover")
+	if err := core.StoreCachedResize(ctx, thumbnailCacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store thumbnail cached resize: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "video", []string{original.Id}, "", "", nil, false); err != nil {
+		t.Fatalf("Failed to post message: %v", err)
+	}
+
+	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 2 {
+		t.Fatalf("Expected original and thumbnail assets to be deleted, got %d", deleted)
+	}
+
+	data, err := core.GetCachedResize(ctx, thumbnailCacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting thumbnail cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Derivative thumbnail cache entry should be deleted")
+	}
+}
+
 func TestChattoCore_DeleteCachedResizesForAttachment_NoCacheEnabled(t *testing.T) {
 	// Use standard setup (no cache)
 	core, _ := setupTestCore(t)

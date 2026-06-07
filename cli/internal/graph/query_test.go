@@ -2,10 +2,14 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/executor"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
@@ -125,32 +129,386 @@ func TestViewerResolver_User(t *testing.T) {
 	})
 }
 
+func executeGraphQL(t *testing.T, env *testEnv, ctx context.Context, query string, variables map[string]any) *graphql.Response {
+	t.Helper()
+
+	exec := executor.New(NewExecutableSchema(NewConfig(env.resolver)))
+	exec.AroundFields(DefaultAuthFieldMiddleware)
+	ctx = graphql.StartOperationTrace(ctx)
+	now := graphql.Now()
+	opCtx, errs := exec.CreateOperationContext(ctx, &graphql.RawParams{
+		Query:     query,
+		Variables: variables,
+		ReadTime: graphql.TraceTiming{
+			Start: now,
+			End:   now,
+		},
+	})
+	if len(errs) != 0 {
+		return exec.DispatchError(ctx, errs)
+	}
+
+	responseHandler, responseCtx := exec.DispatchOperation(ctx, opCtx)
+	return responseHandler(responseCtx)
+}
+
+func TestGraphQLDefaultAuthentication(t *testing.T) {
+	env := setupTestResolver(t)
+
+	t.Run("public server bootstrap fields allow unauthenticated callers", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query ServerBootstrap {
+				server {
+					version
+					enabledAuthProviders
+					profile {
+						name
+						logoUrl
+						bannerUrl
+					}
+					directRegistrationEnabled
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
+		}
+
+		var data struct {
+			Server *struct {
+				Version              string   `json:"version"`
+				EnabledAuthProviders []string `json:"enabledAuthProviders"`
+				Profile              struct {
+					Name      string  `json:"name"`
+					LogoURL   *string `json:"logoUrl"`
+					BannerURL *string `json:"bannerUrl"`
+				} `json:"profile"`
+				DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
+			} `json:"server"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.Server == nil {
+			t.Fatal("Expected server data, got nil")
+		}
+		if data.Server.Profile.Name == "" {
+			t.Fatal("Expected public server name to be populated")
+		}
+	})
+
+	t.Run("public server profile images reject transform arguments", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query ServerProfileImageTransforms {
+				server {
+					profile {
+						logoUrl(width: 96, height: 96)
+						bannerUrl(width: 1200, height: 630, fit: COVER)
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL validation errors for server profile image arguments")
+		}
+		messages := make([]string, 0, len(resp.Errors))
+		for _, err := range resp.Errors {
+			messages = append(messages, err.Message)
+		}
+		joined := strings.Join(messages, "\n")
+		for _, want := range []string{"Unknown argument \"width\"", "Unknown argument \"height\"", "Unknown argument \"fit\""} {
+			if !strings.Contains(joined, want) {
+				t.Fatalf("Expected validation errors to contain %q, got:\n%s", want, joined)
+			}
+		}
+	})
+
+	t.Run("viewer root requires authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query Viewer {
+				viewer {
+					user {
+						id
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+
+	t.Run("admin root requires authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query Admin {
+				admin {
+					systemInfo {
+						stats {
+							userCount
+						}
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+
+	t.Run("viewer-scoped server fields require authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query ViewerScopedServerFields {
+				server {
+					viewerCanCreateRoom
+					viewerNotificationPreference {
+						level
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+
+	t.Run("non-metadata server fields require authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query NonMetadataServerFields {
+				server {
+					memberCount
+					availablePermissions
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+
+	t.Run("runtime server configuration requires authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query RuntimeServerConfig {
+				server {
+					livekitUrl
+					maxUploadSize
+					messageEditWindowSeconds
+					profile {
+						motd
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+}
+
 func TestQueryResolver_User(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("get existing user", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.ctx, env.testUser.Id)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserById($userId: ID!) {
+				user(userId: $userId) {
+					id
+					login
+				}
+			}
+		`, map[string]any{"userId": env.testUser.Id})
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
 		}
 
-		if user == nil {
+		var data struct {
+			User *struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"user"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+
+		if data.User == nil {
 			t.Fatal("Expected user, got nil")
 		}
-
-		if user.Id != env.testUser.Id {
-			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, user.Id)
+		if data.User.ID != env.testUser.Id {
+			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, data.User.ID)
+		}
+		if data.User.Login != env.testUser.Login {
+			t.Errorf("Expected login %s, got %s", env.testUser.Login, data.User.Login)
 		}
 	})
 
 	t.Run("get non-existent user", func(t *testing.T) {
-		user, err := env.resolver.Query().User(env.ctx, "nonexistent")
-		if err == nil {
-			t.Fatal("Expected error for non-existent user")
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserById($userId: ID!) {
+				user(userId: $userId) {
+					id
+				}
+			}
+		`, map[string]any{"userId": "nonexistent"})
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL error for non-existent user")
 		}
 
-		if user != nil {
-			t.Errorf("Expected nil user, got %+v", user)
+		var data struct {
+			User *struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.User != nil {
+			t.Errorf("Expected nil user, got %+v", data.User)
+		}
+	})
+
+	t.Run("requires authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query UserById($userId: ID!) {
+				user(userId: $userId) {
+					id
+				}
+			}
+		`, map[string]any{"userId": env.testUser.Id})
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+
+		var data struct {
+			User *struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.User != nil {
+			t.Errorf("Expected nil user, got %+v", data.User)
+		}
+	})
+}
+
+func TestQueryResolver_UserByLogin(t *testing.T) {
+	env := setupTestResolver(t)
+
+	t.Run("get existing user", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserByLogin($login: String!) {
+				userByLogin(login: $login) {
+					id
+					login
+				}
+			}
+		`, map[string]any{"login": env.testUser.Login})
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
+		}
+
+		var data struct {
+			UserByLogin *struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"userByLogin"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.UserByLogin == nil {
+			t.Fatal("Expected user, got nil")
+		}
+		if data.UserByLogin.ID != env.testUser.Id {
+			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, data.UserByLogin.ID)
+		}
+		if data.UserByLogin.Login != env.testUser.Login {
+			t.Errorf("Expected login %s, got %s", env.testUser.Login, data.UserByLogin.Login)
+		}
+	})
+
+	t.Run("get non-existent user returns nil", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.authContext(), `
+			query UserByLogin($login: String!) {
+				userByLogin(login: $login) {
+					id
+				}
+			}
+		`, map[string]any{"login": "nonexistent"})
+
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
+		}
+
+		var data struct {
+			UserByLogin *struct {
+				ID string `json:"id"`
+			} `json:"userByLogin"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.UserByLogin != nil {
+			t.Errorf("Expected nil user, got %+v", data.UserByLogin)
+		}
+	})
+
+	t.Run("requires authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query UserByLogin($login: String!) {
+				userByLogin(login: $login) {
+					id
+				}
+			}
+		`, map[string]any{"login": env.testUser.Login})
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+
+		var data struct {
+			UserByLogin *struct {
+				ID string `json:"id"`
+			} `json:"userByLogin"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.UserByLogin != nil {
+			t.Errorf("Expected nil user, got %+v", data.UserByLogin)
 		}
 	})
 }
@@ -638,15 +996,15 @@ func TestQueryResolver_Server(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// Get the config from the instance
-		configResolver := resolver.ServerConfig()
-		serverConfig, err := resolver.Server().Config(context.Background(), instance)
+		// Get the profile from the instance
+		profileResolver := resolver.ServerProfile()
+		serverProfile, err := resolver.Server().Profile(context.Background(), instance)
 		if err != nil {
-			t.Fatalf("Unexpected error getting config: %v", err)
+			t.Fatalf("Unexpected error getting profile: %v", err)
 		}
 
 		// Check welcome message is nil when core is not initialized
-		welcomeMsg, err := configResolver.WelcomeMessage(context.Background(), serverConfig)
+		welcomeMsg, err := profileResolver.WelcomeMessage(context.Background(), serverProfile)
 		if err != nil {
 			t.Fatalf("Unexpected error getting welcome message: %v", err)
 		}

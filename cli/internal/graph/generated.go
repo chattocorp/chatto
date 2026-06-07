@@ -61,7 +61,7 @@ type ResolverRoot interface {
 	RoomGroupsUpdatedEvent() RoomGroupsUpdatedEventResolver
 	RoomMessageNotificationItem() RoomMessageNotificationItemResolver
 	Server() ServerResolver
-	ServerConfig() ServerConfigResolver
+	ServerProfile() ServerProfileResolver
 	ServerUserPreferencesUpdatedEvent() ServerUserPreferencesUpdatedEventResolver
 	Subscription() SubscriptionResolver
 	User() UserResolver
@@ -73,6 +73,7 @@ type ResolverRoot interface {
 
 type DirectiveRoot struct {
 	Length func(ctx context.Context, obj any, next graphql.Resolver, min *int32, max int32, message *string) (res any, err error)
+	Public func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -691,7 +692,6 @@ type ComplexityRoot struct {
 	Server struct {
 		AssetCount                   func(childComplexity int) int
 		AvailablePermissions         func(childComplexity int) int
-		Config                       func(childComplexity int) int
 		DirectRegistrationEnabled    func(childComplexity int) int
 		EnabledAuthProviders         func(childComplexity int) int
 		LivekitURL                   func(childComplexity int) int
@@ -701,6 +701,7 @@ type ComplexityRoot struct {
 		MemberCount                  func(childComplexity int) int
 		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
 		MessageEditWindowSeconds     func(childComplexity int) int
+		Profile                      func(childComplexity int) int
 		PushNotificationsEnabled     func(childComplexity int) int
 		Role                         func(childComplexity int, name string) int
 		RoleUsers                    func(childComplexity int, roleName string) int
@@ -725,15 +726,6 @@ type ComplexityRoot struct {
 		ViewerPermissions            func(childComplexity int) int
 	}
 
-	ServerConfig struct {
-		BannerURL      func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
-		Description    func(childComplexity int) int
-		LogoURL        func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
-		Motd           func(childComplexity int) int
-		ServerName     func(childComplexity int) int
-		WelcomeMessage func(childComplexity int) int
-	}
-
 	ServerConfigUpdatedEvent struct {
 		BlockedUsernames func(childComplexity int) int
 		Motd             func(childComplexity int) int
@@ -749,6 +741,15 @@ type ComplexityRoot struct {
 		HasMore    func(childComplexity int) int
 		TotalCount func(childComplexity int) int
 		Users      func(childComplexity int) int
+	}
+
+	ServerProfile struct {
+		BannerURL      func(childComplexity int) int
+		Description    func(childComplexity int) int
+		LogoURL        func(childComplexity int) int
+		Motd           func(childComplexity int) int
+		Name           func(childComplexity int) int
+		WelcomeMessage func(childComplexity int) int
 	}
 
 	ServerStats struct {
@@ -1180,7 +1181,7 @@ type RoomMessageNotificationItemResolver interface {
 	Room(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Room, error)
 }
 type ServerResolver interface {
-	Config(ctx context.Context, obj *model.Server) (*model.ServerConfig, error)
+	Profile(ctx context.Context, obj *model.Server) (*model.ServerProfile, error)
 	PushNotificationsEnabled(ctx context.Context, obj *model.Server) (bool, error)
 	VapidPublicKey(ctx context.Context, obj *model.Server) (*string, error)
 	LivekitURL(ctx context.Context, obj *model.Server) (*string, error)
@@ -1213,13 +1214,13 @@ type ServerResolver interface {
 	UserEffectivePermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error)
 	UserEffectiveDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error)
 }
-type ServerConfigResolver interface {
-	ServerName(ctx context.Context, obj *model.ServerConfig) (string, error)
-	LogoURL(ctx context.Context, obj *model.ServerConfig, width *int32, height *int32, fit *model.FitMode) (*string, error)
-	BannerURL(ctx context.Context, obj *model.ServerConfig, width *int32, height *int32, fit *model.FitMode) (*string, error)
-	WelcomeMessage(ctx context.Context, obj *model.ServerConfig) (*string, error)
-	Motd(ctx context.Context, obj *model.ServerConfig) (*string, error)
-	Description(ctx context.Context, obj *model.ServerConfig) (*string, error)
+type ServerProfileResolver interface {
+	Name(ctx context.Context, obj *model.ServerProfile) (string, error)
+	LogoURL(ctx context.Context, obj *model.ServerProfile) (*string, error)
+	BannerURL(ctx context.Context, obj *model.ServerProfile) (*string, error)
+	WelcomeMessage(ctx context.Context, obj *model.ServerProfile) (*string, error)
+	Motd(ctx context.Context, obj *model.ServerProfile) (*string, error)
+	Description(ctx context.Context, obj *model.ServerProfile) (*string, error)
 }
 type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
@@ -4222,12 +4223,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.AvailablePermissions(childComplexity), true
-	case "Server.config":
-		if e.ComplexityRoot.Server.Config == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Server.Config(childComplexity), true
 	case "Server.directRegistrationEnabled":
 		if e.ComplexityRoot.Server.DirectRegistrationEnabled == nil {
 			break
@@ -4292,6 +4287,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.MessageEditWindowSeconds(childComplexity), true
+	case "Server.profile":
+		if e.ComplexityRoot.Server.Profile == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Server.Profile(childComplexity), true
 	case "Server.pushNotificationsEnabled":
 		if e.ComplexityRoot.Server.PushNotificationsEnabled == nil {
 			break
@@ -4455,53 +4456,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Server.ViewerPermissions(childComplexity), true
 
-	case "ServerConfig.bannerUrl":
-		if e.ComplexityRoot.ServerConfig.BannerURL == nil {
-			break
-		}
-
-		args, err := ec.field_ServerConfig_bannerUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.ServerConfig.BannerURL(childComplexity, args["width"].(*int32), args["height"].(*int32), args["fit"].(*model.FitMode)), true
-	case "ServerConfig.description":
-		if e.ComplexityRoot.ServerConfig.Description == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfig.Description(childComplexity), true
-	case "ServerConfig.logoUrl":
-		if e.ComplexityRoot.ServerConfig.LogoURL == nil {
-			break
-		}
-
-		args, err := ec.field_ServerConfig_logoUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.ServerConfig.LogoURL(childComplexity, args["width"].(*int32), args["height"].(*int32), args["fit"].(*model.FitMode)), true
-	case "ServerConfig.motd":
-		if e.ComplexityRoot.ServerConfig.Motd == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfig.Motd(childComplexity), true
-	case "ServerConfig.serverName":
-		if e.ComplexityRoot.ServerConfig.ServerName == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfig.ServerName(childComplexity), true
-	case "ServerConfig.welcomeMessage":
-		if e.ComplexityRoot.ServerConfig.WelcomeMessage == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfig.WelcomeMessage(childComplexity), true
-
 	case "ServerConfigUpdatedEvent.blockedUsernames":
 		if e.ComplexityRoot.ServerConfigUpdatedEvent.BlockedUsernames == nil {
 			break
@@ -4552,6 +4506,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ServerMembersConnection.Users(childComplexity), true
+
+	case "ServerProfile.bannerUrl":
+		if e.ComplexityRoot.ServerProfile.BannerURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerProfile.BannerURL(childComplexity), true
+	case "ServerProfile.description":
+		if e.ComplexityRoot.ServerProfile.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerProfile.Description(childComplexity), true
+	case "ServerProfile.logoUrl":
+		if e.ComplexityRoot.ServerProfile.LogoURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerProfile.LogoURL(childComplexity), true
+	case "ServerProfile.motd":
+		if e.ComplexityRoot.ServerProfile.Motd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerProfile.Motd(childComplexity), true
+	case "ServerProfile.name":
+		if e.ComplexityRoot.ServerProfile.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerProfile.Name(childComplexity), true
+	case "ServerProfile.welcomeMessage":
+		if e.ComplexityRoot.ServerProfile.WelcomeMessage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerProfile.WelcomeMessage(childComplexity), true
 
 	case "ServerStats.channelRoomCount":
 		if e.ComplexityRoot.ServerStats.ChannelRoomCount == nil {
@@ -6131,8 +6122,8 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 		return ec.fieldContext_Server_version(ctx, field)
 	case "enabledAuthProviders":
 		return ec.fieldContext_Server_enabledAuthProviders(ctx, field)
-	case "config":
-		return ec.fieldContext_Server_config(ctx, field)
+	case "profile":
+		return ec.fieldContext_Server_profile(ctx, field)
 	case "pushNotificationsEnabled":
 		return ec.fieldContext_Server_pushNotificationsEnabled(ctx, field)
 	case "vapidPublicKey":
@@ -6199,24 +6190,6 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 	return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 }
 
-func (ec *executionContext) childFields_ServerConfig(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "serverName":
-		return ec.fieldContext_ServerConfig_serverName(ctx, field)
-	case "logoUrl":
-		return ec.fieldContext_ServerConfig_logoUrl(ctx, field)
-	case "bannerUrl":
-		return ec.fieldContext_ServerConfig_bannerUrl(ctx, field)
-	case "welcomeMessage":
-		return ec.fieldContext_ServerConfig_welcomeMessage(ctx, field)
-	case "motd":
-		return ec.fieldContext_ServerConfig_motd(ctx, field)
-	case "description":
-		return ec.fieldContext_ServerConfig_description(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type ServerConfig", field.Name)
-}
-
 func (ec *executionContext) childFields_ServerMembersConnection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "users":
@@ -6227,6 +6200,24 @@ func (ec *executionContext) childFields_ServerMembersConnection(ctx context.Cont
 		return ec.fieldContext_ServerMembersConnection_hasMore(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ServerMembersConnection", field.Name)
+}
+
+func (ec *executionContext) childFields_ServerProfile(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "name":
+		return ec.fieldContext_ServerProfile_name(ctx, field)
+	case "logoUrl":
+		return ec.fieldContext_ServerProfile_logoUrl(ctx, field)
+	case "bannerUrl":
+		return ec.fieldContext_ServerProfile_bannerUrl(ctx, field)
+	case "welcomeMessage":
+		return ec.fieldContext_ServerProfile_welcomeMessage(ctx, field)
+	case "motd":
+		return ec.fieldContext_ServerProfile_motd(ctx, field)
+	case "description":
+		return ec.fieldContext_ServerProfile_description(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ServerProfile", field.Name)
 }
 
 func (ec *executionContext) childFields_ServerStats(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -8034,66 +8025,6 @@ func (ec *executionContext) field_Room_members_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["offset"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_ServerConfig_bannerUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "fit",
-		func(ctx context.Context, v any) (*model.FitMode, error) {
-			return ec.unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["fit"] = arg2
-	return args, nil
-}
-
-func (ec *executionContext) field_ServerConfig_logoUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "fit",
-		func(ctx context.Context, v any) (*model.FitMode, error) {
-			return ec.unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["fit"] = arg2
 	return args, nil
 }
 
@@ -10440,15 +10371,15 @@ func (ec *executionContext) _EventLogConnection_totalCount(ctx context.Context, 
 			return obj.TotalCount, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
-			return ec.marshalNInt2int32(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v int64) graphql.Marshaler {
+			return ec.marshalNInt642int64(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_EventLogConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("EventLogConnection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("EventLogConnection", field, false, false, errors.New("field of type Int64 does not have child fields"))
 }
 
 func (ec *executionContext) _EventLogEntry_sequence(ctx context.Context, field graphql.CollectedField, obj *model.EventLogEntry) (ret graphql.Marshaler) {
@@ -16983,7 +16914,20 @@ func (ec *executionContext) _Query_server(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Server(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.Server
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Server) graphql.Marshaler {
 			return ec.marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServer(ctx, selections, v)
 		},
@@ -20026,7 +19970,20 @@ func (ec *executionContext) _Server_version(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return obj.Version, nil
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
 			return ec.marshalNString2string(ctx, selections, v)
 		},
@@ -20049,7 +20006,20 @@ func (ec *executionContext) _Server_enabledAuthProviders(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return obj.EnabledAuthProviders, nil
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -20061,33 +20031,46 @@ func (ec *executionContext) fieldContext_Server_enabledAuthProviders(_ context.C
 	return graphql.NewScalarFieldContext("Server", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _Server_config(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+func (ec *executionContext) _Server_profile(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Server_config(ctx, field)
+			return ec.fieldContext_Server_profile(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Server().Config(ctx, obj)
+			return ec.Resolvers.Server().Profile(ctx, obj)
 		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.ServerConfig) graphql.Marshaler {
-			return ec.marshalNServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerConfig(ctx, selections, v)
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.ServerProfile
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ServerProfile) graphql.Marshaler {
+			return ec.marshalNServerProfile2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerProfile(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Server_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Server_profile(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Server",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_ServerConfig(ctx, field)
+			return ec.childFields_ServerProfile(ctx, field)
 		},
 	}
 	return fc, nil
@@ -20173,7 +20156,20 @@ func (ec *executionContext) _Server_directRegistrationEnabled(ctx context.Contex
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().DirectRegistrationEnabled(ctx, obj)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21001,186 +20997,6 @@ func (ec *executionContext) fieldContext_Server_userEffectiveDenials(ctx context
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerConfig_serverName(ctx context.Context, field graphql.CollectedField, obj *model.ServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfig_serverName(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.ServerConfig().ServerName(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfig_serverName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfig", field, true, true, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServerConfig_logoUrl(ctx context.Context, field graphql.CollectedField, obj *model.ServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfig_logoUrl(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.ServerConfig().LogoURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfig_logoUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServerConfig",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_ServerConfig_logoUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ServerConfig_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *model.ServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfig_bannerUrl(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.ServerConfig().BannerURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfig_bannerUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServerConfig",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_ServerConfig_bannerUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ServerConfig_welcomeMessage(ctx context.Context, field graphql.CollectedField, obj *model.ServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfig_welcomeMessage(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.ServerConfig().WelcomeMessage(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfig_welcomeMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfig", field, true, true, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServerConfig_motd(ctx context.Context, field graphql.CollectedField, obj *model.ServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfig_motd(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.ServerConfig().Motd(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfig_motd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfig", field, true, true, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServerConfig_description(ctx context.Context, field graphql.CollectedField, obj *model.ServerConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfig_description(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.ServerConfig().Description(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfig_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfig", field, true, true, errors.New("field of type String does not have child fields"))
-}
-
 func (ec *executionContext) _ServerConfigUpdatedEvent_serverName(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerConfigUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21372,6 +21188,209 @@ func (ec *executionContext) _ServerMembersConnection_hasMore(ctx context.Context
 }
 func (ec *executionContext) fieldContext_ServerMembersConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ServerMembersConnection", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ServerProfile_name(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerProfile_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ServerProfile().Name(ctx, obj)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServerProfile_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServerProfile_logoUrl(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerProfile_logoUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ServerProfile().LogoURL(ctx, obj)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServerProfile_logoUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServerProfile_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerProfile_bannerUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ServerProfile().BannerURL(ctx, obj)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServerProfile_bannerUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServerProfile_welcomeMessage(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerProfile_welcomeMessage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ServerProfile().WelcomeMessage(ctx, obj)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServerProfile_welcomeMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServerProfile_motd(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerProfile_motd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ServerProfile().Motd(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServerProfile_motd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServerProfile_description(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerProfile_description(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ServerProfile().Description(ctx, obj)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServerProfile_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _ServerStats_userCount(ctx context.Context, field graphql.CollectedField, obj *model.ServerStats) (ret graphql.Marshaler) {
@@ -25604,7 +25623,7 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 			it.Description = data
 		case "groupId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -35930,7 +35949,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "config":
+		case "profile":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -35939,7 +35958,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Server_config(ctx, field, obj)
+				res = ec._Server_profile(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -37090,241 +37109,6 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 	return out
 }
 
-var serverConfigImplementors = []string{"ServerConfig"}
-
-func (ec *executionContext) _ServerConfig(ctx context.Context, sel ast.SelectionSet, obj *model.ServerConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, serverConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ServerConfig")
-		case "serverName":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ServerConfig_serverName(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "logoUrl":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ServerConfig_logoUrl(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "bannerUrl":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ServerConfig_bannerUrl(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "welcomeMessage":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ServerConfig_welcomeMessage(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "motd":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ServerConfig_motd(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "description":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ServerConfig_description(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var serverConfigUpdatedEventImplementors = []string{"ServerConfigUpdatedEvent", "EventType"}
 
 func (ec *executionContext) _ServerConfigUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ServerConfigUpdatedEvent) graphql.Marshaler {
@@ -37435,6 +37219,241 @@ func (ec *executionContext) _ServerMembersConnection(ctx context.Context, sel as
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var serverProfileImplementors = []string{"ServerProfile"}
+
+func (ec *executionContext) _ServerProfile(ctx context.Context, sel ast.SelectionSet, obj *model.ServerProfile) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serverProfileImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServerProfile")
+		case "name":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ServerProfile_name(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "logoUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ServerProfile_logoUrl(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "bannerUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ServerProfile_bannerUrl(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "welcomeMessage":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ServerProfile_welcomeMessage(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "motd":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ServerProfile_motd(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "description":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ServerProfile_description(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -41201,20 +41220,6 @@ func (ec *executionContext) marshalNServer2ᚖhmansᚗdeᚋchattoᚋinternalᚋg
 	return ec._Server(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNServerConfig2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerConfig(ctx context.Context, sel ast.SelectionSet, v model.ServerConfig) graphql.Marshaler {
-	return ec._ServerConfig(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerConfig(ctx context.Context, sel ast.SelectionSet, v *model.ServerConfig) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ServerConfig(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNServerMembersConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerMembersConnection(ctx context.Context, sel ast.SelectionSet, v model.ServerMembersConnection) graphql.Marshaler {
 	return ec._ServerMembersConnection(ctx, sel, &v)
 }
@@ -41227,6 +41232,20 @@ func (ec *executionContext) marshalNServerMembersConnection2ᚖhmansᚗdeᚋchat
 		return graphql.Null
 	}
 	return ec._ServerMembersConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNServerProfile2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerProfile(ctx context.Context, sel ast.SelectionSet, v model.ServerProfile) graphql.Marshaler {
+	return ec._ServerProfile(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNServerProfile2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerProfile(ctx context.Context, sel ast.SelectionSet, v *model.ServerProfile) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ServerProfile(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNServerStats2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerStats(ctx context.Context, sel ast.SelectionSet, v *model.ServerStats) graphql.Marshaler {

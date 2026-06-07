@@ -5,6 +5,7 @@ func NewConfig(resolver ResolverRoot) Config {
 		Resolvers: resolver,
 		Directives: DirectiveRoot{
 			Length: lengthDirective,
+			Public: publicDirective,
 		},
 	}
 }

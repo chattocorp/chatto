@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -26,7 +26,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 2. Every channel room belongs to exactly one group
 
-**Decision:** `groupID` is non-nullable on channel rooms. Creation without an explicit group falls back to the server's seed group ("Lobby") only at first boot; afterwards the API requires an explicit group.
+**Decision:** `groupID` is non-nullable on channel rooms. The GraphQL `createRoom` API requires an explicit `groupId`; lower-level bootstrap/import paths may still pass an empty group ID to fall back to the seed room group while constructing first-boot state.
 **Why:** Optional grouping means an "unsorted" branch in the permission resolver and sidebar layout — extra cases that nobody actually wants. Requiring a group simplifies the resolver and gives operators a consistent unit of permission scope. See ADR-031 and FDR-017.
 **Tradeoff:** Bulk room creation tools need to know which group to drop rooms into. The API surfaces a clear error if `groupID` is missing.
 

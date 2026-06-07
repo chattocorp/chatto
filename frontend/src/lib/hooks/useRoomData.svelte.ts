@@ -107,8 +107,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
               }
             }
             server {
-              config {
-                serverName
+              profile {
+                name
               }
               viewerCanManageRooms
             }
@@ -139,7 +139,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
 
         roomData = {
           room: resp.data.room,
-          spaceName: resp.data.server?.config.serverName ?? null,
+          spaceName: resp.data.server?.profile.name ?? null,
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
           canReact: resp.data.room.viewerCanReact,

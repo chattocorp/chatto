@@ -158,6 +158,17 @@ type graphqlError struct {
 	Extensions map[string]any `json:"extensions,omitempty"`
 }
 
+func assertGraphQLAuthRequired(t *testing.T, resp *graphqlResponse) {
+	t.Helper()
+
+	if len(resp.Errors) == 0 {
+		t.Fatal("Expected GraphQL authentication error")
+	}
+	if resp.Errors[0].Message != "authentication required" {
+		t.Fatalf("Expected authentication error, got: %v", resp.Errors)
+	}
+}
+
 // doGraphQL makes a GraphQL request and returns the response
 func (env *graphqlTestEnv) doGraphQL(t *testing.T, query string, variables map[string]any) *graphqlResponse {
 	t.Helper()
@@ -274,26 +285,7 @@ func TestGraphQL_Query_Viewer_Unauthenticated(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	resp := env.doGraphQL(t, `query { viewer { user { id login } } }`, nil)
-
-	// viewer returns null for unauthenticated users (not an error)
-	if len(resp.Errors) > 0 {
-		t.Errorf("Expected no errors, got: %v", resp.Errors)
-	}
-
-	var data struct {
-		Viewer *struct {
-			User struct {
-				ID string `json:"id"`
-			} `json:"user"`
-		} `json:"viewer"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if data.Viewer != nil {
-		t.Error("Expected viewer to be null for unauthenticated user")
-	}
+	assertGraphQLAuthRequired(t, resp)
 }
 
 func TestGraphQL_JSONRequestBodyLimit_AcceptsBodyWithinLimit(t *testing.T) {
@@ -445,22 +437,7 @@ func TestGraphQL_Query_Viewer_CookieSessionRevoked(t *testing.T) {
 	}
 
 	resp = env.doGraphQL(t, `query { viewer { user { id login } } }`, nil)
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Expected no errors after revocation, got: %v", resp.Errors)
-	}
-	var after struct {
-		Viewer *struct {
-			User struct {
-				ID string `json:"id"`
-			} `json:"user"`
-		} `json:"viewer"`
-	}
-	if err := json.Unmarshal(resp.Data, &after); err != nil {
-		t.Fatalf("Failed to unmarshal post-revocation response: %v", err)
-	}
-	if after.Viewer != nil {
-		t.Fatal("Expected viewer to be null after cookie session revocation")
-	}
+	assertGraphQLAuthRequired(t, resp)
 }
 
 // TestGraphQL_Query_Spaces_PublicDiscovery tests that the spaces query is public
@@ -473,9 +450,33 @@ func TestGraphQL_Query_Server_PublicDiscovery(t *testing.T) {
 	_ = env.createTestUser(t, "spacesuser", "password123")
 
 	t.Run("unauthenticated user can read instance metadata", func(t *testing.T) {
-		resp := env.doGraphQL(t, `query { server { version config { serverName } } }`, nil)
+		resp := env.doGraphQL(t, `query { server { version profile { name logoUrl bannerUrl } } }`, nil)
 		if len(resp.Errors) > 0 {
 			t.Errorf("Expected no errors for public discovery, got: %v", resp.Errors)
+		}
+	})
+
+	t.Run("server profile image fields do not accept transform arguments", func(t *testing.T) {
+		resp := env.doGraphQL(t, `query {
+			server {
+				profile {
+					logoUrl(width: 96, height: 96)
+					bannerUrl(width: 1200, height: 630, fit: COVER)
+				}
+			}
+		}`, nil)
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL validation errors for server profile image arguments")
+		}
+		messages := make([]string, 0, len(resp.Errors))
+		for _, err := range resp.Errors {
+			messages = append(messages, err.Message)
+		}
+		joined := strings.Join(messages, "\n")
+		for _, want := range []string{"Unknown argument \"width\"", "Unknown argument \"height\"", "Unknown argument \"fit\""} {
+			if !strings.Contains(joined, want) {
+				t.Fatalf("Expected validation errors to contain %q, got:\n%s", want, joined)
+			}
 		}
 	})
 }
@@ -632,7 +633,7 @@ func TestGraphQL_LengthDirective_AllowsNullNullableInputField(t *testing.T) {
 
 	resp := env.doGraphQL(t, `mutation($input: UpdateServerInput!) {
 		updateServer(input: $input) {
-			config { serverName }
+			profile { name }
 		}
 	}`, map[string]any{
 		"input": map[string]any{
@@ -775,6 +776,21 @@ func TestGraphQL_ErrorFormat(t *testing.T) {
 	err := resp.Errors[0]
 	if err.Message == "" {
 		t.Error("Expected error message")
+	}
+}
+
+func TestGraphQL_CreateRoom_RequiresGroupID(t *testing.T) {
+	env := setupGraphQLTestServer(t)
+
+	resp := env.doGraphQL(t, `mutation {
+		createRoom(input: { name: "missing-group" }) { id }
+	}`, nil)
+
+	if len(resp.Errors) == 0 {
+		t.Fatal("Expected validation error for missing groupId")
+	}
+	if !strings.Contains(resp.Errors[0].Message, "groupId") {
+		t.Fatalf("Expected missing groupId error, got: %v", resp.Errors)
 	}
 }
 
@@ -1013,26 +1029,7 @@ func TestBearerToken_InvalidToken(t *testing.T) {
 
 	// Make a GraphQL query with an invalid token
 	resp := env.doGraphQLWithToken(t, "cht_ATinvalidtoken1234", `{ viewer { user { id login } } }`)
-
-	if len(resp.Errors) > 0 {
-		t.Fatalf("GraphQL errors: %v", resp.Errors)
-	}
-
-	// viewer should return null (unauthenticated, not error)
-	var data struct {
-		Viewer *struct {
-			User struct {
-				ID string `json:"id"`
-			} `json:"user"`
-		} `json:"viewer"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if data.Viewer != nil {
-		t.Errorf("viewer should be null for invalid token, got %+v", data.Viewer)
-	}
+	assertGraphQLAuthRequired(t, resp)
 }
 
 func TestBearerToken_RevokedTokenFails(t *testing.T) {
@@ -1066,8 +1063,5 @@ func TestBearerToken_RevokedTokenFails(t *testing.T) {
 
 	// Verify it no longer works
 	resp = env.doGraphQLWithToken(t, token, `{ viewer { user { id } } }`)
-	json.Unmarshal(resp.Data, &data)
-	if data.Viewer != nil {
-		t.Error("viewer should be null after token revocation")
-	}
+	assertGraphQLAuthRequired(t, resp)
 }

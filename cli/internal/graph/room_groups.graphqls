@@ -1,45 +1,46 @@
 """
-Per-set role permission inspector. Returns the explicit grants and denials
-configured on a set for a given role (no inheritance — to see the effective
-permissions resolve per-room or per-user via the resolver instead).
+Per-room-group role permission inspector. Returns the explicit grants and
+denials configured on a room group for a given role (no inheritance — to
+see the effective permissions resolve per-room or per-user via the resolver
+instead).
 """
 type RoomGroupRolePermissions {
-  "The set these permissions belong to."
+  "The room group these permissions belong to."
   groupId: ID!
   "The role these permissions apply to."
   roleName: String!
-  "Permissions explicitly granted to this role on this set."
+  "Permissions explicitly granted to this role on this room group."
   permissions: [String!]!
-  "Permissions explicitly denied to this role on this set."
+  "Permissions explicitly denied to this role on this room group."
   permissionDenials: [String!]!
 }
 
 """
-Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
-direct user-level grants/denials.
+Per-room-group user permission inspector. Mirrors RoomGroupRolePermissions
+for direct user-level grants/denials.
 """
 type RoomGroupUserPermissions {
-  "The set these permissions belong to."
+  "The room group these permissions belong to."
   groupId: ID!
   "The user these permissions apply to."
   userId: ID!
-  "Permissions explicitly granted to this user on this set."
+  "Permissions explicitly granted to this user on this room group."
   permissions: [String!]!
-  "Permissions explicitly denied to this user on this set."
+  "Permissions explicitly denied to this user on this room group."
   permissionDenials: [String!]!
 }
 
 extend type AdminQueries {
   """
   Resolve the explicit grants and denials configured for a role on a
-  specific set. Returns empty arrays if neither side has any keys.
+  specific room group. Returns empty arrays if neither side has any keys.
   """
   groupRolePermissions(groupId: ID!, roleName: String!): RoomGroupRolePermissions!
     @goField(forceResolver: true)
 
   """
   Resolve the explicit grants and denials configured for a user on a
-  specific set (user-level overrides at set scope).
+  specific room group (user-level overrides at room-group scope).
   """
   groupUserPermissions(groupId: ID!, userId: ID!): RoomGroupUserPermissions!
     @goField(forceResolver: true)
@@ -49,7 +50,7 @@ extend type AdminQueries {
 Input for creating a new room group.
 """
 input CreateRoomGroupInput {
-  "Display name for the new set (e.g., 'Engineering', 'Public')."
+  "Display name for the new room group (e.g., 'Engineering', 'Public')."
   name: String! @length(max: 80)
   "Optional operator-facing description."
   description: String @length(max: 500)
@@ -59,7 +60,7 @@ input CreateRoomGroupInput {
 Input for updating an existing room group.
 """
 input UpdateRoomGroupInput {
-  "The set's ID."
+  "The room group's ID."
   id: ID!
   "Display name."
   name: String! @length(max: 80)
@@ -68,30 +69,30 @@ input UpdateRoomGroupInput {
 }
 
 """
-Input for deleting a room group. Fails if the set still contains any rooms.
+Input for deleting a room group. Fails if the room group still contains any rooms.
 """
 input DeleteRoomGroupInput {
-  "The set's ID."
+  "The room group's ID."
   id: ID!
 }
 
 """
 Input for reordering all room groups. The order must include every existing
-set ID exactly once; partial or unknown lists are rejected.
+room group ID exactly once; partial or unknown lists are rejected.
 """
 input ReorderRoomGroupsInput {
-  "Set IDs in the desired display order, first to last."
+  "Room group IDs in the desired display order, first to last."
   orderedIds: [ID!]!
 }
 
 """
-Input for moving a room into a different set. Requires room.manage in
-both the source and target set (ADR-031).
+Input for moving a room into a different room group. Requires room.manage in
+both the source and target room group (ADR-031).
 """
 input MoveRoomToSetInput {
   "The room to move."
   roomId: ID!
-  "The destination set."
+  "The destination room group."
   groupId: ID!
 }
 
@@ -112,7 +113,7 @@ Input for granting a permission on a room group. The subject is either a role
 (by name) or a user (by ID).
 """
 input GroupPermissionInput {
-  "The set to scope the grant to."
+  "The room group to scope the grant to."
   groupId: ID!
   "Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.)"
   subject: String!
@@ -128,21 +129,21 @@ extend type Mutation {
   updateRoomGroup(input: UpdateRoomGroupInput!): RoomGroup!
 
   """
-  Delete a room group. Rejected if the set still contains rooms — operators
-  must move all rooms out first. Requires `role.manage`.
+  Delete a room group. Rejected if the room group still contains rooms —
+  operators must move all rooms out first. Requires `role.manage`.
   """
   deleteRoomGroup(input: DeleteRoomGroupInput!): Boolean!
 
   """
   Reorder all room groups. The provided ID list must contain every existing
-  set exactly once. Requires `role.manage`.
+  room group exactly once. Requires `role.manage`.
   """
   reorderRoomGroups(input: ReorderRoomGroupsInput!): [RoomGroup!]!
 
   """
-  Move a room into a different set. The caller must have `room.manage`
-  in both the source set and the target set (ADR-031). Permission overrides
-  on the room itself are preserved.
+  Move a room into a different room group. The caller must have
+  `room.manage` in both the source room group and the target room group
+  (ADR-031). Permission overrides on the room itself are preserved.
   """
   moveRoomToSet(input: MoveRoomToSetInput!): Room!
 

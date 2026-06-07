@@ -18,8 +18,8 @@ unknown instance) the component renders nothing.
   export const MessagePreviewQuery = graphql(`
     query MessagePreview($roomId: ID!, $eventId: ID!) {
       server {
-        config {
-          serverName
+        profile {
+          name
         }
       }
       room(roomId: $roomId) {
@@ -123,7 +123,7 @@ unknown instance) the component renders nothing.
             thumbnailUrl: a.thumbnailUrl ?? null
           })),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
-          spaceName: result.data?.server?.config.serverName ?? null,
+          spaceName: result.data?.server?.profile.name ?? null,
           roomName: result.data?.room?.name ?? null
         };
       } catch {

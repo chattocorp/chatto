@@ -15,6 +15,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
 - Default page size is 20; the maximum is 100. Requests larger than 100 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
+- Direct lookups by user ID or login return the same public profile information as the directory and require authentication.
 
 ## Design Decisions
 
@@ -42,9 +43,9 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** "Oldest first" is a stable order that matches the admin mental model ("show me long-term members first; new signups at the end"). The alphabetical fallback for null timestamps keeps the order deterministic for legacy users without inventing a fake timestamp.
 **Tradeoff:** Sorting by recency (newest first) is occasionally what an admin wants when investigating a signup wave. Not exposed today; could be added as a sort parameter if needed.
 
-### 5. All authenticated users can browse the directory
+### 5. All authenticated users can browse member profiles
 
-**Decision:** No special permission required; any authenticated user can list members.
+**Decision:** No special permission required; any authenticated user can list members or look up a member by ID/login.
 **Why:** Chatto's privacy model treats user identity (login, display name, avatar) as public to other members. Hiding members from members would be incongruent — they'd see each other in messages anyway. Operators who want a fully private member list would need a different feature.
 **Tradeoff:** Bot accounts or system users (if introduced) would surface in normal listings. The admin UI may still require admin permissions to reach its member-management page, but the underlying directory query remains available to authenticated users.
 

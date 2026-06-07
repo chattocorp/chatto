@@ -225,7 +225,7 @@ func TestUpload_ServerLogo_Success(t *testing.T) {
 	imageData := createTestPNG(t, 256, 256)
 
 	operations := `{
-		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { profile { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -237,16 +237,16 @@ func TestUpload_ServerLogo_Success(t *testing.T) {
 
 	var data struct {
 		UploadServerLogo struct {
-			Config struct {
+			Profile struct {
 				LogoURL *string `json:"logoUrl"`
-			} `json:"config"`
+			} `json:"profile"`
 		} `json:"uploadServerLogo"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.UploadServerLogo.Config.LogoURL == nil || *data.UploadServerLogo.Config.LogoURL == "" {
+	if data.UploadServerLogo.Profile.LogoURL == nil || *data.UploadServerLogo.Profile.LogoURL == "" {
 		t.Error("Expected logoUrl to be set after upload")
 	}
 }
@@ -259,7 +259,7 @@ func TestUpload_ServerLogo_Unauthenticated(t *testing.T) {
 	imageData := createTestPNG(t, 256, 256)
 
 	operations := `{
-		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { profile { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -281,7 +281,7 @@ func TestUpload_ServerLogo_NotAdmin(t *testing.T) {
 	imageData := createTestPNG(t, 256, 256)
 
 	operations := `{
-		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { profile { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -314,7 +314,7 @@ func TestUpload_ServerLogo_DeleteLogo(t *testing.T) {
 
 	imageData := createTestPNG(t, 256, 256)
 	operations := `{
-		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { profile { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -323,7 +323,7 @@ func TestUpload_ServerLogo_DeleteLogo(t *testing.T) {
 		t.Fatalf("Failed to upload logo: %v", resp.Errors)
 	}
 
-	deleteResp := env.doGraphQL(t, `mutation { deleteServerLogo { config { logoUrl } } }`, nil)
+	deleteResp := env.doGraphQL(t, `mutation { deleteServerLogo { profile { logoUrl } } }`, nil)
 
 	if len(deleteResp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", deleteResp.Errors)
@@ -331,16 +331,16 @@ func TestUpload_ServerLogo_DeleteLogo(t *testing.T) {
 
 	var data struct {
 		DeleteServerLogo struct {
-			Config struct {
+			Profile struct {
 				LogoURL *string `json:"logoUrl"`
-			} `json:"config"`
+			} `json:"profile"`
 		} `json:"deleteServerLogo"`
 	}
 	if err := json.Unmarshal(deleteResp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.DeleteServerLogo.Config.LogoURL != nil {
+	if data.DeleteServerLogo.Profile.LogoURL != nil {
 		t.Error("Expected logoUrl to be null after deletion")
 	}
 }
@@ -382,7 +382,7 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 	imageData := createTestPNG(t, 1024, 1024)
 
 	operations := `{
-		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { profile { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -394,15 +394,15 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 
 	var data struct {
 		UploadServerLogo struct {
-			Config struct {
+			Profile struct {
 				LogoURL *string `json:"logoUrl"`
-			} `json:"config"`
+			} `json:"profile"`
 		} `json:"uploadServerLogo"`
 	}
 	json.Unmarshal(resp.Data, &data)
 
 	// Logo should be uploaded successfully (server resizes to 512x512 max)
-	if data.UploadServerLogo.Config.LogoURL == nil {
+	if data.UploadServerLogo.Profile.LogoURL == nil {
 		t.Error("Expected logoUrl to be set")
 	}
 }
@@ -427,7 +427,7 @@ func TestUpload_ServerBanner_Success(t *testing.T) {
 	imageData := createTestPNG(t, 1200, 400)
 
 	operations := `{
-		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { profile { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -439,16 +439,16 @@ func TestUpload_ServerBanner_Success(t *testing.T) {
 
 	var data struct {
 		UploadServerBanner struct {
-			Config struct {
+			Profile struct {
 				BannerURL *string `json:"bannerUrl"`
-			} `json:"config"`
+			} `json:"profile"`
 		} `json:"uploadServerBanner"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.UploadServerBanner.Config.BannerURL == nil || *data.UploadServerBanner.Config.BannerURL == "" {
+	if data.UploadServerBanner.Profile.BannerURL == nil || *data.UploadServerBanner.Profile.BannerURL == "" {
 		t.Error("Expected bannerUrl to be set after upload")
 	}
 }
@@ -461,7 +461,7 @@ func TestUpload_ServerBanner_Unauthenticated(t *testing.T) {
 	imageData := createTestPNG(t, 1200, 400)
 
 	operations := `{
-		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { profile { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -483,7 +483,7 @@ func TestUpload_ServerBanner_NotAdmin(t *testing.T) {
 	imageData := createTestPNG(t, 1200, 400)
 
 	operations := `{
-		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { profile { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -516,7 +516,7 @@ func TestUpload_ServerBanner_DeleteBanner(t *testing.T) {
 
 	imageData := createTestPNG(t, 1200, 400)
 	operations := `{
-		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { profile { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -525,7 +525,7 @@ func TestUpload_ServerBanner_DeleteBanner(t *testing.T) {
 		t.Fatalf("Failed to upload banner: %v", resp.Errors)
 	}
 
-	deleteResp := env.doGraphQL(t, `mutation { deleteServerBanner { config { bannerUrl } } }`, nil)
+	deleteResp := env.doGraphQL(t, `mutation { deleteServerBanner { profile { bannerUrl } } }`, nil)
 
 	if len(deleteResp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", deleteResp.Errors)
@@ -533,16 +533,16 @@ func TestUpload_ServerBanner_DeleteBanner(t *testing.T) {
 
 	var data struct {
 		DeleteServerBanner struct {
-			Config struct {
+			Profile struct {
 				BannerURL *string `json:"bannerUrl"`
-			} `json:"config"`
+			} `json:"profile"`
 		} `json:"deleteServerBanner"`
 	}
 	if err := json.Unmarshal(deleteResp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.DeleteServerBanner.Config.BannerURL != nil {
+	if data.DeleteServerBanner.Profile.BannerURL != nil {
 		t.Error("Expected bannerUrl to be null after deletion")
 	}
 }

@@ -1387,6 +1387,41 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	}
 }
 
+func TestChattoCore_DeleteUser_CleansUpAvatarCache(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "avatarcacheuser", "Avatar Cache User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	asset, err := core.UploadUserAvatar(ctx, user.Id, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("Failed to upload avatar: %v", err)
+	}
+	if err := core.SetUserAvatar(ctx, user.Id, asset); err != nil {
+		t.Fatalf("Failed to set avatar: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(ServerAssetSignResource, asset.Id, 64, 64, "cover")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store avatar cached resize: %v", err)
+	}
+
+	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
+		t.Fatalf("Failed to delete user: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting avatar cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Avatar cache entry should be deleted during account deletion")
+	}
+}
+
 func TestChattoCore_DeleteUserAvatar_NoAvatar(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

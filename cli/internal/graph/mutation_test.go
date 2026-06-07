@@ -24,9 +24,11 @@ func ptr(s string) *string {
 func TestCreateRoom_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
+	groupID := env.testRoom.GroupId
 
 	input := model.CreateRoomInput{
-		Name: "new-room",
+		Name:    "new-room",
+		GroupID: groupID,
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
@@ -51,7 +53,8 @@ func TestCreateRoom_Authorization(t *testing.T) {
 	t.Run("space admin can create room", func(t *testing.T) {
 		// testUser is the space creator (admin)
 		room, err := mutation.CreateRoom(env.authContext(), model.CreateRoomInput{
-			Name: "admin-created-room",
+			Name:    "admin-created-room",
+			GroupID: groupID,
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -72,7 +75,8 @@ func TestCreateRoom_Authorization(t *testing.T) {
 
 		// room.create is not granted to everyone role by default
 		_, err = mutation.CreateRoom(env.authContextForUser(member), model.CreateRoomInput{
-			Name: "member-created-room",
+			Name:    "member-created-room",
+			GroupID: groupID,
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
@@ -92,7 +96,8 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 
 		room, err := mutation.CreateRoom(env.authContextForUser(member), model.CreateRoomInput{
-			Name: "member-created-room-granted",
+			Name:    "member-created-room-granted",
+			GroupID: groupID,
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
