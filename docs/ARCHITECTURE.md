@@ -137,7 +137,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 
 | Mutation                | Description                                                |
 | ----------------------- | ---------------------------------------------------------- |
-| `updateServerConfig`    | Update runtime-editable server text/configuration fields.  |
+| `updateServerConfig`    | Update runtime-editable server presentation/configuration fields. |
 | `uploadServerLogo`      | Upload server logo.                                        |
 | `deleteServerLogo`      | Delete server logo.                                        |
 | `uploadServerBanner`    | Upload server banner.                                      |
@@ -235,7 +235,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 ### Admin sub-API
 
-`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access, so the nested fields don't need individual auth checks (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
+`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access. Admin-only operations are spread across multiple schema files but hang off these two types.
 
 | Field                                            | Type      | Description                                                                                  |
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
@@ -245,6 +245,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
 | `admin.resetServerConfig`                        | Mutation  | Reset server configuration to defaults.                                                      |
+| `admin.updateBlockedUsernames(input)`            | Mutation  | Update the newline-separated blocked-username list.                                          |
 | `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
 | `admin.clearUsernameCooldown(userId)`            | Mutation  | Manually clear a user's login change cooldown.                                               |
 

@@ -142,6 +142,48 @@ func TestUpdateServerConfig_AdminUserCanUpdateWelcomeMessage(t *testing.T) {
 	})
 }
 
+func TestUpdateBlockedUsernames_Authorization(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	adminMutations := env.resolver.AdminMutations()
+
+	t.Run("admin can update blocked usernames", func(t *testing.T) {
+		blocked := "root\nadmin\nsupport"
+		result, err := adminMutations.UpdateBlockedUsernames(env.authContext(), &model.AdminMutations{}, model.UpdateBlockedUsernamesInput{
+			BlockedUsernames: blocked,
+		})
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+		if result != blocked {
+			t.Errorf("expected blocked usernames %q, got %q", blocked, result)
+		}
+	})
+
+	t.Run("non-admin gets permission denied", func(t *testing.T) {
+		regularUser := env.createVerifiedUser(t, "regular-blocked-usernames", "Regular User", "password123")
+
+		_, err := adminMutations.UpdateBlockedUsernames(
+			env.authContextForUser(regularUser),
+			&model.AdminMutations{},
+			model.UpdateBlockedUsernamesInput{BlockedUsernames: "root"},
+		)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("unauthenticated user gets not authenticated", func(t *testing.T) {
+		_, err := adminMutations.UpdateBlockedUsernames(
+			env.unauthContext(),
+			&model.AdminMutations{},
+			model.UpdateBlockedUsernamesInput{BlockedUsernames: "root"},
+		)
+		if !errors.Is(err, core.ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+}
+
 // ============================================================================
 // AdminMutations.UpdateUser / ClearUsernameCooldown Tests
 // ============================================================================

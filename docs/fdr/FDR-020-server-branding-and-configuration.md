@@ -20,9 +20,9 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Design Decisions
 
-### 1. One config surface, with nil-preserve semantics
+### 1. Presentation config uses one partial-update surface
 
-**Decision:** `updateServerConfig` accepts every text/config field as nullable. A nil input for a field leaves the existing value untouched; only fields the caller explicitly sets get changed.
+**Decision:** `updateServerConfig` accepts the presentation text fields as nullable values. A nil input for a field leaves the existing value untouched; only fields the caller explicitly sets get changed.
 **Why:** Partial-update semantics let UI forms send only changed fields without GET-then-PUT round-trips and without overwriting other fields with whatever defaults the form thinks they should be. It also makes API clients (CLI tools, scripts) safer.
 **Tradeoff:** Two ways to "clear" a string field: empty-string vs unset. The API treats empty string as a clear and nil as "leave alone". Documented; consistent across all string fields.
 
@@ -50,11 +50,11 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** The login page has room for formatted content (a paragraph, a link, a bit of structure). The MOTD is a one-line banner where formatting would add visual noise. Different surfaces, different needs.
 **Tradeoff:** Operators may expect MOTD to support links. If demand emerges, a future tweak could allow a single link.
 
-### 6. Blocked usernames as a config field, not a separate management surface
+### 6. Blocked usernames as a dedicated security mutation
 
-**Decision:** The blocked-usernames list is one field on the server config, edited as a newline-separated text area.
-**Why:** Few operators will blocklist many usernames. A separate "blocked usernames" admin page with add/remove operations would be overkill for the volume. A text area is the smallest viable UI.
-**Tradeoff:** Large lists could become awkward to edit. None of the live deployments have lists big enough for this to matter.
+**Decision:** The blocked-usernames list is stored with server config, but edited through `admin.updateBlockedUsernames` rather than the general `updateServerConfig` mutation.
+**Why:** The data is part of runtime config, but the workflow is a security/admin control rather than presentation copy. A dedicated mutation keeps the API boundary clear without introducing a full CRUD surface for a small newline-separated list.
+**Tradeoff:** Operators still edit the list as a text area, so very large lists could become awkward. None of the live deployments have lists big enough for this to matter.
 
 ### 7. Runtime text config has fixed size caps
 
@@ -70,7 +70,8 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Permissions
 
-- `server.manage` — gates every server-config mutation (`updateServerConfig`, `uploadServerLogo`, `uploadServerBanner`, `deleteServerLogo`, `deleteServerBanner`).
+- `server.manage` — gates presentation and branding mutations (`updateServerConfig`, `uploadServerLogo`, `uploadServerBanner`, `deleteServerLogo`, `deleteServerBanner`).
+- `admin.access` — gates `admin.updateBlockedUsernames`.
 
 ## Related
 

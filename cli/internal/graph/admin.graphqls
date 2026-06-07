@@ -171,8 +171,6 @@ input UpdateServerConfigInput {
   serverName: String
   "Message of the Day for the header. Set to empty string to clear."
   motd: String
-  "Blocked usernames (newline-separated). Set to empty string to clear."
-  blockedUsernames: String
   "Short server description for OG link-preview metadata. Set to empty string to clear."
   description: String
 }
@@ -272,12 +270,20 @@ extend type AdminQueries {
   projections: [ProjectionState!]! @goField(forceResolver: true)
 }
 
-"Admin mutations for user management."
+"Admin mutations for security and user management."
 type AdminMutations {
+  "Update the newline-separated blocked-username list and return the effective saved value. Requires `admin.access`."
+  updateBlockedUsernames(input: UpdateBlockedUsernamesInput!): String! @goField(forceResolver: true)
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
   clearUsernameCooldown(input: ClearUsernameCooldownInput!): Boolean! @goField(forceResolver: true)
+}
+
+"Input for AdminMutations.updateBlockedUsernames."
+input UpdateBlockedUsernamesInput {
+  "Blocked usernames (newline-separated). Set to empty string to clear."
+  blockedUsernames: String!
 }
 
 "Input for AdminMutations.clearUsernameCooldown."
@@ -298,7 +304,7 @@ input AdminUpdateUserInput {
 
 extend type Mutation {
   "Update runtime-editable server configuration. Requires `server.manage`."
-  updateServerConfig(input: UpdateServerConfigInput!): AdminServerConfig! @goField(forceResolver: true)
+  updateServerConfig(input: UpdateServerConfigInput!): ServerConfig! @goField(forceResolver: true)
 
   "Admin mutations. Returns null if user lacks admin permission."
   admin: AdminMutations @goField(forceResolver: true)

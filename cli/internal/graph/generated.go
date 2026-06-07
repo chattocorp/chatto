@@ -87,8 +87,9 @@ type ComplexityRoot struct {
 	}
 
 	AdminMutations struct {
-		ClearUsernameCooldown func(childComplexity int, input model.ClearUsernameCooldownInput) int
-		UpdateUser            func(childComplexity int, input model.AdminUpdateUserInput) int
+		ClearUsernameCooldown  func(childComplexity int, input model.ClearUsernameCooldownInput) int
+		UpdateBlockedUsernames func(childComplexity int, input model.UpdateBlockedUsernamesInput) int
+		UpdateUser             func(childComplexity int, input model.AdminUpdateUserInput) int
 	}
 
 	AdminQueries struct {
@@ -948,6 +949,7 @@ type ComplexityRoot struct {
 }
 
 type AdminMutationsResolver interface {
+	UpdateBlockedUsernames(ctx context.Context, obj *model.AdminMutations, input model.UpdateBlockedUsernamesInput) (string, error)
 	UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error)
 	ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, input model.ClearUsernameCooldownInput) (bool, error)
 }
@@ -1076,7 +1078,7 @@ type MutationResolver interface {
 	DeleteAvatar(ctx context.Context, input model.DeleteAvatarInput) (*corev1.User, error)
 	RequestAccountDeletion(ctx context.Context) (string, error)
 	DeleteMyAccount(ctx context.Context, input model.DeleteMyAccountInput) (bool, error)
-	UpdateServerConfig(ctx context.Context, input model.UpdateServerConfigInput) (*model.AdminServerConfig, error)
+	UpdateServerConfig(ctx context.Context, input model.UpdateServerConfigInput) (*model.ServerConfig, error)
 	Admin(ctx context.Context) (*model.AdminMutations, error)
 	StartDm(ctx context.Context, input model.StartDMInput) (*corev1.Room, error)
 	SetServerNotificationLevel(ctx context.Context, input model.SetServerNotificationLevelInput) (*model.ViewerNotificationPreference, error)
@@ -1345,6 +1347,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AdminMutations.ClearUsernameCooldown(childComplexity, args["input"].(model.ClearUsernameCooldownInput)), true
+	case "AdminMutations.updateBlockedUsernames":
+		if e.ComplexityRoot.AdminMutations.UpdateBlockedUsernames == nil {
+			break
+		}
+
+		args, err := ec.field_AdminMutations_updateBlockedUsernames_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.AdminMutations.UpdateBlockedUsernames(childComplexity, args["input"].(model.UpdateBlockedUsernamesInput)), true
 	case "AdminMutations.updateUser":
 		if e.ComplexityRoot.AdminMutations.UpdateUser == nil {
 			break
@@ -5318,6 +5331,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUnarchiveRoomInput,
 		ec.unmarshalInputUnfollowThreadInput,
 		ec.unmarshalInputUnsubscribeFromPushInput,
+		ec.unmarshalInputUpdateBlockedUsernamesInput,
 		ec.unmarshalInputUpdateMessageInput,
 		ec.unmarshalInputUpdateMyPresenceInput,
 		ec.unmarshalInputUpdateProfileInput,
@@ -5490,6 +5504,8 @@ func (ec *executionContext) childFields_AccountInfo(ctx context.Context, field g
 
 func (ec *executionContext) childFields_AdminMutations(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "updateBlockedUsernames":
+		return ec.fieldContext_AdminMutations_updateBlockedUsernames(ctx, field)
 	case "updateUser":
 		return ec.fieldContext_AdminMutations_updateUser(ctx, field)
 	case "clearUsernameCooldown":
@@ -6630,6 +6646,20 @@ func (ec *executionContext) field_AdminMutations_clearUsernameCooldown_args(ctx 
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.ClearUsernameCooldownInput, error) {
 			return ec.unmarshalNClearUsernameCooldownInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearUsernameCooldownInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_AdminMutations_updateBlockedUsernames_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.UpdateBlockedUsernamesInput, error) {
+			return ec.unmarshalNUpdateBlockedUsernamesInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateBlockedUsernamesInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -8540,6 +8570,50 @@ func (ec *executionContext) _AccountInfo_consumersUsed(ctx context.Context, fiel
 }
 func (ec *executionContext) fieldContext_AccountInfo_consumersUsed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("AccountInfo", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _AdminMutations_updateBlockedUsernames(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdminMutations_updateBlockedUsernames(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.AdminMutations().UpdateBlockedUsernames(ctx, obj, fc.Args["input"].(model.UpdateBlockedUsernamesInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdminMutations_updateBlockedUsernames(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdminMutations",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_AdminMutations_updateBlockedUsernames_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _AdminMutations_updateUser(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
@@ -13309,8 +13383,8 @@ func (ec *executionContext) _Mutation_updateServerConfig(ctx context.Context, fi
 			return ec.Resolvers.Mutation().UpdateServerConfig(ctx, fc.Args["input"].(model.UpdateServerConfigInput))
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminServerConfig) graphql.Marshaler {
-			return ec.marshalNAdminServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminServerConfig(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ServerConfig) graphql.Marshaler {
+			return ec.marshalNServerConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerConfig(ctx, selections, v)
 		},
 		true,
 		true,
@@ -13323,7 +13397,7 @@ func (ec *executionContext) fieldContext_Mutation_updateServerConfig(ctx context
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_AdminServerConfig(ctx, field)
+			return ec.childFields_ServerConfig(ctx, field)
 		},
 	}
 	defer func() {
@@ -27060,6 +27134,36 @@ func (ec *executionContext) unmarshalInputUnsubscribeFromPushInput(ctx context.C
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateBlockedUsernamesInput(ctx context.Context, obj any) (model.UpdateBlockedUsernamesInput, error) {
+	var it model.UpdateBlockedUsernamesInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"blockedUsernames"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "blockedUsernames":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("blockedUsernames"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BlockedUsernames = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateMessageInput(ctx context.Context, obj any) (model.UpdateMessageInput, error) {
 	var it model.UpdateMessageInput
 	if obj == nil {
@@ -27321,7 +27425,7 @@ func (ec *executionContext) unmarshalInputUpdateServerConfigInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"welcomeMessage", "serverName", "motd", "blockedUsernames", "description"}
+	fieldsInOrder := [...]string{"welcomeMessage", "serverName", "motd", "description"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -27349,13 +27453,6 @@ func (ec *executionContext) unmarshalInputUpdateServerConfigInput(ctx context.Co
 				return it, err
 			}
 			it.Motd = data
-		case "blockedUsernames":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("blockedUsernames"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.BlockedUsernames = data
 		case "description":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -27856,6 +27953,42 @@ func (ec *executionContext) _AdminMutations(ctx context.Context, sel ast.Selecti
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AdminMutations")
+		case "updateBlockedUsernames":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AdminMutations_updateBlockedUsernames(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "updateUser":
 			field := field
 
@@ -40797,6 +40930,11 @@ func (ec *executionContext) unmarshalNUnfollowThreadInput2hmansᚗdeᚋchattoᚋ
 
 func (ec *executionContext) unmarshalNUnsubscribeFromPushInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUnsubscribeFromPushInput(ctx context.Context, v any) (model.UnsubscribeFromPushInput, error) {
 	res, err := ec.unmarshalInputUnsubscribeFromPushInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateBlockedUsernamesInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateBlockedUsernamesInput(ctx context.Context, v any) (model.UpdateBlockedUsernamesInput, error) {
+	res, err := ec.unmarshalInputUpdateBlockedUsernamesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

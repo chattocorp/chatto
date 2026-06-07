@@ -34,16 +34,16 @@
 
   const saveMutation = useMutation(
     graphql(`
-      mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {
-        updateServerConfig(input: $input) {
-          blockedUsernames
+      mutation UpdateBlockedUsernames($input: UpdateBlockedUsernamesInput!) {
+        admin {
+          updateBlockedUsernames(input: $input)
         }
       }
     `),
     {
       onCompleted: (data) => {
-        if (data.updateServerConfig) {
-          blockedUsernames = data.updateServerConfig.blockedUsernames ?? defaultBlockedUsernames;
+        if (data.admin) {
+          blockedUsernames = data.admin.updateBlockedUsernames;
           toast.success('Settings saved');
         }
       },
