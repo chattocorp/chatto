@@ -3,103 +3,67 @@ package core
 import (
 	"errors"
 	"testing"
-	"time"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestChattoCore_AuthRevocationCutoffPreservesMax(t *testing.T) {
+func TestChattoCore_AuthGenerationRejectsStaleTokenIssuance(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, err := core.CreateUser(ctx, "system", "cutoff-max-user", "Cutoff Max User", "password123")
+	user, err := core.CreateUser(ctx, "system", "generation-stale-user", "Generation Stale User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-
-	authenticatedAt := time.Now().UTC()
-	token, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "test", authenticatedAt)
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSourceAt: %v", err)
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
 	}
 
-	older := authenticatedAt.Add(time.Second)
-	newer := authenticatedAt.Add(time.Minute)
-	if err := core.storeAuthRevocationCutoff(ctx, user.Id, "newer", newer); err != nil {
-		t.Fatalf("store newer cutoff: %v", err)
-	}
-	if err := core.storeAuthRevocationCutoff(ctx, user.Id, "older", older); err != nil {
-		t.Fatalf("store older cutoff: %v", err)
+	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration err = %v, want ErrAuthTokenNotFound", err)
 	}
 
-	cutoff, ok, err := core.authRevocationCutoff(ctx, user.Id)
+	freshGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("authRevocationCutoff: %v", err)
+		t.Fatalf("CurrentAuthGeneration fresh: %v", err)
 	}
-	if !ok {
-		t.Fatal("expected auth revocation cutoff")
+	if freshGeneration == authGeneration {
+		t.Fatal("auth generation should advance after password change")
 	}
-	if !cutoff.Equal(newer) {
-		t.Fatalf("cutoff = %s, want %s", cutoff, newer)
+	if token, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", freshGeneration); err != nil {
+		t.Fatalf("fresh token issuance should succeed: %v", err)
+	} else if gotUserID, err := core.ValidateAuthToken(ctx, token); err != nil {
+		t.Fatalf("fresh token should validate: %v", err)
+	} else if gotUserID != user.Id {
+		t.Fatalf("validated user ID = %q, want %q", gotUserID, user.Id)
 	}
+}
+
+func TestChattoCore_AuthGenerationRejectsDeletedUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "generation-delete-user", "Generation Delete User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	deletedEvent := newEvent("system", &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
+		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: user.Id},
+	}})
+	if _, err := core.appendUserEvent(ctx, user.Id, deletedEvent, "", nil); err != nil {
+		t.Fatalf("append delete event: %v", err)
+	}
+
 	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
-	}
-}
-
-func TestChattoCore_AuthRevocationRollbackRemovesOnlyItsOwnCutoff(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, "system", "cutoff-rollback-user", "Cutoff Rollback User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	time.Sleep(time.Millisecond)
-
-	first, err := core.BeginCredentialRevocation(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("BeginCredentialRevocation first: %v", err)
-	}
-	second, err := core.BeginCredentialRevocation(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("BeginCredentialRevocation second: %v", err)
-	}
-
-	first.Rollback(ctx)
-	if _, err := core.VerifyPassword(ctx, user.Login, "password123"); err == nil {
-		t.Fatal("password should remain revoked while the second cutoff is pending")
-	}
-
-	second.Rollback(ctx)
-	if verified, err := core.VerifyPassword(ctx, user.Login, "password123"); err != nil {
-		t.Fatalf("password should verify after both cutoffs roll back: %v", err)
-	} else if verified.Id != user.Id {
-		t.Fatalf("verified user ID = %q, want %q", verified.Id, user.Id)
-	}
-}
-
-func TestChattoCore_AuthRevocationRollbackKeepsCommittedCutoff(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, "system", "cutoff-commit-user", "Cutoff Commit User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	time.Sleep(time.Millisecond)
-
-	committed, err := core.BeginCredentialRevocation(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("BeginCredentialRevocation committed: %v", err)
-	}
-	failed, err := core.BeginCredentialRevocation(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("BeginCredentialRevocation failed: %v", err)
-	}
-
-	committed.Commit()
-	failed.Rollback(ctx)
-
-	if _, err := core.VerifyPassword(ctx, user.Login, "password123"); err == nil {
-		t.Fatal("password should remain revoked after committed cutoff survives concurrent rollback")
 	}
 }

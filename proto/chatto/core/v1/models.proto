@@ -81,6 +81,7 @@ message CookieSession {
   google.protobuf.Timestamp expires_at = 3;
   string source = 4;
   AuditRequestMetadata request = 5;
+  uint64 auth_generation = 6;
 }
 
 // DeprecatedAsset is the storage-pointer-only proto used for legacy values:

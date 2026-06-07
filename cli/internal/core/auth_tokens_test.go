@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestChattoCore_CreateAuthToken(t *testing.T) {
@@ -216,31 +215,38 @@ func TestChattoCore_RevokeAllAuthTokensForUser(t *testing.T) {
 	}
 }
 
-func TestChattoCore_AuthTokenRevocationCutoffRejectsStaleAuthentication(t *testing.T) {
+func TestChattoCore_AuthTokenGenerationRejectsStaleAuthentication(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, err := core.CreateUser(ctx, "", "cutoff-token-user", "Cutoff Token User", "password123")
+	user, err := core.CreateUser(ctx, "", "generation-token-user", "Generation Token User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	authenticatedAt := time.Now()
-	token, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", authenticatedAt)
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSourceAt: %v", err)
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	token, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration: %v", err)
 	}
 
-	if err := core.EstablishCredentialRevocation(ctx, user.Id); err != nil {
-		t.Fatalf("EstablishCredentialRevocation: %v", err)
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
 	}
 	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
 	}
-	if _, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", authenticatedAt); !errors.Is(err, ErrAuthTokenNotFound) {
-		t.Fatalf("stale CreateAuthTokenWithSourceAt err = %v, want ErrAuthTokenNotFound", err)
+	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("stale CreateAuthTokenWithSourceGeneration err = %v, want ErrAuthTokenNotFound", err)
 	}
-	if fresh, err := core.CreateAuthTokenWithSourceAt(ctx, user.Id, "password_login", time.Now()); err != nil {
-		t.Fatalf("fresh CreateAuthTokenWithSourceAt should succeed: %v", err)
+	freshGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration fresh: %v", err)
+	}
+	if fresh, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", freshGeneration); err != nil {
+		t.Fatalf("fresh CreateAuthTokenWithSourceGeneration should succeed: %v", err)
 	} else if gotUserID, err := core.ValidateAuthToken(ctx, fresh); err != nil {
 		t.Fatalf("fresh token should validate: %v", err)
 	} else if gotUserID != user.Id {

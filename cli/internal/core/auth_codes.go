@@ -54,6 +54,7 @@ type AuthCodeData struct {
 	CodeChallenge       string    `json:"code_challenge"`
 	CodeChallengeMethod string    `json:"code_challenge_method"`
 	CreatedAt           time.Time `json:"created_at"`
+	AuthGeneration      uint64    `json:"auth_generation,omitempty"`
 }
 
 // ============================================================================
@@ -72,6 +73,10 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 	code := NewAuthCode()
 	createdAt := time.Now()
 	key := c.authCodeKey(code)
+	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	if err != nil {
+		return "", err
+	}
 
 	data, err := json.Marshal(AuthCodeData{
 		UserID:              userID,
@@ -79,6 +84,7 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
 		CreatedAt:           createdAt,
+		AuthGeneration:      authGeneration,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
@@ -139,7 +145,7 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		return "", "", ErrAuthCodeInvalidVerifier
 	}
 
-	if err := c.RequireAuthenticationAllowed(ctx, codeData.UserID, codeData.CreatedAt); err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, codeData.UserID, codeData.AuthGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", "", err
 		}
@@ -150,7 +156,7 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 	}
 
 	// Issue a bearer token
-	token, err := c.CreateAuthTokenWithSourceAt(ctx, codeData.UserID, "oauth_code_exchange", codeData.CreatedAt)
+	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, codeData.UserID, "oauth_code_exchange", codeData.AuthGeneration)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
 	}

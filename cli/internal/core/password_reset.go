@@ -163,12 +163,6 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	// Delete token immediately to prevent reuse (even if password update fails)
 	defer c.deletePasswordResetToken(ctx, token)
 
-	authRevocation, err := c.BeginCredentialRevocation(ctx, tokenData.UserID)
-	if err != nil {
-		return err
-	}
-	defer authRevocation.Rollback(ctx)
-
 	passwordChanged := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
 			UserId:       tokenData.UserID,
@@ -189,7 +183,6 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", nil); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
-	authRevocation.Commit()
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, tokenData.UserID, "password_reset"); err != nil {
 		return err
 	}

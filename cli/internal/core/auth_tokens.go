@@ -29,12 +29,9 @@ const authTokenKeyPrefix = "session."
 
 // AuthTokenData is the JSON value stored in RUNTIME_STATE for bearer tokens.
 type AuthTokenData struct {
-	UserID    string    `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-	// AuthenticatedAt is when the credential flow became authenticated. It can
-	// be earlier than CreatedAt when token issuance races with password
-	// revocation after password/OAuth verification has already completed.
-	AuthenticatedAt time.Time `json:"authenticated_at,omitempty"`
+	UserID         string    `json:"user_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	AuthGeneration uint64    `json:"auth_generation,omitempty"`
 }
 
 // ============================================================================
@@ -63,15 +60,17 @@ func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string
 // security-safe issuance fact in EVT. The raw token remains only in the return
 // value and the HMAC-derived RUNTIME_STATE key.
 func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, source string) (string, error) {
-	return c.CreateAuthTokenWithSourceAt(ctx, userID, source, time.Now())
+	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	return c.CreateAuthTokenWithSourceGeneration(ctx, userID, source, authGeneration)
 }
 
-// CreateAuthTokenWithSourceAt creates a new opaque bearer token for an
-// authentication that happened at authenticatedAt. For password logins this is
-// the time credential verification started, so tokens minted after a concurrent
-// password revocation can still be rejected.
-func (c *ChattoCore) CreateAuthTokenWithSourceAt(ctx context.Context, userID, source string, authenticatedAt time.Time) (string, error) {
-	if err := c.RequireAuthenticationAllowed(ctx, userID, authenticatedAt); err != nil {
+// CreateAuthTokenWithSourceGeneration creates a bearer token for an
+// authentication that proved credentials against authGeneration.
+func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, error) {
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			return "", ErrAuthTokenNotFound
 		}
@@ -83,9 +82,9 @@ func (c *ChattoCore) CreateAuthTokenWithSourceAt(ctx context.Context, userID, so
 	key := c.authTokenKey(token)
 
 	data, err := json.Marshal(AuthTokenData{
-		UserID:          userID,
-		CreatedAt:       createdAt,
-		AuthenticatedAt: authenticatedAt,
+		UserID:         userID,
+		CreatedAt:      createdAt,
+		AuthGeneration: authGeneration,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth token: %w", err)
@@ -123,7 +122,7 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
 	}
-	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.authenticatedAt()); err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", err
 		}
@@ -136,13 +135,6 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.authTokenTTL())
 
 	return tokenData.UserID, nil
-}
-
-func (d AuthTokenData) authenticatedAt() time.Time {
-	if !d.AuthenticatedAt.IsZero() {
-		return d.AuthenticatedAt
-	}
-	return d.CreatedAt
 }
 
 // RevokeAuthToken deletes a bearer token, immediately invalidating it.

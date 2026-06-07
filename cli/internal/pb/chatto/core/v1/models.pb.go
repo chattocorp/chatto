@@ -456,14 +456,15 @@ func (x *AuditRequestMetadata) GetIpHash() string {
 // HTTP cookie session. The raw session ID is never stored in this payload; it is
 // represented only by the HMAC-derived RUNTIME_STATE key.
 type CookieSession struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Source        string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
-	Request       *AuditRequestMetadata  `protobuf:"bytes,5,opt,name=request,proto3" json:"request,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Source         string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	Request        *AuditRequestMetadata  `protobuf:"bytes,5,opt,name=request,proto3" json:"request,omitempty"`
+	AuthGeneration uint64                 `protobuf:"varint,6,opt,name=auth_generation,json=authGeneration,proto3" json:"auth_generation,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CookieSession) Reset() {
@@ -529,6 +530,13 @@ func (x *CookieSession) GetRequest() *AuditRequestMetadata {
 		return x.Request
 	}
 	return nil
+}
+
+func (x *CookieSession) GetAuthGeneration() uint64 {
+	if x != nil {
+		return x.AuthGeneration
+	}
+	return 0
 }
 
 // DeprecatedAsset is the storage-pointer-only proto used for legacy values:
@@ -2031,7 +2039,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x14AuditRequestMetadata\x12\x1d\n" +
 	"\n" +
 	"user_agent\x18\x01 \x01(\tR\tuserAgent\x12\x17\n" +
-	"\aip_hash\x18\x02 \x01(\tR\x06ipHash\"\xf6\x01\n" +
+	"\aip_hash\x18\x02 \x01(\tR\x06ipHash\"\x9f\x02\n" +
 	"\rCookieSession\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x129\n" +
 	"\n" +
@@ -2039,7 +2047,8 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
 	"\x06source\x18\x04 \x01(\tR\x06source\x12>\n" +
-	"\arequest\x18\x05 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"v\n" +
+	"\arequest\x18\x05 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\x12'\n" +
+	"\x0fauth_generation\x18\x06 \x01(\x04R\x0eauthGeneration\"v\n" +
 	"\x0fDeprecatedAsset\x12/\n" +
 	"\x04nats\x18\x02 \x01(\v2\x19.chatto.core.v1.NATSAssetH\x00R\x04nats\x12)\n" +
 	"\x02s3\x18\x01 \x01(\v2\x17.chatto.core.v1.S3AssetH\x00R\x02s3B\a\n" +

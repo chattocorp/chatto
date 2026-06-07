@@ -60,19 +60,14 @@ Current occupants include:
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Embedded-SPA cookie-session records: `cookie_session.{userId}.{sessionHmac}`,
   with per-key `auth.token_ttl` expiry. The value is a `CookieSession`
-  protobuf containing `user_id`, `created_at`, `expires_at`, source, and safe
-  request metadata.
-- Auth revocation cutoffs: `auth_revoked_before.{userId}`, stored as a JSON
-  set of RFC3339Nano cutoff markers. Password changes/resets add a marker
-  before appending the replacement password-hash event and remove only their
-  own marker if the append fails; cookie sessions, bearer tokens, and OAuth
-  authorization-code exchange reject credentials authenticated before the
-  maximum marker.
+  protobuf containing `user_id`, `created_at`, `expires_at`, source, safe
+  request metadata, and the user auth generation it was issued against.
 - Bearer auth token verifiers: `session.{hmac}`, with per-key
-  `auth.token_ttl` sliding-window expiry. User-wide cleanup scans these records
-  and deletes entries whose stored user ID matches.
+  `auth.token_ttl` sliding-window expiry. Values include the user auth
+  generation they were issued against. User-wide cleanup scans these records and
+  deletes entries whose stored user ID matches.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
-  TTL.
+  TTL. Values include the user auth generation they were issued against.
 - Account workflow token verifiers: `registration.{hmac}`,
   `email_verification.{hmac}`, `password_reset.{hmac}`, and
   `account_deletion_token.{hmac}`, with per-key TTLs appropriate to each

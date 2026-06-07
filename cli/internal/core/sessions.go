@@ -37,15 +37,17 @@ func (c *ChattoCore) cookieSessionKey(userID, sessionID string) string {
 // RUNTIME_STATE and returns the opaque session ID that should be stored in the
 // signed browser cookie.
 func (c *ChattoCore) CreateCookieSession(ctx context.Context, userID, source string) (string, *corev1.CookieSession, error) {
-	return c.CreateCookieSessionAt(ctx, userID, source, time.Now())
+	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	if err != nil {
+		return "", nil, err
+	}
+	return c.CreateCookieSessionForGeneration(ctx, userID, source, authGeneration)
 }
 
-// CreateCookieSessionAt creates a server-side cookie session for an
-// authentication that happened at authenticatedAt. For password logins this is
-// the time credential verification started, so sessions minted after a
-// concurrent password revocation can still be rejected.
-func (c *ChattoCore) CreateCookieSessionAt(ctx context.Context, userID, source string, authenticatedAt time.Time) (string, *corev1.CookieSession, error) {
-	if err := c.RequireAuthenticationAllowed(ctx, userID, authenticatedAt); err != nil {
+// CreateCookieSessionForGeneration creates a server-side cookie session for an
+// authentication that proved credentials against authGeneration.
+func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, *corev1.CookieSession, error) {
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", nil, err
 		}
@@ -57,13 +59,12 @@ func (c *ChattoCore) CreateCookieSessionAt(ctx context.Context, userID, source s
 	expiresAt := now.Add(c.cookieSessionTTL())
 
 	record := &corev1.CookieSession{
-		UserId: userID,
-		// CookieSession.created_at represents authentication time, not KV
-		// record creation time. Revocation cutoffs compare against this value.
-		CreatedAt: timestamppb.New(authenticatedAt),
-		ExpiresAt: timestamppb.New(expiresAt),
-		Source:    source,
-		Request:   auditRequestMetadata(ctx),
+		UserId:         userID,
+		CreatedAt:      timestamppb.New(now),
+		ExpiresAt:      timestamppb.New(expiresAt),
+		Source:         source,
+		Request:        auditRequestMetadata(ctx),
+		AuthGeneration: authGeneration,
 	}
 
 	data, err := proto.Marshal(record)
@@ -109,7 +110,7 @@ func (c *ChattoCore) ValidateCookieSession(ctx context.Context, userID, sessionI
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrCookieSessionNotFound
 	}
-	if err := c.RequireAuthenticationAllowed(ctx, userID, record.GetCreatedAt().AsTime()); err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, userID, record.GetAuthGeneration()); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return nil, err
 		}

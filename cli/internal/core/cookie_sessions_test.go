@@ -103,31 +103,38 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	}
 }
 
-func TestChattoCore_CookieSessionRevocationCutoffRejectsStaleAuthentication(t *testing.T) {
+func TestChattoCore_CookieSessionGenerationRejectsStaleAuthentication(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, err := core.CreateUser(ctx, SystemActorID, "cookie-cutoff-user", "Cookie Cutoff User", "password123")
+	user, err := core.CreateUser(ctx, SystemActorID, "cookie-generation-user", "Cookie Generation User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	authenticatedAt := time.Now()
-	sessionID, _, err := core.CreateCookieSessionAt(ctx, user.Id, "password_login", authenticatedAt)
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("CreateCookieSessionAt: %v", err)
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	sessionID, _, err := core.CreateCookieSessionForGeneration(ctx, user.Id, "password_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionForGeneration: %v", err)
 	}
 
-	if err := core.EstablishCredentialRevocation(ctx, user.Id); err != nil {
-		t.Fatalf("EstablishCredentialRevocation: %v", err)
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
 	}
 	if _, err := core.ValidateCookieSession(ctx, user.Id, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
 	}
-	if _, _, err := core.CreateCookieSessionAt(ctx, user.Id, "password_login", authenticatedAt); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("stale CreateCookieSessionAt err = %v, want ErrCookieSessionNotFound", err)
+	if _, _, err := core.CreateCookieSessionForGeneration(ctx, user.Id, "password_login", authGeneration); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("stale CreateCookieSessionForGeneration err = %v, want ErrCookieSessionNotFound", err)
 	}
-	if fresh, _, err := core.CreateCookieSessionAt(ctx, user.Id, "password_login", time.Now()); err != nil {
-		t.Fatalf("fresh CreateCookieSessionAt should succeed: %v", err)
+	freshGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration fresh: %v", err)
+	}
+	if fresh, _, err := core.CreateCookieSessionForGeneration(ctx, user.Id, "password_login", freshGeneration); err != nil {
+		t.Fatalf("fresh CreateCookieSessionForGeneration should succeed: %v", err)
 	} else if _, err := core.ValidateCookieSession(ctx, user.Id, fresh); err != nil {
 		t.Fatalf("fresh cookie session should validate: %v", err)
 	}

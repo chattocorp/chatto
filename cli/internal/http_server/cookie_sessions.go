@@ -17,15 +17,22 @@ const (
 )
 
 func (s *HTTPServer) createCookieSession(c *gin.Context, userID, source string) error {
-	return s.createCookieSessionAt(c, userID, source, time.Now())
-}
-
-func (s *HTTPServer) createCookieSessionAt(c *gin.Context, userID, source string, authenticatedAt time.Time) error {
-	sessionID, _, err := s.core.CreateCookieSessionAt(c.Request.Context(), userID, source, authenticatedAt)
+	sessionID, _, err := s.core.CreateCookieSession(c.Request.Context(), userID, source)
 	if err != nil {
 		return err
 	}
+	return saveCookieSession(c, userID, sessionID)
+}
 
+func (s *HTTPServer) createCookieSessionForGeneration(c *gin.Context, userID, source string, authGeneration uint64) error {
+	sessionID, _, err := s.core.CreateCookieSessionForGeneration(c.Request.Context(), userID, source, authGeneration)
+	if err != nil {
+		return err
+	}
+	return saveCookieSession(c, userID, sessionID)
+}
+
+func saveCookieSession(c *gin.Context, userID, sessionID string) error {
 	session := sessions.Default(c)
 	session.Set(sessionKeyUserID, userID)
 	session.Set(sessionKeyCookieSessionID, sessionID)

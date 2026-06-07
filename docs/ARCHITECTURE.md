@@ -490,10 +490,9 @@ Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is p
 
 | Key                                           | Description |
 | --------------------------------------------- | ----------- |
-| `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL |
-| `session.{hmac}`                              | Opaque bearer-token verifier with per-key TTL |
-| `auth_revoked_before.{userId}`                | Per-user auth revocation cutoff marker set; cookie sessions, bearer tokens, and OAuth authorization-code exchange are rejected when their authentication time is before the maximum marker |
-| `grant.{hmac}`                                | OAuth authorization-code verifier with 5-minute per-key TTL |
+| `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL and auth generation |
+| `session.{hmac}`                              | Opaque bearer-token verifier with per-key TTL and auth generation |
+| `grant.{hmac}`                                | OAuth authorization-code verifier with 5-minute per-key TTL and auth generation |
 | `registration.{hmac}`                         | Email-first registration token verifier |
 | `email_verification.{hmac}`                   | Email verification token verifier |
 | `password_reset.{hmac}`                       | Password reset token verifier |
@@ -589,13 +588,12 @@ survives restart but is not content/domain history. See
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
 | `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
 | `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. Legacy `INSTANCE` keys are copied here at boot; the endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
-| `auth_revoked_before.{userId}` | Per-user auth revocation cutoff stored as a JSON set of RFC3339Nano markers. Password changes/resets add a marker before the new password hash event is appended and remove only their own marker if the append fails, so stale password verifications, cookie sessions, bearer tokens, and OAuth codes authenticated before the maximum cutoff are rejected even if their runtime records are created after the revoke scan starts. |
 | `registration.{hmac}` | Email-first registration token JSON. Uses per-key 24-hour TTL. |
 | `email_verification.{hmac}` | Email verification token JSON with user ID and email. Uses per-key 24-hour TTL. |
 | `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
 | `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
-| `session.{hmac}` | Opaque bearer auth token JSON. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all of a user's bearer tokens by advancing `auth_revoked_before.{userId}` and scanning `session.*` to delete matching records. |
-| `grant.{hmac}` | OAuth authorization code JSON. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
+| `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. |
+| `grant.{hmac}` | OAuth authorization code JSON with the user auth generation it was issued against. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
 | `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
 
 Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens or raw link/code values.

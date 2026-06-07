@@ -81,11 +81,11 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	}
 }
 
-func TestChattoCore_ExchangeAuthCodeRejectsCodeIssuedBeforeRevocationCutoff(t *testing.T) {
+func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, err := core.CreateUser(ctx, "", "auth-code-cutoff-user", "Auth Code Cutoff User", "password123")
+	user, err := core.CreateUser(ctx, "", "auth-code-generation-user", "Auth Code Generation User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
@@ -97,8 +97,8 @@ func TestChattoCore_ExchangeAuthCodeRejectsCodeIssuedBeforeRevocationCutoff(t *t
 	if err != nil {
 		t.Fatalf("CreateAuthCode: %v", err)
 	}
-	if err := core.EstablishCredentialRevocation(ctx, user.Id); err != nil {
-		t.Fatalf("EstablishCredentialRevocation: %v", err)
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
 	}
 
 	token, userID, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
