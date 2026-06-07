@@ -79,24 +79,24 @@ type Server {
   roomGroups: [RoomGroup!]! @goField(forceResolver: true)
 
   "Number of members on this server."
-  memberCount: Int! @public @goField(forceResolver: true)
+  memberCount: Int! @goField(forceResolver: true)
 
   "Number of rooms on this server."
-  roomCount: Int! @public @goField(forceResolver: true)
+  roomCount: Int! @goField(forceResolver: true)
 
   "Number of assets (attachments) uploaded to this server."
-  assetCount: Int! @public @goField(forceResolver: true)
+  assetCount: Int! @goField(forceResolver: true)
 
   "Whether the current user has any admin.* permission (for showing the Admin link)."
-  viewerHasAnyAdminPermission: Boolean! @public @goField(forceResolver: true)
+  viewerHasAnyAdminPermission: Boolean! @goField(forceResolver: true)
   "Whether the current user can manage this server (has server.manage permission)."
-  viewerCanManageServer: Boolean! @public @goField(forceResolver: true)
+  viewerCanManageServer: Boolean! @goField(forceResolver: true)
   "Whether the current user can create rooms (has room.create permission)."
-  viewerCanCreateRoom: Boolean! @public @goField(forceResolver: true)
+  viewerCanCreateRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can manage rooms (has room.manage permission)."
-  viewerCanManageRooms: Boolean! @public @goField(forceResolver: true)
+  viewerCanManageRooms: Boolean! @goField(forceResolver: true)
   "Whether the current user has any unread messages in rooms they've joined."
-  viewerHasUnreadRooms: Boolean! @public @goField(forceResolver: true)
+  viewerHasUnreadRooms: Boolean! @goField(forceResolver: true)
 }
 
 extend type Query {

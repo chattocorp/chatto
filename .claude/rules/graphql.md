@@ -26,19 +26,21 @@ Use gqlgen directives to control code generation:
 ### `@public`
 
 GraphQL fields require authentication by default. Add `@public` only to fields
-that intentionally allow anonymous callers. This includes bootstrap data needed
-before login and soft namespace roots or UI hints that deliberately return
-`null`, `false`, or empty collections for anonymous callers.
+that intentionally allow anonymous callers. In practice this should be limited
+to server metadata/configuration needed before login or before the client has
+attached an authenticated server session.
 
-Do not add `@public` to fields that expose user, room, message, admin, or
-mutation data. Keep permission checks, room membership checks, self-vs-target
-rules, and outranking rules in resolver helpers where the resolver has the
-needed context; `@public` only controls the anonymous/authenticated boundary.
+Do not add `@public` to fields that expose user, room, message, admin,
+mutation, viewer-scoped, permission, or capability data, even if the resolver
+would return `null`, `false`, or an empty collection for anonymous callers. Keep
+permission checks, room membership checks, self-vs-target rules, and outranking
+rules in resolver helpers where the resolver has the needed context; `@public`
+only controls the anonymous/authenticated boundary.
 
 ```graphql
 type Query {
   server: Server! @public @goField(forceResolver: true)
-  viewer: Viewer @public @goField(forceResolver: true)
+  viewer: Viewer # Authenticated by default
   user(userId: ID!): User # Authenticated by default
 }
 ```

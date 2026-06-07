@@ -17153,20 +17153,7 @@ func (ec *executionContext) _Query_viewer(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Viewer(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *model.Viewer
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
 			return ec.marshalOViewer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewer(ctx, selections, v)
 		},
@@ -18529,20 +18516,7 @@ func (ec *executionContext) _Room_hasUnread(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().HasUnread(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18565,20 +18539,7 @@ func (ec *executionContext) _Room_viewerCanPostMessage(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanPostMessage(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18601,20 +18562,7 @@ func (ec *executionContext) _Room_viewerCanPostInThread(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanPostInThread(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18637,20 +18585,7 @@ func (ec *executionContext) _Room_viewerCanReact(ctx context.Context, field grap
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanReact(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18673,20 +18608,7 @@ func (ec *executionContext) _Room_viewerCanManageOthersMessage(ctx context.Conte
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanManageOthersMessage(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18709,20 +18631,7 @@ func (ec *executionContext) _Room_viewerCanListRoom(ctx context.Context, field g
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanListRoom(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18745,20 +18654,7 @@ func (ec *executionContext) _Room_viewerCanJoinRoom(ctx context.Context, field g
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanJoinRoom(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18781,20 +18677,7 @@ func (ec *executionContext) _Room_viewerCanEchoMessage(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanEchoMessage(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -18817,20 +18700,7 @@ func (ec *executionContext) _Room_viewerCanManageRoom(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerCanManageRoom(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -19095,20 +18965,7 @@ func (ec *executionContext) _Room_viewerNotificationPreference(ctx context.Conte
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().ViewerNotificationPreference(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *model.ViewerNotificationPreference
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ViewerNotificationPreference) graphql.Marshaler {
 			return ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference(ctx, selections, v)
 		},
@@ -19172,20 +19029,7 @@ func (ec *executionContext) _Room_availableRoomPermissions(ctx context.Context, 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Room().AvailableRoomPermissions(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -20801,20 +20645,7 @@ func (ec *executionContext) _Server_memberCount(ctx context.Context, field graph
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().MemberCount(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -20837,20 +20668,7 @@ func (ec *executionContext) _Server_roomCount(ctx context.Context, field graphql
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().RoomCount(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -20873,20 +20691,7 @@ func (ec *executionContext) _Server_assetCount(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().AssetCount(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal int32
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
 			return ec.marshalNInt2int32(ctx, selections, v)
 		},
@@ -20909,20 +20714,7 @@ func (ec *executionContext) _Server_viewerHasAnyAdminPermission(ctx context.Cont
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerHasAnyAdminPermission(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -20945,20 +20737,7 @@ func (ec *executionContext) _Server_viewerCanManageServer(ctx context.Context, f
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanManageServer(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -20981,20 +20760,7 @@ func (ec *executionContext) _Server_viewerCanCreateRoom(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanCreateRoom(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21017,20 +20783,7 @@ func (ec *executionContext) _Server_viewerCanManageRooms(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanManageRooms(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21053,20 +20806,7 @@ func (ec *executionContext) _Server_viewerHasUnreadRooms(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerHasUnreadRooms(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21089,20 +20829,7 @@ func (ec *executionContext) _Server_viewerNotificationPreference(ctx context.Con
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerNotificationPreference(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *model.ViewerNotificationPreference
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.ViewerNotificationPreference) graphql.Marshaler {
 			return ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference(ctx, selections, v)
 		},
@@ -21298,20 +21025,7 @@ func (ec *executionContext) _Server_availablePermissions(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().AvailablePermissions(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -21334,20 +21048,7 @@ func (ec *executionContext) _Server_viewerPermissions(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerPermissions(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
 			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
 		},
@@ -21370,20 +21071,7 @@ func (ec *executionContext) _Server_viewerCanManageRoles(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanManageRoles(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21406,20 +21094,7 @@ func (ec *executionContext) _Server_viewerCanAssignRoles(ctx context.Context, fi
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Server().ViewerCanAssignRoles(ctx, obj)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},
@@ -21443,20 +21118,7 @@ func (ec *executionContext) _Server_viewerCanManageUser(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Server().ViewerCanManageUser(ctx, obj, fc.Args["userId"].(string))
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal bool
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
 			return ec.marshalNBoolean2bool(ctx, selections, v)
 		},

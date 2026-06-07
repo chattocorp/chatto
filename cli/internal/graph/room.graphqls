@@ -32,19 +32,19 @@ type Room {
   Whether the room has unread messages for the current user.
   Returns false if user is not a member or room has no new messages.
   """
-  hasUnread: Boolean! @public @goField(forceResolver: true)
+  hasUnread: Boolean! @goField(forceResolver: true)
   "Whether the current user can post new root messages in this room."
-  viewerCanPostMessage: Boolean! @public @goField(forceResolver: true)
+  viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."
-  viewerCanPostInThread: Boolean! @public @goField(forceResolver: true)
+  viewerCanPostInThread: Boolean! @goField(forceResolver: true)
   "Whether the current user can add/remove reactions in this room."
-  viewerCanReact: Boolean! @public @goField(forceResolver: true)
+  viewerCanReact: Boolean! @goField(forceResolver: true)
   """
   Whether the current user can edit or delete other users' messages in
   this room (subject to also strictly outranking the author). Authors
   editing or deleting their own messages do not need this permission.
   """
-  viewerCanManageOthersMessage: Boolean! @public @goField(forceResolver: true)
+  viewerCanManageOthersMessage: Boolean! @goField(forceResolver: true)
   """
   Whether the current user can see this room in directories and other
   surfaces that enumerate rooms (resolves `room.list` per room). Distinct
@@ -52,13 +52,13 @@ type Room {
   joinable, which is the state the directory uses to render a future
   request-to-join affordance.
   """
-  viewerCanListRoom: Boolean! @public @goField(forceResolver: true)
+  viewerCanListRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can join this room (has room.join permission)."
-  viewerCanJoinRoom: Boolean! @public @goField(forceResolver: true)
+  viewerCanJoinRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can echo thread replies to the main channel."
-  viewerCanEchoMessage: Boolean! @public @goField(forceResolver: true)
+  viewerCanEchoMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can edit/configure this room (room.manage)."
-  viewerCanManageRoom: Boolean! @public @goField(forceResolver: true)
+  viewerCanManageRoom: Boolean! @goField(forceResolver: true)
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
   """

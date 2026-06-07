@@ -6,16 +6,16 @@ extend type Server {
   role(name: String!): Role @goField(forceResolver: true)
 
   "List all available permission identifiers."
-  availablePermissions: [String!]! @public @goField(forceResolver: true)
+  availablePermissions: [String!]! @goField(forceResolver: true)
 
   "Get the current user's permissions on this server."
-  viewerPermissions: [String!]! @public @goField(forceResolver: true)
+  viewerPermissions: [String!]! @goField(forceResolver: true)
 
   "Whether the current user can manage roles (has role.manage permission)."
-  viewerCanManageRoles: Boolean! @public @goField(forceResolver: true)
+  viewerCanManageRoles: Boolean! @goField(forceResolver: true)
 
   "Whether the current user can assign roles to users (has role.assign permission)."
-  viewerCanAssignRoles: Boolean! @public @goField(forceResolver: true)
+  viewerCanAssignRoles: Boolean! @goField(forceResolver: true)
 
   """
   UI hint reporting whether the viewer outranks the target user by role
@@ -25,7 +25,7 @@ extend type Server {
   affordances; never as the sole basis for permitting a mutation. See
   `.claude/rules/authorization.md` (`permission AND OutranksUser`).
   """
-  viewerCanManageUser(userId: ID!): Boolean! @public @goField(forceResolver: true)
+  viewerCanManageUser(userId: ID!): Boolean! @goField(forceResolver: true)
 
   "Get users assigned to a specific role."
   roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
@@ -77,7 +77,7 @@ extend type Room {
   roomPermissionOverrides: [RoleRoomPermissions!]! @goField(forceResolver: true)
 
   "Permissions configurable at room scope."
-  availableRoomPermissions: [String!]! @public @goField(forceResolver: true)
+  availableRoomPermissions: [String!]! @goField(forceResolver: true)
 }
 
 extend type Mutation {

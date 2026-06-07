@@ -65,7 +65,7 @@ type Viewer {
 
 extend type Query {
   "The current authenticated user's server-level permissions. Null if not authenticated."
-  viewer: Viewer @public @goField(forceResolver: true)
+  viewer: Viewer @goField(forceResolver: true)
 }
 
 extend type AdminQueries {

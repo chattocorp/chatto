@@ -213,7 +213,7 @@ func TestGraphQL_QueryDepthLimit_FragmentSpreadsCountDepth(t *testing.T) {
 func TestGraphQL_ComplexityLimit_AcceptsSimpleQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `query { viewer { user { id login displayName } } }`, nil)
+	resp := env.doGraphQL(t, `query { server { version } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected simple query to succeed, got errors: %v", resp.Errors)
 	}

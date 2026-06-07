@@ -2428,7 +2428,7 @@ export type Room = {
   viewerCanPostMessage: Scalars['Boolean']['output'];
   /** Whether the current user can add/remove reactions in this room. */
   viewerCanReact: Scalars['Boolean']['output'];
-  /** The current user's notification preference for this room. Null if not authenticated. */
+  /** The current user's notification preference for this room. */
   viewerNotificationPreference?: Maybe<ViewerNotificationPreference>;
   /**
    * Get a LiveKit join token for joining the voice call in this room.
@@ -2794,7 +2794,7 @@ export type Server = {
   viewerHasAnyAdminPermission: Scalars['Boolean']['output'];
   /** Whether the current user has any unread messages in rooms they've joined. */
   viewerHasUnreadRooms: Scalars['Boolean']['output'];
-  /** The current user's server-level notification preference. Null if not authenticated. */
+  /** The current user's server-level notification preference. */
   viewerNotificationPreference?: Maybe<ViewerNotificationPreference>;
   /** Get the current user's permissions on this server. */
   viewerPermissions: Array<Scalars['String']['output']>;

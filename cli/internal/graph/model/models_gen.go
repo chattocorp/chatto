@@ -966,7 +966,7 @@ type Server struct {
 	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
 	// Whether the current user has any unread messages in rooms they've joined.
 	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
-	// The current user's server-level notification preference. Null if not authenticated.
+	// The current user's server-level notification preference.
 	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
 	// Get a single member of this server by user ID.
 	// Returns null if the user is not a member.

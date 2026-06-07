@@ -164,7 +164,6 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 						serverName
 					}
 					directRegistrationEnabled
-					viewerCanCreateRoom
 				}
 			}
 		`, nil)
@@ -181,7 +180,6 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 					ServerName string `json:"serverName"`
 				} `json:"config"`
 				DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
-				ViewerCanCreateRoom       bool `json:"viewerCanCreateRoom"`
 			} `json:"server"`
 		}
 		if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -195,7 +193,7 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 		}
 	})
 
-	t.Run("soft viewer root allows unauthenticated callers", func(t *testing.T) {
+	t.Run("viewer root requires authentication", func(t *testing.T) {
 		resp := executeGraphQL(t, env, env.unauthContext(), `
 			query Viewer {
 				viewer {
@@ -206,22 +204,11 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 			}
 		`, nil)
 
-		if len(resp.Errors) != 0 {
-			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
 		}
-
-		var data struct {
-			Viewer *struct {
-				User struct {
-					ID string `json:"id"`
-				} `json:"user"`
-			} `json:"viewer"`
-		}
-		if err := json.Unmarshal(resp.Data, &data); err != nil {
-			t.Fatalf("Failed to unmarshal response data: %v", err)
-		}
-		if data.Viewer != nil {
-			t.Errorf("Expected nil viewer, got %+v", data.Viewer)
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
 		}
 	})
 
@@ -234,6 +221,44 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 							userCount
 						}
 					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+
+	t.Run("viewer-scoped server fields require authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query ViewerScopedServerFields {
+				server {
+					viewerCanCreateRoom
+					viewerNotificationPreference {
+						level
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
+
+	t.Run("non-metadata server fields require authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query NonMetadataServerFields {
+				server {
+					memberCount
+					availablePermissions
 				}
 			}
 		`, nil)
