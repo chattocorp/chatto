@@ -6,7 +6,7 @@ type AdminQueries {
 
 extend type Query {
   "Admin-only queries. Returns null if user lacks admin permission."
-  admin: AdminQueries @public
+  admin: AdminQueries
 }
 
 "Information about the NATS connection."
@@ -300,5 +300,5 @@ input AdminUpdateUserInput {
 
 extend type Mutation {
   "Admin mutations. Returns null if user lacks admin permission."
-  admin: AdminMutations @public @goField(forceResolver: true)
+  admin: AdminMutations @goField(forceResolver: true)
 }

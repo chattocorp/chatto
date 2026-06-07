@@ -224,6 +224,27 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 			t.Errorf("Expected nil viewer, got %+v", data.Viewer)
 		}
 	})
+
+	t.Run("admin root requires authentication", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query Admin {
+				admin {
+					systemInfo {
+						stats {
+							userCount
+						}
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL authentication error")
+		}
+		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
+			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		}
+	})
 }
 
 func TestQueryResolver_User(t *testing.T) {

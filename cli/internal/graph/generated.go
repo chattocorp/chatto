@@ -13495,20 +13495,7 @@ func (ec *executionContext) _Mutation_admin(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Mutation().Admin(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *model.AdminMutations
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminMutations) graphql.Marshaler {
 			return ec.marshalOAdminMutations2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminMutations(ctx, selections, v)
 		},
@@ -16869,20 +16856,7 @@ func (ec *executionContext) _Query_admin(ctx context.Context, field graphql.Coll
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Admin(ctx)
 		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal *model.AdminQueries
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
+		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.AdminQueries) graphql.Marshaler {
 			return ec.marshalOAdminQueries2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminQueries(ctx, selections, v)
 		},
