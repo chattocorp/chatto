@@ -64,7 +64,7 @@ type Room {
   """
   Channel rooms belong to exactly one RoomGroup; this field identifies which
   one. DM rooms return null because they do not participate in room-group
-  layout or ACLs (see ADR-031).
+  layout or ACLs.
   """
   groupId: ID @goField(forceResolver: true)
 

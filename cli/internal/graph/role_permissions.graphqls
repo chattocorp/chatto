@@ -114,7 +114,7 @@ extend type Query {
   tierRoles(
     "Optional room scope."
     roomId: ID
-    "Optional room-group scope (ADR-031)."
+    "Optional room-group scope."
     groupId: ID
   ): TierRoles @goField(forceResolver: true)
 }

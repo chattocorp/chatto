@@ -71,9 +71,8 @@ type Server {
   rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
 
   """
-  Ordered list of channel-room groups (ADR-031). Every server boots with at
-  least the seed "Lobby" group; the list is never empty for a configured
-  server.
+  Ordered list of channel-room groups. Every server boots with at least the
+  seed "Lobby" group; the list is never empty for a configured server.
   """
   roomGroups: [RoomGroup!]! @goField(forceResolver: true)
 

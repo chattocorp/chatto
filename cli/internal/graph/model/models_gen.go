@@ -485,7 +485,7 @@ type MarkThreadAsReadResult struct {
 }
 
 // Input for moving a room into a different room group. Requires room.manage in
-// both the source and target room group (ADR-031).
+// both the source and target room group.
 type MoveRoomToGroupInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
@@ -940,9 +940,8 @@ type Server struct {
 	// channels and DMs together. Pass `type: CHANNEL` for channels-only consumers
 	// (e.g. the admin room-management UI); pass `type: DM` for DMs-only consumers.
 	Rooms []*corev1.Room `json:"rooms"`
-	// Ordered list of channel-room groups (ADR-031). Every server boots with at
-	// least the seed "Lobby" group; the list is never empty for a configured
-	// server.
+	// Ordered list of channel-room groups. Every server boots with at least the
+	// seed "Lobby" group; the list is never empty for a configured server.
 	RoomGroups []*RoomGroupModel `json:"roomGroups"`
 	// Number of members on this server.
 	MemberCount int32 `json:"memberCount"`

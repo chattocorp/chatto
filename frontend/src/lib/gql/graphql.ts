@@ -945,7 +945,7 @@ export type MessageRetractedEvent = {
 
 /**
  * Input for moving a room into a different room group. Requires room.manage in
- * both the source and target room group (ADR-031).
+ * both the source and target room group.
  */
 export type MoveRoomToGroupInput = {
   /** The destination room group. */
@@ -1154,7 +1154,8 @@ export type Mutation = {
   /**
    * Move a room into a different room group. The caller must have
    * `room.manage` in both the source room group and the target room group
-   * (ADR-031). Permission overrides on the room itself are preserved.
+   * because the move can change the room's inherited permissions. Permission
+   * overrides on the room itself are preserved.
    */
   moveRoomToGroup: Room;
   /** Post a message to a room. Automatically marks the room as read since the user is viewing it. */
@@ -2365,7 +2366,7 @@ export type Room = {
   /**
    * Channel rooms belong to exactly one RoomGroup; this field identifies which
    * one. DM rooms return null because they do not participate in room-group
-   * layout or ACLs (see ADR-031).
+   * layout or ACLs.
    */
   groupId?: Maybe<Scalars['ID']['output']>;
   /**
@@ -2517,7 +2518,7 @@ export type RoomEventsConnection = {
 /**
  * A RoomGroup is a named, ordered group of channel rooms. It also serves as
  * a permission container — each room group has its own ACL, with individual
- * rooms able to override on a per (role, permission) basis (see ADR-031).
+ * rooms able to override on a per (role, permission) basis.
  */
 export type RoomGroup = {
   __typename?: 'RoomGroup';
@@ -2718,9 +2719,8 @@ export type Server = {
   /** Number of rooms on this server. */
   roomCount: Scalars['Int']['output'];
   /**
-   * Ordered list of channel-room groups (ADR-031). Every server boots with at
-   * least the seed "Lobby" group; the list is never empty for a configured
-   * server.
+   * Ordered list of channel-room groups. Every server boots with at least the
+   * seed "Lobby" group; the list is never empty for a configured server.
    */
   roomGroups: Array<RoomGroup>;
   /**
