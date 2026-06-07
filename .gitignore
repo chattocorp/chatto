@@ -5,6 +5,7 @@ node_modules
 Thumbs.db
 .playwright-mcp
 .codex/
+.conductor/settings.local.toml
 
 # Env
 .env

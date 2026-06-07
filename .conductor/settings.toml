@@ -1,0 +1,11 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "mise trust"
+run = "VITE_PORT=$CONDUCTOR_PORT CHATTO_WEBSERVER_PORT=$((CONDUCTOR_PORT+1)) CHATTO_WEBSERVER_URL=http://localhost:$CONDUCTOR_PORT CHATTO_NATS_EMBEDDED_PORT=$((CONDUCTOR_PORT+2)) mise dev"
+run_mode = "concurrent"
+
+[git]
+archive_on_merge = true
+delete_branch_on_archive = false
+worktree_push_auto_setup_remote = true
