@@ -176,6 +176,123 @@ func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testi
 	if _, err := core.js.Stream(ctx, "SERVER_EVENTS"); !errors.Is(err, jetstream.ErrStreamNotFound) {
 		t.Fatalf("legacy stream SERVER_EVENTS lookup error = %v, want ErrStreamNotFound", err)
 	}
+	if _, err := core.js.ObjectStore(ctx, "INSTANCE_ASSETS"); !errors.Is(err, jetstream.ErrBucketNotFound) {
+		t.Fatalf("legacy object store INSTANCE_ASSETS lookup error = %v, want ErrBucketNotFound", err)
+	}
+	if _, err := core.js.ObjectStore(ctx, "SERVER_ASSETS"); err != nil {
+		t.Fatalf("SERVER_ASSETS lookup error = %v", err)
+	}
+}
+
+func TestNewChattoCore_MigratesLegacyInstanceAssetsToServerAssets(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+
+	legacy, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:      "INSTANCE_ASSETS",
+		Description: "Legacy instance assets",
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+	})
+	if err != nil {
+		t.Fatalf("create legacy INSTANCE_ASSETS: %v", err)
+	}
+	if _, err := legacy.Put(ctx, jetstream.ObjectMeta{
+		Name: "avatar-asset",
+		Headers: nats.Header{
+			"Content-Type": {"image/webp"},
+		},
+		Metadata: map[string]string{"legacy": "true"},
+	}, strings.NewReader("legacy avatar bytes")); err != nil {
+		t.Fatalf("put legacy asset: %v", err)
+	}
+
+	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+
+	if _, err := core.js.ObjectStore(ctx, "INSTANCE_ASSETS"); !errors.Is(err, jetstream.ErrBucketNotFound) {
+		t.Fatalf("legacy object store INSTANCE_ASSETS lookup error = %v, want ErrBucketNotFound", err)
+	}
+	data, err := core.ServerStore().GetBytes(ctx, "avatar-asset")
+	if err != nil {
+		t.Fatalf("get copied asset: %v", err)
+	}
+	if string(data) != "legacy avatar bytes" {
+		t.Fatalf("copied asset data = %q", string(data))
+	}
+	info, err := core.ServerStore().GetInfo(ctx, "avatar-asset")
+	if err != nil {
+		t.Fatalf("copied asset info: %v", err)
+	}
+	if got := info.Headers.Get("Content-Type"); got != "image/webp" {
+		t.Fatalf("copied Content-Type = %q, want image/webp", got)
+	}
+	if got := info.Metadata["legacy"]; got != "true" {
+		t.Fatalf("copied metadata legacy = %q, want true", got)
+	}
+}
+
+func TestCopyLegacyObject_TreatsVanishedLegacyStoreAsDoneWhenTargetMatches(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+
+	legacy, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:  "INSTANCE_ASSETS",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatalf("create legacy INSTANCE_ASSETS: %v", err)
+	}
+	target, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:  "SERVER_ASSETS",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatalf("create SERVER_ASSETS: %v", err)
+	}
+
+	meta := jetstream.ObjectMeta{
+		Name: "avatar-asset",
+		Headers: nats.Header{
+			"Content-Type": {"image/webp"},
+		},
+		Metadata: map[string]string{"legacy": "true"},
+	}
+	if _, err := legacy.Put(ctx, meta, strings.NewReader("legacy avatar bytes")); err != nil {
+		t.Fatalf("put legacy asset: %v", err)
+	}
+	infos, err := legacy.List(ctx)
+	if err != nil {
+		t.Fatalf("list legacy asset: %v", err)
+	}
+	if len(infos) != 1 {
+		t.Fatalf("legacy list len = %d, want 1", len(infos))
+	}
+	if _, err := target.Put(ctx, meta, strings.NewReader("legacy avatar bytes")); err != nil {
+		t.Fatalf("pre-copy target asset: %v", err)
+	}
+	if err := js.DeleteObjectStore(ctx, "INSTANCE_ASSETS"); err != nil {
+		t.Fatalf("delete legacy INSTANCE_ASSETS: %v", err)
+	}
+
+	if err := copyLegacyObject(ctx, legacy, target, infos[0]); err != nil {
+		t.Fatalf("copy after legacy store vanished: %v", err)
+	}
 }
 
 func TestNewChattoCore_CopiesLegacyCallStateToMemoryCache(t *testing.T) {

@@ -6,6 +6,5 @@ run = "VITE_PORT=$CONDUCTOR_PORT CHATTO_WEBSERVER_PORT=$((CONDUCTOR_PORT+1)) CHA
 run_mode = "concurrent"
 
 [git]
-archive_on_merge = true
 delete_branch_on_archive = false
 worktree_push_auto_setup_remote = true
