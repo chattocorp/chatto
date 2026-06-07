@@ -27,7 +27,7 @@ import (
 // GetAttachmentsStore returns the ObjectStore for attachments.
 // Uses lazy-loading and caching for efficiency.
 func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectStore, error) {
-	return c.storage.serverAttachments, nil
+	return c.storage.serverAssets, nil
 }
 
 // UploadAttachment uploads a file as an attachment and returns the
@@ -1021,7 +1021,7 @@ func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string)
 }
 
 // GetTransformedServerAssetURL returns the URL for accessing a transformed version of an server asset.
-// Server assets include space logos, space banners, and user avatars stored in the server object store.
+// Server assets include server logos, server banners, and user avatars stored in SERVER_ASSETS.
 // The URL includes HMAC signature to prevent parameter tampering.
 // Format: /assets/server/{key}/t/{params}.{signature}
 // where {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}

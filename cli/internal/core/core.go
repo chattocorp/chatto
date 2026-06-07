@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -346,7 +347,7 @@ type encryptionManager struct {
 }
 
 func (c *ChattoCore) ServerStore() jetstream.ObjectStore {
-	return c.storage.serverStore
+	return c.storage.serverAssets
 }
 
 // KeyWrapper returns the key-only KMS boundary used by encryption operations.
@@ -513,12 +514,11 @@ type ServerAssetInfo struct {
 }
 
 // GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
-// It tries NATS first (for backwards compatibility with existing assets), then S3.
+// It tries the canonical SERVER_ASSETS NATS object store first, then S3.
 // Returns a reader for the asset content and metadata.
 // The caller is responsible for closing the reader if it implements io.Closer.
 func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *ServerAssetInfo, error) {
-	// Try NATS first (backwards compatibility)
-	obj, err := c.storage.serverStore.Get(ctx, assetID)
+	obj, err := c.storage.serverAssets.Get(ctx, assetID)
 	if err == nil {
 		info, _ := obj.Info()
 		return obj, &ServerAssetInfo{
@@ -554,7 +554,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.DeprecatedA
 		return
 	}
 	if natsAsset := asset.GetNats(); natsAsset != nil {
-		if err := c.storage.serverStore.Delete(ctx, natsAsset.Key); err != nil {
+		if err := c.storage.serverAssets.Delete(ctx, natsAsset.Key); err != nil {
 			c.logger.Warn("Failed to clean up orphaned asset", "key", natsAsset.Key, "error", err)
 		} else {
 			c.logger.Info("Cleaned up orphaned asset", "key", natsAsset.Key)
@@ -580,7 +580,7 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.DeprecatedAs
 		return
 	}
 	if natsAsset := asset.GetNats(); natsAsset != nil {
-		if err := c.storage.serverStore.Delete(ctx, natsAsset.Key); err != nil {
+		if err := c.storage.serverAssets.Delete(ctx, natsAsset.Key); err != nil {
 			c.logger.Warn("Failed to delete old "+assetType, "owner_id", ownerID, "key", natsAsset.Key, "error", err)
 		} else {
 			c.logger.Info("Deleted old "+assetType, "owner_id", ownerID, "key", natsAsset.Key)
@@ -808,7 +808,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// Initialize link preview cache and fetcher
 	core.linkPreviewCache = linkpreview.NewCache(storage.runtimeStateKV)
 	assetsConfig := core.AssetsConfig()
-	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
+	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverAssets, &assetsConfig, NewAssetID)
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /
@@ -840,7 +840,6 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 // resources are provisioned at startup; legacy import resources are opened only
 // when they already exist.
 type storage struct {
-	serverStore     jetstream.ObjectStore
 	encryptionKV    jetstream.KeyValue // Encryption keys (excluded from backups)
 	serverKV        jetstream.KeyValue // INSTANCE        - legacy user/config import source
 	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - legacy runtime configuration import source
@@ -855,8 +854,8 @@ type storage struct {
 	serverReactionsKV  jetstream.KeyValue // SERVER_REACTIONS - legacy emoji reactions
 	serverEventsStream jetstream.Stream   // SERVER_EVENTS    - legacy event stream
 
-	serverAttachments jetstream.ObjectStore // SERVER_ASSETS    - message attachment binaries (#330 phase 4e)
-	serverEvtStream   jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
+	serverAssets    jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
+	serverEvtStream jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
 
 	memoryCacheKV     jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
 	imageCacheStore   jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
@@ -869,18 +868,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	serverKV, err := openLegacyKeyValue(ctx, js, "INSTANCE")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open legacy INSTANCE KV bucket: %w", err)
-	}
-
-	// Initialize server object store
-	serverStore, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-		Bucket:      "INSTANCE_ASSETS",
-		Description: "Instance-level assets (user avatars, space icons, etc.)",
-		Storage:     jetstream.FileStorage,
-		Compression: true,
-		Replicas:    cfg.Replicas,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create INSTANCE object store: %w", err)
 	}
 
 	// Initialize encryption keys KV bucket (excluded from backups for security)
@@ -972,15 +959,18 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to open legacy SERVER_REACTIONS KV bucket: %w", err)
 	}
 
-	serverAttachments, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+	serverAssets, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
 		Bucket:      "SERVER_ASSETS",
-		Description: "Server-level message attachments",
+		Description: "Server asset binaries (avatars, branding, link previews, attachments)",
 		Storage:     jetstream.FileStorage,
 		Compression: true,
 		Replicas:    cfg.Replicas,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
+	}
+	if err := migrateLegacyInstanceAssets(ctx, js, serverAssets); err != nil {
+		return nil, fmt.Errorf("failed to migrate legacy INSTANCE_ASSETS object store: %w", err)
 	}
 
 	serverEventsStream, err := openLegacyStream(ctx, js, "SERVER_EVENTS")
@@ -1017,7 +1007,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// Return initialized storage and whether RBAC bucket was newly created
 	return &storage{
 		serverKV:           serverKV,
-		serverStore:        serverStore,
 		encryptionKV:       encryptionKV,
 		runtimeConfigKV:    runtimeConfigKV,
 		runtimeStateKV:     runtimeStateKV,
@@ -1026,7 +1015,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverRuntimeKV:    serverRuntimeKV,
 		serverBodiesKV:     serverBodiesKV,
 		serverReactionsKV:  serverReactionsKV,
-		serverAttachments:  serverAttachments,
+		serverAssets:       serverAssets,
 		serverEventsStream: serverEventsStream,
 		serverEvtStream:    serverEvtStream,
 		memoryCacheKV:      memoryCacheKV,
@@ -1035,10 +1024,123 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}, nil
 }
 
+func migrateLegacyInstanceAssets(ctx context.Context, js jetstream.JetStream, target jetstream.ObjectStore) error {
+	legacy, err := openLegacyObjectStore(ctx, js, "INSTANCE_ASSETS")
+	if err != nil {
+		return err
+	}
+	if legacy == nil {
+		return nil
+	}
+
+	objects, err := legacy.List(ctx)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrBucketNotFound) {
+			return nil
+		}
+		if errors.Is(err, jetstream.ErrNoObjectsFound) {
+			return deleteLegacyInstanceAssetsStore(ctx, js)
+		}
+		return fmt.Errorf("list legacy objects: %w", err)
+	}
+
+	for _, info := range objects {
+		if info == nil || info.Deleted {
+			continue
+		}
+		if err := copyLegacyObject(ctx, legacy, target, info); err != nil {
+			return err
+		}
+	}
+
+	return deleteLegacyInstanceAssetsStore(ctx, js)
+}
+
+func deleteLegacyInstanceAssetsStore(ctx context.Context, js jetstream.JetStream) error {
+	if err := js.DeleteObjectStore(ctx, "INSTANCE_ASSETS"); err != nil {
+		if errors.Is(err, jetstream.ErrBucketNotFound) {
+			return nil
+		}
+		return fmt.Errorf("delete legacy INSTANCE_ASSETS object store: %w", err)
+	}
+	return nil
+}
+
+func copyLegacyObject(ctx context.Context, source, target jetstream.ObjectStore, info *jetstream.ObjectInfo) error {
+	if ok, err := legacyObjectAlreadyCopied(ctx, target, info); err != nil {
+		return err
+	} else if ok {
+		return nil
+	}
+
+	reader, err := source.Get(ctx, info.Name)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrBucketNotFound) || errors.Is(err, jetstream.ErrObjectNotFound) {
+			if ok, verifyErr := legacyObjectAlreadyCopied(ctx, target, info); verifyErr != nil {
+				return verifyErr
+			} else if ok {
+				return nil
+			}
+		}
+		return fmt.Errorf("read legacy INSTANCE_ASSETS object %q: %w", info.Name, err)
+	}
+	defer reader.Close()
+
+	if ok, err := legacyObjectAlreadyCopied(ctx, target, info); err != nil {
+		return err
+	} else if ok {
+		return nil
+	}
+
+	meta := jetstream.ObjectMeta{
+		Name:        info.Name,
+		Description: info.Description,
+		Headers:     info.Headers,
+		Metadata:    info.Metadata,
+	}
+	if _, err := target.Put(ctx, meta, reader); err != nil {
+		return fmt.Errorf("copy legacy INSTANCE_ASSETS object %q into SERVER_ASSETS: %w", info.Name, err)
+	}
+	return nil
+}
+
+func legacyObjectAlreadyCopied(ctx context.Context, target jetstream.ObjectStore, info *jetstream.ObjectInfo) (bool, error) {
+	existing, err := target.GetInfo(ctx, info.Name)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("check existing SERVER_ASSETS object %q: %w", info.Name, err)
+	}
+	if sameObjectContentAndMeta(existing, info) {
+		return true, nil
+	}
+	return false, fmt.Errorf("SERVER_ASSETS object %q already exists with different content", info.Name)
+}
+
+func sameObjectContentAndMeta(a, b *jetstream.ObjectInfo) bool {
+	return a.Digest == b.Digest &&
+		a.Size == b.Size &&
+		a.Description == b.Description &&
+		reflect.DeepEqual(a.Headers, b.Headers) &&
+		reflect.DeepEqual(a.Metadata, b.Metadata)
+}
+
 func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.KeyValue, error) {
 	kv, err := js.KeyValue(ctx, bucket)
 	if err == nil {
 		return kv, nil
+	}
+	if errors.Is(err, jetstream.ErrBucketNotFound) {
+		return nil, nil
+	}
+	return nil, err
+}
+
+func openLegacyObjectStore(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.ObjectStore, error) {
+	store, err := js.ObjectStore(ctx, bucket)
+	if err == nil {
+		return store, nil
 	}
 	if errors.Is(err, jetstream.ErrBucketNotFound) {
 		return nil, nil

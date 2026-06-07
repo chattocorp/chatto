@@ -39,7 +39,9 @@ func TestSkipReason(t *testing.T) {
 		{"KV_USER_PRESENCE", true, true, "ephemeral (memory storage)"},
 		{"KV_AUTH_TOKENS", true, true, "security (prevents token leakage)"},
 
-		// Should NOT be skipped regardless of includeKeys
+		// Should NOT be skipped regardless of includeKeys. OBJ_INSTANCE_ASSETS
+		// is legacy pre-0.1 data, but 0.0.x backups must preserve it so 0.1
+		// boot can copy those objects into SERVER_ASSETS.
 		{"KV_INSTANCE", false, false, ""},
 		{"KV_INSTANCE_RBAC", false, false, ""},
 		{"KV_INSTANCE_CONFIG", false, false, ""},

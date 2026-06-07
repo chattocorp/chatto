@@ -439,7 +439,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	deletedAvatar, err := core.GetUserAvatar(ctx, author.Id)
 	require.NoError(t, err)
 	require.Nil(t, deletedAvatar)
-	_, err = core.storage.serverStore.Get(ctx, avatar.Id)
+	_, err = core.storage.serverAssets.Get(ctx, avatar.Id)
 	require.Error(t, err, "avatar backing bytes should be deleted after key shred and account deletion")
 }
 

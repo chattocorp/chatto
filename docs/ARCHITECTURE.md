@@ -257,9 +257,8 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | ------- | ----------------------------- | ------------------------------------------- |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, and auth/workflow tokens |
 | KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
-| Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | `SERVER_ASSETS`               | Message attachments                         |
+| Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
 | Legacy import KV | `INSTANCE`          | Users, verified emails, branding, display preferences, and push subscriptions from pre-ES deployments |
 | Legacy import KV | `INSTANCE_CONFIG`   | Server configuration from pre-ES deployments |
 | Legacy import KV | `SERVER_CONFIG`     | Rooms, memberships, room groups/layout, and notification preferences from pre-ES deployments |
@@ -645,17 +644,10 @@ Notes: Legacy source for `MigrateReactionsToES`. Current reaction writes append 
 
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
-| `INSTANCE_ASSETS`           | User avatars, server icon/banner (bucket name retained from pre-rename) |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
-| `SERVER_ASSETS`             | Message attachments                               |
+| `SERVER_ASSETS`             | Asset binaries (avatars, server icon/banner, link previews, message attachments) |
 
-**INSTANCE_ASSETS keys:**
-
-| Key          | Description                         |
-| ------------ | ----------------------------------- |
-| `{assetId}`  | User avatars, space icons, etc.     |
-
-Notes: Content-Type stored in object headers. S2 compression enabled. Server logo and banner bytes remain here when backed by the NATS object store; the current logo/banner pointers are imported into and updated through EVT config events.
+Pre-0.1 servers stored user avatars, server logo/banner, and link-preview images in `INSTANCE_ASSETS`. On 0.1 boot, Chatto copies those objects into `SERVER_ASSETS` with the same object names and headers before importing legacy pointers, then deletes the legacy `INSTANCE_ASSETS` object store. Fresh/current deployments do not create `INSTANCE_ASSETS`.
 
 **ASSET_CACHE keys:**
 
@@ -666,14 +658,13 @@ Notes: Content-Type stored in object headers. S2 compression enabled. Server log
 
 Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled. Pre-ADR-030-Phase-4 entries written under a `{server|DM}.…` prefix are no longer looked up after the kind-less URL switchover and age out via TTL.
 
-**SERVER\_ASSETS keys (primary + DM, post phase 4e):**
+**SERVER\_ASSETS keys:**
 
 | Key                   | Description                                     |
 | --------------------- | ----------------------------------------------- |
-| `{attachmentId}`      | Original attachment files (images, videos, etc.)|
-| `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
+| `{assetId}`           | User avatars, server branding images, link-preview images, original attachment files, and derivative binaries |
 
-Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`) rather than inside `Asset`. Future room or server asset owners should add explicit owner branches when those features start emitting asset events. Message-owned assets are also embedded as `Attachment` protos inside the owning `MessageBody` for message rendering and signed URL back-pointers. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. Boot migrations backfill asset creation events from legacy message attachments and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
+Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers where available. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`) rather than inside `Asset`. Future room or server asset owners should add explicit owner branches when those features start emitting asset events. Message-owned assets are also embedded as `Attachment` protos inside the owning `MessageBody` for message rendering and signed URL back-pointers. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. Boot migrations copy pre-0.1 `INSTANCE_ASSETS` objects into `SERVER_ASSETS`, backfill asset creation events from legacy message attachments, and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 
