@@ -972,7 +972,6 @@ type Server struct {
 	// Returns null if the user is not a member.
 	Member *corev1.User `json:"member,omitempty"`
 	// List members of this server with optional search and pagination.
-	// This is the canonical member directory surface and is available to any authenticated user.
 	// Search matches login and display name (case-insensitive partial match).
 	Members *ServerMembersConnection `json:"members"`
 	// List all roles on this server.
