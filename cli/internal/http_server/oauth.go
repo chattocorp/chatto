@@ -40,7 +40,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
 			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 			if hasPendingOAuthAuthorize(session) {
-				s.completeOAuthAuthorize(c, userID)
+				s.completeOAuthAuthorize(c, userID, cookieSession.GetAuthGeneration())
 				return
 			}
 		}
@@ -102,7 +102,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		// If user is already authenticated, generate code immediately
 		if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
 			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
-			s.completeOAuthAuthorize(c, userID)
+			s.completeOAuthAuthorize(c, userID, cookieSession.GetAuthGeneration())
 			return
 		}
 
@@ -219,7 +219,7 @@ type oauthTokenRequest struct {
 // completeOAuthAuthorize generates an authorization code and redirects to the
 // client's redirect_uri. Called after the user has authenticated, either
 // directly (already had a session) or after login/OAuth callback.
-func (s *HTTPServer) completeOAuthAuthorize(c *gin.Context, userID string) {
+func (s *HTTPServer) completeOAuthAuthorize(c *gin.Context, userID string, authGeneration uint64) {
 	session := sessions.Default(c)
 
 	redirectURI, _ := session.Get(sessionKeyOAuthRedirectURI).(string)
@@ -243,7 +243,7 @@ func (s *HTTPServer) completeOAuthAuthorize(c *gin.Context, userID string) {
 	}
 
 	ctx := c.Request.Context()
-	code, err := s.core.CreateAuthCode(ctx, userID, redirectURI, codeChallenge, codeChallengeMethod)
+	code, err := s.core.CreateAuthCodeForGeneration(ctx, userID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
 	if err != nil {
 		log.Error("Failed to create authorization code", "error", err, "userId", userID)
 		c.JSON(http.StatusInternalServerError, gin.H{

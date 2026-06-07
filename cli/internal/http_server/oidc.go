@@ -323,7 +323,13 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 		// If there's a pending OAuth authorize flow, complete it
 		if hasPendingOAuthAuthorize(session) {
-			s.completeOAuthAuthorize(c, user.Id)
+			authGeneration, err := s.core.CurrentAuthGeneration(ctx, user.Id)
+			if err != nil {
+				log.Error("Failed to read auth generation for OAuth authorize", "userId", user.Id, "error", err)
+				c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
+				return
+			}
+			s.completeOAuthAuthorize(c, user.Id, authGeneration)
 			return
 		}
 

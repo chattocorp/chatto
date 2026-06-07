@@ -321,7 +321,7 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 		return err
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "password_changed"); err != nil {
-		return err
+		c.logger.Warn("Failed to clean up runtime credentials after password change", "user_id", userID, "error", err)
 	}
 	if err := c.PublishSessionTerminated(ctx, userID, "password_changed"); err != nil {
 		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "password_changed", "error", err)

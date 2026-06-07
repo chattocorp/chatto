@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -87,9 +88,12 @@ func (s *HTTPServer) rotateCookieSessionIfNeeded(c *gin.Context, userID, oldSess
 		return
 	}
 
-	newSessionID, _, err := s.core.CreateCookieSession(c.Request.Context(), userID, "session_rotation")
+	newSessionID, _, err := s.core.CreateCookieSessionForGeneration(c.Request.Context(), userID, "session_rotation", record.GetAuthGeneration())
 	if err != nil {
 		log.Warn("Failed to rotate cookie session", "userId", userID, "error", err)
+		if errors.Is(err, core.ErrCookieSessionNotFound) {
+			clearCookieSessionAuth(sessions.Default(c))
+		}
 		return
 	}
 

@@ -110,6 +110,33 @@ func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 	}
 }
 
+func TestChattoCore_CreateAuthCodeForGenerationRejectsStaleAuthGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "auth-code-issue-gen-user", "Auth Code Issue User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+	redirectURI := "https://example.com/callback"
+	if code, err := core.CreateAuthCodeForGeneration(ctx, user.Id, redirectURI, challenge, "S256", authGeneration); !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("CreateAuthCodeForGeneration err = %v, want ErrAuthCodeNotFound", err)
+	} else if code != "" {
+		t.Fatalf("CreateAuthCodeForGeneration returned code=%q, want empty", code)
+	}
+}
+
 func TestChattoCore_ExchangeAuthCode_SingleUse(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
