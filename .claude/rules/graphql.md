@@ -1,5 +1,5 @@
 ---
-paths: ["**/*.graphqls", "cli/internal/graph/**", "frontend/src/lib/graphql/**"]
+paths: ["**/*.graphqls", "cli/internal/graph/**", "frontend/src/lib/gql/**"]
 ---
 
 # GraphQL Development

@@ -99,23 +99,17 @@ func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*mod
 
 	reactions := make([]*model.Reaction, 0, len(summaries))
 	for _, summary := range summaries {
-		users := make([]*corev1.User, 0, len(summary.UserIDs))
 		hasReacted := false
 		for _, userID := range summary.UserIDs {
 			if userID == currentUser.Id {
 				hasReacted = true
 			}
-			user, err := r.getUser(ctx, userID)
-			if err != nil {
-				continue // Skip deleted users
-			}
-			users = append(users, user)
 		}
 
 		reactions = append(reactions, &model.Reaction{
 			Emoji:      summary.Emoji,
-			Count:      int32(len(users)),
-			Users:      users,
+			Count:      int32(len(summary.UserIDs)),
+			UserIDs:    append([]string(nil), summary.UserIDs...),
 			HasReacted: hasReacted,
 		})
 	}

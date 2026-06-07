@@ -99,7 +99,9 @@ const ThreadEventsQuery = graphql(`
         event {
           ... on MessagePostedEvent {
             threadReplies {
-              ...RoomEventView
+              events {
+                ...RoomEventView
+              }
             }
           }
         }
@@ -968,7 +970,8 @@ export class ThreadMessagesStore extends MessageListStore {
           // Merge with any subscription events that arrived during the
           // in-flight query (e.g. the user's own reply or a fast cross-user
           // reply). Overwriting would drop them.
-          const replies = root.event?.__typename === 'MessagePostedEvent' ? root.event.threadReplies : [];
+          const replies =
+            root.event?.__typename === 'MessagePostedEvent' ? root.event.threadReplies.events : [];
           this.replaceMergingExisting([root, ...replies]);
         }
         this.isInitialLoading = false;

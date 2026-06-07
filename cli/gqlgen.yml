@@ -195,6 +195,9 @@ models:
   MessagePostedEvent:
     model:
       - hmans.de/chatto/internal/graph/model.MessagePostedEvent
+  Reaction:
+    model:
+      - hmans.de/chatto/internal/graph/model.Reaction
   NotificationLevel:
     model:
       - hmans.de/chatto/internal/graph/model.NotificationLevel

@@ -34,10 +34,7 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 		return []*corev1.User{}, nil
 	}
 
-	limit := 5
-	if first != nil && *first > 0 {
-		limit = int(*first)
-	}
+	limit := firstNArg(first, 5, 10)
 
 	participantIDs := obj.ParticipantIDs
 	if len(participantIDs) > limit {

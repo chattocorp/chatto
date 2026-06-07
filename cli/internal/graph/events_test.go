@@ -94,6 +94,55 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		}
 	})
 
+	t.Run("reaction users are a bounded preview", func(t *testing.T) {
+		for i := 0; i < 6; i++ {
+			user, err := env.core.CreateUser(env.ctx, "system", "reaction-preview-"+string(rune('a'+i)), "Reaction Preview", "password123")
+			if err != nil {
+				t.Fatalf("failed to create preview user %d: %v", i, err)
+			}
+			if _, err := env.core.AddReaction(env.ctx, core.KindChannel, env.testRoom.Id, event.Id, "thumbsup", user.Id); err != nil {
+				t.Fatalf("failed to add preview reaction %d: %v", i, err)
+			}
+		}
+
+		reactions, err := resolver.Reactions(env.authContext(), msgEvent)
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+		if len(reactions) != 1 {
+			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
+		}
+		if reactions[0].Count != 7 {
+			t.Fatalf("reaction count = %d, want 7", reactions[0].Count)
+		}
+
+		users, err := env.resolver.Reaction().Users(env.authContext(), reactions[0], nil)
+		if err != nil {
+			t.Fatalf("Reaction.Users returned error: %v", err)
+		}
+		if len(users) != 3 {
+			t.Fatalf("default reaction users len = %d, want 3", len(users))
+		}
+
+		first := int32(5)
+		users, err = env.resolver.Reaction().Users(env.authContext(), reactions[0], &first)
+		if err != nil {
+			t.Fatalf("Reaction.Users(first: 5) returned error: %v", err)
+		}
+		if len(users) != 5 {
+			t.Fatalf("reaction users(first: 5) len = %d, want 5", len(users))
+		}
+
+		oversized := int32(100)
+		users, err = env.resolver.Reaction().Users(env.authContext(), reactions[0], &oversized)
+		if err != nil {
+			t.Fatalf("Reaction.Users(first: 100) returned error: %v", err)
+		}
+		if len(users) != 7 {
+			t.Fatalf("reaction users(first: 100) len = %d, want all 7 available under max 10", len(users))
+		}
+	})
+
 	t.Run("unauthenticated returns empty list", func(t *testing.T) {
 		reactions, err := resolver.Reactions(env.unauthContext(), msgEvent)
 		if err != nil {
