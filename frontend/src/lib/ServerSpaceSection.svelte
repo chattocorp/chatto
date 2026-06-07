@@ -29,6 +29,10 @@
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const notificationLevelStore = stores.notificationLevels;
+  // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
+  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by instance.id)
+  const gqlClient = graphqlClientManager.getClient(serverId);
+  const registeredServer = $derived(serverRegistry.getServer(serverId));
 
   // After the URL collapse (ADR-027), "this instance is active" simply means
   // the URL's instance segment matches this one — and since each instance
@@ -39,6 +43,18 @@
   let logoUrl = $state<string | null>(null);
   let loaded = $state(false);
 
+  const iconSpace = $derived.by(() => {
+    const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
+    return {
+      name: displayName || refreshedName || registeredServer?.name || stores.serverInfo.name,
+      logoUrl: loaded ? logoUrl : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
+    };
+  });
+  const iconDimmed = $derived(!loaded || gqlClient.showConnectionLostIcon);
+  const iconTitle = $derived(
+    iconDimmed ? `${iconSpace.name} (connection unavailable)` : iconSpace.name
+  );
+
   // Single dispatcher for icon clicks — kind comes from spaceIndicator()
   // so the two paths can't drift out of sync with what was rendered.
   function handleSpaceIndicatorClick(kind: 'notification' | 'unread') {
@@ -48,7 +64,7 @@
 
   // Get the GraphQL client for this instance
   function getClient() {
-    return graphqlClientManager.getClient(serverId).client;
+    return gqlClient.client;
   }
 
   // Single combined query for instance icon, unread status, notification prefs, and viewer permissions.
@@ -94,51 +110,60 @@
   `);
 
   async function loadAll() {
-    const client = getClient();
+    try {
+      const client = getClient();
 
-    const [initResult] = await Promise.all([
-      client.query(InstanceInitQuery, {}).toPromise(),
-      notificationStore.fetch()
-    ]);
+      const [initResult] = await Promise.all([
+        client.query(InstanceInitQuery, {}).toPromise(),
+        notificationStore.fetch()
+      ]);
 
-    if (!initResult.data) return;
-
-    const { server, viewer } = initResult.data;
-
-    if (viewer) {
-      stores.setPermissions(viewer);
-      // Populate room-level notification preferences first.
-      for (const pref of viewer.user.roomNotificationPreferences) {
-        notificationLevelStore.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
+      if (initResult.error) {
+        console.error(`[server:${serverId}] failed to load sidebar icon data`, initResult.error);
+        return;
       }
-    }
 
-    if (server) {
-      // Populate server-level notification preference and unread state.
-      const pref = server.viewerNotificationPreference;
-      if (pref) {
-        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      }
-      roomUnreadStore.clear();
-      roomUnreadStore.setServerHasUnread(server.viewerHasUnreadRooms);
+      if (!initResult.data) return;
 
-      // Populate DM unread status and notification preferences. Channel
-      // and DM rooms now share the same per-room unread map.
-      for (const room of server.rooms) {
-        const roomPref = room.viewerNotificationPreference;
-        if (roomPref) {
-          notificationLevelStore.setRoomPreference(room.id, roomPref.level, roomPref.effectiveLevel);
-        }
-        if (room.hasUnread) {
-          roomUnreadStore.setRoomUnread(room.id, true);
+      const { server, viewer } = initResult.data;
+
+      if (viewer) {
+        stores.setPermissions(viewer);
+        // Populate room-level notification preferences first.
+        for (const pref of viewer.user.roomNotificationPreferences) {
+          notificationLevelStore.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
         }
       }
-    }
 
-    if (server) {
-      displayName = server.profile.name;
-      logoUrl = server.profile.logoUrl ?? null;
-      loaded = true;
+      if (server) {
+        // Populate server-level notification preference and unread state.
+        const pref = server.viewerNotificationPreference;
+        if (pref) {
+          notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
+        }
+        roomUnreadStore.clear();
+        roomUnreadStore.setServerHasUnread(server.viewerHasUnreadRooms);
+
+        // Populate DM unread status and notification preferences. Channel
+        // and DM rooms now share the same per-room unread map.
+        for (const room of server.rooms) {
+          const roomPref = room.viewerNotificationPreference;
+          if (roomPref) {
+            notificationLevelStore.setRoomPreference(room.id, roomPref.level, roomPref.effectiveLevel);
+          }
+          if (room.hasUnread) {
+            roomUnreadStore.setRoomUnread(room.id, true);
+          }
+        }
+      }
+
+      if (server) {
+        displayName = server.profile.name;
+        logoUrl = server.profile.logoUrl ?? null;
+        loaded = true;
+      }
+    } catch (err) {
+      console.error(`[server:${serverId}] failed to load sidebar icon data`, err);
     }
   }
 
@@ -168,7 +193,7 @@
   }
 
   // Load on mount and tab resume
-  useTabResumeCallback(() => loadAll());
+  useTabResumeCallback(() => void loadAll());
 
   // Subscribe to instance events. Use $effect (not onMount) so that if the
   // event bus isn't started yet on first run — possible when this component
@@ -307,12 +332,12 @@
 </script>
 
 <!-- One icon per instance (server = instance post-#330). -->
-{#if loaded}
-  <SpaceIcon
-    space={{ name: displayName, logoUrl }}
-    href={resolve('/chat/[serverId]', { serverId: serverSegment })}
-    selected={isActiveServer}
-    indicator={stores.spaceIndicator()}
-    onIndicatorClick={handleSpaceIndicatorClick}
-  />
-{/if}
+<SpaceIcon
+  space={iconSpace}
+  href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+  selected={isActiveServer}
+  indicator={stores.spaceIndicator()}
+  onIndicatorClick={handleSpaceIndicatorClick}
+  title={iconTitle}
+  dimmed={iconDimmed}
+/>

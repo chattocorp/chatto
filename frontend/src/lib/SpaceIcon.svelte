@@ -11,7 +11,8 @@
     selected = false,
     indicator = null,
     onIndicatorClick,
-    title
+    title,
+    dimmed = false
   }: {
     /** Display data for the icon (instance name + optional logo). */
     space?: { name: string; logoUrl?: string | null };
@@ -24,6 +25,8 @@
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
     title?: string;
+    /** Render as unavailable/degraded while keeping the icon in the gutter. */
+    dimmed?: boolean;
   } = $props();
 </script>
 
@@ -32,7 +35,11 @@
     {href}
     {title}
     aria-label={title ?? space?.name}
-    class={['space-icon server-gutter-item cursor-pointer', selected && 'server-gutter-item-active']}
+    class={[
+      'space-icon server-gutter-item cursor-pointer',
+      selected && 'server-gutter-item-active',
+      dimmed && 'opacity-40 grayscale'
+    ]}
     data-testid={space ? 'space-icon' : icon ? 'nav-icon' : undefined}
   >
     {#if space}
