@@ -47,20 +47,20 @@ export class ChatPage {
    * Wait until the user is in the deployment's bootstrap server and return
    * the server name. Post-ADR-030 there is no per-deployment Space record;
    * signup auto-joins the default rooms and this just confirms the server
-   * config is reachable. `name` and `description` args are ignored,
+   * profile is reachable. `name` and `description` args are ignored,
    * retained only so existing call sites compile.
    */
   async createSpace(_name?: string, _description?: string): Promise<string> {
     const data = await graphqlQuery<{
-      server: { config: { serverName: string } } | null;
+      server: { profile: { name: string } } | null;
     }>(
       this.page,
-      `query { server { config { serverName } } }`
+      `query { server { profile { name } } }`
     );
     if (!data.server) {
-      throw new Error('Server query returned no data — bootstrap config likely broken');
+      throw new Error('Server query returned no data — bootstrap profile likely broken');
     }
-    return data.server.config.serverName;
+    return data.server.profile.name;
   }
 
   /**
