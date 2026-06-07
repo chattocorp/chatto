@@ -143,6 +143,17 @@ description = "Run the application in development mode (with file watching)"
 # compile.
 run = "mise watch _app-server --restart"
 
+[tasks.dev-mailpit-smtp]
+description = "Forward local SMTP to OrbStack Mailpit for development"
+run = """
+if nc -z 127.0.0.1 1025 >/dev/null 2>&1; then
+  echo "Mailpit SMTP is already available on 127.0.0.1:1025"
+  while true; do sleep 3600; done
+fi
+
+kubectl --context orbstack -n chatto-dev port-forward svc/mailpit 1025:1025
+"""
+
 [tasks.dev-frontend]
 description = "Run the frontend application in development mode"
 depends = ["deps-frontend"]
