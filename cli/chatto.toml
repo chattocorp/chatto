@@ -30,7 +30,7 @@ client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 
 [smtp]
 enabled = true
-host = 'mailpit.chatto-tools.orb.local'
+host = 'mailpit.k8s.orb.local'
 port = 1025
 tls = 'opportunistic'
 from = 'Chatto Local Development <chatto@chatto.run>'
