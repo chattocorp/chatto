@@ -183,7 +183,7 @@ the ability to create rooms only in specific groups.
 |-------|---------------|------------------|
 | `me` | No | Returns null if unauthenticated |
 | `user(id)` | No | Public user profiles |
-| `users` | Yes | Server admin only |
+| `server.members(...)` | Yes | Server member directory visible to authenticated users |
 | `spaces` | No | Discovery - lists all spaces |
 | `space(id)` | No | Discovery - view any space |
 | `room(spaceId, roomId)` | Yes | Room membership required |
