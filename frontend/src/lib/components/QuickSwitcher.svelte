@@ -48,7 +48,7 @@
       server {
         profile {
           name
-          logoUrl(width: 96, height: 96)
+          logoUrl
         }
       }
     }

@@ -65,8 +65,8 @@ export class ServerInfoState {
                 name
                 welcomeMessage
                 description
-                logoUrl(width: 256, height: 256)
-                bannerUrl(width: 1200, height: 630)
+                logoUrl
+                bannerUrl
               }
             }
           }

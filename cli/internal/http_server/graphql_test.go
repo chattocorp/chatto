@@ -450,9 +450,33 @@ func TestGraphQL_Query_Server_PublicDiscovery(t *testing.T) {
 	_ = env.createTestUser(t, "spacesuser", "password123")
 
 	t.Run("unauthenticated user can read instance metadata", func(t *testing.T) {
-		resp := env.doGraphQL(t, `query { server { version profile { name } } }`, nil)
+		resp := env.doGraphQL(t, `query { server { version profile { name logoUrl bannerUrl } } }`, nil)
 		if len(resp.Errors) > 0 {
 			t.Errorf("Expected no errors for public discovery, got: %v", resp.Errors)
+		}
+	})
+
+	t.Run("server profile image fields do not accept transform arguments", func(t *testing.T) {
+		resp := env.doGraphQL(t, `query {
+			server {
+				profile {
+					logoUrl(width: 96, height: 96)
+					bannerUrl(width: 1200, height: 630, fit: COVER)
+				}
+			}
+		}`, nil)
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL validation errors for server profile image arguments")
+		}
+		messages := make([]string, 0, len(resp.Errors))
+		for _, err := range resp.Errors {
+			messages = append(messages, err.Message)
+		}
+		joined := strings.Join(messages, "\n")
+		for _, want := range []string{"Unknown argument \"width\"", "Unknown argument \"height\"", "Unknown argument \"fit\""} {
+			if !strings.Contains(joined, want) {
+				t.Fatalf("Expected validation errors to contain %q, got:\n%s", want, joined)
+			}
 		}
 	})
 }

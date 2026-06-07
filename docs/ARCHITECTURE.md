@@ -677,7 +677,7 @@ Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Cha
 
 ### Dynamic Image Transformation
 
-Chatto supports on-the-fly image transformation for attachments, user avatars, and server branding images, allowing clients to request images at specific dimensions without pre-generating all possible sizes.
+Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions.
 
 **URL Structure:**
 
@@ -723,7 +723,7 @@ URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured 
 
 **GraphQL Integration:**
 
-The `Attachment`, `User`, and `ServerProfile` image fields expose transform parameters as field arguments:
+The `Attachment` and `User` image fields expose transform parameters as field arguments:
 
 ```graphql
 type Attachment {
@@ -736,8 +736,8 @@ type User {
 }
 
 type ServerProfile {
-  logoUrl(width: Int, height: Int, fit: FitMode): String
-  bannerUrl(width: Int, height: Int, fit: FitMode): String
+  logoUrl: String
+  bannerUrl: String
 }
 
 enum FitMode {
@@ -747,7 +747,7 @@ enum FitMode {
 }
 ```
 
-When arguments are provided, the resolver returns a signed transform URL. Without arguments, the original/default thumbnail URL is returned for backward compatibility.
+For `Attachment` and `User` images, arguments return a signed transform URL. Without arguments, the original/default thumbnail URL is returned for backward compatibility. Public `ServerProfile` image fields intentionally return canonical asset URLs without transform arguments so anonymous server discovery cannot mint unbounded resize variants.
 
 **Caching:**
 

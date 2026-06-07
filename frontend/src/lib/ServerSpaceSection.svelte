@@ -57,7 +57,7 @@
       server {
         profile {
           name
-          logoUrl(width: 96, height: 96)
+          logoUrl
         }
         viewerHasUnreadRooms
         viewerNotificationPreference {
@@ -152,7 +152,7 @@
             server {
               profile {
                 name
-                logoUrl(width: 96, height: 96)
+                logoUrl
               }
             }
           }

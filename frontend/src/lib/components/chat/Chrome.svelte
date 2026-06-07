@@ -101,7 +101,7 @@
             server {
               profile {
                 name
-                bannerUrl(width: 480, height: 252)
+                bannerUrl
               }
               viewerHasAnyAdminPermission
               viewerCanManageServer

@@ -250,13 +250,8 @@ func (r *serverProfileResolver) Name(ctx context.Context, obj *model.ServerProfi
 }
 
 // LogoURL is the resolver for the logoUrl field.
-func (r *serverProfileResolver) LogoURL(ctx context.Context, obj *model.ServerProfile, width *int32, height *int32, fit *model.FitMode) (*string, error) {
-	var w, h *int
-	if width != nil && height != nil {
-		wv, hv := int(*width), int(*height)
-		w, h = &wv, &hv
-	}
-	url, err := r.core.GetServerLogoURL(ctx, w, h, fitModeString(fit))
+func (r *serverProfileResolver) LogoURL(ctx context.Context, obj *model.ServerProfile) (*string, error) {
+	url, err := r.core.GetServerLogoURL(ctx, nil, nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -267,13 +262,8 @@ func (r *serverProfileResolver) LogoURL(ctx context.Context, obj *model.ServerPr
 }
 
 // BannerURL is the resolver for the bannerUrl field.
-func (r *serverProfileResolver) BannerURL(ctx context.Context, obj *model.ServerProfile, width *int32, height *int32, fit *model.FitMode) (*string, error) {
-	var w, h *int
-	if width != nil && height != nil {
-		wv, hv := int(*width), int(*height)
-		w, h = &wv, &hv
-	}
-	url, err := r.core.GetServerBannerURL(ctx, w, h, fitModeString(fit))
+func (r *serverProfileResolver) BannerURL(ctx context.Context, obj *model.ServerProfile) (*string, error) {
+	url, err := r.core.GetServerBannerURL(ctx, nil, nil, "")
 	if err != nil {
 		return nil, err
 	}

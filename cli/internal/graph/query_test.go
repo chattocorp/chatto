@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -162,6 +163,8 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 					enabledAuthProviders
 					profile {
 						name
+						logoUrl
+						bannerUrl
 					}
 					directRegistrationEnabled
 				}
@@ -177,7 +180,9 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 				Version              string   `json:"version"`
 				EnabledAuthProviders []string `json:"enabledAuthProviders"`
 				Profile              struct {
-					Name string `json:"name"`
+					Name      string  `json:"name"`
+					LogoURL   *string `json:"logoUrl"`
+					BannerURL *string `json:"bannerUrl"`
 				} `json:"profile"`
 				DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
 			} `json:"server"`
@@ -190,6 +195,33 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 		}
 		if data.Server.Profile.Name == "" {
 			t.Fatal("Expected public server name to be populated")
+		}
+	})
+
+	t.Run("public server profile images reject transform arguments", func(t *testing.T) {
+		resp := executeGraphQL(t, env, env.unauthContext(), `
+			query ServerProfileImageTransforms {
+				server {
+					profile {
+						logoUrl(width: 96, height: 96)
+						bannerUrl(width: 1200, height: 630, fit: COVER)
+					}
+				}
+			}
+		`, nil)
+
+		if len(resp.Errors) == 0 {
+			t.Fatal("Expected GraphQL validation errors for server profile image arguments")
+		}
+		messages := make([]string, 0, len(resp.Errors))
+		for _, err := range resp.Errors {
+			messages = append(messages, err.Message)
+		}
+		joined := strings.Join(messages, "\n")
+		for _, want := range []string{"Unknown argument \"width\"", "Unknown argument \"height\"", "Unknown argument \"fit\""} {
+			if !strings.Contains(joined, want) {
+				t.Fatalf("Expected validation errors to contain %q, got:\n%s", want, joined)
+			}
 		}
 	})
 

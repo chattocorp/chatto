@@ -745,9 +745,9 @@ type ComplexityRoot struct {
 	}
 
 	ServerProfile struct {
-		BannerURL      func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
+		BannerURL      func(childComplexity int) int
 		Description    func(childComplexity int) int
-		LogoURL        func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
+		LogoURL        func(childComplexity int) int
 		Motd           func(childComplexity int) int
 		Name           func(childComplexity int) int
 		WelcomeMessage func(childComplexity int) int
@@ -1224,8 +1224,8 @@ type ServerResolver interface {
 }
 type ServerProfileResolver interface {
 	Name(ctx context.Context, obj *model.ServerProfile) (string, error)
-	LogoURL(ctx context.Context, obj *model.ServerProfile, width *int32, height *int32, fit *model.FitMode) (*string, error)
-	BannerURL(ctx context.Context, obj *model.ServerProfile, width *int32, height *int32, fit *model.FitMode) (*string, error)
+	LogoURL(ctx context.Context, obj *model.ServerProfile) (*string, error)
+	BannerURL(ctx context.Context, obj *model.ServerProfile) (*string, error)
 	WelcomeMessage(ctx context.Context, obj *model.ServerProfile) (*string, error)
 	Motd(ctx context.Context, obj *model.ServerProfile) (*string, error)
 	Description(ctx context.Context, obj *model.ServerProfile) (*string, error)
@@ -4531,12 +4531,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		args, err := ec.field_ServerProfile_bannerUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.ServerProfile.BannerURL(childComplexity, args["width"].(*int32), args["height"].(*int32), args["fit"].(*model.FitMode)), true
+		return e.ComplexityRoot.ServerProfile.BannerURL(childComplexity), true
 	case "ServerProfile.description":
 		if e.ComplexityRoot.ServerProfile.Description == nil {
 			break
@@ -4548,12 +4543,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		args, err := ec.field_ServerProfile_logoUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.ServerProfile.LogoURL(childComplexity, args["width"].(*int32), args["height"].(*int32), args["fit"].(*model.FitMode)), true
+		return e.ComplexityRoot.ServerProfile.LogoURL(childComplexity), true
 	case "ServerProfile.motd":
 		if e.ComplexityRoot.ServerProfile.Motd == nil {
 			break
@@ -8115,66 +8105,6 @@ func (ec *executionContext) field_Room_members_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["offset"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_ServerProfile_bannerUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "fit",
-		func(ctx context.Context, v any) (*model.FitMode, error) {
-			return ec.unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["fit"] = arg2
-	return args, nil
-}
-
-func (ec *executionContext) field_ServerProfile_logoUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height",
-		func(ctx context.Context, v any) (*int32, error) {
-			return ec.unmarshalOInt2ᚖint32(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "fit",
-		func(ctx context.Context, v any) (*model.FitMode, error) {
-			return ec.unmarshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFitMode(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["fit"] = arg2
 	return args, nil
 }
 
@@ -21429,8 +21359,7 @@ func (ec *executionContext) _ServerProfile_logoUrl(ctx context.Context, field gr
 			return ec.fieldContext_ServerProfile_logoUrl(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.ServerProfile().LogoURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
+			return ec.Resolvers.ServerProfile().LogoURL(ctx, obj)
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -21453,28 +21382,8 @@ func (ec *executionContext) _ServerProfile_logoUrl(ctx context.Context, field gr
 		false,
 	)
 }
-func (ec *executionContext) fieldContext_ServerProfile_logoUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServerProfile",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_ServerProfile_logoUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
+func (ec *executionContext) fieldContext_ServerProfile_logoUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _ServerProfile_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {
@@ -21486,8 +21395,7 @@ func (ec *executionContext) _ServerProfile_bannerUrl(ctx context.Context, field 
 			return ec.fieldContext_ServerProfile_bannerUrl(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.ServerProfile().BannerURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32), fc.Args["fit"].(*model.FitMode))
+			return ec.Resolvers.ServerProfile().BannerURL(ctx, obj)
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -21510,28 +21418,8 @@ func (ec *executionContext) _ServerProfile_bannerUrl(ctx context.Context, field 
 		false,
 	)
 }
-func (ec *executionContext) fieldContext_ServerProfile_bannerUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServerProfile",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_ServerProfile_bannerUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
+func (ec *executionContext) fieldContext_ServerProfile_bannerUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerProfile", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _ServerProfile_welcomeMessage(ctx context.Context, field graphql.CollectedField, obj *model.ServerProfile) (ret graphql.Marshaler) {

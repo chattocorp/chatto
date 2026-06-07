@@ -1020,9 +1020,9 @@ type ServerMembersConnection struct {
 type ServerProfile struct {
 	// Display name for this server. Defaults to 'Chatto'.
 	Name string `json:"name"`
-	// URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail.
+	// URL to the server logo, if set.
 	LogoURL *string `json:"logoUrl,omitempty"`
-	// URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail.
+	// URL to the server banner image, if set.
 	BannerURL *string `json:"bannerUrl,omitempty"`
 	// Welcome message to display on the login screen (Markdown). Null if not configured.
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
