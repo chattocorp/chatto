@@ -1,12 +1,9 @@
 package core
 
 import (
-	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
-
-	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
 )
@@ -107,9 +104,9 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 		}
 	})
 
-	t.Run("invalid attempts exhaust code", func(t *testing.T) {
-		user, _ := core.CreateUser(ctx, "system", "attempt-email-user", "Attempt User", "password123")
-		code, err := core.CreateEmailVerificationCode(ctx, user.Id, "attempt-email@example.com")
+	t.Run("unknown code does not consume valid code", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "unknown-email-user", "Unknown User", "password123")
+		code, err := core.CreateEmailVerificationCode(ctx, user.Id, "unknown-email@example.com")
 		if err != nil {
 			t.Fatalf("CreateEmailVerificationCode: %v", err)
 		}
@@ -118,102 +115,51 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 			wrongCode = "111111"
 		}
 
-		for i := 1; i < EmailVerificationCodeMaxAttempts; i++ {
-			_, err := core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
-			if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
-				t.Fatalf("attempt %d error = %v, want ErrEmailVerificationCodeInvalid", i, err)
-			}
+		_, err = core.VerifyEmailCode(ctx, user.Id, "unknown-email@example.com", wrongCode)
+		if !errors.Is(err, ErrTokenNotFound) {
+			t.Fatalf("wrong code error = %v, want ErrTokenNotFound", err)
 		}
-		_, err = core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
-		if !errors.Is(err, ErrEmailVerificationCodeExhausted) {
-			t.Fatalf("exhaustion error = %v, want ErrEmailVerificationCodeExhausted", err)
+		if _, err := core.VerifyEmailCode(ctx, user.Id, "unknown-email@example.com", code); err != nil {
+			t.Fatalf("valid code should still verify after wrong code: %v", err)
 		}
 	})
 
-	t.Run("attempt updates use revisions", func(t *testing.T) {
-		user, _ := core.CreateUser(ctx, "system", "revision-email-user", "Revision User", "password123")
-		if _, err := core.CreateEmailVerificationCode(ctx, user.Id, "revision-email@example.com"); err != nil {
-			t.Fatalf("CreateEmailVerificationCode: %v", err)
-		}
-
-		key := core.emailVerificationCodeKey(user.Id, "revision-email@example.com")
-		entry, err := core.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			t.Fatalf("get email verification code: %v", err)
-		}
-		var record EmailVerificationCode
-		if err := json.Unmarshal(entry.Value(), &record); err != nil {
-			t.Fatalf("unmarshal email verification code: %v", err)
-		}
-
-		record.Attempts = 1
-		if err := core.replaceEmailVerificationCodeRecord(ctx, key, record, entry.Revision()); err != nil {
-			t.Fatalf("first revision update: %v", err)
-		}
-		if err := core.replaceEmailVerificationCodeRecord(ctx, key, record, entry.Revision()); !isRuntimeStateRevisionConflict(err) {
-			t.Fatalf("stale revision update error = %v, want revision conflict", err)
-		}
-
-		updated, err := core.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			t.Fatalf("get updated email verification code: %v", err)
-		}
-		var updatedRecord EmailVerificationCode
-		if err := json.Unmarshal(updated.Value(), &updatedRecord); err != nil {
-			t.Fatalf("unmarshal updated email verification code: %v", err)
-		}
-		if updatedRecord.Attempts != 1 {
-			t.Fatalf("attempts = %d, want stale update not to overwrite", updatedRecord.Attempts)
-		}
-	})
-
-	t.Run("concurrent invalid attempts exhaust code", func(t *testing.T) {
+	t.Run("concurrent valid code consumes once", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "parallel-email-user", "Parallel User", "password123")
 		code, err := core.CreateEmailVerificationCode(ctx, user.Id, "parallel-email@example.com")
 		if err != nil {
 			t.Fatalf("CreateEmailVerificationCode: %v", err)
 		}
-		wrongCode := "000000"
-		if code == wrongCode {
-			wrongCode = "111111"
-		}
 
 		var wg sync.WaitGroup
-		errs := make(chan error, EmailVerificationCodeMaxAttempts)
-		for i := 0; i < EmailVerificationCodeMaxAttempts; i++ {
+		errs := make(chan error, 5)
+		for i := 0; i < 5; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_, err := core.VerifyEmailCode(ctx, user.Id, "parallel-email@example.com", wrongCode)
+				_, err := core.VerifyEmailCode(ctx, user.Id, "parallel-email@example.com", code)
 				errs <- err
 			}()
 		}
 		wg.Wait()
 		close(errs)
 
-		exhausted := 0
+		successes := 0
 		for err := range errs {
 			switch {
-			case errors.Is(err, ErrEmailVerificationCodeInvalid):
-			case errors.Is(err, ErrEmailVerificationCodeExhausted):
-				exhausted++
+			case err == nil:
+				successes++
 			case errors.Is(err, ErrTokenNotFound):
 			default:
-				t.Fatalf("unexpected concurrent attempt error: %v", err)
+				t.Fatalf("unexpected concurrent verification error: %v", err)
 			}
 		}
-		if exhausted == 0 {
-			t.Fatal("expected at least one concurrent attempt to exhaust the code")
-		}
-		if _, err := core.VerifyEmailCode(ctx, user.Id, "parallel-email@example.com", code); !errors.Is(err, ErrTokenNotFound) {
-			t.Fatalf("valid code after exhausted attempts error = %v, want ErrTokenNotFound", err)
-		}
-		if _, err := core.storage.runtimeStateKV.Get(ctx, core.emailVerificationCodeKey(user.Id, "parallel-email@example.com")); !errors.Is(err, jetstream.ErrKeyNotFound) {
-			t.Fatalf("exhausted email verification code should be deleted, got %v", err)
+		if successes != 1 {
+			t.Fatalf("successful verifications = %d, want exactly one", successes)
 		}
 	})
 
-	t.Run("resend invalidates previous code", func(t *testing.T) {
+	t.Run("multiple requests remain valid", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "resend-email-user", "Resend User", "password123")
 		firstCode, err := core.CreateEmailVerificationCode(ctx, user.Id, "resend-email@example.com")
 		if err != nil {
@@ -224,9 +170,8 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 			t.Fatalf("second CreateEmailVerificationCode: %v", err)
 		}
 
-		_, err = core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", firstCode)
-		if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
-			t.Fatalf("first code error = %v, want ErrEmailVerificationCodeInvalid", err)
+		if _, err := core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", firstCode); err != nil {
+			t.Fatalf("first code should verify: %v", err)
 		}
 		if _, err := core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", secondCode); err != nil {
 			t.Fatalf("second code should verify: %v", err)

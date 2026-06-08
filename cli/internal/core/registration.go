@@ -22,11 +22,6 @@ const (
 
 	// RegistrationCompletionTokenTTL is the duration a code-exchanged completion token is valid.
 	RegistrationCompletionTokenTTL = 15 * time.Minute
-
-	// RegistrationCodeMaxAttempts is the number of invalid attempts before a code is exhausted.
-	RegistrationCodeMaxAttempts = 5
-
-	runtimeStateCodeWriteMaxRetries = 16
 )
 
 var (
@@ -38,9 +33,6 @@ var (
 
 	// ErrRegistrationCodeInvalid is returned when a submitted registration code is wrong.
 	ErrRegistrationCodeInvalid = errors.New("invalid registration code")
-
-	// ErrRegistrationCodeExhausted is returned when too many invalid attempts were made.
-	ErrRegistrationCodeExhausted = errors.New("registration code exhausted")
 
 	// ErrRegistrationTokenNotFound is returned when the completion token doesn't exist.
 	ErrRegistrationTokenNotFound = errors.New("registration completion token not found")
@@ -58,8 +50,6 @@ var verificationCodePattern = regexp.MustCompile(`^\d{6}$`)
 // RegistrationCode represents a pending email-first registration OTP.
 type RegistrationCode struct {
 	Email     string    `json:"email"`
-	CodeHash  string    `json:"code_hash"`
-	Attempts  int       `json:"attempts"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -77,18 +67,12 @@ type RegistrationToken struct {
 
 const (
 	registrationCodeKeyPrefix            = "registration_code."
-	registrationCodeHashPrefix           = "registration_code_verifier."
 	registrationCompletionTokenKeyPrefix = "registration_completion."
 )
 
-// registrationCodeKey returns the HMAC-derived KV key for a pending registration email.
-func (c *ChattoCore) registrationCodeKey(email string) string {
-	return c.runtimeTokenKey(registrationCodeKeyPrefix, normalizeRegistrationEmail(email))
-}
-
-// registrationCodeHash returns the HMAC-derived verifier stored for a submitted code.
-func (c *ChattoCore) registrationCodeHash(email, code string) string {
-	return c.runtimeTokenKey(registrationCodeHashPrefix, normalizeRegistrationEmail(email)+"\x00"+code)
+// registrationCodeKey returns the HMAC-derived KV key for one registration code.
+func (c *ChattoCore) registrationCodeKey(email, code string) string {
+	return c.runtimeTokenKey(registrationCodeKeyPrefix, normalizeRegistrationEmail(email)+"\x00"+strings.TrimSpace(code))
 }
 
 // registrationTokenKey returns the HMAC-derived KV key for a registration completion token.
@@ -104,43 +88,49 @@ func normalizeRegistrationEmail(email string) string {
 // Registration Code Operations
 // ============================================================================
 
-// CreateRegistrationCode creates or replaces the current registration code for an email.
+// CreateRegistrationCode creates a short-lived registration code for an email.
 // It returns the raw six-digit code so the caller can send it by email. The code
-// itself is never stored; only an HMAC-derived verifier is kept in RUNTIME_STATE.
+// itself is never stored; only an HMAC-derived lookup key is kept in RUNTIME_STATE.
 func (c *ChattoCore) CreateRegistrationCode(ctx context.Context, email string) (string, error) {
 	email = normalizeRegistrationEmail(email)
 	if email == "" {
 		return "", fmt.Errorf("email is required")
 	}
 
-	code, err := NewVerificationCode()
-	if err != nil {
-		return "", err
-	}
-	createdAt := time.Now()
-	codeData := RegistrationCode{
-		Email:     email,
-		CodeHash:  c.registrationCodeHash(email, code),
-		CreatedAt: createdAt,
+	for i := 0; i < 8; i++ {
+		code, err := NewVerificationCode()
+		if err != nil {
+			return "", err
+		}
+		createdAt := time.Now()
+		codeData := RegistrationCode{
+			Email:     email,
+			CreatedAt: createdAt,
+		}
+
+		data, err := json.Marshal(codeData)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal registration code: %w", err)
+		}
+
+		key := c.registrationCodeKey(email, code)
+		revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(RegistrationCodeTTL))
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("failed to store registration code: %w", err)
+		}
+
+		if err := c.recordRegistrationCodeIssued(ctx, email, createdAt); err != nil {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
+			return "", err
+		}
+
+		return code, nil
 	}
 
-	data, err := json.Marshal(codeData)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal registration code: %w", err)
-	}
-
-	key := c.registrationCodeKey(email)
-	revision, err := c.putRuntimeStateCodeRecord(ctx, key, data, RegistrationCodeTTL)
-	if err != nil {
-		return "", fmt.Errorf("failed to store registration code: %w", err)
-	}
-
-	if err := c.recordRegistrationCodeIssued(ctx, email, createdAt); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
-		return "", err
-	}
-
-	return code, nil
+	return "", fmt.Errorf("failed to generate unique registration code")
 }
 
 // VerifyRegistrationCode validates an email registration code and returns a
@@ -152,128 +142,39 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 		return "", ErrRegistrationCodeInvalid
 	}
 
-	key := c.registrationCodeKey(email)
-	for i := 0; i < runtimeStateCodeWriteMaxRetries; i++ {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				return "", ErrRegistrationCodeNotFound
-			}
-			return "", fmt.Errorf("failed to get registration code: %w", err)
-		}
-
-		var codeData RegistrationCode
-		if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
-			return "", fmt.Errorf("failed to unmarshal registration code: %w", err)
-		}
-
-		if time.Since(codeData.CreatedAt) > RegistrationCodeTTL {
-			if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete expired registration code"); err != nil {
-				if isRuntimeStateRevisionConflict(err) {
-					continue
-				}
-				return "", err
-			}
-			return "", ErrRegistrationCodeExpired
-		}
-		if codeData.Email != email {
-			return "", ErrRegistrationCodeInvalid
-		}
-		if codeData.Attempts >= RegistrationCodeMaxAttempts {
-			if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete exhausted registration code"); err != nil {
-				if isRuntimeStateRevisionConflict(err) {
-					continue
-				}
-				return "", err
-			}
-			return "", ErrRegistrationCodeExhausted
-		}
-		if codeData.CodeHash != c.registrationCodeHash(email, code) {
-			codeData.Attempts++
-			if codeData.Attempts >= RegistrationCodeMaxAttempts {
-				if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete exhausted registration code"); err != nil {
-					if isRuntimeStateRevisionConflict(err) {
-						continue
-					}
-					return "", err
-				}
-				return "", ErrRegistrationCodeExhausted
-			}
-			if err := c.replaceRegistrationCodeRecord(ctx, key, codeData, entry.Revision()); err != nil {
-				if isRuntimeStateRevisionConflict(err) {
-					continue
-				}
-				return "", err
-			}
-			return "", ErrRegistrationCodeInvalid
-		}
-
-		if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "consume registration code"); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
-				continue
-			}
-			return "", err
-		}
-		token, err := c.CreateRegistrationCompletionToken(ctx, email)
-		if err != nil {
-			return "", err
-		}
-		return token, nil
-	}
-
-	return "", fmt.Errorf("registration code update conflict after %d retries", runtimeStateCodeWriteMaxRetries)
-}
-
-func (c *ChattoCore) replaceRegistrationCodeRecord(ctx context.Context, key string, codeData RegistrationCode, revision uint64) error {
-	data, err := json.Marshal(codeData)
+	key := c.registrationCodeKey(email, code)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		return fmt.Errorf("failed to marshal registration code: %w", err)
-	}
-	remaining := RegistrationCodeTTL - time.Since(codeData.CreatedAt)
-	if remaining <= 0 {
-		return ErrRegistrationCodeExpired
-	}
-	if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, revision, remaining); err != nil {
-		return fmt.Errorf("failed to store registration code attempt: %w", err)
-	}
-	return nil
-}
-
-func (c *ChattoCore) putRuntimeStateCodeRecord(ctx context.Context, key string, data []byte, ttl time.Duration) (uint64, error) {
-	revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(ttl))
-	if err == nil {
-		return revision, nil
-	}
-	if !errors.Is(err, jetstream.ErrKeyExists) {
-		return 0, err
-	}
-
-	for i := 0; i < runtimeStateCodeWriteMaxRetries; i++ {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			if isRuntimeStateKeyAbsent(err) {
-				revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(ttl))
-				if err == nil {
-					return revision, nil
-				}
-				if errors.Is(err, jetstream.ErrKeyExists) {
-					continue
-				}
-			}
-			return 0, err
+		if isRuntimeStateKeyAbsent(err) {
+			return "", ErrRegistrationCodeNotFound
 		}
-
-		revision, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl)
-		if err == nil {
-			return revision, nil
-		}
-		if isRuntimeStateRevisionConflict(err) {
-			continue
-		}
-		return 0, err
+		return "", fmt.Errorf("failed to get registration code: %w", err)
 	}
 
-	return 0, fmt.Errorf("runtime state code write conflict after %d retries", runtimeStateCodeWriteMaxRetries)
+	var codeData RegistrationCode
+	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
+		return "", fmt.Errorf("failed to unmarshal registration code: %w", err)
+	}
+
+	if time.Since(codeData.CreatedAt) > RegistrationCodeTTL {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		return "", ErrRegistrationCodeExpired
+	}
+	if codeData.Email != email {
+		return "", ErrRegistrationCodeInvalid
+	}
+	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
+		if isRuntimeStateKeyAbsent(err) || isRuntimeStateRevisionConflict(err) {
+			return "", ErrRegistrationCodeNotFound
+		}
+		return "", fmt.Errorf("failed to consume registration code: %w", err)
+	}
+
+	token, err := c.CreateRegistrationCompletionToken(ctx, email)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func isRuntimeStateRevisionConflict(err error) bool {
@@ -282,19 +183,6 @@ func isRuntimeStateRevisionConflict(err error) bool {
 
 func isRuntimeStateKeyAbsent(err error) bool {
 	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
-}
-
-func (c *ChattoCore) deleteRuntimeStateCodeRevision(ctx context.Context, key string, revision uint64, action string) error {
-	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
-		if isRuntimeStateKeyAbsent(err) {
-			return nil
-		}
-		if isRuntimeStateRevisionConflict(err) {
-			return err
-		}
-		return fmt.Errorf("failed to %s: %w", action, err)
-	}
-	return nil
 }
 
 // ============================================================================

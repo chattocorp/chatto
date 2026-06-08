@@ -23,9 +23,6 @@ import (
 const (
 	// EmailVerificationCodeTTL is the duration a verification code is valid.
 	EmailVerificationCodeTTL = 15 * time.Minute
-
-	// EmailVerificationCodeMaxAttempts is the number of invalid attempts before a code is exhausted.
-	EmailVerificationCodeMaxAttempts = 5
 )
 
 var (
@@ -37,9 +34,6 @@ var (
 
 	// ErrEmailVerificationCodeInvalid is returned when a submitted email verification code is wrong.
 	ErrEmailVerificationCodeInvalid = errors.New("invalid email verification code")
-
-	// ErrEmailVerificationCodeExhausted is returned when too many invalid attempts were made.
-	ErrEmailVerificationCodeExhausted = errors.New("email verification code exhausted")
 
 	// ErrEmailAlreadyVerified is returned when trying to verify an email that's already verified by another user.
 	ErrEmailAlreadyVerified = errors.New("email address is already verified by another account")
@@ -56,8 +50,6 @@ var (
 type EmailVerificationCode struct {
 	UserID    string    `json:"user_id"`
 	Email     string    `json:"email"`
-	CodeHash  string    `json:"code_hash"`
-	Attempts  int       `json:"attempts"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -75,18 +67,12 @@ type VerifiedEmail struct {
 // ============================================================================
 
 const (
-	emailVerificationCodeKeyPrefix  = "email_verification_code."
-	emailVerificationCodeHashPrefix = "email_verification_code_verifier."
+	emailVerificationCodeKeyPrefix = "email_verification_code."
 )
 
-// emailVerificationCodeKey returns the HMAC-derived KV key for an email verification flow.
-func (c *ChattoCore) emailVerificationCodeKey(userID, email string) string {
-	return c.runtimeTokenKey(emailVerificationCodeKeyPrefix, userID+"\x00"+strings.ToLower(strings.TrimSpace(email)))
-}
-
-// emailVerificationCodeHash returns the HMAC-derived verifier stored for a submitted code.
-func (c *ChattoCore) emailVerificationCodeHash(userID, email, code string) string {
-	return c.runtimeTokenKey(emailVerificationCodeHashPrefix, userID+"\x00"+strings.ToLower(strings.TrimSpace(email))+"\x00"+code)
+// emailVerificationCodeKey returns the HMAC-derived KV key for one email verification code.
+func (c *ChattoCore) emailVerificationCodeKey(userID, email, code string) string {
+	return c.runtimeTokenKey(emailVerificationCodeKeyPrefix, userID+"\x00"+strings.ToLower(strings.TrimSpace(email))+"\x00"+strings.TrimSpace(code))
 }
 
 // emailHash returns the stable lowercase-SHA256 hex digest used in both
@@ -124,7 +110,7 @@ func userByEmailKey(email string) string {
 // Email Verification Code Operations
 // ============================================================================
 
-// CreateEmailVerificationCode creates or replaces the current verification code for an email.
+// CreateEmailVerificationCode creates a short-lived verification code for an email.
 // The returned raw code is intended to be sent by email and is never stored.
 func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, email string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
@@ -134,36 +120,42 @@ func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, em
 	if email == "" {
 		return "", fmt.Errorf("email is required")
 	}
-	code, err := NewVerificationCode()
-	if err != nil {
-		return "", err
-	}
-	createdAt := time.Now()
+	for i := 0; i < 8; i++ {
+		code, err := NewVerificationCode()
+		if err != nil {
+			return "", err
+		}
+		createdAt := time.Now()
 
-	codeData := EmailVerificationCode{
-		UserID:    userID,
-		Email:     email,
-		CodeHash:  c.emailVerificationCodeHash(userID, email, code),
-		CreatedAt: createdAt,
+		codeData := EmailVerificationCode{
+			UserID:    userID,
+			Email:     email,
+			CreatedAt: createdAt,
+		}
+
+		data, err := json.Marshal(codeData)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal email verification code: %w", err)
+		}
+
+		key := c.emailVerificationCodeKey(userID, email, code)
+		revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(EmailVerificationCodeTTL))
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("failed to store email verification code: %w", err)
+		}
+
+		if err := c.recordEmailVerificationCodeIssued(ctx, userID, email, createdAt); err != nil {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
+			return "", err
+		}
+
+		return code, nil
 	}
 
-	data, err := json.Marshal(codeData)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal email verification code: %w", err)
-	}
-
-	key := c.emailVerificationCodeKey(userID, email)
-	revision, err := c.putRuntimeStateCodeRecord(ctx, key, data, EmailVerificationCodeTTL)
-	if err != nil {
-		return "", fmt.Errorf("failed to store email verification code: %w", err)
-	}
-
-	if err := c.recordEmailVerificationCodeIssued(ctx, userID, email, createdAt); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
-		return "", err
-	}
-
-	return code, nil
+	return "", fmt.Errorf("failed to generate unique email verification code")
 }
 
 // VerifyEmailCode verifies an email using a submitted code.
@@ -174,90 +166,37 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 		return "", ErrEmailVerificationCodeInvalid
 	}
 
-	key := c.emailVerificationCodeKey(userID, email)
-	for i := 0; i < runtimeStateCodeWriteMaxRetries; i++ {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				return "", ErrTokenNotFound
-			}
-			return "", fmt.Errorf("failed to get email verification code: %w", err)
-		}
-
-		var codeData EmailVerificationCode
-		if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
-			return "", fmt.Errorf("failed to unmarshal email verification code: %w", err)
-		}
-
-		if time.Since(codeData.CreatedAt) > EmailVerificationCodeTTL {
-			if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete expired email verification code"); err != nil {
-				if isRuntimeStateRevisionConflict(err) {
-					continue
-				}
-				return "", err
-			}
-			return "", ErrTokenExpired
-		}
-		if codeData.UserID != userID || codeData.Email != email {
-			return "", ErrEmailVerificationCodeInvalid
-		}
-		if codeData.Attempts >= EmailVerificationCodeMaxAttempts {
-			if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete exhausted email verification code"); err != nil {
-				if isRuntimeStateRevisionConflict(err) {
-					continue
-				}
-				return "", err
-			}
-			return "", ErrEmailVerificationCodeExhausted
-		}
-		if codeData.CodeHash != c.emailVerificationCodeHash(userID, email, code) {
-			codeData.Attempts++
-			if codeData.Attempts >= EmailVerificationCodeMaxAttempts {
-				if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete exhausted email verification code"); err != nil {
-					if isRuntimeStateRevisionConflict(err) {
-						continue
-					}
-					return "", err
-				}
-				return "", ErrEmailVerificationCodeExhausted
-			}
-			if err := c.replaceEmailVerificationCodeRecord(ctx, key, codeData, entry.Revision()); err != nil {
-				if isRuntimeStateRevisionConflict(err) {
-					continue
-				}
-				return "", err
-			}
-			return "", ErrEmailVerificationCodeInvalid
-		}
-
-		if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "consume email verification code"); err != nil {
-			if isRuntimeStateRevisionConflict(err) {
-				continue
-			}
-			return "", err
-		}
-		if err := c.addVerifiedEmail(ctx, userID, email); err != nil {
-			return "", err
-		}
-		return userID, nil
-	}
-
-	return "", fmt.Errorf("email verification code update conflict after %d retries", runtimeStateCodeWriteMaxRetries)
-}
-
-func (c *ChattoCore) replaceEmailVerificationCodeRecord(ctx context.Context, key string, codeData EmailVerificationCode, revision uint64) error {
-	data, err := json.Marshal(codeData)
+	key := c.emailVerificationCodeKey(userID, email, code)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
-		return fmt.Errorf("failed to marshal email verification code: %w", err)
+		if isRuntimeStateKeyAbsent(err) {
+			return "", ErrTokenNotFound
+		}
+		return "", fmt.Errorf("failed to get email verification code: %w", err)
 	}
-	remaining := EmailVerificationCodeTTL - time.Since(codeData.CreatedAt)
-	if remaining <= 0 {
-		return ErrTokenExpired
+
+	var codeData EmailVerificationCode
+	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
+		return "", fmt.Errorf("failed to unmarshal email verification code: %w", err)
 	}
-	if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, revision, remaining); err != nil {
-		return fmt.Errorf("failed to store email verification code attempt: %w", err)
+
+	if time.Since(codeData.CreatedAt) > EmailVerificationCodeTTL {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		return "", ErrTokenExpired
 	}
-	return nil
+	if codeData.UserID != userID || codeData.Email != email {
+		return "", ErrEmailVerificationCodeInvalid
+	}
+	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
+		if isRuntimeStateKeyAbsent(err) || isRuntimeStateRevisionConflict(err) {
+			return "", ErrTokenNotFound
+		}
+		return "", fmt.Errorf("failed to consume email verification code: %w", err)
+	}
+	if err := c.addVerifiedEmail(ctx, userID, email); err != nil {
+		return "", err
+	}
+	return userID, nil
 }
 
 // addVerifiedEmail appends a durable verified-email event for the user.

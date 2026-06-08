@@ -496,9 +496,9 @@ Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is p
 | `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL and auth generation; generation `0` is the legacy no-field value and is upgraded on compatible validation |
 | `session.{hmac}`                              | Opaque bearer-token verifier with per-key TTL and auth generation |
 | `grant.{hmac}`                                | OAuth authorization-code verifier with 5-minute per-key TTL and auth generation |
-| `registration_code.{hmac}`                    | Email-first registration code verifier with failed-attempt count |
+| `registration_code.{hmac}`                    | One email-first registration code record keyed by HMAC(email + code) |
 | `registration_completion.{hmac}`              | Post-code registration completion token verifier |
-| `email_verification_code.{hmac}`              | Email verification code verifier with failed-attempt count |
+| `email_verification_code.{hmac}`              | One email verification code record keyed by HMAC(user ID + email + code) |
 | `password_reset.{hmac}`                       | Password reset token verifier |
 | `account_deletion_token.{hmac}`               | Account deletion confirmation token verifier |
 
@@ -591,9 +591,9 @@ survives restart but is not content/domain history. See
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
 | `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
 | `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. Legacy `INSTANCE` keys are copied here at boot; the endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
-| `registration_code.{hmac}` | Email-first registration code JSON with hashed code verifier and failed-attempt count. Uses per-key 15-minute TTL. |
+| `registration_code.{hmac}` | Email-first registration code JSON with normalized email. The key includes the HMAC verifier for that email/code pair, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `registration_completion.{hmac}` | Registration completion token JSON created after code verification. Uses per-key 15-minute TTL. |
-| `email_verification_code.{hmac}` | Email verification code JSON with user ID, email, hashed code verifier, and failed-attempt count. Uses per-key 15-minute TTL. |
+| `email_verification_code.{hmac}` | Email verification code JSON with user ID and email. The key includes the HMAC verifier for that user/email/code tuple, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
 | `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
 | `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. Generation `0` means a legacy pre-`auth_generation` credential and is upgraded on validation when still compatible with the current password event. |

@@ -301,8 +301,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationCodeNotFound) ||
 				errors.Is(err, core.ErrRegistrationCodeExpired) ||
-				errors.Is(err, core.ErrRegistrationCodeInvalid) ||
-				errors.Is(err, core.ErrRegistrationCodeExhausted) {
+				errors.Is(err, core.ErrRegistrationCodeInvalid) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired registration code"})
 				return
 			}
@@ -508,8 +507,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if _, err := s.core.VerifyEmailCode(req.Context(), user.Id, body.Email, body.Code); err != nil {
 			if errors.Is(err, core.ErrTokenNotFound) ||
 				errors.Is(err, core.ErrTokenExpired) ||
-				errors.Is(err, core.ErrEmailVerificationCodeInvalid) ||
-				errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
+				errors.Is(err, core.ErrEmailVerificationCodeInvalid) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification code"})
 				return
 			}
