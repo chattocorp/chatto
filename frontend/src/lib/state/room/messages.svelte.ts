@@ -189,10 +189,14 @@ function threadRepliesConnection(root: {
 export abstract class MessageListStore {
   events = $state<RoomEventViewFragment[]>([]);
   isInitialLoading = $state(true);
+  isLoadingMore = $state(false);
+  hasReachedStart = $state(false);
 
   protected readonly client: Client;
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
   protected roomId = '';
+  protected oldestCursor: string | undefined;
+  protected newestCursor: string | undefined;
 
   /** Increments on every load kickoff. Async callbacks compare against
    *  it via {@link isStale} to discard results from superseded loads. */
@@ -365,6 +369,49 @@ export abstract class MessageListStore {
   abstract refetchAll(): Promise<void>;
 
   // -------------------------------------------------------------------------
+  // Backward pagination
+  // -------------------------------------------------------------------------
+
+  async loadMore(): Promise<void> {
+    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+
+    const before = this.oldestCursor;
+    this.isLoadingMore = true;
+
+    try {
+      const page = await this.fetchOlderPage(before);
+      if (!page) return;
+
+      const olderEvents = unmask(page.events);
+      if (olderEvents.length === 0) {
+        this.hasReachedStart = true;
+      } else {
+        if (page.startCursor) {
+          this.oldestCursor = page.startCursor;
+        }
+        const added = this.prependEvents(olderEvents);
+        this.afterOlderPagePrepended();
+        if (added === 0) this.hasReachedStart = true;
+      }
+
+      if (!page.hasOlder) this.hasReachedStart = true;
+    } catch (error) {
+      console.error(`${this.constructor.name}: loadMore failed:`, error);
+    } finally {
+      // Yield a frame so the virtualizer can settle before another loadMore.
+      await tick();
+      await new Promise((r) => requestAnimationFrame(r));
+      this.isLoadingMore = false;
+    }
+  }
+
+  protected abstract fetchOlderPage(before: string): Promise<EventConnectionPage | null>;
+
+  protected afterOlderPagePrepended(): void {
+    // Subclasses can normalize ordering after older events are prepended.
+  }
+
+  // -------------------------------------------------------------------------
   // Subclass hooks
   // -------------------------------------------------------------------------
 
@@ -524,6 +571,21 @@ export abstract class MessageListStore {
   protected resetState(): void {
     this.events = [];
     this.seenIds = new SvelteSet();
+    this.oldestCursor = undefined;
+    this.newestCursor = undefined;
+    this.hasReachedStart = false;
+    this.isLoadingMore = false;
+  }
+
+  protected replaceWithFetchedAndUpdateCursors(connection: {
+    events: readonly RawEvent[];
+    startCursor?: string | null;
+    endCursor?: string | null;
+  }): void {
+    this.replaceMergingExisting(connection.events);
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = false;
   }
 }
 
@@ -537,20 +599,6 @@ export abstract class MessageListStore {
  * catch-up, root-event filtering, and thread-reply metadata fan-out.
  */
 export class RoomMessagesStore extends MessageListStore {
-  isLoadingMore = $state(false);
-  hasReachedStart = $state(false);
-
-  /**
-   * Opaque pagination cursors returned by the GraphQL `Room.events` query.
-   * `oldestCursor` anchors backward pagination; `newestCursor` anchors
-   * forward pagination and reconnect catch-up. Subscription-delivered
-   * events do not carry a cursor and therefore do not update `newestCursor`
-   * — that's fine, because catch-up's worst case is "fetch some events
-   * we've already seen" which `appendMany` dedupes by ID.
-   */
-  private oldestCursor: string | undefined;
-  private newestCursor: string | undefined;
-
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): RoomEventViewFragment[] {
     return this.events.filter(isRootRoomEvent);
@@ -598,46 +646,16 @@ export class RoomMessagesStore extends MessageListStore {
   // Pagination
   // -------------------------------------------------------------------------
 
-  async loadMore(): Promise<void> {
-    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+  protected async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
+    const result = await this.client
+      .query(RoomBeforeQuery, {
+        roomId: this.roomId,
+        limit: PAGE_SIZE,
+        before
+      })
+      .toPromise();
 
-    const cursor = this.oldestCursor;
-    this.isLoadingMore = true;
-
-    try {
-      const result = await this.client
-        .query(RoomBeforeQuery, {
-          roomId: this.roomId,
-          limit: PAGE_SIZE,
-          before: cursor
-        })
-        .toPromise();
-
-      const page = result.data?.room?.events;
-      if (!page) return;
-
-      const olderEvents = unmask(page.events);
-
-      if (olderEvents.length === 0) {
-        this.hasReachedStart = true;
-      } else {
-        // Advance the backward cursor to the start of this page.
-        if (page.startCursor) {
-          this.oldestCursor = page.startCursor;
-        }
-        const added = this.prependEvents(olderEvents);
-        if (added === 0) this.hasReachedStart = true;
-      }
-
-      if (!page.hasOlder) this.hasReachedStart = true;
-    } catch (error) {
-      console.error('RoomMessagesStore: loadMore failed:', error);
-    } finally {
-      // Yield a frame so the virtualizer can settle before another loadMore
-      await tick();
-      await new Promise((r) => requestAnimationFrame(r));
-      this.isLoadingMore = false;
-    }
+    return result.data?.room?.events ?? null;
   }
 
   /**
@@ -771,13 +789,6 @@ export class RoomMessagesStore extends MessageListStore {
   // Private — fetch
   // -------------------------------------------------------------------------
 
-  protected resetState(): void {
-    super.resetState();
-    this.oldestCursor = undefined;
-    this.newestCursor = undefined;
-    this.hasReachedStart = false;
-  }
-
   private fetchLatest(thisLoad: number): void {
     this.client
       .query(RoomLatestQuery, {
@@ -861,18 +872,6 @@ export class RoomMessagesStore extends MessageListStore {
       });
   }
 
-  /** Replace via merge (preserves mid-query subscription events) and update cursors. */
-  private replaceWithFetchedAndUpdateCursors(connection: {
-    events: readonly RawEvent[];
-    startCursor?: string | null;
-    endCursor?: string | null;
-  }): void {
-    this.replaceMergingExisting(connection.events);
-    this.oldestCursor = connection.startCursor ?? undefined;
-    this.newestCursor = connection.endCursor ?? undefined;
-    this.hasReachedStart = false;
-  }
-
   /**
    * Mirror the backend's auto-follow behavior on the root message when a
    * thread reply arrives, so the UI updates instantly without refetching.
@@ -927,12 +926,7 @@ export class RoomMessagesStore extends MessageListStore {
  * events (joined/left/etc.) are ignored.
  */
 export class ThreadMessagesStore extends MessageListStore {
-  isLoadingMore = $state(false);
-  hasReachedStart = $state(false);
-
   private threadRootEventId = '';
-  private oldestCursor: string | undefined;
-  private newestCursor: string | undefined;
 
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): RoomEventViewFragment[] {
@@ -970,45 +964,21 @@ export class ThreadMessagesStore extends MessageListStore {
     }
   }
 
-  async loadMore(): Promise<void> {
-    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+  protected async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
+    const result = await this.client
+      .query(ThreadEventsQuery, {
+        roomId: this.roomId,
+        threadRootEventId: this.threadRootEventId,
+        limit: PAGE_SIZE,
+        before
+      })
+      .toPromise();
 
-    const before = this.oldestCursor;
-    this.isLoadingMore = true;
+    return threadRepliesConnection(result.data?.room?.event);
+  }
 
-    try {
-      const result = await this.client
-        .query(ThreadEventsQuery, {
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          limit: PAGE_SIZE,
-          before
-        })
-        .toPromise();
-
-      const page = threadRepliesConnection(result.data?.room?.event);
-      if (!page) return;
-
-      const olderReplies = unmask(page.events);
-      if (olderReplies.length === 0) {
-        this.hasReachedStart = true;
-      } else {
-        if (page.startCursor) {
-          this.oldestCursor = page.startCursor;
-        }
-        const added = this.prependEvents(olderReplies);
-        this.sortThreadEvents();
-        if (added === 0) this.hasReachedStart = true;
-      }
-
-      if (!page.hasOlder) this.hasReachedStart = true;
-    } catch (error) {
-      console.error('ThreadMessagesStore: loadMore failed:', error);
-    } finally {
-      await tick();
-      await new Promise((r) => requestAnimationFrame(r));
-      this.isLoadingMore = false;
-    }
+  protected afterOlderPagePrepended(): void {
+    this.sortThreadEvents();
   }
 
   // -------------------------------------------------------------------------
@@ -1029,13 +999,6 @@ export class ThreadMessagesStore extends MessageListStore {
   // -------------------------------------------------------------------------
   // Private — fetch
   // -------------------------------------------------------------------------
-
-  protected resetState(): void {
-    super.resetState();
-    this.oldestCursor = undefined;
-    this.newestCursor = undefined;
-    this.hasReachedStart = false;
-  }
 
   private fetchThread(thisLoad: number): void {
     this.client
