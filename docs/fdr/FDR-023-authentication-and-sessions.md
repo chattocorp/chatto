@@ -19,7 +19,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 - **Password and account lifecycle revocation** — password resets, password changes, and account deletion advance the user's auth generation through durable `EVT` user events. Cookie sessions, bearer tokens, and OAuth authorization codes store the auth generation they were issued against; validation waits the user projection to the current auth-generation events and rejects credentials from older generations. Generation `0` is reserved for pre-field legacy runtime credentials and is upgraded on validation when the credential is not older than the current password event. Revoke-all scans still delete matching `cookie_session.*` and `session.*` records as cleanup.
 - **Password reset tokens** — reset links are backed by `RUNTIME_STATE` HMAC-derived `password_reset.{hmac}` records with a 1-hour per-key TTL. Raw reset tokens and links are never written to `EVT` or backup archives.
 - **Server version handshake** — the WebSocket `connection_ack` payload includes the server's version. The frontend uses this to detect deployed-version drift and prompt the user to refresh.
-- **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, bearer-token issuance/revocation, OAuth authorization-code issuance/exchange, registration-link issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
+- **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, bearer-token issuance/revocation, OAuth authorization-code issuance/exchange, registration-code issuance, email-verification-code issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
 
 ## Design Decisions
 
@@ -73,9 +73,11 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 9. EVT audit facts without raw secrets
 
-**Decision:** Authentication workflows append durable audit facts to `EVT`, but token bodies, links, passwords, auth codes, raw IP addresses, raw redirect URIs, and raw login/email identifiers stay out of the event log. Successful user-scoped facts live on `evt.user.{userId}`; anonymous/server-wide facts such as registration-link issuance and failed login attempts live on `evt.auth.server`.
+**Decision:** Authentication workflows append durable audit facts to `EVT`, but token bodies, verification codes, links, passwords, auth codes, raw IP addresses, raw redirect URIs, and raw login/email identifiers stay out of the event log. Successful user-scoped facts live on `evt.user.{userId}`; anonymous/server-wide facts such as registration-code issuance and failed login attempts live on `evt.auth.server`.
 **Why:** `EVT` is Chatto's durable audit trail as well as the event-sourcing stream. Operators need to answer "what happened?" for sensitive workflows, but the audit log must not become a secondary secret store.
 **Tradeoff:** Failed-login and unknown-code exchange attempts intentionally do not reveal whether the submitted identifier or code matched an account. Admins get timing, request metadata, and stable hashes for known-user workflows, not raw credential guesses.
+
+**OTP guardrails:** Registration and authenticated email-verification OTPs share `RUNTIME_STATE` `email_otp.*` records. Each challenge allows at most ten issued codes and five wrong-code attempts in its 15-minute TTL window; exhaustion blocks fresh codes for that challenge until TTL.
 
 ### 10. Short-lived auth codes in runtime state
 

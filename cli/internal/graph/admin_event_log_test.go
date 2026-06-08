@@ -142,20 +142,20 @@ func TestStreamMsgToEventLogEntryParsesAuthAggregate(t *testing.T) {
 	event := &corev1.Event{
 		Id:      "E1",
 		ActorId: "system",
-		Event: &corev1.Event_RegistrationLinkIssued{
-			RegistrationLinkIssued: &corev1.RegistrationLinkIssuedEvent{EmailHash: "hash"},
+		Event: &corev1.Event_RegistrationVerificationCodeIssued{
+			RegistrationVerificationCodeIssued: &corev1.RegistrationVerificationCodeIssuedEvent{EmailHash: "hash"},
 		},
 	}
 	data, err := proto.Marshal(event)
 	require.NoError(t, err)
 
 	entry, err := streamMsgToEventLogEntry(&jetstream.RawStreamMsg{
-		Subject:  events.AuthAggregate().Subject(events.EventRegistrationLinkIssued),
+		Subject:  events.AuthAggregate().Subject(events.EventRegistrationVerificationCodeIssued),
 		Sequence: 7,
 		Data:     data,
 	})
 	require.NoError(t, err)
 	require.Equal(t, events.AggregateAuth, entry.AggregateType)
 	require.Equal(t, events.AuthServerID, entry.AggregateID)
-	require.Equal(t, "RegistrationLinkIssuedEvent", entry.EventType)
+	require.Equal(t, "RegistrationVerificationCodeIssuedEvent", entry.EventType)
 }

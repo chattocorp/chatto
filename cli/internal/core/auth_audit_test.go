@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestChattoCore_RegistrationTokenAuditEvent(t *testing.T) {
+func TestChattoCore_RegistrationCodeAuditEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := WithAuditRequestMetadata(testContext(t), &corev1.AuditRequestMetadata{
 		UserAgent: "audit-test-agent",
@@ -19,21 +19,21 @@ func TestChattoCore_RegistrationTokenAuditEvent(t *testing.T) {
 	})
 
 	email := "registration-audit@example.com"
-	token, err := core.CreateRegistrationToken(ctx, email)
+	code, err := core.CreateRegistrationCode(ctx, email)
 	if err != nil {
-		t.Fatalf("CreateRegistrationToken: %v", err)
+		t.Fatalf("CreateRegistrationCode: %v", err)
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.AuthAggregate().Subject(events.EventRegistrationLinkIssued))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.AuthAggregate().Subject(events.EventRegistrationVerificationCodeIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
 	if len(published) != 1 {
 		t.Fatalf("expected 1 registration audit event, got %d", len(published))
 	}
-	payload := published[0].GetRegistrationLinkIssued()
+	payload := published[0].GetRegistrationVerificationCodeIssued()
 	if payload == nil {
-		t.Fatalf("expected RegistrationLinkIssued payload")
+		t.Fatalf("expected RegistrationVerificationCodeIssued payload")
 	}
 	if payload.GetEmailHash() != emailHash(email) {
 		t.Fatalf("email hash = %q, want %q", payload.GetEmailHash(), emailHash(email))
@@ -49,12 +49,12 @@ func TestChattoCore_RegistrationTokenAuditEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal audit event: %v", err)
 	}
-	if strings.Contains(string(jsonPayload), email) || strings.Contains(string(jsonPayload), token) {
-		t.Fatalf("audit payload leaked raw email or token: %s", jsonPayload)
+	if strings.Contains(string(jsonPayload), email) || strings.Contains(string(jsonPayload), code) {
+		t.Fatalf("audit payload leaked raw email or code: %s", jsonPayload)
 	}
 }
 
-func TestChattoCore_EmailVerificationTokenAuditEvent(t *testing.T) {
+func TestChattoCore_EmailVerificationCodeAuditEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "email-audit-user", "Email Audit User", "password123")
@@ -63,22 +63,22 @@ func TestChattoCore_EmailVerificationTokenAuditEvent(t *testing.T) {
 	}
 
 	email := "verify-audit@example.com"
-	token, err := core.CreateEmailVerificationToken(ctx, user.Id, email)
+	code, err := core.CreateEmailVerificationCode(ctx, user.Id, email)
 	if err != nil {
-		t.Fatalf("CreateEmailVerificationToken: %v", err)
+		t.Fatalf("CreateEmailVerificationCode: %v", err)
 	}
-	if token == "" {
-		t.Fatalf("expected token")
+	if code == "" {
+		t.Fatalf("expected code")
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventEmailVerificationLinkIssued))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventEmailVerificationCodeIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
 	if len(published) != 1 {
 		t.Fatalf("expected 1 email verification audit event, got %d", len(published))
 	}
-	payload := published[0].GetEmailVerificationLinkIssued()
+	payload := published[0].GetEmailVerificationCodeIssued()
 	if payload.GetUserId() != user.Id || payload.GetEmailHash() != emailHash(email) || payload.GetExpiresAt() == nil {
 		t.Fatalf("unexpected payload: %#v", payload)
 	}
@@ -423,24 +423,24 @@ func TestChattoCore_AuthCodeExchangeFailureAuditEvents(t *testing.T) {
 	}
 }
 
-func TestChattoCore_AuditAppendFailureCleansNewRegistrationToken(t *testing.T) {
+func TestChattoCore_AuditAppendFailureCleansNewRegistrationCode(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	core.EventPublisher = nil
 
-	token, err := core.CreateRegistrationToken(ctx, "audit-failure@example.com")
+	code, err := core.CreateRegistrationCode(ctx, "audit-failure@example.com")
 	if err == nil {
 		t.Fatalf("expected audit append failure")
 	}
-	if token != "" {
-		t.Fatalf("expected no token on failure, got %q", token)
+	if code != "" {
+		t.Fatalf("expected no code on failure, got %q", code)
 	}
-	count, err := countKVKeys(ctx, core.storage.runtimeStateKV, "registration.*")
+	count, err := countKVKeys(ctx, core.storage.runtimeStateKV, "email_otp.*")
 	if err != nil {
 		t.Fatalf("count registration keys: %v", err)
 	}
 	if count != 0 {
-		t.Fatalf("expected failed issuance to clean token, found %d registration keys", count)
+		t.Fatalf("expected failed issuance to clean code, found %d registration keys", count)
 	}
 }
 

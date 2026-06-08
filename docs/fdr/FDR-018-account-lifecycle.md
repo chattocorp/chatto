@@ -12,18 +12,18 @@ This FDR covers the user account from registration through deletion: signup, ema
 ### Registration
 
 - A user signs up with a login, email, and password. The login must pass uniqueness, format, and blocked-username checks; email uniqueness is enforced when the address is verified.
-- After signup, an email is sent to the address with a verification link.
-- Registration and verification links are backed by `RUNTIME_STATE` HMAC-derived token records with 24-hour per-key TTLs. Raw token/link values are never written to `EVT` or backup archives.
+- After signup, an email is sent to the address with a six-digit verification code.
+- Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with 15-minute per-key TTLs. Raw code values are never written to `EVT` or backup archives.
 - Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
-- Clicking the verification link marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
+- Entering the verification code marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
 - If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
 
 ### Email management
 
 - A user can have multiple verified email addresses on file.
-- Adding a new email triggers a verification mail to the new address; the email is added in pending state until the link is clicked.
+- Adding a new email triggers a verification mail to the new address; the email is added in pending state until the code is confirmed.
 - A user can delete one of their verified emails as long as at least one verified email remains.
-- Email verification link issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw token/link is not recorded.
+- Email verification code issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw code is not recorded.
 
 ### Account deletion
 
@@ -52,9 +52,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 2a. Workflow tokens in runtime state
 
-**Decision:** Registration, email-verification, password-reset, and account-deletion confirmation tokens are stored in `RUNTIME_STATE` under HMAC-derived keys with per-key TTLs. The HMAC input is scoped by workflow and keyed by `[core].secret_key`.
+**Decision:** Registration and email-verification codes, registration completion tokens, password-reset tokens, and account-deletion confirmation tokens are stored in `RUNTIME_STATE` under HMAC-derived keys with per-key TTLs. The HMAC input is scoped by workflow and keyed by `[core].secret_key`.
 **Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
-**Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending links should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion links.
+**Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending account workflows should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion credentials.
 
 ### 3. Two-step deletion confirmation
 

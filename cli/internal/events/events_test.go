@@ -747,22 +747,22 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventUserDEKGenerated,
 		},
 		{
-			name: "RegistrationLinkIssued",
+			name: "RegistrationVerificationCodeIssued",
 			event: &corev1.Event{
-				Event: &corev1.Event_RegistrationLinkIssued{
-					RegistrationLinkIssued: &corev1.RegistrationLinkIssuedEvent{EmailHash: "hash"},
+				Event: &corev1.Event_RegistrationVerificationCodeIssued{
+					RegistrationVerificationCodeIssued: &corev1.RegistrationVerificationCodeIssuedEvent{EmailHash: "hash"},
 				},
 			},
-			want: EventRegistrationLinkIssued,
+			want: EventRegistrationVerificationCodeIssued,
 		},
 		{
-			name: "EmailVerificationLinkIssued",
+			name: "EmailVerificationCodeIssued",
 			event: &corev1.Event{
-				Event: &corev1.Event_EmailVerificationLinkIssued{
-					EmailVerificationLinkIssued: &corev1.EmailVerificationLinkIssuedEvent{UserId: "U1", EmailHash: "hash"},
+				Event: &corev1.Event_EmailVerificationCodeIssued{
+					EmailVerificationCodeIssued: &corev1.EmailVerificationCodeIssuedEvent{UserId: "U1", EmailHash: "hash"},
 				},
 			},
-			want: EventEmailVerificationLinkIssued,
+			want: EventEmailVerificationCodeIssued,
 		},
 		{
 			name: "PasswordResetLinkIssued",
@@ -873,10 +873,10 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			if c.want == EventUserKeyShredded || c.want == EventUserDEKGenerated {
 				agg = UserAggregate("U1")
 			}
-			if c.want == EventRegistrationLinkIssued {
+			if c.want == EventRegistrationVerificationCodeIssued {
 				agg = AuthAggregate()
 			}
-			if c.want == EventEmailVerificationLinkIssued ||
+			if c.want == EventEmailVerificationCodeIssued ||
 				c.want == EventPasswordResetLinkIssued ||
 				c.want == EventAccountDeletionConfirmationIssued ||
 				c.want == EventPasswordResetCompleted ||
@@ -902,8 +902,8 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 }
 
 func TestAuthAggregate_Subject(t *testing.T) {
-	got := AuthAggregate().Subject(EventRegistrationLinkIssued)
-	want := "evt.auth.server.registration_link_issued"
+	got := AuthAggregate().Subject(EventRegistrationVerificationCodeIssued)
+	want := "evt.auth.server.registration_verification_code_issued"
 	if got != want {
 		t.Fatalf("AuthAggregate subject = %q, want %q", got, want)
 	}

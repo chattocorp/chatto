@@ -23,13 +23,19 @@ func TestChattoCore_WorkflowTokensUseRuntimeState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRegistrationToken: %v", err)
 	}
-	assertRuntimeTokenOnly(t, core, core.registrationTokenKey(registrationToken), registrationTokenKeyPrefix+registrationToken)
+	assertRuntimeTokenOnly(t, core, core.registrationTokenKey(registrationToken), registrationCompletionTokenKeyPrefix+registrationToken)
 
-	emailToken, err := core.CreateEmailVerificationToken(ctx, user.Id, "runtime-verify@example.com")
+	registrationCode, err := core.CreateRegistrationCode(ctx, "runtime-registration-code@example.com")
 	if err != nil {
-		t.Fatalf("CreateEmailVerificationToken: %v", err)
+		t.Fatalf("CreateRegistrationCode: %v", err)
 	}
-	assertRuntimeTokenOnly(t, core, core.emailVerificationTokenKey(emailToken), emailVerificationTokenKeyPrefix+emailToken)
+	assertRuntimeTokenOnly(t, core, core.registrationCodeKey("runtime-registration-code@example.com", registrationCode), emailOTPKeyPrefix+registrationCode)
+
+	emailCode, err := core.CreateEmailVerificationCode(ctx, user.Id, "runtime-verify@example.com")
+	if err != nil {
+		t.Fatalf("CreateEmailVerificationCode: %v", err)
+	}
+	assertRuntimeTokenOnly(t, core, core.emailVerificationCodeKey(user.Id, "runtime-verify@example.com", emailCode), emailOTPKeyPrefix+emailCode)
 
 	resetToken, err := core.CreatePasswordResetToken(ctx, "runtime-token@example.com")
 	if err != nil {

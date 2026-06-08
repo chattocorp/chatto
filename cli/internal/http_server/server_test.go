@@ -554,7 +554,7 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 
 	// Should return generic message (no email enumeration)
 	msg, ok := result["message"].(string)
-	if !ok || !strings.Contains(msg, "registration link") {
+	if !ok || !strings.Contains(msg, "registration code") {
 		t.Errorf("Expected generic registration message, got: %v", result["message"])
 	}
 
@@ -569,8 +569,11 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	if email.Subject != "Complete your Chatto registration" {
 		t.Errorf("Expected subject 'Complete your Chatto registration', got %s", email.Subject)
 	}
-	if !strings.Contains(email.Body, "/register/complete?token=RG") {
-		t.Errorf("Expected email body to contain registration link with RG token, got: %s", email.Body)
+	if regexp.MustCompile(`\b\d{6}\b`).FindString(email.Body) == "" {
+		t.Errorf("Expected email body to contain six-digit registration code, got: %s", email.Body)
+	}
+	if strings.Contains(email.Body, "/register/complete") {
+		t.Errorf("Expected email body not to contain completion URL, got: %s", email.Body)
 	}
 }
 
@@ -614,14 +617,100 @@ func TestAuthRoutes_Register_EmailEnumeration(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_RegisterVerifyCode_Success(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+
+	body, _ := json.Marshal(map[string]string{"email": "codeuser@example.com"})
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request: %v", err)
+	}
+	resp.Body.Close()
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected registration email to be sent")
+	}
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(msg.Body)
+	if code == "" {
+		t.Fatalf("Could not extract code from email body: %s", msg.Body)
+	}
+
+	verifyBody, _ := json.Marshal(map[string]string{"email": "codeuser@example.com", "code": code})
+	verifyResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(verifyBody))
+	if err != nil {
+		t.Fatalf("Failed to verify registration code: %v", err)
+	}
+	defer verifyResp.Body.Close()
+
+	if verifyResp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(verifyResp.Body)
+		t.Fatalf("Expected status 200, got %d: %s", verifyResp.StatusCode, string(respBody))
+	}
+	var result map[string]string
+	if err := json.NewDecoder(verifyResp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if result["completionToken"] == "" {
+		t.Fatalf("Expected completionToken, got %#v", result)
+	}
+}
+
+func TestAuthRoutes_RegisterVerifyCode_ExhaustedAttempts(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+
+	body, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com"})
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request: %v", err)
+	}
+	resp.Body.Close()
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected registration email to be sent")
+	}
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(msg.Body)
+	if code == "" {
+		t.Fatalf("Could not extract code from email body: %s", msg.Body)
+	}
+	wrongCode := "000000"
+	if code == wrongCode {
+		wrongCode = "111111"
+	}
+
+	verifyBody, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com", "code": wrongCode})
+	for i := 0; i < 5; i++ {
+		verifyResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(verifyBody))
+		if err != nil {
+			t.Fatalf("Failed to verify registration code attempt %d: %v", i+1, err)
+		}
+		verifyResp.Body.Close()
+		if verifyResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("attempt %d status = %d, want 400", i+1, verifyResp.StatusCode)
+		}
+	}
+
+	validBody, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com", "code": code})
+	validResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(validBody))
+	if err != nil {
+		t.Fatalf("Failed to verify exhausted registration code: %v", err)
+	}
+	defer validResp.Body.Close()
+	if validResp.StatusCode != http.StatusBadRequest {
+		respBody, _ := io.ReadAll(validResp.Body)
+		t.Fatalf("Expected exhausted valid code to return 400, got %d: %s", validResp.StatusCode, string(respBody))
+	}
+}
+
 func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
-	// Create a registration token
+	// Create a registration completion token
 	token, err := chattoCore.CreateRegistrationToken(ctx, "complete@example.com")
 	if err != nil {
-		t.Fatalf("Failed to create registration token: %v", err)
+		t.Fatalf("Failed to create registration completion token: %v", err)
 	}
 
 	// Complete registration
@@ -696,7 +785,7 @@ func TestAuthRoutes_RegisterComplete_DuplicateLogin(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Create registration token
+	// Create registration completion token
 	token, err := chattoCore.CreateRegistrationToken(ctx, "different@example.com")
 	if err != nil {
 		t.Fatalf("Failed to create token: %v", err)
@@ -819,8 +908,8 @@ func TestAuthRoutes_RegisterComplete_DuplicateEmail(t *testing.T) {
 	user, _ := chattoCore.CreateUser(ctx, "system", "existinguser", "Existing User", "password123")
 	chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "taken@example.com")
 
-	// Create a registration token for the same email
-	// (simulating someone getting a token before the email was claimed)
+	// Create a registration completion token for the same email
+	// (simulating someone verifying a code before the email was claimed)
 	token, _ := chattoCore.CreateRegistrationToken(ctx, "taken@example.com")
 
 	reqBody := map[string]string{
@@ -1069,23 +1158,31 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 		t.Error("Expected hasVerifiedEmail to be false before verification")
 	}
 
-	// Create a verification token
-	token, err := chattoCore.CreateEmailVerificationToken(ctx, user.Id, "verify@example.com")
+	loginBody, _ := json.Marshal(map[string]string{"login": "verifyuser", "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
 	if err != nil {
-		t.Fatalf("Failed to create verification token: %v", err)
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
 	}
 
-	// Call the verify-email endpoint
-	verifyResp, err := client.Get(ts.URL + "/auth/verify-email?token=" + token)
+	code, err := chattoCore.CreateEmailVerificationCode(ctx, user.Id, "verify@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create verification code: %v", err)
+	}
+
+	verifyBody, _ := json.Marshal(map[string]string{"email": "verify@example.com", "code": code})
+	verifyResp, err := client.Post(ts.URL+"/auth/verify-email/confirm-code", "application/json", bytes.NewReader(verifyBody))
 	if err != nil {
 		t.Fatalf("Failed to send verify request: %v", err)
 	}
 	defer verifyResp.Body.Close()
 
-	// Should redirect (307) on success
-	if verifyResp.StatusCode != http.StatusOK && verifyResp.StatusCode != http.StatusTemporaryRedirect {
+	if verifyResp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(verifyResp.Body)
-		t.Fatalf("Expected redirect or OK, got %d: %s", verifyResp.StatusCode, string(respBody))
+		t.Fatalf("Expected OK, got %d: %s", verifyResp.StatusCode, string(respBody))
 	}
 
 	// Verify the user NOW has a verified email
@@ -1110,8 +1207,56 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
+	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "verify-limit-user", "Verify Limit User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	loginBody, _ := json.Marshal(map[string]string{"login": "verify-limit-user", "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
+	}
+
+	body, _ := json.Marshal(map[string]string{"email": "limit@example.com"})
+	for i := 0; i < 10; i++ {
+		resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("Failed to request verification code %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("request %d status = %d, want 200", i+1, resp.StatusCode)
+		}
+	}
+
+	resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to request limited verification code: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusTooManyRequests {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 429, got %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	if verified, err := chattoCore.HasVerifiedEmail(ctx, user.Id); err != nil {
+		t.Fatalf("HasVerifiedEmail: %v", err)
+	} else if verified {
+		t.Fatal("request-code limit should not verify email")
+	}
+}
+
 func TestAuthRoutes_EmailVerification_DuplicateEmail(t *testing.T) {
-	ts, _, chattoCore := setupTestHTTPServer(t)
+	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)
 
 	// Create first user with verified email
@@ -1129,32 +1274,31 @@ func TestAuthRoutes_EmailVerification_DuplicateEmail(t *testing.T) {
 		t.Fatalf("Failed to create user2: %v", err)
 	}
 
-	// Create verification token for user2 with the same email
-	token, err := chattoCore.CreateEmailVerificationToken(ctx, user2.Id, "shared@example.com")
+	loginBody, _ := json.Marshal(map[string]string{"login": "user2", "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
 	if err != nil {
-		t.Fatalf("Failed to create verification token: %v", err)
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
 	}
 
-	// Try to verify - should fail because email is already claimed
-	// Use a client that doesn't follow redirects
-	noRedirectClient := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	code, err := chattoCore.CreateEmailVerificationCode(ctx, user2.Id, "shared@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create verification code: %v", err)
 	}
-	verifyResp, err := noRedirectClient.Get(ts.URL + "/auth/verify-email?token=" + token)
+
+	verifyBody, _ := json.Marshal(map[string]string{"email": "shared@example.com", "code": code})
+	verifyResp, err := client.Post(ts.URL+"/auth/verify-email/confirm-code", "application/json", bytes.NewReader(verifyBody))
 	if err != nil {
 		t.Fatalf("Failed to send verify request: %v", err)
 	}
 	defer verifyResp.Body.Close()
 
-	// Should redirect to error page with email_taken
-	if verifyResp.StatusCode != http.StatusTemporaryRedirect {
-		t.Errorf("Expected redirect (307), got %d", verifyResp.StatusCode)
-	}
-	location := verifyResp.Header.Get("Location")
-	if !strings.Contains(location, "email_taken") {
-		t.Errorf("Expected redirect to email_taken error, got Location: %s", location)
+	if verifyResp.StatusCode != http.StatusConflict {
+		respBody, _ := io.ReadAll(verifyResp.Body)
+		t.Errorf("Expected status 409, got %d: %s", verifyResp.StatusCode, string(respBody))
 	}
 
 	// Verify user2 still doesn't have a verified email
@@ -1444,10 +1588,8 @@ func TestOAuthFlow_EmailAlreadyClaimedByAnotherUser(t *testing.T) {
 // with correct content using MockSender.
 // ============================================================================
 
-func TestAuthRoutes_Register_EmailContainsValidToken(t *testing.T) {
-	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
-	ctx := testContext(t)
-
+func TestAuthRoutes_Register_EmailContainsValidCode(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
 	// Register with email
 	reqBody := map[string]string{"email": "tokentest@example.com"}
 	body, _ := json.Marshal(reqBody)
@@ -1464,32 +1606,31 @@ func TestAuthRoutes_Register_EmailContainsValidToken(t *testing.T) {
 		t.Fatal("Expected email to be sent")
 	}
 
-	// Extract token from email body
-	tokenRegex := regexp.MustCompile(`token=([a-zA-Z0-9_-]+)`)
-	matches := tokenRegex.FindStringSubmatch(msg.Body)
-	if len(matches) < 2 {
-		t.Fatalf("Could not extract token from email body: %s", msg.Body)
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(msg.Body)
+	if code == "" {
+		t.Fatalf("Could not extract code from email body: %s", msg.Body)
 	}
-	token := matches[1]
 
-	// Token should be valid and usable for registration
-	tokenData, err := chattoCore.GetRegistrationToken(ctx, token)
+	verifyBody, _ := json.Marshal(map[string]string{"email": "tokentest@example.com", "code": code})
+	verifyResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(verifyBody))
 	if err != nil {
-		t.Fatalf("Token from email should be valid: %v", err)
+		t.Fatalf("Failed to verify registration code: %v", err)
 	}
-	if tokenData.Email != "tokentest@example.com" {
-		t.Errorf("Expected email tokentest@example.com, got %s", tokenData.Email)
+	defer verifyResp.Body.Close()
+	if verifyResp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(verifyResp.Body)
+		t.Fatalf("Expected status 200, got %d: %s", verifyResp.StatusCode, string(respBody))
 	}
 
 	// Verify email content
 	if !strings.Contains(msg.Body, "Welcome to Chatto!") {
 		t.Error("Expected welcome message in email body")
 	}
-	if !strings.Contains(msg.Body, "24 hours") {
-		t.Error("Expected 24-hour expiration mention in email body")
+	if !strings.Contains(msg.Body, "15 minutes") {
+		t.Error("Expected 15-minute expiration mention in email body")
 	}
-	if !strings.Contains(msg.Body, "/register/complete?token=RG") {
-		t.Error("Expected registration link with RG token prefix in email body")
+	if strings.Contains(msg.Body, "/register/complete") {
+		t.Error("Expected no completion URL in email body")
 	}
 }
 
@@ -2070,10 +2211,10 @@ func TestAuthRoutes_RegisterComplete_ReturnsToken(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
-	// Create a registration token directly
+	// Create a registration completion token directly
 	regToken, err := chattoCore.CreateRegistrationToken(ctx, "newuser@example.com")
 	if err != nil {
-		t.Fatalf("Failed to create registration token: %v", err)
+		t.Fatalf("Failed to create registration completion token: %v", err)
 	}
 
 	// Complete registration

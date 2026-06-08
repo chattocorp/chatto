@@ -43,6 +43,16 @@ export class AuthPage {
     return this.page.getByRole('button', { name: 'Create Account' });
   }
 
+  /** First verification-code input on the registration page */
+  get firstCodeInput(): Locator {
+    return this.page.getByLabel('Digit 1');
+  }
+
+  /** Submit button on the verification-code step */
+  get submitCodeButton(): Locator {
+    return this.page.getByRole('button', { name: 'Submit' });
+  }
+
   /** Complete Registration heading */
   get completeRegistrationHeading(): Locator {
     return this.page.getByRole('heading', { name: 'Complete Registration' });
@@ -196,8 +206,7 @@ export class AuthPage {
   }
 
   /**
-   * Create a registration token via the test endpoint (bypasses email delivery).
-   * Returns the token string that can be used with /register/complete?token=...
+   * Create a registration completion token via the test endpoint (bypasses code entry).
    */
   async createRegistrationTokenViaTestEndpoint(email: string): Promise<string> {
     const response = await this.page.request.post('/auth/test/create-registration-token', {
@@ -210,6 +219,32 @@ export class AuthPage {
   }
 
   /**
+   * Create a registration code via the test endpoint (bypasses email delivery).
+   */
+  async createRegistrationCodeViaTestEndpoint(email: string): Promise<string> {
+    const response = await this.page.request.post('/auth/test/create-registration-code', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { email }
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    return data.code;
+  }
+
+  /**
+   * Exchange a registration code for a completion token via the public API.
+   */
+  async verifyRegistrationCodeViaApi(email: string, code: string): Promise<string> {
+    const response = await this.page.request.post('/auth/register/verify-code', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { email, code }
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    return data.completionToken;
+  }
+
+  /**
    * Navigate to the registration complete page with a token.
    */
   async gotoRegisterComplete(token: string): Promise<void> {
@@ -218,13 +253,26 @@ export class AuthPage {
   }
 
   /**
-   * Register a new user via the two-step flow.
-   * Uses the test endpoint to create a token (bypasses email delivery),
-   * then navigates to /register/complete and fills the form.
+   * Fill the verification code step.
+   */
+  async fillRegistrationCode(code: string): Promise<void> {
+    await this.firstCodeInput.fill(code);
+  }
+
+  /**
+   * Register a new user via the email → code → account details flow.
    */
   async register(username: string, email: string, password: string): Promise<void> {
-    const token = await this.createRegistrationTokenViaTestEndpoint(email);
-    await this.gotoRegisterComplete(token);
+    await this.gotoRegister();
+    await this.emailInput.fill(email);
+    await this.continueButton.click();
+
+    const emailData = await this.getLastVerificationEmail();
+    const code = this.extractVerificationCode(emailData.body);
+    await this.fillRegistrationCode(code);
+    await this.submitCodeButton.click();
+    await expect(this.completeRegistrationHeading).toBeVisible();
+
     await this.fillRegistrationCompleteForm(username, password, password);
     await this.submitRegistrationComplete();
   }
@@ -346,25 +394,28 @@ export class AuthPage {
   }
 
   /**
-   * Extract the verification URL from an email body.
+   * Extract a six-digit verification code from an email body.
    */
-  extractVerificationUrl(emailBody: string): string {
-    const match = emailBody.match(/http[s]?:\/\/[^\s]+verify-email\?token=[^\s]+/);
+  extractVerificationCode(emailBody: string): string {
+    const match = emailBody.match(/\b\d{6}\b/);
     if (!match) {
-      throw new Error('Verification URL not found in email body');
+      throw new Error('Verification code not found in email body');
     }
     return match[0];
   }
 
   /**
-   * Complete email verification by getting the email and visiting the link.
+   * Complete email verification by getting the email and submitting the code.
    * Assumes a verification email was just sent.
    */
-  async completeEmailVerification(): Promise<void> {
+  async completeEmailVerification(email: string): Promise<void> {
     const emailData = await this.getLastVerificationEmail();
-    const verifyUrl = this.extractVerificationUrl(emailData.body);
-    await this.page.goto(verifyUrl);
-    await this.page.waitForURL(routes.patterns.emailVerified);
+    const code = this.extractVerificationCode(emailData.body);
+    const response = await this.page.request.post('/auth/verify-email/confirm-code', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { email, code }
+    });
+    expect(response.ok()).toBeTruthy();
   }
 
   /**
@@ -479,8 +530,8 @@ export class AuthPage {
   }
 
   /**
-   * Register via the REST API using the two-step flow.
-   * Creates a registration token via test endpoint, then completes registration.
+   * Register via the REST API using the code-based flow.
+   * Creates a registration code via test endpoint, exchanges it, then completes registration.
    * Returns the response from the complete step.
    */
   async registerViaApi(
@@ -491,7 +542,8 @@ export class AuthPage {
     success: boolean;
     user: { id: string; login: string };
   }> {
-    const token = await this.createRegistrationTokenViaTestEndpoint(email);
+    const code = await this.createRegistrationCodeViaTestEndpoint(email);
+    const token = await this.verifyRegistrationCodeViaApi(email, code);
     const response = await this.page.request.post('/auth/register/complete', {
       headers: { 'Content-Type': 'application/json' },
       data: { token, login, password, passwordConfirmation: password }

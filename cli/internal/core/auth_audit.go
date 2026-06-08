@@ -95,31 +95,31 @@ func (c *ChattoCore) appendAuthAuditEvent(ctx context.Context, aggregate events.
 	return nil
 }
 
-func (c *ChattoCore) recordRegistrationLinkIssued(ctx context.Context, email string, createdAt time.Time) error {
-	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RegistrationLinkIssued{
-		RegistrationLinkIssued: &corev1.RegistrationLinkIssuedEvent{
+func (c *ChattoCore) recordRegistrationCodeIssued(ctx context.Context, email string, createdAt time.Time) error {
+	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RegistrationVerificationCodeIssued{
+		RegistrationVerificationCodeIssued: &corev1.RegistrationVerificationCodeIssuedEvent{
 			EmailHash: emailHash(email),
-			ExpiresAt: tokenExpiresAt(createdAt, RegistrationTokenTTL),
+			ExpiresAt: tokenExpiresAt(createdAt, RegistrationCodeTTL),
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
 	if err := c.appendAuthAuditEvent(ctx, events.AuthAggregate(), event); err != nil {
-		return fmt.Errorf("append registration link audit event: %w", err)
+		return fmt.Errorf("append registration code audit event: %w", err)
 	}
 	return nil
 }
 
-func (c *ChattoCore) recordEmailVerificationLinkIssued(ctx context.Context, userID, email string, createdAt time.Time) error {
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_EmailVerificationLinkIssued{
-		EmailVerificationLinkIssued: &corev1.EmailVerificationLinkIssuedEvent{
+func (c *ChattoCore) recordEmailVerificationCodeIssued(ctx context.Context, userID, email string, createdAt time.Time) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_EmailVerificationCodeIssued{
+		EmailVerificationCodeIssued: &corev1.EmailVerificationCodeIssuedEvent{
 			UserId:    userID,
 			EmailHash: emailHash(email),
-			ExpiresAt: tokenExpiresAt(createdAt, EmailVerificationTokenTTL),
+			ExpiresAt: tokenExpiresAt(createdAt, EmailVerificationCodeTTL),
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
 	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
-		return fmt.Errorf("append email verification link audit event: %w", err)
+		return fmt.Errorf("append email verification code audit event: %w", err)
 	}
 	return nil
 }

@@ -21,16 +21,25 @@ import (
 // ============================================================================
 
 const (
-	// EmailVerificationTokenTTL is the duration a verification token is valid.
-	EmailVerificationTokenTTL = 24 * time.Hour
+	// EmailVerificationCodeTTL is the duration a verification code is valid.
+	EmailVerificationCodeTTL = 15 * time.Minute
 )
 
 var (
-	// ErrTokenNotFound is returned when the verification token doesn't exist or has expired.
-	ErrTokenNotFound = errors.New("verification token not found or expired")
+	// ErrTokenNotFound is returned when the verification code doesn't exist or has expired.
+	ErrTokenNotFound = errors.New("verification code not found or expired")
 
-	// ErrTokenExpired is returned when the verification token has expired.
-	ErrTokenExpired = errors.New("verification token has expired")
+	// ErrTokenExpired is returned when the verification code has expired.
+	ErrTokenExpired = errors.New("verification code has expired")
+
+	// ErrEmailVerificationCodeInvalid is returned when a submitted email verification code is wrong.
+	ErrEmailVerificationCodeInvalid = errors.New("invalid email verification code")
+
+	// ErrEmailVerificationCodeExhausted is returned when too many invalid attempts were made.
+	ErrEmailVerificationCodeExhausted = errors.New("email verification code exhausted")
+
+	// ErrEmailVerificationCodeLimitExceeded is returned when too many codes are active for an email verification challenge.
+	ErrEmailVerificationCodeLimitExceeded = errors.New("too many active email verification codes")
 
 	// ErrEmailAlreadyVerified is returned when trying to verify an email that's already verified by another user.
 	ErrEmailAlreadyVerified = errors.New("email address is already verified by another account")
@@ -42,9 +51,9 @@ var (
 // Email Verification Types
 // ============================================================================
 
-// EmailVerificationToken represents a token used to verify an email address.
+// EmailVerificationCode represents a pending code used to verify an email address.
 // Stored as JSON (short-lived, auto-expires via KV TTL — not worth proto).
-type EmailVerificationToken struct {
+type EmailVerificationCode struct {
 	UserID    string    `json:"user_id"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
@@ -63,11 +72,21 @@ type VerifiedEmail struct {
 // KV Key Functions
 // ============================================================================
 
-const emailVerificationTokenKeyPrefix = "email_verification."
+const (
+	emailVerificationOTPScope = "email_verification"
+)
 
-// emailVerificationTokenKey returns the HMAC-derived KV key for an email verification token.
-func (c *ChattoCore) emailVerificationTokenKey(token string) string {
-	return c.runtimeTokenKey(emailVerificationTokenKeyPrefix, token)
+// emailVerificationCodeKey returns the HMAC-derived KV key for one email verification code.
+func (c *ChattoCore) emailVerificationCodeKey(userID, email, code string) string {
+	return c.emailOTPCodeKey(emailVerificationOTPScope, emailVerificationOTPSubject(userID, email), code)
+}
+
+func (c *ChattoCore) emailVerificationCodeChallengeKey(userID, email string) string {
+	return c.emailOTPChallengeKey(emailVerificationOTPScope, emailVerificationOTPSubject(userID, email))
+}
+
+func emailVerificationOTPSubject(userID, email string) string {
+	return strings.TrimSpace(userID) + "\x00" + strings.ToLower(strings.TrimSpace(email))
 }
 
 // emailHash returns the stable lowercase-SHA256 hex digest used in both
@@ -102,103 +121,85 @@ func userByEmailKey(email string) string {
 }
 
 // ============================================================================
-// Email Verification Token Operations
+// Email Verification Code Operations
 // ============================================================================
 
-// CreateEmailVerificationToken creates a new verification token for an email.
-// The token contains all info needed for verification (userID, email).
-func (c *ChattoCore) CreateEmailVerificationToken(ctx context.Context, userID, email string) (string, error) {
-	token := NewEmailVerificationToken()
-	createdAt := time.Now()
-
-	tokenData := EmailVerificationToken{
-		UserID:    userID,
-		Email:     email,
-		CreatedAt: createdAt,
+// CreateEmailVerificationCode creates a short-lived verification code for an email.
+// The returned raw code is intended to be sent by email and is never stored.
+func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, email string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if userID == "" {
+		return "", fmt.Errorf("userID is required")
 	}
-
-	data, err := json.Marshal(tokenData)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal token: %w", err)
+	if email == "" {
+		return "", fmt.Errorf("email is required")
 	}
-
-	_, err = c.storage.runtimeStateKV.Create(ctx, c.emailVerificationTokenKey(token), data, jetstream.KeyTTL(EmailVerificationTokenTTL))
-	if err != nil {
-		return "", fmt.Errorf("failed to store verification token: %w", err)
+	subject := emailVerificationOTPSubject(userID, email)
+	code, err := c.createEmailOTP(ctx, emailVerificationOTPScope, subject, EmailVerificationCodeTTL, func(createdAt time.Time) ([]byte, error) {
+		return json.Marshal(EmailVerificationCode{
+			UserID:    userID,
+			Email:     email,
+			CreatedAt: createdAt,
+		})
+	}, func(createdAt time.Time) error {
+		return c.recordEmailVerificationCodeIssued(ctx, userID, email, createdAt)
+	})
+	if errors.Is(err, errEmailOTPExhausted) {
+		return "", ErrEmailVerificationCodeExhausted
 	}
-
-	if err := c.recordEmailVerificationLinkIssued(ctx, userID, email, createdAt); err != nil {
-		_ = c.deleteEmailVerificationToken(ctx, token)
-		return "", err
+	if errors.Is(err, errEmailOTPTooManyCodes) {
+		return "", ErrEmailVerificationCodeLimitExceeded
 	}
-
-	return token, nil
+	return code, err
 }
 
-// getEmailVerificationToken retrieves and validates a verification token.
-// Returns the token data including userID and email.
-func (c *ChattoCore) getEmailVerificationToken(ctx context.Context, token string) (*EmailVerificationToken, error) {
-	key := c.emailVerificationTokenKey(token)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+// VerifyEmailCode verifies an email using a submitted code.
+func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	code = strings.TrimSpace(code)
+	if userID == "" || email == "" || !verificationCodePattern.MatchString(code) {
+		return "", ErrEmailVerificationCodeInvalid
+	}
+
+	subject := emailVerificationOTPSubject(userID, email)
+	entry, err := c.getEmailOTPCode(ctx, emailVerificationOTPScope, subject, code, EmailVerificationCodeTTL)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, ErrTokenNotFound
+		switch {
+		case errors.Is(err, errEmailOTPNotFound):
+			return "", ErrTokenNotFound
+		case errors.Is(err, errEmailOTPExpired):
+			return "", ErrTokenExpired
+		case errors.Is(err, errEmailOTPInvalid):
+			return "", ErrEmailVerificationCodeInvalid
+		case errors.Is(err, errEmailOTPExhausted):
+			return "", ErrEmailVerificationCodeExhausted
+		default:
+			return "", err
 		}
-		return nil, fmt.Errorf("failed to get verification token: %w", err)
 	}
 
-	var tokenData EmailVerificationToken
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal token: %w", err)
+	var codeData EmailVerificationCode
+	if err := json.Unmarshal(entry.value, &codeData); err != nil {
+		return "", fmt.Errorf("failed to unmarshal email verification code: %w", err)
 	}
 
-	// Check if token has expired
-	if time.Since(tokenData.CreatedAt) > EmailVerificationTokenTTL {
-		// Clean up expired token
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrTokenExpired
+	if time.Since(codeData.CreatedAt) > EmailVerificationCodeTTL {
+		_ = c.storage.runtimeStateKV.Delete(ctx, entry.key, jetstream.LastRevision(entry.revision))
+		return "", ErrTokenExpired
 	}
-
-	return &tokenData, nil
-}
-
-// deleteEmailVerificationToken removes a verification token.
-func (c *ChattoCore) deleteEmailVerificationToken(ctx context.Context, token string) error {
-	key := c.emailVerificationTokenKey(token)
-	err := c.storage.runtimeStateKV.Delete(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to delete verification token: %w", err)
+	if codeData.UserID != userID || codeData.Email != email {
+		return "", ErrEmailVerificationCodeInvalid
 	}
-	return nil
-}
-
-// ============================================================================
-// Email Verification
-// ============================================================================
-
-// VerifyEmail verifies an email using a token.
-// This will:
-// 1. Validate the token (O(1) direct lookup)
-// 2. Check that the email isn't already claimed by another user
-// 3. Claim the email
-// 4. Add it to the user's verified emails
-// 5. Delete the verification token
-func (c *ChattoCore) VerifyEmail(ctx context.Context, token string) (userID string, err error) {
-	// Direct O(1) lookup - token contains userID and email in value
-	tokenData, err := c.getEmailVerificationToken(ctx, token)
-	if err != nil {
+	if err := c.consumeEmailOTPCode(ctx, emailVerificationOTPScope, subject, entry); err != nil {
+		if errors.Is(err, errEmailOTPNotFound) {
+			return "", ErrTokenNotFound
+		}
 		return "", err
 	}
-
-	// Add to user's verified emails (idempotent - won't duplicate)
-	if err := c.addVerifiedEmail(ctx, tokenData.UserID, tokenData.Email); err != nil {
+	if err := c.addVerifiedEmail(ctx, userID, email); err != nil {
 		return "", err
 	}
-
-	// Clean up: delete the verification token
-	c.deleteEmailVerificationToken(ctx, token)
-
-	return tokenData.UserID, nil
+	return userID, nil
 }
 
 // addVerifiedEmail appends a durable verified-email event for the user.
