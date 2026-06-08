@@ -38,7 +38,7 @@
     error = null;
 
     // Metadata + users + viewer permissions. The editor handles its own
-    // permission tier loading via the unified rolePermissions query.
+    // permission loading through the RBAC matrix query.
     const resp = await connection().client.query(
       graphql(`
         query SpaceRoleDetail($name: String!) {

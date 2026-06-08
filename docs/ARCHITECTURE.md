@@ -128,7 +128,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 **Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
 
-Admin queries are nested under a single `admin: AdminQueries` field that returns `null` for non-admins — so one auth gate covers the whole sub-surface. See [Admin sub-API](#admin-sub-api) below for the contents.
+Admin queries are nested under a single `admin: AdminQueries` field that returns `null` for unauthenticated callers. Child fields enforce concrete capability gates such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics. See [Admin sub-API](#admin-sub-api) below for the contents.
 
 ### Mutations
 
@@ -223,7 +223,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 
 **Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
 
-Like `Query.admin`, the `admin: AdminMutations` field returns `null` for non-admins. See [Admin sub-API](#admin-sub-api) below.
+Like `Query.admin`, the `admin: AdminMutations` field returns `null` for unauthenticated callers. See [Admin sub-API](#admin-sub-api) below.
 
 ### Subscriptions
 
