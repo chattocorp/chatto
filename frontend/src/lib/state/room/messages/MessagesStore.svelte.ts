@@ -1,9 +1,18 @@
+import { tick } from 'svelte';
+import { on } from 'svelte/events';
 import { SvelteSet } from 'svelte/reactivity';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { Client } from '@urql/svelte';
+import { useFragment } from '$lib/gql';
+import {
+  RoomEventViewFragmentDoc,
+  type RoomEventViewFragment
+} from '$lib/gql/graphql';
+import type { EventEnvelope } from '$lib/eventBus.svelte';
+import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
-import { MessageListStore } from './MessageListStore.svelte';
 import {
   PAGE_SIZE,
+  RefetchOneQuery,
   RoomAfterQuery,
   RoomAroundQuery,
   RoomBeforeQuery,
@@ -13,6 +22,7 @@ import {
 import { isRootRoomEvent, isThreadEvent } from './filters';
 import {
   type EventConnectionPage,
+  type RawEvent,
   getActorId,
   threadRepliesConnection,
   unmask
@@ -21,14 +31,84 @@ import {
 type MessageScope = 'room' | 'thread';
 
 /**
+ * Minimum hidden duration before a visibility->visible transition counts as
+ * a "tab resume" worth catching up for. Mirrors the eventBus visibility-
+ * resubscribe threshold and the GraphQL client's suspend-detector window
+ * so all three layers react on the same horizon.
+ */
+const TAB_RESUME_GAP_MS = 30_000;
+
+/**
  * Message store for both the main room timeline and a single thread pane.
  * The scope-specific methods (`setRoom` / `setThread`) choose which Core
  * GraphQL connection backs the list while the lifecycle, pagination, refetch,
  * and subscription ingestion behavior stays shared.
  */
-export class MessagesStore extends MessageListStore {
+export class MessagesStore {
+  events = $state<RoomEventViewFragment[]>([]);
+  isInitialLoading = $state(true);
+  isLoadingMore = $state(false);
+  hasReachedStart = $state(false);
+
+  private readonly client: Client;
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
+  private seenIds: SvelteSet<string> = new SvelteSet<string>();
+  private roomId = '';
+  private oldestCursor: string | undefined;
+  private newestCursor: string | undefined;
+
+  /** Increments on every load kickoff. Async callbacks compare against
+   *  it via {@link isStale} to discard results from superseded loads. */
+  #loadId = 0;
+
+  #disposeLifecycle: (() => void) | null = null;
+
+  constructor(
+    private readonly gqlClient: GraphQLClient,
+    private readonly getCurrentUserId: () => string | null
+  ) {
+    this.client = gqlClient.client;
+    this.#disposeLifecycle = $effect.root(() => {
+      // Reactive: re-run when reconnectCount changes, fire catchUp on
+      // genuine increments.
+      let lastSeen = this.gqlClient.reconnectCount;
+      $effect(() => {
+        const n = this.gqlClient.reconnectCount;
+        if (n <= lastSeen) return;
+        const prev = lastSeen;
+        lastSeen = n;
+        console.debug('[MessagesStore] reconnectCount %d -> %d, catching up', prev, n);
+        this.catchUp();
+      });
+
+      // Non-reactive: register a document visibilitychange listener and
+      // let $effect.root tear it down via the returned cleanup.
+      if (typeof document === 'undefined') return;
+      let lastVisibleAt = Date.now();
+      return on(document, 'visibilitychange', () => {
+        if (document.visibilityState !== 'visible') {
+          lastVisibleAt = Date.now();
+          return;
+        }
+        const gap = Date.now() - lastVisibleAt;
+        lastVisibleAt = Date.now();
+        if (gap > TAB_RESUME_GAP_MS) {
+          console.debug(
+            '[MessagesStore] visible after %ds hidden -> catching up',
+            Math.round(gap / 1000)
+          );
+          this.catchUp();
+        }
+      });
+    });
+  }
+
+  /** Tear down lifecycle listeners. Idempotent. */
+  dispose(): void {
+    this.#disposeLifecycle?.();
+    this.#disposeLifecycle = null;
+  }
 
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): RoomEventViewFragment[] {
@@ -38,6 +118,16 @@ export class MessagesStore extends MessageListStore {
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): RoomEventViewFragment[] {
     return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
+  }
+
+  /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
+  private startLoad(): number {
+    return ++this.#loadId;
+  }
+
+  /** True if a newer load has started; caller should discard its result. */
+  private isStale(thisLoad: number): boolean {
+    return this.#loadId !== thisLoad;
   }
 
   setRoom(roomId: string): void {
@@ -58,7 +148,117 @@ export class MessagesStore extends MessageListStore {
     this.fetchThread(thisLoad);
   }
 
-  protected catchUp(): void {
+  /**
+   * Route a space event into the store. Handles common message-list
+   * mutations inline and delegates room/thread-specific MessagePostedEvent
+   * handling to the current scope.
+   */
+  ingestServerEvent(serverEvent: EventEnvelope): void {
+    const eventData = serverEvent.event;
+    if (!eventData) return;
+    // Subscription and historical-query payloads share the same Event
+    // envelope. Cast once at the room boundary so downstream code can keep
+    // using the RoomEventViewFragment shape it renders with.
+    const spaceEvent = serverEvent as unknown as RoomEventViewFragment;
+
+    if (eventData.__typename === 'ServerMemberDeletedEvent') {
+      this.refetchAll();
+      return;
+    }
+
+    if (eventData.__typename === 'RoomDeletedEvent') {
+      if (eventData.roomId === this.roomId) this.resetState();
+      return;
+    }
+
+    // From here on, only events scoped to this room are interesting.
+    const eventRoomId =
+      'roomId' in eventData
+        ? eventData.roomId
+        : 'processingRoomId' in eventData
+          ? eventData.processingRoomId
+          : null;
+    if (eventRoomId != null && eventRoomId !== this.roomId) return;
+
+    if (eventData.__typename === 'MessageRetractedEvent') {
+      this.applyDeletion(eventData.messageEventId);
+      return;
+    }
+
+    if (eventData.__typename === 'MessageEditedEvent') {
+      this.applyEdit(eventData.messageEventId, eventData);
+      return;
+    }
+
+    if (
+      eventData.__typename === 'ReactionAddedEvent' ||
+      eventData.__typename === 'ReactionRemovedEvent'
+    ) {
+      this.refetchByMessageEventId(eventData.messageEventId);
+      return;
+    }
+
+    if (
+      eventData.__typename === 'VideoProcessingCompletedEvent' ||
+      eventData.__typename === 'AssetProcessingStartedEvent' ||
+      eventData.__typename === 'AssetProcessingSucceededEvent' ||
+      eventData.__typename === 'AssetProcessingFailedEvent'
+    ) {
+      if (!eventData.processingMessageEventId) return;
+      this.refetchByMessageEventId(eventData.processingMessageEventId);
+      return;
+    }
+
+    if (eventData.__typename === 'MessagePostedEvent') {
+      this.onMessagePosted(spaceEvent, eventData);
+      return;
+    }
+
+    if (
+      eventData.__typename === 'UserJoinedRoomEvent' ||
+      eventData.__typename === 'UserLeftRoomEvent' ||
+      eventData.__typename === 'RoomUpdatedEvent' ||
+      eventData.__typename === 'RoomArchivedEvent' ||
+      eventData.__typename === 'RoomUnarchivedEvent'
+    ) {
+      this.onSystemEvent(spaceEvent);
+    }
+  }
+
+  async loadMore(): Promise<void> {
+    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+
+    const before = this.oldestCursor;
+    this.isLoadingMore = true;
+
+    try {
+      const page = await this.fetchOlderPage(before);
+      if (!page) return;
+
+      const olderEvents = unmask(page.events);
+      if (olderEvents.length === 0) {
+        this.hasReachedStart = true;
+      } else {
+        if (page.startCursor) {
+          this.oldestCursor = page.startCursor;
+        }
+        const added = this.prependEvents(olderEvents);
+        this.afterOlderPagePrepended();
+        if (added === 0) this.hasReachedStart = true;
+      }
+
+      if (!page.hasOlder) this.hasReachedStart = true;
+    } catch (error) {
+      console.error('MessagesStore: loadMore failed:', error);
+    } finally {
+      // Yield a frame so the virtualizer can settle before another loadMore.
+      await tick();
+      await new Promise((r) => requestAnimationFrame(r));
+      this.isLoadingMore = false;
+    }
+  }
+
+  private catchUp(): void {
     if (!this.scope || !this.roomId) return;
     if (this.scope === 'thread' && !this.threadRootEventId) return;
 
@@ -77,7 +277,7 @@ export class MessagesStore extends MessageListStore {
     }
   }
 
-  protected async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
+  private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
     if (this.scope === 'thread') {
       const result = await this.client
         .query(ThreadEventsQuery, {
@@ -102,7 +302,7 @@ export class MessagesStore extends MessageListStore {
     return result.data?.room?.events ?? null;
   }
 
-  protected afterOlderPagePrepended(): void {
+  private afterOlderPagePrepended(): void {
     if (this.scope === 'thread') {
       this.sortThreadEvents();
     }
@@ -195,7 +395,7 @@ export class MessagesStore extends MessageListStore {
     this.resetAndFetchLatest();
   }
 
-  protected onMessagePosted(
+  private onMessagePosted(
     spaceEvent: RoomEventViewFragment,
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void {
@@ -217,10 +417,165 @@ export class MessagesStore extends MessageListStore {
     this.addEvent(spaceEvent);
   }
 
-  protected onSystemEvent(spaceEvent: RoomEventViewFragment): void {
+  private onSystemEvent(spaceEvent: RoomEventViewFragment): void {
     if (this.scope === 'room') {
       this.addEvent(spaceEvent);
     }
+  }
+
+  private async refetchOne(eventId: string): Promise<void> {
+    const result = await this.client
+      .query(
+        RefetchOneQuery,
+        { roomId: this.roomId, eventId },
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    const fetched = result.data?.room?.event;
+    if (!fetched) return;
+    const updated = useFragment(RoomEventViewFragmentDoc, fetched);
+    if (!updated) return;
+    const idx = this.events.findIndex((e) => e.id === eventId);
+    if (idx !== -1) this.events[idx] = updated;
+  }
+
+  private async refetchByMessageEventId(messageEventId: string): Promise<void> {
+    // Match either the direct event id or an echo whose original points here.
+    for (const e of this.events) {
+      const evt = e.event;
+      if (
+        e.id === messageEventId ||
+        (evt?.__typename === 'MessagePostedEvent' && evt.echoOfEventId === messageEventId)
+      ) {
+        await this.refetchOne(e.id);
+      }
+    }
+  }
+
+  /**
+   * Apply a deletion locally. Direct echo retractions hide only the echo
+   * artifact; original-message retractions tombstone the original and any
+   * visible echoes that point at it.
+   * Reactions and reply metadata are left intact so the tombstone row keeps
+   * its existing engagement visible alongside the placeholder.
+   */
+  private applyDeletion(messageEventId: string): void {
+    const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
+    const target = targetIndex === -1 ? null : this.events[targetIndex];
+    const targetPayload = target?.event;
+    if (
+      targetPayload?.__typename === 'MessagePostedEvent' &&
+      targetPayload.echoOfEventId
+    ) {
+      this.events.splice(targetIndex, 1);
+      return;
+    }
+
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) continue;
+
+      this.events[i] = {
+        ...e,
+        event: { ...evt, body: null, attachments: [] }
+      };
+    }
+  }
+
+  /**
+   * Apply an edit payload directly to the matching MessagePostedEvent. The
+   * backend emits one canonical edit event per linked post/echo, so we only
+   * patch the direct event ID here; the linked event will arrive separately.
+   */
+  private applyEdit(
+    messageEventId: string,
+    edit: Extract<EventEnvelope['event'], { __typename: 'MessageEditedEvent' }>
+  ): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (e.id !== messageEventId) continue;
+
+      this.events[i] = {
+        ...e,
+        event: {
+          ...evt,
+          body: edit.body,
+          attachments: edit.attachments,
+          linkPreview: edit.linkPreview,
+          updatedAt: edit.updatedAt
+        }
+      };
+    }
+  }
+
+  private addEvent(event: RoomEventViewFragment): boolean {
+    if (this.seenIds.has(event.id)) return false;
+    this.seenIds.add(event.id);
+    this.events.push(event);
+    return true;
+  }
+
+  private appendMany(events: RoomEventViewFragment[]): void {
+    for (const e of events) this.addEvent(e);
+  }
+
+  private prependEvents(olderEvents: RoomEventViewFragment[]): number {
+    const newOnes = olderEvents.filter((e) => !this.seenIds.has(e.id));
+    for (const e of newOnes) this.seenIds.add(e.id);
+    this.events.unshift(...newOnes);
+    return newOnes.length;
+  }
+
+  /**
+   * Replace the buffer with fetched events but preserve any subscription
+   * events that arrived during the in-flight query. Always the right
+   * choice when a paginated query result replaces the timeline: the
+   * eventBus subscription has been live since layout mount, so any
+   * MessagePostedEvent for this room that lands while the query is in
+   * flight has already been added to {@link events} via
+   * {@link ingestServerEvent} and must not be wiped by the result.
+   */
+  private replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
+    const fetched = unmask(rawEvents);
+    const newSeen = new SvelteSet<string>();
+    const merged: RoomEventViewFragment[] = [];
+    for (const e of fetched) {
+      if (newSeen.has(e.id)) continue;
+      newSeen.add(e.id);
+      merged.push(e);
+    }
+    for (const e of this.events) {
+      if (newSeen.has(e.id)) continue;
+      newSeen.add(e.id);
+      merged.push(e);
+    }
+    this.events = merged;
+    this.seenIds = newSeen;
+  }
+
+  private resetState(): void {
+    this.events = [];
+    this.seenIds = new SvelteSet();
+    this.oldestCursor = undefined;
+    this.newestCursor = undefined;
+    this.hasReachedStart = false;
+    this.isLoadingMore = false;
+  }
+
+  private replaceWithFetchedAndUpdateCursors(connection: {
+    events: readonly RawEvent[];
+    startCursor?: string | null;
+    endCursor?: string | null;
+  }): void {
+    this.replaceMergingExisting(connection.events);
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = false;
   }
 
   private resetAndFetchLatest(): void {

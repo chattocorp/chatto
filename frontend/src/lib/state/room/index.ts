@@ -15,7 +15,6 @@ export type { RoomMember, RoomMembersState } from './members.svelte';
 export { createRoomPermissions, getRoomPermissions, DEFAULT_ROOM_PERMISSIONS } from './permissions.svelte';
 export type { RoomPermissions } from './permissions.svelte';
 export {
-  MessageListStore,
   MessagesStore,
   isRootRoomEvent,
   isThreadEvent
