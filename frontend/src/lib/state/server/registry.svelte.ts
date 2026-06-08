@@ -3,6 +3,7 @@ import { ServerStateStore } from './store.svelte';
 import { graphqlClientManager } from './graphqlClient.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
+import { clearAssetProxyCache } from '$lib/assets/serviceWorkerAssetProxy';
 
 /**
  * A registered Chatto server in the multi-server client.
@@ -238,6 +239,7 @@ class ServerRegistry {
 
 		// Dispose GraphQL client
 		graphqlClientManager.destroyClient(id);
+		clearAssetProxyCache(id);
 
 		this.servers = this.servers.filter((s) => s.id !== id);
 		serversSlot.set(this.servers);
@@ -253,6 +255,7 @@ class ServerRegistry {
 			this.#stores.delete(server.id);
 			graphqlClientManager.destroyClient(server.id);
 		}
+		clearAssetProxyCache();
 		this.servers = [];
 		serversSlot.set(this.servers);
 	}

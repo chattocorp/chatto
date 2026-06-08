@@ -11,6 +11,7 @@
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
+  import { syncAssetProxyServers } from '$lib/assets/serviceWorkerAssetProxy';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -80,6 +81,17 @@
         );
       }
     }
+  });
+
+  $effect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
+    }
+
+    const sync = () => syncAssetProxyServers(serverRegistry.servers);
+    sync();
+    navigator.serviceWorker.addEventListener('controllerchange', sync);
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', sync);
   });
 
   // Route push-notification clicks via SvelteKit's client-side navigation

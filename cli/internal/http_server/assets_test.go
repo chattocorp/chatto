@@ -642,8 +642,8 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	}
 
 	vary := originalResp.Header.Get("Vary")
-	if vary != "Accept-Encoding, Authorization, Cookie" {
-		t.Errorf("Expected Vary: Accept-Encoding, Authorization, Cookie, got: %s", vary)
+	if vary != "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy" {
+		t.Errorf("Expected Vary: Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy, got: %s", vary)
 	}
 }
 

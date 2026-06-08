@@ -169,12 +169,14 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 		return
 	}
 
-	// Try S3 presigned redirect first (zero-copy, full Range support) after
-	// validating the asset ticket/request credentials and room membership.
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-		c.Header("Cache-Control", "private, max-age=3600")
-		c.Redirect(http.StatusFound, presignedURL)
-		return
+	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
+		// Try S3 presigned redirect first (zero-copy, full Range support) after
+		// validating the asset ticket/request credentials and room membership.
+		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
+			c.Header("Cache-Control", "private, max-age=3600")
+			c.Redirect(http.StatusFound, presignedURL)
+			return
+		}
 	}
 
 	reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
@@ -194,7 +196,7 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 
 	c.Header("Cache-Control", "private, max-age=3600")
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
-	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
+	c.Header("Vary", "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
