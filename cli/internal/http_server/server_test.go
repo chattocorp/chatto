@@ -656,6 +656,53 @@ func TestAuthRoutes_RegisterVerifyCode_Success(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_RegisterVerifyCode_ExhaustedAttempts(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+
+	body, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com"})
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request: %v", err)
+	}
+	resp.Body.Close()
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected registration email to be sent")
+	}
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(msg.Body)
+	if code == "" {
+		t.Fatalf("Could not extract code from email body: %s", msg.Body)
+	}
+	wrongCode := "000000"
+	if code == wrongCode {
+		wrongCode = "111111"
+	}
+
+	verifyBody, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com", "code": wrongCode})
+	for i := 0; i < 5; i++ {
+		verifyResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(verifyBody))
+		if err != nil {
+			t.Fatalf("Failed to verify registration code attempt %d: %v", i+1, err)
+		}
+		verifyResp.Body.Close()
+		if verifyResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("attempt %d status = %d, want 400", i+1, verifyResp.StatusCode)
+		}
+	}
+
+	validBody, _ := json.Marshal(map[string]string{"email": "bruteforce@example.com", "code": code})
+	validResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(validBody))
+	if err != nil {
+		t.Fatalf("Failed to verify exhausted registration code: %v", err)
+	}
+	defer validResp.Body.Close()
+	if validResp.StatusCode != http.StatusBadRequest {
+		respBody, _ := io.ReadAll(validResp.Body)
+		t.Fatalf("Expected exhausted valid code to return 400, got %d: %s", validResp.StatusCode, string(respBody))
+	}
+}
+
 func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
@@ -1157,6 +1204,54 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 	}
 	if len(verifiedEmails) > 0 && verifiedEmails[0].Email != "verify@example.com" {
 		t.Errorf("Expected verified email verify@example.com, got %s", verifiedEmails[0].Email)
+	}
+}
+
+func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
+	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "verify-limit-user", "Verify Limit User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	loginBody, _ := json.Marshal(map[string]string{"login": "verify-limit-user", "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
+	}
+
+	body, _ := json.Marshal(map[string]string{"email": "limit@example.com"})
+	for i := 0; i < 10; i++ {
+		resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("Failed to request verification code %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("request %d status = %d, want 200", i+1, resp.StatusCode)
+		}
+	}
+
+	resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to request limited verification code: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusTooManyRequests {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 429, got %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	if verified, err := chattoCore.HasVerifiedEmail(ctx, user.Id); err != nil {
+		t.Fatalf("HasVerifiedEmail: %v", err)
+	} else if verified {
+		t.Fatal("request-code limit should not verify email")
 	}
 }
 
