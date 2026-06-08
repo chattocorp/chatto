@@ -386,7 +386,7 @@ func (r *messagePostedEventResolver) ThreadRootEventID(ctx context.Context, obj 
 // Authorization: parent query (Room.events / Room.event) already verified room membership.
 // Reactions are keyed by the message event envelope ID, so echoes and their
 // originals accumulate reactions independently.
-func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*model.Reaction, error) {
+func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*core.ReactionSummary, error) {
 	eventID := messagePostedEventID(obj)
 	return r.resolveReactions(ctx, eventID)
 }
@@ -707,8 +707,16 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 	return model.PresenceStatus(obj.Status), nil
 }
 
+// Count is the resolver for the count field.
+func (r *reactionResolver) Count(ctx context.Context, obj *core.ReactionSummary) (int32, error) {
+	if obj == nil {
+		return 0, nil
+	}
+	return int32(len(obj.UserIDs)), nil
+}
+
 // Users is the resolver for the users field.
-func (r *reactionResolver) Users(ctx context.Context, obj *model.Reaction, first *int32) ([]*corev1.User, error) {
+func (r *reactionResolver) Users(ctx context.Context, obj *core.ReactionSummary, first *int32) ([]*corev1.User, error) {
 	if obj == nil || len(obj.UserIDs) == 0 {
 		return []*corev1.User{}, nil
 	}
@@ -730,6 +738,20 @@ func (r *reactionResolver) Users(ctx context.Context, obj *model.Reaction, first
 		}
 	}
 	return users, nil
+}
+
+// HasReacted is the resolver for the hasReacted field.
+func (r *reactionResolver) HasReacted(ctx context.Context, obj *core.ReactionSummary) (bool, error) {
+	currentUser := auth.ForContext(ctx)
+	if currentUser == nil || obj == nil {
+		return false, nil
+	}
+	for _, userID := range obj.UserIDs {
+		if userID == currentUser.Id {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Description is the resolver for the description field.

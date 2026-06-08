@@ -68,10 +68,18 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if reactions[0].Emoji != "thumbsup" {
 			t.Errorf("expected emoji 'thumbsup', got %s", reactions[0].Emoji)
 		}
-		if reactions[0].Count != 1 {
-			t.Errorf("expected count 1, got %d", reactions[0].Count)
+		count, err := env.resolver.Reaction().Count(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("Reaction.Count returned error: %v", err)
 		}
-		if !reactions[0].HasReacted {
+		if count != 1 {
+			t.Errorf("expected count 1, got %d", count)
+		}
+		hasReacted, err := env.resolver.Reaction().HasReacted(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("Reaction.HasReacted returned error: %v", err)
+		}
+		if !hasReacted {
 			t.Error("expected hasReacted true for the user who reacted")
 		}
 	})
@@ -89,7 +97,11 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if len(reactions) != 1 {
 			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
 		}
-		if reactions[0].HasReacted {
+		hasReacted, err := env.resolver.Reaction().HasReacted(env.authContextForUser(otherUser), reactions[0])
+		if err != nil {
+			t.Fatalf("Reaction.HasReacted returned error: %v", err)
+		}
+		if hasReacted {
 			t.Error("expected hasReacted false for user who didn't react")
 		}
 	})
@@ -112,8 +124,12 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if len(reactions) != 1 {
 			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
 		}
-		if reactions[0].Count != 7 {
-			t.Fatalf("reaction count = %d, want 7", reactions[0].Count)
+		count, err := env.resolver.Reaction().Count(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("Reaction.Count returned error: %v", err)
+		}
+		if count != 7 {
+			t.Fatalf("reaction count = %d, want 7", count)
 		}
 
 		users, err := env.resolver.Reaction().Users(env.authContext(), reactions[0], nil)

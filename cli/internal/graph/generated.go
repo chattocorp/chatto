@@ -1032,7 +1032,7 @@ type MessagePostedEventResolver interface {
 	Attachments(ctx context.Context, obj *model.MessagePostedEvent) ([]*corev1.Attachment, error)
 	InReplyTo(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
 	ThreadRootEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
-	Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*model.Reaction, error)
+	Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*core.ReactionSummary, error)
 	UpdatedAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	EchoOfEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
 	EchoFromThreadRootEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
@@ -1144,7 +1144,9 @@ type QueryResolver interface {
 	ActiveCallRoomIds(ctx context.Context) ([]string, error)
 }
 type ReactionResolver interface {
-	Users(ctx context.Context, obj *model.Reaction, first *int32) ([]*corev1.User, error)
+	Count(ctx context.Context, obj *core.ReactionSummary) (int32, error)
+	Users(ctx context.Context, obj *core.ReactionSummary, first *int32) ([]*corev1.User, error)
+	HasReacted(ctx context.Context, obj *core.ReactionSummary) (bool, error)
 }
 type ReplyNotificationItemResolver interface {
 	Actor(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.User, error)
@@ -11759,8 +11761,8 @@ func (ec *executionContext) _MessagePostedEvent_reactions(ctx context.Context, f
 			return ec.Resolvers.MessagePostedEvent().Reactions(ctx, obj)
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []*model.Reaction) graphql.Marshaler {
-			return ec.marshalNReaction2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReactionᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v []*core.ReactionSummary) graphql.Marshaler {
+			return ec.marshalNReaction2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐReactionSummaryᚄ(ctx, selections, v)
 		},
 		true,
 		true,
@@ -17126,7 +17128,7 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Reaction_emoji(ctx context.Context, field graphql.CollectedField, obj *model.Reaction) (ret graphql.Marshaler) {
+func (ec *executionContext) _Reaction_emoji(ctx context.Context, field graphql.CollectedField, obj *core.ReactionSummary) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -17149,7 +17151,7 @@ func (ec *executionContext) fieldContext_Reaction_emoji(_ context.Context, field
 	return graphql.NewScalarFieldContext("Reaction", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _Reaction_count(ctx context.Context, field graphql.CollectedField, obj *model.Reaction) (ret graphql.Marshaler) {
+func (ec *executionContext) _Reaction_count(ctx context.Context, field graphql.CollectedField, obj *core.ReactionSummary) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -17158,7 +17160,7 @@ func (ec *executionContext) _Reaction_count(ctx context.Context, field graphql.C
 			return ec.fieldContext_Reaction_count(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Count, nil
+			return ec.Resolvers.Reaction().Count(ctx, obj)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
@@ -17169,10 +17171,10 @@ func (ec *executionContext) _Reaction_count(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_Reaction_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Reaction", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("Reaction", field, true, true, errors.New("field of type Int does not have child fields"))
 }
 
-func (ec *executionContext) _Reaction_users(ctx context.Context, field graphql.CollectedField, obj *model.Reaction) (ret graphql.Marshaler) {
+func (ec *executionContext) _Reaction_users(ctx context.Context, field graphql.CollectedField, obj *core.ReactionSummary) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -17216,7 +17218,7 @@ func (ec *executionContext) fieldContext_Reaction_users(ctx context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Reaction_hasReacted(ctx context.Context, field graphql.CollectedField, obj *model.Reaction) (ret graphql.Marshaler) {
+func (ec *executionContext) _Reaction_hasReacted(ctx context.Context, field graphql.CollectedField, obj *core.ReactionSummary) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -17225,7 +17227,7 @@ func (ec *executionContext) _Reaction_hasReacted(ctx context.Context, field grap
 			return ec.fieldContext_Reaction_hasReacted(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.HasReacted, nil
+			return ec.Resolvers.Reaction().HasReacted(ctx, obj)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
@@ -17236,7 +17238,7 @@ func (ec *executionContext) _Reaction_hasReacted(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_Reaction_hasReacted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Reaction", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Reaction", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _ReactionAddedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.ReactionAddedEvent) (ret graphql.Marshaler) {
@@ -33591,7 +33593,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 
 var reactionImplementors = []string{"Reaction"}
 
-func (ec *executionContext) _Reaction(ctx context.Context, sel ast.SelectionSet, obj *model.Reaction) graphql.Marshaler {
+func (ec *executionContext) _Reaction(ctx context.Context, sel ast.SelectionSet, obj *core.ReactionSummary) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, reactionImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -33606,10 +33608,41 @@ func (ec *executionContext) _Reaction(ctx context.Context, sel ast.SelectionSet,
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "count":
-			out.Values[i] = ec._Reaction_count(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Reaction_count(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "users":
 			field := field
 
@@ -33647,10 +33680,41 @@ func (ec *executionContext) _Reaction(ctx context.Context, sel ast.SelectionSet,
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "hasReacted":
-			out.Values[i] = ec._Reaction_hasReacted(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Reaction_hasReacted(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -41106,11 +41170,11 @@ func (ec *executionContext) unmarshalNPushSubscriptionInput2hmansᚗdeᚋchatto�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNReaction2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReactionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Reaction) graphql.Marshaler {
+func (ec *executionContext) marshalNReaction2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐReactionSummaryᚄ(ctx context.Context, sel ast.SelectionSet, v []*core.ReactionSummary) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNReaction2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReaction(ctx, sel, v[i])
+		return ec.marshalNReaction2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐReactionSummary(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -41122,7 +41186,7 @@ func (ec *executionContext) marshalNReaction2ᚕᚖhmansᚗdeᚋchattoᚋinterna
 	return ret
 }
 
-func (ec *executionContext) marshalNReaction2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReaction(ctx context.Context, sel ast.SelectionSet, v *model.Reaction) graphql.Marshaler {
+func (ec *executionContext) marshalNReaction2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐReactionSummary(ctx context.Context, sel ast.SelectionSet, v *core.ReactionSummary) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")

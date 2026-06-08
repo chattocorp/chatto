@@ -603,11 +603,11 @@ type Reaction {
   "The emoji shortcode name (e.g., \"thumbsup\", \"heart\")."
   emoji: String!
   "Total number of users who reacted with this emoji."
-  count: Int!
+  count: Int! @goField(forceResolver: true)
   "Preview of users who reacted with this emoji (default 3, max 10)."
   users(first: Int = 3): [User!]! @goField(forceResolver: true)
   "Whether the current user has reacted with this emoji."
-  hasReacted: Boolean!
+  hasReacted: Boolean! @goField(forceResolver: true)
 }
 
 """
