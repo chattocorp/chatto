@@ -1,18 +1,12 @@
 import type { RegisteredServer } from '$lib/state/server/registry.svelte';
+import {
+  ASSET_PROXY_PATH_PREFIX,
+  type AssetProxyServer,
+  type AssetProxyTarget
+} from './assetProxy.shared';
 
-export const ASSET_PROXY_PATH_PREFIX = '/__chatto/assets/';
-
-export type AssetProxyServer = {
-  id: string;
-  url: string;
-  token: string | null;
-};
-
-export type AssetProxyTarget = {
-  serverId: string;
-  virtualPath: string;
-  targetUrl: string;
-};
+export { ASSET_PROXY_PATH_PREFIX };
+export type { AssetProxyServer, AssetProxyTarget };
 
 type AssetProxyMessage =
   | {

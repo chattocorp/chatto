@@ -4,7 +4,7 @@ import {
   clearAssetProxyCache,
   installAssetProxyResyncHandler,
   registerAssetProxyUrl
-} from './serviceWorkerAssetProxy';
+} from './assetProxy';
 
 function server(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
   return {

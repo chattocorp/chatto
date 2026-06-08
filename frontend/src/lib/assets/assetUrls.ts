@@ -3,7 +3,7 @@ import {
   buildVirtualAssetPath,
   isAssetProxyAvailable,
   registerAssetProxyUrl
-} from '$lib/pwa/serviceWorkerAssetProxy';
+} from '$lib/pwa/assetProxy';
 
 const ASSET_PATH_PREFIXES = ['/assets/files/', '/assets/attachments/'];
 const STABLE_ASSET_PATH_PREFIX = '/assets/files/';

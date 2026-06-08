@@ -3,7 +3,7 @@ import { ServerStateStore } from './store.svelte';
 import { graphqlClientManager } from './graphqlClient.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
-import { clearAssetProxyCache } from '$lib/pwa/serviceWorkerAssetProxy';
+import { clearAssetProxyCache } from '$lib/pwa/assetProxy';
 
 /**
  * A registered Chatto server in the multi-server client.
