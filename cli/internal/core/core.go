@@ -1780,23 +1780,6 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(_ context.Context, userID, subject
 	}
 }
 
-// PublishServerConfigUpdated publishes an server config update event.
-// This notifies all connected clients that the server configuration has changed.
-func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID string, serverName, motd, welcomeMessage, blockedUsernames string) error {
-	event := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_ConfigUpdated{
-			ConfigUpdated: &corev1.ServerConfigUpdatedEvent{
-				ServerName:       serverName,
-				Motd:             motd,
-				WelcomeMessage:   welcomeMessage,
-				BlockedUsernames: blockedUsernames,
-			},
-		},
-	})
-
-	return c.publishLiveEvent(ctx, subjects.LiveSyncConfigEvent("updated"), event)
-}
-
 // ============================================================================
 // Statistics
 // ============================================================================

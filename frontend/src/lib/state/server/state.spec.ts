@@ -134,6 +134,34 @@ describe('ServerInfoState.init()', () => {
     expect(state.messageEditWindowSeconds).toBe(7200);
   });
 
+  it('refreshes profile fields without toggling initial loading state', async () => {
+    const client = makeClient({
+      data: {
+        server: {
+          directRegistrationEnabled: true,
+          profile: {
+            name: 'Fresh',
+            welcomeMessage: 'fresh welcome',
+            description: 'fresh description',
+            logoUrl: 'https://fresh-icon',
+            bannerUrl: 'https://fresh-banner'
+          }
+        }
+      }
+    });
+    const state = new ServerInfoState(client, 'https://fresh.test');
+    state.loading = false;
+
+    await state.refreshProfile();
+
+    expect(state.loading).toBe(false);
+    expect(state.name).toBe('Fresh');
+    expect(state.welcomeMessage).toBe('fresh welcome');
+    expect(state.description).toBe('fresh description');
+    expect(state.iconUrl).toBe('https://fresh-icon');
+    expect(state.bannerUrl).toBe('https://fresh-banner');
+  });
+
   it('logs and sets error when urql returns a network error (CORS/unreachable)', async () => {
     const client = makeClient({
       error: {

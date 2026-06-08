@@ -26,11 +26,11 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** Partial-update semantics let UI forms send only changed fields without GET-then-PUT round-trips and without overwriting other fields with whatever defaults the form thinks they should be. It also makes API clients (CLI tools, scripts) safer.
 **Tradeoff:** Two ways to "clear" a string field: empty-string vs unset. The API treats empty string as a clear and nil as "leave alone". Documented; consistent across all string fields.
 
-### 2. Config changes broadcast as public live events
+### 2. Public profile/config changes broadcast as one live event
 
-**Decision:** Changes publish transient `LiveEvent` messages to `live.sync.config.*` and are delivered to every authenticated user.
-**Why:** Server name, MOTD, logo — these are visible everywhere in the UI. Without live delivery, every member would see stale branding until refresh. The events have no privacy concern (everyone sees branding equally) so a broad broadcast is correct. See ADR-012.
-**Tradeoff:** Every connected client gets every config change event, including ones for fields they may not render. Volume is low (operators don't tweak branding constantly) so this is fine.
+**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated` and are delivered to every authenticated user. Clients treat the event as a refetch signal for `Server.profile` and related authenticated settings they display.
+**Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One event keeps profile/config live behavior clear and avoids duplicate broadcasts from text updates.
+**Tradeoff:** Every connected client gets every public profile/config change event, including fields they may not render. Volume is low (operators don't tweak branding constantly) so this is fine.
 
 ### 3. Logo and banner have their own upload mutations
 
@@ -53,7 +53,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 ### 6. Blocked usernames as a dedicated security mutation
 
 **Decision:** The blocked-usernames list is stored with server config, but edited through `admin.updateBlockedUsernames` rather than the general `updateServerConfig` mutation.
-**Why:** The data is part of runtime config, but the workflow is a security/admin control rather than presentation copy. A dedicated mutation keeps the API boundary clear without introducing a full CRUD surface for a small newline-separated list.
+**Why:** The data is part of runtime config, but the workflow is a security/admin control rather than presentation copy. A dedicated mutation keeps the API boundary clear without introducing a full CRUD surface for a small newline-separated list. Blocked-username edits do not publish a member-visible live event; admins receive the updated value from the mutation response and future admin reads.
 **Tradeoff:** Operators still edit the list as a text area, so very large lists could become awkward. None of the live deployments have lists big enough for this to matter.
 
 ### 7. Runtime text config has fixed size caps

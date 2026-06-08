@@ -849,80 +849,6 @@ func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
 	return ""
 }
 
-// Notifies clients that server configuration was updated.
-// Clients should refetch server info to get the new values.
-type ServerConfigUpdatedEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The updated server name
-	ServerName string `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
-	// The updated MOTD (empty if cleared)
-	Motd string `protobuf:"bytes,2,opt,name=motd,proto3" json:"motd,omitempty"`
-	// The updated welcome message (empty if cleared)
-	WelcomeMessage string `protobuf:"bytes,3,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
-	// The updated blocked usernames (newline-separated, empty if cleared)
-	BlockedUsernames string `protobuf:"bytes,4,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *ServerConfigUpdatedEvent) Reset() {
-	*x = ServerConfigUpdatedEvent{}
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ServerConfigUpdatedEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ServerConfigUpdatedEvent) ProtoMessage() {}
-
-func (x *ServerConfigUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ServerConfigUpdatedEvent.ProtoReflect.Descriptor instead.
-func (*ServerConfigUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *ServerConfigUpdatedEvent) GetServerName() string {
-	if x != nil {
-		return x.ServerName
-	}
-	return ""
-}
-
-func (x *ServerConfigUpdatedEvent) GetMotd() string {
-	if x != nil {
-		return x.Motd
-	}
-	return ""
-}
-
-func (x *ServerConfigUpdatedEvent) GetWelcomeMessage() string {
-	if x != nil {
-		return x.WelcomeMessage
-	}
-	return ""
-}
-
-func (x *ServerConfigUpdatedEvent) GetBlockedUsernames() string {
-	if x != nil {
-		return x.BlockedUsernames
-	}
-	return ""
-}
-
 var File_chatto_core_v1_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_config_events_proto_rawDesc = "" +
@@ -968,13 +894,7 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"Y\n" +
 	"%UserRoomNotificationLevelClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xa5\x01\n" +
-	"\x18ServerConfigUpdatedEvent\x12\x1f\n" +
-	"\vserver_name\x18\x01 \x01(\tR\n" +
-	"serverName\x12\x12\n" +
-	"\x04motd\x18\x02 \x01(\tR\x04motd\x12'\n" +
-	"\x0fwelcome_message\x18\x03 \x01(\tR\x0ewelcomeMessage\x12+\n" +
-	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernamesB\xb4\x01\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdB\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ConfigEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -989,7 +909,7 @@ func file_chatto_core_v1_config_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_config_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*ServerConfigChangedEvent)(nil),                // 0: chatto.core.v1.ServerConfigChangedEvent
 	(*ServerNameChangedEvent)(nil),                  // 1: chatto.core.v1.ServerNameChangedEvent
@@ -1009,19 +929,18 @@ var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*UserServerNotificationLevelClearedEvent)(nil), // 15: chatto.core.v1.UserServerNotificationLevelClearedEvent
 	(*UserRoomNotificationLevelSetEvent)(nil),       // 16: chatto.core.v1.UserRoomNotificationLevelSetEvent
 	(*UserRoomNotificationLevelClearedEvent)(nil),   // 17: chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	(*ServerConfigUpdatedEvent)(nil),                // 18: chatto.core.v1.ServerConfigUpdatedEvent
-	(*v1.ServerConfig)(nil),                         // 19: chatto.config.v1.ServerConfig
-	(*DeprecatedAsset)(nil),                         // 20: chatto.core.v1.DeprecatedAsset
-	(TimeFormat)(0),                                 // 21: chatto.core.v1.TimeFormat
-	(NotificationLevel)(0),                          // 22: chatto.core.v1.NotificationLevel
+	(*v1.ServerConfig)(nil),                         // 18: chatto.config.v1.ServerConfig
+	(*DeprecatedAsset)(nil),                         // 19: chatto.core.v1.DeprecatedAsset
+	(TimeFormat)(0),                                 // 20: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                          // 21: chatto.core.v1.NotificationLevel
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
-	19, // 0: chatto.core.v1.ServerConfigChangedEvent.config:type_name -> chatto.config.v1.ServerConfig
-	20, // 1: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.DeprecatedAsset
-	20, // 2: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.DeprecatedAsset
-	21, // 3: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
-	22, // 4: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	22, // 5: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	18, // 0: chatto.core.v1.ServerConfigChangedEvent.config:type_name -> chatto.config.v1.ServerConfig
+	19, // 1: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.DeprecatedAsset
+	19, // 2: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.DeprecatedAsset
+	20, // 3: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	21, // 4: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	21, // 5: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
 	6,  // [6:6] is the sub-list for method output_type
 	6,  // [6:6] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -1042,7 +961,7 @@ func file_chatto_core_v1_config_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_config_events_proto_rawDesc), len(file_chatto_core_v1_config_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

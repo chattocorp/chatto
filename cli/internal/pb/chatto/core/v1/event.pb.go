@@ -1049,10 +1049,9 @@ type Event_AssetDeleted struct {
 
 type Event_ServerConfigChanged struct {
 	// ----- Config / preferences (500-599, durable) -----
-	// Distinct from ServerConfigUpdatedEvent at 1000, which is the
-	// legacy live-only GraphQL adapter payload. The durable variants
-	// below live on the EVT stream (subjects under evt.config.>) per
-	// ADRs 033/034/035.
+	// These variants live on the EVT stream (subjects under evt.config.>)
+	// per ADRs 033/034/035. Member-visible server profile/config live
+	// invalidation uses LiveEvent.ServerUpdatedEvent instead.
 	ServerConfigChanged *ServerConfigChangedEvent `protobuf:"bytes,500,opt,name=server_config_changed,json=serverConfigChanged,proto3,oneof"` // legacy snapshot event, decode-only.
 }
 

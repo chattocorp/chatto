@@ -39,7 +39,6 @@ type LiveEvent struct {
 	ActorId string `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	// Types that are valid to be assigned to Event:
 	//
-	//	*LiveEvent_ConfigUpdated
 	//	*LiveEvent_UserCreated
 	//	*LiveEvent_UserDeleted
 	//	*LiveEvent_UserProfileUpdated
@@ -120,15 +119,6 @@ func (x *LiveEvent) GetActorId() string {
 func (x *LiveEvent) GetEvent() isLiveEvent_Event {
 	if x != nil {
 		return x.Event
-	}
-	return nil
-}
-
-func (x *LiveEvent) GetConfigUpdated() *ServerConfigUpdatedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*LiveEvent_ConfigUpdated); ok {
-			return x.ConfigUpdated
-		}
 	}
 	return nil
 }
@@ -326,11 +316,6 @@ type isLiveEvent_Event interface {
 	isLiveEvent_Event()
 }
 
-type LiveEvent_ConfigUpdated struct {
-	// ----- Server config -----
-	ConfigUpdated *ServerConfigUpdatedEvent `protobuf:"bytes,10,opt,name=config_updated,json=configUpdated,proto3,oneof"`
-}
-
 type LiveEvent_UserCreated struct {
 	// ----- User lifecycle / preferences -----
 	UserCreated *UserCreatedEvent `protobuf:"bytes,20,opt,name=user_created,json=userCreated,proto3,oneof"`
@@ -424,8 +409,6 @@ type LiveEvent_SessionTerminated struct {
 	// ----- Session termination -----
 	SessionTerminated *SessionTerminatedEvent `protobuf:"bytes,100,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
 }
-
-func (*LiveEvent_ConfigUpdated) isLiveEvent_Event() {}
 
 func (*LiveEvent_UserCreated) isLiveEvent_Event() {}
 
@@ -1519,14 +1502,12 @@ var File_chatto_core_v1_live_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/live_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"chatto/core/v1/config_events.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\x86\x11\n" +
+	" chatto/core/v1/live_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\xc9\x10\n" +
 	"\tLiveEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
-	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12Q\n" +
-	"\x0econfig_updated\x18\n" +
-	" \x01(\v2(.chatto.core.v1.ServerConfigUpdatedEventH\x00R\rconfigUpdated\x12E\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12E\n" +
 	"\fuser_created\x18\x14 \x01(\v2 .chatto.core.v1.UserCreatedEventH\x00R\vuserCreated\x12E\n" +
 	"\fuser_deleted\x18\x15 \x01(\v2 .chatto.core.v1.UserDeletedEventH\x00R\vuserDeleted\x12[\n" +
 	"\x14user_profile_updated\x18\x16 \x01(\v2'.chatto.core.v1.UserProfileUpdatedEventH\x00R\x12userProfileUpdated\x12z\n" +
@@ -1549,7 +1530,8 @@ const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\x16mention_status_cleared\x18Q \x01(\v2).chatto.core.v1.MentionStatusClearedEventH\x00R\x14mentionStatusCleared\x12X\n" +
 	"\x13room_groups_updated\x18Z \x01(\v2&.chatto.core.v1.RoomGroupsUpdatedEventH\x00R\x11roomGroupsUpdated\x12W\n" +
 	"\x12session_terminated\x18d \x01(\v2&.chatto.core.v1.SessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
-	"\x05event\"\x10\n" +
+	"\x05eventJ\x04\b\n" +
+	"\x10\vR\x0econfig_updated\"\x10\n" +
 	"\x0eHeartbeatEvent\"\xcd\x01\n" +
 	"\x1dNotificationLevelChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x127\n" +
@@ -1644,45 +1626,43 @@ var file_chatto_core_v1_live_events_proto_goTypes = []any{
 	(*CallParticipantJoinedEvent)(nil),        // 18: chatto.core.v1.CallParticipantJoinedEvent
 	(*CallParticipantLeftEvent)(nil),          // 19: chatto.core.v1.CallParticipantLeftEvent
 	(*timestamppb.Timestamp)(nil),             // 20: google.protobuf.Timestamp
-	(*ServerConfigUpdatedEvent)(nil),          // 21: chatto.core.v1.ServerConfigUpdatedEvent
-	(*UserCreatedEvent)(nil),                  // 22: chatto.core.v1.UserCreatedEvent
-	(*UserDeletedEvent)(nil),                  // 23: chatto.core.v1.UserDeletedEvent
-	(*UserProfileUpdatedEvent)(nil),           // 24: chatto.core.v1.UserProfileUpdatedEvent
-	(*ServerUserPreferencesUpdatedEvent)(nil), // 25: chatto.core.v1.ServerUserPreferencesUpdatedEvent
-	(*SpaceMemberDeletedEvent)(nil),           // 26: chatto.core.v1.SpaceMemberDeletedEvent
-	(NotificationLevel)(0),                    // 27: chatto.core.v1.NotificationLevel
+	(*UserCreatedEvent)(nil),                  // 21: chatto.core.v1.UserCreatedEvent
+	(*UserDeletedEvent)(nil),                  // 22: chatto.core.v1.UserDeletedEvent
+	(*UserProfileUpdatedEvent)(nil),           // 23: chatto.core.v1.UserProfileUpdatedEvent
+	(*ServerUserPreferencesUpdatedEvent)(nil), // 24: chatto.core.v1.ServerUserPreferencesUpdatedEvent
+	(*SpaceMemberDeletedEvent)(nil),           // 25: chatto.core.v1.SpaceMemberDeletedEvent
+	(NotificationLevel)(0),                    // 26: chatto.core.v1.NotificationLevel
 }
 var file_chatto_core_v1_live_events_proto_depIdxs = []int32{
 	20, // 0: chatto.core.v1.LiveEvent.created_at:type_name -> google.protobuf.Timestamp
-	21, // 1: chatto.core.v1.LiveEvent.config_updated:type_name -> chatto.core.v1.ServerConfigUpdatedEvent
-	22, // 2: chatto.core.v1.LiveEvent.user_created:type_name -> chatto.core.v1.UserCreatedEvent
-	23, // 3: chatto.core.v1.LiveEvent.user_deleted:type_name -> chatto.core.v1.UserDeletedEvent
-	24, // 4: chatto.core.v1.LiveEvent.user_profile_updated:type_name -> chatto.core.v1.UserProfileUpdatedEvent
-	25, // 5: chatto.core.v1.LiveEvent.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
-	2,  // 6: chatto.core.v1.LiveEvent.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
-	12, // 7: chatto.core.v1.LiveEvent.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
-	26, // 8: chatto.core.v1.LiveEvent.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
-	4,  // 9: chatto.core.v1.LiveEvent.server_updated:type_name -> chatto.core.v1.ServerUpdatedEvent
-	6,  // 10: chatto.core.v1.LiveEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
-	17, // 11: chatto.core.v1.LiveEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
-	7,  // 12: chatto.core.v1.LiveEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
-	8,  // 13: chatto.core.v1.LiveEvent.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
-	9,  // 14: chatto.core.v1.LiveEvent.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
-	18, // 15: chatto.core.v1.LiveEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
-	19, // 16: chatto.core.v1.LiveEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
-	10, // 17: chatto.core.v1.LiveEvent.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
-	11, // 18: chatto.core.v1.LiveEvent.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
-	13, // 19: chatto.core.v1.LiveEvent.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
-	14, // 20: chatto.core.v1.LiveEvent.mention_status_cleared:type_name -> chatto.core.v1.MentionStatusClearedEvent
-	15, // 21: chatto.core.v1.LiveEvent.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
-	16, // 22: chatto.core.v1.LiveEvent.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
-	27, // 23: chatto.core.v1.NotificationLevelChangedEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	27, // 24: chatto.core.v1.NotificationLevelChangedEvent.effective_level:type_name -> chatto.core.v1.NotificationLevel
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	21, // 1: chatto.core.v1.LiveEvent.user_created:type_name -> chatto.core.v1.UserCreatedEvent
+	22, // 2: chatto.core.v1.LiveEvent.user_deleted:type_name -> chatto.core.v1.UserDeletedEvent
+	23, // 3: chatto.core.v1.LiveEvent.user_profile_updated:type_name -> chatto.core.v1.UserProfileUpdatedEvent
+	24, // 4: chatto.core.v1.LiveEvent.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
+	2,  // 5: chatto.core.v1.LiveEvent.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
+	12, // 6: chatto.core.v1.LiveEvent.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
+	25, // 7: chatto.core.v1.LiveEvent.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
+	4,  // 8: chatto.core.v1.LiveEvent.server_updated:type_name -> chatto.core.v1.ServerUpdatedEvent
+	6,  // 9: chatto.core.v1.LiveEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
+	17, // 10: chatto.core.v1.LiveEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
+	7,  // 11: chatto.core.v1.LiveEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
+	8,  // 12: chatto.core.v1.LiveEvent.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
+	9,  // 13: chatto.core.v1.LiveEvent.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
+	18, // 14: chatto.core.v1.LiveEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
+	19, // 15: chatto.core.v1.LiveEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
+	10, // 16: chatto.core.v1.LiveEvent.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
+	11, // 17: chatto.core.v1.LiveEvent.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
+	13, // 18: chatto.core.v1.LiveEvent.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
+	14, // 19: chatto.core.v1.LiveEvent.mention_status_cleared:type_name -> chatto.core.v1.MentionStatusClearedEvent
+	15, // 20: chatto.core.v1.LiveEvent.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
+	16, // 21: chatto.core.v1.LiveEvent.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
+	26, // 22: chatto.core.v1.NotificationLevelChangedEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	26, // 23: chatto.core.v1.NotificationLevelChangedEvent.effective_level:type_name -> chatto.core.v1.NotificationLevel
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_live_events_proto_init() }
@@ -1690,12 +1670,10 @@ func file_chatto_core_v1_live_events_proto_init() {
 	if File_chatto_core_v1_live_events_proto != nil {
 		return
 	}
-	file_chatto_core_v1_config_events_proto_init()
 	file_chatto_core_v1_room_events_proto_init()
 	file_chatto_core_v1_user_events_proto_init()
 	file_chatto_core_v1_user_preferences_proto_init()
 	file_chatto_core_v1_live_events_proto_msgTypes[0].OneofWrappers = []any{
-		(*LiveEvent_ConfigUpdated)(nil),
 		(*LiveEvent_UserCreated)(nil),
 		(*LiveEvent_UserDeleted)(nil),
 		(*LiveEvent_UserProfileUpdated)(nil),

@@ -757,12 +757,6 @@ type ComplexityRoot struct {
 		ViewerPermissions            func(childComplexity int) int
 	}
 
-	ServerConfigUpdatedEvent struct {
-		Motd           func(childComplexity int) int
-		ServerName     func(childComplexity int) int
-		WelcomeMessage func(childComplexity int) int
-	}
-
 	ServerMemberDeletedEvent struct {
 		UserId func(childComplexity int) int
 	}
@@ -4641,25 +4635,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.ViewerPermissions(childComplexity), true
-
-	case "ServerConfigUpdatedEvent.motd":
-		if e.ComplexityRoot.ServerConfigUpdatedEvent.Motd == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfigUpdatedEvent.Motd(childComplexity), true
-	case "ServerConfigUpdatedEvent.serverName":
-		if e.ComplexityRoot.ServerConfigUpdatedEvent.ServerName == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfigUpdatedEvent.ServerName(childComplexity), true
-	case "ServerConfigUpdatedEvent.welcomeMessage":
-		if e.ComplexityRoot.ServerConfigUpdatedEvent.WelcomeMessage == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServerConfigUpdatedEvent.WelcomeMessage(childComplexity), true
 
 	case "ServerMemberDeletedEvent.userId":
 		if e.ComplexityRoot.ServerMemberDeletedEvent.UserId == nil {
@@ -21757,75 +21732,6 @@ func (ec *executionContext) fieldContext_Server_userEffectiveDenials(ctx context
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerConfigUpdatedEvent_serverName(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerConfigUpdatedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfigUpdatedEvent_serverName(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.ServerName, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfigUpdatedEvent_serverName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfigUpdatedEvent", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServerConfigUpdatedEvent_motd(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerConfigUpdatedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfigUpdatedEvent_motd(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Motd, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalOString2string(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfigUpdatedEvent_motd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfigUpdatedEvent", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServerConfigUpdatedEvent_welcomeMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerConfigUpdatedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServerConfigUpdatedEvent_welcomeMessage(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.WelcomeMessage, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalOString2string(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServerConfigUpdatedEvent_welcomeMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServerConfigUpdatedEvent", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
 func (ec *executionContext) _ServerMemberDeletedEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceMemberDeletedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -28995,11 +28901,6 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._ServerMemberDeletedEvent(ctx, sel, obj)
-	case *corev1.ServerConfigUpdatedEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._ServerConfigUpdatedEvent(ctx, sel, obj)
 	case *corev1.RoomUpdatedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -38407,49 +38308,6 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var serverConfigUpdatedEventImplementors = []string{"ServerConfigUpdatedEvent", "EventType"}
-
-func (ec *executionContext) _ServerConfigUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ServerConfigUpdatedEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, serverConfigUpdatedEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ServerConfigUpdatedEvent")
-		case "serverName":
-			out.Values[i] = ec._ServerConfigUpdatedEvent_serverName(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "motd":
-			out.Values[i] = ec._ServerConfigUpdatedEvent_motd(ctx, field, obj)
-		case "welcomeMessage":
-			out.Values[i] = ec._ServerConfigUpdatedEvent_welcomeMessage(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

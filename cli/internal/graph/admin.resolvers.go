@@ -35,7 +35,7 @@ func (r *adminMutationsResolver) UpdateBlockedUsernames(ctx context.Context, obj
 	}
 
 	configMgr := r.core.ConfigManager()
-	cfg, err := configMgr.UpdateServerConfigFunc(ctx, user.Id, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	_, err = configMgr.UpdateServerConfigFunc(ctx, user.Id, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
@@ -45,14 +45,6 @@ func (r *adminMutationsResolver) UpdateBlockedUsernames(ctx context.Context, obj
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to update blocked usernames: %w", err)
-	}
-
-	effectiveName := cfg.ServerName
-	if effectiveName == "" {
-		effectiveName = "Chatto"
-	}
-	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
-		r.logger.Warn("Failed to publish server config update event", "error", err)
 	}
 
 	blockedUsernames, err := configMgr.GetEffectiveBlockedUsernames(ctx)
@@ -331,14 +323,7 @@ func (r *mutationResolver) UpdateServerConfig(ctx context.Context, input model.U
 		return nil, fmt.Errorf("failed to update server config: %w", err)
 	}
 
-	effectiveName := cfg.ServerName
-	if effectiveName == "" {
-		effectiveName = "Chatto"
-	}
-	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
-		r.logger.Warn("Failed to publish server config update event", "error", err)
-	}
-	r.core.PublishServerBrandingUpdate(ctx, user.Id)
+	r.core.PublishServerUpdated(ctx, user.Id)
 
 	return publicServerConfigToModel(cfg), nil
 }

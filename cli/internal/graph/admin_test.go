@@ -3,9 +3,14 @@ package graph
 import (
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -142,6 +147,28 @@ func TestUpdateServerConfig_AdminUserCanUpdateWelcomeMessage(t *testing.T) {
 	})
 }
 
+func TestUpdateServerConfig_PublishesSingleServerUpdatedLiveEvent(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	events, cleanup := subscribeServerUpdatedLiveEvents(t, env.nc)
+	defer cleanup()
+
+	serverName := "Live Config Server"
+	motd := "Live config MOTD"
+	_, err := env.resolver.Mutation().UpdateServerConfig(env.authContext(), model.UpdateServerConfigInput{
+		ServerName: &serverName,
+		Motd:       &motd,
+	})
+	if err != nil {
+		t.Fatalf("UpdateServerConfig: %v", err)
+	}
+
+	event := expectServerUpdatedLiveEvent(t, events)
+	if got := event.GetServerUpdated().GetName(); got != serverName {
+		t.Fatalf("ServerUpdatedEvent.name = %q, want %q", got, serverName)
+	}
+	expectNoServerUpdatedLiveEvent(t, events)
+}
+
 func TestUpdateBlockedUsernames_Authorization(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 	adminMutations := env.resolver.AdminMutations()
@@ -184,9 +211,79 @@ func TestUpdateBlockedUsernames_Authorization(t *testing.T) {
 	})
 }
 
+func TestUpdateBlockedUsernames_DoesNotPublishMemberVisibleLiveEvent(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	adminMutations := env.resolver.AdminMutations()
+	events, cleanup := subscribeServerUpdatedLiveEvents(t, env.nc)
+	defer cleanup()
+
+	blocked := "secret-admin-only\nreserved"
+	result, err := adminMutations.UpdateBlockedUsernames(env.authContext(), &model.AdminMutations{}, model.UpdateBlockedUsernamesInput{
+		BlockedUsernames: blocked,
+	})
+	if err != nil {
+		t.Fatalf("UpdateBlockedUsernames: %v", err)
+	}
+	if result != blocked {
+		t.Fatalf("blocked usernames result = %q, want %q", result, blocked)
+	}
+	expectNoServerUpdatedLiveEvent(t, events)
+}
+
 // ============================================================================
 // AdminMutations.UpdateUser / ClearUsernameCooldown Tests
 // ============================================================================
+
+func subscribeServerUpdatedLiveEvents(t *testing.T, nc *nats.Conn) (<-chan *corev1.LiveEvent, func()) {
+	t.Helper()
+
+	events := make(chan *corev1.LiveEvent, 4)
+	sub, err := nc.Subscribe(subjects.LiveSyncConfigEvent("server_updated"), func(msg *nats.Msg) {
+		var event corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
+			t.Errorf("failed to unmarshal live event: %v", err)
+			return
+		}
+		events <- &event
+	})
+	if err != nil {
+		t.Fatalf("Subscribe(server_updated): %v", err)
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	return events, func() {
+		if err := sub.Unsubscribe(); err != nil {
+			t.Errorf("Unsubscribe(server_updated): %v", err)
+		}
+	}
+}
+
+func expectServerUpdatedLiveEvent(t *testing.T, events <-chan *corev1.LiveEvent) *corev1.LiveEvent {
+	t.Helper()
+
+	select {
+	case event := <-events:
+		if event.GetServerUpdated() == nil {
+			t.Fatalf("expected ServerUpdatedEvent, got %T", event.GetEvent())
+		}
+		return event
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for ServerUpdatedEvent")
+		return nil
+	}
+}
+
+func expectNoServerUpdatedLiveEvent(t *testing.T, events <-chan *corev1.LiveEvent) {
+	t.Helper()
+
+	select {
+	case event := <-events:
+		t.Fatalf("unexpected ServerUpdatedEvent: %+v", event.GetServerUpdated())
+	case <-time.After(200 * time.Millisecond):
+	}
+}
 
 // TestAdminUpdateUser_Authorization verifies authorization, role-hierarchy
 // enforcement, and config-admin bypass for the admin user-management

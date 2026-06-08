@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
-import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
@@ -39,10 +38,10 @@ message LiveEvent {
   // ID of the user or system actor that triggered this signal.
   string actor_id = 3;
 
-  oneof event {
-    // ----- Server config -----
-    ServerConfigUpdatedEvent config_updated = 10;
+  reserved 10;
+  reserved "config_updated";
 
+  oneof event {
     // ----- User lifecycle / preferences -----
     UserCreatedEvent user_created = 20;
     UserDeletedEvent user_deleted = 21;

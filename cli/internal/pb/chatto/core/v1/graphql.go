@@ -38,7 +38,6 @@ func (*CallParticipantLeftEvent) IsEventType()      {}
 
 // Deployment-scoped events.
 
-func (*ServerConfigUpdatedEvent) IsEventType()          {}
 func (*UserCreatedEvent) IsEventType()                  {}
 func (*UserDeletedEvent) IsEventType()                  {}
 func (*UserProfileUpdatedEvent) IsEventType()           {}

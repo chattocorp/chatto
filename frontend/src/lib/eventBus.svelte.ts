@@ -153,11 +153,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
         }
         # Deployment-wide events.
-        ... on ServerConfigUpdatedEvent {
-          serverName
-          motd
-          welcomeMessage
-        }
         ... on ServerUpdatedEvent {
           name
           description

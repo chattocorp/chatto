@@ -344,7 +344,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
 | JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, historical replay, projection source of truth |
 | Room live-only              | NATS Core  | UserTyping, VideoProcessingCompleted, CallParticipantJoined, CallParticipantLeft | Ephemeral room notifications where another store/projection is source of truth |
-| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, ConfigUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
+| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
 The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`, and GraphQL exposes both through one `Event` envelope with typed payloads as members of the `EventType` union. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
 
@@ -426,8 +426,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.created`                        | User registration completed  |
 | `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast) |
 | `live.sync.user.{userId}.user_deleted`                   | User account deleted         |
-| `live.sync.config.updated`                               | Server config (name/MOTD/welcome) changed |
-| `live.sync.config.server_updated`                        | Server branding (name/logo/banner/description) changed |
+| `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
 | `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
 | `live.sync.user.{userId}.mentioned`                      | User was @mentioned          |
 | `live.sync.user.{userId}.dm_message`                     | New DM message received      |

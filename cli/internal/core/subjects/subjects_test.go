@@ -372,7 +372,7 @@ func TestLiveSubjects(t *testing.T) {
 		"LiveSyncAllEvents":   "live.sync.>",
 		"LiveSyncUserEvent":   "live.sync.user.U1.settings_updated",
 		"LiveSyncRoomEvent":   "live.sync.room.channel.R1.typing",
-		"LiveSyncConfigEvent": "live.sync.config.updated",
+		"LiveSyncConfigEvent": "live.sync.config.room_groups_updated",
 		"LiveSyncMember":      "live.sync.member.left",
 	}
 	got := map[string]string{

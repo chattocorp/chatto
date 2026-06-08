@@ -14,7 +14,6 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
 //   - 501-517: durable server/user configuration events on evt.config.*
-//   - 1000: legacy live-only config broadcast
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -99,16 +98,3 @@ message UserRoomNotificationLevelClearedEvent {
 
 // Notifies clients that server configuration was updated.
 // Clients should refetch server info to get the new values.
-message ServerConfigUpdatedEvent {
-  // The updated server name
-  string server_name = 1;
-
-  // The updated MOTD (empty if cleared)
-  string motd = 2;
-
-  // The updated welcome message (empty if cleared)
-  string welcome_message = 3;
-
-  // The updated blocked usernames (newline-separated, empty if cleared)
-  string blocked_usernames = 4;
-}

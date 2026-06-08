@@ -232,7 +232,7 @@
   useActiveEvent((event) => {
     if (!event.event) return; // Skip unknown event types for forward/backward compatibility
     if (event.event.__typename === 'ServerUpdatedEvent') {
-      spaceData = { ...spaceData!, name: event.event.name, bannerUrl: event.event.bannerUrl || null };
+      revalidationCounter++;
     }
   });
 

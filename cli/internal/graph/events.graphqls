@@ -57,8 +57,6 @@ union EventType =
   # Voice calls
   | CallParticipantJoinedEvent
   | CallParticipantLeftEvent
-  # Server config
-  | ServerConfigUpdatedEvent
   # User lifecycle
   | UserCreatedEvent
   | UserDeletedEvent
@@ -92,23 +90,6 @@ type ThreadCreatedEvent {
   roomId: ID!
   "The root message event ID that identifies the thread."
   threadRootEventId: ID!
-}
-
-# ==============================================================================
-# SERVER CONFIG EVENTS
-# ==============================================================================
-
-"""
-Event: Server configuration was updated.
-Clients should refetch server info to get the new values.
-"""
-type ServerConfigUpdatedEvent {
-  "The updated server name."
-  serverName: String!
-  "The updated MOTD (null if cleared)."
-  motd: String
-  "The updated welcome message (null if cleared)."
-  welcomeMessage: String
 }
 
 # ==============================================================================
@@ -180,7 +161,8 @@ type NotificationLevelChangedEvent {
 # ==============================================================================
 
 """
-Event: The server was updated.
+Event: Public server profile/configuration changed.
+Clients should refetch `Server.profile` and any authenticated server settings they display.
 """
 type ServerUpdatedEvent {
   "The server's updated name."

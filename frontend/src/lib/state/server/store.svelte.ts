@@ -135,6 +135,17 @@ export class ServerStateStore {
 				const handler: EventHandler = (event) => {
 					this.rooms.ingestServerEvent(event);
 					this.roomDirectory.ingestServerEvent(event);
+					if (event.event?.__typename === 'ServerUpdatedEvent') {
+						void this.serverInfo.refreshProfile();
+						if (this.currentUser.user) {
+							this.serverInfo.refreshAuthenticatedSettings().catch((err) => {
+								console.error(
+									`[server:${this.#registered.url}] failed to refresh authenticated server settings`,
+									err
+								);
+							});
+						}
+					}
 					if (event.event?.__typename === 'RoomGroupsUpdatedEvent') {
 						void this.rooms.refresh();
 						this.roomDirectory.ingestRoomLayoutUpdated();

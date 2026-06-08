@@ -100,8 +100,6 @@ func unwrapLiveEvent(event *corev1.LiveEvent) any {
 	}
 
 	switch e := event.Event.(type) {
-	case *corev1.LiveEvent_ConfigUpdated:
-		return e.ConfigUpdated
 	case *corev1.LiveEvent_UserCreated:
 		return e.UserCreated
 	case *corev1.LiveEvent_UserDeleted:

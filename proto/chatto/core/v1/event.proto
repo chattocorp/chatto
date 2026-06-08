@@ -103,10 +103,9 @@ message Event {
     AssetDeletedEvent asset_deleted = 454;
 
     // ----- Config / preferences (500-599, durable) -----
-    // Distinct from ServerConfigUpdatedEvent at 1000, which is the
-    // legacy live-only GraphQL adapter payload. The durable variants
-    // below live on the EVT stream (subjects under evt.config.>) per
-    // ADRs 033/034/035.
+    // These variants live on the EVT stream (subjects under evt.config.>)
+    // per ADRs 033/034/035. Member-visible server profile/config live
+    // invalidation uses LiveEvent.ServerUpdatedEvent instead.
     ServerConfigChangedEvent server_config_changed = 500; // legacy snapshot event, decode-only.
     ServerNameChangedEvent server_name_changed = 501;
     ServerDescriptionChangedEvent server_description_changed = 502;

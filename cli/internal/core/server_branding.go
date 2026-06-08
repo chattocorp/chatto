@@ -149,7 +149,7 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 	if oldAsset != nil {
 		c.deleteAsset(ctx, oldAsset, kind, "server")
 	}
-	c.PublishServerBrandingUpdate(ctx, actorID)
+	c.PublishServerUpdated(ctx, actorID)
 	c.logger.Info("Updated server "+kind, "asset_id", assetIDFromAsset(asset))
 	return nil
 }
@@ -265,15 +265,18 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kin
 		return nil
 	}
 	c.deleteAsset(ctx, asset, kind, "server")
-	c.PublishServerBrandingUpdate(ctx, actorID)
+	c.PublishServerUpdated(ctx, actorID)
 	c.logger.Info("Deleted server " + kind)
 	return nil
 }
 
-// PublishServerBrandingUpdate publishes a ServerUpdatedEvent carrying the
-// current name + logo + banner from server-scoped storage. Best-effort: a
-// publish failure does not roll back the underlying config change.
-func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID string) {
+// PublishServerUpdated publishes the member-visible server profile/config
+// refresh signal. It carries only public presentation fields; clients should
+// treat arrival as a refetch trigger for Server.profile.
+//
+// Best-effort: a publish failure does not roll back the underlying config
+// change.
+func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 	name := ""
 	description := ""
 	if cm := c.ConfigManager(); cm != nil {

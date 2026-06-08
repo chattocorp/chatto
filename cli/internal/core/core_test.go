@@ -892,7 +892,7 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 	ctx := testContext(t)
 
 	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
-		Subject: "live.sync.config.updated",
+		Subject: "live.sync.config.server_updated",
 	}, &corev1.LiveEvent{
 		Id:      "LIVE-empty",
 		ActorId: "U1",
