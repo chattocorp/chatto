@@ -708,7 +708,7 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 }
 
 // Count is the resolver for the count field.
-func (r *reactionResolver) Count(ctx context.Context, obj *core.ReactionSummary) (int32, error) {
+func (r *reactionSummaryResolver) Count(ctx context.Context, obj *core.ReactionSummary) (int32, error) {
 	if obj == nil {
 		return 0, nil
 	}
@@ -716,7 +716,7 @@ func (r *reactionResolver) Count(ctx context.Context, obj *core.ReactionSummary)
 }
 
 // Users is the resolver for the users field.
-func (r *reactionResolver) Users(ctx context.Context, obj *core.ReactionSummary, first *int32) ([]*corev1.User, error) {
+func (r *reactionSummaryResolver) Users(ctx context.Context, obj *core.ReactionSummary, first *int32) ([]*corev1.User, error) {
 	if obj == nil || len(obj.UserIDs) == 0 {
 		return []*corev1.User{}, nil
 	}
@@ -741,7 +741,7 @@ func (r *reactionResolver) Users(ctx context.Context, obj *core.ReactionSummary,
 }
 
 // HasReacted is the resolver for the hasReacted field.
-func (r *reactionResolver) HasReacted(ctx context.Context, obj *core.ReactionSummary) (bool, error) {
+func (r *reactionSummaryResolver) HasReacted(ctx context.Context, obj *core.ReactionSummary) (bool, error) {
 	currentUser := auth.ForContext(ctx)
 	if currentUser == nil || obj == nil {
 		return false, nil
@@ -910,8 +910,8 @@ func (r *Resolver) PresenceChangedEvent() PresenceChangedEventResolver {
 	return &presenceChangedEventResolver{r}
 }
 
-// Reaction returns ReactionResolver implementation.
-func (r *Resolver) Reaction() ReactionResolver { return &reactionResolver{r} }
+// ReactionSummary returns ReactionSummaryResolver implementation.
+func (r *Resolver) ReactionSummary() ReactionSummaryResolver { return &reactionSummaryResolver{r} }
 
 // RoomCreatedEvent returns RoomCreatedEventResolver implementation.
 func (r *Resolver) RoomCreatedEvent() RoomCreatedEventResolver { return &roomCreatedEventResolver{r} }
@@ -964,7 +964,7 @@ type messageRetractedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
-type reactionResolver struct{ *Resolver }
+type reactionSummaryResolver struct{ *Resolver }
 type roomCreatedEventResolver struct{ *Resolver }
 type roomGroupsUpdatedEventResolver struct{ *Resolver }
 type roomUpdatedEventResolver struct{ *Resolver }

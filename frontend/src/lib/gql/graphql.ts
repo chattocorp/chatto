@@ -904,8 +904,8 @@ export type MessagePostedEvent = {
   lastReplyAt?: Maybe<Scalars['Time']['output']>;
   /** Link preview for the first URL in the message body. */
   linkPreview?: Maybe<LinkPreview>;
-  /** Emoji reactions on this message, aggregated by emoji. */
-  reactions: Array<Reaction>;
+  /** Emoji reaction summaries on this message, aggregated by emoji. */
+  reactions: Array<ReactionSummary>;
   /** Number of replies in this thread (0 for non-root messages or messages without replies). */
   replyCount: Scalars['Int']['output'];
   /** The ID of the room where the message was posted. */
@@ -2124,31 +2124,6 @@ export type QueryUserPermissionMatrixArgs = {
   userId: Scalars['ID']['input'];
 };
 
-/**
- * A reaction represents emoji responses to a message, aggregated by emoji type.
- * Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
- */
-export type Reaction = {
-  __typename?: 'Reaction';
-  /** Total number of users who reacted with this emoji. */
-  count: Scalars['Int']['output'];
-  /** The emoji shortcode name (e.g., "thumbsup", "heart"). */
-  emoji: Scalars['String']['output'];
-  /** Whether the current user has reacted with this emoji. */
-  hasReacted: Scalars['Boolean']['output'];
-  /** Preview of users who reacted with this emoji (default 3, max 10). */
-  users: Array<User>;
-};
-
-
-/**
- * A reaction represents emoji responses to a message, aggregated by emoji type.
- * Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
- */
-export type ReactionUsersArgs = {
-  first?: InputMaybe<Scalars['Int']['input']>;
-};
-
 /** Event: A reaction was added to a message */
 export type ReactionAddedEvent = {
   __typename?: 'ReactionAddedEvent';
@@ -2169,6 +2144,31 @@ export type ReactionRemovedEvent = {
   messageEventId: Scalars['ID']['output'];
   /** The ID of the room containing the message. */
   roomId: Scalars['ID']['output'];
+};
+
+/**
+ * A reaction summary represents emoji responses to a message, aggregated by emoji type.
+ * Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
+ */
+export type ReactionSummary = {
+  __typename?: 'ReactionSummary';
+  /** Total number of users who reacted with this emoji. */
+  count: Scalars['Int']['output'];
+  /** The emoji shortcode name (e.g., "thumbsup", "heart"). */
+  emoji: Scalars['String']['output'];
+  /** Whether the current user has reacted with this emoji. */
+  hasReacted: Scalars['Boolean']['output'];
+  /** Preview of users who reacted with this emoji (default 3, max 10). */
+  users: Array<User>;
+};
+
+
+/**
+ * A reaction summary represents emoji responses to a message, aggregated by emoji type.
+ * Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
+ */
+export type ReactionSummaryUsersArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** Input for removing an emoji reaction from a message. */
@@ -4016,7 +4016,7 @@ export type MyServerEventsSubscription = { __typename?: 'Subscription', myEvents
         )>, linkPreview?: (
           { __typename?: 'LinkPreview' }
           & { ' $fragmentRefs'?: { 'LinkPreviewViewFragment': LinkPreviewViewFragment } }
-        ) | null, reactions: Array<{ __typename?: 'Reaction', emoji: string, count: number, hasReacted: boolean, users: Array<{ __typename?: 'User', id: string, displayName: string }> }>, threadParticipants: Array<(
+        ) | null, reactions: Array<{ __typename?: 'ReactionSummary', emoji: string, count: number, hasReacted: boolean, users: Array<{ __typename?: 'User', id: string, displayName: string }> }>, threadParticipants: Array<(
           { __typename?: 'User' }
           & { ' $fragmentRefs'?: { 'UserAvatarUserFragment': UserAvatarUserFragment } }
         )> }
@@ -4434,7 +4434,7 @@ export type RoomEventViewFragment = { __typename?: 'Event', id: string, createdA
       )>, linkPreview?: (
         { __typename?: 'LinkPreview' }
         & { ' $fragmentRefs'?: { 'LinkPreviewViewFragment': LinkPreviewViewFragment } }
-      ) | null, reactions: Array<{ __typename?: 'Reaction', emoji: string, count: number, hasReacted: boolean, users: Array<{ __typename?: 'User', id: string, displayName: string }> }>, threadParticipants: Array<(
+      ) | null, reactions: Array<{ __typename?: 'ReactionSummary', emoji: string, count: number, hasReacted: boolean, users: Array<{ __typename?: 'User', id: string, displayName: string }> }>, threadParticipants: Array<(
         { __typename?: 'User' }
         & { ' $fragmentRefs'?: { 'UserAvatarUserFragment': UserAvatarUserFragment } }
       )> }

@@ -84,9 +84,9 @@ func (r *Resolver) getReactions(ctx context.Context, eventID string) ([]core.Rea
 	return r.core.GetReactions(ctx, eventID)
 }
 
-// resolveReactions returns Core reaction summaries for the GraphQL Reaction type.
+// resolveReactions returns Core reaction summaries for the GraphQL ReactionSummary type.
 // Derived fields such as count, users(first:), and hasReacted are resolved on
-// Reaction itself so the API shape can stay preview-oriented without a wrapper model.
+// ReactionSummary itself so the API shape can stay preview-oriented without a wrapper model.
 func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*core.ReactionSummary, error) {
 	currentUser := auth.ForContext(ctx)
 	if currentUser == nil {

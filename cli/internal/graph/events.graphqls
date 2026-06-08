@@ -293,8 +293,8 @@ type MessagePostedEvent {
   inReplyTo: ID @goField(forceResolver: true)
   "Event ID of the thread root message (null for top-level messages). For direct replies, equals inReplyTo. For nested replies, references the original root."
   threadRootEventId: ID @goField(forceResolver: true)
-  "Emoji reactions on this message, aggregated by emoji."
-  reactions: [Reaction!]! @goField(forceResolver: true)
+  "Emoji reaction summaries on this message, aggregated by emoji."
+  reactions: [ReactionSummary!]! @goField(forceResolver: true)
   "When the message was last updated (null if never edited). Lazy-loaded from body."
   updatedAt: Time @goField(forceResolver: true)
   "Event ID of the original thread reply this echoes (null for non-echo messages)."
@@ -596,10 +596,10 @@ type SessionTerminatedEvent {
 # ==============================================================================
 
 """
-A reaction represents emoji responses to a message, aggregated by emoji type.
+A reaction summary represents emoji responses to a message, aggregated by emoji type.
 Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
 """
-type Reaction {
+type ReactionSummary {
   "The emoji shortcode name (e.g., \"thumbsup\", \"heart\")."
   emoji: String!
   "Total number of users who reacted with this emoji."

@@ -33,7 +33,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     RoomEventViewFragment['event'],
     { __typename: 'MessagePostedEvent' }
   >;
-  type Reaction = MessagePostedEvent['reactions'][number];
+  type ReactionSummary = MessagePostedEvent['reactions'][number];
 
   // Shared base style for all meta bar buttons. Uses the `meta-badge` utility
   // for shape and background states. Border color is set per-button to avoid
@@ -56,7 +56,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   }: {
     roomId: string;
     messageEventId: string;
-    reactions: Reaction[];
+    reactions: ReactionSummary[];
     replyCount?: number;
     threadParticipants?: MessagePostedEvent['threadParticipants'];
     hasThreadNotification?: boolean;
@@ -93,7 +93,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     return names.join(', ');
   }
 
-  async function toggleReaction(reaction: Reaction) {
+  async function toggleReaction(reaction: ReactionSummary) {
     const input = { roomId, messageEventId, emoji: reaction.emoji };
     const result = reaction.hasReacted
       ? await connection().client.mutation(removeReactionMutation, { input })
