@@ -7,53 +7,90 @@ import {
   RoomAfterQuery,
   RoomAroundQuery,
   RoomBeforeQuery,
-  RoomLatestQuery
+  RoomLatestQuery,
+  ThreadEventsQuery
 } from './queries';
-import { isRootRoomEvent } from './filters';
-import { type EventConnectionPage, getActorId, unmask } from './helpers';
+import { isRootRoomEvent, isThreadEvent } from './filters';
+import {
+  type EventConnectionPage,
+  getActorId,
+  threadRepliesConnection,
+  unmask
+} from './helpers';
+
+type MessageScope = 'room' | 'thread';
 
 /**
- * Message store for a room's main timeline. Adds pagination, jumped-mode
- * navigation (jump-to-message + load-newer + jump-to-present), reconnect
- * catch-up, root-event filtering, and thread-reply metadata fan-out.
+ * Message store for both the main room timeline and a single thread pane.
+ * The scope-specific methods (`setRoom` / `setThread`) choose which Core
+ * GraphQL connection backs the list while the lifecycle, pagination, refetch,
+ * and subscription ingestion behavior stays shared.
  */
-export class RoomMessagesStore extends MessageListStore {
+export class MessagesStore extends MessageListStore {
+  private scope: MessageScope | null = null;
+  private threadRootEventId = '';
+
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): RoomEventViewFragment[] {
     return this.events.filter(isRootRoomEvent);
   }
 
-  /**
-   * Switch to a room (or force-refetch the current one). Always shows the
-   * skeleton and clears state. Silent reconnect / tab-resume catch-ups go
-   * through {@link catchUp} (driven internally by the base class), not
-   * through this method.
-   */
+  /** Events that belong to this thread (root + replies). */
+  get threadEvents(): RoomEventViewFragment[] {
+    return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
+  }
+
   setRoom(roomId: string): void {
+    this.scope = 'room';
     this.roomId = roomId;
+    this.threadRootEventId = '';
     this.resetAndFetchLatest();
   }
 
+  setThread(roomId: string, threadRootEventId: string): void {
+    this.scope = 'thread';
+    this.roomId = roomId;
+    this.threadRootEventId = threadRootEventId;
+
+    const thisLoad = this.startLoad();
+    this.resetState();
+    this.isInitialLoading = true;
+    this.fetchThread(thisLoad);
+  }
+
   protected catchUp(): void {
-    if (!this.roomId) return;
+    if (!this.scope || !this.roomId) return;
+    if (this.scope === 'thread' && !this.threadRootEventId) return;
+
     const thisLoad = this.startLoad();
     if (this.events.length === 0) {
-      this.fetchLatest(thisLoad);
+      this.fetchInitial(thisLoad);
     } else {
       this.catchUpForward(thisLoad);
     }
   }
 
-  /** Shared by {@link setRoom} and {@link jumpToPresent}: clear state, show
-   *  the skeleton, kick off a fresh fetchLatest under a new load id. */
-  private resetAndFetchLatest(): void {
-    const thisLoad = this.startLoad();
-    this.resetState();
-    this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
+  async refetchAll(): Promise<void> {
+    const snapshot = this.scope === 'thread' ? [...this.threadEvents] : [...this.rootEvents];
+    for (const event of snapshot) {
+      await this.refetchOne(event.id);
+    }
   }
 
   protected async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
+    if (this.scope === 'thread') {
+      const result = await this.client
+        .query(ThreadEventsQuery, {
+          roomId: this.roomId,
+          threadRootEventId: this.threadRootEventId,
+          limit: PAGE_SIZE,
+          before
+        })
+        .toPromise();
+
+      return threadRepliesConnection(result.data?.room?.event);
+    }
+
     const result = await this.client
       .query(RoomBeforeQuery, {
         roomId: this.roomId,
@@ -65,12 +102,14 @@ export class RoomMessagesStore extends MessageListStore {
     return result.data?.room?.events ?? null;
   }
 
-  /**
-   * Forward pagination — only meaningful in jumped mode (i.e. when the local
-   * timeline doesn't include the latest events). Updates {@link jumpState} to
-   * reflect end-of-history.
-   */
+  protected afterOlderPagePrepended(): void {
+    if (this.scope === 'thread') {
+      this.sortThreadEvents();
+    }
+  }
+
   async loadNewer(jumpState: JumpToMessageState): Promise<void> {
+    if (this.scope !== 'room') return;
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
@@ -102,13 +141,14 @@ export class RoomMessagesStore extends MessageListStore {
 
       if (!page.hasNewer) jumpState.hasReachedEnd = true;
     } catch (error) {
-      console.error('RoomMessagesStore: loadNewer failed:', error);
+      console.error('MessagesStore: loadNewer failed:', error);
     } finally {
       jumpState.isLoadingNewer = false;
     }
   }
 
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<void> {
+    if (this.scope !== 'room') return;
     if (this.events.some((e) => e.id === eventId)) {
       jumpState.scrollToEventId = eventId;
       return;
@@ -126,7 +166,7 @@ export class RoomMessagesStore extends MessageListStore {
 
       const around = result.data?.room?.eventsAround;
       if (result.error || !around) {
-        if (result.error) console.error('RoomMessagesStore: jumpToMessage failed:', result.error);
+        if (result.error) console.error('MessagesStore: jumpToMessage failed:', result.error);
         return;
       }
 
@@ -149,23 +189,24 @@ export class RoomMessagesStore extends MessageListStore {
     }
   }
 
-  /** Exit jumped mode and refetch the latest events. */
   jumpToPresent(jumpState: JumpToMessageState): void {
+    if (this.scope !== 'room') return;
     jumpState.reset();
     this.resetAndFetchLatest();
-  }
-
-  async refetchAll(): Promise<void> {
-    const snapshot = [...this.rootEvents];
-    for (const event of snapshot) {
-      await this.refetchOne(event.id);
-    }
   }
 
   protected onMessagePosted(
     spaceEvent: RoomEventViewFragment,
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void {
+    if (this.scope === 'thread') {
+      if (eventData.threadRootEventId === this.threadRootEventId) {
+        this.addEvent(spaceEvent);
+        this.sortThreadEvents();
+      }
+      return;
+    }
+
     // Thread replies don't enter the room timeline; instead, update
     // metadata on the root message (replyCount, lastReplyAt, participants,
     // viewerIsFollowingThread auto-follow).
@@ -177,7 +218,24 @@ export class RoomMessagesStore extends MessageListStore {
   }
 
   protected onSystemEvent(spaceEvent: RoomEventViewFragment): void {
-    this.addEvent(spaceEvent);
+    if (this.scope === 'room') {
+      this.addEvent(spaceEvent);
+    }
+  }
+
+  private resetAndFetchLatest(): void {
+    const thisLoad = this.startLoad();
+    this.resetState();
+    this.isInitialLoading = true;
+    this.fetchLatest(thisLoad);
+  }
+
+  private fetchInitial(thisLoad: number): void {
+    if (this.scope === 'thread') {
+      this.fetchThread(thisLoad);
+    } else {
+      this.fetchLatest(thisLoad);
+    }
   }
 
   private fetchLatest(thisLoad: number): void {
@@ -189,7 +247,7 @@ export class RoomMessagesStore extends MessageListStore {
       .toPromise()
       .then((result) => {
         if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('RoomMessagesStore: fetchLatest error:', result.error);
+        if (result.error) console.error('MessagesStore: fetchLatest error:', result.error);
         const page = result.data?.room?.events;
         if (page) {
           this.replaceWithFetchedAndUpdateCursors(page);
@@ -199,29 +257,58 @@ export class RoomMessagesStore extends MessageListStore {
       })
       .catch((error: unknown) => {
         if (this.isStale(thisLoad)) return;
-        console.error('RoomMessagesStore: fetchLatest failed:', error);
+        console.error('MessagesStore: fetchLatest failed:', error);
         this.isInitialLoading = false;
       });
   }
 
-  /**
-   * Reconnect catch-up: fetch only events newer than what we already have.
-   * If the gap is larger than a page (server reports hasNewer), replace the
-   * timeline to avoid holes.
-   *
-   * Uses `newestCursor` (last cursor returned by a query) rather than
-   * scanning local events for a max timestamp. Subscription-delivered events
-   * arrived after `newestCursor` was set, so this re-fetches them — but
-   * `appendMany` dedupes by ID so the cost is duplicate network bytes, not
-   * duplicate UI items.
-   */
+  private fetchThread(thisLoad: number): void {
+    this.client
+      .query(ThreadEventsQuery, {
+        roomId: this.roomId,
+        threadRootEventId: this.threadRootEventId,
+        limit: PAGE_SIZE
+      })
+      .toPromise()
+      .then((result) => {
+        if (this.isStale(thisLoad)) return;
+        if (result.error) console.error('MessagesStore: fetchThread error:', result.error);
+        const root = result.data?.room?.event;
+        if (root) {
+          // Merge with any subscription events that arrived during the
+          // in-flight query (e.g. the user's own reply or a fast cross-user
+          // reply). Overwriting would drop them.
+          const page = threadRepliesConnection(root);
+          const replies = page?.events ?? [];
+          this.replaceMergingExisting([root, ...replies]);
+          this.sortThreadEvents();
+          this.oldestCursor = page?.startCursor ?? undefined;
+          this.newestCursor = page?.endCursor ?? undefined;
+          this.hasReachedStart = !(page?.hasOlder ?? false);
+        }
+        this.isInitialLoading = false;
+      })
+      .catch((error: unknown) => {
+        if (this.isStale(thisLoad)) return;
+        console.error('MessagesStore: fetchThread failed:', error);
+        this.isInitialLoading = false;
+      });
+  }
+
   private catchUpForward(thisLoad: number): void {
     if (!this.newestCursor) {
-      this.fetchLatest(thisLoad);
+      this.fetchInitial(thisLoad);
       return;
     }
 
-    const after = this.newestCursor;
+    if (this.scope === 'thread') {
+      this.catchUpThreadForward(thisLoad, this.newestCursor);
+    } else {
+      this.catchUpRoomForward(thisLoad, this.newestCursor);
+    }
+  }
+
+  private catchUpRoomForward(thisLoad: number, after: string): void {
     this.client
       .query(RoomAfterQuery, {
         roomId: this.roomId,
@@ -232,7 +319,7 @@ export class RoomMessagesStore extends MessageListStore {
       .then((result) => {
         if (this.isStale(thisLoad)) return;
         if (result.error) {
-          console.error('RoomMessagesStore: catchUp error:', result.error);
+          console.error('MessagesStore: room catchUp error:', result.error);
           return;
         }
         const page = result.data?.room?.events;
@@ -241,7 +328,7 @@ export class RoomMessagesStore extends MessageListStore {
         const fetched = unmask(page.events);
         const strategy = page.hasNewer ? 'replace' : 'append';
         console.debug(
-          '[RoomMessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
+          '[MessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
           this.roomId,
           after,
           fetched.length,
@@ -259,7 +346,44 @@ export class RoomMessagesStore extends MessageListStore {
       })
       .catch((error: unknown) => {
         if (this.isStale(thisLoad)) return;
-        console.error('RoomMessagesStore: catchUp failed:', error);
+        console.error('MessagesStore: room catchUp failed:', error);
+      });
+  }
+
+  private catchUpThreadForward(thisLoad: number, after: string): void {
+    this.client
+      .query(ThreadEventsQuery, {
+        roomId: this.roomId,
+        threadRootEventId: this.threadRootEventId,
+        limit: PAGE_SIZE,
+        after
+      })
+      .toPromise()
+      .then((result) => {
+        if (this.isStale(thisLoad)) return;
+        if (result.error) {
+          console.error('MessagesStore: thread catchUp error:', result.error);
+          return;
+        }
+
+        const page = threadRepliesConnection(result.data?.room?.event);
+        if (!page) return;
+
+        const newerReplies = unmask(page.events);
+        if (page.endCursor) {
+          this.newestCursor = page.endCursor;
+        }
+
+        this.appendMany(newerReplies);
+        this.sortThreadEvents();
+
+        if (page.hasNewer) {
+          this.fetchThread(thisLoad);
+        }
+      })
+      .catch((error: unknown) => {
+        if (this.isStale(thisLoad)) return;
+        console.error('MessagesStore: thread catchUp failed:', error);
       });
   }
 
@@ -304,5 +428,17 @@ export class RoomMessagesStore extends MessageListStore {
             : existingParticipants
       }
     };
+  }
+
+  private sortThreadEvents(): void {
+    this.events = [...this.events].sort((a, b) => {
+      if (a.id === this.threadRootEventId) return -1;
+      if (b.id === this.threadRootEventId) return 1;
+
+      const aTime = Date.parse(a.createdAt);
+      const bTime = Date.parse(b.createdAt);
+      if (aTime !== bTime) return aTime - bTime;
+      return a.id.localeCompare(b.id);
+    });
   }
 }

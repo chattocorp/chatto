@@ -258,7 +258,7 @@ export abstract class MessageListStore {
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void;
 
-  /** Default: ignore room system events. RoomMessagesStore overrides to add. */
+  /** Default: ignore room system events. The room scope overrides this to add them. */
   protected onSystemEvent(_spaceEvent: RoomEventViewFragment): void {
     // intentionally empty
   }

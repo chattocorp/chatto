@@ -16,8 +16,7 @@ export { createRoomPermissions, getRoomPermissions, DEFAULT_ROOM_PERMISSIONS } f
 export type { RoomPermissions } from './permissions.svelte';
 export {
   MessageListStore,
-  RoomMessagesStore,
-  ThreadMessagesStore,
+  MessagesStore,
   isRootRoomEvent,
   isThreadEvent
 } from './messages.svelte';
