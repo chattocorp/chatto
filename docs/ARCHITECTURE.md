@@ -151,7 +151,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `updateRoom`                   | Update a room's name / description (`room.manage`).                              |
 | `archiveRoom` / `unarchiveRoom`| Archive or restore a room (`room.manage`).                                       |
 | `joinRoom` / `leaveRoom`       | Join / leave a room.                                                             |
-| `banRoomMember` / `unbanRoomMember` | Create or remove a room ban (`room.ban-member`; DMs rejected; reasons required for moderation audit). Bans remove projected membership and deny rejoin through ordinary join authorization. |
+| `banRoomMember` / `unbanRoomMember` | Create or remove a room ban (`room.ban-member`; DMs rejected; reasons required for moderation audit). Bans emit a normal leave event, maintain active ban state, and deny rejoin through ordinary join authorization. |
 | `joinGroup`                    | Join every room in a group the caller has `room.join` for. Powers "Join all".    |
 | `markRoomAsRead`               | Mark a room as read; records the last-seen root event ID for unread tracking.    |
 | `startDM`                      | Start a DM with a participant set (returns existing room if the set matches).    |

@@ -166,9 +166,10 @@ Moderator actions that affect another user's membership should use explicit
 moderation events, not overloaded join/leave events. In particular,
 `UserJoinedRoomEvent` and `UserLeftRoomEvent` are actor-only membership facts;
 the actor is the user who joined or left. A moderator ban/removal must use a
-dedicated event such as `RoomMemberBannedEvent` so projections can update
-membership while user-facing room history still treats ordinary leaves as
-ordinary leaves.
+dedicated event such as `RoomMemberBannedEvent` for audit and moderation state.
+If the action should be visible as a normal membership transition, also emit a
+normal actor-only join/leave event for the affected user; never add a target
+user ID to join/leave events.
 
 When adding a permission, update `cli/internal/core/permission.go`,
 `frontend/src/lib/permissions.ts`, the relevant FDR/ADR docs, and tests

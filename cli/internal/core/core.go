@@ -1694,8 +1694,6 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_UserJoinedRoom,
 		*corev1.Event_UserLeftRoom,
-		*corev1.Event_RoomMemberBanned,
-		*corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_MessagePosted,
 		*corev1.Event_MessageEdited,

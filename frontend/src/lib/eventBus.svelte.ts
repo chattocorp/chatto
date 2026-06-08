@@ -87,14 +87,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         ... on UserLeftRoomEvent {
           roomId
         }
-        ... on RoomMemberBannedEvent {
-          roomId
-          userId
-        }
-        ... on RoomMemberUnbannedEvent {
-          roomId
-          userId
-        }
         ... on RoomCreatedEvent {
           roomId
         }

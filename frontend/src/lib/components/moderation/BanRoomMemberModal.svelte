@@ -3,7 +3,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
-  import { FormField, TextArea } from '$lib/ui/form';
+  import { ExpirySelect, TextArea } from '$lib/ui/form';
 
   type User = {
     id: string;
@@ -29,24 +29,16 @@
 
   let visible = $state(true);
   let reason = $state('');
-  let expiresAtLocal = $state('');
+  let expiresAt = $state<string | null>(null);
+  let expiryValid = $state(true);
 
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const login = $derived(getLiveLogin(user.id, user.login));
 
-  const expiresAtError = $derived.by(() => {
-    if (!expiresAtLocal) return null;
-    const date = new Date(expiresAtLocal);
-    if (Number.isNaN(date.getTime())) return 'Enter a valid expiry.';
-    if (date <= new Date()) return 'Expiry must be in the future.';
-    return null;
-  });
-
-  const disabled = $derived(reason.trim().length === 0 || submitting || !!expiresAtError);
+  const disabled = $derived(reason.trim().length === 0 || submitting || !expiryValid);
 
   function handleSubmit() {
     if (disabled) return;
-    const expiresAt = expiresAtLocal ? new Date(expiresAtLocal).toISOString() : null;
     onconfirm?.(reason.trim(), expiresAt);
   }
 </script>
@@ -83,22 +75,11 @@
     disabled={submitting}
   />
 
-  <FormField
+  <ExpirySelect
     id="ban-room-member-expires-at"
-    label="Expires at"
-    error={expiresAtError ?? undefined}
-    description="Blank means indefinite."
-  >
-    <input
-      id="ban-room-member-expires-at"
-      class="input"
-      type="datetime-local"
-      bind:value={expiresAtLocal}
-      disabled={submitting}
-      aria-invalid={expiresAtError ? 'true' : undefined}
-      aria-describedby={expiresAtError
-        ? 'ban-room-member-expires-at-error'
-        : 'ban-room-member-expires-at-description'}
-    />
-  </FormField>
+    label="Expires"
+    bind:value={expiresAt}
+    bind:valid={expiryValid}
+    disabled={submitting}
+  />
 </FormDialog>

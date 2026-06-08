@@ -208,8 +208,6 @@ export class RoomDirectoryStore {
     if (
       event.__typename === 'UserJoinedRoomEvent' ||
       event.__typename === 'UserLeftRoomEvent' ||
-      event.__typename === 'RoomMemberBannedEvent' ||
-      event.__typename === 'RoomMemberUnbannedEvent' ||
       event.__typename === 'RoomArchivedEvent' ||
       event.__typename === 'RoomUnarchivedEvent'
     ) {

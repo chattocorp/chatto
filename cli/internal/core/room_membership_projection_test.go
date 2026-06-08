@@ -76,7 +76,7 @@ func TestRoomMembershipProjection_Idempotency(t *testing.T) {
 	}
 }
 
-func TestRoomMembershipProjection_BanRemovesTargetWithoutLeaveEvent(t *testing.T) {
+func TestRoomMembershipProjection_BanRemovesTarget(t *testing.T) {
 	p := NewRoomMembershipProjection()
 
 	mustApply(t, p, joinEvent("R1", "target"))

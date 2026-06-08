@@ -223,7 +223,7 @@ func (c *ChattoCore) GetEventSequence(ctx context.Context, kind RoomKind, roomID
 //     reaction projection.
 //
 //   - RoomMemberBannedEvent / RoomMemberUnbannedEvent — moderation audit facts,
-//     delivered live for synchronization but not displayed as chat timeline items.
+//     projected for admin surfaces but not displayed as chat timeline items.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
 // unarchived/deleted), memberships (user_joined / user_left).

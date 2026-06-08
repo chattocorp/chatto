@@ -14,9 +14,9 @@ import (
 
 const MaxRoomBanReasonLength = 1000
 
-// BanRoomMember records a durable room ban and removes the target from the
-// membership projection via RoomMemberBannedEvent. The caller is responsible
-// for permission and rank checks.
+// BanRoomMember records a durable room ban and emits an ordinary leave event
+// for public room history. The caller is responsible for permission and rank
+// checks.
 func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time) (*RoomBan, error) {
 	if kind == KindDM {
 		return nil, ErrCannotBanDMRoomMember
@@ -42,25 +42,40 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 		return nil, fmt.Errorf("ban expiry must be in the future")
 	}
 
-	eventPayload := &corev1.RoomMemberBannedEvent{
+	banPayload := &corev1.RoomMemberBannedEvent{
 		RoomId: roomID,
 		UserId: targetUserID,
 		Reason: reason,
 	}
 	if expiresAt != nil {
-		eventPayload.ExpiresAt = timestamppb.New(*expiresAt)
+		banPayload.ExpiresAt = timestamppb.New(*expiresAt)
 	}
-	event := newEvent(actorID, &corev1.Event{
+	banEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomMemberBanned{
-			RoomMemberBanned: eventPayload,
+			RoomMemberBanned: banPayload,
 		},
 	})
 
-	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	banSeq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), banEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomMemberBannedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+	if err := waitForSeqAll(ctx, banSeq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+		return nil, err
+	}
+
+	leaveEvent := newEvent(targetUserID, &corev1.Event{
+		Event: &corev1.Event_UserLeftRoom{
+			UserLeftRoom: &corev1.UserLeftRoomEvent{
+				RoomId: roomID,
+			},
+		},
+	})
+	leaveSeq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), leaveEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish UserLeftRoomEvent for room ban: %w", err)
+	}
+	if err := waitForSeqAll(ctx, leaveSeq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
 		return nil, err
 	}
 

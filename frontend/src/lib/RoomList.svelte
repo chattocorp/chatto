@@ -152,10 +152,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       if (spaceEvent.actorId === roomsStore.currentUserId) {
         goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
       }
-    } else if (event.__typename === 'RoomMemberBannedEvent' && event.roomId === activeRoomId) {
-      if (event.userId === roomsStore.currentUserId) {
-        goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
-      }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.roomId, actor);

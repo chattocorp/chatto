@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-07
+**Last reviewed:** 2026-06-08
 
 ## Overview
 
@@ -57,15 +57,15 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 7. Channel member bans use dedicated moderation events
 
-**Decision:** Banning someone from a channel room appends `RoomMemberBannedEvent` with the target user, required reason, optional expiry, and moderator actor. Unbanning appends `RoomMemberUnbannedEvent` with a required moderator reason. Ban events remove the target from the membership projection directly; no separate `UserLeftRoomEvent` is required for projection correctness. DMs are excluded; their participant set is fixed by DM creation policy in FDR-007.
-**Why:** Bans are moderation facts, not ordinary membership facts. Dedicated events keep join/leave simple, provide audit-ready reasons and expiry, and prevent a banned user from immediately rejoining.
-**Tradeoff:** There is one more event family and admin surface to maintain, but moderation history is explicit instead of being encoded as a special kind of leave.
+**Decision:** Banning someone from a channel room appends a normal `UserLeftRoomEvent` with the target user as actor, plus `RoomMemberBannedEvent` with the target user, required reason, optional expiry, and moderator actor. Unbanning appends `RoomMemberUnbannedEvent` with a required moderator reason. DMs are excluded; their participant set is fixed by DM creation policy in FDR-007.
+**Why:** Other room members should see an ordinary leave in room history, while the moderation/audit fact remains explicit and prevents the banned user from immediately rejoining. The public leave event does not reveal that the user was banned.
+**Tradeoff:** A ban is represented by two durable facts: one public membership transition and one moderation fact.
 
 ### 8. Join and leave events remain actor-only
 
-**Decision:** `UserJoinedRoomEvent` and `UserLeftRoomEvent` do not carry a target user. The event actor is the user who joined or left. Moderator actions must use dedicated moderation events. To the target user, an active ban is evaluated as an ordinary join authorization denial rather than a distinct API/UI state.
-**Why:** Join and leave are ordinary membership facts. Keeping the user in the envelope avoids dual-subject ambiguity and prevents moderators from surfacing as public leave actors.
-**Tradeoff:** Projections that handle moderator removals must listen to the moderation event family as well as join/leave.
+**Decision:** `UserJoinedRoomEvent` and `UserLeftRoomEvent` do not carry a target user. The event actor is the user who joined or left. Moderator bans additionally use dedicated moderation events. To the target user, an active ban is evaluated as an ordinary join authorization denial rather than a distinct API/UI state.
+**Why:** Join and leave are ordinary membership facts. Keeping the user in the envelope avoids dual-subject ambiguity. A ban-generated leave intentionally uses the target user as actor so public room history remains indistinguishable from a normal leave.
+**Tradeoff:** Projections that need moderation state must listen to the moderation event family as well as join/leave.
 
 ### 9. Server-admin exposes active room bans
 

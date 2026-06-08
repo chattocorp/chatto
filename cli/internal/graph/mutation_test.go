@@ -761,6 +761,21 @@ func TestBanRoomMember_Authorization(t *testing.T) {
 			t.Fatalf("unexpected ban projection: moderator=%q reason=%q", ban.ModeratorID, ban.Reason)
 		}
 
+		events, err := env.resolver.Room().Events(env.authContextForUser(admin), env.testRoom, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("expected admin to read room events after ban, got %v", err)
+		}
+		if len(events.Events) == 0 {
+			t.Fatal("expected room events after ban")
+		}
+		latest := events.Events[len(events.Events)-1]
+		if latest.ActorID() != target.Id {
+			t.Fatalf("expected public leave actor to be banned target, got %q", latest.ActorID())
+		}
+		if _, ok := latest.Payload().(*corev1.Event_UserLeftRoom); !ok {
+			t.Fatalf("expected public ban history event to be UserLeftRoomEvent, got %T", latest.Payload())
+		}
+
 		_, err = mutation.JoinRoom(env.authContextForUser(target), model.JoinRoomInput{RoomID: env.testRoom.Id})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Fatalf("expected banned target to be blocked by generic join authorization, got %v", err)

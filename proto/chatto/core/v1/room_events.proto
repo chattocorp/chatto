@@ -74,16 +74,12 @@ message UserJoinedRoomEvent {
   reserved 1;
   reserved "space_id";
   string room_id = 2;
-  reserved 3;
-  reserved "user_id";
 }
 
 message UserLeftRoomEvent {
   reserved 1;
   reserved "space_id";
   string room_id = 2;
-  reserved 3;
-  reserved "user_id";
 }
 
 // SpaceMemberDeletedEvent is published when a user's account is deleted.

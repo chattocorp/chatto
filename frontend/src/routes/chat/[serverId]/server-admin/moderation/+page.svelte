@@ -5,6 +5,7 @@
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Button } from '$lib/ui/form';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnbanRoomMemberModal from '$lib/components/moderation/UnbanRoomMemberModal.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -31,16 +32,7 @@
             avatarUrl(width: 96, height: 96)
             presenceStatus
           }
-          moderatorId
-          moderator {
-            id
-            login
-            displayName
-            avatarUrl(width: 96, height: 96)
-            presenceStatus
-          }
           reason
-          createdAt
           expiresAt
         }
       }
@@ -67,8 +59,12 @@
   );
 
   function formatDate(value: string | null | undefined): string {
-    if (!value) return 'Indefinite';
+    if (!value) return 'No expiry';
     return formatDateUtil(value, userSettings);
+  }
+
+  function roomLabel(ban: (typeof bans)[number]): string {
+    return ban.room ? `#${ban.room.name}` : ban.roomId;
   }
 
   function openUnbanDialog(ban: (typeof bans)[number]) {
@@ -114,60 +110,52 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <Panel noPadding>
-        <DataTable items={bans} columns={6} emptyMessage="No active room bans">
+        <DataTable items={bans} columns={5} emptyMessage="No active room bans">
           {#snippet header()}
-            <th class="px-4 py-3 font-medium">User</th>
-            <th class="px-4 py-3 font-medium">Room</th>
-            <th class="px-4 py-3 font-medium">Moderator</th>
-            <th class="px-4 py-3 font-medium">Reason</th>
-            <th class="px-4 py-3 font-medium">Expires</th>
-            <th class="px-4 py-3 font-medium"></th>
+            <th class="px-3 py-2 font-medium">User</th>
+            <th class="px-3 py-2 font-medium">Room</th>
+            <th class="px-3 py-2 font-medium">Reason</th>
+            <th class="px-3 py-2 font-medium">Expires</th>
+            <th class="px-3 py-2 font-medium"></th>
           {/snippet}
           {#snippet row(ban)}
-            <td class="px-4 py-3">
-              {#if ban.user}
-                <div class="flex items-center gap-2">
+            <td class="min-w-48 px-3 py-2">
+              <div class="flex items-center gap-2">
+                {#if ban.user}
                   <UserAvatar user={ban.user} size="sm" />
-                  <div class="min-w-0">
-                    <div class="truncate">{ban.user.displayName}</div>
-                    <div class="truncate text-xs text-muted">@{ban.user.login}</div>
+                {:else}
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted">
+                    <span class="iconify text-base uil--user"></span>
+                  </div>
+                {/if}
+                <div class="min-w-0">
+                  <div class="truncate font-medium">{ban.user?.displayName || ban.userId}</div>
+                  <div class="truncate text-xs text-muted">
+                    {#if ban.user}@{ban.user.login}{/if}
                   </div>
                 </div>
-              {:else}
-                <span class="text-muted">{ban.userId}</span>
-              {/if}
+              </div>
             </td>
-            <td class="px-4 py-3">
-              {#if ban.room}
-                #{ban.room.name}
-              {:else}
-                <span class="text-muted">{ban.roomId}</span>
-              {/if}
+            <td class="max-w-56 px-3 py-2">
+              <div class="truncate">{roomLabel(ban)}</div>
             </td>
-            <td class="px-4 py-3">
-              {#if ban.moderator}
-                <div class="flex items-center gap-2">
-                  <UserAvatar user={ban.moderator} size="xs" />
-                  <span>{ban.moderator.displayName}</span>
-                </div>
-              {:else}
-                <span class="text-muted">{ban.moderatorId}</span>
-              {/if}
+            <td class="min-w-64 px-3 py-2">
+              <div class="line-clamp-2 whitespace-pre-wrap break-words">{ban.reason}</div>
             </td>
-            <td class="max-w-sm px-4 py-3">
-              <div class="line-clamp-3 whitespace-pre-wrap">{ban.reason}</div>
-              <div class="mt-1 text-xs text-muted">Created {formatDate(ban.createdAt)}</div>
+            <td class="px-3 py-2 text-muted">
+              <div class="whitespace-nowrap">{formatDate(ban.expiresAt)}</div>
             </td>
-            <td class="px-4 py-3 text-muted">{formatDate(ban.expiresAt)}</td>
-            <td class="px-4 py-3 text-right">
-              <button
-                type="button"
-                class="btn btn-ghost"
-                disabled={unbanningBanId === ban.id}
+            <td class="px-3 py-2 text-right">
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={unbanningBanId === ban.id}
+                loadingText="Unbanning..."
                 onclick={() => openUnbanDialog(ban)}
               >
-                {unbanningBanId === ban.id ? 'Unbanning...' : 'Unban'}
-              </button>
+                <span class="iconify uil--unlock"></span>
+                <span>Unban</span>
+              </Button>
             </td>
           {/snippet}
         </DataTable>
