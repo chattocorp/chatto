@@ -23,6 +23,15 @@ direction), and a same-origin asset proxy (incompatible with the
 "standalone frontend with no backing server" deployment shape, and
 poor fit for GDPR data-residency expectations).
 
+**Update (2026-06-08):** The Service Worker direction is now adopted
+for stable `/assets/files/...` URLs in [ADR-039](ADR-039-service-worker-virtual-asset-urls.md).
+The browser app rewrites those stable asset URLs to same-origin virtual
+URLs once a Service Worker controls the page, while keeping direct
+ticketed URLs as the explicit fallback for non-controlled clients,
+legacy clients, and media Range redirects. The older
+`/assets/attachments/...` signed locator path remains a compatibility
+path and is not the primary browser-rendering path.
+
 See `.claude/rules/authorization.md` → "Attachment URL Authorization"
 for the current flow and trade-offs.
 
@@ -90,11 +99,11 @@ No standalone-record bucket is consulted.
 
 - **One source of truth per attachment.** No write-amplification, no drift surface. A message-body mutation (rare today, but a possibility tomorrow) updates the only copy.
 - **No second KV namespace.** `SERVER_BODIES` reverts to holding just bodies. The existing `attachment.*` records are dead weight that a future PR can sweep; they stay on disk for now because the boot migration reads them as a data source for legacy video manifest import.
-- **Authorization surface unchanged.** Every request still authenticates and checks room membership; signature only prevents forgery. A leaked URL doesn't grant standalone access; auto-revocation on kick or attachment-delete still works.
+- **Authorization surface changed by the ticket update.** For the 2026-05-24 ticket-bearing locator flow, the signed URL is a short-lived capability: a leaked URL can be used until it expires or the signed user loses room membership. Stable `/assets/files/...` URLs use the same ticket capability model, but ADR-039 hides those tickets behind Service Worker virtual URLs in controlled browser sessions.
 - **Forgery prevention.** The previous URL shape (`/assets/attachments/{id}`) let attackers probe arbitrary attachment IDs to enumerate the space. The locator URL requires a valid HMAC; only IDs the server has issued URLs for can be tested.
 - **Longer URLs.** ~150 chars vs ~30. Irrelevant for our use case (URLs aren't human-typed and aren't shared as bare share-links outside the app).
-- **URLs aren't individually revocable.** Rotating `[core.assets].signing_secret` invalidates *all* URLs at once. Auth is rechecked per request, so a leak doesn't grant standalone access — the URL only lets the attacker try, and the membership check still has to pass. If we ever want share links with TTLs or single-use semantics, we'd extend the payload (e.g., add an `exp` claim); none of that is needed today.
-- **No `exp` claim.** Locators are valid as long as the secret is. We considered adding a deliberate expiration but: attachments are immutable, URLs are regenerated on every GraphQL response, and per-request auth is the actual access control. An expiration would only force more URL churn without adding security.
+- **URLs aren't individually revocable.** Rotating `[core.assets].signing_secret` invalidates *all* URLs at once. Ticketed URL leaks are bounded by expiry and the signed user's current room membership. If we ever want share links with single-use semantics, we'd extend the payload or add server-side revocation state; none of that is needed today.
+- **Expiry is now signed into issued browser URLs.** The original design did not include an expiry claim, but the 2026-05-24 update added one because signed browser asset URLs became standalone capabilities. Stable `/assets/files/...` tickets use the same short-lived capability model.
 - **Operational: secret rotation invalidates in-flight URLs.** Currently-loaded pages would 404 their image requests after a rotation until the user navigates and re-renders. Frontend URL emission is on every GraphQL response, so the impact is bounded to "until next page transition." Worth a runbook note.
 - **Cleaner internal API.** `GetAttachmentReader(*Attachment)` and `DeleteAttachmentFromStorage(*Attachment)` take the proto directly; the previous `(spaceID, attachmentID)` shape and the multi-layout S3 key probing are gone. Reads `Storage.S3.Key` straight off the proto.
 
@@ -102,4 +111,5 @@ No standalone-record bucket is consulted.
 
 - [ADR-023](ADR-023-hmac-signed-image-transform-urls.md) — HMAC-signed image transform URLs (same primitive, layered with this one for transforms)
 - [ADR-021](ADR-021-dual-asset-storage.md) — Dual asset storage (now reads `Storage` directly instead of probing)
+- [ADR-039](ADR-039-service-worker-virtual-asset-urls.md) — Service Worker virtual asset URLs with ticketed fallback
 - [FDR-008](../fdr/FDR-008-file-attachments-and-video.md) — File attachments & video processing

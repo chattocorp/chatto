@@ -50,4 +50,5 @@ Offline support means the app can open and show its normal disconnected state in
 
 ## Related
 
+- **ADRs:** ADR-039 (Service Worker virtual asset URLs with ticketed fallback)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications)
