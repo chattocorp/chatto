@@ -70,6 +70,106 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 	return events, nil
 }
 
+// GetThreadReplyEvents returns a paginated page of message-posted replies for a
+// thread root. The root event itself is not included. Results are chronological
+// and use the same stream-sequence cursor convention as room events.
+//
+// Authorization: caller must verify room membership before calling.
+func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, roomID, threadRootEventID string, limit int, beforeSeq *uint64, afterSeq *uint64) (*RoomEventsResult, error) {
+	limit = clampHistoricalMessageLimit(limit)
+
+	rootEntry, ok := c.RoomTimeline.Get(threadRootEventID)
+	if !ok {
+		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
+	}
+	if rootEntry.Event.GetMessagePosted() == nil {
+		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventID)
+	}
+	if roomIDOfEvent(rootEntry.Event) != roomID {
+		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
+	}
+
+	entries := c.Threads.ThreadEvents(threadRootEventID)
+	if afterSeq != nil && *afterSeq > 0 {
+		return threadReplyEventsAfter(entries, *afterSeq, limit), nil
+	}
+
+	var before uint64
+	if beforeSeq != nil {
+		before = *beforeSeq
+	}
+
+	raw := make([]*RoomEvent, 0, limit+1)
+	for i := len(entries) - 1; i >= 0 && len(raw) < limit+1; i-- {
+		entry := entries[i]
+		if !isThreadReplyEventForPage(entry) {
+			continue
+		}
+		if before > 0 && entry.StreamSeq >= before {
+			continue
+		}
+		raw = append(raw, &RoomEvent{Event: entry.Event, Sequence: entry.StreamSeq})
+	}
+
+	hasOlder := len(raw) > limit
+	if hasOlder {
+		raw = raw[:limit]
+	}
+
+	for i, j := 0, len(raw)-1; i < j; i, j = i+1, j-1 {
+		raw[i], raw[j] = raw[j], raw[i]
+	}
+
+	result := &RoomEventsResult{
+		Events:   raw,
+		HasOlder: hasOlder,
+		HasNewer: beforeSeq != nil,
+	}
+	setRoomEventsResultCursors(result)
+	return result, nil
+}
+
+func threadReplyEventsAfter(entries []*TimelineEntry, afterSeq uint64, limit int) *RoomEventsResult {
+	raw := make([]*RoomEvent, 0, limit+1)
+	for _, entry := range entries {
+		if !isThreadReplyEventForPage(entry) {
+			continue
+		}
+		if entry.StreamSeq <= afterSeq {
+			continue
+		}
+		raw = append(raw, &RoomEvent{Event: entry.Event, Sequence: entry.StreamSeq})
+		if len(raw) >= limit+1 {
+			break
+		}
+	}
+
+	hasNewer := len(raw) > limit
+	if hasNewer {
+		raw = raw[:limit]
+	}
+
+	result := &RoomEventsResult{
+		Events:   raw,
+		HasOlder: true,
+		HasNewer: hasNewer,
+	}
+	setRoomEventsResultCursors(result)
+	return result
+}
+
+func isThreadReplyEventForPage(entry *TimelineEntry) bool {
+	return entry != nil && entry.Event != nil && entry.Event.GetMessagePosted() != nil
+}
+
+func setRoomEventsResultCursors(result *RoomEventsResult) {
+	if result == nil || len(result.Events) == 0 {
+		return
+	}
+	result.StartCursorSeq = result.Events[0].Sequence
+	result.EndCursorSeq = result.Events[len(result.Events)-1].Sequence
+}
+
 // notifyThreadFollowers creates persistent notifications for all thread followers when someone replies.
 // Followers are users who have explicitly or automatically followed the thread (stored in RUNTIME KV).
 // Users in skipIDs are excluded (e.g., already notified via inReplyTo).

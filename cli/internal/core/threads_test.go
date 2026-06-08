@@ -192,6 +192,55 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		}
 	})
 
+	t.Run("GetThreadReplyEvents paginates replies", func(t *testing.T) {
+		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root for paged replies", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root message: %v", err)
+		}
+
+		replies := make([]*corev1.Event, 0, 3)
+		for i := 1; i <= 3; i++ {
+			reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, fmt.Sprintf("Paged reply %d", i), nil, rootEvent.Id, "", nil, false)
+			if err != nil {
+				t.Fatalf("Failed to post reply %d: %v", i, err)
+			}
+			replies = append(replies, reply)
+		}
+
+		page, err := core.GetThreadReplyEvents(ctx, KindChannel, room.Id, rootEvent.Id, 2, nil, nil)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEvents: %v", err)
+		}
+		if len(page.Events) != 2 {
+			t.Fatalf("first page len = %d, want 2", len(page.Events))
+		}
+		if page.Events[0].Id != replies[1].Id || page.Events[1].Id != replies[2].Id {
+			t.Fatalf("first page IDs = [%s, %s], want [%s, %s]", page.Events[0].Id, page.Events[1].Id, replies[1].Id, replies[2].Id)
+		}
+		if !page.HasOlder || page.HasNewer {
+			t.Fatalf("first page hasOlder/hasNewer = %v/%v, want true/false", page.HasOlder, page.HasNewer)
+		}
+
+		older, err := core.GetThreadReplyEvents(ctx, KindChannel, room.Id, rootEvent.Id, 2, &page.StartCursorSeq, nil)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEvents older: %v", err)
+		}
+		if len(older.Events) != 1 || older.Events[0].Id != replies[0].Id {
+			t.Fatalf("older page = %v, want only %s", eventIDsForTest(older.Events), replies[0].Id)
+		}
+		if older.HasOlder || !older.HasNewer {
+			t.Fatalf("older page hasOlder/hasNewer = %v/%v, want false/true", older.HasOlder, older.HasNewer)
+		}
+
+		newer, err := core.GetThreadReplyEvents(ctx, KindChannel, room.Id, rootEvent.Id, 2, nil, &older.EndCursorSeq)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEvents newer: %v", err)
+		}
+		if len(newer.Events) != 2 || newer.Events[0].Id != replies[1].Id || newer.Events[1].Id != replies[2].Id {
+			t.Fatalf("newer page = %v, want [%s, %s]", eventIDsForTest(newer.Events), replies[1].Id, replies[2].Id)
+		}
+	})
+
 	t.Run("GetThreadMetadata returns reply count and last reply time", func(t *testing.T) {
 		// Post a new root message
 		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root for metadata test", nil, "", "", nil, false)
@@ -1496,4 +1545,16 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 			t.Errorf("Expected exactly 1 ReplyNotification (deduped), got %d", replyCount)
 		}
 	})
+}
+
+func eventIDsForTest(events []*RoomEvent) []string {
+	ids := make([]string, 0, len(events))
+	for _, event := range events {
+		if event == nil || event.Event == nil {
+			ids = append(ids, "")
+			continue
+		}
+		ids = append(ids, event.Id)
+	}
+	return ids
 }

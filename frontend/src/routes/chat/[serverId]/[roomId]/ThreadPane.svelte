@@ -9,7 +9,7 @@
 
   const notificationStore = serverRegistry.getStore(getActiveServer()).notifications;
   import { appState } from '$lib/state/globals.svelte';
-  import { getRoomMembers, createComposerContext, ThreadMessagesStore } from '$lib/state/room';
+  import { getRoomMembers, createComposerContext, MessagesStore } from '$lib/state/room';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import MessageComposer, {
@@ -42,7 +42,7 @@
   const members = $derived(getRoomMembers());
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new ThreadMessagesStore(
+  const store = new MessagesStore(
     connection(),
     () => currentUser.user?.id ?? null
   );
@@ -296,7 +296,10 @@
     events={threadEvents}
     alwaysScrollToBottom={false}
     showNewMessagesIndicator={true}
-    enablePagination={false}
+    enablePagination={true}
+    isLoadingMore={store.isLoadingMore}
+    hasReachedStart={store.hasReachedStart}
+    onLoadMore={() => store.loadMore()}
     filterThreadReplies={false}
     {updateCounter}
     enableLastEditableFinder={true}

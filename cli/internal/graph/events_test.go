@@ -68,10 +68,18 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if reactions[0].Emoji != "thumbsup" {
 			t.Errorf("expected emoji 'thumbsup', got %s", reactions[0].Emoji)
 		}
-		if reactions[0].Count != 1 {
-			t.Errorf("expected count 1, got %d", reactions[0].Count)
+		count, err := env.resolver.ReactionSummary().Count(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.Count returned error: %v", err)
 		}
-		if !reactions[0].HasReacted {
+		if count != 1 {
+			t.Errorf("expected count 1, got %d", count)
+		}
+		hasReacted, err := env.resolver.ReactionSummary().HasReacted(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.HasReacted returned error: %v", err)
+		}
+		if !hasReacted {
 			t.Error("expected hasReacted true for the user who reacted")
 		}
 	})
@@ -89,8 +97,65 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if len(reactions) != 1 {
 			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
 		}
-		if reactions[0].HasReacted {
+		hasReacted, err := env.resolver.ReactionSummary().HasReacted(env.authContextForUser(otherUser), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.HasReacted returned error: %v", err)
+		}
+		if hasReacted {
 			t.Error("expected hasReacted false for user who didn't react")
+		}
+	})
+
+	t.Run("reaction users are a bounded preview", func(t *testing.T) {
+		for i := 0; i < 6; i++ {
+			user, err := env.core.CreateUser(env.ctx, "system", "reaction-preview-"+string(rune('a'+i)), "Reaction Preview", "password123")
+			if err != nil {
+				t.Fatalf("failed to create preview user %d: %v", i, err)
+			}
+			if _, err := env.core.AddReaction(env.ctx, core.KindChannel, env.testRoom.Id, event.Id, "thumbsup", user.Id); err != nil {
+				t.Fatalf("failed to add preview reaction %d: %v", i, err)
+			}
+		}
+
+		reactions, err := resolver.Reactions(env.authContext(), msgEvent)
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+		if len(reactions) != 1 {
+			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
+		}
+		count, err := env.resolver.ReactionSummary().Count(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.Count returned error: %v", err)
+		}
+		if count != 7 {
+			t.Fatalf("reaction count = %d, want 7", count)
+		}
+
+		users, err := env.resolver.ReactionSummary().Users(env.authContext(), reactions[0], nil)
+		if err != nil {
+			t.Fatalf("ReactionSummary.Users returned error: %v", err)
+		}
+		if len(users) != 3 {
+			t.Fatalf("default reaction users len = %d, want 3", len(users))
+		}
+
+		first := int32(5)
+		users, err = env.resolver.ReactionSummary().Users(env.authContext(), reactions[0], &first)
+		if err != nil {
+			t.Fatalf("ReactionSummary.Users(first: 5) returned error: %v", err)
+		}
+		if len(users) != 5 {
+			t.Fatalf("reaction users(first: 5) len = %d, want 5", len(users))
+		}
+
+		oversized := int32(100)
+		users, err = env.resolver.ReactionSummary().Users(env.authContext(), reactions[0], &oversized)
+		if err != nil {
+			t.Fatalf("ReactionSummary.Users(first: 100) returned error: %v", err)
+		}
+		if len(users) != 7 {
+			t.Fatalf("reaction users(first: 100) len = %d, want all 7 available under max 10", len(users))
 		}
 	})
 

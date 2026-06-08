@@ -17,6 +17,11 @@ func paginationArgs(limit *int32, offset *int32, defaultLimit int, maxLimit int)
 	return limitVal, offsetVal
 }
 
+func firstNArg(first *int32, defaultLimit int, maxLimit int) int {
+	limit, _ := paginationArgs(first, nil, defaultLimit, maxLimit)
+	return limit
+}
+
 func paginateSlice[T any](items []T, limit int, offset int) ([]T, int, bool) {
 	totalCount := len(items)
 	if offset >= totalCount {

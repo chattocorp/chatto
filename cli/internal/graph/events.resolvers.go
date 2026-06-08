@@ -386,7 +386,7 @@ func (r *messagePostedEventResolver) ThreadRootEventID(ctx context.Context, obj 
 // Authorization: parent query (Room.events / Room.event) already verified room membership.
 // Reactions are keyed by the message event envelope ID, so echoes and their
 // originals accumulate reactions independently.
-func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*model.Reaction, error) {
+func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*core.ReactionSummary, error) {
 	eventID := messagePostedEventID(obj)
 	return r.resolveReactions(ctx, eventID)
 }
@@ -515,11 +515,7 @@ func (r *messagePostedEventResolver) ThreadParticipants(ctx context.Context, obj
 		return []*corev1.User{}, nil
 	}
 
-	// Determine limit (default to 5 if not specified)
-	limit := 5
-	if first != nil && *first > 0 {
-		limit = int(*first)
-	}
+	limit := firstNArg(first, 5, 10)
 
 	// Limit participant IDs to fetch
 	participantIDs := metadata.ParticipantIDs
@@ -575,16 +571,16 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 }
 
 // ThreadReplies is the resolver for the threadReplies field.
-// Only root messages have replies; thread replies resolve to an empty list.
+// Only root messages have replies; thread replies resolve to an empty page.
 // Excludes the root event itself — the caller already has it.
-func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent) ([]core.EventEnvelope, error) {
+func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
 	payload := messagePostedPayload(obj)
 	if payload == nil || payload.InThread != "" {
-		return []core.EventEnvelope{}, nil
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
 	}
 	eventID := messagePostedEventID(obj)
 	if eventID == "" {
-		return []core.EventEnvelope{}, nil
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
 	}
 
 	user, err := requireAuth(ctx)
@@ -603,15 +599,32 @@ func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *mod
 		return nil, core.ErrNotRoomMember
 	}
 
-	events, err := r.core.GetThreadEvents(ctx, kind, payload.RoomId, eventID)
+	fetchLimit := roomEventsLimit(limit)
+	if after != nil && *after != "" {
+		afterSeq, err := parseRoomEventCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid after cursor: %w", err)
+		}
+		result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, nil, &afterSeq)
+		if err != nil {
+			return nil, err
+		}
+		return buildRoomEventsConnection(result), nil
+	}
+
+	var beforeSeq *uint64
+	if before != nil && *before != "" {
+		seq, err := parseRoomEventCursor(*before)
+		if err != nil {
+			return nil, fmt.Errorf("invalid before cursor: %w", err)
+		}
+		beforeSeq = &seq
+	}
+	result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, beforeSeq, nil)
 	if err != nil {
 		return nil, err
 	}
-	// GetThreadEvents returns [root, ...replies]; drop the root.
-	if len(events) > 0 {
-		return core.WrapEVTEventEnvelopes(events[1:]), nil
-	}
-	return []core.EventEnvelope{}, nil
+	return buildRoomEventsConnection(result), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -692,6 +705,53 @@ func (r *notificationLevelChangedEventResolver) EffectiveLevel(ctx context.Conte
 // Converts the proto string status to the GraphQL PresenceStatus enum.
 func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.PresenceChangedEvent) (model.PresenceStatus, error) {
 	return model.PresenceStatus(obj.Status), nil
+}
+
+// Count is the resolver for the count field.
+func (r *reactionSummaryResolver) Count(ctx context.Context, obj *core.ReactionSummary) (int32, error) {
+	if obj == nil {
+		return 0, nil
+	}
+	return int32(len(obj.UserIDs)), nil
+}
+
+// Users is the resolver for the users field.
+func (r *reactionSummaryResolver) Users(ctx context.Context, obj *core.ReactionSummary, first *int32) ([]*corev1.User, error) {
+	if obj == nil || len(obj.UserIDs) == 0 {
+		return []*corev1.User{}, nil
+	}
+	limit := firstNArg(first, 3, 10)
+	userIDs := obj.UserIDs
+	if len(userIDs) > limit {
+		userIDs = userIDs[:limit]
+	}
+
+	users := make([]*corev1.User, 0, len(userIDs))
+	for _, userID := range userIDs {
+		user, err := r.getUser(ctx, userID)
+		if err != nil {
+			r.logger.Debug("Failed to resolve reaction user", "error", err, "user_id", userID)
+			continue
+		}
+		if user != nil {
+			users = append(users, user)
+		}
+	}
+	return users, nil
+}
+
+// HasReacted is the resolver for the hasReacted field.
+func (r *reactionSummaryResolver) HasReacted(ctx context.Context, obj *core.ReactionSummary) (bool, error) {
+	currentUser := auth.ForContext(ctx)
+	if currentUser == nil || obj == nil {
+		return false, nil
+	}
+	for _, userID := range obj.UserIDs {
+		if userID == currentUser.Id {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Description is the resolver for the description field.
@@ -850,6 +910,9 @@ func (r *Resolver) PresenceChangedEvent() PresenceChangedEventResolver {
 	return &presenceChangedEventResolver{r}
 }
 
+// ReactionSummary returns ReactionSummaryResolver implementation.
+func (r *Resolver) ReactionSummary() ReactionSummaryResolver { return &reactionSummaryResolver{r} }
+
 // RoomCreatedEvent returns RoomCreatedEventResolver implementation.
 func (r *Resolver) RoomCreatedEvent() RoomCreatedEventResolver { return &roomCreatedEventResolver{r} }
 
@@ -901,6 +964,7 @@ type messageRetractedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
+type reactionSummaryResolver struct{ *Resolver }
 type roomCreatedEventResolver struct{ *Resolver }
 type roomGroupsUpdatedEventResolver struct{ *Resolver }
 type roomUpdatedEventResolver struct{ *Resolver }

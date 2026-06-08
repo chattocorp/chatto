@@ -293,8 +293,8 @@ type MessagePostedEvent {
   inReplyTo: ID @goField(forceResolver: true)
   "Event ID of the thread root message (null for top-level messages). For direct replies, equals inReplyTo. For nested replies, references the original root."
   threadRootEventId: ID @goField(forceResolver: true)
-  "Emoji reactions on this message, aggregated by emoji."
-  reactions: [Reaction!]! @goField(forceResolver: true)
+  "Emoji reaction summaries on this message, aggregated by emoji."
+  reactions: [ReactionSummary!]! @goField(forceResolver: true)
   "When the message was last updated (null if never edited). Lazy-loaded from body."
   updatedAt: Time @goField(forceResolver: true)
   "Event ID of the original thread reply this echoes (null for non-echo messages)."
@@ -305,16 +305,18 @@ type MessagePostedEvent {
   replyCount: Int! @goField(forceResolver: true)
   "Timestamp of the most recent reply (null if no replies or not a root message)."
   lastReplyAt: Time @goField(forceResolver: true)
-  "Users who have replied in this thread (empty for non-root messages or messages without replies). Returns up to `first` participants (default 5) for preview."
+  "Users who have replied in this thread (empty for non-root messages or messages without replies). Returns up to `first` participants (default 5, max 10) for preview."
   threadParticipants(first: Int = 5): [User!]! @goField(forceResolver: true)
   "Whether the current viewer is following this thread. Null for non-root messages or messages without replies."
   viewerIsFollowingThread: Boolean @goField(forceResolver: true)
   """
-  Replies to this message, when it is a thread root. Returns an empty list when
+  Replies to this message, when it is a thread root. Returns an empty page when
   this message is itself a thread reply. Replies are returned in chronological
-  order and do not include this root event.
+  order and do not include this root event. Uses the same opaque cursor shape as
+  `Room.events`.
   """
-  threadReplies: [Event!]! @goField(forceResolver: true)
+  threadReplies(limit: Int = 50, before: String, after: String): RoomEventsConnection!
+    @goField(forceResolver: true)
 }
 
 """
@@ -594,18 +596,18 @@ type SessionTerminatedEvent {
 # ==============================================================================
 
 """
-A reaction represents emoji responses to a message, aggregated by emoji type.
+A reaction summary represents emoji responses to a message, aggregated by emoji type.
 Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
 """
-type Reaction {
+type ReactionSummary {
   "The emoji shortcode name (e.g., \"thumbsup\", \"heart\")."
   emoji: String!
   "Total number of users who reacted with this emoji."
-  count: Int!
-  "List of users who reacted with this emoji."
-  users: [User!]!
+  count: Int! @goField(forceResolver: true)
+  "Preview of users who reacted with this emoji (default 3, max 10)."
+  users(first: Int = 3): [User!]! @goField(forceResolver: true)
   "Whether the current user has reacted with this emoji."
-  hasReacted: Boolean!
+  hasReacted: Boolean! @goField(forceResolver: true)
 }
 
 """

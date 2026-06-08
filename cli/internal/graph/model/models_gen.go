@@ -686,19 +686,6 @@ type PushSubscriptionInput struct {
 type Query struct {
 }
 
-// A reaction represents emoji responses to a message, aggregated by emoji type.
-// Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
-type Reaction struct {
-	// The emoji shortcode name (e.g., "thumbsup", "heart").
-	Emoji string `json:"emoji"`
-	// Total number of users who reacted with this emoji.
-	Count int32 `json:"count"`
-	// List of users who reacted with this emoji.
-	Users []*corev1.User `json:"users"`
-	// Whether the current user has reacted with this emoji.
-	HasReacted bool `json:"hasReacted"`
-}
-
 // Input for removing an emoji reaction from a message.
 type RemoveReactionInput struct {
 	// The ID of the room containing the message.
@@ -833,10 +820,10 @@ type RoomEventsAroundResult struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Paginated room events with metadata indicating whether more events exist
-// in either direction. `startCursor` and `endCursor` are opaque pagination
-// cursors — pass them as `before` / `after` on a subsequent `Room.events`
-// call. Both are null when `events` is empty.
+// Paginated chronological events with metadata indicating whether more events
+// exist in either direction. `startCursor` and `endCursor` are opaque pagination
+// cursors — pass them as `before` / `after` on the same field that returned them.
+// Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
 	Events []core.EventEnvelope `json:"events"`

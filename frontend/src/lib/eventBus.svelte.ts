@@ -47,7 +47,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
             emoji
             count
             hasReacted
-            users {
+            users(first: 5) {
               id
               displayName
             }

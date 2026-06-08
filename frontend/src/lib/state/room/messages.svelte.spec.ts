@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { Client } from '@urql/svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
-import { RoomMessagesStore, ThreadMessagesStore } from './messages.svelte';
+import { MessagesStore } from './messages.svelte';
 
 /**
  * Minimal GraphQLClient stand-in. `reconnectCount` is a Svelte `$state` so
@@ -15,8 +15,17 @@ class FakeGqlClient {
 	queryMock: ReturnType<typeof vi.fn>;
 
 	constructor(queryData: unknown = null) {
+		const queryDataQueue = Array.isArray(queryData) ? [...queryData] : null;
 		this.queryMock = vi.fn(() => ({
-			toPromise: () => Promise.resolve({ data: queryData, error: null })
+			toPromise: () => {
+				const data =
+					queryDataQueue === null
+						? queryData
+						: queryDataQueue.length > 1
+							? queryDataQueue.shift()
+							: queryDataQueue[0];
+				return Promise.resolve({ data, error: null });
+			}
 		}));
 		this.client = {
 			query: this.queryMock,
@@ -37,7 +46,65 @@ async function settle() {
 	flushSync();
 }
 
-describe('RoomMessagesStore — lifecycle ownership', () => {
+function threadMessageEvent(id: string, threadRootEventId: string | null = null) {
+	const offsetSeconds = Number(id.replace(/\D/g, '')) || 0;
+	return {
+		id,
+		createdAt: new Date(Date.UTC(2026, 4, 27, 0, 0, offsetSeconds)).toISOString(),
+		actorId: 'u1',
+		actor: null,
+		event: {
+			__typename: 'MessagePostedEvent',
+			roomId: 'room-1',
+			body: id,
+			attachments: [],
+			linkPreview: null,
+			updatedAt: null,
+			inReplyTo: null,
+			threadRootEventId,
+			echoOfEventId: null,
+			echoFromThreadRootEventId: null,
+			replyCount: 0,
+			lastReplyAt: null,
+			threadParticipants: [],
+			viewerIsFollowingThread: null
+		}
+	};
+}
+
+function threadQueryResult({
+	replies,
+	startCursor,
+	endCursor,
+	hasOlder,
+	hasNewer
+}: {
+	replies: unknown[];
+	startCursor: string | null;
+	endCursor: string | null;
+	hasOlder: boolean;
+	hasNewer: boolean;
+}) {
+	return {
+		room: {
+			event: {
+				...threadMessageEvent('t1'),
+				event: {
+					...threadMessageEvent('t1').event,
+					threadReplies: {
+						events: replies,
+						startCursor,
+						endCursor,
+						hasOlder,
+						hasNewer
+					}
+				}
+			}
+		}
+	};
+}
+
+describe('MessagesStore — room lifecycle ownership', () => {
 	it('applies MessageEditedEvent payloads inline without refetching', async () => {
 		const fake = new FakeGqlClient({
 			room: {
@@ -71,7 +138,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 				}
 			}
 		});
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -135,7 +202,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 				}
 			}
 		});
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -218,7 +285,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 				}
 			}
 		});
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -275,7 +342,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 				}
 			}
 		});
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -305,7 +372,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 
 	it('runs an initial fetch on setRoom', async () => {
 		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -316,7 +383,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 
 	it('triggers a catch-up query when reconnectCount increments', async () => {
 		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -331,7 +398,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 
 	it('stops reacting to reconnects after dispose()', async () => {
 		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setRoom('room-1');
 		await settle();
@@ -347,7 +414,7 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 
 	it('does not catch up if setRoom has not been called', async () => {
 		const fake = new FakeGqlClient();
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		fake.bumpReconnect();
 		await settle();
@@ -358,18 +425,79 @@ describe('RoomMessagesStore — lifecycle ownership', () => {
 
 	it('dispose() is idempotent', () => {
 		const fake = new FakeGqlClient();
-		const store = new RoomMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 		store.dispose();
 		expect(() => store.dispose()).not.toThrow();
 	});
 });
 
-describe('ThreadMessagesStore — lifecycle ownership', () => {
+describe('MessagesStore — thread lifecycle ownership', () => {
+	it('loads older reply pages when the first thread page is not complete', async () => {
+		const fake = new FakeGqlClient([
+			threadQueryResult({
+				replies: [threadMessageEvent('r51', 't1'), threadMessageEvent('r52', 't1')],
+				startCursor: 'seq:51',
+				endCursor: 'seq:52',
+				hasOlder: true,
+				hasNewer: false
+			}),
+			threadQueryResult({
+				replies: [threadMessageEvent('r49', 't1'), threadMessageEvent('r50', 't1')],
+				startCursor: 'seq:49',
+				endCursor: 'seq:50',
+				hasOlder: false,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r51', 'r52']);
+		expect(store.hasReachedStart).toBe(false);
+
+		await store.loadMore();
+		await settle();
+
+		expect(fake.queryMock).toHaveBeenCalledTimes(2);
+		expect(fake.queryMock.mock.calls[1][1]).toMatchObject({
+			roomId: 'room-1',
+			threadRootEventId: 't1',
+			limit: 50,
+			before: 'seq:51'
+		});
+		expect(store.threadEvents.map((event) => event.id)).toEqual([
+			't1',
+			'r49',
+			'r50',
+			'r51',
+			'r52'
+		]);
+		expect(store.hasReachedStart).toBe(true);
+
+		store.dispose();
+	});
+
 	it('triggers a catch-up query when reconnectCount increments', async () => {
 		const fake = new FakeGqlClient({
-			room: { event: { id: 't1', event: { __typename: 'MessagePostedEvent', threadReplies: [] } } }
+			room: {
+				event: {
+					id: 't1',
+					event: {
+						__typename: 'MessagePostedEvent',
+						threadReplies: {
+							events: [],
+							startCursor: null,
+							endCursor: null,
+							hasOlder: false,
+							hasNewer: false
+						}
+					}
+				}
+			}
 		});
-		const store = new ThreadMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		store.setThread('room-1', 't1');
 		await settle();
@@ -384,7 +512,7 @@ describe('ThreadMessagesStore — lifecycle ownership', () => {
 
 	it('does not catch up if setThread has not been called', async () => {
 		const fake = new FakeGqlClient();
-		const store = new ThreadMessagesStore(fake as unknown as GraphQLClient, () => null);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
 		fake.bumpReconnect();
 		await settle();
