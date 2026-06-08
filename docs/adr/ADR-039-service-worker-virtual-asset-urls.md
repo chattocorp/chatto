@@ -25,8 +25,9 @@ The virtual URL is not a bearer credential. It only resolves inside a Chatto cli
 
 For full `GET` requests, the worker fetches the target with the registered server bearer token when available, adds `X-Chatto-Asset-Proxy: 1`, and stores successful `200` responses in a private `chatto-assets-v1` Cache Storage cache. The backend treats that proxy header as a request to stream the asset through Chatto instead of redirecting originals to S3, so the worker can cache the actual response body. The app asks the worker to clear the asset cache for a server when that server is removed, and to clear the whole asset cache on global sign-out.
 
-The fallback path is explicit and intentional:
+The restart and fallback paths are explicit and intentional:
 
+- If a controlled page is still open but the browser has terminated and restarted the idle Service Worker, the worker asks open window clients to resend registered servers and the requested virtual target mapping before failing the fetch.
 - If `navigator.serviceWorker.controller` is absent, asset URL helpers return the existing direct ticketed asset URL.
 - Legacy `/assets/attachments/{signedLocator}` URLs stay on their existing compatibility path and are not rewritten through the virtual namespace.
 - Media `Range` requests are not cached by the asset proxy. The worker redirects them to the hidden target URL so browser media playback keeps current Range behavior until Chatto has deliberate Range streaming through the proxy path.
@@ -36,6 +37,7 @@ The fallback path is explicit and intentional:
 
 - **Copied DOM URLs are no longer access tickets in the main app path.** A copied `/__chatto/assets/...` URL is same-origin and only useful inside a controlled Chatto browser session with the matching registered server credentials.
 - **Ticketed URLs remain part of the architecture.** They are still emitted by GraphQL and still authorize non-Service-Worker clients, first-load/non-controlled pages, legacy clients, and Range redirects. Their TTL and membership checks remain important security controls.
+- **Open pages are the recovery source for worker restarts.** Service Worker globals are volatile. The client keeps the virtual-target mappings it registered and answers worker resync requests so lazy-loaded assets can recover after an idle worker restart without persisting tickets to durable browser storage.
 - **The fallback is less private but more compatible.** Browsers without working Service Workers keep rendering assets using the pre-existing ticketed URL behavior. This is acceptable because it is the old behavior, not a new breakage, and because ticket expiry plus membership checks still bound exposure.
 - **Private browser caching is allowed for already-seen bytes.** The worker may cache full successful asset responses because the user has already received immutable content. Cache entries are scoped to the browser profile and cleared when server registrations are removed or the user signs out.
 - **Safari, private browsing, and managed browsers may see less benefit.** Service Worker or Cache Storage behavior can be unavailable, ephemeral, or aggressively evicted. The feature must remain an enhancement with a reliable direct-URL fallback.

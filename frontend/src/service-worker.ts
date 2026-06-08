@@ -32,8 +32,15 @@ type AssetProxyServer = {
   token: string | null;
 };
 
+type AssetProxyTarget = {
+  serverId: string;
+  virtualPath: string;
+  targetUrl: string;
+};
+
 const assetProxyServers = new Map<string, AssetProxyServer>();
-const registeredAssetTargets = new Map<string, { serverId: string; targetUrl: string }>();
+const registeredAssetTargets = new Map<string, AssetProxyTarget>();
+const ASSET_PROXY_RESYNC_TIMEOUT_MS = 750;
 
 type BadgeCapableNavigator = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>;
@@ -74,15 +81,7 @@ self.addEventListener('message', (event) => {
   if (!message || typeof message.type !== 'string') return;
 
   if (message.type === 'chatto-asset-proxy-sync-servers' && Array.isArray(message.servers)) {
-    assetProxyServers.clear();
-    for (const server of message.servers) {
-      if (!isAssetProxyServerMessage(server)) continue;
-      assetProxyServers.set(server.id, {
-        id: server.id,
-        url: server.url,
-        token: typeof server.token === 'string' ? server.token : null
-      });
-    }
+    syncAssetProxyServers(message.servers);
     return;
   }
 
@@ -92,8 +91,9 @@ self.addEventListener('message', (event) => {
     typeof message.virtualPath === 'string' &&
     typeof message.targetUrl === 'string'
   ) {
-    registeredAssetTargets.set(message.virtualPath, {
+    registerAssetProxyTarget({
       serverId: message.serverId,
+      virtualPath: message.virtualPath,
       targetUrl: message.targetUrl
     });
     return;
@@ -114,6 +114,36 @@ function isAssetProxyServerMessage(value: unknown): value is AssetProxyServer {
     typeof server.url === 'string' &&
     (typeof server.token === 'string' || server.token === null || server.token === undefined)
   );
+}
+
+function isAssetProxyTargetMessage(value: unknown): value is AssetProxyTarget {
+  if (!value || typeof value !== 'object') return false;
+  const target = value as Partial<AssetProxyTarget>;
+  return (
+    typeof target.serverId === 'string' &&
+    typeof target.virtualPath === 'string' &&
+    typeof target.targetUrl === 'string'
+  );
+}
+
+function syncAssetProxyServers(servers: unknown[]): void {
+  assetProxyServers.clear();
+  mergeAssetProxyServers(servers);
+}
+
+function mergeAssetProxyServers(servers: unknown[]): void {
+  for (const server of servers) {
+    if (!isAssetProxyServerMessage(server)) continue;
+    assetProxyServers.set(server.id, {
+      id: server.id,
+      url: server.url,
+      token: typeof server.token === 'string' ? server.token : null
+    });
+  }
+}
+
+function registerAssetProxyTarget(target: AssetProxyTarget): void {
+  registeredAssetTargets.set(target.virtualPath, target);
 }
 
 /**
@@ -209,8 +239,14 @@ async function handleAssetProxyFetch(
     if (cached) return cached;
   }
 
-  const server = assetProxyServers.get(proxyRequest.serverId);
-  const registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  let server = assetProxyServers.get(proxyRequest.serverId);
+  let registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  if (!server || !registered) {
+    await requestAssetProxyResync(proxyRequest);
+    server = assetProxyServers.get(proxyRequest.serverId);
+    registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  }
+
   const targetUrl =
     registered?.targetUrl ?? buildFallbackAssetTarget(server, proxyRequest.assetPath);
   if (!targetUrl) {
@@ -244,6 +280,66 @@ async function handleAssetProxyFetch(
   }
 
   return response;
+}
+
+async function requestAssetProxyResync(proxyRequest: AssetProxyRequest): Promise<void> {
+  const clients = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  });
+  if (clients.length === 0) return;
+
+  await Promise.race([
+    Promise.all(clients.map((client) => requestAssetProxyResyncFromClient(client, proxyRequest))),
+    new Promise<void>((resolve) => setTimeout(resolve, ASSET_PROXY_RESYNC_TIMEOUT_MS))
+  ]);
+}
+
+async function requestAssetProxyResyncFromClient(
+  client: Client,
+  proxyRequest: AssetProxyRequest
+): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timeout = setTimeout(resolve, ASSET_PROXY_RESYNC_TIMEOUT_MS);
+
+    channel.port1.onmessage = (event) => {
+      clearTimeout(timeout);
+      applyAssetProxyResyncResponse(event.data);
+      resolve();
+    };
+
+    try {
+      client.postMessage(
+        {
+          type: 'chatto-asset-proxy-resync-request',
+          serverId: proxyRequest.serverId,
+          virtualPath: proxyRequest.virtualPath
+        },
+        [channel.port2]
+      );
+    } catch {
+      clearTimeout(timeout);
+      resolve();
+    }
+  });
+}
+
+function applyAssetProxyResyncResponse(message: unknown): void {
+  if (!message || typeof message !== 'object') return;
+  const response = message as Record<string, unknown>;
+  if (response.type !== 'chatto-asset-proxy-resync-response') return;
+
+  if (Array.isArray(response.servers)) {
+    mergeAssetProxyServers(response.servers);
+  }
+
+  if (Array.isArray(response.targets)) {
+    for (const target of response.targets) {
+      if (!isAssetProxyTargetMessage(target)) continue;
+      registerAssetProxyTarget(target);
+    }
+  }
 }
 
 function buildFallbackAssetTarget(

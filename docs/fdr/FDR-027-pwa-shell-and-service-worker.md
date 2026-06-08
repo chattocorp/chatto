@@ -18,6 +18,7 @@ Offline support means the app can open and show its normal disconnected state in
 - Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
 - API, auth, webhook, non-GET, and cross-origin requests are network-only.
 - Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's real asset URL. The worker attaches the server's bearer token for remote servers, asks Chatto to stream originals instead of redirecting to S3 for cacheable full responses, and keeps media `Range` requests network-only.
+- If the browser restarts an idle worker while controlled pages stay open, the worker asks those clients to resend registered servers and virtual asset target mappings before treating an uncached virtual asset as unresolved.
 - Successful full virtual asset responses are cached in a private `chatto-assets-v1` browser cache. The app asks the worker to clear this cache on global sign-out and to clear per-server entries when a server is removed.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - Push dismiss payloads still close matching visible notifications on the device.
