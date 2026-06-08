@@ -116,11 +116,40 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 		}
 
 		_, err = core.VerifyEmailCode(ctx, user.Id, "unknown-email@example.com", wrongCode)
-		if !errors.Is(err, ErrTokenNotFound) {
-			t.Fatalf("wrong code error = %v, want ErrTokenNotFound", err)
+		if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
+			t.Fatalf("wrong code error = %v, want ErrEmailVerificationCodeInvalid", err)
 		}
 		if _, err := core.VerifyEmailCode(ctx, user.Id, "unknown-email@example.com", code); err != nil {
 			t.Fatalf("valid code should still verify after wrong code: %v", err)
+		}
+	})
+
+	t.Run("invalid attempts exhaust code", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "attempt-email-user", "Attempt User", "password123")
+		code, err := core.CreateEmailVerificationCode(ctx, user.Id, "attempt-email@example.com")
+		if err != nil {
+			t.Fatalf("CreateEmailVerificationCode: %v", err)
+		}
+		wrongCode := "000000"
+		if code == wrongCode {
+			wrongCode = "111111"
+		}
+
+		for i := 1; i < emailOTPMaxAttempts; i++ {
+			_, err := core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
+			if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
+				t.Fatalf("attempt %d error = %v, want ErrEmailVerificationCodeInvalid", i, err)
+			}
+		}
+		_, err = core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
+		if !errors.Is(err, ErrEmailVerificationCodeExhausted) {
+			t.Fatalf("exhaustion error = %v, want ErrEmailVerificationCodeExhausted", err)
+		}
+		if _, err := core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", code); !errors.Is(err, ErrEmailVerificationCodeExhausted) {
+			t.Fatalf("valid code after exhaustion error = %v, want ErrEmailVerificationCodeExhausted", err)
+		}
+		if _, err := core.CreateEmailVerificationCode(ctx, user.Id, "attempt-email@example.com"); !errors.Is(err, ErrEmailVerificationCodeExhausted) {
+			t.Fatalf("new code after exhaustion error = %v, want ErrEmailVerificationCodeExhausted", err)
 		}
 	})
 
@@ -149,6 +178,7 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 			switch {
 			case err == nil:
 				successes++
+			case errors.Is(err, ErrEmailVerificationCodeInvalid):
 			case errors.Is(err, ErrTokenNotFound):
 			default:
 				t.Fatalf("unexpected concurrent verification error: %v", err)
@@ -159,7 +189,7 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 		}
 	})
 
-	t.Run("multiple requests remain valid", func(t *testing.T) {
+	t.Run("multiple requests remain valid until success", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "resend-email-user", "Resend User", "password123")
 		firstCode, err := core.CreateEmailVerificationCode(ctx, user.Id, "resend-email@example.com")
 		if err != nil {
@@ -173,8 +203,21 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 		if _, err := core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", firstCode); err != nil {
 			t.Fatalf("first code should verify: %v", err)
 		}
-		if _, err := core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", secondCode); err != nil {
-			t.Fatalf("second code should verify: %v", err)
+		if _, err := core.VerifyEmailCode(ctx, user.Id, "resend-email@example.com", secondCode); !errors.Is(err, ErrTokenNotFound) {
+			t.Fatalf("second code after challenge success error = %v, want ErrTokenNotFound", err)
+		}
+	})
+
+	t.Run("active code limit", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "limit-email-user", "Limit User", "password123")
+
+		for i := 0; i < emailOTPMaxActiveCodes; i++ {
+			if _, err := core.CreateEmailVerificationCode(ctx, user.Id, "limit-email@example.com"); err != nil {
+				t.Fatalf("CreateEmailVerificationCode %d: %v", i+1, err)
+			}
+		}
+		if _, err := core.CreateEmailVerificationCode(ctx, user.Id, "limit-email@example.com"); !errors.Is(err, ErrEmailVerificationCodeLimitExceeded) {
+			t.Fatalf("extra CreateEmailVerificationCode error = %v, want ErrEmailVerificationCodeLimitExceeded", err)
 		}
 	})
 }

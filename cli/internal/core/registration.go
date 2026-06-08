@@ -34,6 +34,12 @@ var (
 	// ErrRegistrationCodeInvalid is returned when a submitted registration code is wrong.
 	ErrRegistrationCodeInvalid = errors.New("invalid registration code")
 
+	// ErrRegistrationCodeExhausted is returned when too many invalid attempts were made.
+	ErrRegistrationCodeExhausted = errors.New("registration code exhausted")
+
+	// ErrRegistrationCodeLimitExceeded is returned when too many codes are active for an email.
+	ErrRegistrationCodeLimitExceeded = errors.New("too many active registration codes")
+
 	// ErrRegistrationTokenNotFound is returned when the completion token doesn't exist.
 	ErrRegistrationTokenNotFound = errors.New("registration completion token not found")
 
@@ -66,13 +72,17 @@ type RegistrationToken struct {
 // ============================================================================
 
 const (
-	registrationCodeKeyPrefix            = "registration_code."
+	registrationOTPScope                 = "registration"
 	registrationCompletionTokenKeyPrefix = "registration_completion."
 )
 
 // registrationCodeKey returns the HMAC-derived KV key for one registration code.
 func (c *ChattoCore) registrationCodeKey(email, code string) string {
-	return c.runtimeTokenKey(registrationCodeKeyPrefix, normalizeRegistrationEmail(email)+"\x00"+strings.TrimSpace(code))
+	return c.emailOTPCodeKey(registrationOTPScope, normalizeRegistrationEmail(email), code)
+}
+
+func (c *ChattoCore) registrationCodeChallengeKey(email string) string {
+	return c.emailOTPChallengeKey(registrationOTPScope, normalizeRegistrationEmail(email))
 }
 
 // registrationTokenKey returns the HMAC-derived KV key for a registration completion token.
@@ -97,40 +107,21 @@ func (c *ChattoCore) CreateRegistrationCode(ctx context.Context, email string) (
 		return "", fmt.Errorf("email is required")
 	}
 
-	for i := 0; i < 8; i++ {
-		code, err := NewVerificationCode()
-		if err != nil {
-			return "", err
-		}
-		createdAt := time.Now()
-		codeData := RegistrationCode{
+	code, err := c.createEmailOTP(ctx, registrationOTPScope, email, RegistrationCodeTTL, func(createdAt time.Time) ([]byte, error) {
+		return json.Marshal(RegistrationCode{
 			Email:     email,
 			CreatedAt: createdAt,
-		}
-
-		data, err := json.Marshal(codeData)
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal registration code: %w", err)
-		}
-
-		key := c.registrationCodeKey(email, code)
-		revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(RegistrationCodeTTL))
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			continue
-		}
-		if err != nil {
-			return "", fmt.Errorf("failed to store registration code: %w", err)
-		}
-
-		if err := c.recordRegistrationCodeIssued(ctx, email, createdAt); err != nil {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
-			return "", err
-		}
-
-		return code, nil
+		})
+	}, func(createdAt time.Time) error {
+		return c.recordRegistrationCodeIssued(ctx, email, createdAt)
+	})
+	if errors.Is(err, errEmailOTPExhausted) {
+		return "", ErrRegistrationCodeExhausted
 	}
-
-	return "", fmt.Errorf("failed to generate unique registration code")
+	if errors.Is(err, errEmailOTPTooManyCodes) {
+		return "", ErrRegistrationCodeLimitExceeded
+	}
+	return code, err
 }
 
 // VerifyRegistrationCode validates an email registration code and returns a
@@ -142,32 +133,39 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 		return "", ErrRegistrationCodeInvalid
 	}
 
-	key := c.registrationCodeKey(email, code)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getEmailOTPCode(ctx, registrationOTPScope, email, code, RegistrationCodeTTL)
 	if err != nil {
-		if isRuntimeStateKeyAbsent(err) {
+		switch {
+		case errors.Is(err, errEmailOTPNotFound):
 			return "", ErrRegistrationCodeNotFound
+		case errors.Is(err, errEmailOTPExpired):
+			return "", ErrRegistrationCodeExpired
+		case errors.Is(err, errEmailOTPInvalid):
+			return "", ErrRegistrationCodeInvalid
+		case errors.Is(err, errEmailOTPExhausted):
+			return "", ErrRegistrationCodeExhausted
+		default:
+			return "", err
 		}
-		return "", fmt.Errorf("failed to get registration code: %w", err)
 	}
 
 	var codeData RegistrationCode
-	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
+	if err := json.Unmarshal(entry.value, &codeData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal registration code: %w", err)
 	}
 
 	if time.Since(codeData.CreatedAt) > RegistrationCodeTTL {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		_ = c.storage.runtimeStateKV.Delete(ctx, entry.key, jetstream.LastRevision(entry.revision))
 		return "", ErrRegistrationCodeExpired
 	}
 	if codeData.Email != email {
 		return "", ErrRegistrationCodeInvalid
 	}
-	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
-		if isRuntimeStateKeyAbsent(err) || isRuntimeStateRevisionConflict(err) {
+	if err := c.consumeEmailOTPCode(ctx, registrationOTPScope, email, entry); err != nil {
+		if errors.Is(err, errEmailOTPNotFound) {
 			return "", ErrRegistrationCodeNotFound
 		}
-		return "", fmt.Errorf("failed to consume registration code: %w", err)
+		return "", err
 	}
 
 	token, err := c.CreateRegistrationCompletionToken(ctx, email)

@@ -40,6 +40,7 @@ func TestChattoCore_CreateRegistrationCode(t *testing.T) {
 		t.Fatalf("registration code record missing: %v", err)
 	}
 	assertRuntimeKVHasTTL(t, core, key)
+	assertRuntimeKVHasTTL(t, core, core.registrationCodeChallengeKey("newuser@example.com"))
 
 	var record RegistrationCode
 	if err := json.Unmarshal(entry.Value(), &record); err != nil {
@@ -76,6 +77,9 @@ func TestChattoCore_VerifyRegistrationCode(t *testing.T) {
 	if _, err := core.storage.runtimeStateKV.Get(ctx, core.registrationCodeKey("complete@example.com", code)); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("registration code should be consumed, got %v", err)
 	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, core.registrationCodeChallengeKey("complete@example.com")); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("registration challenge should be consumed, got %v", err)
+	}
 
 	tokenData, err := core.GetRegistrationToken(ctx, token)
 	if err != nil {
@@ -101,11 +105,42 @@ func TestChattoCore_VerifyRegistrationCodeUnknownCode(t *testing.T) {
 	}
 
 	_, err = core.VerifyRegistrationCode(ctx, "unknown@example.com", wrongCode)
-	if !errors.Is(err, ErrRegistrationCodeNotFound) {
-		t.Fatalf("wrong code error = %v, want ErrRegistrationCodeNotFound", err)
+	if !errors.Is(err, ErrRegistrationCodeInvalid) {
+		t.Fatalf("wrong code error = %v, want ErrRegistrationCodeInvalid", err)
 	}
 	if _, err := core.VerifyRegistrationCode(ctx, "unknown@example.com", code); err != nil {
 		t.Fatalf("valid code should still verify after wrong code: %v", err)
+	}
+}
+
+func TestChattoCore_VerifyRegistrationCodeInvalidAttemptsExhaust(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	code, err := core.CreateRegistrationCode(ctx, "attempts@example.com")
+	if err != nil {
+		t.Fatalf("CreateRegistrationCode: %v", err)
+	}
+	wrongCode := "000000"
+	if code == wrongCode {
+		wrongCode = "111111"
+	}
+
+	for i := 1; i < emailOTPMaxAttempts; i++ {
+		_, err := core.VerifyRegistrationCode(ctx, "attempts@example.com", wrongCode)
+		if !errors.Is(err, ErrRegistrationCodeInvalid) {
+			t.Fatalf("attempt %d error = %v, want ErrRegistrationCodeInvalid", i, err)
+		}
+	}
+	_, err = core.VerifyRegistrationCode(ctx, "attempts@example.com", wrongCode)
+	if !errors.Is(err, ErrRegistrationCodeExhausted) {
+		t.Fatalf("exhaustion error = %v, want ErrRegistrationCodeExhausted", err)
+	}
+	if _, err := core.VerifyRegistrationCode(ctx, "attempts@example.com", code); !errors.Is(err, ErrRegistrationCodeExhausted) {
+		t.Fatalf("valid code after exhaustion error = %v, want ErrRegistrationCodeExhausted", err)
+	}
+	if _, err := core.CreateRegistrationCode(ctx, "attempts@example.com"); !errors.Is(err, ErrRegistrationCodeExhausted) {
+		t.Fatalf("new code after exhaustion error = %v, want ErrRegistrationCodeExhausted", err)
 	}
 }
 
@@ -136,6 +171,7 @@ func TestChattoCore_VerifyRegistrationCodeConcurrentValidCodeConsumesOnce(t *tes
 		switch {
 		case err == nil:
 			successes++
+		case errors.Is(err, ErrRegistrationCodeInvalid):
 		case errors.Is(err, ErrRegistrationCodeNotFound):
 		default:
 			t.Fatalf("unexpected concurrent verification error: %v", err)
@@ -146,7 +182,7 @@ func TestChattoCore_VerifyRegistrationCodeConcurrentValidCodeConsumesOnce(t *tes
 	}
 }
 
-func TestChattoCore_RegistrationCodeMultipleRequestsRemainValid(t *testing.T) {
+func TestChattoCore_RegistrationCodeMultipleRequestsRemainValidUntilSuccess(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -162,8 +198,22 @@ func TestChattoCore_RegistrationCodeMultipleRequestsRemainValid(t *testing.T) {
 	if _, err := core.VerifyRegistrationCode(ctx, "resend@example.com", firstCode); err != nil {
 		t.Fatalf("first code should verify: %v", err)
 	}
-	if _, err := core.VerifyRegistrationCode(ctx, "resend@example.com", secondCode); err != nil {
-		t.Fatalf("second code should verify: %v", err)
+	if _, err := core.VerifyRegistrationCode(ctx, "resend@example.com", secondCode); !errors.Is(err, ErrRegistrationCodeNotFound) {
+		t.Fatalf("second code after challenge success error = %v, want ErrRegistrationCodeNotFound", err)
+	}
+}
+
+func TestChattoCore_RegistrationCodeActiveLimit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	for i := 0; i < emailOTPMaxActiveCodes; i++ {
+		if _, err := core.CreateRegistrationCode(ctx, "limit@example.com"); err != nil {
+			t.Fatalf("CreateRegistrationCode %d: %v", i+1, err)
+		}
+	}
+	if _, err := core.CreateRegistrationCode(ctx, "limit@example.com"); !errors.Is(err, ErrRegistrationCodeLimitExceeded) {
+		t.Fatalf("extra CreateRegistrationCode error = %v, want ErrRegistrationCodeLimitExceeded", err)
 	}
 }
 

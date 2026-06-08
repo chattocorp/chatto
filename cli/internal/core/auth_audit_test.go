@@ -435,7 +435,7 @@ func TestChattoCore_AuditAppendFailureCleansNewRegistrationCode(t *testing.T) {
 	if code != "" {
 		t.Fatalf("expected no code on failure, got %q", code)
 	}
-	count, err := countKVKeys(ctx, core.storage.runtimeStateKV, "registration_code.*")
+	count, err := countKVKeys(ctx, core.storage.runtimeStateKV, "email_otp.*")
 	if err != nil {
 		t.Fatalf("count registration keys: %v", err)
 	}

@@ -77,6 +77,8 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Why:** `EVT` is Chatto's durable audit trail as well as the event-sourcing stream. Operators need to answer "what happened?" for sensitive workflows, but the audit log must not become a secondary secret store.
 **Tradeoff:** Failed-login and unknown-code exchange attempts intentionally do not reveal whether the submitted identifier or code matched an account. Admins get timing, request metadata, and stable hashes for known-user workflows, not raw credential guesses.
 
+**OTP guardrails:** Registration and authenticated email-verification OTPs share `RUNTIME_STATE` `email_otp.*` records. Each challenge allows at most ten issued codes and five wrong-code attempts in its 15-minute TTL window; exhaustion blocks fresh codes for that challenge until TTL.
+
 ### 10. Short-lived auth codes in runtime state
 
 **Decision:** OAuth authorization codes live in `RUNTIME_STATE` as HMAC-derived `grant.{hmac}` records with a 5-minute per-key TTL and are deleted on exchange attempt.

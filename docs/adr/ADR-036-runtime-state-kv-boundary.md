@@ -70,8 +70,8 @@ Current occupants include:
   deletes entries whose stored user ID matches.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
-- Account workflow credential verifiers: `registration_code.{hmac}`,
-  `registration_completion.{hmac}`, `email_verification_code.{hmac}`,
+- Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
+  `email_otp.{hmac(subject)}.challenge`, `registration_completion.{hmac}`,
   `password_reset.{hmac}`, and `account_deletion_token.{hmac}`, with per-key
   TTLs appropriate to each workflow.
 - Link-preview cache entries: `link_preview.{urlHash}`, with per-key 24-hour

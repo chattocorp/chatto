@@ -255,6 +255,14 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Create registration code
 		code, err := s.core.CreateRegistrationCode(ctx, req.Email)
 		if err != nil {
+			if errors.Is(err, core.ErrRegistrationCodeLimitExceeded) ||
+				errors.Is(err, core.ErrRegistrationCodeExhausted) {
+				log.Info("Registration code request throttled", "email", req.Email)
+				c.JSON(http.StatusOK, gin.H{
+					"message": "If this email is available, you will receive a registration code.",
+				})
+				return
+			}
 			log.Error("Failed to create registration code", "email", req.Email, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
@@ -301,7 +309,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationCodeNotFound) ||
 				errors.Is(err, core.ErrRegistrationCodeExpired) ||
-				errors.Is(err, core.ErrRegistrationCodeInvalid) {
+				errors.Is(err, core.ErrRegistrationCodeInvalid) ||
+				errors.Is(err, core.ErrRegistrationCodeExhausted) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired registration code"})
 				return
 			}
@@ -468,6 +477,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		code, err := s.core.CreateEmailVerificationCode(req.Context(), user.Id, body.Email)
 		if err != nil {
+			if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) ||
+				errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
+				c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many verification code requests. Please try again later."})
+				return
+			}
 			log.Error("Failed to create email verification code", "userId", user.Id, "email", body.Email, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
@@ -507,7 +521,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if _, err := s.core.VerifyEmailCode(req.Context(), user.Id, body.Email, body.Code); err != nil {
 			if errors.Is(err, core.ErrTokenNotFound) ||
 				errors.Is(err, core.ErrTokenExpired) ||
-				errors.Is(err, core.ErrEmailVerificationCodeInvalid) {
+				errors.Is(err, core.ErrEmailVerificationCodeInvalid) ||
+				errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification code"})
 				return
 			}
