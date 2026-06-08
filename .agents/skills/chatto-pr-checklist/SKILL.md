@@ -17,3 +17,7 @@ description: "Pre-merge PR checklist for the Chatto codebase. Contains instructi
 - If this PR contains changes to our protocol buffers, please notify the user.
 - If this PR contains changes to our GraphQL API, please notify the user.
 - If this PR contains any other changes that you feel might be a breaking change, please notify the user.
+
+## When you're done
+
+- If you're already in a branch with a PR, please push your changes if you've made any.
