@@ -95,6 +95,9 @@ type ChattoCore struct {
 	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
 
+	// RoomBans is the active moderation-ban index inside RoomDirectory.
+	RoomBans *RoomBanProjection
+
 	// ServerConfig is the projection holding current dynamic configuration
 	// rebuilt from EVT. The field name is retained for compatibility with
 	// existing admin/verification code while the projection now stores more
@@ -230,6 +233,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// assignments. The assignment path is idempotent.
 		if err := c.applyConfigOwners(gctx); err != nil {
 			return fmt.Errorf("apply config owners: %w", err)
+		}
+		if err := c.EnsureDefaultRolePermissions(gctx); err != nil {
+			return fmt.Errorf("ensure default role permissions: %w", err)
 		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
@@ -694,6 +700,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomDirectory := NewRoomDirectoryProjection()
 	roomDirectoryProjector := newProjector(roomDirectory, "Room Directory", roomDirectory.adminProjectionEstimate)
 	roomMembership := roomDirectory.Membership
+	roomBans := roomDirectory.Bans
 
 	serverConfigProjection := NewConfigProjection()
 	serverConfigProjector := newProjector(serverConfigProjection, "Server Config", serverConfigProjection.adminProjectionEstimate)
@@ -743,6 +750,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomDirectory:            roomDirectory,
 		RoomDirectoryProjector:   roomDirectoryProjector,
 		RoomMembership:           roomMembership,
+		RoomBans:                 roomBans,
 		ServerConfig:             serverConfigProjection,
 		ServerConfigProjector:    serverConfigProjector,
 		RoomCatalog:              roomCatalog,
@@ -1652,14 +1660,20 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	}
 
 	_, isMember := memberRooms[roomID]
-	switch event.Event.(type) {
+	switch e := event.Event.(type) {
 	case *corev1.Event_UserJoinedRoom:
-		if event.ActorId == userID {
+		joinedUserID := event.ActorId
+		if joinedUserID == userID {
 			memberRooms[roomID] = struct{}{}
 			isMember = true
 		}
 	case *corev1.Event_UserLeftRoom:
-		if event.ActorId == userID {
+		leftUserID := event.ActorId
+		if leftUserID == userID {
+			delete(memberRooms, roomID)
+		}
+	case *corev1.Event_RoomMemberBanned:
+		if e.RoomMemberBanned.GetUserId() == userID {
 			delete(memberRooms, roomID)
 		}
 	case *corev1.Event_RoomDeleted:
@@ -1680,6 +1694,8 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_UserJoinedRoom,
 		*corev1.Event_UserLeftRoom,
+		*corev1.Event_RoomMemberBanned,
+		*corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_MessagePosted,
 		*corev1.Event_MessageEdited,
@@ -1713,6 +1729,8 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserJoinedRoom,
 		*corev1.Event_UserLeftRoom,
+		*corev1.Event_RoomMemberBanned,
+		*corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_RoomCreated,
 		*corev1.Event_RoomUpdated,
 		*corev1.Event_RoomArchived,

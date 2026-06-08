@@ -88,6 +88,11 @@ var (
 	// DM conversations are permanent and cannot be left.
 	ErrCannotLeaveDMConversation = errors.New("cannot leave DM conversations")
 
+	// ErrCannotBanDMRoomMember is returned when a moderator tries to ban
+	// someone from a DM room. DM membership is the privacy boundary and
+	// cannot be moderated like a channel room.
+	ErrCannotBanDMRoomMember = errors.New("cannot ban members from DM conversations")
+
 	// ErrLoginTooShort is returned when a login is shorter than MinLoginLength.
 	ErrLoginTooShort = errors.New("username must be at least 2 characters")
 

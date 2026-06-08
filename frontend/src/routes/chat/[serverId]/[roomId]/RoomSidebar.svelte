@@ -6,6 +6,7 @@ shows the member list; will grow to host other room-scoped surfaces (pinned
 messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
+  import { graphql } from '$lib/gql';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
@@ -22,11 +23,31 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { toast } from '$lib/ui/toast';
+  import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
 
+  const BanRoomMemberMutation = graphql(`
+    mutation BanRoomMemberFromSidebar($input: BanRoomMemberInput!) {
+      banRoomMember(input: $input)
+    }
+  `);
 
-  let { loading = false }: { loading?: boolean } = $props();
+  let {
+    loading = false,
+    roomId,
+    canBanRoomMembers = false,
+    currentUserId = null
+  }: {
+    loading?: boolean;
+    roomId: string;
+    canBanRoomMembers?: boolean;
+    currentUserId?: string | null;
+  } = $props();
+
+  const connection = useConnection();
 
   // Get members from shared store (populated by Room.svelte)
   const membersState = $derived(getRoomMembersState());
@@ -39,6 +60,9 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   // Track which member's popover is open
   let popoverMemberId = $state<string | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);
+  let banningMemberId = $state<string | null>(null);
+  let banDialogMember = $state<RoomMember | null>(null);
+  let banError = $state<string | null>(null);
 
   function togglePopover(memberId: string, e: MouseEvent) {
     if (popoverMemberId === memberId) {
@@ -92,6 +116,38 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   const popoverMember = $derived(
     popoverMemberId ? (members.find((m) => m.id === popoverMemberId) ?? null) : null
   );
+
+  const canRemovePopoverMember = $derived(
+    !!popoverMember && canBanRoomMembers && popoverMember.id !== currentUserId
+  );
+
+  function openBanDialog(member: RoomMember) {
+    banDialogMember = member;
+    banError = null;
+    closePopover();
+  }
+
+  async function banFromRoom(member: RoomMember, reason: string, expiresAt: string | null) {
+    if (banningMemberId) return;
+
+    banningMemberId = member.id;
+    banError = null;
+    const displayName = member.displayName || member.login;
+    const result = await connection().client.mutation(BanRoomMemberMutation, {
+      input: { roomId, userId: member.id, reason, expiresAt }
+    });
+    banningMemberId = null;
+
+    if (result.error) {
+      banError = 'Failed to ban member from room';
+      toast.error(banError);
+      console.error('Failed to ban member from room:', result.error);
+      return;
+    }
+
+    toast.success(`Banned ${displayName} from room`);
+    banDialogMember = null;
+  }
 </script>
 
 <aside
@@ -150,11 +206,24 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
         user={popoverMember}
         anchorRect={popoverAnchorRect}
         canSendMessage={canStartDMs}
+        canBanFromRoom={canRemovePopoverMember}
+        banningFromRoom={banningMemberId === popoverMember.id}
         onSendMessage={() => startDMWith(getActiveServer(), popoverMember!.id)}
+        onBanFromRoom={() => openBanDialog(popoverMember!)}
         onClose={closePopover}
       />
     {/if}
   </nav>
+
+  {#if banDialogMember}
+    <BanRoomMemberModal
+      user={banDialogMember}
+      submitting={banningMemberId === banDialogMember.id}
+      error={banError}
+      onconfirm={(reason, expiresAt) => banFromRoom(banDialogMember!, reason, expiresAt)}
+      onclose={() => (banDialogMember = null)}
+    />
+  {/if}
 </aside>
 
 {#snippet memberRow(member: RoomMember)}

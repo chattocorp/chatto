@@ -56,13 +56,15 @@ const AuthServerID = "server"
 // string literals.
 const (
 	// Room aggregate
-	EventRoomCreated    = "room_created"
-	EventRoomUpdated    = "room_updated"
-	EventRoomArchived   = "room_archived"
-	EventRoomUnarchived = "room_unarchived"
-	EventRoomDeleted    = "room_deleted"
-	EventUserJoinedRoom = "user_joined"
-	EventUserLeftRoom   = "user_left"
+	EventRoomCreated        = "room_created"
+	EventRoomUpdated        = "room_updated"
+	EventRoomArchived       = "room_archived"
+	EventRoomUnarchived     = "room_unarchived"
+	EventRoomDeleted        = "room_deleted"
+	EventUserJoinedRoom     = "user_joined"
+	EventUserLeftRoom       = "user_left"
+	EventRoomMemberBanned   = "room_member_banned"
+	EventRoomMemberUnbanned = "room_member_unbanned"
 
 	// Messages (also under the room aggregate — every message event for
 	// a room lives under evt.room.{R}.message_*, so a subscriber on
@@ -187,6 +189,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserJoinedRoom
 	case *corev1.Event_UserLeftRoom:
 		return EventUserLeftRoom
+	case *corev1.Event_RoomMemberBanned:
+		return EventRoomMemberBanned
+	case *corev1.Event_RoomMemberUnbanned:
+		return EventRoomMemberUnbanned
 
 	case *corev1.Event_MessagePosted:
 		return EventMessagePosted

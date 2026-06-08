@@ -1,0 +1,119 @@
+package core
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+const MaxRoomBanReasonLength = 1000
+
+// BanRoomMember records a durable room ban and removes the target from the
+// membership projection via RoomMemberBannedEvent. The caller is responsible
+// for permission and rank checks.
+func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time) (*RoomBan, error) {
+	if kind == KindDM {
+		return nil, ErrCannotBanDMRoomMember
+	}
+	if actorID == targetUserID {
+		return nil, ErrPermissionDenied
+	}
+	if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
+		return nil, err
+	}
+	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+		return nil, err
+	}
+
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil, fmt.Errorf("ban reason is required")
+	}
+	if len([]rune(reason)) > MaxRoomBanReasonLength {
+		return nil, fmt.Errorf("ban reason exceeds %d characters", MaxRoomBanReasonLength)
+	}
+	if expiresAt != nil && !expiresAt.After(time.Now()) {
+		return nil, fmt.Errorf("ban expiry must be in the future")
+	}
+
+	eventPayload := &corev1.RoomMemberBannedEvent{
+		RoomId: roomID,
+		UserId: targetUserID,
+		Reason: reason,
+	}
+	if expiresAt != nil {
+		eventPayload.ExpiresAt = timestamppb.New(*expiresAt)
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomMemberBanned{
+			RoomMemberBanned: eventPayload,
+		},
+	})
+
+	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomMemberBannedEvent: %w", err)
+	}
+	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+		return nil, err
+	}
+
+	ban, ok := c.RoomBans.ActiveBan(roomID, targetUserID, time.Now())
+	if !ok {
+		return nil, fmt.Errorf("room ban projection did not contain newly published ban")
+	}
+	return &ban, nil
+}
+
+// UnbanRoomMember clears an active room ban. It is idempotent when no active
+// ban exists; otherwise a durable moderation event records the moderator action.
+func (c *ChattoCore) UnbanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string) error {
+	if kind == KindDM {
+		return ErrCannotBanDMRoomMember
+	}
+	if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
+		return err
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return fmt.Errorf("unban reason is required")
+	}
+	if len([]rune(reason)) > MaxRoomBanReasonLength {
+		return fmt.Errorf("unban reason exceeds %d characters", MaxRoomBanReasonLength)
+	}
+	if _, ok := c.RoomBans.ActiveBan(roomID, targetUserID, time.Now()); !ok {
+		return nil
+	}
+
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomMemberUnbanned{
+			RoomMemberUnbanned: &corev1.RoomMemberUnbannedEvent{
+				RoomId: roomID,
+				UserId: targetUserID,
+				Reason: reason,
+			},
+		},
+	})
+	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	if err != nil {
+		return fmt.Errorf("publish RoomMemberUnbannedEvent: %w", err)
+	}
+	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ChattoCore) ListActiveRoomBans(_ context.Context, roomID *string) ([]RoomBan, error) {
+	now := time.Now()
+	if roomID != nil && *roomID != "" {
+		return c.RoomBans.ActiveRoomBans(*roomID, now), nil
+	}
+	return c.RoomBans.ActiveBans(now), nil
+}

@@ -123,6 +123,8 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"room.join at room", PermRoomJoin, ScopeRoom, true},
 		{"room.manage at server", PermRoomManage, ScopeServer, true},
 		{"room.manage at room", PermRoomManage, ScopeRoom, true},
+		{"room.ban-member at server", PermRoomMemberBan, ScopeServer, true},
+		{"room.ban-member at room", PermRoomMemberBan, ScopeRoom, true},
 		{"message.manage at room", PermMessageManage, ScopeRoom, true},
 		{"room.create at server", PermRoomCreate, ScopeServer, true},
 		{"room.create at group", PermRoomCreate, ScopeGroup, true},
@@ -171,6 +173,9 @@ func TestPermissionsForScope(t *testing.T) {
 		}
 		if !found(PermRoomManage) {
 			t.Error("Expected room.manage in room permissions")
+		}
+		if !found(PermRoomMemberBan) {
+			t.Error("Expected room.ban-member in room permissions")
 		}
 		if found(PermAdminAccess) {
 			t.Error("admin.access should NOT be in room permissions")

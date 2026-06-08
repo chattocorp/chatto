@@ -52,9 +52,13 @@ export const PermRoomJoin: Permission = "room.join";
  */
 export const PermRoomList: Permission = "room.list";
 /**
- * PermRoomManage allows updating or deleting any room.
+ * PermRoomManage allows updating or deleting channel rooms.
  */
 export const PermRoomManage: Permission = "room.manage";
+/**
+ * PermRoomMemberBan allows banning lower-ranked users from channel rooms.
+ */
+export const PermRoomMemberBan: Permission = "room.ban-member";
 /**
  * PermMessagePost allows posting new root messages in rooms and starting DMs.
  */

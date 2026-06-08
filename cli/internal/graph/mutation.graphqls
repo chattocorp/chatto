@@ -47,6 +47,20 @@ type Mutation {
   leaveRoom(input: LeaveRoomInput!): Boolean!
 
   """
+  Ban a target user from a channel room. Requires `room.ban-member` in the
+  room and the caller must strictly outrank the target user. DM rooms cannot
+  be moderated this way. The reason is required for moderation audit logs.
+  """
+  banRoomMember(input: BanRoomMemberInput!): Boolean!
+
+  """
+  Unban a user from a channel room. Requires `room.ban-member` in the room,
+  and the caller must strictly outrank the target user. The reason is required
+  for moderation audit logs.
+  """
+  unbanRoomMember(input: UnbanRoomMemberInput!): Boolean!
+
+  """
   Mark a room as read for the current user.
   Stores the room's current last root message event ID as the user's read marker.
   Returns the timestamps of the new and previous last-read events.
@@ -369,6 +383,32 @@ Input for leaving a room.
 input LeaveRoomInput {
   "The ID of the room to leave."
   roomId: ID!
+}
+
+"""
+Input for banning another member from a channel room.
+"""
+input BanRoomMemberInput {
+  "The ID of the channel room to ban the member from."
+  roomId: ID!
+  "The ID of the user to ban from the room."
+  userId: ID!
+  "Moderator-entered reason stored for audit."
+  reason: String! @length(min: 1, max: 1000)
+  "Optional expiry for a temporary ban. Null means indefinite."
+  expiresAt: Time
+}
+
+"""
+Input for removing a room ban.
+"""
+input UnbanRoomMemberInput {
+  "The ID of the channel room to unban the user from."
+  roomId: ID!
+  "The ID of the user to unban."
+  userId: ID!
+  "Moderator-entered reason stored for audit."
+  reason: String! @length(min: 1, max: 1000)
 }
 
 """

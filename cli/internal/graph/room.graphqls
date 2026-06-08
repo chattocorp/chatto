@@ -59,6 +59,8 @@ type Room {
   viewerCanEchoMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can edit/configure this room (room.manage)."
   viewerCanManageRoom: Boolean! @goField(forceResolver: true)
+  "Whether the current user can ban lower-ranked members from this room."
+  viewerCanBanRoomMembers: Boolean! @goField(forceResolver: true)
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
   """

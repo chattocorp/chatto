@@ -17,6 +17,8 @@ func (*RoomArchivedEvent) IsEventType()             {}
 func (*RoomUnarchivedEvent) IsEventType()           {}
 func (*UserJoinedRoomEvent) IsEventType()           {}
 func (*UserLeftRoomEvent) IsEventType()             {}
+func (*RoomMemberBannedEvent) IsEventType()         {}
+func (*RoomMemberUnbannedEvent) IsEventType()       {}
 func (*SpaceMemberDeletedEvent) IsEventType()       {}
 func (*MessagePostedEvent) IsEventType()            {}
 func (*MessageEditedEvent) IsEventType()            {}

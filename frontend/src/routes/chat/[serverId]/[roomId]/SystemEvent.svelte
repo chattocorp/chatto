@@ -1,17 +1,29 @@
 <script lang="ts">
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { RoomEventViewFragment, UserAvatarUserFragment } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
 
   let { event }: { event: RoomEventViewFragment } = $props();
 
-  // Actor may be null if the user has been deleted.
-  // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ? useFragment(UserAvatarFragment, event.actor) : null);
-  const actorName = $derived(
-    actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : 'Deleted User'
-  );
+  type Subject = {
+    id: string;
+    name: string;
+    user: UserAvatarUserFragment | null;
+  };
+
+  function displayName(user: UserAvatarUserFragment): string {
+    return getLiveDisplayName(user.id, user.displayName || user.login);
+  }
+
+  const subject = $derived.by<Subject>(() => {
+    const actor = event?.actor ? useFragment(UserAvatarFragment, event.actor) : null;
+    if (actor) {
+      return { id: actor.id, name: displayName(actor), user: actor };
+    }
+
+    return { id: event?.actorId ?? 'unknown', name: 'Deleted User', user: null };
+  });
 
   const action = $derived.by(() => {
     if (!event?.event) return null;
@@ -34,8 +46,8 @@
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4">
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
-      {#if actor}
-        <UserAvatar user={actor} size="xs" showPresence={false} />
+      {#if subject.user}
+        <UserAvatar user={subject.user} size="xs" showPresence={false} />
       {:else}
         <!-- Deleted user placeholder -->
         <div
@@ -46,6 +58,6 @@
       {/if}
     </div>
 
-    <span class="text-sm text-muted">{actorName} {action}</span>
+    <span class="text-sm text-muted">{subject.name} {action}</span>
   </div>
 {/if}

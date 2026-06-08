@@ -34,6 +34,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'room.manage': {
     description: "Edit a room's settings and permissions, and delete rooms"
   },
+  'room.ban-member': {
+    description: 'Ban lower-ranked members from rooms'
+  },
 
   // Message permissions
   'message.post': {

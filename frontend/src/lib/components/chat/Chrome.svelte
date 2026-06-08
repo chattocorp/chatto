@@ -284,6 +284,14 @@
       });
     }
 
+    if (spaceData.hasAnyAdminPermission) {
+      items.push({
+        href: resolve('/chat/[serverId]/server-admin/moderation', { serverId: serverSegment }),
+        label: 'Moderation',
+        icon: 'iconify uil--ban'
+      });
+    }
+
     if (spaceData.canManageRoles || serverPerms.current.canAdminViewRoles) {
       items.push({
         href: resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }),

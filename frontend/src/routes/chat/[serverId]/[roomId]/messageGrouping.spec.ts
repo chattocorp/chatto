@@ -58,13 +58,14 @@ function createMockEvent(
     } as RoomEventViewFragment;
   }
 
-  return {
-    ...baseEvent,
-    event: {
-      __typename: typename,
-      roomId: 'r_test'
-    }
-  } as RoomEventViewFragment;
+	return {
+		...baseEvent,
+		event: {
+			__typename: typename,
+			roomId: 'r_test',
+			userId: baseEvent.actorId
+		}
+	} as RoomEventViewFragment;
 }
 
 describe('computeEventMetadata', () => {

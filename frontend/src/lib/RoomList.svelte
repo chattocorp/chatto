@@ -149,7 +149,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       // Without the actor check, any other member's leave (including the
       // cascade of UserLeftRoomEvents fired when a peer deletes their
       // account) would yank the viewer out of the room they're in.
-      if (spaceEvent.actorId && spaceEvent.actorId === roomsStore.currentUserId) {
+      if (spaceEvent.actorId === roomsStore.currentUserId) {
+        goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      }
+    } else if (event.__typename === 'RoomMemberBannedEvent' && event.roomId === activeRoomId) {
+      if (event.userId === roomsStore.currentUserId) {
         goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
       }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {

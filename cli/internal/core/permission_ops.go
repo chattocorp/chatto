@@ -307,6 +307,34 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	return nil
 }
 
+// EnsureDefaultRolePermissions backfills missing default grants for system
+// roles. It preserves operator edits by only writing when neither an allow nor
+// a deny exists for that role/permission pair.
+func (c *ChattoCore) EnsureDefaultRolePermissions(ctx context.Context) error {
+	roleDefaults := []struct {
+		role  string
+		perms []Permission
+	}{
+		{RoleOwner, DefaultOwnerPermissions()},
+		{RoleAdmin, DefaultAdminPermissions()},
+		{RoleModerator, DefaultModeratorPermissions()},
+		{RoleEveryone, DefaultEveryonePermissions()},
+	}
+
+	for _, spec := range roleDefaults {
+		for _, perm := range spec.perms {
+			if !PermissionAppliesAtScope(perm, ScopeServer) {
+				continue
+			}
+			if err := c.grantServerPermissionIfMissing(ctx, spec.role, perm); err != nil {
+				return fmt.Errorf("ensure default %s permission %s: %w", spec.role, perm, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // SeedDefaultRoomGroupPermissions writes the default channel-room permission
 // grants onto a specific room group. Idempotent — uses kv.Create so existing
 // keys (operator edits) are preserved.
@@ -359,4 +387,27 @@ func (c *ChattoCore) grantSetPermissionIfMissing(ctx context.Context, groupID, r
 		return nil
 	}
 	return c.GrantGroupPermission(ctx, groupID, roleName, perm)
+}
+
+func (c *ChattoCore) grantServerPermissionIfMissing(ctx context.Context, roleName string, perm Permission) error {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	if c.RBAC.GetDecision(ScopeServer, "", roleName, perm) != DecisionNone {
+		return nil
+	}
+	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		RbacPermissionGranted: rbacPermissionGrantedEvent(ScopeServer, "", roleName, perm),
+	}})
+	_, err := c.appendRBACEvent(ctx, event, func() error {
+		if c.RBAC.GetDecision(ScopeServer, "", roleName, perm) != DecisionNone {
+			return errRBACNoop
+		}
+		return nil
+	})
+	if errors.Is(err, errRBACNoop) {
+		return nil
+	}
+	return err
 }

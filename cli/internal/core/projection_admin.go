@@ -131,7 +131,8 @@ func (p *RoomMembershipProjection) adminProjectionEstimate() (int64, int64, []Pr
 func (p *RoomDirectoryProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	catalogEntries, catalogBytes, catalogMetrics := p.Catalog.adminProjectionEstimate()
 	membershipEntries, membershipBytes, membershipMetrics := p.Membership.adminProjectionEstimate()
-	metrics := make([]ProjectionAdminMetric, 0, len(catalogMetrics)+len(membershipMetrics))
+	banEntries, banBytes, banMetrics := p.Bans.adminProjectionEstimate()
+	metrics := make([]ProjectionAdminMetric, 0, len(catalogMetrics)+len(membershipMetrics)+len(banMetrics))
 	for _, metric := range catalogMetrics {
 		metric.Name = "catalog_" + metric.Name
 		metrics = append(metrics, metric)
@@ -140,7 +141,28 @@ func (p *RoomDirectoryProjection) adminProjectionEstimate() (int64, int64, []Pro
 		metric.Name = "membership_" + metric.Name
 		metrics = append(metrics, metric)
 	}
-	return catalogEntries + membershipEntries, catalogBytes + membershipBytes, metrics
+	for _, metric := range banMetrics {
+		metric.Name = "bans_" + metric.Name
+		metrics = append(metrics, metric)
+	}
+	return catalogEntries + membershipEntries + banEntries, catalogBytes + membershipBytes + banBytes, metrics
+}
+
+func (p *RoomBanProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	p.RLock()
+	defer p.RUnlock()
+	var bans, bytes int64
+	for roomID, users := range p.byRoom {
+		bytes += projectionMapEntryOverhead + int64(len(roomID))
+		for userID, ban := range users {
+			bans++
+			bytes += projectionMapEntryOverhead + int64(len(userID)+len(ban.EventID)+len(ban.ModeratorID)+len(ban.Reason)) + 32
+		}
+	}
+	return bans, bytes, []ProjectionAdminMetric{
+		{Name: "active_bans", Value: bans, Bytes: bytes},
+		{Name: "rooms_with_bans", Value: int64(len(p.byRoom)), Bytes: 0},
+	}
 }
 
 func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {

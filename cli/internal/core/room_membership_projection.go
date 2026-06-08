@@ -61,14 +61,21 @@ func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
 		roomID := e.UserJoinedRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
-			return fmt.Errorf("UserJoinedRoom missing roomID or actorID")
+			return fmt.Errorf("UserJoinedRoom missing roomID or userID")
 		}
 		p.addLocked(roomID, userID)
 	case *corev1.Event_UserLeftRoom:
 		roomID := e.UserLeftRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
-			return fmt.Errorf("UserLeftRoom missing roomID or actorID")
+			return fmt.Errorf("UserLeftRoom missing roomID or userID")
+		}
+		p.removeLocked(roomID, userID)
+	case *corev1.Event_RoomMemberBanned:
+		roomID := e.RoomMemberBanned.GetRoomId()
+		userID := e.RoomMemberBanned.GetUserId()
+		if roomID == "" || userID == "" {
+			return fmt.Errorf("RoomMemberBanned missing roomID or userID")
 		}
 		p.removeLocked(roomID, userID)
 	case *corev1.Event_RoomDeleted:

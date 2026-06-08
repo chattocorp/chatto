@@ -77,6 +77,8 @@ type AdminQueries struct {
 	EventLogEntry *EventLogEntry `json:"eventLogEntry,omitempty"`
 	// Inspect point-in-time runtime state and rough memory estimates for event-sourced projections.
 	Projections []*ProjectionState `json:"projections"`
+	// List active room bans. Requires server-scope `room.ban-member`.
+	RoomBans []*RoomBan `json:"roomBans"`
 	// Resolve the explicit grants and denials configured for a role on a
 	// specific room group. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
@@ -131,6 +133,18 @@ type AssignRoleInput struct {
 	UserID string `json:"userId"`
 	// The name of the role to assign.
 	RoleName string `json:"roleName"`
+}
+
+// Input for banning another member from a channel room.
+type BanRoomMemberInput struct {
+	// The ID of the channel room to ban the member from.
+	RoomID string `json:"roomId"`
+	// The ID of the user to ban from the room.
+	UserID string `json:"userId"`
+	// Moderator-entered reason stored for audit.
+	Reason string `json:"reason"`
+	// Optional expiry for a temporary ban. Null means indefinite.
+	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
 }
 
 // A participant currently in a voice call.
@@ -822,6 +836,30 @@ type RoleRoomPermissions struct {
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
+// An active room ban shown in server-admin moderation tools.
+type RoomBan struct {
+	// The event ID that created the active ban.
+	ID string `json:"id"`
+	// The channel room this ban applies to.
+	RoomID string `json:"roomId"`
+	// The room this ban applies to, if it still exists.
+	Room *corev1.Room `json:"room,omitempty"`
+	// The banned user.
+	UserID string `json:"userId"`
+	// The banned user, if the account still exists.
+	User *corev1.User `json:"user,omitempty"`
+	// The moderator who created the ban.
+	ModeratorID string `json:"moderatorId"`
+	// The moderator who created the ban, if the account still exists.
+	Moderator *corev1.User `json:"moderator,omitempty"`
+	// Moderator-entered reason retained for audit.
+	Reason string `json:"reason"`
+	// When the ban was created.
+	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
+	// When this ban expires. Null means indefinite.
+	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
+}
+
 // Result of fetching events around a specific target event. `startCursor`
 // and `endCursor` are opaque pagination cursors usable on `Room.events`.
 type RoomEventsAroundResult struct {
@@ -1128,6 +1166,16 @@ type TierRoles struct {
 type UnarchiveRoomInput struct {
 	// The ID of the room to unarchive.
 	RoomID string `json:"roomId"`
+}
+
+// Input for removing a room ban.
+type UnbanRoomMemberInput struct {
+	// The ID of the channel room to unban the user from.
+	RoomID string `json:"roomId"`
+	// The ID of the user to unban.
+	UserID string `json:"userId"`
+	// Moderator-entered reason stored for audit.
+	Reason string `json:"reason"`
 }
 
 // Input for unfollowing a thread.

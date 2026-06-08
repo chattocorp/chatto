@@ -923,7 +923,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 		// In DM context, the boundary deny-list still blocks.
 		dmRoomID := "R_dm_boundary_owner_test"
-		for _, perm := range []Permission{PermMessageManage, PermRoomManage} {
+		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomMemberBan} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
 			if has {
 				t.Errorf("expected DM boundary to block %s for owner, got allow", perm)
@@ -990,6 +990,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}{
 		// === Boundary-denied (privacy + category mismatch) ===
 		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
+		{PermRoomMemberBan, expected{false, false}, "DM participants can't be removed"},
 		{PermMessageManage, expected{false, false}, "DM privacy: no cross-user moderation"},
 		{PermMessageEcho, expected{false, false}, "echo channel-only"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},

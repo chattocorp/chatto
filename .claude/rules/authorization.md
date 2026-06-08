@@ -70,8 +70,8 @@ Wide gaps between system roles leave room for custom roles to be positioned at a
 
 DM rooms use the same hierarchy walker as channels, with one extra rule: a static set of permissions is *unconditionally denied* in DM contexts regardless of role grants. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`. Two reasons appear:
 
-- **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.edit-any`, `message.delete-any`, `room.manage`, `message.echo`).
-- **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.create` / `member.invite` / `member.remove` don't apply.
+- **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.manage`, `room.manage`, `room.ban-member`, `message.echo`).
+- **Category mismatch** — DMs have their own creation and fixed-membership APIs, so channel-style `room.create` / `room.ban-member` don't apply.
 
 Access *to* DM rooms is gated by participation (`requireRoomMember`). There are no `dm.*` permissions; `message.post` gates starting DMs and root DM messages, while `message.post-in-thread` gates thread replies. The deny-list only constrains what a participant can do once inside.
 
@@ -150,7 +150,31 @@ at. Examples after the message-perms consolidation:
 |------------|--------|
 | `server.manage`, `role.manage`, `role.assign`, `admin.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
-| `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+| `room.join`, `room.manage`, `room.ban-member`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+
+### Permission Naming
+
+Permission strings must have exactly two dot-separated segments:
+`{objectType}.{verb}`. The RBAC key code derives `objectType` and `verb`
+directly from that shape and panics on nested dots. For compound actions,
+keep the object type as the first segment and use dashes in the verb:
+
+- Good: `room.ban-member`, `message.post-in-thread`, `admin.view-users`
+- Bad: `room.member.remove`, `message.thread.post`
+
+Moderator actions that affect another user's membership should use explicit
+moderation events, not overloaded join/leave events. In particular,
+`UserJoinedRoomEvent` and `UserLeftRoomEvent` are actor-only membership facts;
+the actor is the user who joined or left. A moderator ban/removal must use a
+dedicated event such as `RoomMemberBannedEvent` so projections can update
+membership while user-facing room history still treats ordinary leaves as
+ordinary leaves.
+
+When adding a permission, update `cli/internal/core/permission.go`,
+`frontend/src/lib/permissions.ts`, the relevant FDR/ADR docs, and tests
+covering permission scope / DM boundary behavior. Then regenerate the Go
+and frontend mirrors (`mise codegen-cli`, `mise codegen-types`, and
+`mise codegen-frontend` as applicable).
 
 `CanCreateRoom(userID, kind, groupID)` takes an optional group context:
 when `groupID` is non-empty the check uses the group→server walk; with
@@ -165,7 +189,8 @@ the ability to create rooms only in specific groups.
 | `role.manage` | Create/edit/delete roles and their permission grants |
 | `role.assign` | Assign roles to users |
 | `room.create` | Create new rooms in a group |
-| `room.manage` | Edit, configure permissions on, and delete rooms |
+| `room.manage` | Edit, configure permissions on, and delete channel rooms |
+| `room.ban-member` | Ban lower-ranked members from channel rooms |
 | `room.join` | Join existing rooms |
 | `message.post` | Post root messages in a room |
 | `message.post-in-thread` | Post messages inside a thread |
@@ -203,6 +228,7 @@ the ability to create rooms only in specific groups.
 | `createRoom` | Yes | `rooms.create` |
 | `joinRoom` | Yes | Space membership + `rooms.join` |
 | `leaveRoom` | Yes | None |
+| `banRoomMember` | Yes | Channel rooms only; `room.ban-member` + actor strictly outranks target |
 | `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
 | `updateMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
 | `deleteMessage` | Yes | Room membership + (author is allowed) OR (`message.manage` + outranks the author) |

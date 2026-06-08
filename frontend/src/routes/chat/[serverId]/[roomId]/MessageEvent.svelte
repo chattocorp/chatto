@@ -1,10 +1,10 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- timestamp hrefs use buildMessageLinkPath which already calls resolve() */
   import { startDMWith } from '$lib/dm/startDM';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
+  import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
@@ -413,6 +413,55 @@
   const canStartDMs = $derived(serverPerms.current.canStartDMs);
   let popoverUser = $state<RoomMember | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);
+  let banningMemberId = $state<string | null>(null);
+  let banDialogUser = $state<RoomMember | null>(null);
+  let banError = $state<string | null>(null);
+
+  const BanRoomMemberMutation = graphql(`
+    mutation BanRoomMemberFromMessageEvent($input: BanRoomMemberInput!) {
+      banRoomMember(input: $input)
+    }
+  `);
+
+  const canBanPopoverUser = $derived.by(() => {
+    if (
+      !popoverUser ||
+      !roomPermissions.canBanRoomMembers ||
+      popoverUser.id === currentUser.user?.id
+    ) {
+      return false;
+    }
+    const targetUserId = popoverUser.id;
+    return members.some((member) => member.id === targetUserId);
+  });
+
+  function openBanDialog(member: RoomMember) {
+    banDialogUser = member;
+    banError = null;
+    closePopover();
+  }
+
+  async function banFromRoom(member: RoomMember, reason: string, expiresAt: string | null) {
+    if (banningMemberId) return;
+
+    banningMemberId = member.id;
+    banError = null;
+    const displayName = member.displayName || member.login;
+    const result = await connection().client.mutation(BanRoomMemberMutation, {
+      input: { roomId, userId: member.id, reason, expiresAt }
+    });
+    banningMemberId = null;
+
+    if (result.error) {
+      banError = 'Failed to ban member from room';
+      toast.error(banError);
+      console.error('Failed to ban member from room:', result.error);
+      return;
+    }
+
+    toast.success(`Banned ${displayName} from room`);
+    banDialogUser = null;
+  }
 
   function showPopoverForActor(e: MouseEvent) {
     if (!actor) return;
@@ -733,8 +782,21 @@
       user={popoverUser}
       anchorRect={popoverAnchorRect}
       canSendMessage={canStartDMs}
+      canBanFromRoom={canBanPopoverUser}
+      banningFromRoom={banningMemberId === popoverUser.id}
       onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}
+      onBanFromRoom={() => openBanDialog(popoverUser!)}
       onClose={closePopover}
+    />
+  {/if}
+
+  {#if banDialogUser}
+    <BanRoomMemberModal
+      user={banDialogUser}
+      submitting={banningMemberId === banDialogUser.id}
+      error={banError}
+      onconfirm={(reason, expiresAt) => banFromRoom(banDialogUser!, reason, expiresAt)}
+      onclose={() => (banDialogUser = null)}
     />
   {/if}
 

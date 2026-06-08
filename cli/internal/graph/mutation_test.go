@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"hmans.de/chatto/internal/core"
@@ -671,6 +672,243 @@ func TestLeaveRoom_Authorization(t *testing.T) {
 		}
 		if exists {
 			t.Error("expected user to not be room member")
+		}
+	})
+}
+
+// ============================================================================
+// BanRoomMember Authorization Tests
+// ============================================================================
+
+func TestBanRoomMember_Authorization(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	t.Run("unauthenticated user is rejected", func(t *testing.T) {
+		_, err := mutation.BanRoomMember(env.unauthContext(), model.BanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: env.testUser.Id,
+			Reason: "test",
+		})
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+
+	t.Run("member remover can remove lower-ranked member from channel room", func(t *testing.T) {
+		admin, err := env.core.CreateUser(env.ctx, "system", "room-remover", "Room Remover", "password123")
+		if err != nil {
+			t.Fatalf("failed to create admin: %v", err)
+		}
+		target, err := env.core.CreateUser(env.ctx, "system", "remove-target", "Remove Target", "password123")
+		if err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole admin: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, admin.Id, core.KindChannel, admin.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom admin: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom target: %v", err)
+		}
+
+		success, err := mutation.BanRoomMember(env.authContextForUser(admin), model.BanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: target.Id,
+			Reason: "spam",
+		})
+		if err != nil {
+			t.Fatalf("expected success, got %v", err)
+		}
+		if !success {
+			t.Fatal("expected success=true")
+		}
+
+		exists, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, target.Id, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("RoomMembershipExists: %v", err)
+		}
+		if exists {
+			t.Fatal("expected target membership to be removed")
+		}
+
+		_, err = mutation.PostMessage(env.authContextForUser(target), model.PostMessageInput{
+			RoomID: env.testRoom.Id,
+			Body:   ptr("I should not post"),
+		})
+		if !errors.Is(err, ErrNotRoomMember) {
+			t.Fatalf("expected removed target to lose post access, got %v", err)
+		}
+
+		result, err := env.resolver.Room().Events(env.authContextForUser(target), env.testRoom, nil, nil, nil)
+		if result != nil {
+			t.Fatalf("expected removed target to lose room read access, got %+v", result)
+		}
+		if !errors.Is(err, core.ErrNotRoomMember) {
+			t.Fatalf("expected removed target to lose room read access, got %v", err)
+		}
+
+		ban, ok := env.core.RoomBans.ActiveBan(env.testRoom.Id, target.Id, time.Now())
+		if !ok {
+			t.Fatal("expected target to have an active room ban")
+		}
+		if ban.ModeratorID != admin.Id || ban.Reason != "spam" {
+			t.Fatalf("unexpected ban projection: moderator=%q reason=%q", ban.ModeratorID, ban.Reason)
+		}
+
+		_, err = mutation.JoinRoom(env.authContextForUser(target), model.JoinRoomInput{RoomID: env.testRoom.Id})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected banned target to be blocked by generic join authorization, got %v", err)
+		}
+
+		_, err = mutation.UnbanRoomMember(env.authContextForUser(admin), model.UnbanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: target.Id,
+			Reason: "",
+		})
+		if err == nil {
+			t.Fatal("expected blank unban reason to be rejected")
+		}
+
+		success, err = mutation.UnbanRoomMember(env.authContextForUser(admin), model.UnbanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: target.Id,
+			Reason: "appeal accepted",
+		})
+		if err != nil {
+			t.Fatalf("expected unban success, got %v", err)
+		}
+		if !success {
+			t.Fatal("expected unban success=true")
+		}
+		if _, ok := env.core.RoomBans.ActiveBan(env.testRoom.Id, target.Id, time.Now()); ok {
+			t.Fatal("expected target room ban to be cleared")
+		}
+
+		if _, err = mutation.JoinRoom(env.authContextForUser(target), model.JoinRoomInput{RoomID: env.testRoom.Id}); err != nil {
+			t.Fatalf("expected unbanned target to be able to join again, got %v", err)
+		}
+	})
+
+	t.Run("caller without room.ban-member is rejected", func(t *testing.T) {
+		caller, err := env.core.CreateUser(env.ctx, "system", "remove-no-perm", "No Perm", "password123")
+		if err != nil {
+			t.Fatalf("failed to create caller: %v", err)
+		}
+		target, err := env.core.CreateUser(env.ctx, "system", "remove-no-perm-target", "No Perm Target", "password123")
+		if err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, caller.Id, core.KindChannel, caller.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom caller: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom target: %v", err)
+		}
+
+		_, err = mutation.BanRoomMember(env.authContextForUser(caller), model.BanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: target.Id,
+			Reason: "test",
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("caller with room.manage but without room.ban-member is rejected", func(t *testing.T) {
+		caller, err := env.core.CreateUser(env.ctx, "system", "remove-manage-only", "Manage Only", "password123")
+		if err != nil {
+			t.Fatalf("failed to create caller: %v", err)
+		}
+		target, err := env.core.CreateUser(env.ctx, "system", "remove-manage-only-target", "Manage Only Target", "password123")
+		if err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, caller.Id, core.RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole admin: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, caller.Id, core.KindChannel, caller.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom caller: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom target: %v", err)
+		}
+		if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomMemberBan); err != nil {
+			t.Fatalf("DenyRoomPermission room.ban-member: %v", err)
+		}
+		if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
+			t.Fatalf("GrantRoomPermission room.manage: %v", err)
+		}
+
+		_, err = mutation.BanRoomMember(env.authContextForUser(caller), model.BanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: target.Id,
+			Reason: "test",
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected ErrPermissionDenied for manage-only caller, got %v", err)
+		}
+	})
+
+	t.Run("caller with room.ban-member but no strict outrank is rejected", func(t *testing.T) {
+		moderatorA, err := env.core.CreateUser(env.ctx, "system", "remove-mod-a", "Mod A", "password123")
+		if err != nil {
+			t.Fatalf("failed to create moderator A: %v", err)
+		}
+		moderatorB, err := env.core.CreateUser(env.ctx, "system", "remove-mod-b", "Mod B", "password123")
+		if err != nil {
+			t.Fatalf("failed to create moderator B: %v", err)
+		}
+		for _, user := range []*corev1.User{moderatorA, moderatorB} {
+			if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator); err != nil {
+				t.Fatalf("AssignServerRole moderator: %v", err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, env.testRoom.Id); err != nil {
+				t.Fatalf("JoinRoom moderator: %v", err)
+			}
+		}
+		if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleModerator, core.PermRoomMemberBan); err != nil {
+			t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
+		}
+
+		_, err = mutation.BanRoomMember(env.authContextForUser(moderatorA), model.BanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: moderatorB.Id,
+			Reason: "test",
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected ErrPermissionDenied for peer target, got %v", err)
+		}
+	})
+
+	t.Run("DM room members cannot be banned", func(t *testing.T) {
+		target, err := env.core.CreateUser(env.ctx, "system", "dm-remove-target", "DM Target", "password123")
+		if err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		dmRoom, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{target.Id})
+		if err != nil {
+			t.Fatalf("FindOrCreateDM: %v", err)
+		}
+
+		_, err = mutation.BanRoomMember(env.authContext(), model.BanRoomMemberInput{
+			RoomID: dmRoom.Id,
+			UserID: target.Id,
+			Reason: "test",
+		})
+		if !errors.Is(err, core.ErrCannotBanDMRoomMember) {
+			t.Fatalf("expected ErrCannotBanDMRoomMember, got %v", err)
+		}
+
+		exists, err := env.core.RoomMembershipExists(env.ctx, core.KindDM, target.Id, dmRoom.Id)
+		if err != nil {
+			t.Fatalf("RoomMembershipExists: %v", err)
+		}
+		if !exists {
+			t.Fatal("expected DM membership to remain")
 		}
 	})
 }

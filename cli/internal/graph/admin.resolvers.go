@@ -299,6 +299,31 @@ func (r *adminQueriesResolver) Projections(ctx context.Context, obj *model.Admin
 	return out, nil
 }
 
+// RoomBans is the resolver for the roomBans field.
+func (r *adminQueriesResolver) RoomBans(ctx context.Context, obj *model.AdminQueries, roomID *string) ([]*model.RoomBan, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canModerate, err := r.core.HasServerPermission(ctx, user.Id, core.PermRoomMemberBan)
+	if err != nil {
+		return nil, fmt.Errorf("check room.ban-member: %w", err)
+	}
+	if !canModerate {
+		return nil, core.ErrPermissionDenied
+	}
+
+	bans, err := r.core.ListActiveRoomBans(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.RoomBan, 0, len(bans))
+	for _, ban := range bans {
+		out = append(out, roomBanToModel(ban))
+	}
+	return out, nil
+}
+
 // Admin is the resolver for the admin field.
 func (r *mutationResolver) Admin(ctx context.Context) (*model.AdminMutations, error) {
 	user := auth.ForContext(ctx)
@@ -398,11 +423,51 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	}, nil
 }
 
+// Room is the resolver for the room field.
+func (r *roomBanResolver) Room(ctx context.Context, obj *model.RoomBan) (*corev1.Room, error) {
+	room, err := r.core.GetRoom(ctx, core.KindChannel, obj.RoomID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return room, nil
+}
+
+// User is the resolver for the user field.
+func (r *roomBanResolver) User(ctx context.Context, obj *model.RoomBan) (*corev1.User, error) {
+	user, err := r.core.GetUser(ctx, obj.UserID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+// Moderator is the resolver for the moderator field.
+func (r *roomBanResolver) Moderator(ctx context.Context, obj *model.RoomBan) (*corev1.User, error) {
+	user, err := r.core.GetUser(ctx, obj.ModeratorID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
 // AdminMutations returns AdminMutationsResolver implementation.
 func (r *Resolver) AdminMutations() AdminMutationsResolver { return &adminMutationsResolver{r} }
 
 // AdminQueries returns AdminQueriesResolver implementation.
 func (r *Resolver) AdminQueries() AdminQueriesResolver { return &adminQueriesResolver{r} }
 
+// RoomBan returns RoomBanResolver implementation.
+func (r *Resolver) RoomBan() RoomBanResolver { return &roomBanResolver{r} }
+
 type adminMutationsResolver struct{ *Resolver }
 type adminQueriesResolver struct{ *Resolver }
+type roomBanResolver struct{ *Resolver }

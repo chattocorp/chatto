@@ -41,7 +41,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 // Idempotent: calling it multiple times with the same parameters is a no-op
 // (the projection's Apply is idempotent on already-present (room, user)
 // pairs, and we early-out via IsMember).
-// Authorization: Caller must verify CanJoinRoom before calling.
+// Authorization: Caller must verify CanJoinRoomAt before calling.
 //
 // ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT, then
 // WaitForSeq on the projections that serve membership and room history reads.
@@ -55,6 +55,9 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	}
 	if room.Archived {
 		return nil, fmt.Errorf("cannot join archived room")
+	}
+	if kind == KindChannel && c.RoomBans.IsActive(room_id, user_id, time.Now()) {
+		return nil, ErrPermissionDenied
 	}
 
 	membership := &corev1.RoomMembership{

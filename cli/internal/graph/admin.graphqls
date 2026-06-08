@@ -272,6 +272,39 @@ extend type AdminQueries {
   projections: [ProjectionState!]! @goField(forceResolver: true)
 }
 
+# =============================================================================
+# Room Moderation
+# =============================================================================
+
+"An active room ban shown in server-admin moderation tools."
+type RoomBan {
+  "The event ID that created the active ban."
+  id: ID!
+  "The channel room this ban applies to."
+  roomId: ID!
+  "The room this ban applies to, if it still exists."
+  room: Room @goField(forceResolver: true)
+  "The banned user."
+  userId: ID!
+  "The banned user, if the account still exists."
+  user: User @goField(forceResolver: true)
+  "The moderator who created the ban."
+  moderatorId: ID!
+  "The moderator who created the ban, if the account still exists."
+  moderator: User @goField(forceResolver: true)
+  "Moderator-entered reason retained for audit."
+  reason: String!
+  "When the ban was created."
+  createdAt: Time!
+  "When this ban expires. Null means indefinite."
+  expiresAt: Time
+}
+
+extend type AdminQueries {
+  "List active room bans. Requires server-scope `room.ban-member`."
+  roomBans(roomId: ID): [RoomBan!]! @goField(forceResolver: true)
+}
+
 "Admin mutations for configuration management."
 type AdminMutations {
   "Update server configuration. Returns the updated config section."

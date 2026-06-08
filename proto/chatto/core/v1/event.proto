@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/auth_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/message_events.proto";
+import "chatto/core/v1/moderation_events.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
@@ -173,6 +174,10 @@ message Event {
     RbacPermissionGrantedEvent rbac_permission_granted = 810;
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
+
+    // ----- Moderation (840-899, durable, room-owned) -----
+    RoomMemberBannedEvent room_member_banned = 840;
+    RoomMemberUnbannedEvent room_member_unbanned = 841;
 
     // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
     // These facts are intentionally minimal: no raw token, link, IP address,

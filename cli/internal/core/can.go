@@ -1,6 +1,9 @@
 package core
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // can.go provides semantic helper functions for permission checks. These wrap
 // the low-level HasServerPermission / hasServerPermission / hasRoomPermission
@@ -91,6 +94,7 @@ var adminPermissions = []Permission{
 	PermRoleManage,
 	PermRoleAssign,
 	PermRoomManage,
+	PermRoomMemberBan,
 	PermUserDeleteAny,
 }
 
@@ -178,8 +182,12 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // CanJoinRoomAt checks if a user can join a specific room. Uses room-scope
 // permission resolution (room override > group override > server default).
 // This is the gate for global-room implicit membership: a global room's
-// members are exactly the users for whom this returns true.
+// members are exactly the users for whom this returns true. Active room bans
+// deny joins even when RBAC would otherwise allow them.
 func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	if kind == KindChannel && c.RoomBans.IsActive(roomID, userID, time.Now()) {
+		return false, nil
+	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomJoin)
 }
 

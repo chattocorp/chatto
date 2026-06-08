@@ -508,8 +508,10 @@ func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInp
 		return nil, err
 	}
 
-	// Authorization: check CanJoinRoom (includes space membership check)
-	can, err := r.core.CanJoinRoom(ctx, user.Id, kind)
+	// Authorization: check the room-specific join gate so room/group denies
+	// and active room bans match viewerCanJoinRoom without revealing which
+	// underlying authorization rule denied the join.
+	can, err := r.core.CanJoinRoomAt(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -540,6 +542,83 @@ func (r *mutationResolver) LeaveRoom(ctx context.Context, input model.LeaveRoomI
 		return false, err
 	}
 
+	return true, nil
+}
+
+// BanRoomMember is the resolver for the banRoomMember field.
+func (r *mutationResolver) BanRoomMember(ctx context.Context, input model.BanRoomMemberInput) (bool, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
+	if err != nil {
+		return false, err
+	}
+	if kind == core.KindDM {
+		return false, core.ErrCannotBanDMRoomMember
+	}
+
+	can, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindChannel, input.RoomID, core.PermRoomMemberBan)
+	if err != nil {
+		return false, err
+	}
+	if !can {
+		return false, core.ErrPermissionDenied
+	}
+	outranks, err := r.core.OutranksUser(ctx, user.Id, input.UserID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check role hierarchy: %w", err)
+	}
+	if !outranks {
+		return false, core.ErrPermissionDenied
+	}
+
+	var expiresAt *time.Time
+	if input.ExpiresAt != nil {
+		t := input.ExpiresAt.AsTime()
+		expiresAt = &t
+	}
+
+	if _, err := r.core.BanRoomMember(ctx, user.Id, core.KindChannel, input.RoomID, input.UserID, input.Reason, expiresAt); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// UnbanRoomMember is the resolver for the unbanRoomMember field.
+func (r *mutationResolver) UnbanRoomMember(ctx context.Context, input model.UnbanRoomMemberInput) (bool, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
+	if err != nil {
+		return false, err
+	}
+	if kind == core.KindDM {
+		return false, core.ErrCannotBanDMRoomMember
+	}
+
+	can, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindChannel, input.RoomID, core.PermRoomMemberBan)
+	if err != nil {
+		return false, err
+	}
+	if !can {
+		return false, core.ErrPermissionDenied
+	}
+	outranks, err := r.core.OutranksUser(ctx, user.Id, input.UserID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check role hierarchy: %w", err)
+	}
+	if !outranks {
+		return false, core.ErrPermissionDenied
+	}
+
+	if err := r.core.UnbanRoomMember(ctx, user.Id, core.KindChannel, input.RoomID, input.UserID, input.Reason); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 

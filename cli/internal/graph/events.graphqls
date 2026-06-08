@@ -32,6 +32,8 @@ union EventType =
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
+  | RoomMemberBannedEvent
+  | RoomMemberUnbannedEvent
   | ServerMemberDeletedEvent
   # Messages
   | MessagePostedEvent
@@ -265,6 +267,28 @@ Event: A user left a room
 type UserLeftRoomEvent {
   "The ID of the room the user left."
   roomId: ID!
+}
+
+"""
+Event: A user was banned from a room.
+Reason and expiry are intentionally not exposed on the public event feed.
+"""
+type RoomMemberBannedEvent {
+  "The ID of the room the user was banned from."
+  roomId: ID!
+  "The ID of the banned user."
+  userId: ID!
+}
+
+"""
+Event: A room ban was removed.
+Reason is intentionally not exposed on the public event feed.
+"""
+type RoomMemberUnbannedEvent {
+  "The ID of the room the user was unbanned from."
+  roomId: ID!
+  "The ID of the unbanned user."
+  userId: ID!
 }
 
 """

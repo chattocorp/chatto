@@ -51,6 +51,10 @@ func unwrapEVTEvent(event *corev1.Event) any {
 		return e.UserJoinedRoom
 	case *corev1.Event_UserLeftRoom:
 		return e.UserLeftRoom
+	case *corev1.Event_RoomMemberBanned:
+		return e.RoomMemberBanned
+	case *corev1.Event_RoomMemberUnbanned:
+		return e.RoomMemberUnbanned
 	case *corev1.Event_SpaceMemberDeleted:
 		return e.SpaceMemberDeleted
 

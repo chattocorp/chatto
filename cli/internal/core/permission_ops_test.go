@@ -443,11 +443,36 @@ func TestInitDefaultPermissions(t *testing.T) {
 	})
 
 	t.Run("moderator has moderation permissions", func(t *testing.T) {
-		moderatorPerms := []Permission{PermMessageManage}
+		moderatorPerms := []Permission{PermMessageManage, PermRoomMemberBan}
 		for _, perm := range moderatorPerms {
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, perm); got != DecisionAllow {
 				t.Errorf("moderator decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
+		}
+	})
+
+	t.Run("ensure default permissions backfills missing grants without overriding denies", func(t *testing.T) {
+		if err := core.ClearServerPermissionState(ctx, RoleModerator, PermRoomMemberBan); err != nil {
+			t.Fatalf("ClearServerPermissionState: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionNone {
+			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
+		}
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions backfill: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionAllow {
+			t.Fatalf("decision after ensure = %s, want %s", got, DecisionAllow)
+		}
+
+		if err := core.DenyServerPermission(ctx, RoleModerator, PermRoomMemberBan); err != nil {
+			t.Fatalf("DenyServerPermission: %v", err)
+		}
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions preserve deny: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionDeny {
+			t.Fatalf("decision after denied ensure = %s, want %s", got, DecisionDeny)
 		}
 	})
 }

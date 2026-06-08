@@ -1084,6 +1084,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.UserJoinedRoom.GetRoomId()
 	case *corev1.Event_UserLeftRoom:
 		return e.UserLeftRoom.GetRoomId()
+	case *corev1.Event_RoomMemberBanned:
+		return e.RoomMemberBanned.GetRoomId()
+	case *corev1.Event_RoomMemberUnbanned:
+		return e.RoomMemberUnbanned.GetRoomId()
 	case *corev1.Event_MessagePosted:
 		return e.MessagePosted.GetRoomId()
 	case *corev1.Event_MessageEdited:

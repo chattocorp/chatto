@@ -57,11 +57,12 @@ function makeSystemEvent(
     createdAt: string;
   }> = {}
 ): RoomEventViewFragment {
+  const actorId = overrides.actorId ?? 'u_user1';
   return {
     id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
     createdAt: overrides.createdAt ?? '2025-04-27T12:00:00Z',
-    actorId: overrides.actorId ?? 'u_user1',
-    actor: { id: overrides.actorId ?? 'u_user1', login: 'tester', avatarUrl: null },
+    actorId,
+    actor: { id: actorId, login: 'tester', avatarUrl: null },
     event: {
       __typename: typename,
       roomId: 'r_test'
@@ -236,6 +237,22 @@ describe('buildVirtualItems', () => {
         { kind: 'join', count: 2 },
         { kind: 'leave', count: 1 },
         { kind: 'join', count: 2 }
+      ]);
+    });
+
+    it('groups leave events by actor-only membership facts', () => {
+      const events = [
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l1', actorId: 'u_a' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l2', actorId: 'u_b' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l3', actorId: 'u_c' })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups.map((g) => ({ kind: g.kind, count: g.events.length }))).toEqual([
+        { kind: 'leave', count: 3 }
       ]);
     });
 

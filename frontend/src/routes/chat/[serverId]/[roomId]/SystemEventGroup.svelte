@@ -13,7 +13,14 @@
     kind: SystemGroupKind;
   } = $props();
 
-  const action = $derived(kind === 'join' ? 'joined the room' : 'left the room');
+  const action = $derived.by(() => {
+    switch (kind) {
+      case 'join':
+        return 'joined the room';
+      case 'leave':
+        return 'left the room';
+    }
+  });
 
   type Actor = {
     id: string;
@@ -21,18 +28,26 @@
     user: UserAvatarUserFragment | null;
   };
 
-  // Deduplicate by actor so a user appearing twice in a row (rare, but possible)
-  // doesn't get listed twice. Preserves first-seen order.
+  function displayName(user: UserAvatarUserFragment): string {
+    return getLiveDisplayName(user.id, user.displayName || user.login);
+  }
+
+  function eventSubject(event: RoomEventViewFragment): Actor {
+    const actor = event?.actor ? useFragment(UserAvatarFragment, event.actor) : null;
+    if (actor) {
+      return { id: actor.id, name: displayName(actor), user: actor };
+    }
+
+    return { id: event.actorId ?? 'unknown', name: 'Deleted User', user: null };
+  }
+
+  // Deduplicate by actor so batched join/leave events stay compact.
   const actors = $derived.by<Actor[]>(() => {
     const result: Actor[] = [];
     for (const event of events) {
-      const user = event?.actor ? useFragment(UserAvatarFragment, event.actor) : null;
-      const id = user?.id ?? `__deleted_${event.actorId ?? 'unknown'}`;
-      if (result.some((a) => a.id === id)) continue;
-      const name = user
-        ? getLiveDisplayName(user.id, user.displayName || user.login)
-        : 'Deleted User';
-      result.push({ id, name, user });
+      const subject = eventSubject(event);
+      if (result.some((a) => a.id === subject.id)) continue;
+      result.push(subject);
     }
     return result;
   });

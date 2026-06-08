@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-07
 
 ## Overview
 
@@ -13,6 +13,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Edit** — `room.manage` holders can change the name, description, and group of an existing room.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
+- **Ban member** — `room.ban-member` holders can ban a lower-ranked user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
 - **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room, its name claim, and its memberships.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
 
@@ -54,10 +55,29 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Why:** Without this, archiving a room would still show it in everyone's sidebar until they refresh. Live update keeps the visual state consistent across sessions.
 **Tradeoff:** One more event class to maintain. Fits cleanly into the existing live-event pattern (FDR-012's mechanism).
 
+### 7. Channel member bans use dedicated moderation events
+
+**Decision:** Banning someone from a channel room appends `RoomMemberBannedEvent` with the target user, required reason, optional expiry, and moderator actor. Unbanning appends `RoomMemberUnbannedEvent` with a required moderator reason. Ban events remove the target from the membership projection directly; no separate `UserLeftRoomEvent` is required for projection correctness. DMs are excluded; their participant set is fixed by DM creation policy in FDR-007.
+**Why:** Bans are moderation facts, not ordinary membership facts. Dedicated events keep join/leave simple, provide audit-ready reasons and expiry, and prevent a banned user from immediately rejoining.
+**Tradeoff:** There is one more event family and admin surface to maintain, but moderation history is explicit instead of being encoded as a special kind of leave.
+
+### 8. Join and leave events remain actor-only
+
+**Decision:** `UserJoinedRoomEvent` and `UserLeftRoomEvent` do not carry a target user. The event actor is the user who joined or left. Moderator actions must use dedicated moderation events. To the target user, an active ban is evaluated as an ordinary join authorization denial rather than a distinct API/UI state.
+**Why:** Join and leave are ordinary membership facts. Keeping the user in the envelope avoids dual-subject ambiguity and prevents moderators from surfacing as public leave actors.
+**Tradeoff:** Projections that handle moderator removals must listen to the moderation event family as well as join/leave.
+
+### 9. Server-admin exposes active room bans
+
+**Decision:** Server-admin includes a Moderation page listing active room bans with target, room, moderator, reason, creation time, and optional expiry. Unbanning from the list prompts for a moderator reason and appends `RoomMemberUnbannedEvent`.
+**Why:** Operators need a way to audit and reverse room-level bans without spelunking the event log or editing RBAC state by hand.
+**Tradeoff:** The first page lists active bans only. Historical moderation audit remains in the durable event log.
+
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
-- `room.manage` — edit, archive, unarchive, and delete a room. Configurable per group and per room.
+- `room.manage` — edit, archive, unarchive, and delete a channel room. Configurable per group and per room.
+- `room.ban-member` — ban lower-ranked members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become a member of an unarchived room. Configurable per group and per room.
 
 ## Related

@@ -15,6 +15,7 @@ export type RoomData = {
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
   canManageRoom: boolean;
+  canBanRoomMembers: boolean;
   members: RoomMember[];
 };
 
@@ -96,6 +97,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
               viewerCanManageOthersMessage
               viewerCanEchoMessage
               viewerCanManageRoom
+              viewerCanBanRoomMembers
               members(limit: 100) {
                 users {
                   id
@@ -146,6 +148,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
           canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
           canManageRoom: resp.data.room.viewerCanManageRoom,
+          canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers,
           members: resp.data.room.members.users.map((m) => ({
             id: m.id,
             login: m.login,

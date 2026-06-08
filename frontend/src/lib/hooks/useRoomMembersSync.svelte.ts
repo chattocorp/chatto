@@ -11,7 +11,7 @@ import type { RoomData, DMData } from '$lib/hooks/useRoomData.svelte';
  * Syncs room members into the shared context store.
  *
  * - Seeds from roomData/dmData when available
- * - Refetches on join/leave events
+ * - Refetches on join/leave/ban events
  * - Forwards presence updates
  *
  * Must be called during component initialization (uses context).
@@ -86,12 +86,14 @@ export function useRoomMembersSync(
     };
   });
 
-  // Refetch on join/leave events
+  // Refetch on membership-changing events.
   useEvent((event) => {
     if (!event.event) return;
     const eventType = event.event.__typename;
     if (
-      (eventType === 'UserJoinedRoomEvent' || eventType === 'UserLeftRoomEvent') &&
+      (eventType === 'UserJoinedRoomEvent' ||
+        eventType === 'UserLeftRoomEvent' ||
+        eventType === 'RoomMemberBannedEvent') &&
       event.event.roomId === getProps().roomId
     ) {
       const currentRoomId = getProps().roomId;

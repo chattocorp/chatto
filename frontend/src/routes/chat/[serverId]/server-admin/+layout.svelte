@@ -28,6 +28,7 @@
     const generalBase = resolve('/chat/[serverId]/server-admin/general', params);
     const membersBase = resolve('/chat/[serverId]/server-admin/members', params);
     const roomsBase = adminBase + '/rooms';
+    const moderationBase = adminBase + '/moderation';
     const permissionsBase = adminBase + '/permissions';
     const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
@@ -50,6 +51,11 @@
     // Rooms pages require room.manage permission
     if (pathname.startsWith(roomsBase)) {
       return () => spacePermissions.current.canManageRooms;
+    }
+
+    // Moderation pages: the resolver enforces server-scope room.ban-member.
+    if (pathname.startsWith(moderationBase)) {
+      return () => spacePermissions.current.hasAnyAdminPermission;
     }
 
     // Permissions pages: space.roles.manage OR instance.admin.view-roles
