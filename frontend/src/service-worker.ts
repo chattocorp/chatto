@@ -15,7 +15,7 @@ import {
   classifyServiceWorkerRequest,
   normalizeSameOriginUrl
 } from '$lib/pwa/serviceWorkerPolicy';
-import { ASSET_PROXY_PATH_PREFIX } from '$lib/assets/serviceWorkerAssetProxy';
+import { ASSET_PROXY_PATH_PREFIX } from '$lib/pwa/serviceWorkerAssetProxy';
 
 declare const self: ServiceWorkerGlobalScope;
 

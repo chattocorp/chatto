@@ -14,7 +14,7 @@
   import {
     installAssetProxyResyncHandler,
     syncAssetProxyServers
-  } from '$lib/assets/serviceWorkerAssetProxy';
+  } from '$lib/pwa/serviceWorkerAssetProxy';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
