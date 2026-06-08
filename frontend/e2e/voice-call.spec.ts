@@ -32,6 +32,22 @@ test.use({
 	}
 });
 
+type CallParticipantsData = {
+	room: { callParticipants: { user: { id: string; displayName: string; login: string } }[] } | null;
+};
+
+const CallParticipantsQuery = `query($roomId: ID!) {
+	room(roomId: $roomId) {
+		callParticipants {
+			user {
+				id
+				displayName
+				login
+			}
+		}
+	}
+}`;
+
 test.describe('Voice calls', () => {
 	test('call button appears in room header', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
@@ -247,17 +263,9 @@ test.describe('Voice calls', () => {
 		const roomId = await getRoomIdByName(page, 'general');
 
 		// Initially empty
-		const before = await graphqlQuery<{
-			room: { callParticipants: { userId: string; displayName: string; login: string }[] } | null;
-		}>(
-			page,
-			`query($roomId: ID!) {
-				room(roomId: $roomId) {
-					callParticipants { userId displayName login }
-				}
-			}`,
-			{ roomId }
-		);
+		const before = await graphqlQuery<CallParticipantsData>(page, CallParticipantsQuery, {
+			roomId
+		});
 		expect(before.room?.callParticipants).toEqual([]);
 
 		// Create User B and have them join
@@ -287,21 +295,13 @@ test.describe('Voice calls', () => {
 			});
 
 			// Query participants — should now include User B
-			const after = await graphqlQuery<{
-				room: { callParticipants: { userId: string; displayName: string; login: string }[] } | null;
-			}>(
-				page,
-				`query($roomId: ID!) {
-					room(roomId: $roomId) {
-						callParticipants { userId displayName login }
-					}
-				}`,
-				{ roomId }
-			);
+			const after = await graphqlQuery<CallParticipantsData>(page, CallParticipantsQuery, {
+				roomId
+			});
 			const afterParticipants = after.room?.callParticipants ?? [];
 			expect(afterParticipants).toHaveLength(1);
-			expect(afterParticipants[0].userId).toBe(userB.id);
-			expect(afterParticipants[0].login).toBe(userB.login);
+			expect(afterParticipants[0].user.id).toBe(userB.id);
+			expect(afterParticipants[0].user.login).toBe(userB.login);
 
 			// Simulate leave
 			await page.request.post('/webhooks/test/call-leave', {
@@ -309,17 +309,9 @@ test.describe('Voice calls', () => {
 			});
 
 			// Query again — should be empty
-			const afterLeave = await graphqlQuery<{
-				room: { callParticipants: { userId: string; displayName: string; login: string }[] } | null;
-			}>(
-				page,
-				`query($roomId: ID!) {
-					room(roomId: $roomId) {
-						callParticipants { userId displayName login }
-					}
-				}`,
-				{ roomId }
-			);
+			const afterLeave = await graphqlQuery<CallParticipantsData>(page, CallParticipantsQuery, {
+				roomId
+			});
 			expect(afterLeave.room?.callParticipants).toEqual([]);
 		} finally {
 			await context2.close();
