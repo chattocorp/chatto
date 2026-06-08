@@ -25,9 +25,6 @@ type Mutation {
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): Event!
 
-  "Update the server's name. Requires server.manage permission."
-  updateServer(input: UpdateServerInput!): Server!
-
   "Upload a logo for the server. Requires server.manage permission."
   uploadServerLogo(input: UploadServerLogoInput!): Server!
 
@@ -221,20 +218,6 @@ input UpdateRoomInput {
   name: String!
   "The new description for the room."
   description: String
-}
-
-"""
-Input for updating the server.
-"""
-input UpdateServerInput {
-  "The new name for the server."
-  name: String! @length(max: 80)
-  "The new description for the server. Set to empty string to clear."
-  description: String @length(max: 500)
-  "Message of the Day, displayed in the chat header. Set to empty string to clear."
-  motd: String @length(max: 1000)
-  "Welcome message shown on the login page (markdown supported). Set to empty string to clear."
-  welcomeMessage: String @length(max: 10000)
 }
 
 """

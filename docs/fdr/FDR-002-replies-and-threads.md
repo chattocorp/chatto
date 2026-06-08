@@ -36,6 +36,12 @@ Chatto messages can link to one another via reply attribution, and they can live
 **Why:** Reply attribution is a presentation concern. Special-casing the storage would mean every read path has to handle two flavors of message.
 **Tradeoff:** Bulk operations (deleting a message, etc.) need to consider whether replies still make sense after the target is gone. The UI handles this by gracefully degrading the byline.
 
+### 4. Thread replies use a cursor-paginated event connection
+
+**Decision:** `MessagePostedEvent.threadReplies(limit, before, after)` returns a `RoomEventsConnection` page of replies, in chronological order, excluding the root event. Cursors use the same opaque sequence shape as `Room.events`.
+**Why:** Threads are append-only timelines and can grow large. A connection keeps the release API from baking in an unbounded reply list while matching the room timeline pagination model clients already understand.
+**Tradeoff:** Thread panes now load reply pages rather than a bare array. The current UI still asks for the default page, and can add older/newer reply paging without another schema change.
+
 ## Permissions
 
 - `message.post` — post a root message (with or without `inReplyTo`) in a room.

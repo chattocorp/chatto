@@ -31,13 +31,13 @@ func (r *assetDeletedEventResolver) RoomID(ctx context.Context, obj *corev1.Asse
 }
 
 // RoomID is the resolver for the roomId field.
-func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
-	return assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId())), nil
+func (r *assetProcessingFailedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (*string, error) {
+	return nilIfEmpty(assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId()))), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
-func (r *assetProcessingFailedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (string, error) {
-	return obj.GetMessageEventId(), nil
+func (r *assetProcessingFailedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingFailedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetMessageEventId()), nil
 }
 
 // ReasonCode is the resolver for the reasonCode field.
@@ -46,29 +46,28 @@ func (r *assetProcessingFailedEventResolver) ReasonCode(ctx context.Context, obj
 }
 
 // RoomID is the resolver for the roomId field.
-func (r *assetProcessingStartedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (string, error) {
-	return assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId())), nil
+func (r *assetProcessingStartedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (*string, error) {
+	return nilIfEmpty(assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId()))), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
-func (r *assetProcessingStartedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (string, error) {
-	return obj.GetMessageEventId(), nil
+func (r *assetProcessingStartedEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingStartedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetMessageEventId()), nil
 }
 
 // RoomID is the resolver for the roomId field.
-func (r *assetProcessingSucceededEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
-	return assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId())), nil
+func (r *assetProcessingSucceededEventResolver) RoomID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (*string, error) {
+	return nilIfEmpty(assetCreatedRoomID(r.assetCreationForProcessing(obj.GetAssetId()))), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
-func (r *assetProcessingSucceededEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (string, error) {
-	return obj.GetMessageEventId(), nil
+func (r *assetProcessingSucceededEventResolver) MessageEventID(ctx context.Context, obj *corev1.AssetProcessingSucceededEvent) (*string, error) {
+	return nilIfEmpty(obj.GetMessageEventId()), nil
 }
 
 // Size is the resolver for the size field.
-// Converts int64 to int32 (safe for attachments up to 2GB).
-func (r *attachmentResolver) Size(ctx context.Context, obj *corev1.Attachment) (int32, error) {
-	return int32(obj.Size), nil
+func (r *attachmentResolver) Size(ctx context.Context, obj *corev1.Attachment) (int, error) {
+	return int(obj.Size), nil
 }
 
 // URL is the resolver for the url field.
@@ -211,11 +210,11 @@ func (r *eventResolver) CreatedAt(ctx context.Context, obj core.EventEnvelope) (
 }
 
 // ActorID is the resolver for the actorId field.
-func (r *eventResolver) ActorID(ctx context.Context, obj core.EventEnvelope) (string, error) {
+func (r *eventResolver) ActorID(ctx context.Context, obj core.EventEnvelope) (*string, error) {
 	if obj == nil {
-		return "", nil
+		return nil, nil
 	}
-	return obj.ActorID(), nil
+	return nilIfEmpty(obj.ActorID()), nil
 }
 
 // Actor is the resolver for the actor field.
@@ -387,7 +386,7 @@ func (r *messagePostedEventResolver) ThreadRootEventID(ctx context.Context, obj 
 // Authorization: parent query (Room.events / Room.event) already verified room membership.
 // Reactions are keyed by the message event envelope ID, so echoes and their
 // originals accumulate reactions independently.
-func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*model.Reaction, error) {
+func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *model.MessagePostedEvent) ([]*core.ReactionSummary, error) {
 	eventID := messagePostedEventID(obj)
 	return r.resolveReactions(ctx, eventID)
 }
@@ -516,11 +515,7 @@ func (r *messagePostedEventResolver) ThreadParticipants(ctx context.Context, obj
 		return []*corev1.User{}, nil
 	}
 
-	// Determine limit (default to 5 if not specified)
-	limit := 5
-	if first != nil && *first > 0 {
-		limit = int(*first)
-	}
+	limit := firstNArg(first, 5, 10)
 
 	// Limit participant IDs to fetch
 	participantIDs := metadata.ParticipantIDs
@@ -576,16 +571,16 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 }
 
 // ThreadReplies is the resolver for the threadReplies field.
-// Only root messages have replies; thread replies resolve to an empty list.
+// Only root messages have replies; thread replies resolve to an empty page.
 // Excludes the root event itself — the caller already has it.
-func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent) ([]core.EventEnvelope, error) {
+func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
 	payload := messagePostedPayload(obj)
 	if payload == nil || payload.InThread != "" {
-		return []core.EventEnvelope{}, nil
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
 	}
 	eventID := messagePostedEventID(obj)
 	if eventID == "" {
-		return []core.EventEnvelope{}, nil
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
 	}
 
 	user, err := requireAuth(ctx)
@@ -604,15 +599,32 @@ func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *mod
 		return nil, core.ErrNotRoomMember
 	}
 
-	events, err := r.core.GetThreadEvents(ctx, kind, payload.RoomId, eventID)
+	fetchLimit := roomEventsLimit(limit)
+	if after != nil && *after != "" {
+		afterSeq, err := parseRoomEventCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid after cursor: %w", err)
+		}
+		result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, nil, &afterSeq)
+		if err != nil {
+			return nil, err
+		}
+		return buildRoomEventsConnection(result), nil
+	}
+
+	var beforeSeq *uint64
+	if before != nil && *before != "" {
+		seq, err := parseRoomEventCursor(*before)
+		if err != nil {
+			return nil, fmt.Errorf("invalid before cursor: %w", err)
+		}
+		beforeSeq = &seq
+	}
+	result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, beforeSeq, nil)
 	if err != nil {
 		return nil, err
 	}
-	// GetThreadEvents returns [root, ...replies]; drop the root.
-	if len(events) > 0 {
-		return core.WrapEVTEventEnvelopes(events[1:]), nil
-	}
-	return []core.EventEnvelope{}, nil
+	return buildRoomEventsConnection(result), nil
 }
 
 // MessageEventID is the resolver for the messageEventId field.
@@ -695,15 +707,97 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 	return model.PresenceStatus(obj.Status), nil
 }
 
+// Count is the resolver for the count field.
+func (r *reactionSummaryResolver) Count(ctx context.Context, obj *core.ReactionSummary) (int32, error) {
+	if obj == nil {
+		return 0, nil
+	}
+	return int32(len(obj.UserIDs)), nil
+}
+
+// Users is the resolver for the users field.
+func (r *reactionSummaryResolver) Users(ctx context.Context, obj *core.ReactionSummary, first *int32) ([]*corev1.User, error) {
+	if obj == nil || len(obj.UserIDs) == 0 {
+		return []*corev1.User{}, nil
+	}
+	limit := firstNArg(first, 3, 10)
+	userIDs := obj.UserIDs
+	if len(userIDs) > limit {
+		userIDs = userIDs[:limit]
+	}
+
+	users := make([]*corev1.User, 0, len(userIDs))
+	for _, userID := range userIDs {
+		user, err := r.getUser(ctx, userID)
+		if err != nil {
+			r.logger.Debug("Failed to resolve reaction user", "error", err, "user_id", userID)
+			continue
+		}
+		if user != nil {
+			users = append(users, user)
+		}
+	}
+	return users, nil
+}
+
+// HasReacted is the resolver for the hasReacted field.
+func (r *reactionSummaryResolver) HasReacted(ctx context.Context, obj *core.ReactionSummary) (bool, error) {
+	currentUser := auth.ForContext(ctx)
+	if currentUser == nil || obj == nil {
+		return false, nil
+	}
+	for _, userID := range obj.UserIDs {
+		if userID == currentUser.Id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Description is the resolver for the description field.
+func (r *roomCreatedEventResolver) Description(ctx context.Context, obj *corev1.RoomCreatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetDescription()), nil
+}
+
 // Changed is the resolver for the changed field. Vestigial — the event's
 // arrival is the signal; clients refetch Server.roomGroups.
 func (r *roomGroupsUpdatedEventResolver) Changed(ctx context.Context, obj *corev1.RoomGroupsUpdatedEvent) (bool, error) {
 	return true, nil
 }
 
+// Description is the resolver for the description field.
+func (r *roomUpdatedEventResolver) Description(ctx context.Context, obj *corev1.RoomUpdatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetDescription()), nil
+}
+
+// Description is the resolver for the description field.
+func (r *serverUpdatedEventResolver) Description(ctx context.Context, obj *corev1.ServerUpdatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetDescription()), nil
+}
+
+// LogoURL is the resolver for the logoUrl field.
+func (r *serverUpdatedEventResolver) LogoURL(ctx context.Context, obj *corev1.ServerUpdatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetLogoUrl()), nil
+}
+
+// BannerURL is the resolver for the bannerUrl field.
+func (r *serverUpdatedEventResolver) BannerURL(ctx context.Context, obj *corev1.ServerUpdatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetBannerUrl()), nil
+}
+
+// Timezone is the resolver for the timezone field.
+func (r *serverUserPreferencesUpdatedEventResolver) Timezone(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetTimezone()), nil
+}
+
 // TimeFormat is the resolver for the timeFormat field.
 func (r *serverUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
 	return protoTimeFormatToGQL(obj.TimeFormat), nil
+}
+
+// AvatarURL is the resolver for the avatarUrl field.
+func (r *userProfileUpdatedEventResolver) AvatarURL(ctx context.Context, obj *corev1.UserProfileUpdatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetAvatarUrl()), nil
 }
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
@@ -723,14 +817,19 @@ func (r *videoProcessingResolver) ThumbnailAssetURL(ctx context.Context, obj *mo
 	return stableAssetURLModel(r.core.GetStableAttachmentAssetURL(obj.ThumbnailAttachmentID, callerID(ctx))), nil
 }
 
+// RoomID is the resolver for the roomId field.
+func (r *videoProcessingCompletedEventResolver) RoomID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetRoomId()), nil
+}
+
 // MessageEventID is the resolver for the messageEventId field.
-func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (string, error) {
+func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error) {
 	if obj.MessageEventId == "" {
 		r.logger.Warn("VideoProcessingCompletedEvent has empty messageEventId",
 			"room_id", obj.RoomId,
 			"message_body_id", obj.MessageBodyId)
 	}
-	return obj.MessageEventId, nil
+	return nilIfEmpty(obj.MessageEventId), nil
 }
 
 // URL is the resolver for the url field.
@@ -811,14 +910,33 @@ func (r *Resolver) PresenceChangedEvent() PresenceChangedEventResolver {
 	return &presenceChangedEventResolver{r}
 }
 
+// ReactionSummary returns ReactionSummaryResolver implementation.
+func (r *Resolver) ReactionSummary() ReactionSummaryResolver { return &reactionSummaryResolver{r} }
+
+// RoomCreatedEvent returns RoomCreatedEventResolver implementation.
+func (r *Resolver) RoomCreatedEvent() RoomCreatedEventResolver { return &roomCreatedEventResolver{r} }
+
 // RoomGroupsUpdatedEvent returns RoomGroupsUpdatedEventResolver implementation.
 func (r *Resolver) RoomGroupsUpdatedEvent() RoomGroupsUpdatedEventResolver {
 	return &roomGroupsUpdatedEventResolver{r}
 }
 
+// RoomUpdatedEvent returns RoomUpdatedEventResolver implementation.
+func (r *Resolver) RoomUpdatedEvent() RoomUpdatedEventResolver { return &roomUpdatedEventResolver{r} }
+
+// ServerUpdatedEvent returns ServerUpdatedEventResolver implementation.
+func (r *Resolver) ServerUpdatedEvent() ServerUpdatedEventResolver {
+	return &serverUpdatedEventResolver{r}
+}
+
 // ServerUserPreferencesUpdatedEvent returns ServerUserPreferencesUpdatedEventResolver implementation.
 func (r *Resolver) ServerUserPreferencesUpdatedEvent() ServerUserPreferencesUpdatedEventResolver {
 	return &serverUserPreferencesUpdatedEventResolver{r}
+}
+
+// UserProfileUpdatedEvent returns UserProfileUpdatedEventResolver implementation.
+func (r *Resolver) UserProfileUpdatedEvent() UserProfileUpdatedEventResolver {
+	return &userProfileUpdatedEventResolver{r}
 }
 
 // VideoProcessing returns VideoProcessingResolver implementation.
@@ -846,8 +964,13 @@ type messageRetractedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
+type reactionSummaryResolver struct{ *Resolver }
+type roomCreatedEventResolver struct{ *Resolver }
 type roomGroupsUpdatedEventResolver struct{ *Resolver }
+type roomUpdatedEventResolver struct{ *Resolver }
+type serverUpdatedEventResolver struct{ *Resolver }
 type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
+type userProfileUpdatedEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
 type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }

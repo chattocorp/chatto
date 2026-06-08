@@ -17,7 +17,6 @@ import (
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -372,61 +371,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 
 	return core.NewEVTEventEnvelope(event), nil
-}
-
-// UpdateServer is the resolver for the updateServer field.
-func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	can, err := r.core.CanManageServer(ctx, user.Id)
-	if err != nil {
-		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// The server name, description, motd, and welcome message are all
-	// canonical state on the runtime-editable ServerConfig (KV) — that's
-	// what the resolver reads on reload. The chrome header listens for
-	// ServerUpdatedEvent (published below) to refresh name/logo/banner.
-	if cm := r.core.ConfigManager(); cm != nil {
-		updated, err := cm.UpdateServerConfigFunc(ctx, user.Id, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
-			if cfg == nil {
-				cfg = &configv1.ServerConfig{}
-			}
-			cfg.ServerName = input.Name
-			if input.Description != nil {
-				cfg.Description = *input.Description
-			}
-			if input.Motd != nil {
-				cfg.Motd = *input.Motd
-			}
-			if input.WelcomeMessage != nil {
-				cfg.WelcomeMessage = *input.WelcomeMessage
-			}
-			return cfg, nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("save server config: %w", err)
-		}
-		// Live-update is best-effort; the config write already succeeded.
-		_ = r.core.PublishServerConfigUpdated(
-			ctx,
-			user.Id,
-			updated.ServerName,
-			updated.Motd,
-			updated.WelcomeMessage,
-			updated.BlockedUsernames,
-		)
-		// Publish ServerUpdatedEvent so the chrome header picks up the new
-		// name immediately (same path used by logo/banner upload).
-		r.core.PublishServerBrandingUpdate(ctx, user.Id)
-	}
-
-	return r.serverModel(), nil
 }
 
 // UploadServerLogo is the resolver for the uploadServerLogo field.

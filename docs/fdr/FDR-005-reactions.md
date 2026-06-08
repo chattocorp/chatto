@@ -35,7 +35,13 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Why:** Reactions are part of the event-sourcing migration tracked by #596. Keeping them in the room stream makes add/remove ordering explicit, gives replayable state, and removes the KV bucket from the hot read/write path.
 **Tradeoff:** The first projection version keeps all current reaction state in RAM. That is simple and correct; bounded or demand-loaded projections can follow once the rest of the event-sourcing architecture is in place and real access patterns are measured.
 
-### 4. Quick-reaction recents are per-device, not per-user
+### 4. GraphQL exposes reactor names as a bounded preview
+
+**Decision:** `ReactionSummary.count` is the total current count, while `ReactionSummary.users(first:)` returns a bounded preview of reacting users (default 3, max 10). The message UI asks for five preview users and renders any remaining count as overflow.
+**Why:** Reaction pills need a quick hover tooltip, not an unbounded user directory embedded in every message event. Keeping the full count separate preserves the main signal while preventing popular reactions from inflating timeline payloads.
+**Tradeoff:** Clients that need a complete reactor list will need a future dedicated paginated query instead of overloading the message timeline shape.
+
+### 5. Quick-reaction recents are per-device, not per-user
 
 **Decision:** The recent-reactions list lives in `localStorage`, not on the server.
 **Why:** Server-side recents would mean a "your recents" query on every message hover (frequent and small) and a new write per reaction. Local storage is free and fast. The downside — losing recents between devices — is small relative to the cost.

@@ -631,13 +631,13 @@ func TestGraphQL_LengthDirective_RejectsOverlongLinkPreviewQueryURL(t *testing.T
 func TestGraphQL_LengthDirective_AllowsNullNullableInputField(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `mutation($input: UpdateServerInput!) {
-		updateServer(input: $input) {
-			profile { name }
+	resp := env.doGraphQL(t, `mutation($input: UpdateServerConfigInput!) {
+		updateServerConfig(input: $input) {
+			name
 		}
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":        "Test Server",
+			"serverName":  "Test Server",
 			"description": nil,
 		},
 	})

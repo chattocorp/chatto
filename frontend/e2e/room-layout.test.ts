@@ -38,8 +38,8 @@ async function gqlRequest<T>(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: { query, variables }
   });
-  expect(resp.ok()).toBeTruthy();
-  const json = await resp.json();
+  const json = await resp.json().catch(async () => ({ raw: await resp.text() }));
+  expect(resp.ok(), JSON.stringify(json)).toBeTruthy();
   if (json.errors) throw new Error(JSON.stringify(json.errors));
   return json.data;
 }
@@ -152,7 +152,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     if (currentGroup === targetId) continue;
     await gqlRequest(
       page,
-      `mutation($input: MoveRoomToSetInput!) { moveRoomToSet(input: $input) { id } }`,
+      `mutation($input: MoveRoomToGroupInput!) { moveRoomToGroup(input: $input) { id } }`,
       { input: { roomId, groupId: targetId } }
     );
   }

@@ -120,8 +120,8 @@ func (r *mutationResolver) ReorderRoomGroups(ctx context.Context, input model.Re
 	return out, nil
 }
 
-// MoveRoomToSet is the resolver for the moveRoomToSet field.
-func (r *mutationResolver) MoveRoomToSet(ctx context.Context, input model.MoveRoomToSetInput) (*corev1.Room, error) {
+// MoveRoomToGroup is the resolver for the moveRoomToGroup field.
+func (r *mutationResolver) MoveRoomToGroup(ctx context.Context, input model.MoveRoomToGroupInput) (*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

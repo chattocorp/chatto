@@ -13,10 +13,10 @@ type Query {
 }
 
 """
-Paginated room events with metadata indicating whether more events exist
-in either direction. `startCursor` and `endCursor` are opaque pagination
-cursors — pass them as `before` / `after` on a subsequent `Room.events`
-call. Both are null when `events` is empty.
+Paginated chronological events with metadata indicating whether more events
+exist in either direction. `startCursor` and `endCursor` are opaque pagination
+cursors — pass them as `before` / `after` on the same field that returned them.
+Both are null when `events` is empty.
 """
 type RoomEventsConnection {
   "The events in chronological order."

@@ -33,7 +33,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     RoomEventViewFragment['event'],
     { __typename: 'MessagePostedEvent' }
   >;
-  type Reaction = MessagePostedEvent['reactions'][number];
+  type ReactionSummary = MessagePostedEvent['reactions'][number];
 
   // Shared base style for all meta bar buttons. Uses the `meta-badge` utility
   // for shape and background states. Border color is set per-button to avoid
@@ -56,7 +56,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   }: {
     roomId: string;
     messageEventId: string;
-    reactions: Reaction[];
+    reactions: ReactionSummary[];
     replyCount?: number;
     threadParticipants?: MessagePostedEvent['threadParticipants'];
     hasThreadNotification?: boolean;
@@ -82,10 +82,10 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     }
   `);
 
-  function formatReactionUsers(users: { displayName: string }[]): string {
+  function formatReactionUsers(users: { displayName: string }[], count: number): string {
     const maxDisplay = 5;
     const names = users.slice(0, maxDisplay).map((u) => u.displayName);
-    const remaining = users.length - maxDisplay;
+    const remaining = Math.max(0, count - names.length);
 
     if (remaining > 0) {
       return names.join(', ') + ` + ${remaining}`;
@@ -93,7 +93,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     return names.join(', ');
   }
 
-  async function toggleReaction(reaction: Reaction) {
+  async function toggleReaction(reaction: ReactionSummary) {
     const input = { roomId, messageEventId, emoji: reaction.emoji };
     const result = reaction.hasReacted
       ? await connection().client.mutation(removeReactionMutation, { input })
@@ -160,7 +160,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
           class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 rounded-md bg-surface-100 px-3 py-2 text-sm whitespace-nowrap text-text opacity-0 shadow-xl transition-opacity group-hover/reaction:opacity-100"
           role="tooltip"
         >
-          {formatReactionUsers(reaction.users)}
+          {formatReactionUsers(reaction.users, reaction.count)}
         </span>
       {/if}
 

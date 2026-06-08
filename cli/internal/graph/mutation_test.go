@@ -529,14 +529,14 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 // UpdateSpace Authorization Tests
 // ============================================================================
 
-func TestUpdateServer_Authorization(t *testing.T) {
+func TestUpdateServerConfig_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 
 	newName := "Updated Instance Name"
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.UpdateServer(env.unauthContext(), model.UpdateServerInput{Name: newName})
+		_, err := mutation.UpdateServerConfig(env.unauthContext(), model.UpdateServerConfigInput{ServerName: &newName})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}
@@ -548,7 +548,7 @@ func TestUpdateServer_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.UpdateServer(env.authContextForUser(outsider), model.UpdateServerInput{Name: newName})
+		_, err = mutation.UpdateServerConfig(env.authContextForUser(outsider), model.UpdateServerConfigInput{ServerName: &newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -560,7 +560,7 @@ func TestUpdateServer_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.UpdateServer(env.authContextForUser(member), model.UpdateServerInput{Name: newName})
+		_, err = mutation.UpdateServerConfig(env.authContextForUser(member), model.UpdateServerConfigInput{ServerName: &newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -568,12 +568,15 @@ func TestUpdateServer_Authorization(t *testing.T) {
 
 	t.Run("admin can update instance", func(t *testing.T) {
 		// testUser is the space creator (admin)
-		instance, err := mutation.UpdateServer(env.authContext(), model.UpdateServerInput{Name: newName})
+		config, err := mutation.UpdateServerConfig(env.authContext(), model.UpdateServerConfigInput{ServerName: &newName})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		if instance == nil {
-			t.Fatal("expected instance, got nil")
+		if config == nil {
+			t.Fatal("expected config, got nil")
+		}
+		if config.Name != newName {
+			t.Fatalf("expected returned server name %q, got %q", newName, config.Name)
 		}
 		// Verify the canonical server name (stored in ServerConfig) was updated.
 		gotName, err := env.core.ConfigManager().GetEffectiveServerName(env.ctx)

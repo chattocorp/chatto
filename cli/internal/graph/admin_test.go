@@ -90,26 +90,15 @@ func TestAdminMutations_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// UpdateServerConfig Defense-in-Depth Tests
+// UpdateServerConfig Admin-Focused Tests
 // ============================================================================
 
-func TestUpdateServerConfig_Authorization(t *testing.T) {
+func TestUpdateServerConfig_AdminUserCanUpdateWelcomeMessage(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 
 	t.Run("admin can update server config", func(t *testing.T) {
-		// First get the admin mutations object
-		adminMutations, err := env.resolver.Mutation().Admin(env.authContext())
-		if err != nil {
-			t.Fatalf("failed to get admin mutations: %v", err)
-		}
-		if adminMutations == nil {
-			t.Fatal("expected admin mutations, got nil")
-		}
-
-		// Now call UpdateServerConfig
 		welcomeMsg := "Welcome to Chatto!"
-		adminMutResolver := env.resolver.AdminMutations()
-		result, err := adminMutResolver.UpdateServerConfig(env.authContext(), adminMutations, model.UpdateServerConfigInput{
+		result, err := env.resolver.Mutation().UpdateServerConfig(env.authContext(), model.UpdateServerConfigInput{
 			WelcomeMessage: &welcomeMsg,
 		})
 		if err != nil {
@@ -127,12 +116,9 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 		// Create a non-admin user
 		regularUser := env.createVerifiedUser(t, "regular-config", "Regular User", "password123")
 
-		// Try to call UpdateServerConfig directly (bypassing parent resolver)
-		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
-		_, err := adminMutResolver.UpdateServerConfig(
+		_, err := env.resolver.Mutation().UpdateServerConfig(
 			env.authContextForUser(regularUser),
-			&model.AdminMutations{},
 			model.UpdateServerConfigInput{
 				WelcomeMessage: &welcomeMsg,
 			},
@@ -143,14 +129,54 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 	})
 
 	t.Run("unauthenticated user calling UpdateServerConfig gets not authenticated", func(t *testing.T) {
-		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
-		_, err := adminMutResolver.UpdateServerConfig(
+		_, err := env.resolver.Mutation().UpdateServerConfig(
 			env.unauthContext(),
-			&model.AdminMutations{},
 			model.UpdateServerConfigInput{
 				WelcomeMessage: &welcomeMsg,
 			},
+		)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+}
+
+func TestUpdateBlockedUsernames_Authorization(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	adminMutations := env.resolver.AdminMutations()
+
+	t.Run("admin can update blocked usernames", func(t *testing.T) {
+		blocked := "root\nadmin\nsupport"
+		result, err := adminMutations.UpdateBlockedUsernames(env.authContext(), &model.AdminMutations{}, model.UpdateBlockedUsernamesInput{
+			BlockedUsernames: blocked,
+		})
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+		if result != blocked {
+			t.Errorf("expected blocked usernames %q, got %q", blocked, result)
+		}
+	})
+
+	t.Run("non-admin gets permission denied", func(t *testing.T) {
+		regularUser := env.createVerifiedUser(t, "regular-blocked-usernames", "Regular User", "password123")
+
+		_, err := adminMutations.UpdateBlockedUsernames(
+			env.authContextForUser(regularUser),
+			&model.AdminMutations{},
+			model.UpdateBlockedUsernamesInput{BlockedUsernames: "root"},
+		)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("unauthenticated user gets not authenticated", func(t *testing.T) {
+		_, err := adminMutations.UpdateBlockedUsernames(
+			env.unauthContext(),
+			&model.AdminMutations{},
+			model.UpdateBlockedUsernamesInput{BlockedUsernames: "root"},
 		)
 		if !errors.Is(err, core.ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)

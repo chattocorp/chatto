@@ -1,7 +1,7 @@
 """
 A RoomGroup is a named, ordered group of channel rooms. It also serves as
 a permission container — each room group has its own ACL, with individual
-rooms able to override on a per (role, permission) basis (see ADR-031).
+rooms able to override on a per (role, permission) basis.
 """
 type RoomGroup {
   "Unique ID for this room group."

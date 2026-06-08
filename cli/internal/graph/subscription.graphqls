@@ -19,7 +19,7 @@ type Subscription {
     - Private user events (notification sync, preferences, session
       termination, server membership changes): delivered only to the target
       user. Powers cross-tab/cross-device sync.
-    - Space-scoped events: delivered to all server members.
+    - Server membership events: delivered to all server members.
     - New-message-in-server events: additionally room-membership filtered.
 
   **Presence changes** are delivered for every authenticated user on the

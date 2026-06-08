@@ -137,7 +137,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 
 | Mutation                | Description                                                |
 | ----------------------- | ---------------------------------------------------------- |
-| `updateServer`          | Update server name / description.                          |
+| `updateServerConfig`    | Update runtime-editable server presentation/configuration fields. |
 | `uploadServerLogo`      | Upload server logo.                                        |
 | `deleteServerLogo`      | Delete server logo.                                        |
 | `uploadServerBanner`    | Upload server banner.                                      |
@@ -202,7 +202,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `deleteRoomGroup`                 | Delete a room group (must be empty).                                                         |
 | `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
 | `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
-| `moveRoomToSet`                   | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
+| `moveRoomToGroup`                 | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
 | `grantGroupPermission`            | Grant a permission to a role at group scope (overrides server defaults).                     |
 | `denyGroupPermission`             | Deny a permission to a role at group scope.                                                  |
 | `clearGroupPermissionState`       | Remove both grant and denial at group scope.                                                 |
@@ -250,7 +250,7 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | `admin.eventLog(limit, before)`                  | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200).                    |
 | `admin.eventLogEntry(sequence)`                  | Query     | Diagnostic event-log entry lookup by sequence.                                               |
 | `admin.projections`                              | Query     | Projection lag, rough memory estimates, and diagnostic metric buckets.                       |
-| `admin.updateServerConfig(input)`                | Mutation  | Update server configuration.                                                                 |
+| `admin.updateBlockedUsernames(input)`            | Mutation  | Update the newline-separated blocked-username list.                                          |
 | `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
 | `admin.clearUsernameCooldown(userId)`            | Mutation  | Manually clear a user's login change cooldown.                                               |
 
@@ -779,14 +779,14 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
-- Thread reply lists, reply counts, participants, followed-thread pages, and last-reply timestamps are derived from the `ThreadProjection`.
+- Cursor-paginated thread reply lists, reply counts, participants, followed-thread pages, and last-reply timestamps are derived from the `ThreadProjection`.
 
 **Read Path:**
 
 - Room-level message history is served from `RoomTimelineProjection`, which keeps the raw room event log plus derived indexes for latest body state, hidden echoes, assets, and room-visible timeline entries.
 - Initial loads and cursor pagination walk the derived visible-room index so thread replies, edits, retractions, reactions, asset-processing facts, and directly hidden echoes do not count as separate room timeline rows.
 - `eventsAround` uses the same visible-room index to center jump-to-message windows on the target's visible position.
-- Thread panes read the root message from `RoomTimelineProjection` and replies from `ThreadProjection`.
+- Thread panes read the root message from `RoomTimelineProjection` and cursor-paginated replies from `ThreadProjection`.
 
 **@Mentions:**
 

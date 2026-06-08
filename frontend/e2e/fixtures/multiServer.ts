@@ -357,9 +357,7 @@ export async function setMotdOnRemote(
 		body: JSON.stringify({
 			query: `
 				mutation SetMotd($input: UpdateServerConfigInput!) {
-					admin {
-						updateServerConfig(input: $input) { motd }
-					}
+					updateServerConfig(input: $input) { motd }
 				}
 			`,
 			variables: { input: { motd } }

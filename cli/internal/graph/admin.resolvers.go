@@ -19,79 +19,48 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// UpdateServerConfig is the resolver for the updateServerConfig field.
-func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateServerConfigInput) (*model.AdminServerConfig, error) {
+// UpdateBlockedUsernames is the resolver for the updateBlockedUsernames field.
+func (r *adminMutationsResolver) UpdateBlockedUsernames(ctx context.Context, obj *model.AdminMutations, input model.UpdateBlockedUsernamesInput) (string, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
-		return nil, core.ErrNotAuthenticated
+		return "", core.ErrNotAuthenticated
 	}
 
-	// The parent `mutation.admin` resolver gates on `admin.access` — that's
-	// the "can enter the admin namespace" check. Each mutation underneath
-	// enforces its own capability; for server-config writes that's
-	// `server.manage`, not `admin.access`. A moderator with admin-panel
-	// view access must not be able to rename the server, change the MOTD,
-	// or edit the blocked-usernames list.
-	canManage, err := r.core.CanManageServer(ctx, user.Id)
+	canView, err := r.core.CanAdminAccess(ctx, user.Id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check server.manage permission: %w", err)
+		return "", fmt.Errorf("failed to check admin.access permission: %w", err)
 	}
-	if !canManage {
-		return nil, core.ErrPermissionDenied
+	if !canView {
+		return "", core.ErrPermissionDenied
 	}
 
 	configMgr := r.core.ConfigManager()
-
-	// Use OCC-safe update function to prevent race conditions
 	cfg, err := configMgr.UpdateServerConfigFunc(ctx, user.Id, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
-		// Start with existing config or empty
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
 		}
-
-		// Apply input values, preserving existing for nil inputs
-		if input.WelcomeMessage != nil {
-			cfg.WelcomeMessage = *input.WelcomeMessage
-		}
-		if input.ServerName != nil {
-			cfg.ServerName = *input.ServerName
-		}
-		if input.Motd != nil {
-			cfg.Motd = *input.Motd
-		}
-		if input.BlockedUsernames != nil {
-			cfg.BlockedUsernames = *input.BlockedUsernames
-		}
-		if input.Description != nil {
-			cfg.Description = *input.Description
-		}
-
+		cfg.BlockedUsernames = input.BlockedUsernames
 		return cfg, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to update server config: %w", err)
+		return "", fmt.Errorf("failed to update blocked usernames: %w", err)
 	}
 
-	// Get the effective values (with defaults) for broadcasting
 	effectiveName := cfg.ServerName
 	if effectiveName == "" {
 		effectiveName = "Chatto"
 	}
-
-	// Publish live event to notify all connected clients
 	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
-		// Log the error but don't fail the mutation - config was saved successfully
 		r.logger.Warn("Failed to publish server config update event", "error", err)
 	}
 
 	blockedUsernames, err := configMgr.GetEffectiveBlockedUsernames(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get blocked usernames: %w", err)
+		return "", fmt.Errorf("failed to get blocked usernames: %w", err)
 	}
 
-	// Return the updated config section
-	return serverConfigToModel(cfg, blockedUsernames), nil
+	return blockedUsernames, nil
 }
 
 // UpdateUser is the resolver for the updateUser field.
@@ -322,6 +291,56 @@ func (r *adminQueriesResolver) RoomBans(ctx context.Context, obj *model.AdminQue
 		out = append(out, roomBanToModel(ban))
 	}
 	return out, nil
+}
+
+// UpdateServerConfig is the resolver for the updateServerConfig field.
+func (r *mutationResolver) UpdateServerConfig(ctx context.Context, input model.UpdateServerConfigInput) (*model.ServerProfile, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	can, err := r.core.CanManageServer(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check server.manage permission: %w", err)
+	}
+	if !can {
+		return nil, core.ErrPermissionDenied
+	}
+
+	configMgr := r.core.ConfigManager()
+	cfg, err := configMgr.UpdateServerConfigFunc(ctx, user.Id, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+		cfg := &configv1.ServerConfig{}
+		if current != nil {
+			cfg = current
+		}
+		if input.WelcomeMessage != nil {
+			cfg.WelcomeMessage = *input.WelcomeMessage
+		}
+		if input.ServerName != nil {
+			cfg.ServerName = *input.ServerName
+		}
+		if input.Motd != nil {
+			cfg.Motd = *input.Motd
+		}
+		if input.Description != nil {
+			cfg.Description = *input.Description
+		}
+		return cfg, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update server config: %w", err)
+	}
+
+	effectiveName := cfg.ServerName
+	if effectiveName == "" {
+		effectiveName = "Chatto"
+	}
+	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
+		r.logger.Warn("Failed to publish server config update event", "error", err)
+	}
+	r.core.PublishServerBrandingUpdate(ctx, user.Id)
+
+	return publicServerConfigToModel(cfg), nil
 }
 
 // Admin is the resolver for the admin field.

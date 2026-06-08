@@ -126,20 +126,18 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UpdateServerSettingsModal($input: UpdateServerInput!) {
-              updateServer(input: $input) {
-                profile {
-                  name
-                  description
-                  motd
-                  welcomeMessage
-                }
+            mutation UpdateServerSettingsModal($input: UpdateServerConfigInput!) {
+              updateServerConfig(input: $input) {
+                name
+                description
+                motd
+                welcomeMessage
               }
             }
           `),
           {
             input: {
-              name: name.trim(),
+              serverName: name.trim(),
               description: description.trim(),
               motd,
               welcomeMessage
@@ -153,7 +151,7 @@
         return;
       }
 
-      if (result.data?.updateServer) {
+      if (result.data?.updateServerConfig) {
         saveSuccess = true;
         setTimeout(() => (saveSuccess = false), 3000);
       }

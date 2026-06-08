@@ -84,12 +84,13 @@ func (r *Resolver) getReactions(ctx context.Context, eventID string) ([]core.Rea
 	return r.core.GetReactions(ctx, eventID)
 }
 
-// resolveReactions converts core ReactionSummaries to GraphQL Reactions for the current user.
-// Shared by messagePostedEventResolver and messageUpdatedEventResolver.
-func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*model.Reaction, error) {
+// resolveReactions returns Core reaction summaries for the GraphQL ReactionSummary type.
+// Derived fields such as count, users(first:), and hasReacted are resolved on
+// ReactionSummary itself so the API shape can stay preview-oriented without a wrapper model.
+func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*core.ReactionSummary, error) {
 	currentUser := auth.ForContext(ctx)
 	if currentUser == nil {
-		return []*model.Reaction{}, nil
+		return []*core.ReactionSummary{}, nil
 	}
 
 	summaries, err := r.getReactions(ctx, eventID)
@@ -97,26 +98,11 @@ func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*mod
 		return nil, err
 	}
 
-	reactions := make([]*model.Reaction, 0, len(summaries))
+	reactions := make([]*core.ReactionSummary, 0, len(summaries))
 	for _, summary := range summaries {
-		users := make([]*corev1.User, 0, len(summary.UserIDs))
-		hasReacted := false
-		for _, userID := range summary.UserIDs {
-			if userID == currentUser.Id {
-				hasReacted = true
-			}
-			user, err := r.getUser(ctx, userID)
-			if err != nil {
-				continue // Skip deleted users
-			}
-			users = append(users, user)
-		}
-
-		reactions = append(reactions, &model.Reaction{
-			Emoji:      summary.Emoji,
-			Count:      int32(len(users)),
-			Users:      users,
-			HasReacted: hasReacted,
+		reactions = append(reactions, &core.ReactionSummary{
+			Emoji:   summary.Emoji,
+			UserIDs: append([]string(nil), summary.UserIDs...),
 		})
 	}
 
