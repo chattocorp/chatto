@@ -106,6 +106,53 @@ test('post message with image attachment', async ({ page, chatPage, roomPage }) 
   ).toBeVisible();
 });
 
+test('image attachment refreshes URL after an expired lazy-load request', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.createSpace();
+  await chatPage.enterRoom('general');
+
+  let failedFirstAssetRequest = false;
+  let refreshQueryCount = 0;
+
+  await page.route('**/api/graphql', async (route) => {
+    if (route.request().postData()?.includes('RefreshMessageAttachmentUrls')) {
+      refreshQueryCount += 1;
+    }
+    await route.continue();
+  });
+
+  await page.route('**/assets/files/**', async (route) => {
+    if (!failedFirstAssetRequest && route.request().resourceType() === 'image') {
+      failedFirstAssetRequest = true;
+      await route.fulfill({
+        status: 403,
+        contentType: 'text/plain',
+        body: 'expired asset access ticket'
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Expired lazy image');
+
+  await expect.poll(() => refreshQueryCount, { timeout: TIMEOUTS.UI_STANDARD }).toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        roomPage.attachmentImage
+          .first()
+          .evaluate((img) => img.complete && img.naturalWidth > 0),
+      { timeout: TIMEOUTS.COMPLEX_OPERATION }
+    )
+    .toBe(true);
+});
+
 test('can post message with attachment but no text', async ({ page, chatPage, roomPage }) => {
   const testUser = await createAndLoginTestUser(page);
   await chatPage.goto();

@@ -39,7 +39,10 @@ unknown instance) the component renders nothing.
                 id
                 filename
                 contentType
-                thumbnailUrl(width: 120, height: 120, fit: COVER)
+                thumbnailAssetUrl(width: 120, height: 120, fit: COVER) {
+                  url
+                  expiresAt
+                }
               }
             }
           }
@@ -50,13 +53,22 @@ unknown instance) the component renders nothing.
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- href built via buildMessageLinkPath which already calls resolve() */
   import type { MessageLink } from '$lib/messageLinks';
-  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
+  import { FitMode, type UserAvatarUserFragment } from '$lib/gql/graphql';
   import { useFragment } from '$lib/gql';
-  import { buildMessageLinkPath } from '$lib/messageLinks';
+  import { resolve } from '$app/paths';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+  import { serverIdToSegment } from '$lib/navigation';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import {
+    assetUrlNeedsRefresh,
+    earliestAssetUrlRefreshAt,
+    refreshAttachmentUrlsForMessage,
+    withAssetUrlRetryParam,
+    type ExpiringAssetUrl
+  } from '$lib/attachments/attachmentUrls';
+  import { assetUrlForServer } from '$lib/assets/assetUrls';
   import UserAvatar from './UserAvatar.svelte';
 
   let {
@@ -73,17 +85,47 @@ unknown instance) the component renders nothing.
     id: string;
     filename: string;
     contentType: string;
+    thumbnailAssetUrl: ExpiringAssetUrl | null;
     thumbnailUrl: string | null;
   }
 
   let preview = $state<{
-    path: string;
+    serverId: string;
+    roomId: string;
+    eventId: string;
     body: string | null;
     attachments: Attachment[];
     actor: UserAvatarUserFragment | null;
     spaceName: string | null;
     roomName: string | null;
   } | null>(null);
+  const thumbnailRetrySalts = new SvelteMap<string, number>();
+  let refreshPromise: Promise<void> | null = null;
+  const failedThumbnailRefreshes = new SvelteSet<string>();
+  const PREVIEW_THUMBNAIL_REFRESH = {
+    width: 120,
+    height: 120,
+    fit: FitMode.Cover
+  };
+
+  function normalizePreviewAssetUrl(
+    serverId: string,
+    value: ExpiringAssetUrl | null | undefined
+  ): ExpiringAssetUrl | null {
+    if (!value) return null;
+    return {
+      ...value,
+      url: assetUrlForServer(serverId, value.url) ?? value.url
+    };
+  }
+
+  function previewThumbnailUrl(attachment: Attachment): string | null {
+    if (!attachment.thumbnailAssetUrl) return null;
+    const salt = thumbnailRetrySalts.get(attachment.id);
+    return salt
+      ? withAssetUrlRetryParam(attachment.thumbnailAssetUrl.url, salt)
+      : attachment.thumbnailAssetUrl.url;
+  }
 
   $effect(() => {
     const { serverId, roomId, messageId } = link;
@@ -114,14 +156,20 @@ unknown instance) the component renders nothing.
         }
 
         preview = {
-          path: buildMessageLinkPath(serverId, roomId, messageId),
+          serverId,
+          roomId,
+          eventId: messageId,
           body: inner.body ?? null,
-          attachments: inner.attachments.map((a) => ({
-            id: a.id,
-            filename: a.filename,
-            contentType: a.contentType,
-            thumbnailUrl: a.thumbnailUrl ?? null
-          })),
+          attachments: inner.attachments.map((a) => {
+            const thumbnailAssetUrl = normalizePreviewAssetUrl(serverId, a.thumbnailAssetUrl);
+            return {
+              id: a.id,
+              filename: a.filename,
+              contentType: a.contentType,
+              thumbnailAssetUrl,
+              thumbnailUrl: thumbnailAssetUrl?.url ?? null
+            };
+          }),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
           spaceName: result.data?.server?.profile.name ?? null,
           roomName: result.data?.room?.name ?? null
@@ -156,11 +204,122 @@ unknown instance) the component renders nothing.
     if (contentType.startsWith('audio/')) return 'Audio';
     return 'File';
   }
+
+  const nextThumbnailRefreshAt = $derived.by(() =>
+    earliestAssetUrlRefreshAt(preview?.attachments.map((a) => a.thumbnailAssetUrl) ?? [])
+  );
+
+  function hasStaleThumbnailUrl() {
+    return (
+      preview?.attachments.some((attachment) => assetUrlNeedsRefresh(attachment.thumbnailAssetUrl)) ??
+      false
+    );
+  }
+
+  async function refreshPreviewAttachmentUrls(): Promise<void> {
+    if (!preview || refreshPromise) return refreshPromise ?? undefined;
+
+    const current = preview;
+    const client = graphqlClientManager.getClient(current.serverId).client;
+    refreshPromise = refreshAttachmentUrlsForMessage(
+      client,
+      current.roomId,
+      current.eventId,
+      PREVIEW_THUMBNAIL_REFRESH
+    )
+      .then((freshUrls) => {
+        if (freshUrls.size === 0) return;
+        if (
+          !preview ||
+          preview.serverId !== current.serverId ||
+          preview.roomId !== current.roomId ||
+          preview.eventId !== current.eventId
+        ) {
+          return;
+        }
+
+        preview = {
+          ...preview,
+          attachments: preview.attachments.map((attachment) => {
+            const fresh = normalizePreviewAssetUrl(
+              current.serverId,
+              freshUrls.get(attachment.id)?.thumbnailAssetUrl
+            );
+            return fresh
+              ? {
+                  ...attachment,
+                  thumbnailAssetUrl: fresh,
+                  thumbnailUrl: fresh.url
+                }
+              : attachment;
+          })
+        };
+      })
+      .catch(() => {
+        // Fail silently — the preview can still render text and file labels.
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+
+    return refreshPromise;
+  }
+
+  function refreshAfterThumbnailError(attachment: Attachment) {
+    if (failedThumbnailRefreshes.has(attachment.id)) return;
+    failedThumbnailRefreshes.add(attachment.id);
+    refreshPreviewAttachmentUrls().then(() => {
+      thumbnailRetrySalts.set(attachment.id, Date.now());
+    });
+  }
+
+  function refreshStalePreviewUrls() {
+    if (hasStaleThumbnailUrl()) {
+      refreshPreviewAttachmentUrls();
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      refreshStalePreviewUrls();
+    }
+  }
+
+  $effect(() => {
+    if (nextThumbnailRefreshAt === null) return;
+
+    const timeout = window.setTimeout(
+      () => {
+        refreshPreviewAttachmentUrls();
+      },
+      Math.max(0, nextThumbnailRefreshAt - Date.now())
+    );
+
+    return () => window.clearTimeout(timeout);
+  });
+
+  $effect(() => {
+    refreshStalePreviewUrls();
+  });
+
+  $effect(() => {
+    window.addEventListener('focus', refreshStalePreviewUrls);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshStalePreviewUrls);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  });
 </script>
 
 {#if preview}
   <a
-    href={preview.path}
+    href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+      serverId: serverIdToSegment(preview.serverId),
+      roomId: preview.roomId,
+      messageId: preview.eventId
+    })}
     data-testid="message-preview-card"
     class="group/preview relative flex w-full max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
   >
@@ -188,11 +347,13 @@ unknown instance) the component renders nothing.
       {#if preview.attachments.length > 0}
         <div class="flex items-center gap-2">
           {#each preview.attachments.slice(0, 3) as attachment (attachment.id)}
-            {#if attachment.thumbnailUrl}
+            {@const thumbnailUrl = previewThumbnailUrl(attachment)}
+            {#if thumbnailUrl}
               <img
-                src={attachment.thumbnailUrl}
+                src={thumbnailUrl}
                 alt={attachment.filename}
                 class="h-10 w-10 rounded object-cover"
+                onerror={() => refreshAfterThumbnailError(attachment)}
               />
             {:else}
               <div class="flex h-10 w-10 items-center justify-center rounded bg-surface-200 text-xs text-muted">

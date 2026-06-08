@@ -51,11 +51,16 @@
   type RawAttachment = MessageAttachmentViewFragment;
   import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { toast } from '$lib/ui/toast';
   import {
+    assetUrlNeedsRefresh,
+    earliestAssetUrlRefreshAt,
+    mergeRefreshedAttachmentUrls,
     refreshAttachmentUrlsForMessage,
+    withAssetUrlRetryParam,
     type ExpiringAssetUrl,
     type RefreshedAttachmentUrls
   } from '$lib/attachments/attachmentUrls';
@@ -76,7 +81,9 @@
   } = $props();
 
   let refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
-  let refreshInFlight = false;
+  const assetRetrySalts = new SvelteMap<string, number>();
+  let refreshPromise: Promise<Map<string, RefreshedAttachmentUrls>> | null = null;
+  const failedAssetRefreshKeys = new SvelteSet<string>();
 
   function normalizeAssetUrl(value: ExpiringAssetUrl | null | undefined): ExpiringAssetUrl | null {
     if (!value) return null;
@@ -86,14 +93,34 @@
     };
   }
 
+  function withRetrySalt(
+    value: ExpiringAssetUrl | null,
+    attachmentID: string,
+    role: string
+  ): ExpiringAssetUrl | null {
+    if (!value) return null;
+    const salt = assetRetrySalts.get(`${attachmentID}:${role}`);
+    return salt ? { ...value, url: withAssetUrlRetryParam(value.url, salt) } : value;
+  }
+
   function normalizeAttachment(attachment: RawAttachment) {
     const refreshed = refreshedAttachmentUrls.get(attachment.id);
-    const assetUrl = normalizeAssetUrl(refreshed?.assetUrl ?? attachment.assetUrl);
-    const thumbnailAssetUrl = normalizeAssetUrl(
-      refreshed?.thumbnailAssetUrl ?? attachment.thumbnailAssetUrl
+    const assetUrl = withRetrySalt(
+      normalizeAssetUrl(refreshed?.assetUrl ?? attachment.assetUrl),
+      attachment.id,
+      'asset'
     );
-    const videoThumbnailAssetUrl = normalizeAssetUrl(
-      refreshed?.videoThumbnailAssetUrl ?? attachment.videoProcessing?.thumbnailAssetUrl
+    const thumbnailAssetUrl = withRetrySalt(
+      normalizeAssetUrl(refreshed?.thumbnailAssetUrl ?? attachment.thumbnailAssetUrl),
+      attachment.id,
+      'thumbnail'
+    );
+    const videoThumbnailAssetUrl = withRetrySalt(
+      normalizeAssetUrl(
+        refreshed?.videoThumbnailAssetUrl ?? attachment.videoProcessing?.thumbnailAssetUrl
+      ),
+      attachment.id,
+      'video'
     );
 
     return {
@@ -108,8 +135,12 @@
             thumbnailAssetUrl: videoThumbnailAssetUrl,
             thumbnailUrl: videoThumbnailAssetUrl?.url ?? null,
             variants: attachment.videoProcessing.variants.map((variant) => {
-              const variantAssetUrl = normalizeAssetUrl(
-                refreshed?.variantAssetUrls.get(variant.quality) ?? variant.assetUrl
+              const variantAssetUrl = withRetrySalt(
+                normalizeAssetUrl(
+                  refreshed?.variantAssetUrls.get(variant.quality) ?? variant.assetUrl
+                ),
+                attachment.id,
+                'video'
               );
               return {
                 ...variant,
@@ -145,50 +176,99 @@
 
   const connection = useConnection();
 
-  function assetUrlRefreshAt(assetUrl: ExpiringAssetUrl | null | undefined) {
-    if (!assetUrl) return null;
-    const expiresAt = new Date(assetUrl.expiresAt).getTime();
-    if (Number.isNaN(expiresAt)) return Date.now();
-    return expiresAt - 2 * 60_000;
-  }
-
-  function minRefreshAt(current: number | null, assetUrl: ExpiringAssetUrl | null | undefined) {
-    const refreshAt = assetUrlRefreshAt(assetUrl);
-    if (refreshAt === null) return current;
-    return current === null ? refreshAt : Math.min(current, refreshAt);
+  function attachmentAssetUrls(attachment: Attachment) {
+    return [
+      attachment.assetUrl,
+      attachment.thumbnailAssetUrl,
+      attachment.videoProcessing?.thumbnailAssetUrl,
+      ...(attachment.videoProcessing?.variants.map((variant) => variant.assetUrl) ?? [])
+    ];
   }
 
   const nextAssetUrlRefreshAt = $derived.by(() => {
-    let nextRefreshAt: number | null = null;
-    for (const attachment of attachments) {
-      nextRefreshAt = minRefreshAt(nextRefreshAt, attachment.assetUrl);
-      nextRefreshAt = minRefreshAt(nextRefreshAt, attachment.thumbnailAssetUrl);
-      nextRefreshAt = minRefreshAt(nextRefreshAt, attachment.videoProcessing?.thumbnailAssetUrl);
-      for (const variant of attachment.videoProcessing?.variants ?? []) {
-        nextRefreshAt = minRefreshAt(nextRefreshAt, variant.assetUrl);
-      }
-    }
-    return nextRefreshAt;
+    return earliestAssetUrlRefreshAt(attachments.flatMap((attachment) => attachmentAssetUrls(attachment)));
   });
 
   $effect(() => {
-    if (nextAssetUrlRefreshAt === null || refreshInFlight) return;
+    if (nextAssetUrlRefreshAt === null) return;
 
     const timeout = window.setTimeout(
       () => {
-        refreshInFlight = true;
-        refreshUrlsForMessage()
-          .then((freshUrls) => {
-            if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
-          })
-          .finally(() => {
-            refreshInFlight = false;
-          });
+        refreshAndApplyUrls().catch((error: unknown) => {
+          console.warn('Failed to refresh attachment URLs before expiry', error);
+        });
       },
       Math.max(0, nextAssetUrlRefreshAt - Date.now())
     );
 
     return () => window.clearTimeout(timeout);
+  });
+
+  function hasRefreshableStaleUrl() {
+    return attachments.some((attachment) =>
+      attachmentAssetUrls(attachment).some((assetUrl) => assetUrlNeedsRefresh(assetUrl))
+    );
+  }
+
+  function refreshStaleUrls() {
+    if (!hasRefreshableStaleUrl()) return;
+    refreshAndApplyUrls().catch((error: unknown) => {
+      console.warn('Failed to refresh stale attachment URLs', error);
+    });
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      refreshStaleUrls();
+    }
+  }
+
+  async function refreshAndApplyUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = refreshUrlsForMessage()
+      .then((freshUrls) => {
+        if (freshUrls.size > 0) {
+          refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
+        }
+        return freshUrls;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+
+    return refreshPromise;
+  }
+
+  function refreshAfterAssetError(attachment: Attachment, role: string) {
+    const key = `${attachment.id}:${role}`;
+    if (failedAssetRefreshKeys.has(key)) return;
+    failedAssetRefreshKeys.add(key);
+    refreshAndApplyUrls()
+      .then(() => {
+        assetRetrySalts.set(key, Date.now());
+      })
+      .catch((error: unknown) => {
+        console.warn('Failed to refresh attachment URL after load error', error);
+      });
+  }
+
+  $effect(() => {
+    if (hasRefreshableStaleUrl()) {
+      refreshAndApplyUrls().catch((error: unknown) => {
+        console.warn('Failed to refresh stale attachment URLs', error);
+      });
+    }
+  });
+
+  $effect(() => {
+    window.addEventListener('focus', refreshStaleUrls);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshStaleUrls);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   });
 
   async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {
@@ -199,8 +279,7 @@
     const idx = imageAttachments.indexOf(attachment);
     // Refresh in one round-trip so navigating between images in the
     // lightbox can't hit an expired URL mid-session.
-    const freshUrls = await refreshUrlsForMessage();
-    if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
+    const freshUrls = await refreshAndApplyUrls();
     const imageItems: ImageItem[] = imageAttachments.map((a) => ({
       id: a.id,
       src: normalizeAssetUrl(freshUrls.get(a.id)?.assetUrl)?.url ?? a.url,
@@ -219,8 +298,7 @@
   }
 
   async function openDownload(attachment: Attachment) {
-    const freshUrls = await refreshUrlsForMessage();
-    if (freshUrls.size > 0) refreshedAttachmentUrls = freshUrls;
+    const freshUrls = await refreshAndApplyUrls();
     const fresh = normalizeAssetUrl(freshUrls.get(attachment.id)?.assetUrl)?.url ?? attachment.url;
     if (!fresh) {
       toast.error('Could not refresh download link');
@@ -259,6 +337,7 @@
             reasonCode={attachment.videoProcessing.reasonCode}
             filename={attachment.filename}
             autoLoop
+            onMediaError={() => refreshAfterAssetError(attachment, 'video')}
           />
           {#if canDeleteAttachment}
             <button
@@ -294,6 +373,11 @@
             src={attachment.thumbnailUrl ?? attachment.url}
             alt={attachment.filename}
             class={['object-cover', size ? 'h-full w-full' : 'max-h-64 w-auto']}
+            onerror={() =>
+              refreshAfterAssetError(
+                attachment,
+                attachment.thumbnailUrl ? 'thumbnail' : 'asset'
+              )}
           />
           {#if canDeleteAttachment}
             <span
@@ -321,6 +405,7 @@
             height={attachment.videoProcessing.height}
             reasonCode={attachment.videoProcessing.reasonCode}
             filename={attachment.filename}
+            onMediaError={() => refreshAfterAssetError(attachment, 'video')}
           />
           {#if canDeleteAttachment}
             <button
@@ -347,6 +432,7 @@
             preload="metadata"
             src={attachment.url}
             class="max-h-64 max-w-full rounded-sm"
+            onerror={() => refreshAfterAssetError(attachment, 'asset')}
           >
             <track kind="captions" />
           </video>
@@ -360,6 +446,7 @@
               src={attachment.url}
               class="h-8 max-w-xs"
               data-testid="audio-player"
+              onerror={() => refreshAfterAssetError(attachment, 'asset')}
             >
               {attachment.filename}
             </audio>

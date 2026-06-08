@@ -678,32 +678,42 @@ Chatto supports on-the-fly image transformation for attachments and user avatars
 
 **URL Structure:**
 
-Attachment URLs encode everything the HTTP handler needs (roomId for
-authz; bodyKey or videoOriginId for source-of-truth lookup;
-attachmentId) into a signed locator path segment. Originals:
+GraphQL attachment fields primarily return stable asset paths with a
+per-user `access` ticket query parameter. Originals:
 
 ```
-/assets/attachments/{base64payload}.{hexHMAC}
+/assets/files/{assetId}?access={base64payload}.{hexHMAC}
 ```
 
-Transforms append the standard signed-transform-path component:
+Image transforms use stable dimensions in the path and bind those same
+parameters into the access ticket:
 
 ```
-/assets/attachments/{base64payload}.{hexHMAC}/t/{base64params}.{signature}
+/assets/files/{assetId}/image/{width}x{height}/{fit}?access={base64payload}.{hexHMAC}
 ```
 
 Where:
 
-- `{base64payload}` — base64url-encoded JSON `{r, b?, v?, a}` (room id; exactly one of bodyKey or videoOriginId; attachment id)
+- `{assetId}` — the declared `AssetCreatedEvent.asset.id`
+- `{base64payload}` — base64url-encoded JSON `{a, u, e, w?, h?, f?}` (asset id, signed user id, Unix-second expiry, optional transform)
 - `{hexHMAC}` — first 16 bytes of HMAC-SHA256 of `{base64payload}` (32 hex chars)
-- `{base64params}` — base64url-encoded JSON `{"w":640,"h":512,"f":"contain"}`
-- `{signature}` — first 16 bytes of HMAC-SHA256 of `attachment/{locator}/{base64params}` (32 hex chars)
 
-Both HMACs use the same `[core.assets].signing_secret`. The HTTP handler
-verifies the locator signature, then resolves the source proto by
-fetching `MessageBody` / `AssetCreatedEvent` state (for body attachments) or the projected
-`AssetProcessingSucceededEvent.video` manifest (for variants/thumbnails) — no
-separate index bucket lookup is needed.
+The HMAC uses `[core.assets].signing_secret`. The HTTP handler verifies the
+ticket signature, expiry, asset ID, and transform parameters, then resolves the
+asset and room scope from the `RoomTimelineProjection`'s asset indexes. Every
+request checks that the signed user is still a member of the asset's room
+before serving the binary.
+
+Legacy locator URLs remain supported for compatibility/internal fallback:
+
+```
+/assets/attachments/{base64payload}.{hexHMAC}
+/assets/attachments/{base64payload}.{hexHMAC}/t/{base64params}.{signature}
+```
+
+Those locator payloads carry room/source/attachment/user/expiry claims and use
+the shorter `AttachmentURLTTL`. New GraphQL attachment fields should use the
+stable `/assets/files/...` URL plus `AssetURL.expiresAt` shape.
 
 **Transform Parameters:**
 
@@ -725,7 +735,14 @@ The `Attachment` and `User` image fields expose transform parameters as field ar
 ```graphql
 type Attachment {
   url(width: Int, height: Int, fit: FitMode): String!
+  assetUrl(width: Int, height: Int, fit: FitMode): AssetURL!
   thumbnailUrl(width: Int, height: Int, fit: FitMode): String
+  thumbnailAssetUrl(width: Int, height: Int, fit: FitMode): AssetURL
+}
+
+type AssetURL {
+  url: String!
+  expiresAt: Time!
 }
 
 type User {
@@ -744,15 +761,23 @@ enum FitMode {
 }
 ```
 
-For `Attachment` and `User` images, arguments return a signed transform URL. Without arguments, the original/default thumbnail URL is returned for backward compatibility. Public `ServerProfile` image fields intentionally return canonical asset URLs without transform arguments so anonymous server discovery cannot mint unbounded resize variants.
+For `Attachment` images, `assetUrl` and `thumbnailAssetUrl` return the URL plus
+the embedded access-ticket expiry so clients can refresh before lazy loads or
+media startup hit an expired ticket. The legacy string fields return the same
+URL without the expiry for backward compatibility. Public `ServerProfile` image
+fields intentionally return canonical asset URLs without transform arguments so
+anonymous server discovery cannot mint unbounded resize variants.
 
 **Caching:**
 
-Transformed images are generated on-demand with aggressive HTTP caching:
+Transformed images are generated on-demand. Public server assets can be cached
+aggressively; authenticated attachment URLs are cacheable only as private
+browser responses because their access ticket is per-user:
 
-- `Cache-Control: public, max-age=31536000, immutable` (1 year)
-- `ETag` based on attachment ID and transform parameters
-- No server-side caching; relies on CDN/proxy caching
+- Stable attachment originals and derivatives: `Cache-Control: private, max-age=3600`
+- Server-scoped public assets and signed server transforms: public immutable/cacheable responses
+- `ETag` based on asset ID and transform parameters
+- Optional `ASSET_CACHE` object-store entries can cache resized bytes server-side
 
 **Output Format:**
 

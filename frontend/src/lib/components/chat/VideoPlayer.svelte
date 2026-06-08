@@ -37,7 +37,8 @@
 		height = null,
 		reasonCode = null,
 		filename,
-		autoLoop = false
+		autoLoop = false,
+		onMediaError
 	}: {
 		status: VideoProcessingStatus;
 		variants?: Variant[];
@@ -47,6 +48,7 @@
 		reasonCode?: string | null;
 		filename: string;
 		autoLoop?: boolean;
+		onMediaError?: () => void;
 	} = $props();
 
 	const MAX_WIDTH = 480;
@@ -139,9 +141,10 @@
 			muted
 			playsinline
 			data-autoloop
+			onerror={onMediaError}
 			style="aspect-ratio: {displaySize.width} / {displaySize.height}; width: 100%;"
 		>
-			<source src={selectedVariant.url} type="video/mp4" />
+			<source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
 		</video>
 	</div>
 {:else if status === 'COMPLETED' && selectedVariant && elementsReady}
@@ -153,11 +156,17 @@
 			bind:this={playerEl}
 			src={videoSrc}
 			playsinline
+			onerror={onMediaError}
 			style="aspect-ratio: {displaySize.width} / {displaySize.height};"
 		>
 			<media-provider>
 				{#if thumbnailUrl}
-					<media-poster class="vds-poster" src={thumbnailUrl} alt={filename}></media-poster>
+					<media-poster
+						class="vds-poster"
+						src={thumbnailUrl}
+						alt={filename}
+						onerror={onMediaError}
+					></media-poster>
 				{/if}
 			</media-provider>
 			<media-video-layout></media-video-layout>
