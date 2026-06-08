@@ -16,7 +16,7 @@ const MaxRoomBanReasonLength = 1000
 
 // BanRoomMember records a durable room ban and emits an ordinary leave event
 // for public room history. The caller is responsible for permission and rank
-// checks.
+// checks. The target must currently be a room member.
 func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time) (*RoomBan, error) {
 	if kind == KindDM {
 		return nil, ErrCannotBanDMRoomMember
@@ -29,6 +29,13 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 	}
 	if _, err := c.GetUser(ctx, targetUserID); err != nil {
 		return nil, err
+	}
+	isMember, err := c.RoomMembershipExists(ctx, kind, targetUserID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, ErrNotRoomMember
 	}
 
 	reason = strings.TrimSpace(reason)

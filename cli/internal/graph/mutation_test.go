@@ -810,6 +810,48 @@ func TestBanRoomMember_Authorization(t *testing.T) {
 		}
 	})
 
+	t.Run("non-member target is rejected without public leave event", func(t *testing.T) {
+		admin, err := env.core.CreateUser(env.ctx, "system", "room-remover-nonmember", "Room Remover Nonmember", "password123")
+		if err != nil {
+			t.Fatalf("failed to create admin: %v", err)
+		}
+		target, err := env.core.CreateUser(env.ctx, "system", "remove-target-nonmember", "Remove Target Nonmember", "password123")
+		if err != nil {
+			t.Fatalf("failed to create target: %v", err)
+		}
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole admin: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, admin.Id, core.KindChannel, admin.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom admin: %v", err)
+		}
+
+		before, err := env.resolver.Room().Events(env.authContextForUser(admin), env.testRoom, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("expected admin to read room events before ban attempt, got %v", err)
+		}
+
+		_, err = mutation.BanRoomMember(env.authContextForUser(admin), model.BanRoomMemberInput{
+			RoomID: env.testRoom.Id,
+			UserID: target.Id,
+			Reason: "spam",
+		})
+		if !errors.Is(err, core.ErrNotRoomMember) {
+			t.Fatalf("expected ErrNotRoomMember for non-member target, got %v", err)
+		}
+		if _, ok := env.core.RoomBans.ActiveBan(env.testRoom.Id, target.Id, time.Now()); ok {
+			t.Fatal("expected non-member target not to receive an active room ban")
+		}
+
+		after, err := env.resolver.Room().Events(env.authContextForUser(admin), env.testRoom, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("expected admin to read room events after ban attempt, got %v", err)
+		}
+		if len(after.Events) != len(before.Events) {
+			t.Fatalf("expected no public leave event for non-member target, before=%d after=%d", len(before.Events), len(after.Events))
+		}
+	})
+
 	t.Run("caller without room.ban-member is rejected", func(t *testing.T) {
 		caller, err := env.core.CreateUser(env.ctx, "system", "remove-no-perm", "No Perm", "password123")
 		if err != nil {
