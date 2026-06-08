@@ -63,10 +63,10 @@ type Room {
   archived: Boolean!
   """
   Channel rooms belong to exactly one RoomGroup; this field identifies which
-  one. DM rooms return an empty string sentinel because they do not
-  participate in room-group layout or ACLs (see ADR-031).
+  one. DM rooms return null because they do not participate in room-group
+  layout or ACLs.
   """
-  groupId: ID!
+  groupId: ID @goField(forceResolver: true)
 
   """
   Fetch historical events for this room (default limit: 50, max: 500;

@@ -21,7 +21,7 @@ type FollowedThread {
   "Timestamp of the most recent reply (null if no replies)."
   lastReplyAt: Time
 
-  "Users who have participated in this thread."
+  "Users who have participated in this thread (default 5, max 10) for preview."
   threadParticipants(first: Int = 5): [User!]! @goField(forceResolver: true)
 
   "Whether this thread has unread replies since the user last opened it."

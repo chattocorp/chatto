@@ -27,6 +27,35 @@ func viewerFor(t *testing.T, env *testEnv, ctx context.Context) *model.Viewer {
 	return v
 }
 
+func TestNotificationCreatedEventResolver_NavigationIDsNullWhenEmpty(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.NotificationCreatedEvent()
+
+	eventID, err := resolver.EventID(env.authContext(), &corev1.NotificationCreatedEvent{})
+	if err != nil {
+		t.Fatalf("EventID returned error: %v", err)
+	}
+	if eventID != nil {
+		t.Fatalf("EventID = %v, want nil", eventID)
+	}
+
+	inReplyToID, err := resolver.InReplyToID(env.authContext(), &corev1.NotificationCreatedEvent{})
+	if err != nil {
+		t.Fatalf("InReplyToID returned error: %v", err)
+	}
+	if inReplyToID != nil {
+		t.Fatalf("InReplyToID = %v, want nil", inReplyToID)
+	}
+
+	eventID, err = resolver.EventID(env.authContext(), &corev1.NotificationCreatedEvent{EventId: "E123"})
+	if err != nil {
+		t.Fatalf("EventID returned error: %v", err)
+	}
+	if eventID == nil || *eventID != "E123" {
+		t.Fatalf("EventID = %v, want E123", eventID)
+	}
+}
+
 func TestViewerResolver_Notifications(t *testing.T) {
 	env := setupTestResolver(t)
 

@@ -125,10 +125,10 @@ type NotificationCreatedEvent {
   notificationId: ID!
   "Room ID for navigation"
   roomId: ID!
-  "Event ID for navigation (may be empty)"
-  eventId: ID
+  "Event ID for navigation, when available."
+  eventId: ID @goField(forceResolver: true)
   "Event ID of message being replied to (for reply notifications)"
-  inReplyToId: ID
+  inReplyToId: ID @goField(forceResolver: true)
 }
 
 """

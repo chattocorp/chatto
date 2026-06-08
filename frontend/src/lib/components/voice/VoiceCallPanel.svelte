@@ -70,7 +70,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       callParticipantsState.handleJoin(event.roomId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent' && event.roomId === roomId) {
-      callParticipantsState.handleLeave(event.roomId, spaceEvent.actorId);
+      callParticipantsState.handleLeave(event.roomId, spaceEvent.actorId ?? null);
     }
   });
 

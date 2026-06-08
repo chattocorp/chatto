@@ -14,16 +14,10 @@ type VoiceCallToken {
 A participant currently in a voice call.
 """
 type CallParticipant {
-  "The user's ID."
-  userId: ID!
-  "The user's display name."
-  displayName: String!
-  "The user's login handle."
-  login: String!
-  "The user's avatar URL (may be null if no avatar is set)."
-  avatarUrl: String
-  "Unix timestamp (seconds) when the user joined the call."
-  joinedAt: Int!
+  "The user currently participating in the call."
+  user: User!
+  "When the user joined the call."
+  joinedAt: Time!
 }
 
 # ==============================================================================

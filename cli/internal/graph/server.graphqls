@@ -51,10 +51,10 @@ type Server {
   videoProcessingEnabled: Boolean! @goField(forceResolver: true)
 
   "Maximum upload size for regular attachments (images, files) in bytes."
-  maxUploadSize: Int! @goField(forceResolver: true)
+  maxUploadSize: Int64! @goField(forceResolver: true, type: "int64")
 
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
-  maxVideoUploadSize: Int! @goField(forceResolver: true)
+  maxVideoUploadSize: Int64! @goField(forceResolver: true, type: "int64")
 
   "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window."
   messageEditWindowSeconds: Int! @goField(forceResolver: true)
@@ -71,9 +71,8 @@ type Server {
   rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
 
   """
-  Ordered list of channel-room groups (ADR-031). Every server boots with at
-  least the seed "Lobby" group; the list is never empty for a configured
-  server.
+  Ordered list of channel-room groups. Every server boots with at least the
+  seed "Lobby" group; the list is never empty for a configured server.
   """
   roomGroups: [RoomGroup!]! @goField(forceResolver: true)
 

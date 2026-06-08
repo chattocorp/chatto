@@ -6,6 +6,7 @@ description: "Pre-merge PR checklist for the Chatto codebase. Contains instructi
 # Chatto PR Checklist
 
 - Familiarize yourself with the changes in this branch/PR.
+- If you're working in a branch, make sure the branch is named something descriptive of the change.
 - Are there any test gaps around the new/changed functionality? If so, please fill them.
 - Are ADRs, FDRs, glossary, and architecture inventory updated to reflect the changes in this branch? If not, please update them.
 - Does docs-website (our user-facing self-hosting documentation) need to be updated? If so, please update it.

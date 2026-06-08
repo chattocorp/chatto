@@ -28,7 +28,7 @@
   }: {
     user: CurrentUser;
     userSettings: UserSettingsState;
-    profileCache: { update: (userId: string, displayName: string, avatarUrl: string, login: string) => void };
+    profileCache: { update: (userId: string, displayName: string, avatarUrl: string | null, login: string) => void };
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
@@ -74,7 +74,7 @@
 
     // Subscribe to settings update events for multi-tab sync
     useUserSettingsUpdate((update) => {
-      userSettings.timezone = update.timezone || null;
+      userSettings.timezone = update.timezone;
       userSettings.timeFormat = update.timeFormat;
     });
 

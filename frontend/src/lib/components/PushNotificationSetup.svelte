@@ -1,14 +1,13 @@
 <!--
 @component
 
-Registers the service worker for push notifications and handles automatic
-re-subscription when the browser renews or invalidates subscriptions.
+Handles automatic Web Push re-subscription when the browser renews or
+invalidates subscriptions. SvelteKit registers the service worker in production.
 
 Only active when push notifications are enabled in the server config.
 Include this component once in the authenticated layout.
 -->
 <script lang="ts">
-  import { dev } from '$app/environment';
   import {
     onSubscriptionChange,
     subscribe,
@@ -22,13 +21,6 @@ Include this component once in the authenticated layout.
   $effect(() => {
     if (!originServerInfo?.pushNotificationsEnabled) return;
     if (!('serviceWorker' in navigator)) return;
-    // SvelteKit doesn't bundle the service worker in dev mode
-    if (dev) return;
-
-    // Register the service worker
-    navigator.serviceWorker.register('/service-worker.js').catch((error) => {
-      console.error('Service worker registration failed:', error);
-    });
 
     // Listen for subscription changes (e.g., when browser renews subscription)
     // and attempt automatic re-subscription

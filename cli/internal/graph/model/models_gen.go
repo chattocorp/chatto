@@ -135,16 +135,10 @@ type AssignRoleInput struct {
 
 // A participant currently in a voice call.
 type CallParticipant struct {
-	// The user's ID.
-	UserID string `json:"userId"`
-	// The user's display name.
-	DisplayName string `json:"displayName"`
-	// The user's login handle.
-	Login string `json:"login"`
-	// The user's avatar URL (may be null if no avatar is set).
-	AvatarURL *string `json:"avatarUrl,omitempty"`
-	// Unix timestamp (seconds) when the user joined the call.
-	JoinedAt int32 `json:"joinedAt"`
+	// The user currently participating in the call.
+	User *corev1.User `json:"user"`
+	// When the user joined the call.
+	JoinedAt *timestamppb.Timestamp `json:"joinedAt"`
 }
 
 // Input for clearing permission state on a role.
@@ -491,8 +485,8 @@ type MarkThreadAsReadResult struct {
 }
 
 // Input for moving a room into a different room group. Requires room.manage in
-// both the source and target room group (ADR-031).
-type MoveRoomToSetInput struct {
+// both the source and target room group.
+type MoveRoomToGroupInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
 	// The destination room group.
@@ -692,19 +686,6 @@ type PushSubscriptionInput struct {
 type Query struct {
 }
 
-// A reaction represents emoji responses to a message, aggregated by emoji type.
-// Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
-type Reaction struct {
-	// The emoji shortcode name (e.g., "thumbsup", "heart").
-	Emoji string `json:"emoji"`
-	// Total number of users who reacted with this emoji.
-	Count int32 `json:"count"`
-	// List of users who reacted with this emoji.
-	Users []*corev1.User `json:"users"`
-	// Whether the current user has reacted with this emoji.
-	HasReacted bool `json:"hasReacted"`
-}
-
 // Input for removing an emoji reaction from a message.
 type RemoveReactionInput struct {
 	// The ID of the room containing the message.
@@ -839,10 +820,10 @@ type RoomEventsAroundResult struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Paginated room events with metadata indicating whether more events exist
-// in either direction. `startCursor` and `endCursor` are opaque pagination
-// cursors — pass them as `before` / `after` on a subsequent `Room.events`
-// call. Both are null when `events` is empty.
+// Paginated chronological events with metadata indicating whether more events
+// exist in either direction. `startCursor` and `endCursor` are opaque pagination
+// cursors — pass them as `before` / `after` on the same field that returned them.
+// Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
 	Events []core.EventEnvelope `json:"events"`
@@ -933,9 +914,9 @@ type Server struct {
 	// True if video processing is enabled, allowing video attachments to be uploaded.
 	VideoProcessingEnabled bool `json:"videoProcessingEnabled"`
 	// Maximum upload size for regular attachments (images, files) in bytes.
-	MaxUploadSize int32 `json:"maxUploadSize"`
+	MaxUploadSize int64 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
-	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
+	MaxVideoUploadSize int64 `json:"maxVideoUploadSize"`
 	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window.
 	MessageEditWindowSeconds int32 `json:"messageEditWindowSeconds"`
 	// List of rooms on this server.
@@ -946,9 +927,8 @@ type Server struct {
 	// channels and DMs together. Pass `type: CHANNEL` for channels-only consumers
 	// (e.g. the admin room-management UI); pass `type: DM` for DMs-only consumers.
 	Rooms []*corev1.Room `json:"rooms"`
-	// Ordered list of channel-room groups (ADR-031). Every server boots with at
-	// least the seed "Lobby" group; the list is never empty for a configured
-	// server.
+	// Ordered list of channel-room groups. Every server boots with at least the
+	// seed "Lobby" group; the list is never empty for a configured server.
 	RoomGroups []*RoomGroupModel `json:"roomGroups"`
 	// Number of members on this server.
 	MemberCount int32 `json:"memberCount"`

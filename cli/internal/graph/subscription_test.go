@@ -386,7 +386,7 @@ func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 	})
 }
 
-// TestSubscriptionResolver_Presence tests that subscribing to myServerEvents
+// TestSubscriptionResolver_Presence tests that subscribing to myEvents
 // sets the user's presence and delivers PresenceChangedEvents for other users.
 func TestSubscriptionResolver_Presence(t *testing.T) {
 	env := setupTestResolver(t)

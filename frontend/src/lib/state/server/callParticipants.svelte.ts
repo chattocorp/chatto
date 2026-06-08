@@ -10,17 +10,22 @@
  */
 
 import { graphql } from '$lib/gql';
-import type { CallParticipant, UserAvatarUserFragment } from '$lib/gql/graphql';
+import type {
+	GetCallParticipantsQuery,
+	UserAvatarUserFragment
+} from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 
 const CallParticipantsQuery = graphql(`
 	query GetCallParticipants($roomId: ID!) {
 		room(roomId: $roomId) {
 			callParticipants {
-				userId
-				displayName
-				login
-				avatarUrl
+				user {
+					id
+					login
+					displayName
+					avatarUrl(width: 96, height: 96)
+				}
 				joinedAt
 			}
 		}
@@ -34,6 +39,8 @@ export type ObserverParticipant = {
 	login: string;
 	avatarUrl: string | null;
 };
+
+type QueryCallParticipant = NonNullable<GetCallParticipantsQuery['room']>['callParticipants'][number];
 
 export class CallParticipantsState {
 	#client: Client;
@@ -104,11 +111,11 @@ export class CallParticipantsState {
 	}
 }
 
-function toObserverParticipant(p: CallParticipant): ObserverParticipant {
+function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
 	return {
-		userId: p.userId,
-		displayName: p.displayName,
-		login: p.login,
-		avatarUrl: p.avatarUrl ?? null
+		userId: p.user.id,
+		displayName: p.user.displayName,
+		login: p.user.login,
+		avatarUrl: p.user.avatarUrl ?? null
 	};
 }

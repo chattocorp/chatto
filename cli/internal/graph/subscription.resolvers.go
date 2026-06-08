@@ -12,7 +12,7 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-// MyEvents is the resolver for the myServerEvents field.
+// MyEvents is the resolver for the myEvents field.
 //
 // Backed by a single core stream (StreamMyEvents) that consumes
 // `live.sync.>` transient LiveEvent messages and `live.evt.>` raw EVT

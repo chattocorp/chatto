@@ -182,12 +182,16 @@
     if (!event.event) return;
 
     if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
+      const actorId = event.actorId;
+
       if (!event.event.threadRootEventId) {
-        typingIndicator.removeTypingUser(event.actorId);
+        if (actorId) {
+          typingIndicator.removeTypingUser(actorId);
+        }
       }
 
       if (!event.event.threadRootEventId && currentUser.user) {
-        if (event.actorId === currentUser.user.id) {
+        if (actorId === currentUser.user.id) {
           unread.noteReadCursor(event.createdAt);
         } else if (appState.isPresent) {
           unread.markRoomAsRead(roomId, event.id);

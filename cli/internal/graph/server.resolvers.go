@@ -61,18 +61,18 @@ func (r *serverResolver) VideoProcessingEnabled(ctx context.Context, obj *model.
 }
 
 // MaxUploadSize is the resolver for the maxUploadSize field.
-func (r *serverResolver) MaxUploadSize(ctx context.Context, obj *model.Server) (int32, error) {
+func (r *serverResolver) MaxUploadSize(ctx context.Context, obj *model.Server) (int, error) {
 	cfg := r.core.AssetsConfig()
-	return int32(cfg.MaxUploadSize), nil
+	return int(cfg.MaxUploadSize), nil
 }
 
 // MaxVideoUploadSize is the resolver for the maxVideoUploadSize field.
-func (r *serverResolver) MaxVideoUploadSize(ctx context.Context, obj *model.Server) (int32, error) {
+func (r *serverResolver) MaxVideoUploadSize(ctx context.Context, obj *model.Server) (int, error) {
 	if r.videoConfig.Enabled {
-		return int32(r.videoConfig.MaxUploadSizeOrDefault()), nil
+		return int(r.videoConfig.MaxUploadSizeOrDefault()), nil
 	}
 	cfg := r.core.AssetsConfig()
-	return int32(cfg.MaxUploadSize), nil
+	return int(cfg.MaxUploadSize), nil
 }
 
 // MessageEditWindowSeconds is the resolver for the messageEditWindowSeconds field.

@@ -37,3 +37,9 @@ Please update this section as the project evolves, and refer to it when making d
 - When creating or editing multiline GitHub PR/issue bodies with `gh`, write real Markdown to a file/stdin and use `--body-file`. Do not pass escaped `\n` sequences to `--body`; they render literally. Afterward, verify the stored body with `gh pr view --json body --jq .body` or equivalent before telling the user the PR is ready.
 - Please keep ADRs and FDRs up to date.
 - When the PR closes an issue, please include this information in the PR title or body (e.g. "Fixes #123") so GitHub can link and auto-close them.
+
+### General Coding and Design Guidelines
+
+- Prefer simplicity and clarity over cleverness.
+- Where feasible, write code comments that explain intent.
+- Make sure the code is well-tested, and that tests are easy to understand and maintain.
