@@ -153,9 +153,18 @@
     const fromUrl = page.url.searchParams.get('highlight');
     if (!fromUrl) return;
 
-    const cleanUrl = new URL(page.url);
-    cleanUrl.searchParams.delete('highlight');
-    replaceState(cleanUrl.pathname + cleanUrl.search, {});
+    if (threadId) {
+      replaceState(
+        resolve('/chat/[serverId]/[roomId]/[threadId]', {
+          serverId: serverSegment,
+          roomId,
+          threadId
+        }),
+        {}
+      );
+    } else {
+      replaceState(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }), {});
+    }
     applyHighlight(fromUrl);
   });
 

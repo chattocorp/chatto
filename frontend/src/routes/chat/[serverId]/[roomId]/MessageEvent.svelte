@@ -1,5 +1,6 @@
 <script lang="ts">
   import { startDMWith } from '$lib/dm/startDM';
+  import { resolve } from '$app/paths';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
@@ -34,7 +35,8 @@
   import { useEvent, useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
-  import { buildMessageLinkPath, buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
+  import { buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
+  import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
 
@@ -217,11 +219,6 @@
   const msg = $derived(messageEvent);
 
   const timestamp = $derived(event ? formatMessageTime(event.createdAt, userSettings) : '');
-
-  // Canonical link for this message (internal path for href, absolute URL for copy).
-  const messageLinkPath = $derived(
-    event ? buildMessageLinkPath(getActiveServer(), roomId, event.id) : ''
-  );
 
   // Message links referenced in this message's body — rendered inline as previews.
   const embeddedMessageLinks = $derived.by<MessageLink[]>(() => {
@@ -583,7 +580,11 @@
       {#if compact}
         <div class="flex w-11 shrink-0 items-center justify-center">
           <a
-            href={messageLinkPath}
+            href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+              serverId: serverIdToSegment(getActiveServer()),
+              roomId,
+              messageId: event.id
+            })}
             onclick={copyMessageLink}
             oncontextmenu={(e) => e.stopPropagation()}
             title="Click to copy link to this message"
@@ -648,7 +649,11 @@
               <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
             {/if}
             <a
-              href={messageLinkPath}
+              href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+                serverId: serverIdToSegment(getActiveServer()),
+                roomId,
+                messageId: event.id
+              })}
               onclick={copyMessageLink}
               oncontextmenu={(e) => e.stopPropagation()}
               title="Click to copy link to this message"
