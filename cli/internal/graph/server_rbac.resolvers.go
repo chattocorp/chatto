@@ -370,7 +370,7 @@ func (r *viewerResolver) User(ctx context.Context, obj *model.Viewer) (*corev1.U
 
 // CanViewAdmin is the resolver for the canViewAdmin field.
 func (r *viewerResolver) CanViewAdmin(ctx context.Context, obj *model.Viewer) (bool, error) {
-	return r.core.CanAdminAccess(ctx, obj.UserID)
+	return r.core.HasAnyAdminPermission(ctx, obj.UserID)
 }
 
 // CanStartDMs is the resolver for the canStartDMs field.
@@ -400,7 +400,7 @@ func (r *viewerResolver) CanAdminManageRoles(ctx context.Context, obj *model.Vie
 
 // CanAdminViewSystem is the resolver for the canAdminViewSystem field.
 func (r *viewerResolver) CanAdminViewSystem(ctx context.Context, obj *model.Viewer) (bool, error) {
-	return r.core.CanAdminSystemView(ctx, obj.UserID)
+	return r.core.IsServerOwner(ctx, obj.UserID)
 }
 
 // CanAdminViewAudit is the resolver for the canAdminViewAudit field.

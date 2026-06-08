@@ -245,7 +245,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermAdminAccess)
+		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -271,7 +271,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermAdminAccess)
+		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}

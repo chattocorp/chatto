@@ -58,7 +58,7 @@ export type AdminMutations = {
   __typename?: 'AdminMutations';
   /** Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent. */
   clearUsernameCooldown: Scalars['Boolean']['output'];
-  /** Update the newline-separated blocked-username list and return the effective saved value. Requires `admin.access`. */
+  /** Update the newline-separated blocked-username list and return the effective saved value. Requires `server.manage`. */
   updateBlockedUsernames: Scalars['String']['output'];
   /** Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile. */
   updateUser: User;
@@ -82,7 +82,7 @@ export type AdminMutationsUpdateUserArgs = {
   input: AdminUpdateUserInput;
 };
 
-/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
+/** Admin-console query namespace. Returns null unless the viewer is authenticated. */
 export type AdminQueries = {
   __typename?: 'AdminQueries';
   /** Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before. */
@@ -101,45 +101,45 @@ export type AdminQueries = {
   groupUserPermissions: RoomGroupUserPermissions;
   /** Inspect point-in-time runtime state and rough memory estimates for event-sourced projections. */
   projections: Array<ProjectionState>;
+  /** RBAC editor and inspection queries. */
+  rbac: RbacQueries;
   /** List active room bans. Requires server-scope `room.ban-member`. */
   roomBans: Array<RoomBan>;
-  /** Get server configuration. */
+  /** Get server configuration. Requires `server.manage`. */
   serverConfig: AdminServerConfig;
-  /** List all available server permission identifiers. */
-  serverPermissions: Array<Scalars['String']['output']>;
-  /** Get point-in-time operator diagnostics for connection, storage, and deployment counts. */
+  /** Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role. */
   systemInfo: SystemInfo;
 };
 
 
-/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
+/** Admin-console query namespace. Returns null unless the viewer is authenticated. */
 export type AdminQueriesEventLogArgs = {
   before?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
-/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
+/** Admin-console query namespace. Returns null unless the viewer is authenticated. */
 export type AdminQueriesEventLogEntryArgs = {
   sequence: Scalars['String']['input'];
 };
 
 
-/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
+/** Admin-console query namespace. Returns null unless the viewer is authenticated. */
 export type AdminQueriesGroupRolePermissionsArgs = {
   groupId: Scalars['ID']['input'];
   roleName: Scalars['String']['input'];
 };
 
 
-/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
+/** Admin-console query namespace. Returns null unless the viewer is authenticated. */
 export type AdminQueriesGroupUserPermissionsArgs = {
   groupId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
 };
 
 
-/** Admin-only query namespace for operator tooling. Returns null if the user is not a server admin. */
+/** Admin-console query namespace. Returns null unless the viewer is authenticated. */
 export type AdminQueriesRoomBansArgs = {
   roomId?: InputMaybe<Scalars['ID']['input']>;
 };
@@ -992,7 +992,7 @@ export type Mutation = {
    * Returns true if the reaction was added, false if it already existed.
    */
   addReaction: Scalars['Boolean']['output'];
-  /** Admin mutations. Returns null if user lacks admin permission. */
+  /** Admin mutations. Returns null unless the viewer is authenticated. Child fields enforce their own capabilities. */
   admin?: Maybe<AdminMutations>;
   /** Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission. */
   archiveRoom: Room;
@@ -1909,6 +1909,85 @@ export enum PermissionLevel {
 }
 
 /**
+ * One cell of the user-permission matrix: the per-permission, per-scope
+ * intersection.
+ */
+export type PermissionMatrixCell = {
+  __typename?: 'PermissionMatrixCell';
+  /**
+   * The **effective** decision the resolver would emit at this scope for
+   * this user-permission pair, after walking room → group → server with
+   * user-level overrides applied first. Drives the cell's tint.
+   */
+  effective: PermissionMatrixDecision;
+  /**
+   * The **explicit user-level override** at this scope, or NONE if the user
+   * has no override here. NONE cells display only the inherited effective
+   * state; ALLOW / DENY cells display as a solid override.
+   */
+  override: PermissionMatrixDecision;
+  /** Permission identifier (e.g. `message.post`). */
+  permission: Scalars['String']['output'];
+  /** Scope id (matches `PermissionMatrixScope.id`). */
+  scopeId: Scalars['String']['output'];
+};
+
+/** Trinary decision used in the user-permission matrix. */
+export enum PermissionMatrixDecision {
+  /** The permission is explicitly granted. */
+  Allow = 'ALLOW',
+  /** The permission is explicitly denied. */
+  Deny = 'DENY',
+  /** No explicit grant or denial applies at this scope. */
+  None = 'NONE'
+}
+
+/**
+ * A user's permission state across every scope where it can be configured —
+ * the data the User Permissions page renders as a matrix.
+ *
+ * Each cell answers two questions:
+ * 1. What's the **effective** decision after the full resolver walk (this
+ *    is what governs runtime behavior)?
+ * 2. Does the user have an **explicit user-level override** at this scope
+ *    (and which way)? Cells with an override render solid; cells driven
+ *    only by inheritance render faded.
+ */
+export type PermissionMatrixScope = {
+  __typename?: 'PermissionMatrixScope';
+  /**
+   * Stable identifier for this scope:
+   *   - `server` for the server tier (no group/room context),
+   *   - `group:{groupID}` for a room-group scope,
+   *   - `room:{roomID}` for a per-room scope.
+   * Clients use it as a column key.
+   */
+  id: Scalars['String']['output'];
+  /**
+   * Scope kind. The frontend uses this to lay out columns (server tier first,
+   * groups expandable, rooms nested under their group).
+   */
+  kind: PermissionMatrixScopeKind;
+  /** Human-readable label for the scope (group name, room name, or 'Server'). */
+  label: Scalars['String']['output'];
+  /**
+   * For room scopes, the parent group's ID — so the UI can nest rooms under
+   * their group column. Empty string for server / group scopes.
+   */
+  parentGroupId: Scalars['ID']['output'];
+};
+
+/** Where a PermissionMatrixScope sits in the resolution hierarchy. */
+export enum PermissionMatrixScopeKind {
+  /** A room group's scope (channel-room permissions). */
+  Group = 'GROUP',
+  /** A specific room's scope. */
+  Room = 'ROOM',
+  /** Server tier — no room/group context. */
+  Server = 'SERVER'
+}
+
+/**
  * A single step in the permission resolution trace.
  * Only explicit allow or deny entries are emitted; roles with no decision at the
  * level being checked are silent.
@@ -2041,7 +2120,7 @@ export type Query = {
    * Requires server membership.
    */
   activeCallRoomIds: Array<Scalars['ID']['output']>;
-  /** Admin-only queries. Returns null if user lacks admin permission. */
+  /** Admin-console queries. Returns null unless the viewer is authenticated. Child fields enforce their own capabilities. */
   admin?: Maybe<AdminQueries>;
   /**
    * Fetch link preview metadata for a URL.
@@ -2049,64 +2128,14 @@ export type Query = {
    * Requires authentication.
    */
   linkPreview?: Maybe<LinkPreview>;
-  /**
-   * Explain every applicable permission for a user at the given scope.
-   * - userId only → server-scoped permissions.
-   * - userId + roomId → room-scoped permissions.
-   * Authorization: The viewer must be either the target user (self-inspection
-   * at any scope they are a member of) or a server admin at the requested
-   * scope.
-   */
-  permissionExplanation: Array<PermissionExplanation>;
-  /**
-   * Permission matrix for a specific role. Authorization: viewer must
-   * hold `role.manage` at server scope (the permission that gates editing
-   * role grants/denials). Same audience as the per-tier role editor in
-   * /server-admin/permissions.
-   *
-   * The cell shape mirrors `UserPermissionMatrix`, but `effective` here
-   * walks only this role's own grants (no rank, no user overrides) — it
-   * reflects what the role contributes to the resolver, not what any
-   * particular user receives.
-   */
-  rolePermissionMatrix?: Maybe<RolePermissionMatrix>;
-  /**
-   * Resolve a single role's permission state across every applicable tier
-   * in one round-trip. Useful for permission editors that need to show
-   * values inherited from the tiers above the one being edited.
-   *
-   * Authorization: server scope requires server admin; room scope requires
-   * role.manage on the server or server admin.
-   */
-  rolePermissions?: Maybe<RoleAcrossTiers>;
   /** Get a specific room by ID. */
   room?: Maybe<Room>;
   /** Get information about this Chatto server. No authentication required. */
   server: Server;
-  /**
-   * Return the full permission matrix at a tier: every applicable role
-   * with its override and inherited baseline. Authorization mirrors
-   * rolePermissions.
-   *
-   * Pass `roomId` for per-room override editing (inherits from the room's
-   * room group), `groupId` for room-group-scope editing (no inheritance —
-   * room groups are top-level for channel-room permissions). Pass neither
-   * for server scope.
-   * Passing both is rejected.
-   */
-  tierRoles?: Maybe<TierRoles>;
   /** Get a specific user by ID. Requires authentication. */
   user?: Maybe<User>;
   /** Get a specific user by login. Requires authentication. Returns null if not found. */
   userByLogin?: Maybe<User>;
-  /**
-   * Permission matrix for a specific user. Authorization: viewer must
-   * pass `requireUserPermissionTarget` (role.manage + strictly outrank
-   * the target) — the same gate used by grantUserPermission and friends.
-   *
-   * Self-introspection is not allowed; the matrix is an admin surface.
-   */
-  userPermissionMatrix?: Maybe<UserPermissionMatrix>;
   /** The current authenticated user's server-level permissions. Null if not authenticated. */
   viewer?: Maybe<Viewer>;
 };
@@ -2119,35 +2148,8 @@ export type QueryLinkPreviewArgs = {
 
 
 /** Root query type for fetching data. */
-export type QueryPermissionExplanationArgs = {
-  roomId?: InputMaybe<Scalars['ID']['input']>;
-  userId: Scalars['ID']['input'];
-};
-
-
-/** Root query type for fetching data. */
-export type QueryRolePermissionMatrixArgs = {
-  roleName: Scalars['String']['input'];
-};
-
-
-/** Root query type for fetching data. */
-export type QueryRolePermissionsArgs = {
-  roleName: Scalars['String']['input'];
-  roomId?: InputMaybe<Scalars['ID']['input']>;
-};
-
-
-/** Root query type for fetching data. */
 export type QueryRoomArgs = {
   roomId: Scalars['ID']['input'];
-};
-
-
-/** Root query type for fetching data. */
-export type QueryTierRolesArgs = {
-  groupId?: InputMaybe<Scalars['ID']['input']>;
-  roomId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -2162,9 +2164,78 @@ export type QueryUserByLoginArgs = {
   login: Scalars['String']['input'];
 };
 
+/**
+ * RBAC tooling namespace for role, permission, and permission inspection screens.
+ * Individual fields enforce their own finer-grained authorization gates, such as
+ * `role.manage` or `room.manage`.
+ */
+export type RbacQueries = {
+  __typename?: 'RbacQueries';
+  /**
+   * Explain every applicable permission for a user at the given scope.
+   * Authorization: admin/tooling-only, with no self-inspection path.
+   */
+  permissionExplanation: Array<PermissionExplanation>;
+  /**
+   * Permission matrix for a specific role. Authorization: viewer must hold
+   * `role.manage` at server scope.
+   */
+  rolePermissionMatrix?: Maybe<RolePermissionMatrix>;
+  /**
+   * Return the full role-permission matrix at a tier: every applicable role
+   * with its override and inherited baseline.
+   *
+   * Pass `roomId` for per-room override editing, `groupId` for room-group-scope
+   * editing, or neither for server-scope editing. Passing both is rejected.
+   */
+  rolePermissionTierMatrix?: Maybe<TierRoles>;
+  /**
+   * Permission matrix for a specific user. Authorization mirrors user-level
+   * permission mutations: viewer must hold `role.manage` and strictly outrank
+   * the target. Self-introspection is not allowed.
+   */
+  userPermissionMatrix?: Maybe<UserPermissionMatrix>;
+};
 
-/** Root query type for fetching data. */
-export type QueryUserPermissionMatrixArgs = {
+
+/**
+ * RBAC tooling namespace for role, permission, and permission inspection screens.
+ * Individual fields enforce their own finer-grained authorization gates, such as
+ * `role.manage` or `room.manage`.
+ */
+export type RbacQueriesPermissionExplanationArgs = {
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+  userId: Scalars['ID']['input'];
+};
+
+
+/**
+ * RBAC tooling namespace for role, permission, and permission inspection screens.
+ * Individual fields enforce their own finer-grained authorization gates, such as
+ * `role.manage` or `room.manage`.
+ */
+export type RbacQueriesRolePermissionMatrixArgs = {
+  roleName: Scalars['String']['input'];
+};
+
+
+/**
+ * RBAC tooling namespace for role, permission, and permission inspection screens.
+ * Individual fields enforce their own finer-grained authorization gates, such as
+ * `role.manage` or `room.manage`.
+ */
+export type RbacQueriesRolePermissionTierMatrixArgs = {
+  groupId?: InputMaybe<Scalars['ID']['input']>;
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+/**
+ * RBAC tooling namespace for role, permission, and permission inspection screens.
+ * Individual fields enforce their own finer-grained authorization gates, such as
+ * `role.manage` or `room.manage`.
+ */
+export type RbacQueriesUserPermissionMatrixArgs = {
   userId: Scalars['ID']['input'];
 };
 
@@ -2312,35 +2383,6 @@ export type Role = {
 };
 
 /**
- * A single role's permission state at every applicable tier.
- *
- * - rolePermissions(roleName) → server only.
- * - rolePermissions(roleName, roomId) → server + room.
- */
-export type RoleAcrossTiers = {
-  __typename?: 'RoleAcrossTiers';
-  /**
-   * Permissions configurable at the deepest requested scope. Use this as the
-   * set of permissions to render in a permission editor for this scope.
-   */
-  applicablePermissions: Array<Scalars['String']['output']>;
-  /** Role description. */
-  description: Scalars['String']['output'];
-  /** Human-readable display name. */
-  displayName: Scalars['String']['output'];
-  /** Whether this is a system role and cannot be deleted. */
-  isSystem: Scalars['Boolean']['output'];
-  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
-  position: Scalars['Int']['output'];
-  /** Internal role name (e.g. 'admin', 'moderator'). */
-  roleName: Scalars['String']['output'];
-  /** Permission state at room scope (null when roomId not provided). */
-  room?: Maybe<TierPermissions>;
-  /** Permission state at server scope (the role's defaults everywhere). */
-  server: TierPermissions;
-};
-
-/**
  * A role's permission state across every scope where it can be configured —
  * the data the Role Permissions page renders as a matrix.
  *
@@ -2364,15 +2406,14 @@ export type RolePermissionMatrix = {
    * One cell per (permission, scope) intersection. Sparse: a cell is
    * included iff the permission applies at that scope's tier.
    */
-  cells: Array<UserPermissionCell>;
+  cells: Array<PermissionMatrixCell>;
   /** The role this matrix describes. */
   roleName: Scalars['String']['output'];
   /**
    * Scopes to render as columns. Server scope first, then groups, then
-   * rooms grouped under their parent group via `parentGroupId`. Same
-   * shape as `UserPermissionMatrix.scopes`.
+   * rooms grouped under their parent group via `parentGroupId`.
    */
-  scopes: Array<UserPermissionScope>;
+  scopes: Array<PermissionMatrixScope>;
 };
 
 /**
@@ -3162,8 +3203,8 @@ export type ThreadFollowChangedEvent = {
 
 /**
  * A role's permission state at a single tier (server or room).
- * Returned as part of RoleAcrossTiers so callers can display inheritance
- * without making separate per-tier queries.
+ * Returned as part of RBAC matrix results so callers can display explicit
+ * allow/deny state for a tier.
  */
 export type TierPermissions = {
   __typename?: 'TierPermissions';
@@ -3466,40 +3507,6 @@ export type UserLeftRoomEvent = {
 };
 
 /**
- * One cell of the user-permission matrix: the per-permission, per-scope
- * intersection.
- */
-export type UserPermissionCell = {
-  __typename?: 'UserPermissionCell';
-  /**
-   * The **effective** decision the resolver would emit at this scope for
-   * this user-permission pair, after walking room → group → server with
-   * user-level overrides applied first. Drives the cell's tint.
-   */
-  effective: UserPermissionDecision;
-  /**
-   * The **explicit user-level override** at this scope, or NONE if the user
-   * has no override here. NONE cells display only the inherited effective
-   * state; ALLOW / DENY cells display as a solid override.
-   */
-  override: UserPermissionDecision;
-  /** Permission identifier (e.g. `message.post`). */
-  permission: Scalars['String']['output'];
-  /** Scope id (matches `UserPermissionScope.id`). */
-  scopeId: Scalars['String']['output'];
-};
-
-/** Trinary decision used in the user-permission matrix. */
-export enum UserPermissionDecision {
-  /** The permission is explicitly granted. */
-  Allow = 'ALLOW',
-  /** The permission is explicitly denied. */
-  Deny = 'DENY',
-  /** No explicit grant or denial applies at this scope. */
-  None = 'NONE'
-}
-
-/**
  * Full snapshot of a user's permission matrix: the permissions that can
  * be configured anywhere, the scopes they can be configured at, and the
  * state of every cell.
@@ -3516,60 +3523,15 @@ export type UserPermissionMatrix = {
    * One cell per (permission, scope) intersection. Sparse: a cell is
    * included iff the permission applies at that scope's tier.
    */
-  cells: Array<UserPermissionCell>;
+  cells: Array<PermissionMatrixCell>;
   /**
    * Scopes to render as columns. Server scope first, then groups, then
    * rooms grouped under their parent group via `parentGroupId`.
    */
-  scopes: Array<UserPermissionScope>;
+  scopes: Array<PermissionMatrixScope>;
   /** The user this matrix describes. */
   userId: Scalars['ID']['output'];
 };
-
-/**
- * A user's permission state across every scope where it can be configured —
- * the data the User Permissions page renders as a matrix.
- *
- * Each cell answers two questions:
- * 1. What's the **effective** decision after the full resolver walk (this
- *    is what governs runtime behavior)?
- * 2. Does the user have an **explicit user-level override** at this scope
- *    (and which way)? Cells with an override render solid; cells driven
- *    only by inheritance render faded.
- */
-export type UserPermissionScope = {
-  __typename?: 'UserPermissionScope';
-  /**
-   * Stable identifier for this scope:
-   *   - `server` for the server tier (no group/room context),
-   *   - `group:{groupID}` for a room-group scope,
-   *   - `room:{roomID}` for a per-room scope.
-   * Clients use it as a column key.
-   */
-  id: Scalars['String']['output'];
-  /**
-   * Scope kind. The frontend uses this to lay out columns (server tier first,
-   * groups expandable, rooms nested under their group).
-   */
-  kind: UserPermissionScopeKind;
-  /** Human-readable label for the scope (group name, room name, or 'Server'). */
-  label: Scalars['String']['output'];
-  /**
-   * For room scopes, the parent group's ID — so the UI can nest rooms under
-   * their group column. Empty string for server / group scopes.
-   */
-  parentGroupId: Scalars['ID']['output'];
-};
-
-/** Where a UserPermissionScope sits in the resolution hierarchy. */
-export enum UserPermissionScopeKind {
-  /** A room group's scope (channel-room permissions). */
-  Group = 'GROUP',
-  /** A specific room's scope. */
-  Room = 'ROOM',
-  /** Server tier — no room/group context. */
-  Server = 'SERVER'
-}
 
 /**
  * Event: A user's profile was updated.
@@ -3695,13 +3657,13 @@ export type Viewer = {
   canAdminViewAudit: Scalars['Boolean']['output'];
   /** Whether the viewer can view the admin roles page. */
   canAdminViewRoles: Scalars['Boolean']['output'];
-  /** Whether the viewer can view admin system and data pages. */
+  /** Whether the viewer can view owner-only admin system diagnostics. */
   canAdminViewSystem: Scalars['Boolean']['output'];
   /** Whether the viewer can view the admin users page. */
   canAdminViewUsers: Scalars['Boolean']['output'];
   /** Whether the viewer can start DM conversations. Backed by message.post. */
   canStartDMs: Scalars['Boolean']['output'];
-  /** Whether the viewer can access the admin panel (includes config-admin check). */
+  /** Whether the viewer has at least one admin-capability entry point. */
   canViewAdmin: Scalars['Boolean']['output'];
   /**
    * Threads the current user is following on the server, sorted by last
@@ -3992,21 +3954,21 @@ export type MatrixTierRolesQueryVariables = Exact<{
 }>;
 
 
-export type MatrixTierRolesQuery = { __typename?: 'Query', tierRoles?: { __typename?: 'TierRoles', applicablePermissions: Array<string>, roles: Array<{ __typename?: 'TierRole', roleName: string, displayName: string, description: string, isSystem: boolean, position: number, inheritedAllows: Array<string>, inheritedDenials: Array<string>, override: { __typename?: 'TierPermissions', permissions: Array<string>, permissionDenials: Array<string> } }> } | null };
+export type MatrixTierRolesQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', rbac: { __typename?: 'RbacQueries', rolePermissionTierMatrix?: { __typename?: 'TierRoles', applicablePermissions: Array<string>, roles: Array<{ __typename?: 'TierRole', roleName: string, displayName: string, description: string, isSystem: boolean, position: number, inheritedAllows: Array<string>, inheritedDenials: Array<string>, override: { __typename?: 'TierPermissions', permissions: Array<string>, permissionDenials: Array<string> } }> } | null } } | null };
 
 export type RolePermissionsMatrixQueryQueryVariables = Exact<{
   roleName: Scalars['String']['input'];
 }>;
 
 
-export type RolePermissionsMatrixQueryQuery = { __typename?: 'Query', rolePermissionMatrix?: { __typename?: 'RolePermissionMatrix', roleName: string, applicablePermissions: Array<string>, scopes: Array<{ __typename?: 'UserPermissionScope', id: string, label: string, kind: UserPermissionScopeKind, parentGroupId: string }>, cells: Array<{ __typename?: 'UserPermissionCell', permission: string, scopeId: string, override: UserPermissionDecision, effective: UserPermissionDecision }> } | null };
+export type RolePermissionsMatrixQueryQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', rbac: { __typename?: 'RbacQueries', rolePermissionMatrix?: { __typename?: 'RolePermissionMatrix', roleName: string, applicablePermissions: Array<string>, scopes: Array<{ __typename?: 'PermissionMatrixScope', id: string, label: string, kind: PermissionMatrixScopeKind, parentGroupId: string }>, cells: Array<{ __typename?: 'PermissionMatrixCell', permission: string, scopeId: string, override: PermissionMatrixDecision, effective: PermissionMatrixDecision }> } | null } } | null };
 
 export type UserPermissionsMatrixQueryQueryVariables = Exact<{
   userId: Scalars['ID']['input'];
 }>;
 
 
-export type UserPermissionsMatrixQueryQuery = { __typename?: 'Query', userPermissionMatrix?: { __typename?: 'UserPermissionMatrix', userId: string, applicablePermissions: Array<string>, scopes: Array<{ __typename?: 'UserPermissionScope', id: string, label: string, kind: UserPermissionScopeKind, parentGroupId: string }>, cells: Array<{ __typename?: 'UserPermissionCell', permission: string, scopeId: string, override: UserPermissionDecision, effective: UserPermissionDecision }> } | null };
+export type UserPermissionsMatrixQueryQuery = { __typename?: 'Query', admin?: { __typename?: 'AdminQueries', rbac: { __typename?: 'RbacQueries', userPermissionMatrix?: { __typename?: 'UserPermissionMatrix', userId: string, applicablePermissions: Array<string>, scopes: Array<{ __typename?: 'PermissionMatrixScope', id: string, label: string, kind: PermissionMatrixScopeKind, parentGroupId: string }>, cells: Array<{ __typename?: 'PermissionMatrixCell', permission: string, scopeId: string, override: PermissionMatrixDecision, effective: PermissionMatrixDecision }> } | null } } | null };
 
 export type MatrixGrantGroupPermMutationVariables = Exact<{
   input: GroupPermissionInput;
@@ -4986,9 +4948,9 @@ export const ValidateSpaceAccessDocument = {"kind":"Document","definitions":[{"k
 export const PostMessageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PostMessage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PostMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"postMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<PostMessageMutation, PostMessageMutationVariables>;
 export const UpdateMessageFromInputDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateMessageFromInput"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<UpdateMessageFromInputMutation, UpdateMessageFromInputMutationVariables>;
 export const LinkPreviewForComposerDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"LinkPreviewForComposer"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"linkPreview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"url"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LinkPreviewView"}},{"kind":"Field","name":{"kind":"Name","value":"imageAssetId"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LinkPreviewView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LinkPreview"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"600"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"314"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"siteName"}},{"kind":"Field","name":{"kind":"Name","value":"embedType"}},{"kind":"Field","name":{"kind":"Name","value":"embedId"}}]}}]} as unknown as DocumentNode<LinkPreviewForComposerQuery, LinkPreviewForComposerQueryVariables>;
-export const MatrixTierRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MatrixTierRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"groupId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tierRoles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}},{"kind":"Argument","name":{"kind":"Name","value":"groupId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"groupId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"override"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"inheritedAllows"}},{"kind":"Field","name":{"kind":"Name","value":"inheritedDenials"}}]}}]}}]}}]} as unknown as DocumentNode<MatrixTierRolesQuery, MatrixTierRolesQueryVariables>;
-export const RolePermissionsMatrixQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"RolePermissionsMatrixQuery"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roleName"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rolePermissionMatrix"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roleName"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roleName"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"scopes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"parentGroupId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"cells"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"scopeId"}},{"kind":"Field","name":{"kind":"Name","value":"override"}},{"kind":"Field","name":{"kind":"Name","value":"effective"}}]}}]}}]}}]} as unknown as DocumentNode<RolePermissionsMatrixQueryQuery, RolePermissionsMatrixQueryQueryVariables>;
-export const UserPermissionsMatrixQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"UserPermissionsMatrixQuery"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userPermissionMatrix"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"scopes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"parentGroupId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"cells"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"scopeId"}},{"kind":"Field","name":{"kind":"Name","value":"override"}},{"kind":"Field","name":{"kind":"Name","value":"effective"}}]}}]}}]}}]} as unknown as DocumentNode<UserPermissionsMatrixQueryQuery, UserPermissionsMatrixQueryQueryVariables>;
+export const MatrixTierRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MatrixTierRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"groupId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rbac"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rolePermissionTierMatrix"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}},{"kind":"Argument","name":{"kind":"Name","value":"groupId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"groupId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"override"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"inheritedAllows"}},{"kind":"Field","name":{"kind":"Name","value":"inheritedDenials"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<MatrixTierRolesQuery, MatrixTierRolesQueryVariables>;
+export const RolePermissionsMatrixQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"RolePermissionsMatrixQuery"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roleName"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rbac"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rolePermissionMatrix"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roleName"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roleName"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"scopes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"parentGroupId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"cells"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"scopeId"}},{"kind":"Field","name":{"kind":"Name","value":"override"}},{"kind":"Field","name":{"kind":"Name","value":"effective"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<RolePermissionsMatrixQueryQuery, RolePermissionsMatrixQueryQueryVariables>;
+export const UserPermissionsMatrixQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"UserPermissionsMatrixQuery"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rbac"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userPermissionMatrix"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"scopes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"parentGroupId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"cells"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"scopeId"}},{"kind":"Field","name":{"kind":"Name","value":"override"}},{"kind":"Field","name":{"kind":"Name","value":"effective"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<UserPermissionsMatrixQueryQuery, UserPermissionsMatrixQueryQueryVariables>;
 export const MatrixGrantGroupPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantGroupPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GroupPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantGroupPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantGroupPermMutation, MatrixGrantGroupPermMutationVariables>;
 export const MatrixDenyGroupPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyGroupPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GroupPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyGroupPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyGroupPermMutation, MatrixDenyGroupPermMutationVariables>;
 export const MatrixClearGroupPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearGroupPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GroupPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearGroupPermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearGroupPermMutation, MatrixClearGroupPermMutationVariables>;

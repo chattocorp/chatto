@@ -12,11 +12,11 @@ import (
 // cells exist only for permissions applicable at each scope's tier.
 func TestUserPermissionMatrix_BasicShape(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	target := env.createVerifiedUser(t, "matrix-target", "Target", "password123")
 
-	got, err := query.UserPermissionMatrix(env.authContext(), target.Id)
+	got, err := rbac.UserPermissionMatrix(env.authContext(), nil, target.Id)
 	if err != nil {
 		t.Fatalf("UserPermissionMatrix: %v", err)
 	}
@@ -30,7 +30,7 @@ func TestUserPermissionMatrix_BasicShape(t *testing.T) {
 	// Should contain at least the server column.
 	var sawServer bool
 	for _, sc := range got.Scopes {
-		if sc.ID == "server" && sc.Kind == model.UserPermissionScopeKindServer {
+		if sc.ID == "server" && sc.Kind == model.PermissionMatrixScopeKindServer {
 			sawServer = true
 			break
 		}
@@ -64,7 +64,7 @@ func TestUserPermissionMatrix_BasicShape(t *testing.T) {
 // state to match.
 func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	target := env.createVerifiedUser(t, "matrix-override", "Override", "password123")
 
@@ -74,12 +74,12 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 		t.Fatalf("DenyUserPermission: %v", err)
 	}
 
-	got, err := query.UserPermissionMatrix(env.authContext(), target.Id)
+	got, err := rbac.UserPermissionMatrix(env.authContext(), nil, target.Id)
 	if err != nil {
 		t.Fatalf("UserPermissionMatrix: %v", err)
 	}
 
-	var cell *model.UserPermissionCell
+	var cell *model.PermissionMatrixCell
 	for _, c := range got.Cells {
 		if c.Permission == string(core.PermMessagePost) && c.ScopeID == "server" {
 			cell = c
@@ -89,10 +89,10 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 	if cell == nil {
 		t.Fatal("expected a cell for (message.post, server)")
 	}
-	if cell.Override != model.UserPermissionDecisionDeny {
+	if cell.Override != model.PermissionMatrixDecisionDeny {
 		t.Errorf("Override = %v, want DENY", cell.Override)
 	}
-	if cell.Effective != model.UserPermissionDecisionDeny {
+	if cell.Effective != model.PermissionMatrixDecisionDeny {
 		t.Errorf("Effective = %v, want DENY (user-level deny outranks role grants)", cell.Effective)
 	}
 }
@@ -103,12 +103,12 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 // and admins outranking the target succeed.
 func TestUserPermissionMatrix_AuthorizationGate(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	target := env.createVerifiedUser(t, "matrix-perm-target", "Target", "password123")
 
 	t.Run("anonymous is rejected", func(t *testing.T) {
-		_, err := query.UserPermissionMatrix(env.unauthContext(), target.Id)
+		_, err := rbac.UserPermissionMatrix(env.unauthContext(), nil, target.Id)
 		if err == nil {
 			t.Error("expected error for unauthenticated caller")
 		}
@@ -116,21 +116,21 @@ func TestUserPermissionMatrix_AuthorizationGate(t *testing.T) {
 
 	t.Run("regular member is rejected", func(t *testing.T) {
 		regular := env.createVerifiedUser(t, "matrix-perm-regular", "Regular", "password123")
-		_, err := query.UserPermissionMatrix(env.authContextForUser(regular), target.Id)
+		_, err := rbac.UserPermissionMatrix(env.authContextForUser(regular), nil, target.Id)
 		if err == nil {
 			t.Error("expected ErrPermissionDenied for non-admin caller")
 		}
 	})
 
 	t.Run("self-call is rejected (no self-bypass)", func(t *testing.T) {
-		_, err := query.UserPermissionMatrix(env.authContextForUser(target), target.Id)
+		_, err := rbac.UserPermissionMatrix(env.authContextForUser(target), nil, target.Id)
 		if err == nil {
 			t.Error("expected error for self-call — the user-permission gate has no self-bypass")
 		}
 	})
 
 	t.Run("owner outranking target succeeds", func(t *testing.T) {
-		_, err := query.UserPermissionMatrix(env.authContext(), target.Id)
+		_, err := rbac.UserPermissionMatrix(env.authContext(), nil, target.Id)
 		if err != nil {
 			t.Errorf("expected owner to read target's matrix, got %v", err)
 		}

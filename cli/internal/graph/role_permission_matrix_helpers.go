@@ -60,7 +60,7 @@ func (r *Resolver) buildRolePermissionMatrix(ctx context.Context, roleName strin
 
 	for _, scope := range scopes {
 		switch scope.Kind {
-		case model.UserPermissionScopeKindGroup:
+		case model.PermissionMatrixScopeKindGroup:
 			gid := scopeRefID(scope.ID, "group:")
 			g, d, err := r.core.GetGroupRolePermissions(ctx, gid, roleName)
 			if err != nil {
@@ -68,7 +68,7 @@ func (r *Resolver) buildRolePermissionMatrix(ctx context.Context, roleName strin
 			}
 			groupGrants[gid] = g
 			groupDenials[gid] = d
-		case model.UserPermissionScopeKindRoom:
+		case model.PermissionMatrixScopeKindRoom:
 			rid := scopeRefID(scope.ID, "room:")
 			g, d, err := r.core.GetRoomRolePermissions(ctx, rid, roleName)
 			if err != nil {
@@ -80,7 +80,7 @@ func (r *Resolver) buildRolePermissionMatrix(ctx context.Context, roleName strin
 		}
 	}
 
-	cells := make([]*model.UserPermissionCell, 0, len(applicable)*len(scopes))
+	cells := make([]*model.PermissionMatrixCell, 0, len(applicable)*len(scopes))
 	for _, permStr := range applicable {
 		perm := core.Permission(permStr)
 		for _, scope := range scopes {
@@ -112,61 +112,61 @@ func (r *Resolver) buildRolePermissionMatrix(ctx context.Context, roleName strin
 // caller drops the cell from the sparse list.
 func buildRolePermissionCell(
 	perm core.Permission,
-	scope *model.UserPermissionScope,
+	scope *model.PermissionMatrixScope,
 	serverGrants, serverDenials []core.Permission,
 	groupGrants, groupDenials map[string][]core.Permission,
 	roomGrants, roomDenials map[string][]core.Permission,
 	roomToGroup map[string]string,
-) (*model.UserPermissionCell, bool) {
+) (*model.PermissionMatrixCell, bool) {
 	switch scope.Kind {
-	case model.UserPermissionScopeKindServer:
+	case model.PermissionMatrixScopeKindServer:
 		if !core.PermissionAppliesAtScope(perm, core.ScopeServer) {
 			return nil, false
 		}
 		override := decisionFromLists(perm, serverGrants, serverDenials)
-		return &model.UserPermissionCell{
+		return &model.PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
 			Override:   override,
 			Effective:  override, // no parent scope to inherit from
 		}, true
 
-	case model.UserPermissionScopeKindGroup:
+	case model.PermissionMatrixScopeKindGroup:
 		if !core.PermissionAppliesAtScope(perm, core.ScopeGroup) {
 			return nil, false
 		}
 		gid := scopeRefID(scope.ID, "group:")
 		override := decisionFromLists(perm, groupGrants[gid], groupDenials[gid])
 		effective := override
-		if effective == model.UserPermissionDecisionNone &&
+		if effective == model.PermissionMatrixDecisionNone &&
 			core.PermissionAppliesAtScope(perm, core.ScopeServer) {
 			effective = decisionFromLists(perm, serverGrants, serverDenials)
 		}
-		return &model.UserPermissionCell{
+		return &model.PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
 			Override:   override,
 			Effective:  effective,
 		}, true
 
-	case model.UserPermissionScopeKindRoom:
+	case model.PermissionMatrixScopeKindRoom:
 		if !core.PermissionAppliesAtScope(perm, core.ScopeRoom) {
 			return nil, false
 		}
 		rid := scopeRefID(scope.ID, "room:")
 		override := decisionFromLists(perm, roomGrants[rid], roomDenials[rid])
 		effective := override
-		if effective == model.UserPermissionDecisionNone {
+		if effective == model.PermissionMatrixDecisionNone {
 			// Walk group → server, mirroring the user resolver.
 			if gid := roomToGroup[rid]; gid != "" && core.PermissionAppliesAtScope(perm, core.ScopeGroup) {
 				effective = decisionFromLists(perm, groupGrants[gid], groupDenials[gid])
 			}
-			if effective == model.UserPermissionDecisionNone &&
+			if effective == model.PermissionMatrixDecisionNone &&
 				core.PermissionAppliesAtScope(perm, core.ScopeServer) {
 				effective = decisionFromLists(perm, serverGrants, serverDenials)
 			}
 		}
-		return &model.UserPermissionCell{
+		return &model.PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
 			Override:   override,
@@ -176,18 +176,18 @@ func buildRolePermissionCell(
 	return nil, false
 }
 
-func decisionFromLists(perm core.Permission, grants, denials []core.Permission) model.UserPermissionDecision {
+func decisionFromLists(perm core.Permission, grants, denials []core.Permission) model.PermissionMatrixDecision {
 	for _, p := range grants {
 		if p == perm {
-			return model.UserPermissionDecisionAllow
+			return model.PermissionMatrixDecisionAllow
 		}
 	}
 	for _, p := range denials {
 		if p == perm {
-			return model.UserPermissionDecisionDeny
+			return model.PermissionMatrixDecisionDeny
 		}
 	}
-	return model.UserPermissionDecisionNone
+	return model.PermissionMatrixDecisionNone
 }
 
 // buildMatrixScopes assembles the scope columns shared by the user and
@@ -196,12 +196,12 @@ func decisionFromLists(perm core.Permission, grants, denials []core.Permission) 
 //
 // Extracted from `buildUserPermissionMatrix` so the role matrix doesn't
 // have to repeat the layout walk.
-func (r *Resolver) buildMatrixScopes(ctx context.Context) ([]*model.UserPermissionScope, error) {
-	scopes := []*model.UserPermissionScope{
+func (r *Resolver) buildMatrixScopes(ctx context.Context) ([]*model.PermissionMatrixScope, error) {
+	scopes := []*model.PermissionMatrixScope{
 		{
 			ID:            "server",
 			Label:         "Server",
-			Kind:          model.UserPermissionScopeKindServer,
+			Kind:          model.PermissionMatrixScopeKindServer,
 			ParentGroupID: "",
 		},
 	}
@@ -212,10 +212,10 @@ func (r *Resolver) buildMatrixScopes(ctx context.Context) ([]*model.UserPermissi
 
 	roomsByGroup := make(map[string][]*corevRoomLite, len(groups))
 	for _, group := range groups {
-		scopes = append(scopes, &model.UserPermissionScope{
+		scopes = append(scopes, &model.PermissionMatrixScope{
 			ID:            "group:" + group.Id,
 			Label:         group.Name,
-			Kind:          model.UserPermissionScopeKindGroup,
+			Kind:          model.PermissionMatrixScopeKindGroup,
 			ParentGroupID: "",
 		})
 		for _, roomID := range group.RoomIds {
@@ -231,10 +231,10 @@ func (r *Resolver) buildMatrixScopes(ctx context.Context) ([]*model.UserPermissi
 	}
 	for _, group := range groups {
 		for _, room := range roomsByGroup[group.Id] {
-			scopes = append(scopes, &model.UserPermissionScope{
+			scopes = append(scopes, &model.PermissionMatrixScope{
 				ID:            "room:" + room.ID,
 				Label:         room.Name,
-				Kind:          model.UserPermissionScopeKindRoom,
+				Kind:          model.PermissionMatrixScopeKindRoom,
 				ParentGroupID: group.Id,
 			})
 		}

@@ -45,7 +45,7 @@ inside a non-null `Viewer`, `user` is guaranteed.
 type Viewer {
   "The authenticated user."
   user: User! @goField(forceResolver: true)
-  "Whether the viewer can access the admin panel (includes config-admin check)."
+  "Whether the viewer has at least one admin-capability entry point."
   canViewAdmin: Boolean! @goField(forceResolver: true)
   "Whether the viewer can start DM conversations. Backed by message.post."
   canStartDMs: Boolean! @goField(forceResolver: true)
@@ -57,7 +57,7 @@ type Viewer {
   canAdminViewRoles: Boolean! @goField(forceResolver: true)
   "Whether the viewer can create and edit server roles."
   canAdminManageRoles: Boolean! @goField(forceResolver: true)
-  "Whether the viewer can view admin system and data pages."
+  "Whether the viewer can view owner-only admin system diagnostics."
   canAdminViewSystem: Boolean! @goField(forceResolver: true)
   "Whether the viewer can view the admin audit log."
   canAdminViewAudit: Boolean! @goField(forceResolver: true)
@@ -66,11 +66,6 @@ type Viewer {
 extend type Query {
   "The current authenticated user's server-level permissions. Null if not authenticated."
   viewer: Viewer @goField(forceResolver: true)
-}
-
-extend type AdminQueries {
-  "List all available server permission identifiers."
-  serverPermissions: [String!]!
 }
 
 extend type Mutation {

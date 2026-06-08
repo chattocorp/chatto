@@ -27,16 +27,15 @@ func TestAdminMutations_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin user gets nil", func(t *testing.T) {
-		// Create a regular user (not in admin emails list)
+	t.Run("authenticated non-admin user gets AdminMutations namespace", func(t *testing.T) {
 		regularUser := env.createVerifiedUser(t, "regular", "Regular User", "password123")
 
 		result, err := mutation.Admin(env.authContextForUser(regularUser))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for non-admin user")
+		if result == nil {
+			t.Error("expected AdminMutations object for authenticated user")
 		}
 	})
 
@@ -51,40 +50,33 @@ func TestAdminMutations_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("user without verified admin email gets nil", func(t *testing.T) {
-		// Set up environment where admin@example.com is in the admin list
+	t.Run("user without verified owner email gets AdminMutations namespace", func(t *testing.T) {
 		envWithAdminEmail := setupTestResolverWithAdmin(t, []string{"admin@example.com"})
 
-		// Create a user without any verified email (or with a different one)
 		unverifiedUser, err := envWithAdminEmail.core.CreateUser(envWithAdminEmail.ctx, "system", "no-verified-email", "No Verified", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		// This user has no verified emails at all, so shouldn't get admin access
-		// even though admin@example.com is in the admin list
 
 		mutation2 := envWithAdminEmail.resolver.Mutation()
 		result, err := mutation2.Admin(envWithAdminEmail.authContextForUser(unverifiedUser))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for user without verified admin email")
+		if result == nil {
+			t.Error("expected AdminMutations object for authenticated user")
 		}
 	})
 
-	t.Run("user with different verified email gets nil", func(t *testing.T) {
-		// User has a verified email but it's not in the admin list
+	t.Run("user with different verified email gets AdminMutations namespace", func(t *testing.T) {
 		userWithDifferentEmail := env.createVerifiedUser(t, "diff-email", "Different Email", "password123")
-		// This creates a user with verified email diff-email@example.com
-		// But the admin list only has testuser@example.com
 
 		result, err := mutation.Admin(env.authContextForUser(userWithDifferentEmail))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for user with different verified email")
+		if result == nil {
+			t.Error("expected AdminMutations object for authenticated user")
 		}
 	})
 }
@@ -339,15 +331,19 @@ func TestAdminQuery_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin user gets nil", func(t *testing.T) {
+	t.Run("authenticated non-admin user gets AdminQueries namespace", func(t *testing.T) {
 		regularUser := env.createVerifiedUser(t, "regular-query", "Regular User", "password123")
 
 		result, err := query.Admin(env.authContextForUser(regularUser))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for non-admin user")
+		if result == nil {
+			t.Fatal("expected AdminQueries object for authenticated user")
+		}
+		_, err = env.resolver.AdminQueries().SystemInfo(env.authContextForUser(regularUser), result)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected SystemInfo permission denial, got: %v", err)
 		}
 	})
 
@@ -359,7 +355,11 @@ func TestAdminQuery_Authorization(t *testing.T) {
 		if result == nil {
 			t.Error("expected AdminQueries object, got nil")
 		}
-		if result.SystemInfo == nil {
+		systemInfo, err := env.resolver.AdminQueries().SystemInfo(env.authContext(), result)
+		if err != nil {
+			t.Fatalf("expected SystemInfo resolver success, got error: %v", err)
+		}
+		if systemInfo == nil {
 			t.Error("expected SystemInfo, got nil")
 		}
 	})

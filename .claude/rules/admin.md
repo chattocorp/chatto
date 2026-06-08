@@ -50,7 +50,7 @@ This boundary is intentional. If message visibility is needed for moderation, it
 
 ## Backend Authorization
 
-Admin queries use a nested `admin` type pattern. The `Query.admin` resolver checks authorization once and returns `nil` for non-admins:
+Admin queries use a nested `admin` type pattern. The `Query.admin` resolver is an authenticated namespace and returns `nil` only for unauthenticated users:
 
 ```go
 func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) {
@@ -58,18 +58,15 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
     if user == nil {
         return nil, nil // Not authenticated
     }
-    isAdmin, _ := r.isInstanceAdmin(ctx, user.Id)
-    if !isAdmin {
-        return nil, nil // Not owner or admin
-    }
-    // Return populated AdminQueries...
+    return &model.AdminQueries{}, nil
 }
 ```
 
-`r.isInstanceAdmin` is the unified role check — true for users with the
-`owner` or `admin` role. All fields under `admin` (users, members,
-systemInfo) don't need individual auth checks — the parent resolver
-handles it.
+Child fields under `admin` keep their own capability gates. Examples:
+`admin.serverConfig` checks `server.manage`, `admin.eventLog` checks
+`admin.view-audit`, `admin.projections` checks `admin.view-system`,
+`admin.rbac.*` uses RBAC-editor gates such as
+`role.manage` / `room.manage`, and `admin.systemInfo` is owner-only for now.
 
 ## Configuration
 

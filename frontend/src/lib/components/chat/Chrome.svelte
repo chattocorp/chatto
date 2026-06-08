@@ -236,7 +236,7 @@
     }
   });
 
-  // Read instance permissions for admin-flavoured nav items (system, runtime).
+  // Read server-wide permissions for admin-flavoured nav items (system, audit).
   const serverPerms = getServerPermissions();
 
   // Whether the user can access ANY admin/settings feature (used to decide
@@ -300,7 +300,7 @@
       });
     }
 
-    if (serverPerms.current.canViewAdmin) {
+    if (spaceData.canManage) {
       items.push({
         href: resolve('/chat/[serverId]/server-admin/security', { serverId: serverSegment }),
         label: 'Security',

@@ -19,7 +19,7 @@ func TestValidatePermission_ServerScope(t *testing.T) {
 		perm    Permission
 		wantErr bool
 	}{
-		{"admin valid", PermAdminAccess, false},
+		{"admin valid", PermAdminUsersView, false},
 		// Unified permissions with ScopeServer
 		{"message.post valid (unified scope)", Permission("message.post"), false},
 		{"message.react valid (unified scope)", Permission("message.react"), false},
@@ -110,13 +110,13 @@ func TestChattoCore_initServerRBAC(t *testing.T) {
 		t.Error("Expected everyone to have message.post permission")
 	}
 
-	// Check that everyone does NOT have admin permission
-	hasPerm, err = core.HasServerPermission(ctx, "any-user", PermAdminAccess)
+	// Check that everyone does NOT have admin view permission
+	hasPerm, err = core.HasServerPermission(ctx, "any-user", PermAdminUsersView)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
 	if hasPerm {
-		t.Error("Expected member to NOT have admin permission")
+		t.Error("Expected member to NOT have admin view permission")
 	}
 }
 
@@ -323,7 +323,7 @@ func TestChattoCore_HasPermission_Admin(t *testing.T) {
 	}
 
 	// Admin should have all permissions
-	for _, perm := range []Permission{PermMessagePost, PermAdminAccess} {
+	for _, perm := range []Permission{PermMessagePost, PermAdminUsersView} {
 		hasPerm, err := core.HasServerPermission(ctx, userID, perm)
 		if err != nil {
 			t.Fatalf("Failed to check permission %s: %v", perm, err)
@@ -358,13 +358,13 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 		t.Error("Expected member to have spaces.create permission")
 	}
 
-	// Member should NOT have admin
-	hasPerm, err = core.HasServerPermission(ctx, userID, PermAdminAccess)
+	// Member should NOT have admin view permission
+	hasPerm, err = core.HasServerPermission(ctx, userID, PermAdminUsersView)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
 	if hasPerm {
-		t.Error("Expected member to NOT have admin permission")
+		t.Error("Expected member to NOT have admin view permission")
 	}
 }
 
@@ -372,29 +372,29 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 // Can* Helper Tests
 // ============================================================================
 
-func TestChattoCore_CanAdminAccess(t *testing.T) {
+func TestChattoCore_HasAnyAdminPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Regular user cannot view admin
-	can, err := core.CanAdminAccess(ctx, "regular-user")
+	can, err := core.HasAnyAdminPermission(ctx, "regular-user")
 	if err != nil {
-		t.Fatalf("Failed to check CanAdminAccess: %v", err)
+		t.Fatalf("Failed to check HasAnyAdminPermission: %v", err)
 	}
 	if can {
-		t.Error("Expected CanAdminAccess to return false for regular users")
+		t.Error("Expected HasAnyAdminPermission to return false for regular users")
 	}
 
 	// Admin can view admin
 	if err := core.AssignAdminRole(ctx, "admin-user"); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
-	can, err = core.CanAdminAccess(ctx, "admin-user")
+	can, err = core.HasAnyAdminPermission(ctx, "admin-user")
 	if err != nil {
-		t.Fatalf("Failed to check CanAdminAccess: %v", err)
+		t.Fatalf("Failed to check HasAnyAdminPermission: %v", err)
 	}
 	if !can {
-		t.Error("Expected CanAdminAccess to return true for admin users")
+		t.Error("Expected HasAnyAdminPermission to return true for admin users")
 	}
 }
 
@@ -447,8 +447,8 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 	t.Run("returns false for non-member permissions", func(t *testing.T) {
 		userID := "non-member-perm-check"
 
-		// admin is NOT in default member permissions
-		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermAdminAccess)
+		// admin.view-users is NOT in default member permissions
+		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("Failed to check: %v", err)
 		}
@@ -466,7 +466,7 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 		}
 
 		// Admin has all permissions via roles
-		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermAdminAccess)
+		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("Failed to check: %v", err)
 		}
@@ -478,8 +478,8 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 	t.Run("returns false for users without the role", func(t *testing.T) {
 		userID := "no-admin-role-check"
 
-		// HasUserPermissionViaRoles should return false for admin permission
-		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermAdminAccess)
+		// HasUserPermissionViaRoles should return false for admin view permission
+		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("Failed to check: %v", err)
 		}
@@ -626,17 +626,17 @@ func TestChattoCore_HierarchyWins_OwnerBeatsEverythingElse(t *testing.T) {
 		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
-	// Deny admin.access on both admin and everyone roles
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermAdminAccess); err != nil {
+	// Deny admin.view-users on both admin and everyone roles
+	if err := core.DenyServerPermission(ctx, RoleEveryone, PermAdminUsersView); err != nil {
 		t.Fatalf("Failed to deny everyone: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, RoleAdmin, PermAdminAccess); err != nil {
+	if err := core.DenyServerPermission(ctx, RoleAdmin, PermAdminUsersView); err != nil {
 		t.Fatalf("Failed to deny admin: %v", err)
 	}
-	// Owner role still has admin.access granted
+	// Owner role still has admin.view-users granted
 
 	t.Run("owner grant beats admin and everyone deny", func(t *testing.T) {
-		has, err := core.HasUserPermissionViaRoles(ctx, owner.Id, PermAdminAccess)
+		has, err := core.HasUserPermissionViaRoles(ctx, owner.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -646,7 +646,7 @@ func TestChattoCore_HierarchyWins_OwnerBeatsEverythingElse(t *testing.T) {
 	})
 
 	t.Run("permission is not denied for owner", func(t *testing.T) {
-		denied, err := core.HasUserPermissionDeniedViaRoles(ctx, owner.Id, PermAdminAccess)
+		denied, err := core.HasUserPermissionDeniedViaRoles(ctx, owner.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}

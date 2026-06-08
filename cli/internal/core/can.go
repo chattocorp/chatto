@@ -22,12 +22,6 @@ import (
 // Server-tier Permissions
 // ============================================================================
 
-// CanAdminAccess checks if a user can access the admin panel.
-// Only server admins have this permission.
-func (c *ChattoCore) CanAdminAccess(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermAdminAccess)
-}
-
 // CanAdminUsersView checks if a user can view the users page in admin.
 func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool, error) {
 	return c.HasServerPermission(ctx, userID, PermAdminUsersView)
@@ -47,7 +41,8 @@ func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, e
 	return c.HasServerPermission(ctx, userID, PermRoleManage)
 }
 
-// CanAdminSystemView checks if a user can view the system and data pages in admin.
+// CanAdminSystemView checks if a user can view system projection diagnostics
+// in admin. The full systemInfo field is owner-only.
 func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (bool, error) {
 	return c.HasServerPermission(ctx, userID, PermAdminSystemView)
 }
@@ -96,6 +91,9 @@ var adminPermissions = []Permission{
 	PermRoomManage,
 	PermRoomMemberBan,
 	PermUserDeleteAny,
+	PermAdminUsersView,
+	PermAdminSystemView,
+	PermAdminAuditView,
 }
 
 // HasAnyAdminPermission checks if a user has any admin-level permission.

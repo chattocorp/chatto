@@ -14,7 +14,7 @@
   const serverPerms = getServerPermissions();
 
   // Check if user can access ANY admin section — space-side (server roles,
-  // rooms, members) OR instance-side (runtime config, system info).
+  // rooms, members) OR server-side diagnostics/config.
   const canAccessAnyAdmin = $derived(
     spacePermissions.current.hasAnyAdminPermission || serverPerms.current.canViewAdmin
   );
@@ -65,12 +65,12 @@
         serverPerms.current.canAdminViewRoles;
     }
 
-    // Security (blocked usernames) — instance-admin scope
+    // Security (blocked usernames) — server.manage
     if (pathname.startsWith(securityBase)) {
-      return () => serverPerms.current.canViewAdmin;
+      return () => spacePermissions.current.canManage;
     }
 
-    // System info (NATS/JetStream stats) — admin.view-system
+    // System info (NATS/JetStream stats) — owner-only for now.
     if (pathname.startsWith(systemBase)) {
       return () => serverPerms.current.canAdminViewSystem;
     }

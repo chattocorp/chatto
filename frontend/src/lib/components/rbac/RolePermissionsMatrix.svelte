@@ -49,20 +49,24 @@ and the deny/clear variants) via `setRolePermission`.
     const resp = await connection().client.query(
       graphql(`
         query RolePermissionsMatrixQuery($roleName: String!) {
-          rolePermissionMatrix(roleName: $roleName) {
-            roleName
-            applicablePermissions
-            scopes {
-              id
-              label
-              kind
-              parentGroupId
-            }
-            cells {
-              permission
-              scopeId
-              override
-              effective
+          admin {
+            rbac {
+              rolePermissionMatrix(roleName: $roleName) {
+                roleName
+                applicablePermissions
+                scopes {
+                  id
+                  label
+                  kind
+                  parentGroupId
+                }
+                cells {
+                  permission
+                  scopeId
+                  override
+                  effective
+                }
+              }
             }
           }
         }
@@ -78,11 +82,12 @@ and the deny/clear variants) via `setRolePermission`.
       error = resp.error.message;
       return;
     }
-    if (!resp.data?.rolePermissionMatrix) {
+    const matrix = resp.data?.admin?.rbac.rolePermissionMatrix;
+    if (!matrix) {
       error = 'Role not found.';
       return;
     }
-    const m = resp.data.rolePermissionMatrix;
+    const m = matrix;
     data = {
       roleName: m.roleName,
       applicablePermissions: [...m.applicablePermissions],

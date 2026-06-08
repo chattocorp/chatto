@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-06-07
+**Last reviewed:** 2026-06-08
 
 ## Overview
 
@@ -18,6 +18,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners pass every permission check because the `owner` role is seeded with every server-scope permission — not because the resolver special-cases them. Owners are not above the rules; they hold the rules.
 - Operators can designate owners via `owners.emails` in `chatto.toml`. Matching users are auto-assigned the `owner` role when their email is verified, and already-verified matching users are assigned the role on server boot.
+- GraphQL RBAC editor and inspection queries live under `Query.admin.rbac`. `Query.admin` is an authenticated namespace; the RBAC fields keep their narrower gates such as `role.manage` or `room.manage`.
 
 ## Design Decisions
 
@@ -69,7 +70,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 - `role.manage` — create, edit, delete roles and the permissions attached to them.
 - `role.assign` — assign roles to users.
-- `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate access to the admin UI and its sub-views.
+- `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission.
 - `message.post` — post root messages in rooms and start DMs. Reading DMs is not permission-gated; it follows room membership.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban lower-ranked members from channel rooms. DM membership is not managed through this permission.

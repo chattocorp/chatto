@@ -121,7 +121,6 @@ Permission constants follow the pattern `InstPerm{Category}{Action}` (singular n
 | `InstPermAdmin{Area}{Action}` | `InstPermAdminUsersView` | Admin permissions |
 **Common mistakes** (avoid these):
 - `InstPermSpacesCreate` → Use `InstPermSpaceCreate` (singular)
-- `InstPermAdminAccessUsersView` → Use `InstPermAdminUsersView`
 
 The Go constants in `cli/internal/core/permissions.go` are the source of truth. Frontend TypeScript types are generated via `mise codegen-types`.
 
@@ -199,7 +198,7 @@ the ability to create rooms only in specific groups.
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
 | `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
-| `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel access tiers |
+| `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel sub-view access tiers |
 
 ## GraphQL Authorization Reference
 

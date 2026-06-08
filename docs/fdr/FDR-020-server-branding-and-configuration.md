@@ -70,8 +70,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Permissions
 
-- `server.manage` — gates presentation and branding mutations (`updateServerConfig`, `uploadServerLogo`, `uploadServerBanner`, `deleteServerLogo`, `deleteServerBanner`).
-- `admin.access` — gates `admin.updateBlockedUsernames`.
+- `server.manage` — gates presentation, branding, and security-list mutations (`updateServerConfig`, `admin.updateBlockedUsernames`, `uploadServerLogo`, `uploadServerBanner`, `deleteServerLogo`, `deleteServerBanner`).
 
 ## Related
 

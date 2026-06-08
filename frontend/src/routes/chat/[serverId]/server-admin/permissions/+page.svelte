@@ -14,7 +14,7 @@
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
   // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
-  // lifting is done by PermissionMatrix's own tierRoles query.
+  // lifting is done by PermissionMatrix's own admin.rbac.rolePermissionTierMatrix query.
   const SpaceRolesGateQuery = graphql(`
     query SpaceRolesGate {
       server {

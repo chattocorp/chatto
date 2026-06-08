@@ -96,15 +96,13 @@ The schema is modular: each feature area lives in its own `.graphqls` file and e
 
 Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`).
 
-**Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
+**Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls))
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `user(userId)`                     | Authenticated lookup of a user by ID.                                                  |
 | `userByLogin(login)`               | Authenticated lookup of a user by login (returns null if not found).                   |
 | `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).                       |
-| `userPermissionMatrix(userId)`     | Effective allow/deny matrix for a user (admin surface; `role.manage` + outrank gate).  |
-| `permissionExplanation(userId, …)` | Per-permission resolver explainer (self-inspection or admin).                          |
 
 **Rooms** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`room.graphqls`](../cli/internal/graph/room.graphqls))
 
@@ -112,13 +110,14 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
 | `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`; `members` is offset-paginated. |
 
-**RBAC introspection** ([`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls))
+**RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 
-| Query                                       | Description                                                              |
-| ------------------------------------------- | ------------------------------------------------------------------------ |
-| `rolePermissions(roleName, roomId?)`        | A role's grants/denials across every applicable tier.                    |
-| `tierRoles(roomId?, groupId?)`              | Full permission matrix at server / group / room scope.                   |
-| `rolePermissionMatrix(roleName)`            | Per-role permission matrix (`role.manage` gated).                        |
+| Query                                             | Description                                                              |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| `admin.rbac.rolePermissionTierMatrix(roomId?, groupId?)` | Full role-permission matrix at server / group / room scope.       |
+| `admin.rbac.rolePermissionMatrix(roleName)`       | Per-role permission matrix (`role.manage` gated).                        |
+| `admin.rbac.userPermissionMatrix(userId)`         | Effective allow/deny matrix for a user (`role.manage` + outrank gate).   |
+| `admin.rbac.permissionExplanation(userId, …)`     | Admin/tooling-only per-permission resolver explainer; no self-inspection. |
 
 **Voice & link previews** ([`voice.graphqls`](../cli/internal/graph/voice.graphqls), [`linkpreview.graphqls`](../cli/internal/graph/linkpreview.graphqls))
 
@@ -236,15 +235,14 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 ### Admin sub-API
 
-`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access; individual nested fields can still apply narrower permissions such as `admin.view-system` or `admin.view-audit` (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
+`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller is unauthenticated; individual nested fields apply their own permissions such as `server.manage`, `admin.view-system`, `admin.view-audit`, `role.manage`, or owner-only gates (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
 
-Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
+Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. `admin.systemInfo` is owner-only for now; `admin.projections` remains gated by `admin.view-system`. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
 
 | Field                                            | Type      | Description                                                                                  |
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
-| `admin.systemInfo`                               | Query     | Point-in-time operator diagnostics: connection, storage-account usage, stream/consumer state, and deployment counts. |
+| `admin.systemInfo`                               | Query     | Owner-only point-in-time operator diagnostics: connection, storage-account usage, stream/consumer state, and deployment counts. |
 | `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
-| `admin.serverPermissions`                        | Query     | List every available server permission identifier (catalog).                                 |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
 | `admin.eventLog(limit, before)`                  | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200).                    |

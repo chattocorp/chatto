@@ -52,12 +52,12 @@ func TestServerCanHelpers(t *testing.T) {
 	})
 
 	t.Run("regular user does NOT have admin permissions", func(t *testing.T) {
-		can, err := core.CanAdminAccess(ctx, regularUser.Id)
+		can, err := core.HasAnyAdminPermission(ctx, regularUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminAccess error: %v", err)
+			t.Fatalf("HasAnyAdminPermission error: %v", err)
 		}
 		if can {
-			t.Error("regular user should NOT have CanAdminAccess permission")
+			t.Error("regular user should NOT have any admin capability")
 		}
 
 		can, err = core.CanAdminUsersView(ctx, regularUser.Id)
@@ -74,7 +74,7 @@ func TestServerCanHelpers(t *testing.T) {
 			name  string
 			check func() (bool, error)
 		}{
-			{"CanAdminAccess", func() (bool, error) { return core.CanAdminAccess(ctx, adminUser.Id) }},
+			{"HasAnyAdminPermission", func() (bool, error) { return core.HasAnyAdminPermission(ctx, adminUser.Id) }},
 			{"CanAdminUsersView", func() (bool, error) { return core.CanAdminUsersView(ctx, adminUser.Id) }},
 			{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, adminUser.Id) }},
 			{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, adminUser.Id) }},
@@ -219,11 +219,7 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 		t.Fatalf("failed to create custom role: %v", err)
 	}
 
-	// Grant only view permissions using GrantPermission
-	err = core.GrantServerPermission(ctx, customRole.Name, PermAdminAccess)
-	if err != nil {
-		t.Fatalf("failed to grant admin permission: %v", err)
-	}
+	// Grant only a concrete admin view permission.
 	err = core.GrantServerPermission(ctx, customRole.Name, PermAdminUsersView)
 	if err != nil {
 		t.Fatalf("failed to grant users view permission: %v", err)
@@ -239,12 +235,12 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 	}
 
 	t.Run("custom role user has granted permissions", func(t *testing.T) {
-		can, err := core.CanAdminAccess(ctx, customUser.Id)
+		can, err := core.HasAnyAdminPermission(ctx, customUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminAccess error: %v", err)
+			t.Fatalf("HasAnyAdminPermission error: %v", err)
 		}
 		if !can {
-			t.Error("custom role user should have CanAdminAccess permission")
+			t.Error("custom role user should have an admin capability")
 		}
 
 		can, err = core.CanAdminUsersView(ctx, customUser.Id)

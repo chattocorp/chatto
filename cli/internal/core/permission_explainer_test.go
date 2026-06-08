@@ -200,10 +200,10 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	user, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-level", "User", "password123")
 
 	t.Run("server-level user grant appears in trace", func(t *testing.T) {
-		if err := core.GrantUserPermission(ctx, user.Id, PermAdminAccess); err != nil {
+		if err := core.GrantUserPermission(ctx, user.Id, PermAdminUsersView); err != nil {
 			t.Fatalf("GrantUserPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminAccess)
+		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("ExplainServerPermission: %v", err)
 		}

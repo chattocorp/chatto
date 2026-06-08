@@ -10,12 +10,25 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // GroupRolePermissions is the resolver for the groupRolePermissions field.
 func (r *adminQueriesResolver) GroupRolePermissions(ctx context.Context, obj *model.AdminQueries, groupID string, roleName string) (*model.RoomGroupRolePermissions, error) {
+	viewer := auth.ForContext(ctx)
+	if viewer == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canManage, err := r.core.CanManageRoles(ctx, viewer.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check role.manage permission: %w", err)
+	}
+	if !canManage {
+		return nil, core.ErrPermissionDenied
+	}
+
 	grants, denials, err := r.core.GetGroupRolePermissions(ctx, groupID, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("get set permissions: %w", err)
@@ -30,6 +43,14 @@ func (r *adminQueriesResolver) GroupRolePermissions(ctx context.Context, obj *mo
 
 // GroupUserPermissions is the resolver for the groupUserPermissions field.
 func (r *adminQueriesResolver) GroupUserPermissions(ctx context.Context, obj *model.AdminQueries, groupID string, userID string) (*model.RoomGroupUserPermissions, error) {
+	viewer := auth.ForContext(ctx)
+	if viewer == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	if err := r.requireUserPermissionTarget(ctx, viewer.Id, userID); err != nil {
+		return nil, err
+	}
+
 	grants, denials, err := r.core.GetGroupRolePermissions(ctx, groupID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get set user permissions: %w", err)

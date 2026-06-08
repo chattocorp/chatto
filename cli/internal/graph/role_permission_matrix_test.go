@@ -12,9 +12,9 @@ import (
 // cells exist only for permissions applicable at each scope's tier.
 func TestRolePermissionMatrix_BasicShape(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
-	got, err := query.RolePermissionMatrix(env.authContext(), "everyone")
+	got, err := rbac.RolePermissionMatrix(env.authContext(), nil, "everyone")
 	if err != nil {
 		t.Fatalf("RolePermissionMatrix: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestRolePermissionMatrix_BasicShape(t *testing.T) {
 
 	var sawServer bool
 	for _, sc := range got.Scopes {
-		if sc.ID == "server" && sc.Kind == model.UserPermissionScopeKindServer {
+		if sc.ID == "server" && sc.Kind == model.PermissionMatrixScopeKindServer {
 			sawServer = true
 			break
 		}
@@ -60,18 +60,18 @@ func TestRolePermissionMatrix_BasicShape(t *testing.T) {
 // grant cascades through to room columns via the room → server walk.)
 func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	if err := env.core.GrantServerPermission(env.ctx, "moderator", core.PermMessageManage); err != nil {
 		t.Fatalf("GrantServerPermission: %v", err)
 	}
 
-	got, err := query.RolePermissionMatrix(env.authContext(), "moderator")
+	got, err := rbac.RolePermissionMatrix(env.authContext(), nil, "moderator")
 	if err != nil {
 		t.Fatalf("RolePermissionMatrix: %v", err)
 	}
 
-	var server *model.UserPermissionCell
+	var server *model.PermissionMatrixCell
 	for _, c := range got.Cells {
 		if c.Permission == string(core.PermMessageManage) && c.ScopeID == "server" {
 			server = c
@@ -81,16 +81,16 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 	if server == nil {
 		t.Fatal("expected a cell for (message.manage, server)")
 	}
-	if server.Override != model.UserPermissionDecisionAllow {
+	if server.Override != model.PermissionMatrixDecisionAllow {
 		t.Errorf("server.Override = %v, want ALLOW", server.Override)
 	}
-	if server.Effective != model.UserPermissionDecisionAllow {
+	if server.Effective != model.PermissionMatrixDecisionAllow {
 		t.Errorf("server.Effective = %v, want ALLOW", server.Effective)
 	}
 
 	// Pick any room cell for the same permission — it should inherit
 	// ALLOW as effective even though it has no override of its own.
-	var roomCell *model.UserPermissionCell
+	var roomCell *model.PermissionMatrixCell
 	for _, c := range got.Cells {
 		if c.Permission == string(core.PermMessageManage) &&
 			c.ScopeID != "server" &&
@@ -100,10 +100,10 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 		}
 	}
 	if roomCell != nil {
-		if roomCell.Override != model.UserPermissionDecisionNone {
+		if roomCell.Override != model.PermissionMatrixDecisionNone {
 			t.Errorf("room.Override = %v, want NONE", roomCell.Override)
 		}
-		if roomCell.Effective != model.UserPermissionDecisionAllow {
+		if roomCell.Effective != model.PermissionMatrixDecisionAllow {
 			t.Errorf("room.Effective = %v, want ALLOW (inherited from server)", roomCell.Effective)
 		}
 	}
@@ -113,10 +113,10 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 // `role.manage` can read a role's matrix.
 func TestRolePermissionMatrix_AuthorizationGate(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	t.Run("anonymous is rejected", func(t *testing.T) {
-		_, err := query.RolePermissionMatrix(env.unauthContext(), "everyone")
+		_, err := rbac.RolePermissionMatrix(env.unauthContext(), nil, "everyone")
 		if err == nil {
 			t.Error("expected error for unauthenticated caller")
 		}
@@ -124,14 +124,14 @@ func TestRolePermissionMatrix_AuthorizationGate(t *testing.T) {
 
 	t.Run("regular member without role.manage is rejected", func(t *testing.T) {
 		regular := env.createVerifiedUser(t, "rm-regular", "Regular", "password123")
-		_, err := query.RolePermissionMatrix(env.authContextForUser(regular), "everyone")
+		_, err := rbac.RolePermissionMatrix(env.authContextForUser(regular), nil, "everyone")
 		if err == nil {
 			t.Error("expected ErrPermissionDenied for non-admin caller")
 		}
 	})
 
 	t.Run("owner succeeds", func(t *testing.T) {
-		_, err := query.RolePermissionMatrix(env.authContext(), "everyone")
+		_, err := rbac.RolePermissionMatrix(env.authContext(), nil, "everyone")
 		if err != nil {
 			t.Errorf("expected owner to read role matrix, got %v", err)
 		}
@@ -142,9 +142,9 @@ func TestRolePermissionMatrix_AuthorizationGate(t *testing.T) {
 // resolves to nil (and not an error) so the GraphQL field can be null.
 func TestRolePermissionMatrix_UnknownRoleReturnsNil(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
-	got, err := query.RolePermissionMatrix(env.authContext(), "does-not-exist")
+	got, err := rbac.RolePermissionMatrix(env.authContext(), nil, "does-not-exist")
 	if err != nil {
 		t.Fatalf("RolePermissionMatrix: %v", err)
 	}

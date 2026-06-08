@@ -243,10 +243,10 @@ func TestRequireServerPermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Members don't have admin by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
+		// Members don't have admin view permissions by default
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminUsersView)
 		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("Expected ErrPermissionDenied for admin, got %v", err)
+			t.Errorf("Expected ErrPermissionDenied for admin view permission, got %v", err)
 		}
 
 		// Assign admin role
@@ -255,7 +255,7 @@ func TestRequireServerPermission(t *testing.T) {
 		}
 
 		// Should now have access
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminUsersView)
 		if err != nil {
 			t.Errorf("Expected admin to work after role assignment, got error: %v", err)
 		}

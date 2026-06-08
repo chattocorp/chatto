@@ -100,13 +100,10 @@ const (
 
 	// ===== Admin Panel Permissions =====
 
-	// PermAdminAccess allows access to the admin panel.
-	PermAdminAccess Permission = "admin.access"
-
 	// PermAdminUsersView allows viewing the users page in admin.
 	PermAdminUsersView Permission = "admin.view-users"
 
-	// PermAdminSystemView allows viewing system and data pages in admin.
+	// PermAdminSystemView allows viewing projection diagnostics in admin.
 	PermAdminSystemView Permission = "admin.view-system"
 
 	// PermAdminAuditView allows viewing the audit log in admin.
@@ -163,9 +160,8 @@ var allPermissions = []PermissionMetadata{
 	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
 	// Admin
-	{PermAdminAccess, "Admin Access", "Access the admin panel", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminSystemView, "View System", "View system and data pages in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
+	{PermAdminSystemView, "View System", "View projection diagnostics in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
 	// User management
@@ -262,8 +258,6 @@ func DefaultEveryonePermissions() []Permission {
 // and admin-panel view access.
 func DefaultModeratorPermissions() []Permission {
 	return append(DefaultEveryonePermissions(),
-		// Admin-panel view access
-		PermAdminAccess,
 		PermAdminUsersView,
 		// Moderation powers
 		PermMessageManage,

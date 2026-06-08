@@ -42,11 +42,11 @@ func (r *Resolver) buildUserPermissionMatrix(ctx context.Context, userID string)
 	// Build cells: per (permission, scope) intersection that's applicable
 	// at the scope's tier, fetch the explicit user-level override and the
 	// effective resolver decision.
-	cells := make([]*model.UserPermissionCell, 0, len(applicable)*len(scopes))
+	cells := make([]*model.PermissionMatrixCell, 0, len(applicable)*len(scopes))
 	for _, permStr := range applicable {
 		perm := core.Permission(permStr)
 		for _, scope := range scopes {
-			cell, ok, err := r.buildUserPermissionCell(ctx, userID, perm, scope)
+			cell, ok, err := r.buildPermissionMatrixCell(ctx, userID, perm, scope)
 			if err != nil {
 				return nil, err
 			}
@@ -72,23 +72,23 @@ type corevRoomLite struct {
 	Name string
 }
 
-// buildUserPermissionCell returns one (permission, scope) cell. The
+// buildPermissionMatrixCell returns one (permission, scope) cell. The
 // second return is false when the permission doesn't apply at the
 // scope's tier — the caller drops the cell from the sparse list.
-func (r *Resolver) buildUserPermissionCell(
+func (r *Resolver) buildPermissionMatrixCell(
 	ctx context.Context,
 	userID string,
 	perm core.Permission,
-	scope *model.UserPermissionScope,
-) (*model.UserPermissionCell, bool, error) {
+	scope *model.PermissionMatrixScope,
+) (*model.PermissionMatrixCell, bool, error) {
 	var (
-		override     core.DecisionKind
-		effective    core.DecisionKind
-		err          error
+		override  core.DecisionKind
+		effective core.DecisionKind
+		err       error
 	)
 
 	switch scope.Kind {
-	case model.UserPermissionScopeKindServer:
+	case model.PermissionMatrixScopeKindServer:
 		if !core.PermissionAppliesAtScope(perm, core.ScopeServer) {
 			return nil, false, nil
 		}
@@ -101,7 +101,7 @@ func (r *Resolver) buildUserPermissionCell(
 			return nil, false, err
 		}
 
-	case model.UserPermissionScopeKindGroup:
+	case model.PermissionMatrixScopeKindGroup:
 		if !core.PermissionAppliesAtScope(perm, core.ScopeGroup) {
 			return nil, false, nil
 		}
@@ -115,7 +115,7 @@ func (r *Resolver) buildUserPermissionCell(
 			return nil, false, err
 		}
 
-	case model.UserPermissionScopeKindRoom:
+	case model.PermissionMatrixScopeKindRoom:
 		if !core.PermissionAppliesAtScope(perm, core.ScopeRoom) {
 			return nil, false, nil
 		}
@@ -133,7 +133,7 @@ func (r *Resolver) buildUserPermissionCell(
 		return nil, false, fmt.Errorf("unknown scope kind: %v", scope.Kind)
 	}
 
-	return &model.UserPermissionCell{
+	return &model.PermissionMatrixCell{
 		Permission: string(perm),
 		ScopeID:    scope.ID,
 		Override:   decisionToModel(override),
@@ -148,13 +148,13 @@ func scopeRefID(scopeID, prefix string) string {
 	return scopeID[len(prefix):]
 }
 
-func decisionToModel(d core.DecisionKind) model.UserPermissionDecision {
+func decisionToModel(d core.DecisionKind) model.PermissionMatrixDecision {
 	switch d {
 	case core.DecisionAllow:
-		return model.UserPermissionDecisionAllow
+		return model.PermissionMatrixDecisionAllow
 	case core.DecisionDeny:
-		return model.UserPermissionDecisionDeny
+		return model.PermissionMatrixDecisionDeny
 	default:
-		return model.UserPermissionDecisionNone
+		return model.PermissionMatrixDecisionNone
 	}
 }

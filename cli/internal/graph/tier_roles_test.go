@@ -13,9 +13,9 @@ import (
 // top tier).
 func TestTierRoles_ServerScopeListsAllRoles(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
-	got, err := query.TierRoles(env.authContext(), nil, nil)
+	got, err := rbac.RolePermissionTierMatrix(env.authContext(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -49,13 +49,13 @@ func TestTierRoles_ServerScopeListsAllRoles(t *testing.T) {
 // that grant in their inherited baseline.
 func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	if err := env.core.GrantServerPermission(env.ctx, core.RoleAdmin, core.PermMessagePost); err != nil {
 		t.Fatalf("seed server grant: %v", err)
 	}
 
-	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id, nil)
+	got, err := rbac.RolePermissionTierMatrix(env.authContext(), nil, &env.testRoom.Id, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -92,50 +92,94 @@ func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 	}
 }
 
-// TestTierRoles_NonAdminCannotInspectServerScope verifies the auth gate
-// shared with rolePermissions.
-func TestTierRoles_NonAdminCannotInspectServerScope(t *testing.T) {
+// TestTierRoles_ServerScopeAuthorization verifies the server-scope auth gate.
+func TestTierRoles_ServerScopeAuthorization(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
-	regular := env.createVerifiedUser(t, "regular-tr", "Regular", "password123")
-	_, err := query.TierRoles(env.authContextForUser(regular), nil, nil)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied at server scope, got %v", err)
+	t.Run("regular member without role.manage is rejected", func(t *testing.T) {
+		regular := env.createVerifiedUser(t, "regular-tr", "Regular", "password123")
+		_, err := rbac.RolePermissionTierMatrix(env.authContextForUser(regular), nil, nil, nil)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied at server scope, got %v", err)
+		}
+	})
+
+	t.Run("delegated role manager can inspect server scope", func(t *testing.T) {
+		manager := env.createVerifiedUser(t, "role-manager-tr", "Role Manager", "password123")
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, manager.Id, core.RoleModerator); err != nil {
+			t.Fatalf("AssignServerRole: %v", err)
+		}
+		if err := env.core.GrantServerPermission(env.ctx, core.RoleModerator, core.PermRoleManage); err != nil {
+			t.Fatalf("GrantServerPermission role.manage: %v", err)
+		}
+		got, err := rbac.RolePermissionTierMatrix(env.authContextForUser(manager), nil, nil, nil)
+		if err != nil {
+			t.Fatalf("expected delegated role manager to inspect server scope, got %v", err)
+		}
+		if got == nil || len(got.Roles) == 0 {
+			t.Fatal("expected non-empty server-scope role matrix")
+		}
+	})
+}
+
+func TestTierRoles_RoomManagerCanInspectTheirRoom(t *testing.T) {
+	env := setupTestResolver(t)
+	rbac := env.resolver.RbacQueries()
+
+	manager := env.createVerifiedUser(t, "room-manager-tr", "Room Manager", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, manager.Id, core.RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleModerator, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantRoomPermission room.manage: %v", err)
+	}
+
+	got, err := rbac.RolePermissionTierMatrix(env.authContextForUser(manager), nil, &env.testRoom.Id, nil)
+	if err != nil {
+		t.Fatalf("expected room manager to inspect their room matrix, got %v", err)
+	}
+	if got == nil || len(got.Roles) == 0 {
+		t.Fatal("expected non-empty room-scope role matrix")
 	}
 }
 
-// TestTierRoles_AgreesWithRolePermissions cross-checks the matrix output
-// against the existing rolePermissions resolver: for every role, the
-// override published by tierRoles must match what rolePermissions reports
-// at the same scope.
-func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
+// TestTierRoles_RoomOverridesMatchCoreState verifies the matrix override
+// column reflects the per-room grants and denials persisted in core.
+func TestTierRoles_RoomOverridesMatchCoreState(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
-	if err := env.core.GrantServerPermission(env.ctx, core.RoleAdmin, core.PermRoomManage); err != nil {
-		t.Fatalf("seed grant: %v", err)
+	if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
+		t.Fatalf("seed room grant: %v", err)
 	}
-	if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
-		t.Fatalf("seed deny: %v", err)
+	if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermMessagePost); err != nil {
+		t.Fatalf("seed room deny: %v", err)
 	}
 
-	matrix, err := query.TierRoles(env.authContext(), &env.testRoom.Id, nil)
+	matrix, err := rbac.RolePermissionTierMatrix(env.authContext(), nil, &env.testRoom.Id, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
 
-	for _, tr := range matrix.Roles {
-		single, err := query.RolePermissions(env.authContext(), tr.RoleName, &env.testRoom.Id)
-		if err != nil {
-			t.Fatalf("RolePermissions for %q: %v", tr.RoleName, err)
-		}
-		if single == nil || single.Room == nil {
-			t.Fatalf("RolePermissions for %q returned nil room tier", tr.RoleName)
-		}
-		assertSameStringSet(t, "permissions for "+tr.RoleName, tr.Override.Permissions, single.Room.Permissions)
-		assertSameStringSet(t, "denials for "+tr.RoleName, tr.Override.PermissionDenials, single.Room.PermissionDenials)
+	var adminRole *struct {
+		permissions       []string
+		permissionDenials []string
 	}
+	for _, tr := range matrix.Roles {
+		if tr.RoleName == core.RoleAdmin {
+			adminRole = &struct {
+				permissions       []string
+				permissionDenials []string
+			}{tr.Override.Permissions, tr.Override.PermissionDenials}
+			break
+		}
+	}
+	if adminRole == nil {
+		t.Fatal("expected admin role in room-scope matrix")
+	}
+	assertSameStringSet(t, "admin room permissions", adminRole.permissions, []string{string(core.PermRoomManage)})
+	assertSameStringSet(t, "admin room denials", adminRole.permissionDenials, []string{string(core.PermMessagePost)})
 }
 
 // TestTierRoles_RoomScopeGroupDenyShadowsServerAllow pins down the fix for a
@@ -147,7 +191,7 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 // decisions for the same role+perm.
 func TestTierRoles_RoomScopeGroupDenyShadowsServerAllow(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	// message.post is granted at server scope by default (everyone). Add an
 	// explicit deny at the room's group on everyone — the matrix's room-scope
@@ -157,7 +201,7 @@ func TestTierRoles_RoomScopeGroupDenyShadowsServerAllow(t *testing.T) {
 		t.Fatalf("DenyGroupPermission: %v", err)
 	}
 
-	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id, nil)
+	got, err := rbac.RolePermissionTierMatrix(env.authContext(), nil, &env.testRoom.Id, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -191,7 +235,7 @@ func TestTierRoles_RoomScopeGroupDenyShadowsServerAllow(t *testing.T) {
 // couldn't tell what defaults were already in effect from the server tier.
 func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
+	rbac := env.resolver.RbacQueries()
 
 	// Seed a deny on admin at server scope for room.create — pinning the
 	// inheritedDenials path. Also rely on the default everyone allow for
@@ -209,7 +253,7 @@ func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 	}
 	groupID := groups[0].Id
 
-	got, err := query.TierRoles(env.authContext(), nil, &groupID)
+	got, err := rbac.RolePermissionTierMatrix(env.authContext(), nil, nil, &groupID)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}

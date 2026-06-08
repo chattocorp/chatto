@@ -1,41 +1,13 @@
 """
 A role's permission state at a single tier (server or room).
-Returned as part of RoleAcrossTiers so callers can display inheritance
-without making separate per-tier queries.
+Returned as part of RBAC matrix results so callers can display explicit
+allow/deny state for a tier.
 """
 type TierPermissions {
   "Permissions explicitly granted by this role at this tier."
   permissions: [String!]!
   "Permissions explicitly denied by this role at this tier."
   permissionDenials: [String!]!
-}
-
-"""
-A single role's permission state at every applicable tier.
-
-- rolePermissions(roleName) → server only.
-- rolePermissions(roleName, roomId) → server + room.
-"""
-type RoleAcrossTiers {
-  "Internal role name (e.g. 'admin', 'moderator')."
-  roleName: String!
-  "Human-readable display name."
-  displayName: String!
-  "Role description."
-  description: String!
-  "Whether this is a system role and cannot be deleted."
-  isSystem: Boolean!
-  "Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0."
-  position: Int!
-  """
-  Permissions configurable at the deepest requested scope. Use this as the
-  set of permissions to render in a permission editor for this scope.
-  """
-  applicablePermissions: [String!]!
-  "Permission state at server scope (the role's defaults everywhere)."
-  server: TierPermissions!
-  "Permission state at room scope (null when roomId not provided)."
-  room: TierPermissions
 }
 
 """
@@ -82,39 +54,4 @@ type TierRoles {
   applicablePermissions: [String!]!
   "All roles ordered by position (lowest = highest rank first)."
   roles: [TierRole!]!
-}
-
-extend type Query {
-  """
-  Resolve a single role's permission state across every applicable tier
-  in one round-trip. Useful for permission editors that need to show
-  values inherited from the tiers above the one being edited.
-
-  Authorization: server scope requires server admin; room scope requires
-  role.manage on the server or server admin.
-  """
-  rolePermissions(
-    "Role name to look up (e.g. 'admin', 'moderator')."
-    roleName: String!
-    "Optional room scope."
-    roomId: ID
-  ): RoleAcrossTiers @goField(forceResolver: true)
-
-  """
-  Return the full permission matrix at a tier: every applicable role
-  with its override and inherited baseline. Authorization mirrors
-  rolePermissions.
-
-  Pass `roomId` for per-room override editing (inherits from the room's
-  room group), `groupId` for room-group-scope editing (no inheritance —
-  room groups are top-level for channel-room permissions). Pass neither
-  for server scope.
-  Passing both is rejected.
-  """
-  tierRoles(
-    "Optional room scope."
-    roomId: ID
-    "Optional room-group scope."
-    groupId: ID
-  ): TierRoles @goField(forceResolver: true)
 }

@@ -36,13 +36,13 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 	})
 
 	t.Run("returns false when user lacks permission", func(t *testing.T) {
-		// Regular user doesn't have admin.access
-		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermAdminAccess)
+		// Regular user doesn't have admin.view-users
+		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
 		if has {
-			t.Error("Expected user NOT to have admin.access")
+			t.Error("Expected user NOT to have admin.view-users")
 		}
 	})
 
