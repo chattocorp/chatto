@@ -190,6 +190,7 @@ For `truncate` to work in flexbox, **every flex ancestor** needs `min-w-0`. (See
 - Manifest at `static/manifest.webmanifest`, linked from `app.html`.
 - Icons in `static/icons/`.
 - Use `sharp` dev dependency + `scripts/generate-icons.mjs` to regenerate icons from SVG.
+- The service worker is shell-only: cache SvelteKit/static PWA assets and the SPA fallback, but keep API/auth/live-event/uploaded-asset requests network-only. See `docs/fdr/FDR-027-pwa-shell-and-service-worker.md`.
 
 ---
 
