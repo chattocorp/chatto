@@ -25,6 +25,8 @@ const (
 
 	// RegistrationCodeMaxAttempts is the number of invalid attempts before a code is exhausted.
 	RegistrationCodeMaxAttempts = 5
+
+	runtimeStateCodeWriteMaxRetries = 16
 )
 
 var (
@@ -128,14 +130,13 @@ func (c *ChattoCore) CreateRegistrationCode(ctx context.Context, email string) (
 	}
 
 	key := c.registrationCodeKey(email)
-	_ = c.storage.runtimeStateKV.Delete(ctx, key)
-	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(RegistrationCodeTTL))
+	revision, err := c.putRuntimeStateCodeRecord(ctx, key, data, RegistrationCodeTTL)
 	if err != nil {
 		return "", fmt.Errorf("failed to store registration code: %w", err)
 	}
 
 	if err := c.recordRegistrationCodeIssued(ctx, email, createdAt); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		_ = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
 		return "", err
 	}
 
@@ -152,62 +153,146 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 	}
 
 	key := c.registrationCodeKey(email)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return "", ErrRegistrationCodeNotFound
+	for i := 0; i < runtimeStateCodeWriteMaxRetries; i++ {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				return "", ErrRegistrationCodeNotFound
+			}
+			return "", fmt.Errorf("failed to get registration code: %w", err)
 		}
-		return "", fmt.Errorf("failed to get registration code: %w", err)
-	}
 
-	var codeData RegistrationCode
-	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
-		return "", fmt.Errorf("failed to unmarshal registration code: %w", err)
-	}
+		var codeData RegistrationCode
+		if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
+			return "", fmt.Errorf("failed to unmarshal registration code: %w", err)
+		}
 
-	if time.Since(codeData.CreatedAt) > RegistrationCodeTTL {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return "", ErrRegistrationCodeExpired
-	}
-	if codeData.Email != email {
-		return "", ErrRegistrationCodeInvalid
-	}
-	if codeData.Attempts >= RegistrationCodeMaxAttempts {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return "", ErrRegistrationCodeExhausted
-	}
-	if codeData.CodeHash != c.registrationCodeHash(email, code) {
-		codeData.Attempts++
+		if time.Since(codeData.CreatedAt) > RegistrationCodeTTL {
+			if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete expired registration code"); err != nil {
+				if isRuntimeStateRevisionConflict(err) {
+					continue
+				}
+				return "", err
+			}
+			return "", ErrRegistrationCodeExpired
+		}
+		if codeData.Email != email {
+			return "", ErrRegistrationCodeInvalid
+		}
 		if codeData.Attempts >= RegistrationCodeMaxAttempts {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete exhausted registration code"); err != nil {
+				if isRuntimeStateRevisionConflict(err) {
+					continue
+				}
+				return "", err
+			}
 			return "", ErrRegistrationCodeExhausted
 		}
-		if err := c.replaceRegistrationCodeRecord(ctx, key, codeData); err != nil {
+		if codeData.CodeHash != c.registrationCodeHash(email, code) {
+			codeData.Attempts++
+			if codeData.Attempts >= RegistrationCodeMaxAttempts {
+				if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "delete exhausted registration code"); err != nil {
+					if isRuntimeStateRevisionConflict(err) {
+						continue
+					}
+					return "", err
+				}
+				return "", ErrRegistrationCodeExhausted
+			}
+			if err := c.replaceRegistrationCodeRecord(ctx, key, codeData, entry.Revision()); err != nil {
+				if isRuntimeStateRevisionConflict(err) {
+					continue
+				}
+				return "", err
+			}
+			return "", ErrRegistrationCodeInvalid
+		}
+
+		if err := c.deleteRuntimeStateCodeRevision(ctx, key, entry.Revision(), "consume registration code"); err != nil {
+			if isRuntimeStateRevisionConflict(err) {
+				continue
+			}
 			return "", err
 		}
-		return "", ErrRegistrationCodeInvalid
+		token, err := c.CreateRegistrationCompletionToken(ctx, email)
+		if err != nil {
+			return "", err
+		}
+		return token, nil
 	}
 
-	token, err := c.CreateRegistrationCompletionToken(ctx, email)
-	if err != nil {
-		return "", err
-	}
-	_ = c.storage.runtimeStateKV.Delete(ctx, key)
-	return token, nil
+	return "", fmt.Errorf("registration code update conflict after %d retries", runtimeStateCodeWriteMaxRetries)
 }
 
-func (c *ChattoCore) replaceRegistrationCodeRecord(ctx context.Context, key string, codeData RegistrationCode) error {
+func (c *ChattoCore) replaceRegistrationCodeRecord(ctx context.Context, key string, codeData RegistrationCode, revision uint64) error {
 	data, err := json.Marshal(codeData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal registration code: %w", err)
 	}
-	_ = c.storage.runtimeStateKV.Delete(ctx, key)
 	remaining := RegistrationCodeTTL - time.Since(codeData.CreatedAt)
 	if remaining <= 0 {
 		return ErrRegistrationCodeExpired
 	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(remaining)); err != nil {
+	if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, revision, remaining); err != nil {
 		return fmt.Errorf("failed to store registration code attempt: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) putRuntimeStateCodeRecord(ctx context.Context, key string, data []byte, ttl time.Duration) (uint64, error) {
+	revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(ttl))
+	if err == nil {
+		return revision, nil
+	}
+	if !errors.Is(err, jetstream.ErrKeyExists) {
+		return 0, err
+	}
+
+	for i := 0; i < runtimeStateCodeWriteMaxRetries; i++ {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if isRuntimeStateKeyAbsent(err) {
+				revision, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(ttl))
+				if err == nil {
+					return revision, nil
+				}
+				if errors.Is(err, jetstream.ErrKeyExists) {
+					continue
+				}
+			}
+			return 0, err
+		}
+
+		revision, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl)
+		if err == nil {
+			return revision, nil
+		}
+		if isRuntimeStateRevisionConflict(err) {
+			continue
+		}
+		return 0, err
+	}
+
+	return 0, fmt.Errorf("runtime state code write conflict after %d retries", runtimeStateCodeWriteMaxRetries)
+}
+
+func isRuntimeStateRevisionConflict(err error) bool {
+	return errors.Is(err, jetstream.ErrKeyExists)
+}
+
+func isRuntimeStateKeyAbsent(err error) bool {
+	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
+}
+
+func (c *ChattoCore) deleteRuntimeStateCodeRevision(ctx context.Context, key string, revision uint64, action string) error {
+	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
+		if isRuntimeStateKeyAbsent(err) {
+			return nil
+		}
+		if isRuntimeStateRevisionConflict(err) {
+			return err
+		}
+		return fmt.Errorf("failed to %s: %w", action, err)
 	}
 	return nil
 }
