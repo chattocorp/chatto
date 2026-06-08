@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -44,6 +45,7 @@ type HTTPServer struct {
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
+	failAssetProxyRequests          atomic.Int64
 }
 
 const (

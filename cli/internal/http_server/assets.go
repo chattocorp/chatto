@@ -164,6 +164,10 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	ctx := c.Request.Context()
 	assetID := c.Param("assetID")
 
+	if s.failAssetProxyRequest(c) {
+		return
+	}
+
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, nil)
 	if !ok {
 		return
@@ -215,6 +219,10 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 		return
 	}
 
+	if s.failAssetProxyRequest(c) {
+		return
+	}
+
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, params)
 	if !ok {
 		return
@@ -232,6 +240,23 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 		},
 		Authorize: func(c *gin.Context) bool { return true },
 	}, params)
+}
+
+func (s *HTTPServer) failAssetProxyRequest(c *gin.Context) bool {
+	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
+		return false
+	}
+
+	for {
+		remaining := s.failAssetProxyRequests.Load()
+		if remaining <= 0 {
+			return false
+		}
+		if s.failAssetProxyRequests.CompareAndSwap(remaining, remaining-1) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "expired asset access ticket"})
+			return true
+		}
+	}
 }
 
 const AttachmentStableCachePrefix = "attachment-stable"

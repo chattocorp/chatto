@@ -32,6 +32,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/oauth-authorize - Mint an OAuth authorization code without UI interaction
+//   - POST /auth/test/fail-next-asset-proxy-request - Fail upcoming Service Worker asset proxy requests
 func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	if s.mockMailer == nil {
 		return
@@ -56,6 +57,21 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	auth.DELETE("test/emails", func(c *gin.Context) {
 		s.mockMailer.Reset()
 		c.JSON(http.StatusOK, gin.H{"success": true})
+	})
+
+	auth.POST("test/fail-next-asset-proxy-request", func(c *gin.Context) {
+		var req struct {
+			Count int64 `json:"count"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Count <= 0 {
+			req.Count = 1
+		}
+		s.failAssetProxyRequests.Store(req.Count)
+		c.JSON(http.StatusOK, gin.H{"success": true, "count": req.Count})
 	})
 
 	// Test-only endpoint to directly verify a user's email (bypasses email verification flow)
