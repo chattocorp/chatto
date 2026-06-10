@@ -48,7 +48,11 @@ func setupOAuthServer(t *testing.T) *HTTPServer {
 	router.Use(sessions.Sessions("chatto_session", sessionStore))
 
 	s := &HTTPServer{
-		config:  config.ChattoConfig{},
+		config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{
+				URL: "https://chatto.example",
+			},
+		},
 		nc:      nc,
 		router:  router,
 		core:    chattoCore,
@@ -67,7 +71,7 @@ func TestOAuthAuthorize_ValidParams(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
-		"redirect_uri":          {"https://example.com/callback"},
+		"redirect_uri":          {"https://chatto.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
 		"state":                 {"random123"},
@@ -97,7 +101,7 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 		{
 			"missing response_type",
 			url.Values{
-				"redirect_uri":          {"https://example.com/callback"},
+				"redirect_uri":          {"https://chatto.example/servers/callback"},
 				"code_challenge":        {"challenge"},
 				"code_challenge_method": {"S256"},
 			},
@@ -116,7 +120,7 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 			"missing code_challenge",
 			url.Values{
 				"response_type":         {"code"},
-				"redirect_uri":          {"https://example.com/callback"},
+				"redirect_uri":          {"https://chatto.example/servers/callback"},
 				"code_challenge_method": {"S256"},
 			},
 			"invalid_request",
@@ -125,7 +129,7 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 			"wrong code_challenge_method",
 			url.Values{
 				"response_type":         {"code"},
-				"redirect_uri":          {"https://example.com/callback"},
+				"redirect_uri":          {"https://chatto.example/servers/callback"},
 				"code_challenge":        {"challenge"},
 				"code_challenge_method": {"plain"},
 			},
@@ -160,8 +164,10 @@ func TestOAuthAuthorize_InvalidRedirectURI(t *testing.T) {
 		redirectURI string
 	}{
 		{"plain HTTP", "http://example.com/callback"},
+		{"unconfigured HTTPS origin", "https://evil.example/callback"},
 		{"no scheme", "example.com/callback"},
 		{"ftp scheme", "ftp://example.com/callback"},
+		{"fragment", "https://chatto.example/callback#frag"},
 	}
 
 	for _, tt := range tests {
@@ -179,6 +185,73 @@ func TestOAuthAuthorize_InvalidRedirectURI(t *testing.T) {
 				t.Errorf("expected 400 for redirect_uri %q, got %d", tt.redirectURI, w.Code)
 			}
 		})
+	}
+}
+
+func TestOAuthAuthorize_AllowsConfiguredRedirectOrigin(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("expected 307 for configured redirect origin, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	user, err := s.core.CreateUser(ctx, "", "oauth-victim", "OAuth Victim", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	s.router.GET("/test/login-victim", func(c *gin.Context) {
+		if err := s.createCookieSession(c, user.Id, "test"); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	loginReq := httptest.NewRequest("GET", "/test/login-victim", nil)
+	loginW := httptest.NewRecorder()
+	s.router.ServeHTTP(loginW, loginReq)
+	if loginW.Code != http.StatusNoContent {
+		t.Fatalf("login fixture status = %d, want 204: %s", loginW.Code, loginW.Body.String())
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := core.GenerateCodeChallenge(verifier)
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://evil.example/callback"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"attacker-state"},
+	}.Encode(), nil)
+	for _, cookie := range loginW.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unconfigured redirect, got %d: location=%q body=%s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+	if location := w.Header().Get("Location"); strings.Contains(location, "code=") {
+		t.Fatalf("unconfigured redirect minted code in Location %q", location)
 	}
 }
 
@@ -458,28 +531,34 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 }
 
 func TestIsValidRedirectURI(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
+
 	tests := []struct {
 		uri  string
 		want bool
 	}{
-		{"https://example.com/callback", true},
-		{"https://example.com:8443/callback", true},
+		{"https://chatto.example/callback", true},
+		{"https://client.example/callback", true},
 		{"http://localhost:3000/callback", true},
 		{"http://localhost/callback", true},
 		{"http://127.0.0.1:5173/callback", true},
 		{"http://127.0.0.1/callback", true},
+		{"http://[::1]:5173/callback", true},
+		{"https://evil.example/callback", false},
 		{"http://example.com/callback", false},
 		{"ftp://example.com/callback", false},
 		{"example.com/callback", false},
 		{"/callback", false},
+		{"https://chatto.example/callback#fragment", false},
 		{"", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.uri, func(t *testing.T) {
-			got := isValidRedirectURI(tt.uri)
+			got := s.isAllowedOAuthRedirectURI(tt.uri)
 			if got != tt.want {
-				t.Errorf("isValidRedirectURI(%q) = %v, want %v", tt.uri, got, tt.want)
+				t.Errorf("isAllowedOAuthRedirectURI(%q) = %v, want %v", tt.uri, got, tt.want)
 			}
 		})
 	}

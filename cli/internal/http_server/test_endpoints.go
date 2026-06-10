@@ -262,8 +262,8 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "code_challenge_method must be S256"})
 			return
 		}
-		if !isValidRedirectURI(req.RedirectURI) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri: must be HTTPS or localhost"})
+		if !s.isAllowedOAuthRedirectURI(req.RedirectURI) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri: must use an allowed HTTPS origin or localhost"})
 			return
 		}
 

@@ -11,6 +11,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 - **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
 - **OAuth login** — operators can configure OAuth providers (e.g., Google). The login page shows provider buttons; clicking takes the user through the standard authorization-code flow.
+- **Chatto OAuth authorization** — cross-origin Chatto clients use `/oauth/authorize` with PKCE to obtain a short-lived authorization code, then exchange it at `/oauth/token` for an opaque bearer token. Redirect URIs must use this server's configured `webserver.url` origin, an explicit `webserver.allowed_origins` entry, or a loopback development origin; wildcard CORS does not authorize OAuth redirects.
 - **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries an opaque session ID plus the user ID needed to derive the lookup key; the authoritative `CookieSession` protobuf record lives in `RUNTIME_STATE` under `cookie_session.{userId}.{hmac}` with a per-key TTL. The server validates the KV record and resolves the current user from projections per request.
 - **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL.
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
@@ -65,11 +66,11 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Why:** Without it, users get subtle errors when a deployed schema change lands but their old client is still connected. A "the server has been upgraded, please refresh" toast handles it explicitly.
 **Tradeoff:** The frontend has to handle the toast and the user has to act on it. Considered acceptable for the rare deployment-during-session case.
 
-### 8. OAuth tokens delivered via query parameter
+### 8. OAuth code exchange and redirect-origin allow-list
 
-**Decision:** OAuth callbacks redirect to the frontend with `?token=…` in the URL.
-**Why:** The simplest delivery mechanism. The browser hands the token to the frontend; the frontend stores it (or sets up its cookie session) and replaces the URL to drop the parameter from history.
-**Tradeoff:** The token briefly appears in browser history and server access logs. Acceptable for v1; a code-exchange flow can be added later if needed. See ADR-024.
+**Decision:** Chatto's OAuth authorization endpoint returns a short-lived authorization code to the client's callback; the client exchanges that code plus its PKCE verifier at `/oauth/token` for a bearer token. Redirect URIs are accepted only for trusted origins: the server's own configured `webserver.url` origin, explicit `webserver.allowed_origins` entries, and loopback development origins.
+**Why:** PKCE keeps bearer tokens out of callback URLs, and the redirect allow-list prevents a logged-in user from being tricked into sending an authorization code to an attacker-controlled HTTPS origin. The `allowed_origins = ["*"]` CORS default is intentionally not treated as OAuth trust.
+**Tradeoff:** A separately hosted multi-server frontend must be listed explicitly in each server's `webserver.allowed_origins` before users can connect that server through OAuth. This is more operational setup than accepting arbitrary HTTPS callbacks, but avoids drive-by bearer-token issuance to malicious clients. See ADR-024 and ADR-025.
 
 ### 9. EVT audit facts without raw secrets
 
@@ -97,4 +98,4 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 ## Open Questions
 
 - A "revoke all tokens for this user" admin affordance. Core supports revoke-all for password/account lifecycle flows, but there is no dedicated admin UI action yet.
-- A code-exchange OAuth callback flow to keep the token out of the URL/history. Not currently planned.
+- A consent screen for third-party OAuth clients. Today Chatto relies on trusted redirect origins plus PKCE rather than prompting on each authorization request.

@@ -53,7 +53,8 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 ### Negative
 
 - Remote instance bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
-- `/api/server` is the only cross-origin endpoint (wildcard CORS) — rich data needed pre-registration must go there, not in GraphQL
+- `/api/server` is the only cross-origin endpoint with wildcard CORS — rich data needed pre-registration must go there, not in GraphQL
+- Separately hosted multi-instance frontends must be listed explicitly in each remote server's `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply OAuth redirect trust
 - The probe is async for unauthenticated users, so the origin may not be registered by the time the first render completes
 
 ### Trade-offs

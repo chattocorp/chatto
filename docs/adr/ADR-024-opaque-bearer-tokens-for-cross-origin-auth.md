@@ -31,7 +31,7 @@ To enable a multi-instance client — where a single frontend connects to multip
 
 ## Decision
 
-Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing cookie sessions (not replacing them) on all authentication endpoints. Clients authenticate via the `Authorization: Bearer <token>` HTTP header for GraphQL queries/mutations, and via `connectionParams.token` in the graphql-ws `connection_init` payload for WebSocket subscriptions.
+Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing cookie sessions (not replacing them) on password, registration, and trusted OAuth code-exchange authentication flows. Clients authenticate via the `Authorization: Bearer <token>` HTTP header for GraphQL queries/mutations, and via `connectionParams.token` in the graphql-ws `connection_init` payload for WebSocket subscriptions.
 
 **2026-05 update:** bearer token records now live in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys with per-key TTL. The HMAC input is `session\0{token}` keyed by `[core].secret_key`, so backups can preserve sessions without containing raw bearer-token values.
 
@@ -52,12 +52,18 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 1. Check `Authorization: Bearer <token>` header → validate token → load user
 2. Fall back to session cookie (existing behavior, unchanged)
 
+**OAuth authorization for cross-origin Chatto clients:**
+- Clients start at `/oauth/authorize` with `response_type=code`, PKCE `code_challenge`, and a callback `redirect_uri`.
+- The server only accepts redirect URI origins it trusts: the configured `webserver.url` origin, explicit `webserver.allowed_origins` entries, and loopback development origins. The wildcard CORS default (`*`) does not authorize OAuth redirects.
+- The callback receives a short-lived authorization code, not a bearer token. The client exchanges the code and PKCE verifier at `/oauth/token`.
+- Auth codes are stored as HMAC-derived `grant.{hmac}` runtime-state keys and are deleted on exchange attempt.
+
 ## Consequences
 
-- **Cross-origin clients become possible**: Any client that can send an HTTP header can authenticate, regardless of origin. This unblocks the multi-instance client epic.
+- **Cross-origin clients become possible**: Clients that can obtain a bearer token through a trusted OAuth redirect or another authentication flow can authenticate with an HTTP header. This unblocks the multi-instance client epic without trusting arbitrary web origins.
 - **Cookie auth is unchanged**: The embedded SPA continues to work exactly as before. No migration needed for existing deployments.
 - **No token refresh complexity**: Long-lived tokens with server-side TTL are simple. If a token expires, the client re-authenticates. No refresh token dance.
 - **Instant revocation**: Deleting a KV key immediately invalidates the token. No blocklist management or "wait for JWT expiry" window.
 - **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
 - **No reverse index**: user-wide cleanup does a `session.*` prefix scan and matches the stored user ID. The revocation guarantee comes from the token's stored auth generation being compared to the current user auth generation, so concurrent issuance cannot survive by missing the scan. A secondary index can be added later if token counts make scans too expensive.
-- **OAuth token delivery**: OAuth callbacks append `?token=...` to the redirect URL. This is simple but means the token briefly appears in browser history and server logs. For v1 this is acceptable; a more secure code-exchange flow can be added later if needed.
+- **OAuth redirect setup**: A separately hosted Chatto frontend must be configured in `webserver.allowed_origins` on each server it connects to. This adds an operator step, but prevents malicious sites from using `/oauth/authorize` as a logged-in user's bearer-token minting oracle.

@@ -84,10 +84,10 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		if !isValidRedirectURI(redirectURI) {
+		if !s.isAllowedOAuthRedirectURI(redirectURI) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
-				"error_description": "Invalid redirect_uri: must be HTTPS or localhost",
+				"error_description": "Invalid redirect_uri: must use an allowed HTTPS origin or localhost",
 			})
 			return
 		}
@@ -279,32 +279,79 @@ func hasPendingOAuthAuthorize(session sessions.Session) bool {
 	return redirectURI != ""
 }
 
-// isValidRedirectURI validates a redirect URI for the OAuth authorize flow.
-// Accepts:
-//   - HTTPS URLs (any origin)
-//   - http://localhost:* and http://127.0.0.1:* (for desktop apps and development)
-func isValidRedirectURI(uri string) bool {
+// isAllowedOAuthRedirectURI validates a redirect URI for the OAuth authorize
+// flow. In addition to requiring HTTPS (except loopback development URLs), it
+// only accepts origins this server explicitly trusts: its own public
+// webserver.url origin, webserver.allowed_origins entries, and localhost.
+func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
 	u, err := url.Parse(uri)
 	if err != nil {
 		return false
 	}
 
 	// Must have a scheme and host
-	if u.Scheme == "" || u.Host == "" {
+	if u.Scheme == "" || u.Host == "" || u.User != nil || u.Fragment != "" {
 		return false
 	}
 
-	// HTTPS is always allowed
-	if u.Scheme == "https" {
+	if isLoopbackOAuthRedirectHost(u.Hostname()) {
+		return u.Scheme == "http" || u.Scheme == "https"
+	}
+
+	if u.Scheme != "https" {
+		return false
+	}
+
+	redirectOrigin := canonicalOrigin(u)
+	for _, allowed := range s.allowedOAuthRedirectOrigins() {
+		if redirectOrigin == allowed {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *HTTPServer) allowedOAuthRedirectOrigins() []string {
+	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+1)
+	if origin, ok := parseConfiguredOAuthOrigin(s.config.Webserver.URL); ok {
+		origins = append(origins, origin)
+	}
+	for _, raw := range s.config.Webserver.AllowedOrigins {
+		if raw == "*" {
+			continue
+		}
+		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
+			origins = append(origins, origin)
+		}
+	}
+	return origins
+}
+
+func parseConfiguredOAuthOrigin(raw string) (string, bool) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" || u.User != nil {
+		return "", false
+	}
+	if isLoopbackOAuthRedirectHost(u.Hostname()) {
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return "", false
+		}
+	} else if u.Scheme != "https" {
+		return "", false
+	}
+	return canonicalOrigin(u), true
+}
+
+func canonicalOrigin(u *url.URL) string {
+	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host)
+}
+
+func isLoopbackOAuthRedirectHost(host string) bool {
+	switch strings.ToLower(host) {
+	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
-
-	// HTTP is only allowed for localhost (desktop apps, development)
-	if u.Scheme == "http" {
-		host := strings.Split(u.Host, ":")[0] // strip port
-		return host == "localhost" || host == "127.0.0.1"
-	}
-
 	return false
 }
 
