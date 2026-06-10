@@ -184,6 +184,8 @@ Every frontend response sets:
 | `X-Frame-Options`         | `DENY`                             |
 | `Referrer-Policy`         | `strict-origin-when-cross-origin`  |
 
+Original attachment responses also set `X-Content-Type-Options: nosniff`. Uploaded active document formats such as HTML, XHTML, SVG, and XML are served with `Content-Security-Policy: sandbox`; S3-backed files of those types stream through Chatto instead of redirecting directly to object storage so that policy is preserved.
+
 For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 ## Secret and key storage

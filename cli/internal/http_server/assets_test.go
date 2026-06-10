@@ -192,6 +192,11 @@ func createAssetTestPNG(t *testing.T, width, height int) []byte {
 // doAssetMultipartUpload performs a GraphQL multipart upload request for attachments
 func (env *assetTestEnv) doAssetMultipartUpload(t *testing.T, operations string, fileData []byte, fileName string) *graphqlResponse {
 	t.Helper()
+	return env.doAssetMultipartUploadWithContentType(t, operations, fileData, fileName, "image/png")
+}
+
+func (env *assetTestEnv) doAssetMultipartUploadWithContentType(t *testing.T, operations string, fileData []byte, fileName, contentType string) *graphqlResponse {
+	t.Helper()
 
 	// Create multipart form
 	var body bytes.Buffer
@@ -210,7 +215,7 @@ func (env *assetTestEnv) doAssetMultipartUpload(t *testing.T, operations string,
 	// Add file with correct content type header
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="0"; filename="%s"`, fileName))
-	h.Set("Content-Type", "image/png") // Set content type explicitly for PNG images
+	h.Set("Content-Type", contentType)
 	part, err := writer.CreatePart(h)
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
@@ -562,6 +567,206 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	}
 	if len(body) == 0 {
 		t.Error("Expected non-empty response body")
+	}
+}
+
+func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
+	env := setupAssetTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "sandboxuser", "Sandbox User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "sandboxroom", "Sandbox Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "sandboxuser", "password123")
+
+	operations := fmt.Sprintf(`{
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url contentType } } } } }",
+		"variables": { "roomId": "%s", "body": "html attachment", "file": null }
+	}`, room.Id)
+	resp := env.doAssetMultipartUploadWithContentType(
+		t,
+		operations,
+		[]byte("<!doctype html><script>window.__ran = true</script>"),
+		"demo.html",
+		"text/html; charset=utf-8",
+	)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Failed to post message with HTML attachment: %v", resp.Errors)
+	}
+
+	var data struct {
+		PostMessage struct {
+			Event struct {
+				Attachments []struct {
+					ID          string `json:"id"`
+					URL         string `json:"url"`
+					ContentType string `json:"contentType"`
+				} `json:"attachments"`
+			} `json:"event"`
+		} `json:"postMessage"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	if len(data.PostMessage.Event.Attachments) != 1 {
+		t.Fatalf("Expected one attachment, got %d", len(data.PostMessage.Event.Attachments))
+	}
+	attachment := data.PostMessage.Event.Attachments[0]
+
+	stableResp, err := env.client.Get(env.server.URL + attachment.URL)
+	if err != nil {
+		t.Fatalf("Failed to fetch stable attachment URL: %v", err)
+	}
+	stableResp.Body.Close()
+	if stableResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected stable attachment status 200, got %d", stableResp.StatusCode)
+	}
+	assertSandboxedOriginalAttachment(t, stableResp)
+
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	signedURL := env.core.GetAttachmentURL(loc, user.Id)
+	legacyResp, err := (&http.Client{}).Get(env.server.URL + signedURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch legacy signed attachment URL: %v", err)
+	}
+	legacyResp.Body.Close()
+	if legacyResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected legacy signed attachment status 200, got %d", legacyResp.StatusCode)
+	}
+	assertSandboxedOriginalAttachment(t, legacyResp)
+	assertLegacySandboxedAttachmentCache(t, legacyResp)
+}
+
+func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "s3sandboxuser", "S3 Sandbox User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "s3sandboxroom", "S3 Sandbox Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "s3sandboxuser", "password123")
+
+	operations := fmt.Sprintf(`{
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
+		"variables": { "roomId": "%s", "body": "s3 html attachment", "file": null }
+	}`, room.Id)
+	resp := env.doAssetMultipartUploadWithContentType(
+		t,
+		operations,
+		[]byte("<!doctype html><script>window.__ran = true</script>"),
+		"s3-demo.html",
+		"text/html",
+	)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("Failed to post message with S3 HTML attachment: %v", resp.Errors)
+	}
+
+	var data struct {
+		PostMessage struct {
+			Event struct {
+				Attachments []struct {
+					ID  string `json:"id"`
+					URL string `json:"url"`
+				} `json:"attachments"`
+			} `json:"event"`
+		} `json:"postMessage"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	if len(data.PostMessage.Event.Attachments) != 1 {
+		t.Fatalf("Expected one attachment, got %d", len(data.PostMessage.Event.Attachments))
+	}
+	attachment := data.PostMessage.Event.Attachments[0]
+
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	stableResp, err := noRedirectClient.Get(env.server.URL + attachment.URL)
+	if err != nil {
+		t.Fatalf("Failed to fetch S3 stable attachment URL: %v", err)
+	}
+	stableResp.Body.Close()
+	if stableResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected S3 stable attachment to stream with 200, got %d", stableResp.StatusCode)
+	}
+	assertSandboxedOriginalAttachment(t, stableResp)
+
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	signedURL := env.core.GetAttachmentURL(loc, user.Id)
+	legacyResp, err := noRedirectClient.Get(env.server.URL + signedURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch S3 legacy signed attachment URL: %v", err)
+	}
+	legacyResp.Body.Close()
+	if legacyResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected S3 legacy attachment to stream with 200, got %d", legacyResp.StatusCode)
+	}
+	assertSandboxedOriginalAttachment(t, legacyResp)
+	assertLegacySandboxedAttachmentCache(t, legacyResp)
+}
+
+func TestOriginalAttachmentNeedsSandbox(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		want        bool
+	}{
+		{name: "HTML", contentType: "text/html", want: true},
+		{name: "HTML with parameters", contentType: "text/html; charset=utf-8", want: true},
+		{name: "XHTML", contentType: "application/xhtml+xml", want: true},
+		{name: "SVG", contentType: "image/svg+xml", want: true},
+		{name: "XML", contentType: "application/xml", want: true},
+		{name: "XML suffix", contentType: "application/atom+xml", want: true},
+		{name: "PNG", contentType: "image/png", want: false},
+		{name: "PDF", contentType: "application/pdf", want: false},
+		{name: "unknown", contentType: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := originalAttachmentNeedsSandbox(tt.contentType); got != tt.want {
+				t.Fatalf("originalAttachmentNeedsSandbox(%q) = %v, want %v", tt.contentType, got, tt.want)
+			}
+		})
+	}
+}
+
+func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response) {
+	t.Helper()
+	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); got != originalAttachmentSandboxCSP {
+		t.Fatalf("Content-Security-Policy = %q, want %q", got, originalAttachmentSandboxCSP)
+	}
+	if got := resp.Header.Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", got)
+	}
+}
+
+func assertLegacySandboxedAttachmentCache(t *testing.T, resp *http.Response) {
+	t.Helper()
+	want := fmt.Sprintf("private, max-age=%d", int(core.AttachmentURLTTL.Seconds()))
+	if got := resp.Header.Get("Cache-Control"); got != want {
+		t.Fatalf("Cache-Control = %q, want %q", got, want)
 	}
 }
 

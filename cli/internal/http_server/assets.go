@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -121,12 +122,15 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 
 	s.logger.Debug("Serving attachment", "attachment_id", loc.AttachmentID)
 
-	// Try S3 presigned redirect first (zero-copy, full Range support).
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-		// Cache the redirect itself — the attachment URL is immutable
-		c.Header("Cache-Control", "public, max-age=3600")
-		c.Redirect(http.StatusFound, presignedURL)
-		return
+	// Try S3 presigned redirect first (zero-copy, full Range support) for
+	// attachment types that do not need Chatto-served security headers.
+	if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
+			// Cache the redirect itself — the attachment URL is immutable
+			c.Header("Cache-Control", "public, max-age=3600")
+			c.Redirect(http.StatusFound, presignedURL)
+			return
+		}
 	}
 
 	// Otherwise stream from the recorded backend.
@@ -144,9 +148,9 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	setOriginalAttachmentSecurityHeaders(c, contentType)
 
-	// Immutable asset - cache forever
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("Cache-Control", legacyAttachmentCacheControl(contentType))
 	c.Header("ETag", fmt.Sprintf("\"%s\"", loc.AttachmentID))
 	c.Header("Vary", "Accept-Encoding")
 
@@ -176,10 +180,14 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
 		// Try S3 presigned redirect first (zero-copy, full Range support) after
 		// validating the asset ticket/request credentials and room membership.
-		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-			c.Header("Cache-Control", "private, max-age=3600")
-			c.Redirect(http.StatusFound, presignedURL)
-			return
+		// Active document formats must stream through Chatto so the sandbox CSP
+		// below cannot be bypassed by S3's response headers.
+		if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+			if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
+				c.Header("Cache-Control", "private, max-age=3600")
+				c.Redirect(http.StatusFound, presignedURL)
+				return
+			}
 		}
 	}
 
@@ -197,11 +205,47 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	setOriginalAttachmentSecurityHeaders(c, contentType)
 
 	c.Header("Cache-Control", "private, max-age=3600")
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
 	c.Header("Vary", "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
+}
+
+const originalAttachmentSandboxCSP = "sandbox"
+
+func setOriginalAttachmentSecurityHeaders(c *gin.Context, contentType string) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	if originalAttachmentNeedsSandbox(contentType) {
+		c.Header("Content-Security-Policy", originalAttachmentSandboxCSP)
+	}
+}
+
+func attachmentCanUsePresignedRedirect(contentType string) bool {
+	return !originalAttachmentNeedsSandbox(contentType)
+}
+
+func originalAttachmentNeedsSandbox(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.Split(contentType, ";")[0])
+	}
+	mediaType = strings.ToLower(mediaType)
+
+	switch mediaType {
+	case "text/html", "application/xhtml+xml", "image/svg+xml", "application/xml", "text/xml":
+		return true
+	default:
+		return strings.HasSuffix(mediaType, "+xml")
+	}
+}
+
+func legacyAttachmentCacheControl(contentType string) string {
+	if originalAttachmentNeedsSandbox(contentType) {
+		return fmt.Sprintf("private, max-age=%d", int(core.AttachmentURLTTL.Seconds()))
+	}
+	return "public, max-age=31536000, immutable"
 }
 
 // serveStableTransformedAttachment serves an authenticated image derivative:
