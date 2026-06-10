@@ -10,44 +10,44 @@ export class SpaceAdminPage {
 
   // --- Locators ---
 
-  /** The Administration nav entry in the space sidebar. */
+  /** The Administration group toggle in the space sidebar. */
   get adminLink(): Locator {
-    return this.page.locator('nav a', { hasText: 'Administration' });
+    return this.page.locator('nav').first().getByRole('button', { name: 'Administration' });
   }
 
-  /** Sidebar navigation item for the admin landing (Dashboard) page. */
+  /** Expanded Administration child link container. */
+  get adminLinks(): Locator {
+    return this.page.locator('#server-admin-sidebar-links');
+  }
+
+  /** Back-compat default admin nav item. */
   get homeNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Dashboard' });
+    return this.generalNavItem;
   }
 
   /** Sidebar navigation item for General settings */
   get generalNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'General' });
+    return this.adminLinks.getByRole('link', { name: 'General', exact: true });
   }
 
   /** Sidebar navigation item for Rooms settings */
   get roomsNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Rooms' });
+    return this.adminLinks.getByRole('link', { name: 'Rooms', exact: true });
   }
 
   /** Sidebar navigation item for Permissions settings */
   get rolesNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Permissions' });
+    return this.adminLinks.getByRole('link', { name: 'Permissions', exact: true });
   }
 
   /** Sidebar navigation item for the Members settings page. */
   get membersNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Members' });
+    return this.adminLinks.getByRole('link', { name: 'Members', exact: true });
   }
 
   /** Access Denied heading */
   get accessDeniedHeading(): Locator {
     return this.page.getByText('Access Denied', { exact: true });
-  }
-
-  /** Admin placeholder message (shown when user has partial permissions) */
-  get adminPlaceholderMessage(): Locator {
-    return this.page.getByText('Server Dashboard coming soon');
   }
 
   /** General settings heading (shown when user has space.manage permission) */
@@ -56,7 +56,7 @@ export class SpaceAdminPage {
     return this.page.locator('h1', { hasText: 'General' });
   }
 
-  /** Back to Space link in sidebar */
+  /** Legacy back-to-space locator from the retired admin-only sidebar. */
   get backToSpaceLink(): Locator {
     return this.page.getByRole('link', { name: 'Back to Space' });
   }
@@ -131,11 +131,9 @@ export class SpaceAdminPage {
     return this.page.getByRole('heading', { name: 'Banner', exact: true });
   }
 
-  /** The admin home page heading (in main content, not sidebar). Was:
-   * "Space Admin"; post-merge the unified server-admin landing page reads
-   * "Dashboard". */
+  /** The default admin page heading. */
   get pageHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Dashboard', level: 1 }).last();
+    return this.page.getByRole('heading', { name: 'General', level: 1 }).last();
   }
 
   /** The sidebar heading showing the server name in admin mode. */
@@ -150,8 +148,9 @@ export class SpaceAdminPage {
    */
   async goto(spaceId: string): Promise<void> {
     await this.page.goto(routes.space());
-    await this.adminLink.click();
-    await this.page.waitForURL(routes.serverAdmin());
+    await this.expandAdminGroup();
+    await this.homeNavItem.click();
+    await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -159,7 +158,7 @@ export class SpaceAdminPage {
    * Navigate directly to the admin page URL.
    */
   async gotoDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdmin());
+    await this.page.goto(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -167,8 +166,9 @@ export class SpaceAdminPage {
    * Click the Admin link in the sidebar (from a space page).
    */
   async clickAdminLink(spaceId: string): Promise<void> {
-    await this.adminLink.click();
-    await this.page.waitForURL(routes.serverAdmin());
+    await this.expandAdminGroup();
+    await this.homeNavItem.click();
+    await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -194,6 +194,13 @@ export class SpaceAdminPage {
   async updateName(name: string): Promise<void> {
     await this.setName(name);
     await this.save();
+  }
+
+  async expandAdminGroup(): Promise<void> {
+    await expect(this.adminLink).toBeVisible();
+    if ((await this.adminLink.getAttribute('aria-expanded')) !== 'true') {
+      await this.adminLink.click();
+    }
   }
 
   // --- Logo Interactions ---
@@ -428,56 +435,60 @@ export class SpaceAdminPage {
   // --- Nav Item Visibility Assertions ---
 
   /**
-   * Assert that the Home nav item is visible in the admin sidebar.
+   * Assert that the default admin nav item is visible in the Administration group.
    */
   async expectHomeNavVisible(): Promise<void> {
+    await this.expandAdminGroup();
     await expect(this.homeNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the Home nav item is NOT visible in the admin sidebar.
+   * Assert that the default admin nav item is NOT visible in the Administration group.
    */
   async expectHomeNavNotVisible(): Promise<void> {
     await expect(this.homeNavItem).not.toBeVisible();
   }
 
   /**
-   * Assert that the General nav item is visible in the admin sidebar.
+   * Assert that the General nav item is visible in the Administration group.
    */
   async expectGeneralNavVisible(): Promise<void> {
+    await this.expandAdminGroup();
     await expect(this.generalNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the General nav item is NOT visible in the admin sidebar.
+   * Assert that the General nav item is NOT visible in the Administration group.
    */
   async expectGeneralNavNotVisible(): Promise<void> {
     await expect(this.generalNavItem).not.toBeVisible();
   }
 
   /**
-   * Assert that the Members nav item is visible in the admin sidebar.
+   * Assert that the Members nav item is visible in the Administration group.
    */
   async expectMembersNavVisible(): Promise<void> {
+    await this.expandAdminGroup();
     await expect(this.membersNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the Members nav item is NOT visible in the admin sidebar.
+   * Assert that the Members nav item is NOT visible in the Administration group.
    */
   async expectMembersNavNotVisible(): Promise<void> {
     await expect(this.membersNavItem).not.toBeVisible();
   }
 
   /**
-   * Assert that the Roles nav item is visible in the admin sidebar.
+   * Assert that the Roles nav item is visible in the Administration group.
    */
   async expectRolesNavVisible(): Promise<void> {
+    await this.expandAdminGroup();
     await expect(this.rolesNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the Roles nav item is NOT visible in the admin sidebar.
+   * Assert that the Roles nav item is NOT visible in the Administration group.
    */
   async expectRolesNavNotVisible(): Promise<void> {
     await expect(this.rolesNavItem).not.toBeVisible();
@@ -526,14 +537,6 @@ export class SpaceAdminPage {
    */
   async gotoMemberDetails(spaceId: string, userId: string): Promise<void> {
     await this.page.goto(routes.serverAdminMember(userId));
-  }
-
-  /**
-   * Assert that the admin placeholder message is visible.
-   * This is shown to users who have some admin permissions but not space.manage.
-   */
-  async expectAdminPlaceholderVisible(): Promise<void> {
-    await expect(this.adminPlaceholderMessage).toBeVisible();
   }
 
   /**

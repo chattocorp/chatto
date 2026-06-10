@@ -82,6 +82,7 @@ test.describe('Admin Access Control', () => {
 
     // Should see access denied message
     await adminPage.expectAccessDenied();
+    await adminPage.expectAdministrationGroupNotVisible();
     await expect(
       page.getByText('You do not have permission to access this page.')
     ).toBeVisible();
@@ -104,29 +105,33 @@ test.describe('Admin Access Control', () => {
   });
 });
 
-test.describe('Admin Dashboard', () => {
-  test('admin users can access the dashboard', async ({ page, adminPage }) => {
+test.describe('Admin General Page', () => {
+  test('admin users can access the default admin destination', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.goto();
 
-    // Should see the dashboard
-    await adminPage.expectDashboardVisible();
+    // Should see the General settings page
+    await adminPage.expectGeneralPageVisible();
+
+    // Admin pages keep the normal server sidebar; the inline admin group
+    // starts expanded on admin routes and highlights the current page.
+    await adminPage.expectBackToChatVisible();
+    await adminPage.expectAdministrationGroupVisible();
+    await adminPage.expectAdministrationExpanded();
+    await adminPage.expectAdministrationGroupNotActive();
+    await adminPage.expectSidebarLinkActive('General');
 
     // Should see the sidebar navigation
     await adminPage.expectSidebarNavVisible();
-
-    // Should see the back to chat link
-    await adminPage.expectBackToChatVisible();
   });
 
-  test('dashboard shows user and space counts', async ({ page, adminPage }) => {
+  test('default admin destination shows General settings', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.goto();
 
-    // Wait for stats to load
-    await adminPage.expectDashboardStatsVisible();
+    await adminPage.expectGeneralPageVisible();
   });
 });
 
@@ -157,7 +162,7 @@ test.describe('Admin Users Page', () => {
 });
 
 // Admin Spaces page retired in PR(a) — instance metadata is managed via the
-// Server Admin → General page now; the dashboard no longer has a "spaces" tier.
+// Server Admin → General page now; the old spaces tier is gone.
 
 test.describe('Admin System Page', () => {
   test('admin can view system information', async ({ page, adminPage }) => {
@@ -177,6 +182,37 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
+  test('administration group toggles inline admin links', async ({ page, adminPage }) => {
+    await createAndLoginAdminUser(page);
+
+    await adminPage.goto();
+
+    await adminPage.expectAdministrationGroupVisible();
+    await adminPage.expectAdministrationExpanded();
+    await adminPage.expectSidebarLinkVisible('General');
+    await adminPage.expectSidebarLinkVisible('Users');
+
+    await adminPage.collapseAdministration();
+    await adminPage.expectAdministrationCollapsed();
+    await adminPage.expectSidebarLinkNotVisible('General');
+
+    await adminPage.expandAdministration();
+    await adminPage.expectAdministrationExpanded();
+    await adminPage.expectSidebarLinkVisible('General');
+  });
+
+  test('admin pages keep the normal server sidebar shell', async ({ page, adminPage }) => {
+    await createAndLoginAdminUser(page);
+
+    await adminPage.gotoUsers();
+
+    await adminPage.expectUsersPageVisible();
+    await adminPage.expectBackToChatVisible();
+    await adminPage.expectAdministrationGroupVisible();
+    await adminPage.expectAdministrationExpanded();
+    await adminPage.expectSidebarLinkActive('Users');
+  });
+
   test('sidebar navigation works correctly', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
@@ -190,9 +226,9 @@ test.describe('Admin Navigation', () => {
     await adminPage.navigateToSystem();
     await adminPage.expectSystemPageVisible();
 
-    // Navigate back to Dashboard
-    await adminPage.navigateToDashboard();
-    await adminPage.expectDashboardVisible();
+    // Navigate back to General
+    await adminPage.navigateToGeneral();
+    await adminPage.expectGeneralPageVisible();
   });
 
   test('back to chat link works', async ({ page, adminPage }) => {
@@ -232,7 +268,7 @@ test.describe('Admin Granular Permissions', () => {
     }
   });
 
-  test('user with a concrete admin capability can access dashboard', async ({
+  test('user with a concrete admin capability can access their admin section', async ({
     page,
     browser
   }) => {
@@ -246,10 +282,17 @@ test.describe('Admin Granular Permissions', () => {
     const regularAdminPage = new AdminPage(regularPage);
     await createAndLoginTestUser(regularPage);
 
-    await regularAdminPage.goto();
+    await regularAdminPage.gotoUsers();
 
-    // Should see the dashboard (not access denied)
-    await regularAdminPage.expectDashboardVisible();
+    // Should see the permitted section (not access denied) and an inline admin group
+    // whose permitted links start hidden until expanded.
+    await regularAdminPage.expectUsersPageVisible();
+    await regularAdminPage.expectAdministrationGroupVisible();
+    await regularAdminPage.expectAdministrationExpanded();
+    await regularAdminPage.expectSidebarLinkVisible('Users');
+    await regularAdminPage.expectSidebarLinkActive('Users');
+    await regularAdminPage.collapseAdministration();
+    await regularAdminPage.expectSidebarLinkNotVisible('Users');
 
     // Clean up: revoke the permission
     await revokePermission(page, 'everyone', 'admin.view-users');
@@ -270,10 +313,10 @@ test.describe('Admin Granular Permissions', () => {
     const regularAdminPage = new AdminPage(regularPage);
     await createAndLoginTestUser(regularPage);
 
-    await regularAdminPage.goto();
+    await regularPage.goto(routes.serverAdminRooms);
 
-    // Should see dashboard in nav
-    await regularAdminPage.expectSidebarLinkVisible('Dashboard');
+    // Should see their concrete admin section in nav
+    await regularAdminPage.expectSidebarLinkVisible('Rooms');
 
     // Should NOT see Users, System (no permissions for those)
     await regularAdminPage.expectSidebarLinkNotVisible('Users');
@@ -401,10 +444,10 @@ test.describe('Admin Granular Permissions', () => {
     const regularAdminPage = new AdminPage(regularPage);
     await createAndLoginTestUser(regularPage);
 
-    await regularAdminPage.goto();
+    await regularPage.goto(routes.serverAdminRooms);
 
-    // Initially should only see Dashboard
-    await regularAdminPage.expectSidebarLinkVisible('Dashboard');
+    // Initially should only see the room management section
+    await regularAdminPage.expectSidebarLinkVisible('Rooms');
     await regularAdminPage.expectSidebarLinkNotVisible('Users');
 
     // Now grant admin.view-users permission as admin
@@ -459,7 +502,7 @@ test.describe('User Permission Management', () => {
     const regularUser = await createAndLoginTestUser(regularPage);
 
     // Regular user should NOT have admin access initially
-    await regularAdminPage.goto();
+    await regularAdminPage.gotoUsers();
     await expect(regularPage.getByText('Access Denied', { exact: true })).toBeVisible();
 
     // Create a role with an admin-view capability and assign it to the user.
@@ -470,7 +513,7 @@ test.describe('User Permission Management', () => {
 
     // Regular user should now have admin access
     await regularPage.reload();
-    await regularAdminPage.expectDashboardVisible();
+    await regularAdminPage.expectUsersPageVisible();
 
     // Clean up
     await revokeRoleViaAPI(page, regularUser.id!, roleName);

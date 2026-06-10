@@ -1120,8 +1120,8 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration link should NOT be visible
-      await expect(page.getByRole('link', { name: 'Administration' })).not.toBeVisible();
+      // Administration group should NOT be visible
+      await expect(page.getByRole('button', { name: 'Administration' })).not.toBeVisible();
     });
 
     test('administration link visible when user has room.manage permission', async ({ page }) => {
@@ -1145,8 +1145,8 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration link should be visible
-      await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible();
+      // Administration group should be visible
+      await expect(page.getByRole('button', { name: 'Administration' })).toBeVisible();
     });
   });
 });

@@ -92,10 +92,10 @@ export const serverAdminMemberPermissions = (userId: string) =>
 // Back-compat aliases — the dedicated /admin route tree was removed once
 // instance admin folded into server admin. Existing tests that reference
 // the old names keep working via these forward pointers.
-export const admin = serverAdmin();
+export const admin = serverAdminGeneral;
 export const adminUsers = serverAdminMembers;
 export const adminUser = serverAdminMember;
-export const adminSpaces = serverAdmin();
+export const adminSpaces = serverAdminMembers;
 export const adminSystem = serverAdminSystem;
 export const adminRoles = serverAdminPermissions;
 export const adminRole = serverAdminPermission;

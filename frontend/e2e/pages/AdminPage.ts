@@ -4,7 +4,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the unified server-admin interface (/chat/-/server-admin).
- * Handles admin navigation, dashboard, members, system, runtime, and permissions pages.
+ * Handles admin navigation, general settings, members, system, runtime, and permissions pages.
  *
  * The legacy /chat/-/admin route tree was folded into server-admin once the
  * "instance" vs "space" distinction collapsed; the back-compat aliases in
@@ -26,12 +26,22 @@ export class AdminPage {
     return this.page.locator('div.flex-1.flex-col').first();
   }
 
-  /** Dashboard link in sidebar */
-  get dashboardLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Dashboard' });
+  /** Inline Administration group toggle in the main server sidebar. */
+  get administrationButton(): Locator {
+    return this.sidebar.getByRole('button', { name: 'Administration' });
   }
 
-  /** Members link in sidebar. */
+  /** General settings link inside the expanded Administration group. */
+  get generalLink(): Locator {
+    return this.sidebar.getByRole('link', { name: 'General' });
+  }
+
+  /** Normal chat overview link in the main server sidebar. */
+  get overviewLink(): Locator {
+    return this.sidebar.getByRole('link', { name: 'Overview' });
+  }
+
+  /** Members link inside the expanded Administration group. */
   get usersLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Members' });
   }
@@ -41,19 +51,24 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Members' });
   }
 
-  /** System link in sidebar */
+  /** Rooms link inside the expanded Administration group. */
+  get roomsLink(): Locator {
+    return this.sidebar.getByRole('link', { name: 'Rooms' });
+  }
+
+  /** System link inside the expanded Administration group. */
   get systemLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'System' });
   }
 
-  /** Permissions link in sidebar */
+  /** Permissions link inside the expanded Administration group. */
   get rolesLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Permissions' });
   }
 
-  /** Back-to-chat link (chrome admin nav uses the label "Back to Server"). */
+  /** Back-to-chat affordance. Admin pages now keep the normal server sidebar. */
   get backToChatLink(): Locator {
-    return this.page.getByRole('link', { name: /back to (chat|space|server)/i });
+    return this.overviewLink;
   }
 
   /** Access denied message */
@@ -66,13 +81,13 @@ export class AdminPage {
    * AccessDenied uses the label "Return to Server".
    */
   get returnToChatLink(): Locator {
-    return this.page.getByRole('link', { name: /return to (chat|space|server|dashboard)/i });
+    return this.page.getByRole('link', { name: /return to (chat|space|server)/i });
   }
 
   // --- Navigation Methods ---
 
   /**
-   * Navigate to the admin dashboard.
+   * Navigate to the default admin destination.
    */
   async goto(): Promise<void> {
     await this.page.goto(routes.admin);
@@ -142,22 +157,40 @@ export class AdminPage {
   /**
    * Navigate using sidebar links.
    */
-  async navigateToDashboard(): Promise<void> {
-    await this.dashboardLink.click();
+  async expandAdministration(): Promise<void> {
+    await expect(this.administrationButton).toBeVisible();
+    if ((await this.administrationButton.getAttribute('aria-expanded')) !== 'true') {
+      await this.administrationButton.click();
+    }
+  }
+
+  async collapseAdministration(): Promise<void> {
+    await expect(this.administrationButton).toBeVisible();
+    if ((await this.administrationButton.getAttribute('aria-expanded')) === 'true') {
+      await this.administrationButton.click();
+    }
+  }
+
+  async navigateToGeneral(): Promise<void> {
+    await this.expandAdministration();
+    await this.generalLink.click();
     await this.page.waitForURL(routes.admin);
   }
 
   async navigateToUsers(): Promise<void> {
+    await this.expandAdministration();
     await this.usersLink.click();
     await this.page.waitForURL(routes.adminUsers);
   }
 
   async navigateToSpaces(): Promise<void> {
+    await this.expandAdministration();
     await this.spacesLink.click();
     await this.page.waitForURL(routes.adminSpaces);
   }
 
   async navigateToSystem(): Promise<void> {
+    await this.expandAdministration();
     await this.systemLink.click();
     await this.page.waitForURL(routes.adminSystem);
   }
@@ -296,11 +329,10 @@ export class AdminPage {
   // --- Assertions ---
 
   /**
-   * Assert that the dashboard page is visible.
+   * Assert that the General settings page is visible.
    */
-  async expectDashboardVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-    await expect(this.page.getByText('Server Dashboard coming soon')).toBeVisible();
+  async expectGeneralPageVisible(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
   }
 
   /**
@@ -360,25 +392,45 @@ export class AdminPage {
     await expect(this.accessDeniedMessage).toBeVisible();
   }
 
-  /**
-   * Assert that the sidebar navigation items are visible.
-   */
+  /** Assert that the inline Administration group exposes admin navigation. */
   async expectSidebarNavVisible(): Promise<void> {
-    await expect(this.dashboardLink).toBeVisible();
+    await this.expandAdministration();
+    await expect(this.generalLink).toBeVisible();
     await expect(this.usersLink).toBeVisible();
     await expect(this.systemLink).toBeVisible();
+  }
+
+  async expectAdministrationGroupVisible(): Promise<void> {
+    await expect(this.administrationButton).toBeVisible();
+  }
+
+  async expectAdministrationGroupNotVisible(): Promise<void> {
+    await expect(this.administrationButton).not.toBeVisible();
+  }
+
+  async expectAdministrationCollapsed(): Promise<void> {
+    await expect(this.administrationButton).toHaveAttribute('aria-expanded', 'false');
+  }
+
+  async expectAdministrationExpanded(): Promise<void> {
+    await expect(this.administrationButton).toHaveAttribute('aria-expanded', 'true');
+  }
+
+  async expectAdministrationGroupNotActive(): Promise<void> {
+    await expect(this.administrationButton).not.toHaveClass(/bg-surface-100/);
   }
 
   /**
    * Assert that a sidebar link is NOT visible (limited permissions).
    */
   async expectSidebarLinkNotVisible(
-    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles' | 'Permissions'
+    linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
     const linkMap = {
-      Dashboard: this.dashboardLink,
+      General: this.generalLink,
       Users: this.usersLink,
       Spaces: this.spacesLink,
+      Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
       Permissions: this.rolesLink
@@ -390,12 +442,14 @@ export class AdminPage {
    * Assert that a sidebar link IS visible.
    */
   async expectSidebarLinkVisible(
-    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles' | 'Permissions'
+    linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
+    await this.expandAdministration();
     const linkMap = {
-      Dashboard: this.dashboardLink,
+      General: this.generalLink,
       Users: this.usersLink,
       Spaces: this.spacesLink,
+      Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
       Permissions: this.rolesLink
@@ -403,9 +457,23 @@ export class AdminPage {
     await expect(linkMap[linkName]).toBeVisible();
   }
 
-  /**
-   * Assert that the back to chat link is visible.
-   */
+  async expectSidebarLinkActive(
+    linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
+  ): Promise<void> {
+    await this.expandAdministration();
+    const linkMap = {
+      General: this.generalLink,
+      Users: this.usersLink,
+      Spaces: this.spacesLink,
+      Rooms: this.roomsLink,
+      System: this.systemLink,
+      Roles: this.rolesLink,
+      Permissions: this.rolesLink
+    };
+    await expect(linkMap[linkName]).toHaveClass(/bg-surface-100/);
+  }
+
+  /** Assert that the normal server sidebar offers a way back to chat. */
   async expectBackToChatVisible(): Promise<void> {
     await expect(this.backToChatLink).toBeVisible();
   }
@@ -415,13 +483,6 @@ export class AdminPage {
    */
   async expectReturnToChatVisible(): Promise<void> {
     await expect(this.returnToChatLink).toBeVisible();
-  }
-
-  /**
-   * Assert the placeholder dashboard is visible.
-   */
-  async expectDashboardStatsVisible(): Promise<void> {
-    await expect(this.mainContent.getByText('Server Dashboard coming soon')).toBeVisible();
   }
 
   /**

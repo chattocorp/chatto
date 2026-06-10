@@ -248,13 +248,12 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.goto(space.id);
 
       // Admin should see all nav items
-      await spaceAdminPage.expectHomeNavVisible();
       await spaceAdminPage.expectGeneralNavVisible();
       await spaceAdminPage.expectMembersNavVisible();
       await spaceAdminPage.expectRolesNavVisible();
     });
 
-    test('member with only role.assign permission sees Home and Members nav items', async ({
+    test('member with only role.assign permission sees Members nav item', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -278,8 +277,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       // Wait for page to load
       await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
 
-      // Should see Home (always visible) and Members (has role.assign)
-      await spaceAdminPage.expectHomeNavVisible();
+      // Should see Members (has role.assign)
       await spaceAdminPage.expectMembersNavVisible();
 
       // Should NOT see other permission-gated nav items
@@ -287,7 +285,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectRolesNavNotVisible();
     });
 
-    test('member with only role.manage permission sees Home and Roles nav items', async ({
+    test('member with only role.manage permission sees Roles nav item', async ({
       spaceAdminPage,
       spaceRolesPage
     }) => {
@@ -309,8 +307,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       // Navigate directly to roles page using the roles page object
       await spaceRolesPage.gotoRolesList(space.id);
 
-      // Should see Home (always visible) and Roles (has role.manage)
-      await spaceAdminPage.expectHomeNavVisible();
+      // Should see Roles (has role.manage)
       await spaceAdminPage.expectRolesNavVisible();
 
       // Should NOT see other permission-gated nav items
@@ -320,7 +317,7 @@ test.describe('Space Admin Navigation Permissions', () => {
   });
 
   test.describe('Route authorization', () => {
-    test('member without any admin permissions sees Access Denied on settings home', async ({
+    test('member without any admin permissions sees Access Denied on General settings', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -335,14 +332,14 @@ test.describe('Space Admin Navigation Permissions', () => {
       await loginUser(page, member.login, member.password);
       await joinSpaceViaAPI(page, space.id);
 
-      // Navigate directly to settings URL
-      await page.goto(routes.serverAdmin());
+      // Navigate directly to a concrete admin URL
+      await page.goto(routes.serverAdminGeneral);
 
       // Should see Access Denied (has no admin permissions at all)
       await spaceAdminPage.expectAccessDenied();
     });
 
-    test('member with partial admin permissions sees placeholder on settings home', async ({
+    test('member with partial admin permissions can access their concrete section', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -360,16 +357,16 @@ test.describe('Space Admin Navigation Permissions', () => {
       await loginUser(page, member.login, member.password);
       await joinSpaceViaAPI(page, space.id);
 
-      // Navigate to settings home
-      await page.goto(routes.serverAdmin());
+      // Navigate to the concrete section unlocked by role.assign
+      await page.goto(routes.serverAdminMembers);
 
-      // Should see placeholder, NOT Access Denied and NOT General settings
+      // Should see Members, NOT Access Denied and NOT General settings
       await spaceAdminPage.expectAccessNotDenied();
+      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
       await spaceAdminPage.expectGeneralSettingsNotVisible();
-      await spaceAdminPage.expectAdminPlaceholderVisible();
     });
 
-    test('admin sees dashboard on settings home (not General settings)', async ({
+    test('admin uses General as the first concrete admin page', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -378,12 +375,9 @@ test.describe('Space Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to settings home — post instance/space-admin merge this is
-      // the unified server-admin Dashboard, not an empty placeholder.
       await spaceAdminPage.goto(space.id);
 
-      await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
-      await spaceAdminPage.expectGeneralSettingsNotVisible();
+      await spaceAdminPage.expectGeneralSettingsVisible();
       await spaceAdminPage.expectAccessNotDenied();
     });
 

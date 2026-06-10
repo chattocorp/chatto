@@ -1,4 +1,5 @@
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- admin child hrefs are resolved when adminNavItems is built */
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -31,6 +32,8 @@
     resolve('/chat/[serverId]/server-admin', { serverId: serverSegment })
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
+  let adminGroupExpanded = $state(false);
+  let wasAdminMode = $state(false);
 
   // Detect if we're in user settings mode
   const settingsPrefix = $derived(
@@ -239,26 +242,19 @@
   // Read server-wide permissions for admin-flavoured nav items (system, audit).
   const serverPerms = getServerPermissions();
 
-  // Whether the user can access ANY admin/settings feature (used to decide
-  // whether to show the gear cog in the SpaceHeader).
-  const canAccessAnySettings = $derived(
-    !!spaceData?.hasAnyAdminPermission || serverPerms.current.canViewAdmin
-  );
+  $effect(() => {
+    if (isAdminMode && !wasAdminMode) {
+      adminGroupExpanded = true;
+    }
+    wasAdminMode = isAdminMode;
+  });
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived.by(() => {
     if (!spaceData) return [];
+    if (!spaceData.hasAnyAdminPermission && !serverPerms.current.canViewAdmin) return [];
 
     const items: { href: string; label: string; icon: string }[] = [];
-
-    // Home is always visible (landing page for admin)
-    const adminBase = resolve('/chat/[serverId]/server-admin', { serverId: serverSegment });
-
-    items.push({
-      href: adminBase,
-      label: 'Dashboard',
-      icon: 'iconify uil--dashboard'
-    });
 
     if (spaceData.canManage) {
       items.push({
@@ -370,14 +366,6 @@
                 </div>
               {/each}
             </ScrollFader>
-          {:else if isAdminMode}
-            <SidebarNav
-              title={spaceName ?? 'Space'}
-              items={adminNavItems}
-              backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-              backLabel="Back to Server"
-              isActive={isAdminNavActive}
-            />
           {:else}
             <!-- Space header - fixed at top -->
             <SpaceHeader spaceName={spaceName ?? ''} />
@@ -404,16 +392,41 @@
                   <span class="sidebar-icon iconify uil--bell"></span>
                   Preferences
                 </a>
-                {#if canAccessAnySettings}
-                  <a
-                    href={resolve('/chat/[serverId]/server-admin', {
-                      serverId: serverSegment
-                    })}
-                    class={['sidebar-item', isAdminMode ? 'bg-surface-100' : '']}
+                {#if adminNavItems.length > 0}
+                  <button
+                    type="button"
+                    class="sidebar-item text-left"
+                    aria-expanded={adminGroupExpanded}
+                    aria-controls="server-admin-sidebar-links"
+                    onclick={() => {
+                      adminGroupExpanded = !adminGroupExpanded;
+                    }}
                   >
                     <span class="sidebar-icon iconify uil--setting"></span>
-                    Administration
-                  </a>
+                    <span class="min-w-0 flex-1 truncate">Administration</span>
+                    <span
+                      class={[
+                        'iconify uil--angle-right-b shrink-0 text-base text-muted transition-transform',
+                        adminGroupExpanded ? 'rotate-90' : ''
+                      ]}
+                    ></span>
+                  </button>
+                  {#if adminGroupExpanded}
+                    <div id="server-admin-sidebar-links" class="sidebar-nav">
+                      {#each adminNavItems as item (item.href)}
+                        <a
+                          href={item.href}
+                          class={[
+                            'sidebar-item pl-8',
+                            isAdminNavActive(item.href, adminNavItems) ? 'bg-surface-100' : ''
+                          ]}
+                        >
+                          <span class="sidebar-icon {item.icon}"></span>
+                          {item.label}
+                        </a>
+                      {/each}
+                    </div>
+                  {/if}
                 {/if}
               </nav>
 

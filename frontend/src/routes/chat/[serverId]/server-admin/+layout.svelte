@@ -13,12 +13,6 @@
   const spacePermissions = getChromePermissions();
   const serverPerms = getServerPermissions();
 
-  // Check if user can access ANY admin section — space-side (server roles,
-  // rooms, members) OR server-side diagnostics/config.
-  const canAccessAnyAdmin = $derived(
-    spacePermissions.current.hasAnyAdminPermission || serverPerms.current.canViewAdmin
-  );
-
   // Map routes to required permissions
   // Returns the permission check function for each route prefix
   function getRoutePermissionCheck(pathname: string): () => boolean {
@@ -78,11 +72,6 @@
     // Event log inspection — admin.view-audit
     if (pathname.startsWith(eventLogBase)) {
       return () => serverPerms.current.canAdminViewAudit;
-    }
-
-    // Admin home page is accessible to anyone with ANY admin permission
-    if (pathname === adminBase) {
-      return () => canAccessAnyAdmin;
     }
 
     // Default: require space.manage for any other admin route

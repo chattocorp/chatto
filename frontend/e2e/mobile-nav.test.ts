@@ -178,8 +178,8 @@ test.describe('Mobile Navigation', () => {
     await page.goto(routes.admin);
     await page.waitForURL(routes.admin);
 
-    // Wait for the page content to load (Dashboard heading visible)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    // Wait for the page content to load (General heading visible)
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Resize to mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
@@ -189,19 +189,22 @@ test.describe('Mobile Navigation', () => {
     await expect(hamburger).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Sidebar should be closed after resizing to mobile
-    const adminNav = page.locator('nav').getByRole('link', { name: 'Dashboard' });
-    await expect(adminNav).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    const adminToggle = page.locator('nav').getByRole('button', { name: 'Administration' });
+    const generalLink = page.locator('nav').getByRole('link', { name: 'General', exact: true });
+    await expect(adminToggle).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Click hamburger to open sidebar
     await hamburger.click();
 
-    // Admin sidebar navigation should now be visible
-    await expect(adminNav).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // Main server sidebar should now be visible, with the current admin
+    // section expanded because the browser session is on an admin page.
+    await expect(adminToggle).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(generalLink).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Click hamburger to close sidebar again
     await hamburger.click();
 
     // Sidebar should be hidden
-    await expect(adminNav).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(adminToggle).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 });
