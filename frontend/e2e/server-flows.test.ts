@@ -227,6 +227,10 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		await page.locator('input[autocomplete="username"]').fill('remoteuser');
 		await page.locator('input[autocomplete="current-password"]').fill('password123');
 		await page.getByRole('button', { name: 'Sign In' }).click();
+		await expect(page).toHaveURL(/\/oauth\/consent/, {
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await page.getByRole('button', { name: 'Allow Access' }).click();
 
 		// Post-PR(a) the OAuth callback drops the user directly into the
 		// newly-added remote instance's chat tree (`/chat/<hostname>/...`).

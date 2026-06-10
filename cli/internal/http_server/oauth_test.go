@@ -63,6 +63,54 @@ func setupOAuthServer(t *testing.T) *HTTPServer {
 	return s
 }
 
+func loginOAuthTestUser(t *testing.T, s *HTTPServer, login string) ([]*http.Cookie, *corev1.User) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	user, err := s.core.CreateUser(ctx, "", login, "OAuth Test User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	s.router.GET("/test/login-"+login, func(c *gin.Context) {
+		if err := s.createCookieSession(c, user.Id, "test"); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest("GET", "/test/login-"+login, nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("login fixture status = %d, want 204: %s", w.Code, w.Body.String())
+	}
+	return w.Result().Cookies(), user
+}
+
+func addCookies(req *http.Request, cookies []*http.Cookie) {
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+}
+
+func mergeCookies(cookies []*http.Cookie, updates []*http.Cookie) []*http.Cookie {
+	byName := make(map[string]*http.Cookie, len(cookies)+len(updates))
+	for _, cookie := range cookies {
+		byName[cookie.Name] = cookie
+	}
+	for _, cookie := range updates {
+		byName[cookie.Name] = cookie
+	}
+	out := make([]*http.Cookie, 0, len(byName))
+	for _, cookie := range byName {
+		out = append(out, cookie)
+	}
+	return out
+}
+
 func TestOAuthAuthorize_ValidParams(t *testing.T) {
 	s := setupOAuthServer(t)
 
@@ -208,28 +256,7 @@ func TestOAuthAuthorize_AllowsConfiguredRedirectOrigin(t *testing.T) {
 
 func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testing.T) {
 	s := setupOAuthServer(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	t.Cleanup(cancel)
-
-	user, err := s.core.CreateUser(ctx, "", "oauth-victim", "OAuth Victim", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-
-	s.router.GET("/test/login-victim", func(c *gin.Context) {
-		if err := s.createCookieSession(c, user.Id, "test"); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.Status(http.StatusNoContent)
-	})
-
-	loginReq := httptest.NewRequest("GET", "/test/login-victim", nil)
-	loginW := httptest.NewRecorder()
-	s.router.ServeHTTP(loginW, loginReq)
-	if loginW.Code != http.StatusNoContent {
-		t.Fatalf("login fixture status = %d, want 204: %s", loginW.Code, loginW.Body.String())
-	}
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-victim")
 
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	challenge := core.GenerateCodeChallenge(verifier)
@@ -240,9 +267,7 @@ func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testi
 		"code_challenge_method": {"S256"},
 		"state":                 {"attacker-state"},
 	}.Encode(), nil)
-	for _, cookie := range loginW.Result().Cookies() {
-		req.AddCookie(cookie)
-	}
+	addCookies(req, cookies)
 
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
@@ -252,6 +277,156 @@ func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testi
 	}
 	if location := w.Header().Get("Location"); strings.Contains(location, "code=") {
 		t.Fatalf("unconfigured redirect minted code in Location %q", location)
+	}
+}
+
+func TestOAuthAuthorize_AuthenticatedTrustedRedirectRequiresConsent(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-consent-required")
+
+	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"state123"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("expected 307 to consent page, got %d: %s", w.Code, w.Body.String())
+	}
+	if location := w.Header().Get("Location"); location != "/oauth/consent" {
+		t.Fatalf("Location = %q, want /oauth/consent", location)
+	}
+	if location := w.Header().Get("Location"); strings.Contains(location, "code=") {
+		t.Fatalf("consent redirect minted code in Location %q", location)
+	}
+}
+
+func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
+	cookies, user := loginOAuthTestUser(t, s, "oauth-consent-approve")
+
+	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	params := url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"state123"},
+	}
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+params.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q", w.Code, w.Header().Get("Location"))
+	}
+	cookies = mergeCookies(cookies, w.Result().Cookies())
+
+	requestReq := httptest.NewRequest("GET", "/oauth/consent/request", nil)
+	addCookies(requestReq, cookies)
+	requestW := httptest.NewRecorder()
+	s.router.ServeHTTP(requestW, requestReq)
+	if requestW.Code != http.StatusOK {
+		t.Fatalf("consent request status = %d: %s", requestW.Code, requestW.Body.String())
+	}
+	var requestResp map[string]string
+	if err := json.Unmarshal(requestW.Body.Bytes(), &requestResp); err != nil {
+		t.Fatalf("decode consent request: %v", err)
+	}
+	if requestResp["redirectUri"] != "https://client.example/servers/callback" {
+		t.Fatalf("redirectUri = %q", requestResp["redirectUri"])
+	}
+	if requestResp["redirectOrigin"] != "https://client.example" {
+		t.Fatalf("redirectOrigin = %q", requestResp["redirectOrigin"])
+	}
+
+	approveReq := httptest.NewRequest("POST", "/oauth/consent/approve", nil)
+	addCookies(approveReq, cookies)
+	approveW := httptest.NewRecorder()
+	s.router.ServeHTTP(approveW, approveReq)
+	if approveW.Code != http.StatusOK {
+		t.Fatalf("approve status = %d: %s", approveW.Code, approveW.Body.String())
+	}
+	var approveResp map[string]string
+	if err := json.Unmarshal(approveW.Body.Bytes(), &approveResp); err != nil {
+		t.Fatalf("decode approve response: %v", err)
+	}
+	if redirectURL := approveResp["redirectUrl"]; !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "code=") || !strings.Contains(redirectURL, "state=state123") {
+		t.Fatalf("unexpected approve redirectUrl %q", redirectURL)
+	}
+	cookies = mergeCookies(cookies, approveW.Result().Cookies())
+
+	consented, err := s.core.HasOAuthConsent(context.Background(), user.Id, "https://client.example")
+	if err != nil {
+		t.Fatalf("HasOAuthConsent: %v", err)
+	}
+	if !consented {
+		t.Fatalf("expected consent to be remembered")
+	}
+
+	secondReq := httptest.NewRequest("GET", "/oauth/authorize?"+params.Encode(), nil)
+	addCookies(secondReq, cookies)
+	secondW := httptest.NewRecorder()
+	s.router.ServeHTTP(secondW, secondReq)
+	if secondW.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("second authorize status = %d: %s", secondW.Code, secondW.Body.String())
+	}
+	if location := secondW.Header().Get("Location"); !strings.HasPrefix(location, "https://client.example/servers/callback?") || !strings.Contains(location, "code=") {
+		t.Fatalf("second authorize did not mint code directly, Location=%q", location)
+	}
+}
+
+func TestOAuthConsentDenyRedirectsAccessDenied(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
+	cookies, user := loginOAuthTestUser(t, s, "oauth-consent-deny")
+
+	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"deny-state"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q", w.Code, w.Header().Get("Location"))
+	}
+	cookies = mergeCookies(cookies, w.Result().Cookies())
+
+	denyReq := httptest.NewRequest("POST", "/oauth/consent/deny", nil)
+	addCookies(denyReq, cookies)
+	denyW := httptest.NewRecorder()
+	s.router.ServeHTTP(denyW, denyReq)
+	if denyW.Code != http.StatusOK {
+		t.Fatalf("deny status = %d: %s", denyW.Code, denyW.Body.String())
+	}
+	var denyResp map[string]string
+	if err := json.Unmarshal(denyW.Body.Bytes(), &denyResp); err != nil {
+		t.Fatalf("decode deny response: %v", err)
+	}
+	redirectURL := denyResp["redirectUrl"]
+	if !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "error=access_denied") || !strings.Contains(redirectURL, "state=deny-state") || strings.Contains(redirectURL, "code=") {
+		t.Fatalf("unexpected deny redirectUrl %q", redirectURL)
+	}
+	consented, err := s.core.HasOAuthConsent(context.Background(), user.Id, "https://client.example")
+	if err != nil {
+		t.Fatalf("HasOAuthConsent: %v", err)
+	}
+	if consented {
+		t.Fatalf("denial should not grant consent")
 	}
 }
 

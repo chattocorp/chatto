@@ -180,8 +180,8 @@ message Event {
 
     // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
     // These facts are intentionally minimal: no raw token, verification code,
-    // link, IP address, password, auth code, bearer token, or unhashed email is
-    // persisted in EVT.
+    // link, IP address, password, auth code, bearer token, OAuth redirect URI,
+    // or unhashed email is persisted in EVT.
     RegistrationVerificationCodeIssuedEvent registration_verification_code_issued = 900;
     EmailVerificationCodeIssuedEvent email_verification_code_issued = 901;
     PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
@@ -195,6 +195,8 @@ message Event {
     AuthCodeExchangeFailedEvent auth_code_exchange_failed = 910;
     BearerTokenIssuedEvent bearer_token_issued = 911;
     BearerTokenRevokedEvent bearer_token_revoked = 912;
+    OAuthConsentGrantedEvent oauth_consent_granted = 913;
+    OAuthConsentDeniedEvent oauth_consent_denied = 914;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

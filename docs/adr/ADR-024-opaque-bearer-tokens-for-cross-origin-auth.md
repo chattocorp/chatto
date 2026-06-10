@@ -55,6 +55,7 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 **OAuth authorization for cross-origin Chatto clients:**
 - Clients start at `/oauth/authorize` with `response_type=code`, PKCE `code_challenge`, and a callback `redirect_uri`.
 - The server only accepts redirect URI origins it trusts: the configured `webserver.url` origin, explicit `webserver.allowed_origins` entries, and loopback development origins. The wildcard CORS default (`*`) does not authorize OAuth redirects.
+- The first authorization for a trusted redirect origin shows the user a consent screen. Approval is remembered per user + canonical redirect origin through durable user EVT facts; denial is also recorded as an audit fact.
 - The callback receives a short-lived authorization code, not a bearer token. The client exchanges the code and PKCE verifier at `/oauth/token`.
 - Auth codes are stored as HMAC-derived `grant.{hmac}` runtime-state keys and are deleted on exchange attempt.
 
@@ -67,3 +68,4 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 - **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
 - **No reverse index**: user-wide cleanup does a `session.*` prefix scan and matches the stored user ID. The revocation guarantee comes from the token's stored auth generation being compared to the current user auth generation, so concurrent issuance cannot survive by missing the scan. A secondary index can be added later if token counts make scans too expensive.
 - **OAuth redirect setup**: A separately hosted Chatto frontend must be configured in `webserver.allowed_origins` on each server it connects to. This adds an operator step, but prevents malicious sites from using `/oauth/authorize` as a logged-in user's bearer-token minting oracle.
+- **No client registry**: Chatto does not require `client_id` registration for this flow. Any version-compatible Chatto client may connect once its origin is trusted and the user consents.

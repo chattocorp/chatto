@@ -485,7 +485,7 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active user-PII DEK epoch. Cookie-session records plus verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed email identifiers in `EVT` to preserve case-insensitive uniqueness without storing raw email values in audit events.
+Notes: `INSTANCE` is legacy import-only. Current user/account/profile state and remembered OAuth client-origin consent are projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active user-PII DEK epoch. Cookie-session records plus verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed identifiers in `EVT` to preserve uniqueness/auditability without storing raw email values; OAuth consent facts store canonical redirect origins in plaintext so users can recognize approved client addresses.
 
 **RUNTIME_STATE auth/session keys:**
 
@@ -511,12 +511,13 @@ Notes: `INSTANCE` is legacy import-only. Current user/account/profile state is p
 | `evt.user.{userId}.account_deletion_confirmation_issued`                 | Account deletion confirmation token issued. |
 | `evt.user.{userId}.password_reset_completed`                             | Password reset completed. |
 | `evt.user.{userId}.login_succeeded` / `.logout_succeeded`                | Cookie-session login/logout completed. |
+| `evt.user.{userId}.oauth_consent_granted` / `.oauth_consent_denied`       | OAuth client-origin consent decision, with canonical redirect origin. |
 | `evt.user.{userId}.auth_code_issued`                                     | OAuth authorization code issued, with hashed redirect URI. |
 | `evt.user.{userId}.auth_code_exchange_succeeded`                         | OAuth authorization code exchange completed. |
 | `evt.user.{userId}.auth_code_exchange_failed`                            | Known OAuth authorization code exchange failed after code lookup. |
 | `evt.user.{userId}.bearer_token_issued` / `.bearer_token_revoked`         | Opaque bearer token issued or explicitly revoked. |
 
-These audit payloads include only safe request metadata: capped user agent and an HMAC-SHA256 IP hash when request metadata is available. Raw tokens, links, passwords, auth codes, raw IP addresses, and raw email/login identifiers are not persisted in EVT audit payloads.
+These audit payloads include only safe request metadata: capped user agent and an HMAC-SHA256 IP hash when request metadata is available. Raw tokens, links, passwords, auth codes, raw IP addresses, full OAuth redirect URIs, and raw email/login identifiers are not persisted in EVT audit payloads. OAuth consent facts intentionally keep canonical redirect origins in plaintext for user-visible approval management.
 
 **INSTANCE_CONFIG keys:**
 

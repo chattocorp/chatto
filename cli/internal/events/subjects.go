@@ -162,6 +162,8 @@ const (
 	EventAuthCodeExchangeFailed             = "auth_code_exchange_failed"
 	EventBearerTokenIssued                  = "bearer_token_issued"
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
+	EventOAuthConsentGranted                = "oauth_consent_granted"
+	EventOAuthConsentDenied                 = "oauth_consent_denied"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -349,6 +351,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBearerTokenIssued
 	case *corev1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
+	case *corev1.Event_OauthConsentGranted:
+		return EventOAuthConsentGranted
+	case *corev1.Event_OauthConsentDenied:
+		return EventOAuthConsentDenied
 	}
 	return ""
 }

@@ -329,7 +329,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 				c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 				return
 			}
-			s.completeOAuthAuthorize(c, user.Id, authGeneration)
+			s.continueOAuthAuthorize(c, user.Id, authGeneration)
 			return
 		}
 

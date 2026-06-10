@@ -67,9 +67,15 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		await page.locator('input[autocomplete="current-password"]').fill('password123');
 
 		// 6. Submit the login form on the remote instance.
-		// Backend detects pending OAuth flow → generates auth code → redirects back
-		// to the home instance's /servers/callback → exchanges code for token.
+		// Backend detects pending OAuth flow and asks for consent before
+		// generating the code.
 		await page.getByRole('button', { name: /Sign In/i }).click();
+		await expect(page).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await expect(page.getByText(/^localhost:\d+$/)).toBeVisible();
+		await expect(page.getByText(/instances\/callback/)).toHaveCount(0);
+		await page.getByRole('button', { name: 'Allow Access' }).click();
 
 		// 7. Wait for the callback page to complete and redirect into the
 		// newly-added remote instance's chat tree (`/chat/127.0.0.1/...`).
@@ -92,6 +98,30 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		expect(remoteInstance.token).toBeTruthy();
 		expect(remoteInstance.userId).toBeTruthy();
 		expect(remoteInstance.userLogin).toBe('remoteuser');
+
+		// 9. Forget the local client-side registration and connect the same
+		// remote again. The remote user session and remembered OAuth consent
+		// remain on the remote server, so this second authorize flow should skip
+		// both login and consent and return directly to the callback.
+		await page.evaluate(() => {
+			const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
+			localStorage.setItem(
+				'chatto:instances',
+				JSON.stringify(instances.filter((i: { url: string }) => !i.url.includes('127.0.0.1')))
+			);
+		});
+		await page.goto('/chat/-');
+		await page.getByTitle('Add Server').click();
+		await page.getByLabel('Server URL').fill(hostPort);
+		await page.getByRole('button', { name: 'Connect' }).click();
+		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
+		await expect(page).not.toHaveURL(/\/oauth\/consent/);
 	});
 
 	test('token exchange rejects invalid code_verifier', async () => {

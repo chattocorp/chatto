@@ -356,6 +356,25 @@ walk (owner is position 1000, the highest rank). They have access to:
 
 See `admin.md` for the role / config-owner narrative.
 
+## OAuth Client Authorization
+
+Chatto's `/oauth/authorize` endpoint is for compatible Chatto clients that need
+opaque bearer tokens for cross-origin server connections.
+
+- Redirect URIs must match the server's configured `webserver.url`, an explicit
+  `webserver.allowed_origins` entry, or a loopback development origin. Wildcard
+  CORS (`allowed_origins = ["*"]`) is not OAuth redirect trust.
+- The first authorization for a trusted redirect origin must show a consent
+  screen. Approval is remembered per user + canonical origin through durable
+  `EVT` facts; denial is recorded for audit but does not grant consent.
+- Do not add an operator-managed OAuth client registry or require `client_id`
+  for this flow. Any version-compatible Chatto client should be able to connect
+  to any compatible Chatto server once the origin is trusted and the user
+  consents.
+- Do not persist full redirect URIs in `EVT`. OAuth consent facts may store
+  the canonical redirect origin in plaintext so users can later recognize and
+  manage approved client addresses.
+
 ## Attachment URL Authorization
 
 Attachment binaries are primarily served by the HTTP handler at `/assets/files/{assetId}` (and `/assets/files/{assetId}/image/{width}x{height}/{fit}` for image transforms). Browser-facing GraphQL fields append a per-user `access` ticket query parameter and expose its expiry through `AssetURL { url, expiresAt }`. The stable path identifies the binary; the ticket authorizes direct browser/standalone-client loads.
