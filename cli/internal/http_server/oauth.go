@@ -37,14 +37,18 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	oauth.GET("authorize", func(c *gin.Context) {
 		session := sessions.Default(c)
 
-		// If user is already authenticated and has pending OAuth params from
-		// a previous /oauth/authorize visit (e.g., after login on the login page),
-		// generate the code immediately without re-validating query params.
-		if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
-			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
-			if hasPendingOAuthAuthorize(session) {
-				s.continueOAuthAuthorize(c, userID, cookieSession.GetAuthGeneration())
-				return
+		// If user is already authenticated and returns to /oauth/authorize
+		// without fresh query params (e.g., after a login flow restored only the
+		// pending session), continue the stored request. Any request carrying a
+		// query string is treated as a fresh authorize attempt and overwrites the
+		// pending session after validation below.
+		if c.Request.URL.RawQuery == "" {
+			if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
+				s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
+				if hasPendingOAuthAuthorize(session) {
+					s.continueOAuthAuthorize(c, userID, cookieSession.GetAuthGeneration())
+					return
+				}
 			}
 		}
 

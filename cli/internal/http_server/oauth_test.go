@@ -309,6 +309,83 @@ func TestOAuthAuthorize_AuthenticatedTrustedRedirectRequiresConsent(t *testing.T
 	}
 }
 
+func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"https://first.example", "https://second.example"}
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-consent-overwrite")
+
+	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	firstParams := url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://first.example/servers/callback"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"first-state"},
+	}
+	firstReq := httptest.NewRequest("GET", "/oauth/authorize?"+firstParams.Encode(), nil)
+	addCookies(firstReq, cookies)
+	firstW := httptest.NewRecorder()
+	s.router.ServeHTTP(firstW, firstReq)
+	if firstW.Code != http.StatusTemporaryRedirect || firstW.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("first authorize status/location = %d/%q", firstW.Code, firstW.Header().Get("Location"))
+	}
+	cookies = mergeCookies(cookies, firstW.Result().Cookies())
+
+	secondParams := url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://second.example/servers/callback"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {"second-state"},
+	}
+	secondReq := httptest.NewRequest("GET", "/oauth/authorize?"+secondParams.Encode(), nil)
+	addCookies(secondReq, cookies)
+	secondW := httptest.NewRecorder()
+	s.router.ServeHTTP(secondW, secondReq)
+	if secondW.Code != http.StatusTemporaryRedirect || secondW.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("second authorize status/location = %d/%q", secondW.Code, secondW.Header().Get("Location"))
+	}
+	cookies = mergeCookies(cookies, secondW.Result().Cookies())
+
+	requestReq := httptest.NewRequest("GET", "/oauth/consent/request", nil)
+	addCookies(requestReq, cookies)
+	requestW := httptest.NewRecorder()
+	s.router.ServeHTTP(requestW, requestReq)
+	if requestW.Code != http.StatusOK {
+		t.Fatalf("consent request status = %d: %s", requestW.Code, requestW.Body.String())
+	}
+	var requestResp map[string]string
+	if err := json.Unmarshal(requestW.Body.Bytes(), &requestResp); err != nil {
+		t.Fatalf("decode consent request: %v", err)
+	}
+	if requestResp["redirectOrigin"] != "https://second.example" {
+		t.Fatalf("redirectOrigin = %q, want second origin", requestResp["redirectOrigin"])
+	}
+	if requestResp["redirectUri"] != "https://second.example/servers/callback" {
+		t.Fatalf("redirectUri = %q, want second callback", requestResp["redirectUri"])
+	}
+
+	approveReq := httptest.NewRequest("POST", "/oauth/consent/approve", nil)
+	addCookies(approveReq, cookies)
+	approveW := httptest.NewRecorder()
+	s.router.ServeHTTP(approveW, approveReq)
+	if approveW.Code != http.StatusOK {
+		t.Fatalf("approve status = %d: %s", approveW.Code, approveW.Body.String())
+	}
+	var approveResp map[string]string
+	if err := json.Unmarshal(approveW.Body.Bytes(), &approveResp); err != nil {
+		t.Fatalf("decode approve response: %v", err)
+	}
+	redirectURL := approveResp["redirectUrl"]
+	if !strings.HasPrefix(redirectURL, "https://second.example/servers/callback?") ||
+		!strings.Contains(redirectURL, "code=") ||
+		!strings.Contains(redirectURL, "state=second-state") ||
+		strings.Contains(redirectURL, "first.example") ||
+		strings.Contains(redirectURL, "first-state") {
+		t.Fatalf("fresh authorize did not replace stale pending request, redirectUrl=%q", redirectURL)
+	}
+}
+
 func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	s := setupOAuthServer(t)
 	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
