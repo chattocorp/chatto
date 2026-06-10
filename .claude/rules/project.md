@@ -41,18 +41,18 @@ Prefer using mise tasks (below) when available, as they handle this automaticall
 
 All commands via mise task runner. Run from project root.
 
-| Command                 | Description                                   |
-| ----------------------- | --------------------------------------------- |
-| `mise dev`              | Run full dev environment (backend + frontend) |
-| `mise test`             | Run all tests                                 |
-| `mise test-cli`         | Run Go tests only                             |
-| `mise test-frontend`    | Run frontend tests only                       |
-| `mise build`            | Build for all architectures                   |
-| `mise codegen`          | Run all code generation                       |
-| `mise codegen-cli`      | Generate Go code (GraphQL + proto)            |
-| `mise codegen-frontend` | Generate frontend GraphQL types               |
-| `mise clean`            | Remove build artifacts                        |
-| `mise docs`             | Start pkgsite documentation server            |
+| Command                      | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| `mise x -- tilt up --stream` | Run full dev environment (backend + frontend) |
+| `mise test`                  | Run all tests                                 |
+| `mise test-cli`              | Run Go tests only                             |
+| `mise test-frontend`         | Run frontend tests only                       |
+| `mise build`                 | Build for all architectures                   |
+| `mise codegen`               | Run all code generation                       |
+| `mise codegen-cli`           | Generate Go code (GraphQL + proto)            |
+| `mise codegen-frontend`      | Generate frontend GraphQL types               |
+| `mise clean`                 | Remove build artifacts                        |
+| `mise docs`                  | Start pkgsite documentation server            |
 
 Releases are driven by [release-please](https://github.com/googleapis/release-please). Conventional-commit PRs on `main` accumulate in a rolling alpha prerelease PR using `.release-please-config-prerelease.json`; merging it cuts a `v0.1.0-alpha.N` tag. Maintenance branches (`release-[0-9]*`) use `.release-please-config.json` for stable patch releases.
 

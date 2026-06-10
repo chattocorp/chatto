@@ -3,7 +3,7 @@ buf = "latest"
 go = "1.26.2"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.11"
 node = "22"
-watchexec = "latest"
+tilt = "latest"
 
 [env]
 _.file = '.env'
@@ -122,48 +122,11 @@ run = "go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin
 sources = ["**/*.go", "internal/http_server/.client/**/*"]
 outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 
-# =============================================================================
-# Development
-# =============================================================================
-
-[tasks._app-server]
-description = "Compile and run the app server in dev mode"
-dir = "cli"
-# `bootstrap` compiles in the [bootstrap] applier so chatto.toml seed
-# data is honored on every restart.
-run = "go run -tags bootstrap . start"
-sources = ["**/*.go", "go.mod", "go.sum"]
-hide = true
-
-[tasks.dev-app]
-description = "Run the application in development mode (with file watching)"
-# No `build-frontend` dependency: dev traffic goes through Vite at
-# $CONDUCTOR_PORT, which proxies /api/* to this backend. The .gitkeep
-# in cli/internal/http_server/.client/ is enough for `//go:embed` to
-# compile.
-run = "mise watch _app-server --restart"
-
-[tasks.dev-frontend]
-description = "Run the frontend application in development mode"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm dev"
-
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
 depends = ["deps-frontend"]
 dir = "frontend"
 run = "pnpm storybook"
-
-[tasks.dev-frontend-codegen]
-description = "Run graphql-codegen in watch mode"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm codegen --watch"
-
-[tasks.dev]
-description = "Run a complete development environment (backend + frontend)"
-run = { task = "dev-*" }
 
 [tasks.chatto]
 description = "Runs the CLI app with the given arguments"
