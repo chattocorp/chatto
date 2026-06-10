@@ -117,6 +117,7 @@ const (
 type S3Config struct {
 	Endpoint        string `toml:"endpoint" env:"CHATTO_CORE_ASSETS_S3_ENDPOINT" comment:"S3 endpoint URL. Use 's3.amazonaws.com' for AWS, or custom endpoint for MinIO, Wasabi, etc."`
 	Bucket          string `toml:"bucket" env:"CHATTO_CORE_ASSETS_S3_BUCKET" comment:"S3 bucket name for storing assets."`
+	PathPrefix      string `toml:"path_prefix" env:"CHATTO_CORE_ASSETS_S3_PATH_PREFIX" comment:"Optional object key prefix for all S3 assets. Stored asset references remain prefix-free so this can be changed after moving objects in S3."`
 	Region          string `toml:"region" env:"CHATTO_CORE_ASSETS_S3_REGION" comment:"AWS region. Optional for non-AWS S3-compatible services."`
 	AccessKeyID     string `toml:"access_key_id" env:"CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID" comment:"S3 access key ID."`
 	SecretAccessKey string `toml:"secret_access_key" env:"CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY" comment:"S3 secret access key. NEVER SHARE THIS!"`
@@ -138,6 +139,26 @@ func (c *S3Config) PathStyleOrDefault() bool {
 		return false
 	}
 	return *c.PathStyle
+}
+
+// NormalizePathPrefix trims harmless leading/trailing slashes from the S3
+// object prefix. Empty and "/" both preserve the historical bucket-root layout.
+func (c *S3Config) NormalizePathPrefix() {
+	c.PathPrefix = strings.Trim(c.PathPrefix, "/")
+}
+
+// ValidatePathPrefix rejects ambiguous prefixes before they become physical
+// object keys. Call NormalizePathPrefix first so "/" is accepted as empty.
+func (c *S3Config) ValidatePathPrefix() error {
+	if strings.Contains(c.PathPrefix, "//") {
+		return fmt.Errorf("core.assets.s3.path_prefix must not contain empty path segments")
+	}
+	for _, r := range c.PathPrefix {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("core.assets.s3.path_prefix must not contain control characters")
+		}
+	}
+	return nil
 }
 
 // TTLOrDefault returns the configured TTL, or 7 days if not set.
@@ -619,6 +640,7 @@ func (c *ChattoConfig) Validate() error {
 
 	// S3 configuration (required when storage_backend = "s3")
 	if c.Core.Assets.StorageBackend == StorageBackendS3 {
+		c.Core.Assets.S3.NormalizePathPrefix()
 		if c.Core.Assets.S3.Endpoint == "" {
 			errs = append(errs, "core.assets.s3.endpoint is required when storage_backend = 's3'")
 		}
@@ -630,6 +652,9 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.Core.Assets.S3.SecretAccessKey == "" {
 			errs = append(errs, "core.assets.s3.secret_access_key is required when storage_backend = 's3'")
+		}
+		if err := c.Core.Assets.S3.ValidatePathPrefix(); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 

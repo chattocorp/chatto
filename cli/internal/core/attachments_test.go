@@ -297,6 +297,45 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 	}
 }
 
+func TestChattoCore_UploadAttachment_S3PathPrefixKeepsStoredKeyLogical(t *testing.T) {
+	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello prefixed S3")))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+
+	s3Storage := attachment.Storage.GetS3()
+	if s3Storage == nil {
+		t.Fatal("Attachment storage should be S3")
+	}
+	wantLogicalKey := S3KeyAttachment(attachment.Id)
+	if s3Storage.Key != wantLogicalKey {
+		t.Fatalf("persisted S3 key = %q, want logical key %q", s3Storage.Key, wantLogicalKey)
+	}
+
+	info, err := s3Client.StatObject(ctx, s3Storage.Key)
+	if err != nil {
+		t.Fatalf("logical S3 stat should find object through configured prefix: %v", err)
+	}
+	if info.Key != wantLogicalKey {
+		t.Fatalf("logical stat key = %q, want %q", info.Key, wantLogicalKey)
+	}
+
+	if _, err := rawS3Client.StatObject(ctx, s3Storage.Key); err == nil {
+		t.Fatal("raw bucket-root stat should not find object at the logical key")
+	}
+	if _, err := rawS3Client.StatObject(ctx, "tenant-a/chatto/"+s3Storage.Key); err != nil {
+		t.Fatalf("raw stat should find physical prefixed object: %v", err)
+	}
+}
+
 func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
@@ -330,6 +369,130 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	if err == nil {
 		t.Error("Object should be deleted from S3")
 	}
+}
+
+func TestChattoCore_S3PathPrefixCanMoveBasePathWithoutChangingStoredKey(t *testing.T) {
+	core, _, oldPrefixClient, rawS3Client, s3Cfg := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	content := []byte("move me between prefixes")
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "move.txt", "text/plain", bytes.NewReader(content))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+	storedKey := attachment.Storage.GetS3().Key
+
+	if _, err := oldPrefixClient.StatObject(ctx, storedKey); err != nil {
+		t.Fatalf("old prefix client should find uploaded object: %v", err)
+	}
+
+	// Simulate an operator moving objects in S3 before changing config.
+	if _, err := rawS3Client.PutObjectFromBytes(ctx, "tenant-b/chatto/"+storedKey, content, "text/plain"); err != nil {
+		t.Fatalf("failed to copy object to new prefix: %v", err)
+	}
+	if err := rawS3Client.DeleteObject(ctx, "tenant-a/chatto/"+storedKey); err != nil {
+		t.Fatalf("failed to remove object from old prefix: %v", err)
+	}
+
+	s3Cfg.PathPrefix = "tenant-b/chatto"
+	newPrefixClient, err := NewS3Client(s3Cfg)
+	if err != nil {
+		t.Fatalf("failed to create new-prefix S3 client: %v", err)
+	}
+	core.s3Client = newPrefixClient
+
+	reader, info, err := core.GetAttachmentReader(ctx, attachment)
+	if err != nil {
+		t.Fatalf("GetAttachmentReader after prefix change: %v", err)
+	}
+	defer reader.(io.Closer).Close()
+	got, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("failed to read moved object: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Fatalf("moved object content = %q, want %q", got, content)
+	}
+	if info.ContentType != "text/plain" {
+		t.Fatalf("content type = %q, want text/plain", info.ContentType)
+	}
+
+	presignedURL, err := core.TryPresignedAttachmentURL(ctx, attachment)
+	if err != nil {
+		t.Fatalf("TryPresignedAttachmentURL after prefix change: %v", err)
+	}
+	if !bytes.Contains([]byte(presignedURL), []byte("tenant-b/chatto/"+storedKey)) {
+		t.Fatalf("presigned URL %q does not contain new physical prefix", presignedURL)
+	}
+}
+
+func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(t *testing.T) {
+	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "prefixed-user", "Prefixed User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "prefixed-room", "Prefixed Room")
+	if err != nil {
+		t.Fatalf("CreateRoom failed: %v", err)
+	}
+
+	avatar, err := core.UploadUserAvatar(ctx, user.Id, bytes.NewReader(createTestPNG(64, 64)))
+	if err != nil {
+		t.Fatalf("UploadUserAvatar failed: %v", err)
+	}
+	logo, err := core.UploadServerLogo(ctx, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("UploadServerLogo failed: %v", err)
+	}
+	original, err := core.UploadAttachment(ctx, user.Id, room.Id, "original.png", "image/png", bytes.NewReader(createTestPNG(80, 80)))
+	if err != nil {
+		t.Fatalf("UploadAttachment failed: %v", err)
+	}
+	derivative, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 32)))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment failed: %v", err)
+	}
+
+	checkServerAsset := func(name string, asset *corev1.DeprecatedAsset) {
+		t.Helper()
+		key := asset.GetS3().GetKey()
+		if bytes.Contains([]byte(key), []byte("tenant-a/chatto")) {
+			t.Fatalf("%s persisted key contains prefix: %q", name, key)
+		}
+		logicalS3Key := S3KeyServerAsset(key)
+		if _, err := s3Client.StatObject(ctx, logicalS3Key); err != nil {
+			t.Fatalf("%s logical S3 stat failed: %v", name, err)
+		}
+		if _, err := rawS3Client.StatObject(ctx, "tenant-a/chatto/"+logicalS3Key); err != nil {
+			t.Fatalf("%s raw physical S3 stat failed: %v", name, err)
+		}
+	}
+	checkAttachment := func(name string, attachment *corev1.Attachment) {
+		t.Helper()
+		key := attachment.GetStorage().GetS3().GetKey()
+		if key != S3KeyAttachment(attachment.Id) {
+			t.Fatalf("%s persisted key = %q, want logical attachment key", name, key)
+		}
+		if _, err := s3Client.StatObject(ctx, key); err != nil {
+			t.Fatalf("%s logical S3 stat failed: %v", name, err)
+		}
+		if _, err := rawS3Client.StatObject(ctx, "tenant-a/chatto/"+key); err != nil {
+			t.Fatalf("%s raw physical S3 stat failed: %v", name, err)
+		}
+	}
+
+	checkServerAsset("avatar", assetStorageFromAsset(avatar))
+	checkServerAsset("server logo", logo)
+	checkAttachment("original attachment", original)
+	checkAttachment("derivative attachment", derivative)
 }
 
 // ============================================================================
@@ -404,6 +567,34 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 		data, _ := io.ReadAll(reader)
 		if string(data) != "s3-binary" {
 			t.Errorf("expected 's3-binary', got %q", data)
+		}
+	})
+
+	t.Run("falls back to prefixed S3 legacy layouts", func(t *testing.T) {
+		core, _, _, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+		ctx := testContext(t)
+
+		attachmentID := "att_legacy_prefixed"
+		legacyLogicalKey := "spaces/server/attachments/" + attachmentID
+		legacyPhysicalKey := "tenant-a/chatto/" + legacyLogicalKey
+		if _, err := rawS3Client.PutObjectFromBytes(ctx, legacyPhysicalKey, []byte("prefixed-legacy-s3"), "text/plain"); err != nil {
+			t.Fatalf("failed to seed legacy S3 object: %v", err)
+		}
+
+		minimal := &corev1.Attachment{Id: attachmentID, RoomId: "room-legacy"}
+		reader, info, err := core.GetAttachmentReader(ctx, minimal)
+		if err != nil {
+			t.Fatalf("GetAttachmentReader with prefixed legacy S3 attachment: %v", err)
+		}
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+		data, _ := io.ReadAll(reader)
+		if string(data) != "prefixed-legacy-s3" {
+			t.Errorf("expected 'prefixed-legacy-s3', got %q", data)
+		}
+		if info.ContentType != "text/plain" {
+			t.Errorf("expected content type 'text/plain', got %q", info.ContentType)
 		}
 	})
 
@@ -782,6 +973,14 @@ func TestImageCacheKey(t *testing.T) {
 // setupTestCoreWithS3 creates a ChattoCore backed by a fake in-memory S3 server.
 // Returns the core, NATS connection, and S3 client for verification.
 func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
+	core, nc, s3Client, _, _ := setupTestCoreWithS3PathPrefix(t, "")
+	return core, nc, s3Client
+}
+
+// setupTestCoreWithS3PathPrefix creates a ChattoCore backed by a fake
+// in-memory S3 server. It returns both a prefix-aware verification client and a
+// raw bucket-root client for assertions about physical object keys.
+func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore, *nats.Conn, *S3Client, *S3Client, config.S3Config) {
 	t.Helper()
 
 	// Start fake S3 server
@@ -808,6 +1007,7 @@ func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
 			S3: config.S3Config{
 				Endpoint:        endpointHost,
 				Bucket:          "test-bucket",
+				PathPrefix:      pathPrefix,
 				AccessKeyID:     "test-key",
 				SecretAccessKey: "test-secret",
 				UseSSL:          &useSSL,
@@ -828,7 +1028,14 @@ func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
 		t.Fatalf("Failed to create verification S3 client: %v", err)
 	}
 
-	return core, nc, verifyClient
+	rawCfg := cfg.Assets.S3
+	rawCfg.PathPrefix = ""
+	rawVerifyClient, err := NewS3Client(rawCfg)
+	if err != nil {
+		t.Fatalf("Failed to create raw verification S3 client: %v", err)
+	}
+
+	return core, nc, verifyClient, rawVerifyClient, cfg.Assets.S3
 }
 
 // setupTestCoreWithCache creates a ChattoCore with asset caching enabled

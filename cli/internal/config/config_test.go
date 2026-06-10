@@ -126,6 +126,58 @@ signing_secret = "file-assets-secret"
 	}
 }
 
+func TestReadConfig_S3PathPrefixFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "file-cookie-secret"
+
+[core]
+secret_key = "file-core-secret"
+
+[core.assets]
+signing_secret = "file-assets-secret"
+storage_backend = "s3"
+
+[core.assets.s3]
+endpoint = "s3.amazonaws.com"
+bucket = "test-bucket"
+path_prefix = "/tenant-a/chatto/"
+access_key_id = "test-key"
+secret_access_key = "test-secret"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.Core.Assets.S3.PathPrefix != "tenant-a/chatto" {
+		t.Fatalf("expected normalized TOML prefix, got %q", cfg.Core.Assets.S3.PathPrefix)
+	}
+
+	t.Setenv("CHATTO_CORE_ASSETS_S3_PATH_PREFIX", "/tenant-b/chatto/")
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if cfg.Core.Assets.S3.PathPrefix != "tenant-b/chatto" {
+		t.Fatalf("expected normalized env prefix, got %q", cfg.Core.Assets.S3.PathPrefix)
+	}
+}
+
 func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
@@ -870,6 +922,64 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 				}
 			},
 			wantError: false,
+		},
+		{
+			name: "valid S3 backend with empty path prefix",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "/",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: false,
+		},
+		{
+			name: "valid S3 backend normalizes path prefix",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "/tenant-a/chatto/",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: false,
+		},
+		{
+			name: "S3 backend with empty path segment fails",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "tenant//chatto",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: true,
+			errorMsg:  "core.assets.s3.path_prefix must not contain empty path segments",
+		},
+		{
+			name: "S3 backend with control character path prefix fails",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "tenant\nchatto",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: true,
+			errorMsg:  "core.assets.s3.path_prefix must not contain control characters",
 		},
 		{
 			name: "S3 backend without endpoint fails",

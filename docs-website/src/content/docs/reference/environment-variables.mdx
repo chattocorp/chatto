@@ -95,6 +95,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   S3 bucket name. Created automatically on startup if it doesn't exist.
 </EnvVar>
 
+<EnvVar name="CHATTO_CORE_ASSETS_S3_PATH_PREFIX" toml="core.assets.s3.path_prefix">
+  Optional object key prefix for all S3 assets. Leave empty to store objects at the bucket root.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_ASSETS_S3_REGION" toml="core.assets.s3.region">
   AWS region. Optional for non-AWS S3-compatible services.
 </EnvVar>

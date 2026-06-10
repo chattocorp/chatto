@@ -24,9 +24,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 1. Dual storage backends (NATS ObjectStore + S3)
 
-**Decision:** Attachments can be stored in NATS ObjectStore (default, good for development and small deployments) or in an S3-compatible bucket (production-grade). The retrieval layer tries both, with the configured primary first.
+**Decision:** Attachments can be stored in NATS ObjectStore (default, good for development and small deployments) or in an S3-compatible bucket (production-grade). Each asset records its storage backend and logical key at upload time; S3 deployments may add a configurable object-key prefix that is applied only at the S3 client boundary.
 **Why:** Self-hosters running a single binary shouldn't have to spin up S3 just to send a screenshot. Larger operators need durable, replicated object storage. Supporting both lets us serve both ends of the spectrum. See ADR-021.
-**Tradeoff:** Migration between backends is operator-managed. The "try both" retrieval logic adds a tiny overhead but greatly improves the migration experience.
+**Tradeoff:** Migration between backends or S3 prefixes is operator-managed. Stored asset keys remain prefix-free so moving objects between S3 base paths does not require rewriting Chatto metadata.
 
 ### 2. Video processing is in-process and best-effort
 

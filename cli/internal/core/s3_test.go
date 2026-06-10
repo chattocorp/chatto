@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
@@ -166,6 +168,67 @@ func TestS3Client_StatObject(t *testing.T) {
 	require.Equal(t, int64(1024), info.Size)
 }
 
+func TestS3Client_PathPrefixUsesPhysicalKeyAndReturnsLogicalKey(t *testing.T) {
+	server, endpoint := setupFakeS3Server(t)
+	defer server.Close()
+
+	endpointHost := endpoint[7:]
+	useSSL := false
+	pathStyle := true
+
+	prefixedCfg := config.S3Config{
+		Endpoint:        endpointHost,
+		Bucket:          "test-bucket",
+		PathPrefix:      "/tenant-a/chatto/",
+		AccessKeyID:     "test-key",
+		SecretAccessKey: "test-secret",
+		UseSSL:          &useSSL,
+		PathStyle:       &pathStyle,
+	}
+	prefixedClient, err := core.NewS3Client(prefixedCfg)
+	require.NoError(t, err)
+	require.Equal(t, "tenant-a/chatto", prefixedClient.PathPrefix())
+
+	verifierCfg := prefixedCfg
+	verifierCfg.PathPrefix = ""
+	verifierClient, err := core.NewS3Client(verifierCfg)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, prefixedClient.EnsureBucket(ctx))
+
+	logicalKey := "test/object.txt"
+	physicalKey := "tenant-a/chatto/test/object.txt"
+	testData := []byte("under a prefix")
+
+	putInfo, err := prefixedClient.PutObjectFromBytes(ctx, logicalKey, testData, "text/plain")
+	require.NoError(t, err)
+	require.Equal(t, logicalKey, putInfo.Key)
+
+	_, err = verifierClient.StatObject(ctx, logicalKey)
+	require.Error(t, err)
+
+	physicalInfo, err := verifierClient.StatObject(ctx, physicalKey)
+	require.NoError(t, err)
+	require.Equal(t, physicalKey, physicalInfo.Key)
+
+	reader, getInfo, err := prefixedClient.GetObject(ctx, logicalKey)
+	require.NoError(t, err)
+	defer reader.Close()
+	require.Equal(t, logicalKey, getInfo.Key)
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, testData, content)
+
+	presignedURL, err := prefixedClient.PresignedGetURL(ctx, logicalKey, 15*time.Minute)
+	require.NoError(t, err)
+	require.Contains(t, presignedURL.Path, physicalKey)
+
+	require.NoError(t, prefixedClient.DeleteObject(ctx, logicalKey))
+	_, err = verifierClient.StatObject(ctx, physicalKey)
+	require.Error(t, err)
+}
+
 // TestS3KeyHelpers tests the S3 key generation helpers.
 func TestS3KeyHelpers(t *testing.T) {
 	tests := []struct {
@@ -203,6 +266,20 @@ func TestS3Client_NilWhenNotConfigured(t *testing.T) {
 	client, err := core.NewS3Client(cfg)
 	require.NoError(t, err)
 	require.Nil(t, client)
+}
+
+func TestS3Client_InvalidPathPrefix(t *testing.T) {
+	cfg := config.S3Config{
+		Endpoint:        "s3.amazonaws.com",
+		Bucket:          "test-bucket",
+		PathPrefix:      "tenant//chatto",
+		AccessKeyID:     "test-key",
+		SecretAccessKey: "test-secret",
+	}
+	client, err := core.NewS3Client(cfg)
+	require.Nil(t, client)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "path_prefix"))
 }
 
 // TestStorageBackendEncapsulation_URLGeneration tests that URL generation always uses
