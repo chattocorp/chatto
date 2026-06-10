@@ -1,5 +1,4 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- admin child hrefs are resolved when adminNavItems is built */
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -20,6 +19,8 @@
   import ServerEventProvider from './ServerEventProvider.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
+  import AdminSidebarGroup from './AdminSidebarGroup.svelte';
+  import { getAdminNavItems } from './adminNav';
 
   let { children } = $props();
 
@@ -32,8 +33,6 @@
     resolve('/chat/[serverId]/server-admin', { serverId: serverSegment })
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
-  let adminGroupExpanded = $state(false);
-  let wasAdminMode = $state(false);
 
   // Detect if we're in user settings mode
   const settingsPrefix = $derived(
@@ -242,95 +241,14 @@
   // Read server-wide permissions for admin-flavoured nav items (system, audit).
   const serverPerms = getServerPermissions();
 
-  $effect(() => {
-    if (isAdminMode && !wasAdminMode) {
-      adminGroupExpanded = true;
-    }
-    wasAdminMode = isAdminMode;
-  });
-
   // Admin navigation items - filtered based on permissions
-  const adminNavItems = $derived.by(() => {
-    if (!spaceData) return [];
-    if (!spaceData.hasAnyAdminPermission && !serverPerms.current.canViewAdmin) return [];
-
-    const items: { href: string; label: string; icon: string }[] = [];
-
-    if (spaceData.canManage) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/general', { serverId: serverSegment }),
-        label: 'General',
-        icon: 'iconify uil--setting'
-      });
-    }
-
-    if (spaceData.canAssignRoles || serverPerms.current.canAdminViewUsers) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
-        label: 'Members',
-        icon: 'iconify uil--users-alt'
-      });
-    }
-
-    if (spaceData.canManageRooms) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment }),
-        label: 'Rooms',
-        icon: 'iconify uil--apps'
-      });
-    }
-
-    if (spaceData.hasAnyAdminPermission) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/moderation', { serverId: serverSegment }),
-        label: 'Moderation',
-        icon: 'iconify uil--ban'
-      });
-    }
-
-    if (spaceData.canManageRoles || serverPerms.current.canAdminViewRoles) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }),
-        label: 'Permissions',
-        icon: 'iconify uil--shield-check'
-      });
-    }
-
-    if (spaceData.canManage) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/security', { serverId: serverSegment }),
-        label: 'Security',
-        icon: 'iconify uil--shield-exclamation'
-      });
-    }
-
-    if (serverPerms.current.canAdminViewAudit) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/event-log', { serverId: serverSegment }),
-        label: 'Event Log',
-        icon: 'iconify uil--history'
-      });
-    }
-
-    if (serverPerms.current.canAdminViewSystem) {
-      items.push({
-        href: resolve('/chat/[serverId]/server-admin/system', { serverId: serverSegment }),
-        label: 'System',
-        icon: 'iconify uil--server'
-      });
-    }
-
-    return items;
-  });
-
-  // Check if an admin nav item is active (custom logic for nested URLs)
-  function isAdminNavActive(href: string, _items: unknown): boolean {
-    const adminBase = resolve('/chat/[serverId]/server-admin', { serverId: serverSegment });
-    if (href === adminBase) {
-      return page.url.pathname === adminBase;
-    }
-    return page.url.pathname.startsWith(href);
-  }
+  const adminNavItems = $derived(
+    getAdminNavItems({
+      serverSegment,
+      space: spaceData,
+      server: serverPerms.current
+    })
+  );
 </script>
 
 <ServerEventProvider>
@@ -392,42 +310,13 @@
                   <span class="sidebar-icon iconify uil--bell"></span>
                   Preferences
                 </a>
-                {#if adminNavItems.length > 0}
-                  <button
-                    type="button"
-                    class="sidebar-item text-left"
-                    aria-expanded={adminGroupExpanded}
-                    aria-controls="server-admin-sidebar-links"
-                    onclick={() => {
-                      adminGroupExpanded = !adminGroupExpanded;
-                    }}
-                  >
-                    <span class="sidebar-icon iconify uil--setting"></span>
-                    <span class="min-w-0 flex-1 truncate">Administration</span>
-                    <span
-                      class={[
-                        'iconify uil--angle-right-b shrink-0 text-base text-muted transition-transform',
-                        adminGroupExpanded ? 'rotate-90' : ''
-                      ]}
-                    ></span>
-                  </button>
-                  {#if adminGroupExpanded}
-                    <div id="server-admin-sidebar-links" class="sidebar-nav">
-                      {#each adminNavItems as item (item.href)}
-                        <a
-                          href={item.href}
-                          class={[
-                            'sidebar-item pl-8',
-                            isAdminNavActive(item.href, adminNavItems) ? 'bg-surface-100' : ''
-                          ]}
-                        >
-                          <span class="sidebar-icon {item.icon}"></span>
-                          {item.label}
-                        </a>
-                      {/each}
-                    </div>
-                  {/if}
-                {/if}
+                {#key isAdminMode}
+                  <AdminSidebarGroup
+                    currentPath={page.url.pathname}
+                    expandedByDefault={isAdminMode}
+                    items={adminNavItems}
+                  />
+                {/key}
               </nav>
 
               <hr class="border-border" />
