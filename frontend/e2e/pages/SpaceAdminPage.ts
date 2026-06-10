@@ -117,8 +117,7 @@ export class SpaceAdminPage {
 
   /** The banner preview image in settings */
   get bannerPreview(): Locator {
-    // Panel uses div structure with h2 heading, not section
-    return this.page.locator('div:has(h2:has-text("Banner")) img[alt="Server banner"]');
+    return this.page.getByTestId('banner-drop-zone').getByRole('img', { name: 'Server banner' });
   }
 
   /** The banner image in the sidebar */
