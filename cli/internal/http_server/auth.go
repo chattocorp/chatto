@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -24,6 +25,15 @@ var (
 
 func isStaleLoginCredentialError(err error) bool {
 	return errors.Is(err, core.ErrCookieSessionNotFound) || errors.Is(err, core.ErrAuthTokenNotFound)
+}
+
+func (s *HTTPServer) authEmailServerName(ctx context.Context) string {
+	if s.core != nil && s.core.ConfigManager() != nil {
+		if name, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil && strings.TrimSpace(name) != "" {
+			return name
+		}
+	}
+	return "Chatto"
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
@@ -269,10 +279,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Send registration email
+		serverName := s.authEmailServerName(ctx)
 		err = s.mailer.Send(email.Message{
 			To:      req.Email,
-			Subject: "Complete your Chatto registration",
-			Body:    fmt.Sprintf("Welcome to Chatto!\n\nYour verification code is:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", code),
+			Subject: fmt.Sprintf("Complete your registration for %s", serverName),
+			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code),
 		})
 		if err != nil {
 			log.Error("Failed to send registration email", "email", req.Email, "error", err)
@@ -486,10 +497,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
+		serverName := s.authEmailServerName(req.Context())
 		if err := s.mailer.Send(email.Message{
 			To:      body.Email,
-			Subject: "Verify your Chatto email",
-			Body:    fmt.Sprintf("Your Chatto email verification code is:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", code),
+			Subject: fmt.Sprintf("Verify your email for %s", serverName),
+			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, code),
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "email", body.Email, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
@@ -563,11 +575,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Only send email if token was created (email exists and is verified)
 		if token != "" && s.mailer != nil {
+			serverName := s.authEmailServerName(ctx)
 			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
 			err = s.mailer.Send(email.Message{
 				To:      normalizedEmail,
-				Subject: "Reset your Chatto password",
-				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset your password for your Chatto account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.\n\n- The Chatto Team", resetURL),
+				Subject: fmt.Sprintf("Reset your %s password", serverName),
+				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
 			})
 			if err != nil {
 				log.Error("Failed to send password reset email", "email", normalizedEmail, "error", err)
