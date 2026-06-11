@@ -71,6 +71,16 @@ type Documents = {
     "\n  query ThreadMessagesPage(\n    $roomId: ID!\n    $threadRootEventId: ID!\n    $limit: Int\n    $before: String\n    $after: String\n  ) {\n    room(roomId: $roomId) {\n      event(eventId: $threadRootEventId) {\n        ...RoomEventView\n        event {\n          ... on MessagePostedEvent {\n            threadReplies(limit: $limit, before: $before, after: $after) {\n              events {\n                ...RoomEventView\n              }\n              startCursor\n              endCursor\n              hasOlder\n              hasNewer\n            }\n          }\n        }\n      }\n    }\n  }\n": typeof types.ThreadMessagesPageDocument,
     "\n\tquery GetActiveCallRoomIds {\n\t\tactiveCallRoomIds\n\t}\n": typeof types.GetActiveCallRoomIdsDocument,
     "\n\tquery GetSidebarCallParticipants($roomId: ID!) {\n\t\troom(roomId: $roomId) {\n\t\t\tcallParticipants {\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tlogin\n\t\t\t\t\tdisplayName\n\t\t\t\t\tavatarUrl(width: 96, height: 96)\n\t\t\t\t}\n\t\t\t\tjoinedAt\n\t\t\t}\n\t\t}\n\t}\n": typeof types.GetSidebarCallParticipantsDocument,
+    "\n  query AdminRoomGroups {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n      }\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": typeof types.AdminRoomGroupsDocument,
+    "\n  mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n    createRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.AdminCreateRoomGroupDocument,
+    "\n  mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n    updateRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.AdminUpdateRoomGroupDocument,
+    "\n  mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n    deleteRoomGroup(input: $input)\n  }\n": typeof types.AdminDeleteRoomGroupDocument,
+    "\n  mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n    reorderRoomGroups(input: $input) {\n      id\n    }\n  }\n": typeof types.AdminReorderRoomGroupsDocument,
+    "\n  mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n    moveRoomToGroup(input: $input) {\n      id\n    }\n  }\n": typeof types.AdminMoveRoomToGroupDocument,
+    "\n  mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n    reorderRoomsInGroup(input: $input) {\n      id\n    }\n  }\n": typeof types.AdminReorderRoomsInGroupDocument,
+    "\n  mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n    updateRoom(input: $input) {\n      id\n      name\n      description\n    }\n  }\n": typeof types.AdminUpdateRoomDocument,
+    "\n  mutation ArchiveRoom($input: ArchiveRoomInput!) {\n    archiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n": typeof types.ArchiveRoomDocument,
+    "\n  mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n    unarchiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n": typeof types.UnarchiveRoomDocument,
     "\n\tquery GetCallParticipants($roomId: ID!) {\n\t\troom(roomId: $roomId) {\n\t\t\tcallParticipants {\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tlogin\n\t\t\t\t\tdisplayName\n\t\t\t\t\tavatarUrl(width: 96, height: 96)\n\t\t\t\t}\n\t\t\t\tjoinedAt\n\t\t\t}\n\t\t}\n\t}\n": typeof types.GetCallParticipantsDocument,
     "\n  query Notifications {\n    viewer {\n      notifications(limit: 50) {\n        items {\n          __typename\n          ... on DMMessageNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            room {\n              id\n            }\n          }\n          ... on MentionNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            mentionRoom: room {\n              id\n              name\n            }\n            mentionEventId: eventId\n            mentionInThread: threadRootEventId\n          }\n          ... on ReplyNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            replyRoom: room {\n              id\n              name\n            }\n            replyEventId: eventId\n            inReplyToId\n            replyInThread: threadRootEventId\n          }\n          ... on RoomMessageNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            roomMsgRoom: room {\n              id\n              name\n            }\n            roomMsgEventId: eventId\n          }\n        }\n      }\n    }\n  }\n": typeof types.NotificationsDocument,
     "\n  query HasNotifications {\n    viewer {\n      hasNotifications\n    }\n  }\n": typeof types.HasNotificationsDocument,
@@ -121,16 +131,6 @@ type Documents = {
     "\n        mutation DeleteRoleDetailPage($input: DeleteRoleInput!) {\n          deleteRole(input: $input)\n        }\n      ": typeof types.DeleteRoleDetailPageDocument,
     "\n        query SpaceRolesNewCheck {\n          server {\n            viewerCanManageRoles\n          }\n        }\n      ": typeof types.SpaceRolesNewCheckDocument,
     "\n        mutation CreateRoleNewPage($input: CreateRoleInput!) {\n          createRole(input: $input) {\n            name\n            displayName\n            description\n          }\n        }\n      ": typeof types.CreateRoleNewPageDocument,
-    "\n    query AdminRoomGroups {\n      server {\n        rooms(type: CHANNEL) {\n          id\n          name\n          description\n          archived\n        }\n        roomGroups {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n      }\n    }\n  ": typeof types.AdminRoomGroupsDocument,
-    "\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": typeof types.AdminCreateRoomGroupDocument,
-    "\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": typeof types.AdminUpdateRoomGroupDocument,
-    "\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  ": typeof types.AdminDeleteRoomGroupDocument,
-    "\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  ": typeof types.AdminReorderRoomGroupsDocument,
-    "\n    mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n      moveRoomToGroup(input: $input) {\n        id\n      }\n    }\n  ": typeof types.AdminMoveRoomToGroupDocument,
-    "\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  ": typeof types.AdminReorderRoomsInGroupDocument,
-    "\n    mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": typeof types.AdminUpdateRoomDocument,
-    "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": typeof types.ArchiveRoomDocument,
-    "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": typeof types.UnarchiveRoomDocument,
     "\n    query AdminGroupPermissionsName {\n      server {\n        roomGroups {\n          id\n          name\n        }\n      }\n    }\n  ": typeof types.AdminGroupPermissionsNameDocument,
     "\n    query AdminRoomPermissionsName($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n      }\n    }\n  ": typeof types.AdminRoomPermissionsNameDocument,
     "\n      query AdminSecurityConfig {\n        admin {\n          serverConfig {\n            blockedUsernames\n          }\n        }\n      }\n    ": typeof types.AdminSecurityConfigDocument,
@@ -205,6 +205,16 @@ const documents: Documents = {
     "\n  query ThreadMessagesPage(\n    $roomId: ID!\n    $threadRootEventId: ID!\n    $limit: Int\n    $before: String\n    $after: String\n  ) {\n    room(roomId: $roomId) {\n      event(eventId: $threadRootEventId) {\n        ...RoomEventView\n        event {\n          ... on MessagePostedEvent {\n            threadReplies(limit: $limit, before: $before, after: $after) {\n              events {\n                ...RoomEventView\n              }\n              startCursor\n              endCursor\n              hasOlder\n              hasNewer\n            }\n          }\n        }\n      }\n    }\n  }\n": types.ThreadMessagesPageDocument,
     "\n\tquery GetActiveCallRoomIds {\n\t\tactiveCallRoomIds\n\t}\n": types.GetActiveCallRoomIdsDocument,
     "\n\tquery GetSidebarCallParticipants($roomId: ID!) {\n\t\troom(roomId: $roomId) {\n\t\t\tcallParticipants {\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tlogin\n\t\t\t\t\tdisplayName\n\t\t\t\t\tavatarUrl(width: 96, height: 96)\n\t\t\t\t}\n\t\t\t\tjoinedAt\n\t\t\t}\n\t\t}\n\t}\n": types.GetSidebarCallParticipantsDocument,
+    "\n  query AdminRoomGroups {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n      }\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": types.AdminRoomGroupsDocument,
+    "\n  mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n    createRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n": types.AdminCreateRoomGroupDocument,
+    "\n  mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n    updateRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n": types.AdminUpdateRoomGroupDocument,
+    "\n  mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n    deleteRoomGroup(input: $input)\n  }\n": types.AdminDeleteRoomGroupDocument,
+    "\n  mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n    reorderRoomGroups(input: $input) {\n      id\n    }\n  }\n": types.AdminReorderRoomGroupsDocument,
+    "\n  mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n    moveRoomToGroup(input: $input) {\n      id\n    }\n  }\n": types.AdminMoveRoomToGroupDocument,
+    "\n  mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n    reorderRoomsInGroup(input: $input) {\n      id\n    }\n  }\n": types.AdminReorderRoomsInGroupDocument,
+    "\n  mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n    updateRoom(input: $input) {\n      id\n      name\n      description\n    }\n  }\n": types.AdminUpdateRoomDocument,
+    "\n  mutation ArchiveRoom($input: ArchiveRoomInput!) {\n    archiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n": types.ArchiveRoomDocument,
+    "\n  mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n    unarchiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n": types.UnarchiveRoomDocument,
     "\n\tquery GetCallParticipants($roomId: ID!) {\n\t\troom(roomId: $roomId) {\n\t\t\tcallParticipants {\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tlogin\n\t\t\t\t\tdisplayName\n\t\t\t\t\tavatarUrl(width: 96, height: 96)\n\t\t\t\t}\n\t\t\t\tjoinedAt\n\t\t\t}\n\t\t}\n\t}\n": types.GetCallParticipantsDocument,
     "\n  query Notifications {\n    viewer {\n      notifications(limit: 50) {\n        items {\n          __typename\n          ... on DMMessageNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            room {\n              id\n            }\n          }\n          ... on MentionNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            mentionRoom: room {\n              id\n              name\n            }\n            mentionEventId: eventId\n            mentionInThread: threadRootEventId\n          }\n          ... on ReplyNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            replyRoom: room {\n              id\n              name\n            }\n            replyEventId: eventId\n            inReplyToId\n            replyInThread: threadRootEventId\n          }\n          ... on RoomMessageNotificationItem {\n            id\n            createdAt\n            actor {\n              id\n              login\n              displayName\n              avatarUrl(width: 96, height: 96)\n              presenceStatus\n            }\n            summary\n            roomMsgRoom: room {\n              id\n              name\n            }\n            roomMsgEventId: eventId\n          }\n        }\n      }\n    }\n  }\n": types.NotificationsDocument,
     "\n  query HasNotifications {\n    viewer {\n      hasNotifications\n    }\n  }\n": types.HasNotificationsDocument,
@@ -255,16 +265,6 @@ const documents: Documents = {
     "\n        mutation DeleteRoleDetailPage($input: DeleteRoleInput!) {\n          deleteRole(input: $input)\n        }\n      ": types.DeleteRoleDetailPageDocument,
     "\n        query SpaceRolesNewCheck {\n          server {\n            viewerCanManageRoles\n          }\n        }\n      ": types.SpaceRolesNewCheckDocument,
     "\n        mutation CreateRoleNewPage($input: CreateRoleInput!) {\n          createRole(input: $input) {\n            name\n            displayName\n            description\n          }\n        }\n      ": types.CreateRoleNewPageDocument,
-    "\n    query AdminRoomGroups {\n      server {\n        rooms(type: CHANNEL) {\n          id\n          name\n          description\n          archived\n        }\n        roomGroups {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n      }\n    }\n  ": types.AdminRoomGroupsDocument,
-    "\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": types.AdminCreateRoomGroupDocument,
-    "\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": types.AdminUpdateRoomGroupDocument,
-    "\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  ": types.AdminDeleteRoomGroupDocument,
-    "\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  ": types.AdminReorderRoomGroupsDocument,
-    "\n    mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n      moveRoomToGroup(input: $input) {\n        id\n      }\n    }\n  ": types.AdminMoveRoomToGroupDocument,
-    "\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  ": types.AdminReorderRoomsInGroupDocument,
-    "\n    mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": types.AdminUpdateRoomDocument,
-    "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": types.ArchiveRoomDocument,
-    "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": types.UnarchiveRoomDocument,
     "\n    query AdminGroupPermissionsName {\n      server {\n        roomGroups {\n          id\n          name\n        }\n      }\n    }\n  ": types.AdminGroupPermissionsNameDocument,
     "\n    query AdminRoomPermissionsName($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n      }\n    }\n  ": types.AdminRoomPermissionsNameDocument,
     "\n      query AdminSecurityConfig {\n        admin {\n          serverConfig {\n            blockedUsernames\n          }\n        }\n      }\n    ": types.AdminSecurityConfigDocument,
@@ -527,6 +527,46 @@ export function graphql(source: "\n\tquery GetSidebarCallParticipants($roomId: I
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query AdminRoomGroups {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n      }\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query AdminRoomGroups {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n      }\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n    createRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n    createRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n    updateRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n    updateRoomGroup(input: $input) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n    deleteRoomGroup(input: $input)\n  }\n"): (typeof documents)["\n  mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n    deleteRoomGroup(input: $input)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n    reorderRoomGroups(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n    reorderRoomGroups(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n    moveRoomToGroup(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n    moveRoomToGroup(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n    reorderRoomsInGroup(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n    reorderRoomsInGroup(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n    updateRoom(input: $input) {\n      id\n      name\n      description\n    }\n  }\n"): (typeof documents)["\n  mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n    updateRoom(input: $input) {\n      id\n      name\n      description\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ArchiveRoom($input: ArchiveRoomInput!) {\n    archiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n"): (typeof documents)["\n  mutation ArchiveRoom($input: ArchiveRoomInput!) {\n    archiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n    unarchiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n"): (typeof documents)["\n  mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n    unarchiveRoom(input: $input) {\n      id\n      archived\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\tquery GetCallParticipants($roomId: ID!) {\n\t\troom(roomId: $roomId) {\n\t\t\tcallParticipants {\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tlogin\n\t\t\t\t\tdisplayName\n\t\t\t\t\tavatarUrl(width: 96, height: 96)\n\t\t\t\t}\n\t\t\t\tjoinedAt\n\t\t\t}\n\t\t}\n\t}\n"): (typeof documents)["\n\tquery GetCallParticipants($roomId: ID!) {\n\t\troom(roomId: $roomId) {\n\t\t\tcallParticipants {\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tlogin\n\t\t\t\t\tdisplayName\n\t\t\t\t\tavatarUrl(width: 96, height: 96)\n\t\t\t\t}\n\t\t\t\tjoinedAt\n\t\t\t}\n\t\t}\n\t}\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -724,46 +764,6 @@ export function graphql(source: "\n        query SpaceRolesNewCheck {\n         
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n        mutation CreateRoleNewPage($input: CreateRoleInput!) {\n          createRole(input: $input) {\n            name\n            displayName\n            description\n          }\n        }\n      "): (typeof documents)["\n        mutation CreateRoleNewPage($input: CreateRoleInput!) {\n          createRole(input: $input) {\n            name\n            displayName\n            description\n          }\n        }\n      "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    query AdminRoomGroups {\n      server {\n        rooms(type: CHANNEL) {\n          id\n          name\n          description\n          archived\n        }\n        roomGroups {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n      }\n    }\n  "): (typeof documents)["\n    query AdminRoomGroups {\n      server {\n        rooms(type: CHANNEL) {\n          id\n          name\n          description\n          archived\n        }\n        roomGroups {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  "): (typeof documents)["\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n      moveRoomToGroup(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {\n      moveRoomToGroup(input: $input) {\n        id\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  "): (typeof documents)["\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  "): (typeof documents)["\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
