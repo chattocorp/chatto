@@ -362,8 +362,12 @@ Chatto's `/oauth/authorize` endpoint is for compatible Chatto clients that need
 opaque bearer tokens for cross-origin server connections.
 
 - Redirect URIs must match the server's configured `webserver.url`, an explicit
-  `webserver.allowed_origins` entry, or a loopback development origin. Wildcard
-  CORS (`allowed_origins = ["*"]`) is not OAuth redirect trust.
+  `webserver.oauth_redirect_origins` entry, an exact `webserver.allowed_origins`
+  entry, or a loopback development origin. Wildcard CORS
+  (`allowed_origins = ["*"]`) is not OAuth redirect trust.
+- `oauth_redirect_origins = ["*"]` is an OAuth-specific temporary escape hatch
+  for controlled alpha deployments. It allows any otherwise valid HTTPS
+  redirect origin, so prefer exact origins for production.
 - The first authorization for a trusted redirect origin must show a consent
   screen. Approval is remembered per user + canonical origin through durable
   `EVT` facts; denial is recorded for audit but does not grant consent.

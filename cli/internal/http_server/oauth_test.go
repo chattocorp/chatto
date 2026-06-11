@@ -254,6 +254,60 @@ func TestOAuthAuthorize_AllowsConfiguredRedirectOrigin(t *testing.T) {
 	}
 }
 
+func TestOAuthAuthorize_AllowsConfiguredOAuthRedirectOrigin(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("expected 307 for configured OAuth redirect origin, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthAuthorize_AllowsOAuthRedirectWildcard(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.OAuthRedirectOrigins = []string{"*"}
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://any-client.example/servers/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("expected 307 for OAuth redirect wildcard, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthAuthorize_AllowedOriginsWildcardDoesNotAllowOAuthRedirect(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.AllowedOrigins = []string{"*"}
+
+	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://evil.example/servers/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for CORS wildcard redirect origin, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testing.T) {
 	s := setupOAuthServer(t)
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-victim")
@@ -785,6 +839,7 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 func TestIsValidRedirectURI(t *testing.T) {
 	s := setupOAuthServer(t)
 	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
+	s.config.Webserver.OAuthRedirectOrigins = []string{"https://oauth-client.example"}
 
 	tests := []struct {
 		uri  string
@@ -792,6 +847,7 @@ func TestIsValidRedirectURI(t *testing.T) {
 	}{
 		{"https://chatto.example/callback", true},
 		{"https://client.example/callback", true},
+		{"https://oauth-client.example/callback", true},
 		{"http://localhost:3000/callback", true},
 		{"http://localhost/callback", true},
 		{"http://127.0.0.1:5173/callback", true},
@@ -802,8 +858,38 @@ func TestIsValidRedirectURI(t *testing.T) {
 		{"ftp://example.com/callback", false},
 		{"example.com/callback", false},
 		{"/callback", false},
+		{"https://user:pass@client.example/callback", false},
 		{"https://chatto.example/callback#fragment", false},
 		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.uri, func(t *testing.T) {
+			got := s.isAllowedOAuthRedirectURI(tt.uri)
+			if got != tt.want {
+				t.Errorf("isAllowedOAuthRedirectURI(%q) = %v, want %v", tt.uri, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsValidRedirectURI_WithOAuthRedirectWildcard(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.OAuthRedirectOrigins = []string{"*"}
+
+	tests := []struct {
+		uri  string
+		want bool
+	}{
+		{"https://any-client.example/callback", true},
+		{"https://another.example:8443/servers/callback", true},
+		{"http://localhost:3000/callback", true},
+		{"http://127.0.0.1:5173/callback", true},
+		{"http://example.com/callback", false},
+		{"ftp://example.com/callback", false},
+		{"example.com/callback", false},
+		{"https://user:pass@evil.example/callback", false},
+		{"https://evil.example/callback#fragment", false},
 	}
 
 	for _, tt := range tests {

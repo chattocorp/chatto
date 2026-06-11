@@ -36,7 +36,11 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API.
+  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API. Wildcard CORS does not trust OAuth redirect callbacks.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
+  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
 </EnvVar>
 
 ### TLS

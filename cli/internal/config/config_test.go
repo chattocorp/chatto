@@ -126,6 +126,51 @@ signing_secret = "file-assets-secret"
 	}
 }
 
+func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "file-cookie-secret"
+oauth_redirect_origins = ["https://client.example"]
+
+[core]
+secret_key = "file-core-secret"
+
+[core.assets]
+signing_secret = "file-assets-secret"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "https://client.example"; got != want {
+		t.Fatalf("expected TOML oauth_redirect_origins %q, got %q", want, got)
+	}
+
+	t.Setenv("CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS", "*")
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "*"; got != want {
+		t.Fatalf("expected env oauth_redirect_origins %q, got %q", want, got)
+	}
+}
+
 func TestReadConfig_S3PathPrefixFromTOMLAndEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()

@@ -460,7 +460,8 @@ func (s *HTTPServer) allowedOAuthRedirectOrigin(uri string) (string, bool) {
 // isAllowedOAuthRedirectURI validates a redirect URI for the OAuth authorize
 // flow. In addition to requiring HTTPS (except loopback development URLs), it
 // only accepts origins this server explicitly trusts: its own public
-// webserver.url origin, webserver.allowed_origins entries, and localhost.
+// webserver.url origin, exact webserver.allowed_origins entries,
+// webserver.oauth_redirect_origins entries, and localhost.
 func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -482,6 +483,9 @@ func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
 
 	redirectOrigin := canonicalOrigin(u)
 	for _, allowed := range s.allowedOAuthRedirectOrigins() {
+		if allowed == "*" {
+			return true
+		}
 		if redirectOrigin == allowed {
 			return true
 		}
@@ -491,12 +495,21 @@ func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
 }
 
 func (s *HTTPServer) allowedOAuthRedirectOrigins() []string {
-	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+1)
+	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+len(s.config.Webserver.OAuthRedirectOrigins)+1)
 	if origin, ok := parseConfiguredOAuthOrigin(s.config.Webserver.URL); ok {
 		origins = append(origins, origin)
 	}
 	for _, raw := range s.config.Webserver.AllowedOrigins {
-		if raw == "*" {
+		if strings.TrimSpace(raw) == "*" {
+			continue
+		}
+		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
+			origins = append(origins, origin)
+		}
+	}
+	for _, raw := range s.config.Webserver.OAuthRedirectOrigins {
+		if strings.TrimSpace(raw) == "*" {
+			origins = append(origins, "*")
 			continue
 		}
 		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
@@ -507,6 +520,7 @@ func (s *HTTPServer) allowedOAuthRedirectOrigins() []string {
 }
 
 func parseConfiguredOAuthOrigin(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme == "" || u.Host == "" || u.User != nil {
 		return "", false
