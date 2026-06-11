@@ -102,7 +102,7 @@ export class ChatPage {
 
   /** Get the unread dot locator for a specific space */
   getSpaceUnreadDot(spaceName: string): Locator {
-    return this.getSpaceIconContainer(spaceName).getByTestId('space-unread-dot');
+    return this.getSpaceIconContainer(spaceName).getByTestId('server-unread-dot');
   }
 
   /** Click the unread dot on a specific space icon */

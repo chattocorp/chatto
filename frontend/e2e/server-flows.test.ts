@@ -241,7 +241,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
 
 		// The remote instance should now appear in the sidebar.
 		await expect(
-			page.locator(`[data-testid="space-icon"][href*="${remoteHostname}"]`).first()
+			page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`).first()
 		).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 	});
 
