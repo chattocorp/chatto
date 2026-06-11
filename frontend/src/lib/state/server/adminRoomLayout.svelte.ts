@@ -1,5 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
+import { SvelteMap } from 'svelte/reactivity';
 
 const OWN_MUTATION_ECHO_SUPPRESSION_MS = 2000;
 
@@ -149,7 +150,7 @@ export type GroupReorderResult =
   | { ok: true; changed: boolean }
   | { ok: false; changed: true; error: string; refreshRequested: true };
 
-export type GroupRoomOrder = Map<string, string[]>;
+export type GroupRoomOrder = SvelteMap<string, string[]>;
 
 function errorMessage(error: unknown): string {
   if (!error) return 'unknown error';
@@ -162,7 +163,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
-  const map = new Map<string, string[]>();
+  const map = new SvelteMap<string, string[]>();
   for (const group of groups) {
     map.set(
       group.id,
@@ -172,8 +173,8 @@ export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
   return map;
 }
 
-function buildRoomToGroup(snapshot: GroupRoomOrder): Map<string, string> {
-  const map = new Map<string, string>();
+function buildRoomToGroup(snapshot: GroupRoomOrder): SvelteMap<string, string> {
+  const map = new SvelteMap<string, string>();
   for (const [groupId, roomIds] of snapshot) {
     for (const roomId of roomIds) {
       map.set(roomId, groupId);
@@ -268,7 +269,7 @@ export class AdminRoomLayoutStore {
         return;
       }
 
-      const roomsMap = new Map<string, AdminRoomInfo>(
+      const roomsMap = new SvelteMap<string, AdminRoomInfo>(
         (server.rooms ?? []).map((room) => [
           room.id,
           {
