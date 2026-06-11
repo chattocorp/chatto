@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -172,6 +173,28 @@ func TestRBACProjection_LegacyPermissionDecisionUnknownFields(t *testing.T) {
 	}
 }
 
+func TestRBACProjection_LegacyPermissionDecisionWireBytes(t *testing.T) {
+	p := NewRBACProjection()
+
+	granted := unmarshalLegacyRBACPermissionEvent(t, 810, "server", "admin", string(PermMessagePost))
+	applyRBACProjectionEvent(t, p, granted)
+	if got := p.GetDecision(ScopeServer, "", "admin", PermMessagePost); got != DecisionAllow {
+		t.Fatalf("legacy wire server decision = %v, want DecisionAllow", got)
+	}
+
+	denied := unmarshalLegacyRBACPermissionEvent(t, 811, "Gabc123", "moderator", string(PermRoomJoin))
+	applyRBACProjectionEvent(t, p, denied)
+	if got := p.GetDecision(ScopeGroup, "Gabc123", "moderator", PermRoomJoin); got != DecisionDeny {
+		t.Fatalf("legacy wire group decision = %v, want DecisionDeny", got)
+	}
+
+	cleared := unmarshalLegacyRBACPermissionEvent(t, 812, "Gabc123", "moderator", string(PermRoomJoin))
+	applyRBACProjectionEvent(t, p, cleared)
+	if got := p.GetDecision(ScopeGroup, "Gabc123", "moderator", PermRoomJoin); got != DecisionNone {
+		t.Fatalf("legacy wire cleared decision = %v, want DecisionNone", got)
+	}
+}
+
 func TestRBACProjection_IgnoresDuplicateEventID(t *testing.T) {
 	p := NewRBACProjection()
 
@@ -198,6 +221,24 @@ func legacyRBACPermissionUnknown(location, subject string) []byte {
 	unknown = protowire.AppendTag(unknown, 2, protowire.BytesType)
 	unknown = protowire.AppendString(unknown, subject)
 	return unknown
+}
+
+func unmarshalLegacyRBACPermissionEvent(t *testing.T, eventField protowire.Number, location, subject, permission string) *corev1.Event {
+	t.Helper()
+	var payload []byte
+	payload = append(payload, legacyRBACPermissionUnknown(location, subject)...)
+	payload = protowire.AppendTag(payload, 3, protowire.BytesType)
+	payload = protowire.AppendString(payload, permission)
+
+	var encoded []byte
+	encoded = protowire.AppendTag(encoded, eventField, protowire.BytesType)
+	encoded = protowire.AppendBytes(encoded, payload)
+
+	var event corev1.Event
+	if err := proto.Unmarshal(encoded, &event); err != nil {
+		t.Fatalf("unmarshal legacy RBAC permission event: %v", err)
+	}
+	return &event
 }
 
 func applyRBACProjectionEvent(t *testing.T, p *RBACProjection, event *corev1.Event) {

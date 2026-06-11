@@ -595,9 +595,9 @@ func (x *RbacPermissionSubject) GetId() string {
 
 type RbacPermissionGrantedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *RbacPermissionScope   `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Subject       *RbacPermissionSubject `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	Permission    string                 `protobuf:"bytes,3,opt,name=permission,proto3" json:"permission,omitempty"`
+	Scope         *RbacPermissionScope   `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Subject       *RbacPermissionSubject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -632,6 +632,13 @@ func (*RbacPermissionGrantedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{9}
 }
 
+func (x *RbacPermissionGrantedEvent) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
 func (x *RbacPermissionGrantedEvent) GetScope() *RbacPermissionScope {
 	if x != nil {
 		return x.Scope
@@ -646,18 +653,11 @@ func (x *RbacPermissionGrantedEvent) GetSubject() *RbacPermissionSubject {
 	return nil
 }
 
-func (x *RbacPermissionGrantedEvent) GetPermission() string {
-	if x != nil {
-		return x.Permission
-	}
-	return ""
-}
-
 type RbacPermissionDeniedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *RbacPermissionScope   `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Subject       *RbacPermissionSubject `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	Permission    string                 `protobuf:"bytes,3,opt,name=permission,proto3" json:"permission,omitempty"`
+	Scope         *RbacPermissionScope   `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Subject       *RbacPermissionSubject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -692,6 +692,13 @@ func (*RbacPermissionDeniedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{10}
 }
 
+func (x *RbacPermissionDeniedEvent) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
 func (x *RbacPermissionDeniedEvent) GetScope() *RbacPermissionScope {
 	if x != nil {
 		return x.Scope
@@ -706,19 +713,12 @@ func (x *RbacPermissionDeniedEvent) GetSubject() *RbacPermissionSubject {
 	return nil
 }
 
-func (x *RbacPermissionDeniedEvent) GetPermission() string {
-	if x != nil {
-		return x.Permission
-	}
-	return ""
-}
-
 // Removes any explicit allow or deny, returning this permission to inherited/no-decision state.
 type RbacPermissionClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *RbacPermissionScope   `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Subject       *RbacPermissionSubject `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	Permission    string                 `protobuf:"bytes,3,opt,name=permission,proto3" json:"permission,omitempty"`
+	Scope         *RbacPermissionScope   `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Subject       *RbacPermissionSubject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -753,6 +753,13 @@ func (*RbacPermissionClearedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{11}
 }
 
+func (x *RbacPermissionClearedEvent) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
 func (x *RbacPermissionClearedEvent) GetScope() *RbacPermissionScope {
 	if x != nil {
 		return x.Scope
@@ -765,13 +772,6 @@ func (x *RbacPermissionClearedEvent) GetSubject() *RbacPermissionSubject {
 		return x.Subject
 	}
 	return nil
-}
-
-func (x *RbacPermissionClearedEvent) GetPermission() string {
-	if x != nil {
-		return x.Permission
-	}
-	return ""
 }
 
 var File_chatto_core_v1_rbac_events_proto protoreflect.FileDescriptor
@@ -806,25 +806,25 @@ const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"f\n" +
 	"\x15RbacPermissionSubject\x12=\n" +
 	"\x04kind\x18\x01 \x01(\x0e2).chatto.core.v1.RbacPermissionSubjectKindR\x04kind\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\xb8\x01\n" +
-	"\x1aRbacPermissionGrantedEvent\x129\n" +
-	"\x05scope\x18\x01 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
-	"\asubject\x18\x02 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubject\x12\x1e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\xce\x01\n" +
+	"\x1aRbacPermissionGrantedEvent\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x03 \x01(\tR\n" +
-	"permission\"\xb7\x01\n" +
-	"\x19RbacPermissionDeniedEvent\x129\n" +
-	"\x05scope\x18\x01 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
-	"\asubject\x18\x02 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubject\x12\x1e\n" +
+	"permission\x129\n" +
+	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xcd\x01\n" +
+	"\x19RbacPermissionDeniedEvent\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x03 \x01(\tR\n" +
-	"permission\"\xb8\x01\n" +
-	"\x1aRbacPermissionClearedEvent\x129\n" +
-	"\x05scope\x18\x01 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
-	"\asubject\x18\x02 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubject\x12\x1e\n" +
+	"permission\x129\n" +
+	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xce\x01\n" +
+	"\x1aRbacPermissionClearedEvent\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x03 \x01(\tR\n" +
-	"permission*\xb7\x01\n" +
+	"permission\x129\n" +
+	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation*\xb7\x01\n" +
 	"\x17RbacPermissionScopeKind\x12*\n" +
 	"&RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!RBAC_PERMISSION_SCOPE_KIND_SERVER\x10\x01\x12$\n" +
