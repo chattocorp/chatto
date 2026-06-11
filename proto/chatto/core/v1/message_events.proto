@@ -18,8 +18,8 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // ============================================================================
 
 message MessagePostedEvent {
-  reserved 1, 3;
-  reserved "space_id", "message_body_id";
+  reserved 1, 3, 9;
+  reserved "space_id", "message_body_id", "body";
 
   // Room ID - identifies which room this message belongs to
   string room_id = 2;
@@ -45,11 +45,6 @@ message MessagePostedEvent {
 
   // Thread root event ID — the thread this echo originates from (empty = not an echo)
   string echo_from_thread_root_event_id = 8;
-
-  // Legacy embedded message body. New writes leave this unset and publish
-  // MessageBodyEvent instead so the encrypted payload can be securely
-  // deleted without deleting the public message-posted fact.
-  MessageBody body = 9;
 
   // The message's durable event ID lives on the Event envelope. GraphQL exposes
   // that wrapper ID on the public Event wrapper, not on this payload.
@@ -80,9 +75,8 @@ message MessageBodyEvent {
 }
 
 // MessageEditedEvent is the durable semantic event published when a message's
-// body or body metadata changes. New writes leave body unset and publish the
-// new body in a preceding MessageBodyEvent. The field remains decode-only
-// for existing EVT histories that embedded edited bodies here.
+// body or body metadata changes. The new body is published in a preceding
+// MessageBodyEvent.
 message MessageEditedEvent {
   // Room ID — identifies which room this message belongs to.
   string room_id = 1;
@@ -92,8 +86,8 @@ message MessageEditedEvent {
   // actor_id.
   string event_id = 2;
 
-  // Legacy embedded body envelope. New writes leave this unset.
-  MessageBody body = 3;
+  reserved 3;
+  reserved "body";
 }
 
 // MessageRetractedEvent is the durable event published when a message is

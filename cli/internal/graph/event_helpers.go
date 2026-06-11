@@ -55,8 +55,8 @@ func unwrapEVTEvent(event *corev1.Event) any {
 		return e.RoomMemberBanned
 	case *corev1.Event_RoomMemberUnbanned:
 		return e.RoomMemberUnbanned
-	case *corev1.Event_SpaceMemberDeleted:
-		return e.SpaceMemberDeleted
+	case *corev1.Event_ServerMemberDeleted:
+		return e.ServerMemberDeleted
 
 	// ---- Messages ----
 	case *corev1.Event_MessagePosted:
@@ -112,14 +112,12 @@ func unwrapLiveEvent(event *corev1.LiveEvent) any {
 		return e.NotificationLevelChanged
 	case *corev1.LiveEvent_ThreadFollowChanged:
 		return e.ThreadFollowChanged
-	case *corev1.LiveEvent_SpaceMemberDeleted:
-		return e.SpaceMemberDeleted
+	case *corev1.LiveEvent_ServerMemberDeleted:
+		return e.ServerMemberDeleted
 	case *corev1.LiveEvent_ServerUpdated:
 		return e.ServerUpdated
 	case *corev1.LiveEvent_UserTyping:
 		return e.UserTyping
-	case *corev1.LiveEvent_VideoProcessingCompleted:
-		return e.VideoProcessingCompleted
 	case *corev1.LiveEvent_PresenceChanged:
 		return e.PresenceChanged
 	case *corev1.LiveEvent_MentionNotification:

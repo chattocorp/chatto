@@ -14,35 +14,77 @@ const maxRBACMutationRetries = 5
 
 var errRBACNoop = errors.New("rbac mutation is a no-op")
 
-func rbacPermissionGrantedEvent(scope PermissionScope, scopeID, subject string, perm Permission) *corev1.RbacPermissionGrantedEvent {
+func rbacPermissionGrantedEvent(scope PermissionScope, scopeID string, subjectKind corev1.RbacPermissionSubjectKind, subjectID string, perm Permission) *corev1.RbacPermissionGrantedEvent {
 	return &corev1.RbacPermissionGrantedEvent{
-		Location:   rbacPermissionLocation(scope, scopeID),
-		Subject:    subject,
+		Scope:      rbacPermissionScope(scope, scopeID),
+		Subject:    rbacPermissionSubject(subjectKind, subjectID),
 		Permission: string(perm),
 	}
 }
 
-func rbacPermissionDeniedEvent(scope PermissionScope, scopeID, subject string, perm Permission) *corev1.RbacPermissionDeniedEvent {
+func rbacPermissionDeniedEvent(scope PermissionScope, scopeID string, subjectKind corev1.RbacPermissionSubjectKind, subjectID string, perm Permission) *corev1.RbacPermissionDeniedEvent {
 	return &corev1.RbacPermissionDeniedEvent{
-		Location:   rbacPermissionLocation(scope, scopeID),
-		Subject:    subject,
+		Scope:      rbacPermissionScope(scope, scopeID),
+		Subject:    rbacPermissionSubject(subjectKind, subjectID),
 		Permission: string(perm),
 	}
 }
 
-func rbacPermissionClearedEvent(scope PermissionScope, scopeID, subject string, perm Permission) *corev1.RbacPermissionClearedEvent {
+func rbacPermissionClearedEvent(scope PermissionScope, scopeID string, subjectKind corev1.RbacPermissionSubjectKind, subjectID string, perm Permission) *corev1.RbacPermissionClearedEvent {
 	return &corev1.RbacPermissionClearedEvent{
-		Location:   rbacPermissionLocation(scope, scopeID),
-		Subject:    subject,
+		Scope:      rbacPermissionScope(scope, scopeID),
+		Subject:    rbacPermissionSubject(subjectKind, subjectID),
 		Permission: string(perm),
 	}
 }
 
-func rbacPermissionLocation(scope PermissionScope, scopeID string) string {
-	if scope == ScopeServer {
-		return string(ScopeServer)
+func rbacRolePermissionGrantedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *corev1.RbacPermissionGrantedEvent {
+	return rbacPermissionGrantedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
+}
+
+func rbacRolePermissionDeniedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *corev1.RbacPermissionDeniedEvent {
+	return rbacPermissionDeniedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
+}
+
+func rbacRolePermissionClearedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *corev1.RbacPermissionClearedEvent {
+	return rbacPermissionClearedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
+}
+
+func rbacUserPermissionGrantedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *corev1.RbacPermissionGrantedEvent {
+	return rbacPermissionGrantedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
+}
+
+func rbacUserPermissionDeniedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *corev1.RbacPermissionDeniedEvent {
+	return rbacPermissionDeniedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
+}
+
+func rbacUserPermissionClearedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *corev1.RbacPermissionClearedEvent {
+	return rbacPermissionClearedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
+}
+
+func rbacPermissionScope(scope PermissionScope, scopeID string) *corev1.RbacPermissionScope {
+	kind := corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED
+	switch scope {
+	case ScopeServer:
+		kind = corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER
+		scopeID = ""
+	case ScopeGroup:
+		kind = corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP
+	case ScopeRoom:
+		kind = corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM
 	}
-	return scopeID
+	return &corev1.RbacPermissionScope{Kind: kind, Id: scopeID}
+}
+
+func rbacPermissionSubject(kind corev1.RbacPermissionSubjectKind, id string) *corev1.RbacPermissionSubject {
+	return &corev1.RbacPermissionSubject{Kind: kind, Id: id}
+}
+
+func rbacPermissionSubjectKindForID(subject string) corev1.RbacPermissionSubjectKind {
+	if IsUserSubject(subject) {
+		return corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER
+	}
+	return corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE
 }
 
 func rbacSubjectForEvent(event *corev1.Event) string {
@@ -55,21 +97,21 @@ func rbacAggregateForEvent(event *corev1.Event) events.Aggregate {
 	}
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RbacPermissionGranted:
-		return rbacAggregateForPermissionLocation(e.RbacPermissionGranted.GetLocation())
+		return rbacAggregateForPermissionScope(e.RbacPermissionGranted.GetScope())
 	case *corev1.Event_RbacPermissionDenied:
-		return rbacAggregateForPermissionLocation(e.RbacPermissionDenied.GetLocation())
+		return rbacAggregateForPermissionScope(e.RbacPermissionDenied.GetScope())
 	case *corev1.Event_RbacPermissionCleared:
-		return rbacAggregateForPermissionLocation(e.RbacPermissionCleared.GetLocation())
+		return rbacAggregateForPermissionScope(e.RbacPermissionCleared.GetScope())
 	default:
 		return events.RBACServerAggregate()
 	}
 }
 
-func rbacAggregateForPermissionLocation(location string) events.Aggregate {
-	if location == "" || location == string(ScopeServer) {
+func rbacAggregateForPermissionScope(scope *corev1.RbacPermissionScope) events.Aggregate {
+	if scope == nil || scope.GetKind() == corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER {
 		return events.RBACServerAggregate()
 	}
-	return events.RBACScopedAggregate(location)
+	return events.RBACScopedAggregate(scope.GetId())
 }
 
 func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, check func() error) (uint64, error) {

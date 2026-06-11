@@ -49,10 +49,6 @@ func postedEvent(o postedOpts) *corev1.Event {
 				InThread:                  o.inThread,
 				EchoOfEventId:             o.echoOfEventID,
 				EchoFromThreadRootEventId: o.echoFromThreadRootEventID,
-				Body: &corev1.MessageBody{
-					AuthorId:      o.actorID,
-					EncryptedBody: []byte(o.body),
-				},
 			},
 		},
 	}
@@ -81,16 +77,16 @@ func editedEvent(envID, targetID, roomID, actorID, newBody string, at int) *core
 			MessageEdited: &corev1.MessageEditedEvent{
 				RoomId:  roomID,
 				EventId: targetID,
-				Body: &corev1.MessageBody{
-					AuthorId:      actorID,
-					EncryptedBody: []byte(newBody),
-				},
 			},
 		},
 	}
 }
 
 func bodyEvent(envID, targetID, roomID, actorID, body string, at int) *corev1.Event {
+	return bodyEventWithAssets(envID, targetID, roomID, actorID, body, nil, at)
+}
+
+func bodyEventWithAssets(envID, targetID, roomID, actorID, body string, assetIDs []string, at int) *corev1.Event {
 	return &corev1.Event{
 		Id:        envID,
 		ActorId:   actorID,
@@ -104,6 +100,7 @@ func bodyEvent(envID, targetID, roomID, actorID, body string, at int) *corev1.Ev
 					BodyEventId:       envID,
 					EncryptionVersion: encryption.EnvelopeVersionV2,
 					EncryptedBody:     []byte(body),
+					AssetIds:          assetIDs,
 				},
 			},
 		},
@@ -481,10 +478,9 @@ func TestRoomTimeline_VisibleRoomTimelineAroundUsesVisibleIndex(t *testing.T) {
 func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "1", at: 1})
-	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{{Id: "A-video", ContentType: "video/mp4"}}
 	applyAll(t, p, []*corev1.Event{
 		post,
-		bodyEvent("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", 2),
+		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", []string{"A-video"}, 2),
 		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
 		&corev1.Event{
 			Id: "ENV-VIDEO-START",
@@ -596,10 +592,6 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
-	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{
-		{Id: "A-video", ContentType: "video/mp4"},
-		{Id: "A-image", ContentType: "image/png"},
-	}
 	processed := &corev1.Event{
 		Id: "ENV-VIDEO-OK",
 		Event: &corev1.Event_AssetProcessingSucceeded{
@@ -612,9 +604,14 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 
 	// New uploads emit AssetCreatedEvent with an empty message_event_id
 	// (the message doesn't exist yet at upload time). Message ownership is
-	// reconstructed from the posting message's attachments, so recovery must
+	// reconstructed from the posting message's body asset_ids, so recovery must
 	// still find A-video without relying on the deprecated field.
-	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "video/mp4"), attachmentDeclaredEvent("R1", "A-image", "image/png")})
+	applyAll(t, p, []*corev1.Event{
+		post,
+		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "", []string{"A-video", "A-image"}, 2),
+		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
+		attachmentDeclaredEvent("R1", "A-image", "image/png"),
+	})
 	got := p.UnmanifestedVideoAttachments()
 	if len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
 		t.Fatalf("UnmanifestedVideoAttachments before manifest = %+v, want A-video", got)
@@ -633,9 +630,12 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 func TestRoomTimeline_UnmanifestedVideoAttachments_SkipsRetracted(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
-	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{{Id: "A-video", ContentType: "video/mp4"}}
 
-	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "video/mp4")})
+	applyAll(t, p, []*corev1.Event{
+		post,
+		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "", []string{"A-video"}, 2),
+		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
+	})
 	if got := p.UnmanifestedVideoAttachments(); len(got) != 1 {
 		t.Fatalf("UnmanifestedVideoAttachments before retract = %+v, want A-video", got)
 	}
@@ -686,7 +686,7 @@ func TestRoomTimeline_RoomIDOfAssetCreated_CycleGuardDoesNotHang(t *testing.T) {
 }
 
 func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
-	// SpaceMemberDeletedEvent is in the proto's "Room membership" block
+	// ServerMemberDeletedEvent is in the proto's "Room membership" block
 	// (oneof tag 320) but carries no room_id. It's published to
 	// server.member.> in practice, never to evt.room.>, but if one ever
 	// slipped through the filter, roomIDOfEvent would return "" and the
@@ -695,9 +695,9 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	stray := &corev1.Event{
 		Id:        "ENV-STRAY",
 		CreatedAt: timestamppb.New(fixedTime(1)),
-		Event: &corev1.Event_SpaceMemberDeleted{
-			SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{UserId: "U1"},
-		},
+			Event: &corev1.Event_ServerMemberDeleted{
+				ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"},
+			},
 	}
 	if err := p.Apply(stray, 1); err != nil {
 		t.Fatalf("Apply: %v", err)

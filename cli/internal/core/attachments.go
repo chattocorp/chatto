@@ -14,7 +14,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
@@ -479,6 +478,13 @@ func cloneDeprecatedAsset(storage *corev1.DeprecatedAsset) *corev1.DeprecatedAss
 		return nil
 	}
 	return proto.Clone(storage).(*corev1.DeprecatedAsset)
+}
+
+func cloneAssetRecord(asset *corev1.AssetRecord) *corev1.AssetRecord {
+	if asset == nil {
+		return nil
+	}
+	return proto.Clone(asset).(*corev1.AssetRecord)
 }
 
 // FindBodyAttachment fetches the named MessageBody and returns the
@@ -1252,24 +1258,6 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 			c.logger.Warn("Failed to recover video processing", "attachment_id", req.Attachment.GetId(), "error", err)
 		}
 	}
-}
-
-// PublishVideoProcessingCompleted publishes a live event indicating video processing is done.
-// The frontend subscription receives this and refreshes the affected message.
-func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind RoomKind, roomID, attachmentID, messageBodyID string) error {
-	event := newLiveEvent("", &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_VideoProcessingCompleted{
-			VideoProcessingCompleted: &corev1.VideoProcessingCompletedEvent{
-				RoomId:         roomID,
-				AttachmentId:   attachmentID,
-				MessageBodyId:  messageBodyID,
-				MessageEventId: eventIDFromBodyKey(messageBodyID),
-			},
-		},
-	})
-
-	subject := subjects.LiveSyncRoomEvent(string(kind), roomID, "video_processed")
-	return c.publishLiveEvent(ctx, subject, event)
 }
 
 // PublishAssetProcessing appends a durable asset-processing event to EVT.

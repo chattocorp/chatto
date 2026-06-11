@@ -386,7 +386,7 @@ func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.Upl
 	}
 
 	if err := r.core.SetServerLogo(ctx, user.Id, asset); err != nil {
-		r.core.CleanupAsset(ctx, asset)
+		r.core.CleanupAsset(ctx, core.DeprecatedAssetFromAsset(asset))
 		return nil, fmt.Errorf("failed to save logo: %w", err)
 	}
 
@@ -420,7 +420,7 @@ func (r *mutationResolver) UploadServerBanner(ctx context.Context, input model.U
 	}
 
 	if err := r.core.SetServerBanner(ctx, user.Id, asset); err != nil {
-		r.core.CleanupAsset(ctx, asset)
+		r.core.CleanupAsset(ctx, core.DeprecatedAssetFromAsset(asset))
 		return nil, fmt.Errorf("failed to save banner: %w", err)
 	}
 

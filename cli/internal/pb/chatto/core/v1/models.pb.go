@@ -82,22 +82,25 @@ func (RoomKind) EnumDescriptor() ([]byte, []int) {
 type UserPresenceStatus int32
 
 const (
-	UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE         UserPresenceStatus = 0
-	UserPresenceStatus_USER_PRESENCE_STATUS_AWAY           UserPresenceStatus = 1
-	UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB UserPresenceStatus = 2
+	UserPresenceStatus_USER_PRESENCE_STATUS_UNSPECIFIED    UserPresenceStatus = 0
+	UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE         UserPresenceStatus = 1
+	UserPresenceStatus_USER_PRESENCE_STATUS_AWAY           UserPresenceStatus = 2
+	UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB UserPresenceStatus = 3
 )
 
 // Enum value maps for UserPresenceStatus.
 var (
 	UserPresenceStatus_name = map[int32]string{
-		0: "USER_PRESENCE_STATUS_ONLINE",
-		1: "USER_PRESENCE_STATUS_AWAY",
-		2: "USER_PRESENCE_STATUS_DO_NOT_DISTURB",
+		0: "USER_PRESENCE_STATUS_UNSPECIFIED",
+		1: "USER_PRESENCE_STATUS_ONLINE",
+		2: "USER_PRESENCE_STATUS_AWAY",
+		3: "USER_PRESENCE_STATUS_DO_NOT_DISTURB",
 	}
 	UserPresenceStatus_value = map[string]int32{
-		"USER_PRESENCE_STATUS_ONLINE":         0,
-		"USER_PRESENCE_STATUS_AWAY":           1,
-		"USER_PRESENCE_STATUS_DO_NOT_DISTURB": 2,
+		"USER_PRESENCE_STATUS_UNSPECIFIED":    0,
+		"USER_PRESENCE_STATUS_ONLINE":         1,
+		"USER_PRESENCE_STATUS_AWAY":           2,
+		"USER_PRESENCE_STATUS_DO_NOT_DISTURB": 3,
 	}
 )
 
@@ -131,6 +134,7 @@ func (UserPresenceStatus) EnumDescriptor() ([]byte, []int) {
 type VideoStatus int32
 
 const (
+	// buf:lint:ignore ENUM_ZERO_VALUE_SUFFIX
 	VideoStatus_VIDEO_STATUS_PENDING    VideoStatus = 0
 	VideoStatus_VIDEO_STATUS_PROCESSING VideoStatus = 1
 	VideoStatus_VIDEO_STATUS_COMPLETED  VideoStatus = 2
@@ -1045,7 +1049,7 @@ func (x *UserPresence) GetStatus() UserPresenceStatus {
 	if x != nil {
 		return x.Status
 	}
-	return UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE
+	return UserPresenceStatus_USER_PRESENCE_STATUS_UNSPECIFIED
 }
 
 // PresenceChange represents a change in a user's presence status.
@@ -2167,11 +2171,12 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +
-	"\fROOM_KIND_DM\x10\x02*}\n" +
-	"\x12UserPresenceStatus\x12\x1f\n" +
-	"\x1bUSER_PRESENCE_STATUS_ONLINE\x10\x00\x12\x1d\n" +
-	"\x19USER_PRESENCE_STATUS_AWAY\x10\x01\x12'\n" +
-	"#USER_PRESENCE_STATUS_DO_NOT_DISTURB\x10\x02*y\n" +
+	"\fROOM_KIND_DM\x10\x02*\xa3\x01\n" +
+	"\x12UserPresenceStatus\x12$\n" +
+	" USER_PRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bUSER_PRESENCE_STATUS_ONLINE\x10\x01\x12\x1d\n" +
+	"\x19USER_PRESENCE_STATUS_AWAY\x10\x02\x12'\n" +
+	"#USER_PRESENCE_STATUS_DO_NOT_DISTURB\x10\x03*y\n" +
 	"\vVideoStatus\x12\x18\n" +
 	"\x14VIDEO_STATUS_PENDING\x10\x00\x12\x1b\n" +
 	"\x17VIDEO_STATUS_PROCESSING\x10\x01\x12\x1a\n" +

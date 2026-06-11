@@ -58,7 +58,7 @@ func MigrateNotificationPreferencesToES(
 		if err != nil {
 			return err
 		}
-		if !ok || level == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if !ok || level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			continue
 		}
 
@@ -119,11 +119,11 @@ func legacyNotificationPreferenceEntry(key string, data []byte) (userID, roomID 
 	if strings.HasPrefix(key, legacyUserPreferencesPrefix) {
 		userID = strings.TrimPrefix(key, legacyUserPreferencesPrefix)
 		if userID == "" || strings.Contains(userID, ".") {
-			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, false, nil
+			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, false, nil
 		}
 		prefs := &corev1.UserPreferences{}
 		if err := proto.Unmarshal(data, prefs); err != nil {
-			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, false, fmt.Errorf("unmarshal %s: %w", key, err)
+			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, false, fmt.Errorf("unmarshal %s: %w", key, err)
 		}
 		return userID, "", prefs.GetNotificationLevel(), true, nil
 	}
@@ -132,16 +132,16 @@ func legacyNotificationPreferenceEntry(key string, data []byte) (userID, roomID 
 		suffix := strings.TrimPrefix(key, legacyRoomUserPreferencesPrefix)
 		parts := strings.Split(suffix, ".")
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, false, nil
+			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, false, nil
 		}
 		prefs := &corev1.RoomUserPreferences{}
 		if err := proto.Unmarshal(data, prefs); err != nil {
-			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, false, fmt.Errorf("unmarshal %s: %w", key, err)
+			return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, false, fmt.Errorf("unmarshal %s: %w", key, err)
 		}
 		return parts[0], parts[1], prefs.GetNotificationLevel(), true, nil
 	}
 
-	return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, false, nil
+	return "", "", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, false, nil
 }
 
 func skipSeenNotificationEvents(existing []*corev1.Event, batch []events.BatchEntry) []events.BatchEntry {

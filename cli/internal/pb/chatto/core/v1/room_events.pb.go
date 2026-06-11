@@ -377,31 +377,31 @@ func (x *UserLeftRoomEvent) GetRoomId() string {
 	return ""
 }
 
-// SpaceMemberDeletedEvent is published when a user's account is deleted.
+// ServerMemberDeletedEvent is published when a user's account is deleted.
 // This notifies all server members that the user is gone, so they can:
 // - Update their member lists
 // - Refresh messages to show "Deleted User" and unavailable content
-type SpaceMemberDeletedEvent struct {
+type ServerMemberDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SpaceMemberDeletedEvent) Reset() {
-	*x = SpaceMemberDeletedEvent{}
+func (x *ServerMemberDeletedEvent) Reset() {
+	*x = ServerMemberDeletedEvent{}
 	mi := &file_chatto_core_v1_room_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpaceMemberDeletedEvent) String() string {
+func (x *ServerMemberDeletedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpaceMemberDeletedEvent) ProtoMessage() {}
+func (*ServerMemberDeletedEvent) ProtoMessage() {}
 
-func (x *SpaceMemberDeletedEvent) ProtoReflect() protoreflect.Message {
+func (x *ServerMemberDeletedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_room_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -413,12 +413,12 @@ func (x *SpaceMemberDeletedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpaceMemberDeletedEvent.ProtoReflect.Descriptor instead.
-func (*SpaceMemberDeletedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerMemberDeletedEvent.ProtoReflect.Descriptor instead.
+func (*ServerMemberDeletedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *SpaceMemberDeletedEvent) GetUserId() string {
+func (x *ServerMemberDeletedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
@@ -448,8 +448,8 @@ const file_chatto_core_v1_room_events_proto_rawDesc = "" +
 	"\x13UserJoinedRoomEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
 	"\x11UserLeftRoomEvent\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"B\n" +
-	"\x17SpaceMemberDeletedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"C\n" +
+	"\x18ServerMemberDeletedEvent\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_idB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fRoomEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
@@ -467,15 +467,15 @@ func file_chatto_core_v1_room_events_proto_rawDescGZIP() []byte {
 
 var file_chatto_core_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chatto_core_v1_room_events_proto_goTypes = []any{
-	(*RoomCreatedEvent)(nil),        // 0: chatto.core.v1.RoomCreatedEvent
-	(*RoomUpdatedEvent)(nil),        // 1: chatto.core.v1.RoomUpdatedEvent
-	(*RoomDeletedEvent)(nil),        // 2: chatto.core.v1.RoomDeletedEvent
-	(*RoomArchivedEvent)(nil),       // 3: chatto.core.v1.RoomArchivedEvent
-	(*RoomUnarchivedEvent)(nil),     // 4: chatto.core.v1.RoomUnarchivedEvent
-	(*UserJoinedRoomEvent)(nil),     // 5: chatto.core.v1.UserJoinedRoomEvent
-	(*UserLeftRoomEvent)(nil),       // 6: chatto.core.v1.UserLeftRoomEvent
-	(*SpaceMemberDeletedEvent)(nil), // 7: chatto.core.v1.SpaceMemberDeletedEvent
-	(RoomKind)(0),                   // 8: chatto.core.v1.RoomKind
+	(*RoomCreatedEvent)(nil),         // 0: chatto.core.v1.RoomCreatedEvent
+	(*RoomUpdatedEvent)(nil),         // 1: chatto.core.v1.RoomUpdatedEvent
+	(*RoomDeletedEvent)(nil),         // 2: chatto.core.v1.RoomDeletedEvent
+	(*RoomArchivedEvent)(nil),        // 3: chatto.core.v1.RoomArchivedEvent
+	(*RoomUnarchivedEvent)(nil),      // 4: chatto.core.v1.RoomUnarchivedEvent
+	(*UserJoinedRoomEvent)(nil),      // 5: chatto.core.v1.UserJoinedRoomEvent
+	(*UserLeftRoomEvent)(nil),        // 6: chatto.core.v1.UserLeftRoomEvent
+	(*ServerMemberDeletedEvent)(nil), // 7: chatto.core.v1.ServerMemberDeletedEvent
+	(RoomKind)(0),                    // 8: chatto.core.v1.RoomKind
 }
 var file_chatto_core_v1_room_events_proto_depIdxs = []int32{
 	8, // 0: chatto.core.v1.RoomCreatedEvent.kind:type_name -> chatto.core.v1.RoomKind

@@ -461,7 +461,7 @@ func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(
 		t.Fatalf("UploadDerivativeAttachment failed: %v", err)
 	}
 
-	checkServerAsset := func(name string, asset *corev1.DeprecatedAsset) {
+	checkServerAsset := func(name string, asset *corev1.AssetRecord) {
 		t.Helper()
 		key := asset.GetS3().GetKey()
 		if bytes.Contains([]byte(key), []byte("tenant-a/chatto")) {
@@ -489,7 +489,7 @@ func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(
 		}
 	}
 
-	checkServerAsset("avatar", assetStorageFromAsset(avatar))
+	checkServerAsset("avatar", avatar)
 	checkServerAsset("server logo", logo)
 	checkAttachment("original attachment", original)
 	checkAttachment("derivative attachment", derivative)

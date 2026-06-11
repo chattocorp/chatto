@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-06-10
+**Last reviewed:** 2026-06-11
 
 ## Overview
 
@@ -15,7 +15,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the GraphQL mutation rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). GraphQL exposes transform parameters for attachments and user avatars; public server branding images expose canonical URLs only.
 - When enabled, videos and animated GIFs are processed by the current server process after asset creation and message submission scheduling. This is best-effort and intentionally simple until a real durable worker queue exists.
-- Processing status: durable COMPLETED / FAILED outcomes are stored as room events. There is no new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
+- Processing status: durable COMPLETED / FAILED outcomes are stored as room events and delivered through the normal live EVT subscription path. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
 - A thumbnail is generated from an early video frame.
 - Resized images can be cached as WebP with an auto-expiring cache.
 - In Service Worker-controlled browser sessions, stable asset URLs are rendered as same-origin virtual URLs and proxied to the owning server with the user's registered server credentials. Successful full responses are cached privately in the browser; media `Range` requests bypass that cache.

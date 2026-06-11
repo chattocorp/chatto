@@ -54,7 +54,7 @@ func TestRoomUserPreferencesKey(t *testing.T) {
 
 func TestPrefsProtoRoundTrip(t *testing.T) {
 	levels := []corev1.NotificationLevel{
-		corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT,
+		corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
 		corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL,
 		corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES,
@@ -113,7 +113,7 @@ func TestChattoCore_GetSpaceNotificationLevel_NoPreference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSpaceNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT for no preference, got %v", level)
 	}
 }
@@ -130,7 +130,7 @@ func TestChattoCore_SetSpaceNotificationLevel(t *testing.T) {
 		{"set muted", corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED},
 		{"set normal", corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL},
 		{"set all_messages", corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES},
-		{"set default (clears)", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT},
+		{"set default (clears)", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -171,7 +171,7 @@ func TestChattoCore_SetSpaceNotificationLevel_DefaultDeletesKey(t *testing.T) {
 	}
 
 	// Set to DEFAULT (should delete the key)
-	err = core.SetSpaceNotificationLevel(ctx, "test-user", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+	err = core.SetSpaceNotificationLevel(ctx, "test-user", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
 	if err != nil {
 		t.Fatalf("SetSpaceNotificationLevel (DEFAULT) failed: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestChattoCore_SetSpaceNotificationLevel_DefaultDeletesKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSpaceNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT after clearing, got %v", level)
 	}
 }
@@ -198,7 +198,7 @@ func TestChattoCore_GetRoomNotificationLevel_NoPreference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRoomNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT for no preference, got %v", level)
 	}
 }
@@ -219,7 +219,7 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 	}{
 		{"set muted", corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED},
 		{"set all_messages", corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES},
-		{"set default (clears)", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT},
+		{"set default (clears)", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -298,7 +298,7 @@ func TestChattoCore_GetEffectiveNotificationLevel_Inheritance(t *testing.T) {
 
 	// Clear room-level: should fall back to space-level (MUTED)
 	t.Run("room cleared falls back to space", func(t *testing.T) {
-		err := core.SetRoomNotificationLevel(ctx, "test-user", room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+		err := core.SetRoomNotificationLevel(ctx, "test-user", room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
 		if err != nil {
 			t.Fatalf("SetRoomNotificationLevel failed: %v", err)
 		}
@@ -314,7 +314,7 @@ func TestChattoCore_GetEffectiveNotificationLevel_Inheritance(t *testing.T) {
 
 	// Clear space-level: should fall back to NORMAL
 	t.Run("all cleared falls back to NORMAL", func(t *testing.T) {
-		err := core.SetSpaceNotificationLevel(ctx, "test-user", corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+		err := core.SetSpaceNotificationLevel(ctx, "test-user", corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
 		if err != nil {
 			t.Fatalf("SetSpaceNotificationLevel failed: %v", err)
 		}
@@ -348,7 +348,7 @@ func TestChattoCore_NotificationLevel_UserIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSpaceNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT for userB (isolated from userA), got %v", level)
 	}
 }
@@ -396,7 +396,7 @@ func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSpaceNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT for space after cleanup, got %v", level)
 	}
 
@@ -404,7 +404,7 @@ func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRoomNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT for room1 after cleanup, got %v", level)
 	}
 
@@ -412,7 +412,7 @@ func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRoomNotificationLevel failed: %v", err)
 	}
-	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		t.Errorf("Expected DEFAULT for room2 after cleanup, got %v", level)
 	}
 }
@@ -484,7 +484,7 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 	}
 
 	// Unmute the room
-	err = core.SetRoomNotificationLevel(ctx, user.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+	err = core.SetRoomNotificationLevel(ctx, user.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
 	if err != nil {
 		t.Fatalf("SetRoomNotificationLevel failed: %v", err)
 	}

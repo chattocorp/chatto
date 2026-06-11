@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
@@ -21,10 +22,11 @@ type RBACProjection struct {
 }
 
 type rbacDecisionKey struct {
-	scope      PermissionScope
-	scopeID    string
-	subject    string
-	permission Permission
+	scope       PermissionScope
+	scopeID     string
+	subjectKind corev1.RbacPermissionSubjectKind
+	subject     string
+	permission  Permission
 }
 
 func NewRBACProjection() *RBACProjection {
@@ -74,23 +76,26 @@ func (p *RBACProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
 	case *corev1.Event_RbacPermissionGranted:
 		p.applyPermissionDecision(
-			e.RbacPermissionGranted.GetLocation(),
+			e.RbacPermissionGranted.GetScope(),
 			e.RbacPermissionGranted.GetSubject(),
 			e.RbacPermissionGranted.GetPermission(),
 			DecisionAllow,
+			e.RbacPermissionGranted,
 		)
 	case *corev1.Event_RbacPermissionDenied:
 		p.applyPermissionDecision(
-			e.RbacPermissionDenied.GetLocation(),
+			e.RbacPermissionDenied.GetScope(),
 			e.RbacPermissionDenied.GetSubject(),
 			e.RbacPermissionDenied.GetPermission(),
 			DecisionDeny,
+			e.RbacPermissionDenied,
 		)
 	case *corev1.Event_RbacPermissionCleared:
 		p.applyPermissionCleared(
-			e.RbacPermissionCleared.GetLocation(),
+			e.RbacPermissionCleared.GetScope(),
 			e.RbacPermissionCleared.GetSubject(),
 			e.RbacPermissionCleared.GetPermission(),
+			e.RbacPermissionCleared,
 		)
 	}
 	return nil
@@ -170,7 +175,7 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 		}
 	}
 	for key := range p.decisions {
-		if key.subject == roleName {
+		if key.subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == roleName {
 			delete(p.decisions, key)
 		}
 	}
@@ -196,45 +201,136 @@ func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
 	}
 }
 
-func (p *RBACProjection) applyPermissionDecision(location, subject, permission string, decision DecisionKind) {
-	key, ok := rbacDecisionKeyFromFields(location, subject, permission)
+func (p *RBACProjection) applyPermissionDecision(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string, decision DecisionKind, legacy proto.Message) {
+	key, ok := rbacDecisionKeyFromFields(scope, subject, permission)
+	if !ok {
+		key, ok = legacyRBACDecisionKeyFromUnknown(legacy, permission)
+	}
 	if !ok {
 		return
 	}
 	p.decisions[key] = decision
 }
 
-func (p *RBACProjection) applyPermissionCleared(location, subject, permission string) {
-	key, ok := rbacDecisionKeyFromFields(location, subject, permission)
+func (p *RBACProjection) applyPermissionCleared(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string, legacy proto.Message) {
+	key, ok := rbacDecisionKeyFromFields(scope, subject, permission)
+	if !ok {
+		key, ok = legacyRBACDecisionKeyFromUnknown(legacy, permission)
+	}
 	if !ok {
 		return
 	}
 	delete(p.decisions, key)
 }
 
-func rbacDecisionKeyFromFields(location, subject, permission string) (rbacDecisionKey, bool) {
+func rbacDecisionKeyFromFields(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string) (rbacDecisionKey, bool) {
+	if scope == nil || subject == nil || subject.GetId() == "" || permission == "" {
+		return rbacDecisionKey{}, false
+	}
+	if subject.GetKind() == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
+		return rbacDecisionKey{}, false
+	}
+	permScope, ok := permissionScopeFromProto(scope)
+	if !ok {
+		return rbacDecisionKey{}, false
+	}
+	scopeID := scope.GetId()
+	if permScope == ScopeServer {
+		scopeID = ""
+	}
+	return rbacDecisionKey{
+		scope:       permScope,
+		scopeID:     scopeID,
+		subjectKind: subject.GetKind(),
+		subject:     subject.GetId(),
+		permission:  Permission(permission),
+	}, true
+}
+
+func legacyRBACDecisionKeyFromUnknown(msg proto.Message, permission string) (rbacDecisionKey, bool) {
+	if msg == nil || permission == "" {
+		return rbacDecisionKey{}, false
+	}
+	var location, subject string
+	unknown := msg.ProtoReflect().GetUnknown()
+	for len(unknown) > 0 {
+		num, typ, n := protowire.ConsumeTag(unknown)
+		if n < 0 {
+			return rbacDecisionKey{}, false
+		}
+		unknown = unknown[n:]
+		if typ == protowire.BytesType && (num == 1 || num == 2) {
+			value, m := protowire.ConsumeString(unknown)
+			if m < 0 {
+				return rbacDecisionKey{}, false
+			}
+			if num == 1 {
+				location = value
+			} else {
+				subject = value
+			}
+			unknown = unknown[m:]
+			continue
+		}
+		m := protowire.ConsumeFieldValue(num, typ, unknown)
+		if m < 0 {
+			return rbacDecisionKey{}, false
+		}
+		unknown = unknown[m:]
+	}
+	return rbacDecisionKeyFromLegacyFields(location, subject, permission)
+}
+
+func rbacDecisionKeyFromLegacyFields(location, subject, permission string) (rbacDecisionKey, bool) {
 	if subject == "" || permission == "" {
 		return rbacDecisionKey{}, false
 	}
 	if location == string(ScopeServer) {
-		return rbacDecisionKey{scope: ScopeServer, subject: subject, permission: Permission(permission)}, true
+		return rbacDecisionKey{
+			scope:       ScopeServer,
+			subjectKind: rbacPermissionSubjectKindForID(subject),
+			subject:     subject,
+			permission:  Permission(permission),
+		}, true
 	}
-	scope, ok := rbacScopeFromLocation(location)
+	scope, ok := rbacScopeFromLegacyLocation(location)
 	if !ok {
 		return rbacDecisionKey{}, false
 	}
-	return rbacDecisionKey{scope: scope, scopeID: location, subject: subject, permission: Permission(permission)}, true
+	return rbacDecisionKey{
+		scope:       scope,
+		scopeID:     location,
+		subjectKind: rbacPermissionSubjectKindForID(subject),
+		subject:     subject,
+		permission:  Permission(permission),
+	}, true
 }
 
-func rbacScopeFromLocation(location string) (PermissionScope, bool) {
+func rbacScopeFromLegacyLocation(location string) (PermissionScope, bool) {
 	if location == "" {
 		return "", false
 	}
 	switch location[0] {
-	case 'R':
-		return ScopeRoom, true
 	case 'G':
 		return ScopeGroup, true
+	case 'R':
+		return ScopeRoom, true
+	default:
+		return "", false
+	}
+}
+
+func permissionScopeFromProto(scope *corev1.RbacPermissionScope) (PermissionScope, bool) {
+	if scope == nil {
+		return "", false
+	}
+	switch scope.GetKind() {
+	case corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER:
+		return ScopeServer, true
+	case corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP:
+		return ScopeGroup, scope.GetId() != ""
+	case corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM:
+		return ScopeRoom, scope.GetId() != ""
 	default:
 		return "", false
 	}
@@ -244,7 +340,13 @@ func rbacDecisionKeyFor(scope PermissionScope, scopeID, subject string, perm Per
 	if scope == ScopeServer {
 		scopeID = ""
 	}
-	return rbacDecisionKey{scope: scope, scopeID: scopeID, subject: subject, permission: perm}
+	return rbacDecisionKey{
+		scope:       scope,
+		scopeID:     scopeID,
+		subjectKind: rbacPermissionSubjectKindForID(subject),
+		subject:     subject,
+		permission:  perm,
+	}
 }
 
 func (p *RBACProjection) GetRole(name string) (*corev1.Role, bool) {
@@ -334,11 +436,12 @@ func (p *RBACProjection) Decisions() []rbacSeedDecision {
 	decisions := make([]rbacSeedDecision, 0, len(p.decisions))
 	for key, decision := range p.decisions {
 		decisions = append(decisions, rbacSeedDecision{
-			scope:      key.scope,
-			scopeID:    key.scopeID,
-			subject:    key.subject,
-			permission: key.permission,
-			decision:   decision,
+			scope:       key.scope,
+			scopeID:     key.scopeID,
+			subjectKind: key.subjectKind,
+			subject:     key.subject,
+			permission:  key.permission,
+			decision:    decision,
 		})
 	}
 	sort.Slice(decisions, func(i, j int) bool {

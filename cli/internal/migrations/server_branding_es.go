@@ -36,7 +36,7 @@ func MigrateServerBrandingToES(
 
 	agg := events.ConfigAggregate()
 	batch := make([]events.BatchEntry, 0, 2)
-	add := func(kvKey, eventType string, build func(*corev1.DeprecatedAsset) *corev1.Event) error {
+	add := func(kvKey, eventType, filename string, build func(*corev1.AssetRecord) *corev1.Event) error {
 		if _, ok := seen[eventType]; ok {
 			return nil
 		}
@@ -51,7 +51,7 @@ func MigrateServerBrandingToES(
 		if err := proto.Unmarshal(entry.Value(), asset); err != nil {
 			return fmt.Errorf("unmarshal legacy server branding %q: %w", kvKey, err)
 		}
-		event := build(asset)
+		event := build(assetRecordFromLegacyBrandingAsset(asset, filename))
 		event.Id = newMigrationEventID()
 		event.ActorId = "system:migration"
 		event.CreatedAt = timestamppb.New(entry.Created())
@@ -62,14 +62,14 @@ func MigrateServerBrandingToES(
 		return nil
 	}
 
-	if err := add(legacyServerLogoKey, events.EventServerLogoSet, func(asset *corev1.DeprecatedAsset) *corev1.Event {
+	if err := add(legacyServerLogoKey, events.EventServerLogoSet, "logo.webp", func(asset *corev1.AssetRecord) *corev1.Event {
 		return &corev1.Event{Event: &corev1.Event_ServerLogoSet{
 			ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: asset},
 		}}
 	}); err != nil {
 		return err
 	}
-	if err := add(legacyServerBannerKey, events.EventServerBannerSet, func(asset *corev1.DeprecatedAsset) *corev1.Event {
+	if err := add(legacyServerBannerKey, events.EventServerBannerSet, "banner.webp", func(asset *corev1.AssetRecord) *corev1.Event {
 		return &corev1.Event{Event: &corev1.Event_ServerBannerSet{
 			ServerBannerSet: &corev1.ServerBannerSetEvent{Asset: asset},
 		}}
@@ -93,4 +93,40 @@ func MigrateServerBrandingToES(
 	}
 	logger.Info("server_branding ES migration: seeded semantic config events from legacy KV", "values", len(batch), "duration_ms", time.Since(startedAt).Milliseconds())
 	return nil
+}
+
+func assetRecordFromLegacyBrandingAsset(storage *corev1.DeprecatedAsset, filename string) *corev1.AssetRecord {
+	if storage == nil {
+		return nil
+	}
+	asset := &corev1.AssetRecord{
+		Id:          legacyBrandingAssetID(storage),
+		Filename:    filename,
+		ContentType: "image/webp",
+	}
+	switch stored := storage.GetAsset().(type) {
+	case *corev1.DeprecatedAsset_Nats:
+		if stored.Nats != nil {
+			asset.Storage = &corev1.AssetRecord_Nats{Nats: proto.Clone(stored.Nats).(*corev1.NATSAsset)}
+		}
+	case *corev1.DeprecatedAsset_S3:
+		if stored.S3 != nil {
+			asset.Storage = &corev1.AssetRecord_S3{S3: proto.Clone(stored.S3).(*corev1.S3Asset)}
+		}
+	}
+	return asset
+}
+
+func legacyBrandingAssetID(storage *corev1.DeprecatedAsset) string {
+	if storage == nil {
+		return ""
+	}
+	switch stored := storage.GetAsset().(type) {
+	case *corev1.DeprecatedAsset_Nats:
+		return stored.Nats.GetKey()
+	case *corev1.DeprecatedAsset_S3:
+		return stored.S3.GetKey()
+	default:
+		return ""
+	}
 }

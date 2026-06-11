@@ -38,12 +38,8 @@ type MessagePostedEvent struct {
 	EchoOfEventId string `protobuf:"bytes,7,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
 	// Thread root event ID — the thread this echo originates from (empty = not an echo)
 	EchoFromThreadRootEventId string `protobuf:"bytes,8,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
-	// Legacy embedded message body. New writes leave this unset and publish
-	// MessageBodyEvent instead so the encrypted payload can be securely
-	// deleted without deleting the public message-posted fact.
-	Body          *MessageBody `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *MessagePostedEvent) Reset() {
@@ -118,13 +114,6 @@ func (x *MessagePostedEvent) GetEchoFromThreadRootEventId() string {
 	return ""
 }
 
-func (x *MessagePostedEvent) GetBody() *MessageBody {
-	if x != nil {
-		return x.Body
-	}
-	return nil
-}
-
 // MessageBodyEvent carries the encrypted body payload for a message post or
 // body update. It is durable, room-scoped projection input but is not delivered
 // as a public live event. The target message event remains MessagePostedEvent;
@@ -194,9 +183,8 @@ func (x *MessageBodyEvent) GetBody() *MessageBody {
 }
 
 // MessageEditedEvent is the durable semantic event published when a message's
-// body or body metadata changes. New writes leave body unset and publish the
-// new body in a preceding MessageBodyEvent. The field remains decode-only
-// for existing EVT histories that embedded edited bodies here.
+// body or body metadata changes. The new body is published in a preceding
+// MessageBodyEvent.
 type MessageEditedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room ID — identifies which room this message belongs to.
@@ -204,9 +192,7 @@ type MessageEditedEvent struct {
 	// Event ID of the message being edited (the original MessagePostedEvent's
 	// ID). The actor performing the edit lives on the Event envelope's
 	// actor_id.
-	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Legacy embedded body envelope. New writes leave this unset.
-	Body          *MessageBody `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	EventId       string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -253,13 +239,6 @@ func (x *MessageEditedEvent) GetEventId() string {
 		return x.EventId
 	}
 	return ""
-}
-
-func (x *MessageEditedEvent) GetBody() *MessageBody {
-	if x != nil {
-		return x.Body
-	}
-	return nil
 }
 
 // MessageRetractedEvent is the durable event published when a message is
@@ -494,23 +473,22 @@ var File_chatto_core_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xdc\x02\n" +
+	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xb7\x02\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
 	"\tin_thread\x18\x05 \x01(\tR\binThread\x12,\n" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
-	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12/\n" +
-	"\x04body\x18\t \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04bodyJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\bspace_idR\x0fmessage_body_id\"w\n" +
+	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
+	"R\bspace_idR\x0fmessage_body_idR\x04body\"w\n" +
 	"\x10MessageBodyEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12/\n" +
-	"\x04body\x18\x03 \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04body\"y\n" +
+	"\x04body\x18\x03 \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04body\"T\n" +
 	"\x12MessageEditedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12/\n" +
-	"\x04body\x18\x03 \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04body\"c\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventIdJ\x04\b\x03\x10\x04R\x04body\"c\n" +
 	"\x15MessageRetractedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x16\n" +
@@ -551,14 +529,12 @@ var file_chatto_core_v1_message_events_proto_goTypes = []any{
 	(*MessageBody)(nil),           // 6: chatto.core.v1.MessageBody
 }
 var file_chatto_core_v1_message_events_proto_depIdxs = []int32{
-	6, // 0: chatto.core.v1.MessagePostedEvent.body:type_name -> chatto.core.v1.MessageBody
-	6, // 1: chatto.core.v1.MessageBodyEvent.body:type_name -> chatto.core.v1.MessageBody
-	6, // 2: chatto.core.v1.MessageEditedEvent.body:type_name -> chatto.core.v1.MessageBody
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 0: chatto.core.v1.MessageBodyEvent.body:type_name -> chatto.core.v1.MessageBody
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_message_events_proto_init() }

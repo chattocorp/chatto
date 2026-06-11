@@ -75,8 +75,8 @@ test.describe('video player', () => {
 				expect(computedDisplay).toBe('none');
 			}
 
-			// User 2: VideoProcessingCompletedEvent must also be delivered via the
-			// subscription so that the second user sees the player without reloading.
+			// User 2: the asset processing completion event must also be delivered
+			// via the subscription so that the second user sees the player without reloading.
 			await expect(roomPage2.mediaPlayer).toBeVisible({ timeout: VIDEO_PROCESSING_TIMEOUT });
 
 			// Filter for critical errors (ignore noise like favicon 404s)

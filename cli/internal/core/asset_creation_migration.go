@@ -28,7 +28,7 @@ type assetCreationVerification struct {
 }
 
 // migrateAssetCreationsToES backfills first-class asset creation events for
-// legacy MessagePostedEvent.body.attachments. The old message payloads remain
+// legacy MessageBodyEvent.body.attachments. The old body payloads remain
 // unchanged; the new events provide the asset identity/owner records that
 // processing outcomes can reference by asset id.
 func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr error) {
@@ -54,19 +54,20 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr erro
 
 	imported := 0
 	var appendErr error
-	if err := c.scanEVT(ctx, []string{"evt.room.*.message_posted"}, func(event *corev1.Event) {
+	if err := c.scanEVT(ctx, []string{"evt.room.*.message_body"}, func(event *corev1.Event) {
 		if appendErr != nil {
 			return
 		}
-		posted := event.GetMessagePosted()
-		if posted == nil || posted.GetRoomId() == "" || posted.GetBody() == nil {
+		bodyEvent := event.GetMessageBody()
+		body := bodyEvent.GetBody()
+		if bodyEvent == nil || bodyEvent.GetRoomId() == "" || body == nil {
 			return
 		}
-		messageEventID := event.GetId()
+		messageEventID := bodyEvent.GetEventId()
 		if messageEventID == "" {
 			return
 		}
-		for _, att := range posted.GetBody().GetAttachments() {
+		for _, att := range body.GetAttachments() {
 			if att == nil || att.GetId() == "" || existing[att.GetId()] {
 				continue
 			}
@@ -84,11 +85,11 @@ func (c *ChattoCore) migrateAssetCreationsToES(ctx context.Context) (retErr erro
 					AssetCreated: &corev1.AssetCreatedEvent{
 						OriginalBinaryAvailable: originalBinaryAvailable,
 						Asset:                   asset,
-						RoomId:                  posted.GetRoomId(),
+						RoomId:                  bodyEvent.GetRoomId(),
 					},
 				},
 			})
-			if _, err := c.EventPublisher.AppendEventually(ctx, events.RoomAggregate(posted.GetRoomId()).SubjectFor(declaration), declaration); err != nil {
+			if _, err := c.EventPublisher.AppendEventually(ctx, events.RoomAggregate(bodyEvent.GetRoomId()).SubjectFor(declaration), declaration); err != nil {
 				appendErr = fmt.Errorf("append asset creation %s: %w", att.GetId(), err)
 				return
 			}
@@ -238,12 +239,13 @@ func (c *ChattoCore) verifyAssetCreationsInEVT(ctx context.Context) (*assetCreat
 	declarations := make(map[string]struct{})
 	processingRefs := make(map[string]int)
 
-	if err := c.scanEVT(ctx, []string{"evt.room.*.message_posted"}, func(event *corev1.Event) {
-		posted := event.GetMessagePosted()
-		if posted == nil || posted.GetBody() == nil {
+	if err := c.scanEVT(ctx, []string{"evt.room.*.message_body"}, func(event *corev1.Event) {
+		bodyEvent := event.GetMessageBody()
+		body := bodyEvent.GetBody()
+		if bodyEvent == nil || body == nil {
 			return
 		}
-		for _, att := range posted.GetBody().GetAttachments() {
+		for _, att := range body.GetAttachments() {
 			if att == nil || att.GetId() == "" {
 				continue
 			}

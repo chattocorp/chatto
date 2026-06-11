@@ -81,6 +81,11 @@ func TestPresenceStatusToString(t *testing.T) {
 			expected: PresenceStatusDoNotDisturb,
 		},
 		{
+			name:     "unspecified enum value defaults to ONLINE",
+			input:    corev1.UserPresenceStatus_USER_PRESENCE_STATUS_UNSPECIFIED,
+			expected: PresenceStatusOnline,
+		},
+		{
 			name:     "unknown enum value defaults to ONLINE",
 			input:    corev1.UserPresenceStatus(999),
 			expected: PresenceStatusOnline,

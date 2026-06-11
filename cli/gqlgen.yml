@@ -187,11 +187,6 @@ models:
   Event:
     model:
       - hmans.de/chatto/internal/core.EventEnvelope
-  # GraphQL types renamed to *Server*; some proto types still carry the
-  # legacy *Space* name (no wire-format change). Mappings bridge the gap.
-  ServerMemberDeletedEvent:
-    model:
-      - hmans.de/chatto/internal/pb/chatto/core/v1.SpaceMemberDeletedEvent
   MessagePostedEvent:
     model:
       - hmans.de/chatto/internal/graph/model.MessagePostedEvent

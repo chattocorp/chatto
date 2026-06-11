@@ -3,6 +3,8 @@ package core
 import (
 	"testing"
 
+	"google.golang.org/protobuf/encoding/protowire"
+
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -91,11 +93,7 @@ func TestRBACProjection_AssignRevokeAndDeleteRole(t *testing.T) {
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: "U123", RoleName: "editor"},
 	}})
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
-		RbacPermissionGranted: &corev1.RbacPermissionGrantedEvent{
-			Location:   string(ScopeServer),
-			Subject:    "editor",
-			Permission: string(PermMessagePost),
-		},
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", "editor", PermMessagePost),
 	}})
 
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacRoleDeleted{
@@ -116,25 +114,13 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 	p := NewRBACProjection()
 
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
-		RbacPermissionGranted: &corev1.RbacPermissionGrantedEvent{
-			Location:   string(ScopeServer),
-			Subject:    "admin",
-			Permission: string(PermMessagePost),
-		},
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", "admin", PermMessagePost),
 	}})
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: &corev1.RbacPermissionDeniedEvent{
-			Location:   "Rabc123",
-			Subject:    "U123",
-			Permission: string(PermMessagePost),
-		},
+		RbacPermissionDenied: rbacUserPermissionDeniedEvent(ScopeRoom, "Rabc123", "U123", PermMessagePost),
 	}})
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
-		RbacPermissionGranted: &corev1.RbacPermissionGrantedEvent{
-			Location:   "Gabc123",
-			Subject:    "moderator",
-			Permission: string(PermRoomJoin),
-		},
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeGroup, "Gabc123", "moderator", PermRoomJoin),
 	}})
 
 	if got := p.GetDecision(ScopeServer, "", "admin", PermMessagePost); got != DecisionAllow {
@@ -148,14 +134,41 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 	}
 
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
-		RbacPermissionCleared: &corev1.RbacPermissionClearedEvent{
-			Location:   "Rabc123",
-			Subject:    "U123",
-			Permission: string(PermMessagePost),
-		},
+		RbacPermissionCleared: rbacUserPermissionClearedEvent(ScopeRoom, "Rabc123", "U123", PermMessagePost),
 	}})
 	if got := p.GetDecision(ScopeRoom, "Rabc123", "U123", PermMessagePost); got != DecisionNone {
 		t.Fatalf("cleared room decision = %v, want DecisionNone", got)
+	}
+}
+
+func TestRBACProjection_LegacyPermissionDecisionUnknownFields(t *testing.T) {
+	p := NewRBACProjection()
+
+	granted := &corev1.RbacPermissionGrantedEvent{Permission: string(PermMessagePost)}
+	granted.ProtoReflect().SetUnknown(legacyRBACPermissionUnknown("server", "admin"))
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		RbacPermissionGranted: granted,
+	}})
+	if got := p.GetDecision(ScopeServer, "", "admin", PermMessagePost); got != DecisionAllow {
+		t.Fatalf("legacy server decision = %v, want DecisionAllow", got)
+	}
+
+	denied := &corev1.RbacPermissionDeniedEvent{Permission: string(PermRoomJoin)}
+	denied.ProtoReflect().SetUnknown(legacyRBACPermissionUnknown("Gabc123", "moderator"))
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+		RbacPermissionDenied: denied,
+	}})
+	if got := p.GetDecision(ScopeGroup, "Gabc123", "moderator", PermRoomJoin); got != DecisionDeny {
+		t.Fatalf("legacy group decision = %v, want DecisionDeny", got)
+	}
+
+	cleared := &corev1.RbacPermissionClearedEvent{Permission: string(PermRoomJoin)}
+	cleared.ProtoReflect().SetUnknown(legacyRBACPermissionUnknown("Gabc123", "moderator"))
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+		RbacPermissionCleared: cleared,
+	}})
+	if got := p.GetDecision(ScopeGroup, "Gabc123", "moderator", PermRoomJoin); got != DecisionNone {
+		t.Fatalf("legacy cleared decision = %v, want DecisionNone", got)
 	}
 }
 
@@ -176,6 +189,15 @@ func TestRBACProjection_IgnoresDuplicateEventID(t *testing.T) {
 	if role.GetDisplayName() != "Alpha" {
 		t.Fatalf("display name after duplicate event = %q, want Alpha", role.GetDisplayName())
 	}
+}
+
+func legacyRBACPermissionUnknown(location, subject string) []byte {
+	var unknown []byte
+	unknown = protowire.AppendTag(unknown, 1, protowire.BytesType)
+	unknown = protowire.AppendString(unknown, location)
+	unknown = protowire.AppendTag(unknown, 2, protowire.BytesType)
+	unknown = protowire.AppendString(unknown, subject)
+	return unknown
 }
 
 func applyRBACProjectionEvent(t *testing.T, p *RBACProjection, event *corev1.Event) {

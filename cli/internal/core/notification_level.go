@@ -36,17 +36,17 @@ func roomUserPreferencesKey(userID, roomID string) string {
 }
 
 // GetSpaceNotificationLevel returns the user's server-wide notification level.
-// Returns NOTIFICATION_LEVEL_DEFAULT if no preference is set.
+// Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) GetSpaceNotificationLevel(_ context.Context, userID string) (corev1.NotificationLevel, error) {
 	if c.ServerConfig == nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, nil
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
 	}
 	return c.ServerConfig.NotificationServerLevel(userID), nil
 }
 
 // SetSpaceNotificationLevel sets the user's server-wide notification level.
-// Pass NOTIFICATION_LEVEL_DEFAULT to clear the override.
+// Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID string, level corev1.NotificationLevel) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
@@ -56,12 +56,12 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 	changed := false
 	if err := c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current := c.ServerConfig.NotificationServerLevel(userID)
-		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT) {
+		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
 			return nil, nil
 		}
 		changed = true
-		if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserServerNotificationLevelCleared{
 				UserServerNotificationLevelCleared: &corev1.UserServerNotificationLevelClearedEvent{UserId: userID},
 			}})}, nil
@@ -79,7 +79,7 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 	c.logger.Info("Set server notification level", "user_id", userID, "level", level)
 
 	effectiveLevel := level
-	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
 	c.publishNotificationLevelChangedEvent(ctx, userID, "", level, effectiveLevel)
@@ -88,17 +88,17 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 }
 
 // GetRoomNotificationLevel returns the user's notification level for a room.
-// Returns NOTIFICATION_LEVEL_DEFAULT if no preference is set.
+// Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID string) (corev1.NotificationLevel, error) {
 	if c.ServerConfig == nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, nil
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
 	}
 	return c.ServerConfig.NotificationRoomLevel(userID, roomID), nil
 }
 
 // SetRoomNotificationLevel sets the user's notification level for a room.
-// Pass NOTIFICATION_LEVEL_DEFAULT to clear the override.
+// Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
 // Authorization: Caller must verify access (self-only + room membership in GraphQL layer).
 func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomID string, level corev1.NotificationLevel) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
@@ -108,12 +108,12 @@ func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomI
 	changed := false
 	if err := c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current := c.ServerConfig.NotificationRoomLevel(userID, roomID)
-		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT) {
+		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
 			return nil, nil
 		}
 		changed = true
-		if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserRoomNotificationLevelCleared{
 				UserRoomNotificationLevelCleared: &corev1.UserRoomNotificationLevelClearedEvent{UserId: userID, RoomId: roomID},
 			}})}, nil
@@ -148,7 +148,7 @@ func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, userID, 
 	if err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, fmt.Errorf("failed to get room notification level: %w", err)
 	}
-	if roomLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if roomLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		return roomLevel, nil
 	}
 
@@ -156,7 +156,7 @@ func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, userID, 
 	if err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, fmt.Errorf("failed to get server notification level: %w", err)
 	}
-	if serverLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if serverLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		return serverLevel, nil
 	}
 
@@ -166,7 +166,7 @@ func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, userID, 
 // resolveEffectiveNotificationLevel resolves the effective notification level
 // when the room-level value is known.
 func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, userID string, roomLevel corev1.NotificationLevel) (corev1.NotificationLevel, error) {
-	if roomLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if roomLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		return roomLevel, nil
 	}
 
@@ -174,7 +174,7 @@ func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, user
 	if err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, err
 	}
-	if serverLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if serverLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		return serverLevel, nil
 	}
 
@@ -217,10 +217,10 @@ func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, user
 		}
 
 		effectiveLevel := roomLevel
-		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			effectiveLevel = serverLevel
 		}
-		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 		}
 
@@ -242,7 +242,7 @@ func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, userID st
 	}
 	return c.configManager.service.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		var evs []*corev1.Event
-		if c.ServerConfig.NotificationServerLevel(userID) != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if c.ServerConfig.NotificationServerLevel(userID) != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			evs = append(evs, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserServerNotificationLevelCleared{
 				UserServerNotificationLevelCleared: &corev1.UserServerNotificationLevelClearedEvent{UserId: userID},
 			}}))

@@ -101,7 +101,6 @@ const (
 	EventRoomGroupsReordered = "groups_reordered"
 
 	// Config aggregate (singleton)
-	EventServerConfigChanged                = "config_changed"
 	EventServerNameChanged                  = "server_name_changed"
 	EventServerDescriptionChanged           = "server_description_changed"
 	EventServerWelcomeMessageChanged        = "server_welcome_message_changed"
@@ -238,8 +237,6 @@ func EventTypeOf(e *corev1.Event) string {
 	case *corev1.Event_RoomGroupsReordered:
 		return EventRoomGroupsReordered
 
-	case *corev1.Event_ServerConfigChanged:
-		return EventServerConfigChanged
 	case *corev1.Event_ServerNameChanged:
 		return EventServerNameChanged
 	case *corev1.Event_ServerDescriptionChanged:

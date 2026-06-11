@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
@@ -87,7 +88,7 @@ func TestMigrateServerConfigToES_SeedsAndReplays(t *testing.T) {
 }
 
 func TestMigrateServerConfigToES_PrefersLegacyEVTSnapshotOverStaleKV(t *testing.T) {
-	ctx, kv, stream, publisher := setupTestES(t)
+	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
 
 	putProtoKV(t, ctx, kv, "config.instance", &configv1.ServerConfig{
 		ServerName: "Stale KV",
@@ -95,19 +96,18 @@ func TestMigrateServerConfigToES_PrefersLegacyEVTSnapshotOverStaleKV(t *testing.
 	})
 
 	agg := events.ConfigAggregate()
-	_, err := publisher.AppendAt(ctx, agg.Subject(events.EventServerConfigChanged), &corev1.Event{
+	snapshot := &corev1.Event{
 		Id:      newMigrationEventID(),
 		ActorId: "system:test",
-		Event: &corev1.Event_ServerConfigChanged{
-			ServerConfigChanged: &corev1.ServerConfigChangedEvent{
-				Config: &configv1.ServerConfig{
-					ServerName:     "Latest EVT",
-					Motd:           "new motd",
-					WelcomeMessage: "new welcome",
-				},
-			},
-		},
-	}, 0)
+	}
+	snapshot.ProtoReflect().SetUnknown(legacyServerConfigChangedUnknown(t, &configv1.ServerConfig{
+		ServerName:     "Latest EVT",
+		Motd:           "new motd",
+		WelcomeMessage: "new welcome",
+	}))
+	data, err := proto.Marshal(snapshot)
+	require.NoError(t, err)
+	_, err = js.Publish(ctx, agg.Subject("config_changed"), data)
 	require.NoError(t, err)
 
 	require.NoError(t, MigrateServerConfigToES(ctx, kv, publisher, testLogger()))
@@ -122,4 +122,17 @@ func TestMigrateServerConfigToES_PrefersLegacyEVTSnapshotOverStaleKV(t *testing.
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(msg.Data, &got))
 	require.Equal(t, "new motd", got.GetServerMotdChanged().GetMotd())
+}
+
+func legacyServerConfigChangedUnknown(t *testing.T, cfg *configv1.ServerConfig) []byte {
+	t.Helper()
+	cfgBytes, err := proto.Marshal(cfg)
+	require.NoError(t, err)
+	var payload []byte
+	payload = protowire.AppendTag(payload, 1, protowire.BytesType)
+	payload = protowire.AppendBytes(payload, cfgBytes)
+	var unknown []byte
+	unknown = protowire.AppendTag(unknown, 500, protowire.BytesType)
+	unknown = protowire.AppendBytes(unknown, payload)
+	return unknown
 }

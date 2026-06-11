@@ -38,8 +38,8 @@ message LiveEvent {
   // ID of the user or system actor that triggered this signal.
   string actor_id = 3;
 
-  reserved 10;
-  reserved "config_updated";
+  reserved 10, 41;
+  reserved "config_updated", "video_processing_completed";
 
   oneof event {
     // ----- User lifecycle / preferences -----
@@ -51,12 +51,11 @@ message LiveEvent {
     ThreadFollowChangedEvent thread_follow_changed = 25;
 
     // ----- Server membership / lifecycle -----
-    SpaceMemberDeletedEvent space_member_deleted = 30;
+    ServerMemberDeletedEvent server_member_deleted = 30;
     ServerUpdatedEvent server_updated = 31;
 
-    // ----- Typing / processing -----
+    // ----- Typing -----
     UserTypingEvent user_typing = 40;
-    VideoProcessingCompletedEvent video_processing_completed = 41;
 
     // ----- Presence -----
     PresenceChangedEvent presence_changed = 45;
@@ -112,12 +111,6 @@ message NotificationLevelChangedEvent {
 // SERVER LIFECYCLE EVENTS (deployment-scoped)
 // ============================================================================
 
-message ServerCreatedEvent {
-  string server_id = 1;
-  string name = 2;
-  string description = 3;
-}
-
 message ServerUpdatedEvent {
   string server_id = 1;
   string name = 2;
@@ -128,9 +121,6 @@ message ServerUpdatedEvent {
   string banner_url = 5;
 }
 
-message ServerDeletedEvent {
-  string server_id = 1;
-}
 // ============================================================================
 // TYPING INDICATOR EVENTS (room-scoped)
 // ============================================================================
@@ -283,30 +273,6 @@ message RoomGroupsUpdatedEvent {
 message SessionTerminatedEvent {
   // Reason for termination: "logout", "admin_boot", "account_deleted"
   string reason = 1;
-}
-
-// ============================================================================
-// VIDEO PROCESSING EVENTS (room-scoped)
-// ============================================================================
-
-// Notifies clients that video processing has completed (or failed) for an attachment.
-// Published on the room's live subject so room subscribers receive it.
-message VideoProcessingCompletedEvent {
-  reserved 1;
-  reserved "space_id";
-
-  // Room ID containing the message with the video
-  string room_id = 2;
-
-  // Attachment ID of the original video
-  string attachment_id = 3;
-
-  // Message body ID (internal, used by core for KV lookups)
-  string message_body_id = 4;
-
-  // Event ID of the message containing the attachment (for GraphQL API consumers).
-  // Populated at publish time from the body key.
-  string message_event_id = 5;
 }
 
 // ============================================================================

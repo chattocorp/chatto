@@ -29,6 +29,6 @@ func gqlNotificationLevelToProto(level model.NotificationLevel) corev1.Notificat
 	case model.NotificationLevelAllMessages:
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
 	default:
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
 }

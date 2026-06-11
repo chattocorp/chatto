@@ -26,7 +26,7 @@ const (
 // bytes to the object store. Returns the asset reference. Use SetServerLogo
 // to atomically swap the server's logo pointer (and clean up the prior
 // asset).
-func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*corev1.AssetRecord, error) {
 	webpReader, err := assets.ProcessLogoImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process logo image: %w", err)
@@ -45,7 +45,7 @@ func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*c
 //
 // Banners double as the OG link-preview image, so they're processed at the
 // canonical 1200x630 OG aspect rather than the older 4:3 sidebar shape.
-func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (*corev1.AssetRecord, error) {
 	webpReader, err := assets.ProcessLinkPreviewImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process banner image: %w", err)
@@ -60,8 +60,14 @@ func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (
 // uploadServerAsset routes processed image bytes to NATS or S3 based on
 // configuration and returns the resulting asset reference. Used by the
 // server-level logo and banner upload paths.
-func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kind string) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kind string) (*corev1.AssetRecord, error) {
 	assetID := NewAssetID()
+	asset := &corev1.AssetRecord{
+		Id:          assetID,
+		Filename:    kind + ".webp",
+		ContentType: "image/webp",
+		Size:        int64(len(webpData)),
+	}
 
 	if c.ShouldUseS3() {
 		s3Key := S3KeyServerAsset(assetID)
@@ -69,14 +75,11 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 			return nil, fmt.Errorf("failed to upload %s to S3: %w", kind, err)
 		}
 		c.logger.Info("Uploaded server "+kind+" to S3", "asset_id", assetID, "size", len(webpData))
-		return &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_S3{
-				S3: &corev1.S3Asset{
-					Key:    assetID,
-					Bucket: proto.String(c.s3Client.Bucket()),
-				},
-			},
-		}, nil
+		asset.Storage = &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
+			Key:    assetID,
+			Bucket: proto.String(c.s3Client.Bucket()),
+		}}
+		return asset, nil
 	}
 
 	headers := nats.Header{}
@@ -90,31 +93,27 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 		return nil, fmt.Errorf("failed to upload %s: %w", kind, err)
 	}
 	c.logger.Info("Uploaded server "+kind, "asset_id", assetID, "size", info.Size)
-	return &corev1.DeprecatedAsset{
-		Asset: &corev1.DeprecatedAsset_Nats{
-			Nats: &corev1.NATSAsset{
-				Key: assetID,
-			},
-		},
-	}, nil
+	asset.Size = int64(info.Size)
+	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}}
+	return asset, nil
 }
 
 // SetServerLogo atomically points the instance at a new logo asset using
 // optimistic locking, and cleans up the prior asset on success.
-func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *corev1.DeprecatedAsset) error {
+func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *corev1.AssetRecord) error {
 	return c.setServerBrandingAsset(ctx, actorID, "logo", asset)
 }
 
 // SetServerBanner atomically points the instance at a new banner asset
 // using optimistic locking, and cleans up the prior asset on success.
-func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *corev1.DeprecatedAsset) error {
+func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *corev1.AssetRecord) error {
 	return c.setServerBrandingAsset(ctx, actorID, "banner", asset)
 }
 
 // setServerBrandingAsset is the shared OCC swap implementation backing
 // SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
-func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *corev1.DeprecatedAsset) error {
+func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *corev1.AssetRecord) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config service not configured")
 	}
@@ -122,22 +121,22 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 		return c.deleteServerBrandingAsset(ctx, actorID, kind)
 	}
 
-	var oldAsset *corev1.DeprecatedAsset
+	var oldAsset *corev1.AssetRecord
 	changed := false
 	err := c.configManager.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		oldAsset = c.projectedServerBrandingAsset(kind)
-		if deprecatedAssetsEqual(oldAsset, asset) {
+		if assetRecordsEqual(oldAsset, asset) {
 			changed = false
 			return nil, nil
 		}
 		changed = true
 		if kind == "logo" {
 			return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerLogoSet{
-				ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: cloneDeprecatedAsset(asset)},
+				ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: cloneAssetRecord(asset)},
 			}})}, nil
 		}
 		return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBannerSet{
-			ServerBannerSet: &corev1.ServerBannerSetEvent{Asset: cloneDeprecatedAsset(asset)},
+			ServerBannerSet: &corev1.ServerBannerSetEvent{Asset: cloneAssetRecord(asset)},
 		}})}, nil
 	})
 	if err != nil {
@@ -147,33 +146,33 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 		return nil
 	}
 	if oldAsset != nil {
-		c.deleteAsset(ctx, oldAsset, kind, "server")
+		c.deleteAsset(ctx, assetStorageFromAsset(oldAsset), kind, "server")
 	}
 	c.PublishServerUpdated(ctx, actorID)
-	c.logger.Info("Updated server "+kind, "asset_id", assetIDFromAsset(asset))
+	c.logger.Info("Updated server "+kind, "asset_id", asset.GetId())
 	return nil
 }
 
 // GetServerLogo returns the asset reference for the server's current
 // logo, or (nil, nil) if no logo is set.
-func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.AssetRecord, error) {
 	return c.getServerBrandingAsset(ctx, "logo")
 }
 
 // GetServerBanner returns the asset reference for the server's current
 // banner, or (nil, nil) if no banner is set.
-func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.AssetRecord, error) {
 	return c.getServerBrandingAsset(ctx, "banner")
 }
 
-func (c *ChattoCore) getServerBrandingAsset(_ context.Context, kind string) (*corev1.DeprecatedAsset, error) {
+func (c *ChattoCore) getServerBrandingAsset(_ context.Context, kind string) (*corev1.AssetRecord, error) {
 	if c.ServerConfig == nil {
 		return nil, nil
 	}
 	return c.projectedServerBrandingAsset(kind), nil
 }
 
-func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.DeprecatedAsset {
+func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.AssetRecord {
 	if c.ServerConfig == nil {
 		return nil
 	}
@@ -209,8 +208,8 @@ func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int,
 
 // serverAssetURL builds the public URL for an server-scoped asset,
 // optionally with transform parameters.
-func (c *ChattoCore) serverAssetURL(asset *corev1.DeprecatedAsset, width, height *int, fit string) string {
-	assetID := assetIDFromAsset(asset)
+func (c *ChattoCore) serverAssetURL(asset *corev1.AssetRecord, width, height *int, fit string) string {
+	assetID := asset.GetId()
 	if assetID == "" {
 		return ""
 	}
@@ -240,7 +239,7 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kin
 		return fmt.Errorf("config service not configured")
 	}
 
-	var asset *corev1.DeprecatedAsset
+	var asset *corev1.AssetRecord
 	changed := false
 	err := c.configManager.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		asset = c.projectedServerBrandingAsset(kind)
@@ -264,7 +263,7 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kin
 	if !changed {
 		return nil
 	}
-	c.deleteAsset(ctx, asset, kind, "server")
+	c.deleteAsset(ctx, assetStorageFromAsset(asset), kind, "server")
 	c.PublishServerUpdated(ctx, actorID)
 	c.logger.Info("Deleted server " + kind)
 	return nil
@@ -333,7 +332,7 @@ func assetIDFromAsset(asset *corev1.DeprecatedAsset) string {
 	}
 }
 
-func deprecatedAssetsEqual(a, b *corev1.DeprecatedAsset) bool {
+func assetRecordsEqual(a, b *corev1.AssetRecord) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
 	}
