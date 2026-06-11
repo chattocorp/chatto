@@ -43,7 +43,7 @@ const { mocks } = vi.hoisted(() => {
 					iconUrl: null
 				},
 				setPermissions: vi.fn(),
-				spaceIndicator: vi.fn().mockReturnValue(null)
+				serverIndicator: vi.fn().mockReturnValue(null)
 			}
 		}
 	};
@@ -98,9 +98,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 	}
 }));
 
-import ServerSpaceSection from './ServerSpaceSection.svelte';
+import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
-describe('ServerSpaceSection', () => {
+describe('ServerSidebarEntry', () => {
 	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
@@ -109,7 +109,7 @@ describe('ServerSpaceSection', () => {
 		mocks.showConnectionLostIcon = false;
 		mocks.client.query.mockReset();
 		mocks.store.notifications.fetch.mockClear();
-		mocks.store.spaceIndicator.mockReturnValue(null);
+		mocks.store.serverIndicator.mockReturnValue(null);
 		mocks.store.serverInfo.name = 'Chatto';
 		mocks.store.serverInfo.iconUrl = null;
 	});
@@ -126,7 +126,7 @@ describe('ServerSpaceSection', () => {
 			})
 		});
 
-		const { container } = render(ServerSpaceSection, {
+		const { container } = render(ServerSidebarEntry, {
 			props: {
 				serverId: 'remote',
 				currentUserId: 'user-1'
@@ -137,7 +137,7 @@ describe('ServerSpaceSection', () => {
 			expect(mocks.client.query).toHaveBeenCalled();
 		});
 
-		const icon = q(container, '[data-testid="space-icon"]');
+		const icon = q(container, '[data-testid="server-icon"]');
 		await expect.element(icon).toBeInTheDocument();
 		await expect.element(icon).toHaveClass('opacity-40');
 		await expect.element(icon).toHaveAttribute(
@@ -166,14 +166,14 @@ describe('ServerSpaceSection', () => {
 			})
 		});
 
-		const { container } = render(ServerSpaceSection, {
+		const { container } = render(ServerSidebarEntry, {
 			props: {
 				serverId: 'remote',
 				currentUserId: 'user-1'
 			}
 		});
 
-		const icon = q(container, '[data-testid="space-icon"]');
+		const icon = q(container, '[data-testid="server-icon"]');
 		await expect.element(icon).toBeInTheDocument();
 		await expect.element(icon).not.toHaveClass('opacity-40');
 		await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');

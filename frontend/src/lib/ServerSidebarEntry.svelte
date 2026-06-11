@@ -9,7 +9,7 @@
   import { graphql } from './gql';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
-  import SpaceIcon from './SpaceIcon.svelte';
+  import ServerIcon from './ServerIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
 
   let {
@@ -22,28 +22,27 @@
 
   const serverSegment = $derived(serverIdToSegment(serverId));
 
-  // Get this instance's stores
+  // Get this server's stores
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
-  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by instance.id)
+  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const notificationLevelStore = stores.notificationLevels;
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
-  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by instance.id)
+  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const gqlClient = graphqlClientManager.getClient(serverId);
   const registeredServer = $derived(serverRegistry.getServer(serverId));
 
-  // After the URL collapse (ADR-027), "this instance is active" simply means
-  // the URL's instance segment matches this one — and since each instance
-  // is now a single deployment-wide server, that's the active context.
+  // After the URL collapse (ADR-027), the active context is the deployment-wide
+  // server named in the current URL segment.
   const isActiveServer = $derived(page.params.serverId === serverSegment);
 
   let displayName = $state('');
   let logoUrl = $state<string | null>(null);
   let loaded = $state(false);
 
-  const iconSpace = $derived.by(() => {
+  const iconServer = $derived.by(() => {
     const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
     return {
       name: displayName || refreshedName || registeredServer?.name || stores.serverInfo.name,
@@ -52,24 +51,24 @@
   });
   const iconDimmed = $derived(!loaded || gqlClient.showConnectionLostIcon);
   const iconTitle = $derived(
-    iconDimmed ? `${iconSpace.name} (connection unavailable)` : iconSpace.name
+    iconDimmed ? `${iconServer.name} (connection unavailable)` : iconServer.name
   );
 
-  // Single dispatcher for icon clicks — kind comes from spaceIndicator()
+  // Single dispatcher for icon clicks — kind comes from serverIndicator()
   // so the two paths can't drift out of sync with what was rendered.
-  function handleSpaceIndicatorClick(kind: 'notification' | 'unread') {
-    if (kind === 'notification') return handleSpaceNotificationClick();
-    return handleSpaceUnreadClick();
+  function handleServerIndicatorClick(kind: 'notification' | 'unread') {
+    if (kind === 'notification') return handleServerNotificationClick();
+    return handleServerUnreadClick();
   }
 
-  // Get the GraphQL client for this instance
+  // Get the GraphQL client for this server
   function getClient() {
     return gqlClient.client;
   }
 
-  // Single combined query for instance icon, unread status, notification prefs, and viewer permissions.
-  const InstanceInitQuery = graphql(`
-    query InstanceInit {
+  // Single combined query for server icon, unread status, notification prefs, and viewer permissions.
+  const ServerSidebarEntryInitQuery = graphql(`
+    query ServerSidebarEntryInit {
       server {
         profile {
           name
@@ -114,7 +113,7 @@
       const client = getClient();
 
       const [initResult] = await Promise.all([
-        client.query(InstanceInitQuery, {}).toPromise(),
+        client.query(ServerSidebarEntryInitQuery, {}).toPromise(),
         notificationStore.fetch()
       ]);
 
@@ -167,13 +166,13 @@
     }
   }
 
-  // Lightweight reload for instance config changes (rename, logo, etc.).
-  async function reloadInstance() {
+  // Lightweight reload for server config changes (rename, logo, etc.).
+  async function reloadServer() {
     const client = getClient();
     const result = await client
       .query(
         graphql(`
-          query InstanceIconRefresh {
+          query ServerSidebarEntryIconRefresh {
             server {
               profile {
                 name
@@ -195,11 +194,11 @@
   // Load on mount and tab resume
   useTabResumeCallback(() => void loadAll());
 
-  // Subscribe to instance events. Use $effect (not onMount) so that if the
+  // Subscribe to server events. Use $effect (not onMount) so that if the
   // event bus isn't started yet on first run — possible when this component
-  // mounts before the parent layout's startBus effect for this instance —
+  // mounts before the parent layout's startBus effect for this server —
   // the effect re-runs once the bus comes online (getBus is a reactive read
-  // on a SvelteMap). Without this, cross-instance unread bookkeeping is
+  // on a SvelteMap). Without this, cross-server unread bookkeeping is
   // silently dropped and unread dots never light up for remote servers.
   $effect(() => {
     const registrar = createEventBusHandlerRegistrar(serverId);
@@ -213,9 +212,9 @@
         const event = serverEvent.event;
         if (!event) return;
 
-        // Reload the icon when instance config (name/logo) changes.
+        // Reload the icon when server config (name/logo) changes.
         if (event.__typename === 'ServerUpdatedEvent') {
-          reloadInstance();
+          reloadServer();
         }
 
         // Root message in any room on this server → mark that room
@@ -273,10 +272,9 @@
   });
 
   // Handle click on icon notification dot. The icon's notification can come
-  // from either a channel mention/reply (notificationStore.getSpaceNotification)
-  // or a DM message (notificationStore.getDMNotification). Prefer channel
+  // from either a channel mention/reply or a DM message. Prefer channel
   // notifications when both are present.
-  async function handleSpaceNotificationClick() {
+  async function handleServerNotificationClick() {
     const notification =
       notificationStore.getSpaceNotification() ?? notificationStore.getDMNotification();
     if (!notification) return;
@@ -292,7 +290,7 @@
     await goto(path);
   }
 
-  // Query to fetch rooms with unread status on demand (sentinel-only spaces).
+  // Query to fetch rooms with unread status on demand (sentinel-only server flag).
   const FirstUnreadRoomQuery = graphql(`
     query FirstUnreadRoom {
       server {
@@ -305,9 +303,8 @@
   `);
 
   // Handle click on icon unread dot. Channel and DM unreads both flow through
-  // this instance icon — fall back to DM-space unread map if no channel unread
-  // is found.
-  async function handleSpaceUnreadClick() {
+  // this server icon.
+  async function handleServerUnreadClick() {
     let roomId = roomUnreadStore.getFirstUnreadRoomId();
 
     if (!roomId) {
@@ -331,13 +328,13 @@
   }
 </script>
 
-<!-- One icon per instance (server = instance post-#330). -->
-<SpaceIcon
-  space={iconSpace}
+<!-- One icon per connected server. -->
+<ServerIcon
+  server={iconServer}
   href={resolve('/chat/[serverId]', { serverId: serverSegment })}
   selected={isActiveServer}
-  indicator={stores.spaceIndicator()}
-  onIndicatorClick={handleSpaceIndicatorClick}
+  indicator={stores.serverIndicator()}
+  onIndicatorClick={handleServerIndicatorClick}
   title={iconTitle}
   dimmed={iconDimmed}
 />

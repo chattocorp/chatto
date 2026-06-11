@@ -20,8 +20,8 @@ export type ViewerData = {
 
 /**
  * Server-level permissions for the current user, plus a `loaded` flag.
- * The underlying state lives on the per-instance `ServerStateStore`
- * (populated by `ServerSpaceSection`'s viewer query).
+ * The underlying state lives on the per-server `ServerStateStore`
+ * (populated by `ServerSidebarEntry`'s viewer query).
  */
 export type ServerPermissions = ViewerData & {
   loaded: boolean;

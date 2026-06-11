@@ -17,7 +17,7 @@
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
 
-  type SpaceLogo = { name: string; logoUrl?: string | null };
+  type ServerLogo = { name: string; logoUrl?: string | null };
 
   type ResultItem = {
     kind: 'room' | 'dm' | 'destination' | 'server';
@@ -26,7 +26,7 @@
     detail: string;
     serverId: string;
     serverName: string;
-    spaceLogo?: SpaceLogo;
+    serverLogo?: ServerLogo;
     participants?: UserAvatarUserFragment[];
     currentUserId?: string;
     href?: string;
@@ -99,7 +99,7 @@
         const serverResult = serverSettled.status === 'fulfilled' ? serverSettled.value : null;
         const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
 
-        const logo: SpaceLogo = {
+        const logo: ServerLogo = {
           name: serverResult?.data?.server?.profile.name ?? serverName,
           logoUrl: serverResult?.data?.server?.profile.logoUrl ?? null
         };
@@ -112,7 +112,7 @@
           detail: '',
           serverId: instance.id,
           serverName: logo.name,
-          spaceLogo: logo,
+          serverLogo: logo,
           href: resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(instance.id) }),
           score: 0
         });
@@ -155,7 +155,7 @@
               detail: serverLabel || logo.name,
               serverId: instance.id,
               serverName,
-              spaceLogo: logo,
+              serverLogo: logo,
               score: 0
             });
           }
@@ -232,7 +232,7 @@
       return [...pool].sort((a, b) => a.label.localeCompare(b.label));
     }
 
-    // Multi-token fuzzy match across label, space name (detail), and server name.
+    // Multi-token fuzzy match across label, detail, and server name.
     const scored: ResultItem[] = [];
     for (const item of pool) {
       const matchScore = scoreItem(q, item);
@@ -388,7 +388,7 @@
           bind:value={query}
           onkeydown={handleKeydown}
           type="text"
-          placeholder="Go to space, room, or conversation..."
+          placeholder="Go to server, room, or conversation..."
           class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
         />
         {#if loading}
@@ -433,8 +433,8 @@
                     {/each}
                   </div>
                 </span>
-              {:else if item.spaceLogo}
-                {@const logo = item.spaceLogo}
+              {:else if item.serverLogo}
+                {@const logo = item.serverLogo}
                 <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded text-[10px] font-bold" style:background={logo.logoUrl ? undefined : getGradientForName(logo.name)}>
                   {#if logo.logoUrl}
                     <SkeletonImg src={logo.logoUrl} alt={logo.name} class="h-full w-full object-cover" />

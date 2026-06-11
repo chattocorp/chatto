@@ -7,22 +7,22 @@
   const isOrigin = $derived(serverRegistry.isOriginServer(getActiveServer()));
 
   let {
-    spaceName,
+    serverName,
     loading = false
   }: {
-    spaceName: string;
+    serverName: string;
     loading?: boolean;
   } = $props();
 </script>
 
-<PaneHeader title={spaceName} {loading} skeletonButtons={1}>
+<PaneHeader title={serverName} {loading} skeletonButtons={1}>
   {#snippet actions()}
     {#if !isOrigin}
       <button
         class="iconify cursor-pointer text-muted uil--sign-out-alt hover:text-text"
         onclick={() =>
           pushState('', {
-            modal: { type: 'leaveServer', spaceName }
+            modal: { type: 'leaveServer', spaceName: serverName }
           })}
         title="Leave server"
       >

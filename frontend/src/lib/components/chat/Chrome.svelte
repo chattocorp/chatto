@@ -11,11 +11,11 @@
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import ScrollFader from '$lib/ui/ScrollFader.svelte';
-  import { createChromePermissions } from '$lib/state/space';
+  import { createChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
-  import SpaceHeader from './SpaceHeader.svelte';
-  import SpaceBanner from './SpaceBanner.svelte';
+  import ServerHeader from './ServerHeader.svelte';
+  import ServerBanner from './ServerBanner.svelte';
   import ServerEventProvider from './ServerEventProvider.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
@@ -27,7 +27,7 @@
   const connection = useConnection();
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 
-  // Detect if we're in space admin mode based on URL (use startsWith to avoid
+  // Detect if we're in server admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
   const adminPrefix = $derived(
     resolve('/chat/[serverId]/server-admin', { serverId: serverSegment })
@@ -79,10 +79,10 @@
     page.url.pathname === resolve('/chat/[serverId]/preferences', { serverId: serverSegment })
   );
 
-  // Create space permissions context (must be synchronous during init)
+  // Create server chrome permissions context (must be synchronous during init)
   const updateChromePermissions = createChromePermissions();
 
-  type SpaceData = {
+  type ServerChromeData = {
     name: string;
     bannerUrl: string | null;
     hasAnyAdminPermission: boolean;
@@ -95,7 +95,7 @@
   // Validate access to the active server. Returns server data on success,
   // null if the server says it's not accessible, or 'transient' on network
   // failure (treat as "try again later", not as access denial).
-  async function validateSpace(): Promise<SpaceData | null | 'transient'> {
+  async function validateServer(): Promise<ServerChromeData | null | 'transient'> {
     const result = await connection()
       .client.query(
         graphql(`
@@ -140,9 +140,9 @@
     };
   }
 
-  // Space validation state - uses $state instead of async $derived to avoid race conditions
+  // Server validation state - uses $state instead of async $derived to avoid race conditions
   // See egg t4x5m3 for the pattern explanation
-  let spaceData = $state<SpaceData | null>(null);
+  let serverData = $state<ServerChromeData | null>(null);
   let validationLoadId = { current: 0 };
 
   // Force re-validation after genuine WebSocket reconnections (not instance switches).
@@ -169,12 +169,12 @@
 
     // Only clear data when switching to a different instance.
     if (untrack(() => lastValidatedInstance) !== currentInstance) {
-      spaceData = null;
+      serverData = null;
     }
 
     const thisLoadId = ++validationLoadId.current;
 
-    validateSpace()
+    validateServer()
       .then((result) => {
         if (validationLoadId.current !== thisLoadId) return;
 
@@ -183,13 +183,13 @@
         // storage; the user's place must survive a brief offline blip.
         if (result === 'transient') {
           console.warn(
-            '[validateSpace] networkError, ignoring (spaceData stays at prior value)',
+            '[validateServer] networkError, ignoring (serverData stays at prior value)',
             { instance: currentInstance }
           );
           return;
         }
 
-        spaceData = result;
+        serverData = result;
         lastValidatedInstance = currentInstance;
         lastRevalidation = currentRevalidation;
 
@@ -202,30 +202,30 @@
       })
       .catch((error) => {
         if (validationLoadId.current !== thisLoadId) return;
-        console.error('Space validation failed:', error);
-        spaceData = null;
+        console.error('Server validation failed:', error);
+        serverData = null;
       });
   });
   let lastRevalidation = -1;
   let lastValidatedInstance = '';
 
-  // Update space permissions context when spaceData changes
+  // Update server chrome permissions context when serverData changes
   $effect(() => {
-    if (spaceData) {
+    if (serverData) {
       updateChromePermissions({
-        hasAnyAdminPermission: spaceData.hasAnyAdminPermission,
-        canManage: spaceData.canManage,
-        canManageRooms: spaceData.canManageRooms,
-        canManageRoles: spaceData.canManageRoles,
-        canAssignRoles: spaceData.canAssignRoles
+        hasAnyAdminPermission: serverData.hasAnyAdminPermission,
+        canManage: serverData.canManage,
+        canManageRooms: serverData.canManageRooms,
+        canManageRoles: serverData.canManageRoles,
+        canAssignRoles: serverData.canAssignRoles
       });
     }
   });
 
-  // Server name and banner — derived from spaceData, which is updated both by
+  // Server name and banner — derived from serverData, which is updated both by
   // the initial fetch and by live ServerUpdatedEvent events.
-  let spaceName = $derived(spaceData?.name ?? null);
-  let bannerUrl = $derived(spaceData?.bannerUrl ?? null);
+  let serverName = $derived(serverData?.name ?? null);
+  let bannerUrl = $derived(serverData?.bannerUrl ?? null);
 
   // Listen for server updates on the active instance's event bus.
   // Uses useActiveEvent (not useEvent) so that when the user
@@ -245,7 +245,7 @@
   const adminNavItems = $derived(
     getAdminNavItems({
       serverSegment,
-      space: spaceData,
+      chrome: serverData,
       server: serverPerms.current
     })
   );
@@ -261,9 +261,9 @@
               backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
               backLabel="Back to Server"
             />
-          {:else if !spaceData}
-            <!-- Skeleton sidebar while space data is loading -->
-            <SpaceHeader spaceName="" loading />
+          {:else if !serverData}
+            <!-- Skeleton sidebar while server data is loading -->
+            <ServerHeader serverName="" loading />
 
             <ScrollFader top bottom>
               <div class="p-2">
@@ -285,13 +285,13 @@
               {/each}
             </ScrollFader>
           {:else}
-            <!-- Space header - fixed at top -->
-            <SpaceHeader spaceName={spaceName ?? ''} />
+            <!-- Server header - fixed at top -->
+            <ServerHeader serverName={serverName ?? ''} />
 
             <!-- Scrollable area for room list sidebar -->
             <ScrollFader top bottom>
               {#if bannerUrl}
-                <SpaceBanner url={bannerUrl} />
+                <ServerBanner url={bannerUrl} />
               {/if}
 
               <nav class="sidebar-nav p-2">
@@ -321,7 +321,7 @@
 
               <hr class="border-border" />
 
-              <!-- Room List - always visible to space members (shows rooms user has joined) -->
+              <!-- Room List - always visible to server members (shows rooms user has joined) -->
               <RoomList />
             </ScrollFader>
           {/if}

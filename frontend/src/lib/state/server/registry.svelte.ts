@@ -213,7 +213,7 @@ class ServerRegistry {
 		const store = this.#createStore(server);
 
 		// Start the event bus eagerly for already-authenticated servers so
-		// child components (ServerSpaceSection) can register handlers during
+		// child components (ServerSidebarEntry) can register handlers during
 		// their mount lifecycle. For cookie-auth servers the user is loaded
 		// asynchronously by AuthenticatedChatProvider, so the layout's $effect
 		// starts the bus once `isAuthenticated` flips true.

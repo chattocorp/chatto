@@ -25,9 +25,9 @@ Allows the user to set server-level and per-room notification levels.
 
   const connection = useConnection();
 
-  // Space-level preference
-  let spaceLevel = $state<NotificationLevel>(NotificationLevel.Default);
-  let spaceEffectiveLevel = $state<NotificationLevel>(NotificationLevel.Normal);
+  // Server-level preference
+  let serverLevel = $state<NotificationLevel>(NotificationLevel.Default);
+  let serverEffectiveLevel = $state<NotificationLevel>(NotificationLevel.Normal);
 
   // Room preferences
   let rooms = $state<
@@ -41,7 +41,7 @@ Allows the user to set server-level and per-room notification levels.
 
   let loading = $state(true);
   let error = $state('');
-  let savingSpaceLevel = $state(false);
+  let savingServerLevel = $state(false);
   let savingRoomId = $state<string | null>(null);
 
   $effect(() => {
@@ -56,7 +56,7 @@ Allows the user to set server-level and per-room notification levels.
       const result = await connection().client
         .query(
           graphql(`
-            query GetSpaceNotificationPreferences {
+            query GetServerNotificationPreferences {
               server {
                 viewerNotificationPreference {
                   level
@@ -88,10 +88,10 @@ Allows the user to set server-level and per-room notification levels.
 
       if (result.data?.server?.viewerNotificationPreference) {
         const pref = result.data.server.viewerNotificationPreference;
-        // Space can't inherit (nothing above it), so DEFAULT maps to NORMAL for display
-        spaceLevel =
+        // Server can't inherit (nothing above it), so DEFAULT maps to NORMAL for display
+        serverLevel =
           pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;
-        spaceEffectiveLevel = pref.effectiveLevel;
+        serverEffectiveLevel = pref.effectiveLevel;
         notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
       }
 
@@ -116,8 +116,8 @@ Allows the user to set server-level and per-room notification levels.
     }
   }
 
-  async function handleSpaceLevelChange(newLevel: NotificationLevel) {
-    savingSpaceLevel = true;
+  async function handleServerLevelChange(newLevel: NotificationLevel) {
+    savingServerLevel = true;
 
     try {
       const result = await connection().client
@@ -141,8 +141,8 @@ Allows the user to set server-level and per-room notification levels.
 
       if (result.data?.setServerNotificationLevel) {
         const pref = result.data.setServerNotificationLevel;
-        spaceLevel = pref.level;
-        spaceEffectiveLevel = pref.effectiveLevel;
+        serverLevel = pref.level;
+        serverEffectiveLevel = pref.effectiveLevel;
         notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
         // Reload room preferences since effective levels may have changed
@@ -153,7 +153,7 @@ Allows the user to set server-level and per-room notification levels.
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update');
     } finally {
-      savingSpaceLevel = false;
+      savingServerLevel = false;
     }
   }
 
@@ -222,8 +222,8 @@ Allows the user to set server-level and per-room notification levels.
     }
   ];
 
-  // Space-level options exclude DEFAULT (space can't inherit from anything above it)
-  const spaceLevelOptions = levelOptions.filter((o) => o.value !== NotificationLevel.Default);
+  // Server-level options exclude DEFAULT (server can't inherit from anything above it)
+  const serverLevelOptions = levelOptions.filter((o) => o.value !== NotificationLevel.Default);
 
   function levelLabel(level: NotificationLevel): string {
     return levelOptions.find((o) => o.value === level)?.label ?? level;
@@ -232,7 +232,7 @@ Allows the user to set server-level and per-room notification levels.
 
 <PageTitle title="Preferences" />
 
-<PaneHeader title="Preferences" subtitle="Notification settings for this space" showMobileNav />
+<PaneHeader title="Preferences" subtitle="Notification settings for this server" showMobileNav />
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   {#if loading}
@@ -242,27 +242,27 @@ Allows the user to set server-level and per-room notification levels.
       <FormError {error} />
     </div>
   {:else}
-    <!-- Space-level notification level -->
+    <!-- Server-level notification level -->
     <FormSection title="Server Notification Level" maxWidth="max-w-lg">
       <p class="mb-3 text-sm text-muted">
-        Controls how you receive notifications for all rooms in this space. Individual rooms can
+        Controls how you receive notifications for all rooms in this server. Individual rooms can
         override this setting.
       </p>
 
       <div class="flex flex-col gap-2">
-        {#each spaceLevelOptions as option (option.value)}
-          {@const isSelected = spaceLevel === option.value}
+        {#each serverLevelOptions as option (option.value)}
+          {@const isSelected = serverLevel === option.value}
           <button
             type="button"
-            disabled={savingSpaceLevel}
+            disabled={savingServerLevel}
             class={[
               'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
               isSelected
                 ? 'border-accent bg-accent/10'
                 : 'hover:border-border-highlighted border-border hover:bg-surface-100',
-              savingSpaceLevel ? 'opacity-50' : ''
+              savingServerLevel ? 'opacity-50' : ''
             ]}
-            onclick={() => handleSpaceLevelChange(option.value)}
+            onclick={() => handleServerLevelChange(option.value)}
           >
             <span
               class={[
@@ -287,8 +287,8 @@ Allows the user to set server-level and per-room notification levels.
     {#if rooms.length > 0}
       <FormSection title="Room Overrides" maxWidth="max-w-lg" bordered>
         <p class="mb-3 text-sm text-muted">
-          Override the space-level setting for individual rooms. Rooms set to "Default" inherit the
-          space setting ({levelLabel(spaceEffectiveLevel)}).
+          Override the server-level setting for individual rooms. Rooms set to "Default" inherit the
+          server setting ({levelLabel(serverEffectiveLevel)}).
         </p>
 
         <div class="flex flex-col gap-2">

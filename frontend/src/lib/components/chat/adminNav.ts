@@ -1,6 +1,6 @@
 import { resolve } from '$app/paths';
 
-export type AdminNavSpacePermissions = {
+export type AdminNavChromePermissions = {
   hasAnyAdminPermission: boolean;
   canManage: boolean;
   canManageRooms: boolean;
@@ -24,19 +24,19 @@ export type AdminNavItem = {
 
 export function getAdminNavItems({
   serverSegment,
-  space,
+  chrome,
   server
 }: {
   serverSegment: string;
-  space: AdminNavSpacePermissions | null;
+  chrome: AdminNavChromePermissions | null;
   server: AdminNavServerPermissions;
 }): AdminNavItem[] {
-  if (!space) return [];
-  if (!space.hasAnyAdminPermission && !server.canViewAdmin) return [];
+  if (!chrome) return [];
+  if (!chrome.hasAnyAdminPermission && !server.canViewAdmin) return [];
 
   const items: AdminNavItem[] = [];
 
-  if (space.canManage) {
+  if (chrome.canManage) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/general', { serverId: serverSegment }),
       label: 'General',
@@ -44,7 +44,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (space.canAssignRoles || server.canAdminViewUsers) {
+  if (chrome.canAssignRoles || server.canAdminViewUsers) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
       label: 'Members',
@@ -52,7 +52,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (space.canManageRooms) {
+  if (chrome.canManageRooms) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment }),
       label: 'Rooms',
@@ -60,7 +60,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (space.hasAnyAdminPermission) {
+  if (chrome.hasAnyAdminPermission) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/moderation', { serverId: serverSegment }),
       label: 'Moderation',
@@ -68,7 +68,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (space.canManageRoles || server.canAdminViewRoles) {
+  if (chrome.canManageRoles || server.canAdminViewRoles) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }),
       label: 'Permissions',
@@ -76,7 +76,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (space.canManage) {
+  if (chrome.canManage) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/security', { serverId: serverSegment }),
       label: 'Security',

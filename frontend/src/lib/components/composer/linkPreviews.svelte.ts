@@ -1,14 +1,20 @@
 import type { Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import {
-  LinkPreviewForComposerDocument,
-  type LinkPreviewForComposerQuery,
-  type LinkPreviewInput
-} from '$lib/gql/graphql';
+import { graphql } from '$lib/gql';
+import { type LinkPreviewForComposerQuery, type LinkPreviewInput } from '$lib/gql/graphql';
 import { useFragment } from '$lib/gql/fragment-masking';
 import { extractURLs } from '$lib/linkPreview';
 import { parseMessageLink } from '$lib/messageLinks';
 import { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
+
+const LinkPreviewForComposerDocument = graphql(`
+  query LinkPreviewForComposer($url: String!) {
+    linkPreview(url: $url) {
+      ...LinkPreviewView
+      imageAssetId
+    }
+  }
+`);
 
 type PreviewData = NonNullable<LinkPreviewForComposerQuery['linkPreview']>;
 

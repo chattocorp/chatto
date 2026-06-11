@@ -25,7 +25,7 @@ export type RoomsListGroup = {
 };
 
 const MyRoomsQuery = graphql(`
-  query GetMyRoomsInSpace {
+  query GetMyServerRooms {
     viewer {
       user {
         id
@@ -70,7 +70,7 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 
 /**
  * Reactive store for a server's joined-room list, layout, and per-room
- * unread/mention state. One instance per registered server, owned by
+ * unread/mention state. One store per registered server, owned by
  * `ServerStateStore` — consumers (RoomList sidebar, the `/[serverId]` redirect
  * page, etc.) reach the active server's store via
  * `serverRegistry.getStore(activeServerId).rooms`, so the reactivity follows
@@ -81,8 +81,8 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
  * subscriptions (mentions, marked-as-read across tabs).
  *
  * Subscription events are forwarded via {@link ingestServerEvent}; the
- * top-level `RoomsSync` component attaches a handler to every server's bus
- * so every server's store stays current regardless of which one is active.
+ * server bundle forwards events from every server's bus so each server's
+ * store stays current regardless of which one is active.
  */
 export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);

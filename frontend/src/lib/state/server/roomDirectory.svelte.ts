@@ -10,8 +10,8 @@ export type DirectoryRoom = {
   viewerCanJoinRoom: boolean;
 };
 
-const RoomsInSpaceQuery = graphql(`
-  query GetAllRoomsInSpace {
+const RoomsForDirectoryQuery = graphql(`
+  query GetServerRoomDirectory {
     server {
       rooms(type: CHANNEL) {
         id
@@ -57,8 +57,8 @@ export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: fals
  * `isJoined(roomId, joinedSet)` rather than this store duplicating that
  * data.
  *
- * One instance per registered server, owned by `ServerStateStore`. The
- * Browse Rooms page reads the active server's instance via
+ * One store per registered server, owned by `ServerStateStore`. The
+ * Browse Rooms page reads the active server's store via
  * `serverRegistry.getStore(getServerId()).roomDirectory` and triggers
  * `refresh()` reactively when the active server changes.
  *
@@ -92,7 +92,7 @@ export class RoomDirectoryStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(RoomsInSpaceQuery, {}).toPromise();
+    const result = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.server) {

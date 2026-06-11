@@ -13,20 +13,20 @@ import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
-import { RoomsStore } from '$lib/state/space/rooms.svelte';
-import { RoomDirectoryStore } from '$lib/state/space/roomDirectory.svelte';
+import { RoomsStore } from './rooms.svelte';
+import { RoomDirectoryStore } from './roomDirectory.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventHandler } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
 /**
- * What kind of indicator dot a space (or the DM area) should display.
+ * What kind of indicator dot a server (or the DM area) should display.
  * - 'notification' = orange dot, has a pending mention/reply/room-message
  * - 'unread' = grey dot, has unread rooms but no pending notification
  * - null = no indicator
  */
-export type SpaceIndicator = 'notification' | 'unread' | null;
+export type ServerIndicator = 'notification' | 'unread' | null;
 
 const EMPTY_PERMISSIONS: ServerPermissions = {
 	loaded: false,
@@ -54,7 +54,7 @@ export class ServerStateStore {
 	readonly rooms: RoomsStore;
 	readonly roomDirectory: RoomDirectoryStore;
 
-	/** Per-server viewer permissions (loaded by ServerSpaceSection). */
+	/** Per-server viewer permissions (loaded by ServerSidebarEntry). */
 	permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
 
 	/**
@@ -184,16 +184,14 @@ export class ServerStateStore {
 	}
 
 	/**
-	 * Single source of truth for the space-level indicator dot.
+	 * Single source of truth for the server-level indicator dot.
 	 * Notifications take precedence over plain unread.
 	 *
-	 * For the primary space (issue #330 / ADR-027), DM activity also rolls
-	 * up here — DMs are surfaced as rooms on the Server in the merged
-	 * sidebar, so the user expects the server icon to light up the same
-	 * way it would for a channel mention or unread.
+	 * DMs are surfaced as rooms on the Server in the merged sidebar, so the
+	 * user expects the server icon to light up the same way it would for a
+	 * channel mention or unread.
 	 */
-	spaceIndicator(_spaceId?: string): SpaceIndicator {
-		// Post-PR(b) the API has only one server, so spaceId is ignored.
+	serverIndicator(): ServerIndicator {
 		// Channel + DM activity both roll up to the single server indicator.
 		if (this.notifications.hasSpaceNotification()) return 'notification';
 		if (this.notifications.hasDMNotifications()) return 'notification';
@@ -202,11 +200,10 @@ export class ServerStateStore {
 	}
 
 	/**
-	 * Indicator for the DM area only. Kept for the ServerSpaceSection's
-	 * space-icon click logic that wants the DM-only answer when promoting
-	 * DM activity into the primary-space indicator.
+	 * Indicator for the DM area only. Kept for consumers that want a DM-only
+	 * answer instead of the combined server indicator.
 	 */
-	dmIndicator(): SpaceIndicator {
+	dmIndicator(): ServerIndicator {
 		if (this.notifications.hasDMNotifications()) return 'notification';
 		// We no longer track DM unread separately — `hasAnyUnread` covers it.
 		return null;
