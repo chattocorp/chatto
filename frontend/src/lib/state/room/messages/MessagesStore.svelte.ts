@@ -199,7 +199,6 @@ export class MessagesStore {
     }
 
     if (
-      eventData.__typename === 'VideoProcessingCompletedEvent' ||
       eventData.__typename === 'AssetProcessingStartedEvent' ||
       eventData.__typename === 'AssetProcessingSucceededEvent' ||
       eventData.__typename === 'AssetProcessingFailedEvent'

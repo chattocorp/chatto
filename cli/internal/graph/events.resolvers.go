@@ -817,21 +817,6 @@ func (r *videoProcessingResolver) ThumbnailAssetURL(ctx context.Context, obj *mo
 	return stableAssetURLModel(r.core.GetStableAttachmentAssetURL(obj.ThumbnailAttachmentID, callerID(ctx))), nil
 }
 
-// RoomID is the resolver for the roomId field.
-func (r *videoProcessingCompletedEventResolver) RoomID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error) {
-	return nilIfEmpty(obj.GetRoomId()), nil
-}
-
-// MessageEventID is the resolver for the messageEventId field.
-func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error) {
-	if obj.MessageEventId == "" {
-		r.logger.Warn("VideoProcessingCompletedEvent has empty messageEventId",
-			"room_id", obj.RoomId,
-			"message_body_id", obj.MessageBodyId)
-	}
-	return nilIfEmpty(obj.MessageEventId), nil
-}
-
 // URL is the resolver for the url field.
 func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant) (string, error) {
 	assetURL, err := r.AssetURL(ctx, obj)
@@ -942,11 +927,6 @@ func (r *Resolver) UserProfileUpdatedEvent() UserProfileUpdatedEventResolver {
 // VideoProcessing returns VideoProcessingResolver implementation.
 func (r *Resolver) VideoProcessing() VideoProcessingResolver { return &videoProcessingResolver{r} }
 
-// VideoProcessingCompletedEvent returns VideoProcessingCompletedEventResolver implementation.
-func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEventResolver {
-	return &videoProcessingCompletedEventResolver{r}
-}
-
 // VideoVariant returns VideoVariantResolver implementation.
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
@@ -972,5 +952,4 @@ type serverUpdatedEventResolver struct{ *Resolver }
 type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type userProfileUpdatedEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
-type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }

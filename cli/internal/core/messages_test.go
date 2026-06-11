@@ -174,8 +174,8 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if posted.GetMessagePosted().GetBody() != nil {
-		t.Fatal("new MessagePostedEvent should be bodyless")
+	if posted.GetMessagePosted() == nil {
+		t.Fatal("expected MessagePostedEvent")
 	}
 
 	agg := events.RoomAggregate(room.Id)
@@ -201,8 +201,8 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_posted): %v", err)
 	}
-	if len(postEvents) != 1 || postEvents[0].GetMessagePosted().GetBody() != nil {
-		t.Fatalf("message_posted event should exist and be bodyless: %+v", postEvents)
+	if len(postEvents) != 1 || postEvents[0].GetMessagePosted() == nil {
+		t.Fatalf("message_posted event should exist: %+v", postEvents)
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited private body payload"); err != nil {
@@ -215,8 +215,8 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 	if len(editEvents) != 1 {
 		t.Fatalf("message_edited events = %d, want 1", len(editEvents))
 	}
-	if editEvents[0].GetMessageEdited().GetBody() != nil {
-		t.Fatal("new MessageEditedEvent should be bodyless")
+	if editEvents[0].GetMessageEdited() == nil {
+		t.Fatal("expected MessageEditedEvent")
 	}
 	body, err := core.GetMessageBody(ctx, KindChannel, posted.Id)
 	if err != nil {

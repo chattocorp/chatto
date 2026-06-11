@@ -19,7 +19,7 @@ func (*UserJoinedRoomEvent) IsEventType()           {}
 func (*UserLeftRoomEvent) IsEventType()             {}
 func (*RoomMemberBannedEvent) IsEventType()         {}
 func (*RoomMemberUnbannedEvent) IsEventType()       {}
-func (*SpaceMemberDeletedEvent) IsEventType()       {}
+func (*ServerMemberDeletedEvent) IsEventType()      {}
 func (*MessagePostedEvent) IsEventType()            {}
 func (*MessageEditedEvent) IsEventType()            {}
 func (*MessageRetractedEvent) IsEventType()         {}
@@ -32,7 +32,6 @@ func (*ReactionAddedEvent) IsEventType()            {}
 func (*ReactionRemovedEvent) IsEventType()          {}
 func (*UserTypingEvent) IsEventType()               {}
 func (*PresenceChangedEvent) IsEventType()          {}
-func (*VideoProcessingCompletedEvent) IsEventType() {}
 func (*CallParticipantJoinedEvent) IsEventType()    {}
 func (*CallParticipantLeftEvent) IsEventType()      {}
 

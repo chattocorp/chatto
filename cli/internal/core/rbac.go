@@ -330,7 +330,7 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, roleName string
 		return err
 	}
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
-		RbacPermissionCleared: rbacPermissionClearedEvent(ScopeServer, "", roleName, perm),
+		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeServer, "", roleName, perm),
 	}})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
 		if !c.RBAC.RoleExists(roleName) {
@@ -686,7 +686,7 @@ func (c *ChattoCore) GrantGroupPermission(ctx context.Context, groupID, roleName
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
-		RbacPermissionGranted: rbacPermissionGrantedEvent(ScopeGroup, groupID, roleName, perm),
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err
@@ -698,7 +698,7 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, groupID, roleName 
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacPermissionDeniedEvent(ScopeGroup, groupID, roleName, perm),
+		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err
@@ -707,7 +707,7 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, groupID, roleName 
 // ClearGroupPermissionState removes both allow and deny for a role on a set.
 func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, groupID, roleName string, perm Permission) error {
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
-		RbacPermissionCleared: rbacPermissionClearedEvent(ScopeGroup, groupID, roleName, perm),
+		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err

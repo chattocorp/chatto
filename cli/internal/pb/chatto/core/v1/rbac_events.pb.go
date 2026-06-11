@@ -21,6 +21,107 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type RbacPermissionScopeKind int32
+
+const (
+	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED RbacPermissionScopeKind = 0
+	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER      RbacPermissionScopeKind = 1
+	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP       RbacPermissionScopeKind = 2
+	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM        RbacPermissionScopeKind = 3
+)
+
+// Enum value maps for RbacPermissionScopeKind.
+var (
+	RbacPermissionScopeKind_name = map[int32]string{
+		0: "RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED",
+		1: "RBAC_PERMISSION_SCOPE_KIND_SERVER",
+		2: "RBAC_PERMISSION_SCOPE_KIND_GROUP",
+		3: "RBAC_PERMISSION_SCOPE_KIND_ROOM",
+	}
+	RbacPermissionScopeKind_value = map[string]int32{
+		"RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED": 0,
+		"RBAC_PERMISSION_SCOPE_KIND_SERVER":      1,
+		"RBAC_PERMISSION_SCOPE_KIND_GROUP":       2,
+		"RBAC_PERMISSION_SCOPE_KIND_ROOM":        3,
+	}
+)
+
+func (x RbacPermissionScopeKind) Enum() *RbacPermissionScopeKind {
+	p := new(RbacPermissionScopeKind)
+	*p = x
+	return p
+}
+
+func (x RbacPermissionScopeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RbacPermissionScopeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_core_v1_rbac_events_proto_enumTypes[0].Descriptor()
+}
+
+func (RbacPermissionScopeKind) Type() protoreflect.EnumType {
+	return &file_chatto_core_v1_rbac_events_proto_enumTypes[0]
+}
+
+func (x RbacPermissionScopeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RbacPermissionScopeKind.Descriptor instead.
+func (RbacPermissionScopeKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{0}
+}
+
+type RbacPermissionSubjectKind int32
+
+const (
+	RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED RbacPermissionSubjectKind = 0
+	RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE        RbacPermissionSubjectKind = 1
+	RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER        RbacPermissionSubjectKind = 2
+)
+
+// Enum value maps for RbacPermissionSubjectKind.
+var (
+	RbacPermissionSubjectKind_name = map[int32]string{
+		0: "RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED",
+		1: "RBAC_PERMISSION_SUBJECT_KIND_ROLE",
+		2: "RBAC_PERMISSION_SUBJECT_KIND_USER",
+	}
+	RbacPermissionSubjectKind_value = map[string]int32{
+		"RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED": 0,
+		"RBAC_PERMISSION_SUBJECT_KIND_ROLE":        1,
+		"RBAC_PERMISSION_SUBJECT_KIND_USER":        2,
+	}
+)
+
+func (x RbacPermissionSubjectKind) Enum() *RbacPermissionSubjectKind {
+	p := new(RbacPermissionSubjectKind)
+	*p = x
+	return p
+}
+
+func (x RbacPermissionSubjectKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RbacPermissionSubjectKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_core_v1_rbac_events_proto_enumTypes[1].Descriptor()
+}
+
+func (RbacPermissionSubjectKind) Type() protoreflect.EnumType {
+	return &file_chatto_core_v1_rbac_events_proto_enumTypes[1]
+}
+
+func (x RbacPermissionSubjectKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RbacPermissionSubjectKind.Descriptor instead.
+func (RbacPermissionSubjectKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{1}
+}
+
 type RbacRoleCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoleName      string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
@@ -385,18 +486,125 @@ func (x *RbacRoleRevokedEvent) GetRoleName() string {
 	return ""
 }
 
+type RbacPermissionScope struct {
+	state protoimpl.MessageState  `protogen:"open.v1"`
+	Kind  RbacPermissionScopeKind `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.core.v1.RbacPermissionScopeKind" json:"kind,omitempty"`
+	// Empty for server-scope decisions. For group and room scope, this is the
+	// target group ID or room ID.
+	Id            string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RbacPermissionScope) Reset() {
+	*x = RbacPermissionScope{}
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RbacPermissionScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RbacPermissionScope) ProtoMessage() {}
+
+func (x *RbacPermissionScope) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RbacPermissionScope.ProtoReflect.Descriptor instead.
+func (*RbacPermissionScope) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RbacPermissionScope) GetKind() RbacPermissionScopeKind {
+	if x != nil {
+		return x.Kind
+	}
+	return RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED
+}
+
+func (x *RbacPermissionScope) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type RbacPermissionSubject struct {
+	state protoimpl.MessageState    `protogen:"open.v1"`
+	Kind  RbacPermissionSubjectKind `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.core.v1.RbacPermissionSubjectKind" json:"kind,omitempty"`
+	// Role name for ROLE subjects; user ID for USER subjects.
+	Id            string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RbacPermissionSubject) Reset() {
+	*x = RbacPermissionSubject{}
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RbacPermissionSubject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RbacPermissionSubject) ProtoMessage() {}
+
+func (x *RbacPermissionSubject) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RbacPermissionSubject.ProtoReflect.Descriptor instead.
+func (*RbacPermissionSubject) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RbacPermissionSubject) GetKind() RbacPermissionSubjectKind {
+	if x != nil {
+		return x.Kind
+	}
+	return RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED
+}
+
+func (x *RbacPermissionSubject) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 type RbacPermissionGrantedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Location      string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"` // "server", room ID, or group ID.
-	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	Permission    string                 `protobuf:"bytes,3,opt,name=permission,proto3" json:"permission,omitempty"`
+	Scope         *RbacPermissionScope   `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Subject       *RbacPermissionSubject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RbacPermissionGrantedEvent) Reset() {
 	*x = RbacPermissionGrantedEvent{}
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -408,7 +616,7 @@ func (x *RbacPermissionGrantedEvent) String() string {
 func (*RbacPermissionGrantedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionGrantedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,21 +629,7 @@ func (x *RbacPermissionGrantedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionGrantedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionGrantedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *RbacPermissionGrantedEvent) GetLocation() string {
-	if x != nil {
-		return x.Location
-	}
-	return ""
-}
-
-func (x *RbacPermissionGrantedEvent) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RbacPermissionGrantedEvent) GetPermission() string {
@@ -445,18 +639,32 @@ func (x *RbacPermissionGrantedEvent) GetPermission() string {
 	return ""
 }
 
+func (x *RbacPermissionGrantedEvent) GetScope() *RbacPermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *RbacPermissionGrantedEvent) GetSubject() *RbacPermissionSubject {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
+}
+
 type RbacPermissionDeniedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Location      string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"` // "server", room ID, or group ID.
-	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	Permission    string                 `protobuf:"bytes,3,opt,name=permission,proto3" json:"permission,omitempty"`
+	Scope         *RbacPermissionScope   `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Subject       *RbacPermissionSubject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RbacPermissionDeniedEvent) Reset() {
 	*x = RbacPermissionDeniedEvent{}
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -468,7 +676,7 @@ func (x *RbacPermissionDeniedEvent) String() string {
 func (*RbacPermissionDeniedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionDeniedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -481,21 +689,7 @@ func (x *RbacPermissionDeniedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionDeniedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionDeniedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *RbacPermissionDeniedEvent) GetLocation() string {
-	if x != nil {
-		return x.Location
-	}
-	return ""
-}
-
-func (x *RbacPermissionDeniedEvent) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RbacPermissionDeniedEvent) GetPermission() string {
@@ -505,19 +699,33 @@ func (x *RbacPermissionDeniedEvent) GetPermission() string {
 	return ""
 }
 
+func (x *RbacPermissionDeniedEvent) GetScope() *RbacPermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *RbacPermissionDeniedEvent) GetSubject() *RbacPermissionSubject {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
+}
+
 // Removes any explicit allow or deny, returning this permission to inherited/no-decision state.
 type RbacPermissionClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Location      string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"` // "server", room ID, or group ID.
-	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	Permission    string                 `protobuf:"bytes,3,opt,name=permission,proto3" json:"permission,omitempty"`
+	Scope         *RbacPermissionScope   `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Subject       *RbacPermissionSubject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RbacPermissionClearedEvent) Reset() {
 	*x = RbacPermissionClearedEvent{}
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +737,7 @@ func (x *RbacPermissionClearedEvent) String() string {
 func (*RbacPermissionClearedEvent) ProtoMessage() {}
 
 func (x *RbacPermissionClearedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,21 +750,7 @@ func (x *RbacPermissionClearedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RbacPermissionClearedEvent.ProtoReflect.Descriptor instead.
 func (*RbacPermissionClearedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *RbacPermissionClearedEvent) GetLocation() string {
-	if x != nil {
-		return x.Location
-	}
-	return ""
-}
-
-func (x *RbacPermissionClearedEvent) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
+	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RbacPermissionClearedEvent) GetPermission() string {
@@ -564,6 +758,20 @@ func (x *RbacPermissionClearedEvent) GetPermission() string {
 		return x.Permission
 	}
 	return ""
+}
+
+func (x *RbacPermissionClearedEvent) GetScope() *RbacPermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *RbacPermissionClearedEvent) GetSubject() *RbacPermissionSubject {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
 }
 
 var File_chatto_core_v1_rbac_events_proto protoreflect.FileDescriptor
@@ -592,25 +800,40 @@ const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\"L\n" +
 	"\x14RbacRoleRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\trole_name\x18\x02 \x01(\tR\broleName\"r\n" +
-	"\x1aRbacPermissionGrantedEvent\x12\x1a\n" +
-	"\blocation\x18\x01 \x01(\tR\blocation\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\x12\x1e\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\"b\n" +
+	"\x13RbacPermissionScope\x12;\n" +
+	"\x04kind\x18\x01 \x01(\x0e2'.chatto.core.v1.RbacPermissionScopeKindR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"f\n" +
+	"\x15RbacPermissionSubject\x12=\n" +
+	"\x04kind\x18\x01 \x01(\x0e2).chatto.core.v1.RbacPermissionSubjectKindR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\xce\x01\n" +
+	"\x1aRbacPermissionGrantedEvent\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x03 \x01(\tR\n" +
-	"permission\"q\n" +
-	"\x19RbacPermissionDeniedEvent\x12\x1a\n" +
-	"\blocation\x18\x01 \x01(\tR\blocation\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\x12\x1e\n" +
+	"permission\x129\n" +
+	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xcd\x01\n" +
+	"\x19RbacPermissionDeniedEvent\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x03 \x01(\tR\n" +
-	"permission\"r\n" +
-	"\x1aRbacPermissionClearedEvent\x12\x1a\n" +
-	"\blocation\x18\x01 \x01(\tR\blocation\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\x12\x1e\n" +
+	"permission\x129\n" +
+	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xce\x01\n" +
+	"\x1aRbacPermissionClearedEvent\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x03 \x01(\tR\n" +
-	"permissionB\xb2\x01\n" +
+	"permission\x129\n" +
+	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation*\xb7\x01\n" +
+	"\x17RbacPermissionScopeKind\x12*\n" +
+	"&RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED\x10\x00\x12%\n" +
+	"!RBAC_PERMISSION_SCOPE_KIND_SERVER\x10\x01\x12$\n" +
+	" RBAC_PERMISSION_SCOPE_KIND_GROUP\x10\x02\x12#\n" +
+	"\x1fRBAC_PERMISSION_SCOPE_KIND_ROOM\x10\x03*\x97\x01\n" +
+	"\x19RbacPermissionSubjectKind\x12,\n" +
+	"(RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED\x10\x00\x12%\n" +
+	"!RBAC_PERMISSION_SUBJECT_KIND_ROLE\x10\x01\x12%\n" +
+	"!RBAC_PERMISSION_SUBJECT_KIND_USER\x10\x02B\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fRbacEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -625,25 +848,38 @@ func file_chatto_core_v1_rbac_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_rbac_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chatto_core_v1_rbac_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chatto_core_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_chatto_core_v1_rbac_events_proto_goTypes = []any{
-	(*RbacRoleCreatedEvent)(nil),            // 0: chatto.core.v1.RbacRoleCreatedEvent
-	(*RbacRoleDisplayNameChangedEvent)(nil), // 1: chatto.core.v1.RbacRoleDisplayNameChangedEvent
-	(*RbacRoleDescriptionChangedEvent)(nil), // 2: chatto.core.v1.RbacRoleDescriptionChangedEvent
-	(*RbacRoleDeletedEvent)(nil),            // 3: chatto.core.v1.RbacRoleDeletedEvent
-	(*RbacRolesReorderedEvent)(nil),         // 4: chatto.core.v1.RbacRolesReorderedEvent
-	(*RbacRoleAssignedEvent)(nil),           // 5: chatto.core.v1.RbacRoleAssignedEvent
-	(*RbacRoleRevokedEvent)(nil),            // 6: chatto.core.v1.RbacRoleRevokedEvent
-	(*RbacPermissionGrantedEvent)(nil),      // 7: chatto.core.v1.RbacPermissionGrantedEvent
-	(*RbacPermissionDeniedEvent)(nil),       // 8: chatto.core.v1.RbacPermissionDeniedEvent
-	(*RbacPermissionClearedEvent)(nil),      // 9: chatto.core.v1.RbacPermissionClearedEvent
+	(RbacPermissionScopeKind)(0),            // 0: chatto.core.v1.RbacPermissionScopeKind
+	(RbacPermissionSubjectKind)(0),          // 1: chatto.core.v1.RbacPermissionSubjectKind
+	(*RbacRoleCreatedEvent)(nil),            // 2: chatto.core.v1.RbacRoleCreatedEvent
+	(*RbacRoleDisplayNameChangedEvent)(nil), // 3: chatto.core.v1.RbacRoleDisplayNameChangedEvent
+	(*RbacRoleDescriptionChangedEvent)(nil), // 4: chatto.core.v1.RbacRoleDescriptionChangedEvent
+	(*RbacRoleDeletedEvent)(nil),            // 5: chatto.core.v1.RbacRoleDeletedEvent
+	(*RbacRolesReorderedEvent)(nil),         // 6: chatto.core.v1.RbacRolesReorderedEvent
+	(*RbacRoleAssignedEvent)(nil),           // 7: chatto.core.v1.RbacRoleAssignedEvent
+	(*RbacRoleRevokedEvent)(nil),            // 8: chatto.core.v1.RbacRoleRevokedEvent
+	(*RbacPermissionScope)(nil),             // 9: chatto.core.v1.RbacPermissionScope
+	(*RbacPermissionSubject)(nil),           // 10: chatto.core.v1.RbacPermissionSubject
+	(*RbacPermissionGrantedEvent)(nil),      // 11: chatto.core.v1.RbacPermissionGrantedEvent
+	(*RbacPermissionDeniedEvent)(nil),       // 12: chatto.core.v1.RbacPermissionDeniedEvent
+	(*RbacPermissionClearedEvent)(nil),      // 13: chatto.core.v1.RbacPermissionClearedEvent
 }
 var file_chatto_core_v1_rbac_events_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: chatto.core.v1.RbacPermissionScope.kind:type_name -> chatto.core.v1.RbacPermissionScopeKind
+	1,  // 1: chatto.core.v1.RbacPermissionSubject.kind:type_name -> chatto.core.v1.RbacPermissionSubjectKind
+	9,  // 2: chatto.core.v1.RbacPermissionGrantedEvent.scope:type_name -> chatto.core.v1.RbacPermissionScope
+	10, // 3: chatto.core.v1.RbacPermissionGrantedEvent.subject:type_name -> chatto.core.v1.RbacPermissionSubject
+	9,  // 4: chatto.core.v1.RbacPermissionDeniedEvent.scope:type_name -> chatto.core.v1.RbacPermissionScope
+	10, // 5: chatto.core.v1.RbacPermissionDeniedEvent.subject:type_name -> chatto.core.v1.RbacPermissionSubject
+	9,  // 6: chatto.core.v1.RbacPermissionClearedEvent.scope:type_name -> chatto.core.v1.RbacPermissionScope
+	10, // 7: chatto.core.v1.RbacPermissionClearedEvent.subject:type_name -> chatto.core.v1.RbacPermissionSubject
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_rbac_events_proto_init() }
@@ -656,13 +892,14 @@ func file_chatto_core_v1_rbac_events_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_rbac_events_proto_rawDesc), len(file_chatto_core_v1_rbac_events_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   10,
+			NumEnums:      2,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_core_v1_rbac_events_proto_goTypes,
 		DependencyIndexes: file_chatto_core_v1_rbac_events_proto_depIdxs,
+		EnumInfos:         file_chatto_core_v1_rbac_events_proto_enumTypes,
 		MessageInfos:      file_chatto_core_v1_rbac_events_proto_msgTypes,
 	}.Build()
 	File_chatto_core_v1_rbac_events_proto = out.File

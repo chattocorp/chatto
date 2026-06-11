@@ -46,6 +46,20 @@ func legacyPosted(roomID, bodyKey string) *corev1.MessagePostedEvent {
 	return posted
 }
 
+func legacyPostedWithEmbeddedBody(t *testing.T, roomID string, body *corev1.MessageBody) *corev1.MessagePostedEvent {
+	t.Helper()
+	posted := legacyPosted(roomID, "")
+	data, err := proto.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal embedded legacy body: %v", err)
+	}
+	var unknown []byte
+	unknown = protowire.AppendTag(unknown, 9, protowire.BytesType)
+	unknown = protowire.AppendBytes(unknown, data)
+	posted.ProtoReflect().SetUnknown(unknown)
+	return posted
+}
+
 func setupMessagesRig(t *testing.T) *messagesTestRig {
 	t.Helper()
 
@@ -370,9 +384,38 @@ func TestMigrateMessagesToES_MissingBodyImportsAsNil(t *testing.T) {
 		t.Fatalf("EVT msg count = %d, want 1", info.State.Msgs)
 	}
 	got := rig.readEvent(t, 1)
-	if got.GetMessagePosted().GetBody() != nil {
-		t.Errorf("expected body=nil for missing-body import, got %+v", got.GetMessagePosted().GetBody())
+	if got.GetMessagePosted() == nil {
+		t.Fatal("expected MessagePostedEvent for missing-body import")
 	}
+}
+
+func TestMigrateMessagesToES_EmbeddedLegacyBodyImportsAsBodyEvent(t *testing.T) {
+	rig := setupMessagesRig(t)
+	rig.publishLegacy(t, "server.room.channel.R1.msg.INLINE", &corev1.Event{
+		Id:        "INLINE",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: legacyPostedWithEmbeddedBody(t, "R1", &corev1.MessageBody{
+				AuthorId:      "U1",
+				EncryptedBody: []byte("inline"),
+			}),
+		},
+	})
+
+	if err := MigrateMessagesToES(rig.ctx, rig.srcStream, rig.bodiesKV, rig.publisher, log.New(io.Discard)); err != nil {
+		t.Fatalf("migration: %v", err)
+	}
+
+	info, err := rig.evtStream.Info(rig.ctx)
+	if err != nil {
+		t.Fatalf("evt info: %v", err)
+	}
+	if info.State.Msgs != 2 {
+		t.Fatalf("EVT msg count = %d, want 2", info.State.Msgs)
+	}
+	checkImportedBodyEvent(t, rig.readEvent(t, 1), "message_body.INLINE", "INLINE", "U1", "inline")
+	checkImportedMessage(t, rig.readEvent(t, 2), "INLINE", "U1")
 }
 
 func TestMigrateMessagesToES_ResumesAfterBodySideEventLanded(t *testing.T) {
@@ -726,9 +769,6 @@ func checkImportedMessage(t *testing.T, ev *corev1.Event, wantEventID, wantActor
 	posted := ev.GetMessagePosted()
 	if posted == nil {
 		t.Fatal("expected MessagePostedEvent payload")
-	}
-	if posted.GetBody() != nil {
-		t.Fatal("expected imported MessagePostedEvent to be bodyless")
 	}
 }
 

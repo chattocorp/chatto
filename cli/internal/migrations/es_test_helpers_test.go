@@ -27,6 +27,17 @@ func setupTestES(t *testing.T) (
 	stream jetstream.Stream,
 	publisher *events.Publisher,
 ) {
+	ctx, kv, stream, publisher, _ = setupTestESWithJS(t)
+	return ctx, kv, stream, publisher
+}
+
+func setupTestESWithJS(t *testing.T) (
+	ctx context.Context,
+	kv jetstream.KeyValue,
+	stream jetstream.Stream,
+	publisher *events.Publisher,
+	js jetstream.JetStream,
+) {
 	t.Helper()
 
 	_, nc := testutil.StartNATS(t)
@@ -62,7 +73,7 @@ func setupTestES(t *testing.T) (
 	logger := log.New(io.Discard)
 	publisher = events.NewPublisher(js, stream, logger)
 
-	return ctx, kv, stream, publisher
+	return ctx, kv, stream, publisher, js
 }
 
 // testLogger returns a logger that discards output. Migration tests

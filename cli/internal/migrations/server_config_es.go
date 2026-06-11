@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -63,7 +64,6 @@ func MigrateServerConfigToES(
 			}
 			return fmt.Errorf("read legacy server config: %w", err)
 		}
-
 		cfg = &configv1.ServerConfig{}
 		if err := proto.Unmarshal(entry.Value(), cfg); err != nil {
 			return fmt.Errorf("unmarshal legacy server config: %w", err)
@@ -150,19 +150,69 @@ func MigrateServerConfigToES(
 func latestLegacyServerConfigSnapshot(existingEvents []*corev1.Event) (*configv1.ServerConfig, *timestamppb.Timestamp) {
 	for i := len(existingEvents) - 1; i >= 0; i-- {
 		event := existingEvents[i]
-		change := event.GetServerConfigChanged()
-		if change == nil {
+		cfg := legacyServerConfigSnapshotFromUnknown(event)
+		if cfg == nil {
 			continue
 		}
 		createdAt := event.GetCreatedAt()
 		if createdAt == nil {
 			createdAt = timestamppb.Now()
 		}
-		cfg := change.GetConfig()
-		if cfg == nil {
-			cfg = &configv1.ServerConfig{}
-		}
-		return proto.Clone(cfg).(*configv1.ServerConfig), createdAt
+		return cfg, createdAt
 	}
 	return nil, nil
+}
+
+func legacyServerConfigSnapshotFromUnknown(event *corev1.Event) *configv1.ServerConfig {
+	if event == nil {
+		return nil
+	}
+	unknown := event.ProtoReflect().GetUnknown()
+	for len(unknown) > 0 {
+		num, typ, n := protowire.ConsumeTag(unknown)
+		if n < 0 {
+			return nil
+		}
+		unknown = unknown[n:]
+		if num == 500 && typ == protowire.BytesType {
+			value, m := protowire.ConsumeBytes(unknown)
+			if m < 0 {
+				return nil
+			}
+			return legacyServerConfigFromSnapshotPayload(value)
+		}
+		m := protowire.ConsumeFieldValue(num, typ, unknown)
+		if m < 0 {
+			return nil
+		}
+		unknown = unknown[m:]
+	}
+	return nil
+}
+
+func legacyServerConfigFromSnapshotPayload(payload []byte) *configv1.ServerConfig {
+	for len(payload) > 0 {
+		num, typ, n := protowire.ConsumeTag(payload)
+		if n < 0 {
+			return nil
+		}
+		payload = payload[n:]
+		if num == 1 && typ == protowire.BytesType {
+			value, m := protowire.ConsumeBytes(payload)
+			if m < 0 {
+				return nil
+			}
+			cfg := &configv1.ServerConfig{}
+			if err := proto.Unmarshal(value, cfg); err != nil {
+				return nil
+			}
+			return cfg
+		}
+		m := protowire.ConsumeFieldValue(num, typ, payload)
+		if m < 0 {
+			return nil
+		}
+		payload = payload[m:]
+	}
+	return nil
 }

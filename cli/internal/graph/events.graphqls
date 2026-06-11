@@ -47,7 +47,6 @@ union EventType =
   # Typing indicators
   | UserTypingEvent
   # Video processing
-  | VideoProcessingCompletedEvent
   | AssetProcessingStartedEvent
   | AssetProcessingSucceededEvent
   | AssetProcessingFailedEvent
@@ -405,20 +404,6 @@ type UserTypingEvent {
 # ==============================================================================
 # VIDEO PROCESSING EVENTS
 # ==============================================================================
-
-"""
-Event: Video processing completed (or failed).
-Published when a video attachment finishes transcoding. The frontend uses this
-to refetch the message and display the video player.
-"""
-type VideoProcessingCompletedEvent {
-  "The room ID, when available."
-  roomId: ID @goField(forceResolver: true)
-  "The original attachment ID that was processed."
-  attachmentId: ID!
-  "The event ID of the message containing the processed attachment, when available."
-  messageEventId: ID @goField(forceResolver: true)
-}
 
 """
 Event: asset processing has been enqueued. Emitted before SucceededEvent or

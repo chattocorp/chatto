@@ -407,10 +407,6 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			MessageEdited: &corev1.MessageEditedEvent{
 				RoomId:  room.Id,
 				EventId: "E-raw-evt",
-				Body: &corev1.MessageBody{
-					AuthorId:      author.Id,
-					EncryptedBody: []byte("edited through raw EVT"),
-				},
 			},
 		},
 	})

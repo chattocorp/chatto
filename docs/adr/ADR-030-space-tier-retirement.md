@@ -21,7 +21,7 @@ The Space tier is therefore *behaviourally* retired, but its mechanical residue 
 
 3. **DMs still have legacy hidden-space residue at the wire boundary.** ADR-015's "hidden DM space" predates the room-`kind` discriminator. With the `kind` field now baked into KV keys and NATS subjects, the DM scope is determined by `kind == "dm"` directly; the old `space_id = "DM"` value only survives where persisted payloads or compatibility APIs still carry a `space_id` field.
 
-4. **Proto layer is partially renamed.** GraphQL already exposes live deployment-scoped events as `ServerUpdatedEvent` / `ServerCreatedEvent` / `ServerDeletedEvent`, but the proto messages are still called `SpaceUpdatedEvent` / `SpaceCreatedEvent` / `SpaceDeletedEvent` (fields 1030–1032 in the unified `corev1.Event` oneof — all in the live-only `>=1000` range, so renaming them is wire-format-safe). `SpaceUserPreferences` (used by notification levels) and the bare `Space` / `SpaceMembership` messages share the same naming legacy.
+4. **Proto layer is partially renamed.** The durable server-membership deletion event has been corrected to `ServerMemberDeletedEvent` while preserving field 320. Live deployment-scoped config changes use `ServerUpdatedEvent`; unused `ServerCreatedEvent` / `ServerDeletedEvent` live proto messages were removed during the 0.1 protobuf cleanup. `SpaceUserPreferences` (used by notification levels) and the bare `Space` / `SpaceMembership` messages share the remaining naming legacy.
 
 The cost of leaving this in place is paid every time someone reads the code: a new contributor sees a `spaceID` parameter and assumes the codebase is multi-space, which it isn't. The cost of removing it is one focused refactor.
 
@@ -51,7 +51,7 @@ In-scope for this ADR:
    - `space_helpers.go` GraphQL wrapper — delete with the rest of the surface.
 2. **Collapse `spaceID` → `kind` (or drop) across `cli/internal/core/*.go`.** Mechanical refactor; behaviour-preserving. Tests update at the same time.
 3. **Delete `cli/internal/core/spaces.go`, the `Space` Go type, `SpaceMembership` proto message, and `Server.primarySpaceId` GraphQL bridge field** once nothing reads them. The 1070-line `spaces.go` disappears.
-4. **Rename live deployment-scoped event protos** (fields 1030–1032 of `corev1.Event`) to match what GraphQL already calls them: `SpaceCreatedEvent` → `ServerCreatedEvent`, `SpaceUpdatedEvent` → `ServerUpdatedEvent`, `SpaceDeletedEvent` → `ServerDeletedEvent`. Wire-format-safe because these are live-only (`>= 1000`).
+4. **Retire legacy live deployment-scoped proto residue.** Durable `corev1.Event` tags 1030–1032 are reserved as retired live-only variants; the current live envelope keeps only the emitted `ServerUpdatedEvent` and reserves removed lifecycle names/tags.
 5. **Rename `live.server.space.{spaceId}.>` NATS subjects** to `live.server.{eventType}` (or another deployment-scoped pattern — to be decided in Phase 1). Live subjects have no persistence; rename freely.
 6. **Rename `SpaceUserPreferences` → `UserPreferences`** in proto + storage key naming. Same wire-format-safe argument (preferences are a small KV-stored proto, not in JetStream).
 7. **Frontend rename `$lib/state/space/*` → `$lib/state/server/*` (or merge in).** Cosmetic; the store is "the active server's room/permissions state", not "a space's".
@@ -60,7 +60,7 @@ In-scope for this ADR:
 Out of scope (deferred):
 
 - **`space.{spaceId}` KV record**: stays as orphan. One small entry per deployment, no readers post-Phase-1.
-- **`SpaceMemberDeletedEvent` proto message and its `space_id` field** (`corev1.Event` field 320): stays. This variant is JetStream-persisted and the field number is wire-format-frozen per ADR-029.
+- **`ServerMemberDeletedEvent` proto message** (`corev1.Event` field 320): renamed during the 0.1 protobuf cleanup while preserving the field number. No 0.1 servers had been deployed yet, and 0.0 import remains field-number based, so the source name could still be corrected before beta.
 - **`space_id` fields on other persisted event payloads** (e.g. message events): stay for the same reason — wire format must decode existing stored events.
 - **`KV_INSTANCE*` bucket names, `instance.logo`/`instance.banner` KV keys, `/api/instance` REST endpoint, `livekit.instance_id` config**: stay. Already covered by ADR-029.
 
@@ -70,7 +70,7 @@ Out of scope (deferred):
 |---|---|---|---|
 | 1 | Drop the four readers of `space.{spaceId}` KV (opengraph, mutation dual-write, dm init, GraphQL wrapper). Replace with `ServerConfig` reads where needed. | Low | ~4 files |
 | 2 | Collapse `spaceID` → `kind` (or drop) across core + tests. | Medium (mechanical but wide) | ~80 signatures, ~15 files |
-| 3 | Delete `spaces.go`, `Space` / `SpaceMembership` proto messages, `Server.primarySpaceId` GraphQL field. Rename live `Space{Created,Updated,Deleted}Event` protos and `SpaceUserPreferences` to their `Server`/un-prefixed counterparts. Rename `live.server.space.>` subjects. | Low-medium | ~1100 line net deletion + targeted proto/subject renames |
+| 3 | Delete `spaces.go`, `Space` / `SpaceMembership` proto messages, `Server.primarySpaceId` GraphQL field. Retire legacy live deployment-scoped proto residue and rename `SpaceUserPreferences` to its un-prefixed counterpart. Rename `live.server.space.>` subjects. | Low-medium | ~1100 line net deletion + targeted proto/subject renames |
 | 4 | Frontend `$lib/state/space/` → `$lib/state/server/` import sweep. | Low | ~5 files + ~15 importers |
 | 5 | Docs and rules cleanup (stale "space" prose). | Trivial | Small targeted edits |
 
@@ -91,11 +91,11 @@ Each phase is shippable independently. Phases 1 and 2 are good candidates to com
 - Phase 2 touches ~80 function signatures in core. Mechanical, but caller fan-out is wide; the PR will be large. Mitigated by holding the diff to one mechanical pattern per call site (rename or drop, no semantic changes).
 - The persisted `space.{spaceId}` KV record remains as orphan data on every deployment. Cost: ~a hundred bytes per server. Accepted.
 - Tests that construct primary spaces via `CreateSpace(...)` need to be migrated to the new bootstrap path. Risk of test churn proportional to the spread of the helper.
-- Renaming live event protos (`SpaceUpdatedEvent` → `ServerUpdatedEvent`, etc.) is safe at the wire level but every Go callsite that constructs the event needs updating in the same PR. The set is small (Phase 3 publishers in `server_branding.go` and the soon-to-be-deleted `spaces.go`).
+- Retiring live event proto residue is safe at the wire level, but every Go callsite that constructs the event needs updating in the same PR. The emitted set is small (`ServerUpdatedEvent` publishers in `server_branding.go`).
 
 ### Deferred
 
-- Persisted shapes that can't be renamed without a JetStream migration: `SpaceMemberDeletedEvent` (proto field 320), `space_id` fields on persisted event payloads, the orphan `space.{spaceId}` KV record. Same reasoning as ADR-029: cosmetic gain not worth a stream rewrite.
+- Persisted shapes that can't be renamed without a JetStream migration: `space_id` fields on persisted event payloads and the orphan `space.{spaceId}` KV record. Same reasoning as ADR-029: cosmetic gain not worth a stream rewrite. The event variant name was corrected to `ServerMemberDeletedEvent` before 0.1 deployment while keeping proto field 320 stable; unused live server lifecycle messages were removed from `LiveEvent`.
 
 ## Alternatives considered
 

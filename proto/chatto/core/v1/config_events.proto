@@ -4,7 +4,6 @@ package chatto.core.v1;
 
 import "chatto/core/v1/models.proto";
 import "chatto/core/v1/user_preferences.proto";
-import "chatto/config/v1/config.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -18,13 +17,6 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
 // ============================================================================
-
-// Legacy durable whole-snapshot event written by ADR-035 server-config rollout
-// builds. Kept decode-only so migrations can derive semantic config events from
-// the latest EVT state instead of falling back to stale INSTANCE_CONFIG KV.
-message ServerConfigChangedEvent {
-  chatto.config.v1.ServerConfig config = 1;
-}
 
 message ServerNameChangedEvent {
   string name = 1;
@@ -47,13 +39,13 @@ message ServerBlockedUsernamesChangedEvent {
 }
 
 message ServerLogoSetEvent {
-  DeprecatedAsset asset = 1;
+  AssetRecord asset = 1;
 }
 
 message ServerLogoClearedEvent {}
 
 message ServerBannerSetEvent {
-  DeprecatedAsset asset = 1;
+  AssetRecord asset = 1;
 }
 
 message ServerBannerClearedEvent {}

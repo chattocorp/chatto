@@ -30,7 +30,7 @@ func TestMigrateServerBrandingToES_SeedsAndReplays(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, msg.Sequence)
 
-	gotValues := map[string]*corev1.DeprecatedAsset{}
+	gotValues := map[string]*corev1.AssetRecord{}
 	for seq := uint64(1); seq <= msg.Sequence+5; seq++ {
 		msg, err := stream.GetMsg(ctx, seq)
 		if err != nil {
@@ -45,8 +45,8 @@ func TestMigrateServerBrandingToES_SeedsAndReplays(t *testing.T) {
 			gotValues["server.banner"] = change.ServerBannerSet.GetAsset()
 		}
 	}
-	require.True(t, proto.Equal(logo, gotValues["server.logo"]))
-	require.True(t, proto.Equal(banner, gotValues["server.banner"]))
+	require.True(t, proto.Equal(assetRecordFromLegacyBrandingAsset(logo, "logo.webp"), gotValues["server.logo"]))
+	require.True(t, proto.Equal(assetRecordFromLegacyBrandingAsset(banner, "banner.webp"), gotValues["server.banner"]))
 
 	info, err := stream.Info(ctx)
 	require.NoError(t, err)

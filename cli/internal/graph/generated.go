@@ -74,7 +74,6 @@ type ResolverRoot interface {
 	User() UserResolver
 	UserProfileUpdatedEvent() UserProfileUpdatedEventResolver
 	VideoProcessing() VideoProcessingResolver
-	VideoProcessingCompletedEvent() VideoProcessingCompletedEventResolver
 	VideoVariant() VideoVariantResolver
 	Viewer() ViewerResolver
 }
@@ -918,12 +917,6 @@ type ComplexityRoot struct {
 		Width             func(childComplexity int) int
 	}
 
-	VideoProcessingCompletedEvent struct {
-		AttachmentId   func(childComplexity int) int
-		MessageEventID func(childComplexity int) int
-		RoomID         func(childComplexity int) int
-	}
-
 	VideoVariant struct {
 		AssetURL func(childComplexity int) int
 		Height   func(childComplexity int) int
@@ -1298,11 +1291,6 @@ type UserProfileUpdatedEventResolver interface {
 type VideoProcessingResolver interface {
 	ThumbnailURL(ctx context.Context, obj *model.VideoProcessing) (*string, error)
 	ThumbnailAssetURL(ctx context.Context, obj *model.VideoProcessing) (*model.AssetURL, error)
-}
-type VideoProcessingCompletedEventResolver interface {
-	RoomID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error)
-
-	MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error)
 }
 type VideoVariantResolver interface {
 	URL(ctx context.Context, obj *model.VideoVariant) (string, error)
@@ -5153,25 +5141,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.VideoProcessing.Width(childComplexity), true
-
-	case "VideoProcessingCompletedEvent.attachmentId":
-		if e.ComplexityRoot.VideoProcessingCompletedEvent.AttachmentId == nil {
-			break
-		}
-
-		return e.ComplexityRoot.VideoProcessingCompletedEvent.AttachmentId(childComplexity), true
-	case "VideoProcessingCompletedEvent.messageEventId":
-		if e.ComplexityRoot.VideoProcessingCompletedEvent.MessageEventID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.VideoProcessingCompletedEvent.MessageEventID(childComplexity), true
-	case "VideoProcessingCompletedEvent.roomId":
-		if e.ComplexityRoot.VideoProcessingCompletedEvent.RoomID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.VideoProcessingCompletedEvent.RoomID(childComplexity), true
 
 	case "VideoVariant.assetUrl":
 		if e.ComplexityRoot.VideoVariant.AssetURL == nil {
@@ -21586,7 +21555,7 @@ func (ec *executionContext) fieldContext_Server_userEffectiveDenials(ctx context
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerMemberDeletedEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceMemberDeletedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerMemberDeletedEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerMemberDeletedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -23726,75 +23695,6 @@ func (ec *executionContext) _VideoProcessing_sourceAvailable(ctx context.Context
 }
 func (ec *executionContext) fieldContext_VideoProcessing_sourceAvailable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("VideoProcessing", field, false, false, errors.New("field of type Boolean does not have child fields"))
-}
-
-func (ec *executionContext) _VideoProcessingCompletedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.VideoProcessingCompletedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_VideoProcessingCompletedEvent_roomId(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.VideoProcessingCompletedEvent().RoomID(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOID2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_VideoProcessingCompletedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("VideoProcessingCompletedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
-}
-
-func (ec *executionContext) _VideoProcessingCompletedEvent_attachmentId(ctx context.Context, field graphql.CollectedField, obj *corev1.VideoProcessingCompletedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_VideoProcessingCompletedEvent_attachmentId(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.AttachmentId, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_VideoProcessingCompletedEvent_attachmentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("VideoProcessingCompletedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
-}
-
-func (ec *executionContext) _VideoProcessingCompletedEvent_messageEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.VideoProcessingCompletedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_VideoProcessingCompletedEvent_messageEventId(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.VideoProcessingCompletedEvent().MessageEventID(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOID2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_VideoProcessingCompletedEvent_messageEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("VideoProcessingCompletedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _VideoVariant_url(ctx context.Context, field graphql.CollectedField, obj *model.VideoVariant) (ret graphql.Marshaler) {
@@ -28506,11 +28406,6 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 	switch obj := (obj).(type) {
 	case nil:
 		return graphql.Null
-	case *corev1.VideoProcessingCompletedEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._VideoProcessingCompletedEvent(ctx, sel, obj)
 	case *corev1.UserTypingEvent:
 		if obj == nil {
 			return graphql.Null
@@ -28566,7 +28461,7 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._ServerUpdatedEvent(ctx, sel, obj)
-	case *corev1.SpaceMemberDeletedEvent:
+	case *corev1.ServerMemberDeletedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
@@ -38173,7 +38068,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 
 var serverMemberDeletedEventImplementors = []string{"ServerMemberDeletedEvent", "EventType"}
 
-func (ec *executionContext) _ServerMemberDeletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.SpaceMemberDeletedEvent) graphql.Marshaler {
+func (ec *executionContext) _ServerMemberDeletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ServerMemberDeletedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, serverMemberDeletedEventImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -40038,111 +39933,6 @@ func (ec *executionContext) _VideoProcessing(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var videoProcessingCompletedEventImplementors = []string{"VideoProcessingCompletedEvent", "EventType"}
-
-func (ec *executionContext) _VideoProcessingCompletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.VideoProcessingCompletedEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, videoProcessingCompletedEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("VideoProcessingCompletedEvent")
-		case "roomId":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._VideoProcessingCompletedEvent_roomId(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "attachmentId":
-			out.Values[i] = ec._VideoProcessingCompletedEvent_attachmentId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "messageEventId":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._VideoProcessingCompletedEvent_messageEventId(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

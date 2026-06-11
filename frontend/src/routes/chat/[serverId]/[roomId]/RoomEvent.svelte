@@ -96,11 +96,6 @@
           roomId
           typingThreadRootEventId: threadRootEventId
         }
-        ... on VideoProcessingCompletedEvent {
-          processingRoomId: roomId
-          attachmentId
-          processingMessageEventId: messageEventId
-        }
         ... on AssetProcessingStartedEvent {
           processingRoomId: roomId
           assetId

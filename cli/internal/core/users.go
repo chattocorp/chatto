@@ -999,7 +999,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Clean per-kind user artifacts AFTER the user projection marks the
-	// account deleted, so SpaceMemberDeletedEvent refetches already see
+	// account deleted, so ServerMemberDeletedEvent refetches already see
 	// "Deleted User".
 	for _, kind := range allKinds {
 		if err := c.CleanupUserState(ctx, userID, kind, true); err != nil {

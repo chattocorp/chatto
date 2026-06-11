@@ -35,6 +35,14 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
 				RoomId: room.Id,
+			},
+		},
+	})
+	legacyBody := newEvent(user.Id, &corev1.Event{
+		Event: &corev1.Event_MessageBody{
+			MessageBody: &corev1.MessageBodyEvent{
+				RoomId:  room.Id,
+				EventId: legacyPost.Id,
 				Body: &corev1.MessageBody{
 					AuthorId:    user.Id,
 					Attachments: []*corev1.Attachment{attachment},
@@ -43,6 +51,9 @@ func TestAssetCreationMigration_BackfillsMessageAttachments(t *testing.T) {
 		},
 	})
 	attachment.MessageBodyId = legacyPost.Id
+	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyBody), legacyBody); err != nil {
+		t.Fatalf("append legacy body: %v", err)
+	}
 	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyPost), legacyPost); err != nil {
 		t.Fatalf("append legacy message: %v", err)
 	}

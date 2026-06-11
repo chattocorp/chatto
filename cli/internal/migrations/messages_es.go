@@ -182,6 +182,9 @@ func MigrateMessagesToES(
 				}
 			}
 		}
+		if body == nil {
+			body = legacyEmbeddedMessageBody(posted)
+		}
 
 		// Build the migrated event. Preserve the original envelope
 		// metadata (id, actor, created_at) so the timeline order and
@@ -490,6 +493,37 @@ func legacyMessageBodyID(posted *corev1.MessagePostedEvent) string {
 		unknown = unknown[m:]
 	}
 	return ""
+}
+
+func legacyEmbeddedMessageBody(posted *corev1.MessagePostedEvent) *corev1.MessageBody {
+	if posted == nil {
+		return nil
+	}
+	unknown := posted.ProtoReflect().GetUnknown()
+	for len(unknown) > 0 {
+		num, typ, n := protowire.ConsumeTag(unknown)
+		if n < 0 {
+			return nil
+		}
+		unknown = unknown[n:]
+		if num == 9 && typ == protowire.BytesType {
+			value, m := protowire.ConsumeBytes(unknown)
+			if m < 0 {
+				return nil
+			}
+			var body corev1.MessageBody
+			if err := proto.Unmarshal(value, &body); err != nil {
+				return nil
+			}
+			return &body
+		}
+		m := protowire.ConsumeFieldValue(num, typ, unknown)
+		if m < 0 {
+			return nil
+		}
+		unknown = unknown[m:]
+	}
+	return nil
 }
 
 // SubjectPrefixServerRoomMsg is the subject prefix this migration

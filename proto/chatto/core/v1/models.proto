@@ -157,9 +157,10 @@ message Role {
 // Named to avoid conflict with the GraphQL PresenceStatus enum.
 // Note: OFFLINE is not stored - absence of a key means offline.
 enum UserPresenceStatus {
-  USER_PRESENCE_STATUS_ONLINE = 0;
-  USER_PRESENCE_STATUS_AWAY = 1;
-  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 2;
+  USER_PRESENCE_STATUS_UNSPECIFIED = 0;
+  USER_PRESENCE_STATUS_ONLINE = 1;
+  USER_PRESENCE_STATUS_AWAY = 2;
+  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 3;
 }
 
 // UserPresence represents a user's current live presence status.
@@ -411,6 +412,7 @@ message VideoProcessingState {
 }
 
 enum VideoStatus {
+  // buf:lint:ignore ENUM_ZERO_VALUE_SUFFIX
   VIDEO_STATUS_PENDING = 0;
   VIDEO_STATUS_PROCESSING = 1;
   VIDEO_STATUS_COMPLETED = 2;

@@ -17,11 +17,12 @@ import (
 )
 
 type rbacSeedDecision struct {
-	scope      PermissionScope
-	scopeID    string
-	subject    string
-	permission Permission
-	decision   DecisionKind
+	scope       PermissionScope
+	scopeID     string
+	subjectKind corev1.RbacPermissionSubjectKind
+	subject     string
+	permission  Permission
+	decision    DecisionKind
 }
 
 type rbacSeedAssignment struct {
@@ -196,10 +197,11 @@ func defaultRBACDecisions() []rbacSeedDecision {
 		for _, perm := range spec.perms {
 			if PermissionAppliesAtScope(perm, ScopeServer) {
 				decisions = append(decisions, rbacSeedDecision{
-					scope:      ScopeServer,
-					subject:    spec.role,
-					permission: perm,
-					decision:   DecisionAllow,
+					scope:       ScopeServer,
+					subjectKind: corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE,
+					subject:     spec.role,
+					permission:  perm,
+					decision:    DecisionAllow,
 				})
 			}
 		}
@@ -213,7 +215,7 @@ func seedDecisionFromAllowKey(key string) (rbacSeedDecision, bool) {
 	if parts.Subject == "" || perm == "" {
 		return rbacSeedDecision{}, false
 	}
-	return rbacSeedDecision{scope: ScopeServer, subject: parts.Subject, permission: perm, decision: DecisionAllow}, true
+	return rbacSeedDecision{scope: ScopeServer, subjectKind: rbacPermissionSubjectKindForID(parts.Subject), subject: parts.Subject, permission: perm, decision: DecisionAllow}, true
 }
 
 func seedDecisionFromDenyKey(key string) (rbacSeedDecision, bool) {
@@ -222,7 +224,7 @@ func seedDecisionFromDenyKey(key string) (rbacSeedDecision, bool) {
 	if parts.Subject == "" || perm == "" {
 		return rbacSeedDecision{}, false
 	}
-	return rbacSeedDecision{scope: ScopeServer, subject: parts.Subject, permission: perm, decision: DecisionDeny}, true
+	return rbacSeedDecision{scope: ScopeServer, subjectKind: rbacPermissionSubjectKindForID(parts.Subject), subject: parts.Subject, permission: perm, decision: DecisionDeny}, true
 }
 
 func seedDecisionFromScopedKey(key string, scope PermissionScope, decision DecisionKind) (rbacSeedDecision, bool) {
@@ -242,11 +244,12 @@ func seedDecisionFromScopedKey(key string, scope PermissionScope, decision Decis
 		return rbacSeedDecision{}, false
 	}
 	return rbacSeedDecision{
-		scope:      scope,
-		scopeID:    parts.ScopeID,
-		subject:    parts.Subject,
-		permission: perm,
-		decision:   decision,
+		scope:       scope,
+		scopeID:     parts.ScopeID,
+		subjectKind: rbacPermissionSubjectKindForID(parts.Subject),
+		subject:     parts.Subject,
+		permission:  perm,
+		decision:    decision,
 	}, true
 }
 
@@ -303,13 +306,17 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 	})
 	for _, decision := range decisions {
 		var event *corev1.Event
+		subjectKind := decision.subjectKind
+		if subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
+			subjectKind = rbacPermissionSubjectKindForID(decision.subject)
+		}
 		if decision.decision == DecisionDeny {
 			event = newEvent("system:migration", &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacPermissionDenied{
-				RbacPermissionDenied: rbacPermissionDeniedEvent(decision.scope, decision.scopeID, decision.subject, decision.permission),
+				RbacPermissionDenied: rbacPermissionDeniedEvent(decision.scope, decision.scopeID, subjectKind, decision.subject, decision.permission),
 			}})
 		} else {
 			event = newEvent("system:migration", &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacPermissionGranted{
-				RbacPermissionGranted: rbacPermissionGrantedEvent(decision.scope, decision.scopeID, decision.subject, decision.permission),
+				RbacPermissionGranted: rbacPermissionGrantedEvent(decision.scope, decision.scopeID, subjectKind, decision.subject, decision.permission),
 			}})
 		}
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

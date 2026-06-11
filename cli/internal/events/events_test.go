@@ -927,9 +927,6 @@ func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testi
 	if decoded.GetRoomId() != "R1" {
 		t.Errorf("RoomId = %q, want R1", decoded.GetRoomId())
 	}
-	if decoded.GetBody() != nil {
-		t.Errorf("expected Body to be nil for legacy payload, got %+v", decoded.GetBody())
-	}
 	if got := decoded.ProtoReflect().GetUnknown(); len(got) == 0 {
 		t.Fatal("expected legacy message_body_id to remain in unknown fields")
 	}
@@ -974,14 +971,34 @@ func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
 	if !postedDesc.ReservedRanges().Has(3) {
 		t.Error("MessagePostedEvent tag 3 must stay reserved for removed message_body_id")
 	}
+	if !postedDesc.ReservedRanges().Has(9) {
+		t.Error("MessagePostedEvent tag 9 must stay reserved for removed body")
+	}
 	if !postedDesc.ReservedNames().Has("message_body_id") {
 		t.Error("MessagePostedEvent name message_body_id must stay reserved")
+	}
+	if !postedDesc.ReservedNames().Has("body") {
+		t.Error("MessagePostedEvent name body must stay reserved")
 	}
 	if postedDesc.Fields().ByName("message_body_id") != nil {
 		t.Error("MessagePostedEvent must not reintroduce message_body_id")
 	}
+	if postedDesc.Fields().ByName("body") != nil {
+		t.Error("MessagePostedEvent must not reintroduce body")
+	}
 	if postedDesc.Fields().ByName("event_id") != nil {
 		t.Error("MessagePostedEvent must not reintroduce event_id")
+	}
+
+	editedDesc := (&corev1.MessageEditedEvent{}).ProtoReflect().Descriptor()
+	if !editedDesc.ReservedRanges().Has(3) {
+		t.Error("MessageEditedEvent tag 3 must stay reserved for removed body")
+	}
+	if !editedDesc.ReservedNames().Has("body") {
+		t.Error("MessageEditedEvent name body must stay reserved")
+	}
+	if editedDesc.Fields().ByName("body") != nil {
+		t.Error("MessageEditedEvent must not reintroduce body")
 	}
 
 	updatedDesc := (&corev1.MessageUpdatedEvent{}).ProtoReflect().Descriptor()

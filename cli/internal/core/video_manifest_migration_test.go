@@ -125,6 +125,21 @@ func TestVideoManifestMigration_UntrackedMissingOriginalImportsUnavailable(t *te
 	}
 }
 
+func TestVideoStatusPreservesLegacyRuntimeKVWireNumbers(t *testing.T) {
+	if got := int32(corev1.VideoStatus_VIDEO_STATUS_PENDING); got != 0 {
+		t.Fatalf("VIDEO_STATUS_PENDING = %d, want legacy wire value 0", got)
+	}
+	if got := int32(corev1.VideoStatus_VIDEO_STATUS_PROCESSING); got != 1 {
+		t.Fatalf("VIDEO_STATUS_PROCESSING = %d, want legacy wire value 1", got)
+	}
+	if got := int32(corev1.VideoStatus_VIDEO_STATUS_COMPLETED); got != 2 {
+		t.Fatalf("VIDEO_STATUS_COMPLETED = %d, want legacy wire value 2", got)
+	}
+	if got := int32(corev1.VideoStatus_VIDEO_STATUS_FAILED); got != 3 {
+		t.Fatalf("VIDEO_STATUS_FAILED = %d, want legacy wire value 3", got)
+	}
+}
+
 func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, *corev1.User, *corev1.Attachment) {
 	t.Helper()
 	ctx := testContext(t)
@@ -157,6 +172,14 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
 				RoomId: room.Id,
+			},
+		},
+	})
+	legacyBody := newEvent(user.Id, &corev1.Event{
+		Event: &corev1.Event_MessageBody{
+			MessageBody: &corev1.MessageBodyEvent{
+				RoomId:  room.Id,
+				EventId: legacyPost.Id,
 				Body: &corev1.MessageBody{
 					AuthorId:    user.Id,
 					Attachments: []*corev1.Attachment{original},
@@ -165,6 +188,9 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 		},
 	})
 	original.MessageBodyId = legacyPost.Id
+	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyBody), legacyBody); err != nil {
+		t.Fatalf("append legacy body: %v", err)
+	}
 	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyPost), legacyPost); err != nil {
 		t.Fatalf("append legacy message: %v", err)
 	}

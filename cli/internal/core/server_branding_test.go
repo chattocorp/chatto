@@ -13,7 +13,12 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	logo := &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}}}
+	logo := &corev1.AssetRecord{
+		Id:          "logo-asset",
+		Filename:    "logo.webp",
+		ContentType: "image/webp",
+		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+	}
 	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
 		t.Fatalf("SetServerLogo failed: %v", err)
 	}
@@ -73,7 +78,7 @@ func TestChattoCore_DeleteServerBranding_CleansUpCache(t *testing.T) {
 		t.Fatalf("SetServerLogo failed: %v", err)
 	}
 
-	cacheKey := ImageCacheKey(ServerAssetSignResource, assetIDFromAsset(logo), 64, 64, "cover")
+	cacheKey := ImageCacheKey(ServerAssetSignResource, logo.GetId(), 64, 64, "cover")
 	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
 		t.Fatalf("StoreCachedResize failed: %v", err)
 	}

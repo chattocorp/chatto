@@ -30,7 +30,7 @@ func TestMigrateNotificationPreferencesToES_SeedsPerUserConfig(t *testing.T) {
 		NotificationLevel: corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES,
 	})
 	putProtoKV(t, ctx, kv, "room_user_preferences.U2.R2", &corev1.RoomUserPreferences{
-		NotificationLevel: corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT,
+		NotificationLevel: corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
 	})
 
 	require.NoError(t, MigrateNotificationPreferencesToES(ctx, kv, publisher, testLogger()))

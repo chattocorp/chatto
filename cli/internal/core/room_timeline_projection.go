@@ -221,21 +221,6 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
 				delete(p.latestBody, targetID)
 				p.retractedFlags[targetID] = struct{}{}
-			} else if ev.MessagePosted.GetBody() != nil {
-				p.latestBody[targetID] = ev.MessagePosted.GetBody()
-				delete(p.retractedFlags, targetID)
-			}
-			// Record message ownership of any referenced assets. This is the
-			// source of truth for "which message owns this asset" — the
-			// upload-time AssetCreatedEvent can't carry it (no message yet).
-			for _, assetID := range ownedAssetIDsFromBody(ev.MessagePosted.GetBody()) {
-				if assetID == "" {
-					continue
-				}
-				if _, exists := p.assetMessageOwner[assetID]; exists {
-					continue
-				}
-				p.assetMessageOwner[assetID] = assetMessageRef{roomID: roomID, messageEventID: targetID}
 			}
 		}
 		// Track echo links so edits on either side can fan out to the
@@ -243,12 +228,6 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		// rendering echoes.
 		if origID := ev.MessagePosted.GetEchoOfEventId(); origID != "" && targetID != "" {
 			p.echoLinks[origID] = append(p.echoLinks[origID], targetID)
-		}
-	case *corev1.Event_MessageEdited:
-		targetID := ev.MessageEdited.GetEventId()
-		if targetID != "" && ev.MessageEdited.GetBody() != nil {
-			p.latestBody[targetID] = ev.MessageEdited.GetBody()
-			delete(p.retractedFlags, targetID)
 		}
 	case *corev1.Event_MessageRetracted:
 		targetID := ev.MessageRetracted.GetEventId()
@@ -340,11 +319,6 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
 }
 
 func messageAuthorID(event *corev1.Event, posted *corev1.MessagePostedEvent) string {
-	if posted != nil {
-		if authorID := posted.GetBody().GetAuthorId(); authorID != "" {
-			return authorID
-		}
-	}
 	if event != nil {
 		return event.GetActorId()
 	}
@@ -461,10 +435,8 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	return e, ok
 }
 
-// LatestBody returns the current body for a message — the original
-// MessagePostedEvent.body overlaid with any subsequent
-// MessageEditedEvent's body, or nil + retracted=true if a
-// MessageRetractedEvent has landed.
+// LatestBody returns the current MessageBodyEvent body for a message, or nil +
+// retracted=true if a MessageRetractedEvent has landed.
 //
 // Returns (nil, false, false) if the event_id isn't known to the
 // projection (caller can treat as "not found yet").

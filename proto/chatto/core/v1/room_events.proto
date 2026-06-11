@@ -82,11 +82,11 @@ message UserLeftRoomEvent {
   string room_id = 2;
 }
 
-// SpaceMemberDeletedEvent is published when a user's account is deleted.
+// ServerMemberDeletedEvent is published when a user's account is deleted.
 // This notifies all server members that the user is gone, so they can:
 // - Update their member lists
 // - Refresh messages to show "Deleted User" and unavailable content
-message SpaceMemberDeletedEvent {
+message ServerMemberDeletedEvent {
   reserved 1;
   reserved "space_id";
   string user_id = 2;

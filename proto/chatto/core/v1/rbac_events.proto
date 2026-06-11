@@ -49,21 +49,58 @@ message RbacRoleRevokedEvent {
   string role_name = 2;
 }
 
+enum RbacPermissionScopeKind {
+  RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+  RBAC_PERMISSION_SCOPE_KIND_SERVER = 1;
+  RBAC_PERMISSION_SCOPE_KIND_GROUP = 2;
+  RBAC_PERMISSION_SCOPE_KIND_ROOM = 3;
+}
+
+message RbacPermissionScope {
+  RbacPermissionScopeKind kind = 1;
+
+  // Empty for server-scope decisions. For group and room scope, this is the
+  // target group ID or room ID.
+  string id = 2;
+}
+
+enum RbacPermissionSubjectKind {
+  RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED = 0;
+  RBAC_PERMISSION_SUBJECT_KIND_ROLE = 1;
+  RBAC_PERMISSION_SUBJECT_KIND_USER = 2;
+}
+
+message RbacPermissionSubject {
+  RbacPermissionSubjectKind kind = 1;
+
+  // Role name for ROLE subjects; user ID for USER subjects.
+  string id = 2;
+}
+
 message RbacPermissionGrantedEvent {
-  string location = 1; // "server", room ID, or group ID.
-  string subject = 2;
+  reserved 1, 2;
+  reserved "location";
+
   string permission = 3;
+  RbacPermissionScope scope = 4;
+  RbacPermissionSubject subject = 5;
 }
 
 message RbacPermissionDeniedEvent {
-  string location = 1; // "server", room ID, or group ID.
-  string subject = 2;
+  reserved 1, 2;
+  reserved "location";
+
   string permission = 3;
+  RbacPermissionScope scope = 4;
+  RbacPermissionSubject subject = 5;
 }
 
 // Removes any explicit allow or deny, returning this permission to inherited/no-decision state.
 message RbacPermissionClearedEvent {
-  string location = 1; // "server", room ID, or group ID.
-  string subject = 2;
+  reserved 1, 2;
+  reserved "location";
+
   string permission = 3;
+  RbacPermissionScope scope = 4;
+  RbacPermissionSubject subject = 5;
 }

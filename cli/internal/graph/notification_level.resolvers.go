@@ -29,7 +29,7 @@ func (r *mutationResolver) SetServerNotificationLevel(ctx context.Context, input
 
 	// Resolve effective level for response
 	effectiveLevel := protoLevel
-	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
 
@@ -66,7 +66,7 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	if err != nil {
 		// Fallback: use the level itself
 		effectiveLevel = protoLevel
-		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 		}
 	}
@@ -133,7 +133,7 @@ func (r *serverResolver) ViewerNotificationPreference(ctx context.Context, obj *
 	}
 
 	effectiveLevel := level
-	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
 
