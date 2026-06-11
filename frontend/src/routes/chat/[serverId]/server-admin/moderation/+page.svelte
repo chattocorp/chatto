@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { graphql } from '$lib/gql';
+  import { graphql, useFragment } from '$lib/gql';
   import { useMutation, useQuery } from '$lib/hooks';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnbanRoomMemberModal from '$lib/components/moderation/UnbanRoomMemberModal.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
@@ -26,11 +26,7 @@
           }
           userId
           user {
-            id
-            login
-            displayName
-            avatarUrl(width: 96, height: 96)
-            presenceStatus
+            ...UserAvatarUser
           }
           reason
           expiresAt
@@ -119,19 +115,20 @@
             <th class="px-3 py-2 font-medium"></th>
           {/snippet}
           {#snippet row(ban)}
+            {@const user = ban.user ? useFragment(UserAvatarFragment, ban.user) : null}
             <td class="min-w-48 px-3 py-2">
               <div class="flex items-center gap-2">
-                {#if ban.user}
-                  <UserAvatar user={ban.user} size="sm" />
+                {#if user}
+                  <UserAvatar {user} size="sm" />
                 {:else}
                   <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted">
                     <span class="iconify text-base uil--user"></span>
                   </div>
                 {/if}
                 <div class="min-w-0">
-                  <div class="truncate font-medium">{ban.user?.displayName || ban.userId}</div>
+                  <div class="truncate font-medium">{user?.displayName || ban.userId}</div>
                   <div class="truncate text-xs text-muted">
-                    {#if ban.user}@{ban.user.login}{/if}
+                    {#if user}@{user.login}{/if}
                   </div>
                 </div>
               </div>
@@ -165,8 +162,11 @@
 </div>
 
 {#if unbanDialogBan}
+  {@const unbanDialogUser = unbanDialogBan.user
+    ? useFragment(UserAvatarFragment, unbanDialogBan.user)
+    : null}
   <UnbanRoomMemberModal
-    user={unbanDialogBan.user}
+    user={unbanDialogUser}
     userId={unbanDialogBan.userId}
     room={unbanDialogBan.room}
     roomId={unbanDialogBan.roomId}

@@ -1,4 +1,5 @@
-import { graphql } from '$lib/gql';
+import { graphql, useFragment } from '$lib/gql';
+import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
 import { usePresenceChange, useEvent } from '$lib/hooks/useEvent.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import {
@@ -35,11 +36,7 @@ export function useRoomMembersSync(
           room(roomId: $roomId) {
             members(limit: 100) {
               users {
-                id
-                login
-                displayName
-                avatarUrl(width: 96, height: 96)
-                presenceStatus
+                ...UserAvatarUser
               }
             }
           }
@@ -53,13 +50,7 @@ export function useRoomMembersSync(
     }
 
     return (
-      resp.data?.room?.members.users.map((m) => ({
-        id: m.id,
-        login: m.login,
-        displayName: m.displayName,
-        avatarUrl: m.avatarUrl,
-        presenceStatus: m.presenceStatus
-      })) ?? []
+      resp.data?.room?.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)) ?? []
     );
   }
 

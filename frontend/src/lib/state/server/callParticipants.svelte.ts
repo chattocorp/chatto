@@ -9,11 +9,12 @@
  * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
  */
 
-import { graphql } from '$lib/gql';
+import { graphql, useFragment } from '$lib/gql';
 import type {
 	GetCallParticipantsQuery,
 	UserAvatarUserFragment
 } from '$lib/gql/graphql';
+import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 
 const CallParticipantsQuery = graphql(`
@@ -21,10 +22,7 @@ const CallParticipantsQuery = graphql(`
 		room(roomId: $roomId) {
 			callParticipants {
 				user {
-					id
-					login
-					displayName
-					avatarUrl(width: 96, height: 96)
+					...UserAvatarUser
 				}
 				joinedAt
 			}
@@ -112,10 +110,11 @@ export class CallParticipantsState {
 }
 
 function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
+	const user = useFragment(UserAvatarUserFragmentDoc, p.user);
 	return {
-		userId: p.user.id,
-		displayName: p.user.displayName,
-		login: p.user.login,
-		avatarUrl: p.user.avatarUrl ?? null
+		userId: user.id,
+		displayName: user.displayName,
+		login: user.login,
+		avatarUrl: user.avatarUrl ?? null
 	};
 }
