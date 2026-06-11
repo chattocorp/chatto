@@ -1,13 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick, type ComponentProps } from 'svelte';
 import MessageComposer from './MessageComposer.svelte';
 import { createMockGraphqlClient, q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
+import type { RoomMember } from '$lib/state/room';
 
 const mutationData = { postMessage: { id: 'msg_123' } };
+const updateMutationData = { updateMessage: true };
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
 const queryMock = vi.hoisted(() => vi.fn());
+const roomStateMock = vi.hoisted(() => ({
+  members: [] as RoomMember[],
+  editState: {
+    eventId: null as string | null,
+    originalBody: '',
+    startEdit: vi.fn(),
+    cancelEdit: vi.fn()
+  },
+  lastEditableMessage: {
+    getLastEditableMessage: vi.fn(() => null as { eventId: string; body: string } | null),
+    setFinder: vi.fn()
+  },
+  scrollState: {
+    scrollRequestCounter: 0,
+    requestScrollToBottom: vi.fn(),
+    setContainer: vi.fn(),
+    setShouldScroll: vi.fn(),
+    scrollToBottomIfSticky: vi.fn()
+  }
+}));
 
 // Mock instance state
 const mockInstanceStores = {
@@ -39,7 +62,13 @@ vi.mock('$lib/attachments/prepareFiles', () => ({
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: { getStore: () => mockInstanceStores }
+  serverRegistry: {
+    getStore: () => mockInstanceStores,
+    getServer: () => ({ id: 'test-instance', url: 'http://localhost' }),
+    isOriginServer: () => true,
+    originServer: { id: 'test-instance', url: 'http://localhost' },
+    servers: [{ id: 'test-instance', url: 'http://localhost' }]
+  }
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -47,33 +76,22 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 vi.mock('$lib/state/room', () => ({
-  getRoomMembers: () => [],
+  getRoomMembers: () => roomStateMock.members,
   getComposerContext: () => ({
-    editState: {
-      eventId: null,
-      originalBody: '',
-      startEdit: vi.fn(),
-      cancelEdit: vi.fn()
-    },
-    lastEditableMessage: {
-      getLastEditableMessage: () => null,
-      setFinder: vi.fn()
-    },
-    scrollState: {
-      scrollRequestCounter: 0,
-      requestScrollToBottom: vi.fn(),
-      setContainer: vi.fn(),
-      setShouldScroll: vi.fn(),
-      scrollToBottomIfSticky: vi.fn()
-    }
+    editState: roomStateMock.editState,
+    lastEditableMessage: roomStateMock.lastEditableMessage,
+    scrollState: roomStateMock.scrollState
   })
 }));
 
+type MessageComposerProps = ComponentProps<typeof MessageComposer>;
+
 function renderMessageComposer(
-  props: { roomId: string },
-  context: Map<string, unknown>
+  props: Partial<MessageComposerProps> & { roomId: string },
+  context: Map<string, unknown>,
+  options: { exactRoomId?: boolean } = {}
 ) {
-  const roomId = `${props.roomId}-${renderId++}`;
+  const roomId = options.exactRoomId ? props.roomId : `${props.roomId}-${renderId++}`;
   return {
     ...render(MessageComposer, {
       props: { ...props, roomId },
@@ -123,8 +141,19 @@ function pasteFile(target: HTMLElement, file: File) {
 
 async function typeInEditor(editor: HTMLElement, text: string) {
   editor.focus();
+  document.execCommand('selectAll');
   document.execCommand('insertText', false, text);
   await vi.waitFor(() => expect(editor.textContent).toBe(text));
+}
+
+async function pressEditorKey(editor: HTMLElement, key: string) {
+  editor.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  await tick();
+}
+
+function selectFirstAttachment(input: HTMLInputElement, file = imageFile()) {
+  selectFiles(input, [file]);
+  return file;
 }
 
 describe('MessageComposer', () => {
@@ -133,6 +162,17 @@ describe('MessageComposer', () => {
   beforeEach(() => {
     mockClient = createMockGraphqlClient({ mutationData });
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
+    mockInstanceStores.roomUnread.setRoomUnread.mockClear();
+    roomStateMock.members = [];
+    roomStateMock.editState.eventId = null;
+    roomStateMock.editState.originalBody = '';
+    roomStateMock.editState.startEdit.mockClear();
+    roomStateMock.editState.cancelEdit.mockClear();
+    roomStateMock.lastEditableMessage.getLastEditableMessage.mockReset();
+    roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
+    roomStateMock.lastEditableMessage.setFinder.mockClear();
+    roomStateMock.scrollState.requestScrollToBottom.mockClear();
+    roomStateMock.scrollState.scrollToBottomIfSticky.mockClear();
     toast.clear();
     Object.defineProperty(URL, 'createObjectURL', {
       value: vi.fn(() => 'blob:test'),
@@ -145,7 +185,10 @@ describe('MessageComposer', () => {
     prepareFilesMock.mockReset();
     prepareFilesMock.mockImplementation(async (files: File[]) => files);
     mutationMock.mockReset();
-    mutationMock.mockResolvedValue({ data: mutationData, error: null });
+    mutationMock.mockImplementation((_mutation, variables) => {
+      if (variables?.input?.eventId) return Promise.resolve({ data: updateMutationData, error: null });
+      return Promise.resolve({ data: mutationData, error: null });
+    });
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
@@ -406,6 +449,262 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(mutationMock).not.toHaveBeenCalled());
       await expect.element(sendButton).toBeDisabled();
       expect(container.querySelector('.sending')).toBeNull();
+    });
+  });
+
+  describe('draft lifecycle', () => {
+    it('loads and persists a room text draft in sessionStorage', async () => {
+      sessionStorage.setItem('chatto:draft:room_draft', 'saved draft');
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await expect.element(editor).toHaveTextContent('saved draft');
+
+      await typeInEditor(editor, 'saved draft + more');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_draft')).toBe('saved draft + more')
+      );
+    });
+
+    it('uses a separate thread draft key', async () => {
+      sessionStorage.setItem('chatto:draft:room_draft', 'room draft');
+      sessionStorage.setItem('chatto:draft:room_draft:thread:msg_root', 'thread draft');
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_draft', inThread: 'msg_root' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+
+      await expect
+        .element(q(container, '[data-testid="thread-reply-input"]'))
+        .toHaveTextContent('thread draft');
+      expect(sessionStorage.getItem('chatto:draft:room_draft')).toBe('room draft');
+    });
+
+    it('clears the active text draft after a successful send', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await typeInEditor(editor, 'send and clear draft');
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBe('send and clear draft')
+      );
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBeNull());
+    });
+  });
+
+  describe('edit mode transitions', () => {
+    it('prefills edit text, hides attachment controls, and cancels on Escape', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await expect.element(editor).toHaveTextContent('original body');
+      expect(q(container, 'button[title="Attach file"]')).toBeNull();
+
+      await pressEditorKey(editor, 'Escape');
+
+      expect(roomStateMock.editState.cancelEdit).toHaveBeenCalledOnce();
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('clears staged attachments when edit mode is active at mount', async () => {
+      const roomId = 'room_edit_attachments';
+      const firstRender = renderMessageComposer(
+        { roomId },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const file = selectFirstAttachment(
+        q(firstRender.container, 'input[type="file"]') as HTMLInputElement
+      );
+      await expect.poll(() => q(firstRender.container, 'img')).toBeTruthy();
+      firstRender.unmount();
+
+      // Stash an attachment draft for the same room, then mount directly into edit mode.
+      // The composer should discard attachments because editMessage only supports text.
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'editable';
+      const { container } = renderMessageComposer(
+        { roomId },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      expect(q(container, 'button[title="Attach file"]')).toBeNull();
+      expect(file.name).toBe('paste.png');
+      expect(q(container, 'img')).toBeNull();
+    });
+  });
+
+  describe('submit behavior', () => {
+    it('posts normalized body and all thread/reply options', async () => {
+      const onCancelReply = vi.fn();
+      const onMessageSent = vi.fn();
+      const { container, roomId } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          inThread: 'evt_thread_root',
+          inReplyTo: 'evt_reply_to',
+          showAlsoSendToChannel: true,
+          onCancelReply,
+          onMessageSent
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="thread-reply-input"]')!;
+
+      await typeInEditor(editor, 'hello world');
+      (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'hello world',
+        attachments: null,
+        threadRootEventId: 'evt_thread_root',
+        inReplyTo: 'evt_reply_to',
+        alsoSendToChannel: true
+      });
+      expect(onCancelReply).toHaveBeenCalledOnce();
+      expect(onMessageSent).toHaveBeenCalledOnce();
+      expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);
+      expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
+    });
+
+    it('restores text and attachments after a failed post', async () => {
+      mutationMock.mockResolvedValueOnce({ data: null, error: new Error('nope') });
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      await typeInEditor(editor, 'will retry');
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      await expect.element(editor).toHaveTextContent('will retry');
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      expect(mutationMock.mock.calls[0][1].input.attachments).toEqual([file]);
+      expect(getToasts().map((t) => t.message)).toContain('Failed to send message');
+    });
+  });
+
+  describe('link preview composer behavior', () => {
+    function mockLinkPreview(url: string) {
+      queryMock.mockResolvedValueOnce({
+        data: {
+          linkPreview: {
+            url,
+            title: 'Preview title',
+            description: 'Preview description',
+            imageUrl: null,
+            siteName: 'Preview site',
+            embedType: null,
+            embedId: null,
+            imageAssetId: 'asset_preview'
+          }
+        },
+        error: null
+      });
+    }
+
+    it('fetches a non-message-link preview and sends it with the post mutation', async () => {
+      const url = 'https://example.com/story';
+      mockLinkPreview(url);
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await typeInEditor(editor, `Look ${url}`);
+
+      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledOnce(), { timeout: 1000 });
+      await expect.element(q(container, '[data-testid="link-preview-card"]')).toBeInTheDocument();
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.linkPreview).toMatchObject({
+        url,
+        title: 'Preview title',
+        description: 'Preview description',
+        siteName: 'Preview site',
+        imageAssetId: 'asset_preview'
+      });
+    });
+
+    it('dismisses a fetched preview so it is not attached to the outgoing message', async () => {
+      const url = 'https://example.com/dismiss';
+      mockLinkPreview(url);
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await typeInEditor(editor, `Dismiss ${url}`);
+      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledOnce(), { timeout: 1000 });
+      (q(container, 'button[aria-label="Dismiss preview"]') as HTMLButtonElement).click();
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.linkPreview).toBeNull();
+    });
+  });
+
+  describe('attachment object URL lifecycle', () => {
+    it('revokes object URLs when removing staged files', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+
+      (q(container, 'button.absolute') as HTMLButtonElement).click();
+
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
+    });
+
+    it('revokes object URLs after a successful send', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'with file');
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
+      expect(q(container, 'img')).toBeNull();
     });
   });
 
