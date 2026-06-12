@@ -1,0 +1,8 @@
+# Release-only frontend image. The workflow builds frontend/build once before
+# invoking Docker, then this image only packages those static files.
+FROM fholzer/nginx-brotli:v1.28.0
+
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/build /usr/share/nginx/html
+
+EXPOSE 80
