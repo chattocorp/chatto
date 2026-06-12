@@ -18,8 +18,8 @@ This codebase keeps agent-relevant context in six places. Read the one that fits
 Please use the following facts when making decisions about features or implementation:
 
 - This project is currently in early development.
-- As of today, we have a handful of Chatto servers running the 0.0.x version lane that we want to eventually upgrade to 0.1.x. 0.1.x must be able to reliably import data from a 0.0.x server.
-- There are no servers deployed running 0.1.x yet, so we can still do breaking changes within this version lane.
+- The 0.1.x event-sourcing architecture has been rolled out to all existing Chatto servers/instances.
+- Pre-0.1.0 boot importers and their verification settings have been removed. Do not add new code that depends on importing a 0.0.x server into the 0.1.x event-sourced shape.
 - The focus of 0.1.x is on stabilizing the core data model and APIs, improving documentation, and building out a solid foundation for future features. We want to avoid adding new features that aren't necessary for this stabilization effort.
 - Treat `GET /api/server` as a higher-stability compatibility surface than the GraphQL API. It is the unauthenticated, cross-origin discovery endpoint used by multi-server clients before they can establish GraphQL access, so breaking its URL, CORS behavior, required JSON fields, or OAuth discovery fields can strand older clients. Prefer additive changes and double-check compatibility before changing this endpoint.
 

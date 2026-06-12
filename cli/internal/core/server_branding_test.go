@@ -30,7 +30,6 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	if !proto.Equal(logo, got) {
 		t.Fatalf("GetServerLogo = %+v, want %+v", got, logo)
 	}
-	assertLegacyKeyAbsent(t, core.storage.serverKV, serverLogoKey, "legacy logo KV key")
 	cfg, err := core.ConfigManager().GetServerConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetServerConfig after logo failed: %v", err)

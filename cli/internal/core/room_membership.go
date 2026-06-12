@@ -43,10 +43,8 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 // pairs, and we early-out via IsMember).
 // Authorization: Caller must verify CanJoinRoomAt before calling.
 //
-// ADR-035 phase 6: event-only. Publishes UserJoinedRoomEvent to EVT, then
-// WaitForSeq on the projections that serve membership and room history reads.
-// The room_membership KV bucket and SERVER_EVENTS mirrors are no longer
-// written to (retained as pre-ES import evidence).
+// Event-only. Publishes UserJoinedRoomEvent to EVT, then WaitForSeq on the
+// projections that serve membership and room history reads.
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)

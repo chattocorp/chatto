@@ -37,7 +37,7 @@ NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS 
   3. For new keys, use `kv.Create()` instead (fails if key exists)
   4. Retry on `jetstream.ErrKeyExists` up to a max attempts (e.g., 5 retries)
 - **Subject structure changes are high-risk**: Changes to NATS subject patterns cascade into stream configs, consumer filters, and query logic (e.g., `GetLastMsgForSubject`, `WithSubjectFilter`). They need careful end-to-end verification including e2e tests.
-- **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. Legacy `SERVER_EVENTS` is opened only when present for pre-ES imports and inspection; new runtime writes must not mirror to it.
+- **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. `SERVER_EVENTS` is historical pre-ES storage and is no longer opened by the runtime; new writes must never mirror to it.
 
 ## Room Event Query Behavior
 

@@ -1658,10 +1658,8 @@ func (x *CachedLinkPreview) GetFetchedAtUnix() int64 {
 //     appended (orphan recovery). The layout is a hint, not a source
 //     of truth for "which groups exist".
 //
-// Migration: the boot-time migrator picks up legacy state from older
-// shapes (`legacy_sections`, `legacy_unsorted_room_ids`) and writes
-// per-key group docs + a fresh `group_ids` list, then leaves the
-// legacy fields empty. New writes only ever set `group_ids`.
+// Current writes only ever set `group_ids`. The legacy fields are retained for
+// wire compatibility with older backups/clients.
 type RoomLayout struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// legacy_sections is the on-the-wire compatible read for the
@@ -1815,7 +1813,7 @@ func (x *RoomGroup) GetDescription() string {
 // VideoProcessingState tracks the async processing state of a video attachment.
 // Legacy entries were stored in SERVER_RUNTIME at key "video.{attachmentId}".
 // New durable completed/failed manifests live in AssetProcessing* EVT events;
-// this shape remains for transient worker progress and legacy import.
+// this shape remains for transient worker progress.
 type VideoProcessingState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current processing status

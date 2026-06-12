@@ -33,7 +33,7 @@ For *why* a particular design decision was made:
 
 ## Overview
 
-Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens. Legacy KV buckets and `SERVER_EVENTS` are opened only when present so boot importers can seed `EVT` from pre-ES deployments.
+Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens. The pre-0.1.0 boot importers have been removed after the event-sourcing rollout completed.
 
 ### Core Concepts
 
@@ -262,14 +262,14 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
-| Legacy import KV | `INSTANCE`          | Users, verified emails, branding, display preferences, and push subscriptions from pre-ES deployments |
-| Legacy import KV | `INSTANCE_CONFIG`   | Server configuration from pre-ES deployments |
-| Legacy import KV | `SERVER_CONFIG`     | Rooms, memberships, room groups/layout, and notification preferences from pre-ES deployments |
-| Legacy import KV | `SERVER_RBAC`       | RBAC seed data from pre-ES deployments |
-| Legacy import KV | `SERVER_RUNTIME`    | Read markers, thread follows, migration sentinels, and video processing state from pre-ES deployments |
-| Legacy import KV | `SERVER_BODIES`     | Pre-ES message bodies and attachment metadata |
-| Legacy import KV | `SERVER_REACTIONS`  | Emoji reactions from pre-ES deployments |
-| Stream  | `SERVER_EVENTS`               | Legacy room event import source; no new runtime writes |
+| Historical KV | `INSTANCE`          | Pre-0.1 users, verified emails, branding, display preferences, and push subscriptions |
+| Historical KV | `INSTANCE_CONFIG`   | Pre-0.1 server configuration |
+| Historical KV | `SERVER_CONFIG`     | Pre-0.1 rooms, memberships, room groups/layout, and notification preferences |
+| Historical KV | `SERVER_RBAC`       | Pre-0.1 RBAC seed data |
+| Historical KV | `SERVER_RUNTIME`    | Pre-0.1 read markers, thread follows, migration sentinels, and video processing state |
+| Historical KV | `SERVER_BODIES`     | Pre-0.1 message bodies and attachment metadata; may be opened for account-deletion cleanup |
+| Historical KV | `SERVER_REACTIONS`  | Pre-0.1 emoji reactions |
+| Historical stream | `SERVER_EVENTS`   | Pre-0.1 room/member event log; no new runtime writes |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -357,7 +357,6 @@ The distinction between stored and live-only events is explicit in the wire enve
 User-facing live delivery is built from two internal NATS Core subject roots:
 
 1. **Primary Stream** (persistent):
-   - `SERVER_EVENTS` (subjects `server.>`) holds pre-ES room messages, thread replies, room meta lifecycle, and server-level member events for migration/import tooling. Runtime mutations no longer write it, and it no longer participates in live delivery.
    - `EVT` (subjects `evt.>`) holds event-sourced domain state. Its stream-level `RePublish` config forwards every committed event once onto `live.evt.>`. This is a raw committed-event feed, not a client contract.
 2. **Direct Live Publish** (transient):
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
@@ -368,13 +367,12 @@ The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvent
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | `corev1.Event`   | Server     | Pre-ES room/member event log retained for boot imports and inspection; no new runtime writes and no live delivery. |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Currently fed by per-aggregate boot imports ([ADR-035](adr/ADR-035-per-aggregate-phased-migration.md)); migrated aggregates include room membership/metadata, groups/layout, server config, users, messages/threads, reactions, RBAC, and auth workflow audit facts. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, RBAC, and auth workflow audit facts. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `myEvents` authorizes and adapts these messages into GraphQL events; they are never projection input. |
 
-**SERVER\_EVENTS subjects (legacy import source):**
+**Historical SERVER\_EVENTS subjects:**
 
-Pre-ES room events included event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. Current runtime reads use `EVT` projections instead; these subjects are documented so migrations and debugging tools can interpret historical data. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both server-space rooms and DM rooms.
+Pre-ES room events included event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. Current runtime reads use `EVT` projections instead; these subjects are documented so restore/debugging tools can interpret historical data. The `{kind}` segment (`channel` or `dm`) let a single subject namespace serve both server-space rooms and DM rooms.
 
 | Subject                                                                       | Description                                    |
 | ----------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -455,16 +453,16 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Legacy retired standalone link-preview cache; current entries live in `RUNTIME_STATE` |
 | `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
-| `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; copied best-effort into `MEMORY_CACHE` on boot if present, not provisioned on fresh boot |
-| `INSTANCE`                    | File    | Yes      | Legacy import source for users, verified emails, branding, display preferences, and push subscriptions; not provisioned on fresh boot |
-| `INSTANCE_CONFIG`             | File    | Yes      | Legacy server configuration import source; not provisioned on fresh boot |
-| `SERVER_CONFIG`               | File    | Yes      | Legacy rooms, memberships, room groups/layout, and notification preferences import source; not provisioned on fresh boot |
-| `SERVER_RBAC`                 | File    | Yes      | Legacy RBAC seed data import source; not provisioned on fresh boot |
-| `SERVER_RUNTIME`              | File    | Yes      | Legacy read markers, thread follows, migration sentinels, and video processing state import source; not provisioned on fresh boot |
-| `SERVER_BODIES`               | File    | Yes      | Legacy message bodies and attachment metadata import source; not provisioned on fresh boot |
-| `SERVER_REACTIONS`            | File    | Yes      | Legacy emoji reactions import source; not provisioned on fresh boot |
+| `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; not provisioned or opened on fresh boot |
+| `INSTANCE`                    | File    | Yes      | Historical pre-0.1 user/config bucket; not provisioned or opened on fresh boot |
+| `INSTANCE_CONFIG`             | File    | Yes      | Historical pre-0.1 server configuration bucket; not provisioned or opened on fresh boot |
+| `SERVER_CONFIG`               | File    | Yes      | Historical pre-0.1 rooms, memberships, room groups/layout, and notification preferences bucket; not provisioned or opened on fresh boot |
+| `SERVER_RBAC`                 | File    | Yes      | Historical pre-0.1 RBAC bucket; not provisioned or opened on fresh boot |
+| `SERVER_RUNTIME`              | File    | Yes      | Historical pre-0.1 read markers, thread follows, migration sentinels, and video processing state bucket; not provisioned or opened on fresh boot |
+| `SERVER_BODIES`               | File    | Yes      | Legacy message body bucket opened only if present for account-deletion cleanup of old body entries |
+| `SERVER_REACTIONS`            | File    | Yes      | Historical pre-0.1 emoji reactions bucket; not provisioned or opened on fresh boot |
 
-Fresh deployments create only current resources (`EVT`, projections' consumers, `RUNTIME_STATE`, live/runtime buckets, and object stores). Legacy KV buckets are opened opportunistically when present so boot importers can copy pre-ES state into `EVT` or `RUNTIME_STATE`; the application does not create or maintain them as mirrors.
+Fresh deployments create only current resources (`EVT`, projections' consumers, `RUNTIME_STATE`, live/runtime buckets, and object stores). The application does not create or maintain legacy KV buckets as mirrors.
 
 Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the old hidden-DM-space storage model are gone after the Phase 4 migration (#354): rooms were differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`). Current room state is projected from `EVT`.
 
@@ -484,7 +482,7 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
-Notes: `INSTANCE` is legacy import-only. Current user/account/profile state and remembered OAuth client-origin consent are projected from `EVT`; legacy KV user records are imported into encrypted durable user events for login, display name, and verified email payloads using the user's active user-PII DEK epoch. Cookie-session records plus verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed identifiers in `EVT` to preserve uniqueness/auditability without storing raw email values; OAuth consent facts store canonical redirect origins in plaintext so users can recognize approved client addresses.
+Notes: `INSTANCE` is a historical pre-0.1 bucket. Current user/account/profile state and remembered OAuth client-origin consent are projected from `EVT`. Cookie-session records plus verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed identifiers in `EVT` to preserve uniqueness/auditability without storing raw email values; OAuth consent facts store canonical redirect origins in plaintext so users can recognize approved client addresses.
 
 **RUNTIME_STATE auth/session keys:**
 
@@ -522,9 +520,9 @@ These audit payloads include only safe request metadata: capped user agent and a
 
 | Key               | Description                                                                  |
 | ----------------- | ---------------------------------------------------------------------------- |
-| `config.instance` | Legacy server configuration import source (proto message; key + proto name retained) |
+| `config.instance` | Historical server configuration entry (proto message; key + proto name retained) |
 
-Notes: Server configuration now lives in EVT config events and is served from the in-memory config projection. This bucket is retained as a boot-import source for pre-ES deployments and is not created on fresh boot. The TOML file remains reserved for operational settings (ports, secrets, NATS config).
+Notes: Server configuration now lives in EVT config events and is served from the in-memory config projection. This bucket is not created on fresh boot. The TOML file remains reserved for operational settings (ports, secrets, NATS config).
 
 **ENCRYPTION_KEYS keys:**
 
@@ -537,7 +535,7 @@ Notes: Excluded from backups so backup archives do not contain the KEKs needed t
 
 **SERVER\_CONFIG keys:**
 
-Room and membership keys in this legacy import bucket carry a `kind` segment (`channel` or `dm`) so listing operations can prefix-filter without loading and deserializing every record. Current room and membership state is projected from `EVT`; `SERVER_CONFIG` is not created on fresh boot.
+Room and membership keys in this historical bucket carry a `kind` segment (`channel` or `dm`) so listing operations could prefix-filter without loading and deserializing every record. Current room and membership state is projected from `EVT`; `SERVER_CONFIG` is not created on fresh boot.
 
 | Key                                                  | Description                                      |
 | ---------------------------------------------------- | ------------------------------------------------ |
@@ -571,11 +569,9 @@ consistency boundaries. Permission checks, admin role/permission reads,
 permission inspector traces, and hierarchy/outrank checks read from the
 in-memory RBAC projection.
 
-`SERVER_RBAC` is retained only as legacy import evidence until the aggregate
-cleanup phase. The RBAC boot importer reads historical `role.*`, `member.*`,
-`allow.*`, `deny.*`, `group_allow.*`, `group_deny.*`, `room_allow.*`, and
-`room_deny.*` keys into `EVT` using OCC so repeated boots skip an already seeded
-RBAC subject family.
+`SERVER_RBAC` is a historical pre-0.1 bucket. New and existing deployments read
+RBAC state from the `EVT` projection. Fresh servers seed default RBAC roles and
+permissions directly into an empty RBAC aggregate using OCC.
 
 **RUNTIME\_STATE keys:**
 
@@ -642,7 +638,7 @@ migration. New code should not write to `attachment.*` keys here.
 | --------------------------------------- | ---------------------------------------------- |
 | `{messageEventId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted; value stores nanosecond timestamp for "added at" ordering) |
 
-Notes: Legacy source for `MigrateReactionsToES`. Current reaction writes append durable `ReactionAdded` / `ReactionRemoved` events to `evt.room.{roomId}.reaction_added` and `evt.room.{roomId}.reaction_removed`; current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. The bucket remains so old deployments can be imported and will be removed in the later cleanup phase.
+Notes: Current reaction writes append durable `ReactionAdded` / `ReactionRemoved` events to `evt.room.{roomId}.reaction_added` and `evt.room.{roomId}.reaction_removed`; current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. `SERVER_REACTIONS` is a historical pre-0.1 bucket and is no longer opened by the runtime.
 
 ### Object Store Buckets
 
@@ -668,7 +664,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 | --------------------- | ----------------------------------------------- |
 | `{assetId}`           | User avatars, server branding images, link-preview images, original attachment files, and derivative binaries |
 
-Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers where available. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. New message bodies reference message-owned assets by ID; legacy body `Attachment` payloads are import evidence used to backfill `AssetCreatedEvent` records. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. Boot migrations copy pre-0.1 `INSTANCE_ASSETS` objects into `SERVER_ASSETS`, backfill asset creation events from legacy message attachments, and import legacy `SERVER_RUNTIME video.*` records into asset creation and processing events. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
+Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers where available. S2 compression enabled. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent`; ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. New message bodies reference message-owned assets by ID. Processing events refer to created asset IDs. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projection and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. The asset HTTP handler doesn't look up a separate index bucket; the body-or-video-manifest locator travels in the URL itself as a signed locator (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 
@@ -832,8 +828,8 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 ### Key Patterns
 
 - **Unified Event Subscriptions**: The `myEvents` subscription merges EVT republish (`live.evt.>`), transient sync (`live.sync.>`), and PresenceHub updates into one authorized user stream.
-- **Compression**: The `EVT` and legacy `SERVER_EVENTS` streams use S2 compression to reduce storage costs
+- **Compression**: The `EVT` stream uses S2 compression to reduce storage costs
 - **GDPR Compliance**: Message bodies are encrypted per author; deletion is represented by EVT retraction/shred facts and projections refuse to render shredded or retracted content.
-- **Unified Event-Sourced Rooms**: Channels and DMs share `evt.room.{roomId}.>` subjects and room projections; legacy `SERVER_*` buckets are import-only.
-- **Legacy Body Store**: `SERVER_BODIES` is retained for pre-ES imports and legacy backup restores; new message bodies are encrypted into private `MessageBodyEvent` payloads and projected from `EVT`.
-- **Current Resource Initialization**: Current resources are created up front at boot. Legacy import resources (`INSTANCE`, `INSTANCE_CONFIG`, `SERVER_CONFIG`, `SERVER_RBAC`, `SERVER_RUNTIME`, `SERVER_BODIES`, `SERVER_REACTIONS`, `SERVER_EVENTS`) are opened only if they already exist.
+- **Unified Event-Sourced Rooms**: Channels and DMs share `evt.room.{roomId}.>` subjects and room projections.
+- **Legacy Body Store**: `SERVER_BODIES` may be opened if present for account-deletion cleanup of old body entries; new message bodies are encrypted into private `MessageBodyEvent` payloads and projected from `EVT`.
+- **Current Resource Initialization**: Current resources are created up front at boot. Historical pre-0.1 import resources are no longer provisioned; only `SERVER_BODIES` has a narrow compatibility cleanup path when present.

@@ -270,10 +270,10 @@ func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 	}
 }
 
-// WaitForCurrent blocks until the projection has applied the latest
-// stream message currently matching its subject filters. It is intended
-// for diagnostics and boot verification: call it after the projector is
-// running to ensure projection reads reflect the stream as of this call.
+// WaitForCurrent blocks until the projection has applied the latest stream
+// message currently matching its subject filters. It is intended for
+// diagnostics and boot sequencing: call it after the projector is running to
+// ensure projection reads reflect the stream as of this call.
 func (p *Projector) WaitForCurrent(ctx context.Context) error {
 	target, err := p.CurrentTargetSeq(ctx)
 	if err != nil {

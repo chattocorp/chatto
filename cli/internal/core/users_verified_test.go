@@ -44,8 +44,9 @@ func TestCreateVerifiedUser_RollsBackOnEmailConflict(t *testing.T) {
 		t.Errorf("expected ErrEmailAlreadyVerified wrapped, got %v", err)
 	}
 
-	// User record must NOT exist (rollback).
-	assertLegacyKeyAbsent(t, core.storage.serverKV, userByLoginKey("second-user"), "rolled-back legacy login claim")
+	if got, ok := core.Users.GetByLogin("second-user"); ok {
+		t.Fatalf("rolled-back login claim resolved to user %+v", got)
+	}
 }
 
 func TestCreateVerifiedUser_LoginCanBeReusedAfterRollback(t *testing.T) {

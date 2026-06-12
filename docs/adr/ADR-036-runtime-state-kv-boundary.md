@@ -122,7 +122,8 @@ canonical state.
   JetStream restart. Current occupants are user presence records
   `presence.{userId}` with per-key TTL and active voice calls
   `call.{spaceId}.{roomId}`. The retired `USER_PRESENCE` and `CALL_STATE`
-  buckets are legacy import sources only; fresh boots do not provision them.
+  buckets are historical pre-0.1 shapes; fresh boots do not provision or
+  import them.
 
 ## Related
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/migrations"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -33,7 +31,7 @@ import (
 
 // ChattoCore is the central hub for all Chatto operations.
 // It provides a unified API for spaces, users, rooms, and messages,
-// managing current JetStream resources and legacy import handles internally.
+// managing current JetStream resources internally.
 type ChattoCore struct {
 	nc                 *nats.Conn
 	js                 jetstream.JetStream
@@ -253,17 +251,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// projection and depends on WaitForSeq actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
-		}
-		if c.config.ESBootVerify {
-			if err := c.WaitForProjectionsCurrent(gctx); err != nil {
-				return fmt.Errorf("wait for projections current: %w", err)
-			}
-			if err := c.logESBootVerification(gctx); err != nil {
-				if c.config.ESBootVerifyStrict {
-					return err
-				}
-				c.logger.Warn("ES boot verification reported problems", "error", err)
-			}
 		}
 		close(c.bootDone)
 		return nil
@@ -668,7 +655,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
 	}
 
-	// Initialize storage (current resources plus optional legacy import sources).
+	// Initialize storage.
 	storage, err := newStorage(js, ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
@@ -797,40 +784,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		bootDone:                 make(chan struct{}),
 	}
 
-	if err := core.migrateLegacyCallStateToMemoryCache(ctx); err != nil {
-		logger.Warn("Failed to copy legacy CALL_STATE entries into MEMORY_CACHE", "error", err)
-	}
-
-	if err := core.migrateRBACToES(ctx); err != nil {
-		return nil, fmt.Errorf("failed to migrate RBAC to ES: %w", err)
-	}
-
-	// Run boot-time data migrations. Idempotent and cheap on subsequent
-	// boots (each migration short-circuits when no legacy data remains).
-	// See cli/internal/migrations for the registry, including the
-	// ADR-035 ES seed migrations that need the event publisher we just
-	// constructed.
-	//
-	// In the typical embedded-NATS deployment the NATS server has no
-	// TCP listener, so we can't run migrations from a second process —
-	// the boot path is the only safe place for them.
-	if err := migrations.RunAll(
-		ctx,
-		storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, storage.runtimeConfigKV,
-		storage.runtimeStateKV,
-		storage.serverEventsStream, storage.serverReactionsKV,
-		eventPublisher,
-		encMgr.keyWrapper,
-		encMgr.contentKeys,
-		logger,
-	); err != nil {
-		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
-	}
-	if err := core.migrateAssetCreationsToES(ctx); err != nil {
-		return nil, fmt.Errorf("failed to migrate asset creations to ES: %w", err)
-	}
-	if err := core.migrateVideoManifestsToES(ctx); err != nil {
-		return nil, fmt.Errorf("failed to migrate video manifests to ES: %w", err)
+	if err := core.seedDefaultRBAC(ctx); err != nil {
+		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)
@@ -867,40 +822,21 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 // Storage
 // ============================================================================
 
-// storage encapsulates JetStream resources used by Chatto Core. Current
-// resources are provisioned at startup; legacy import resources are opened only
-// when they already exist.
+// storage encapsulates JetStream resources used by Chatto Core.
 type storage struct {
-	encryptionKV    jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
-	serverKV        jetstream.KeyValue // INSTANCE        - legacy user/config import source
-	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - legacy runtime configuration import source
-	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
-
-	// Legacy import resources. Fresh ES-only deployments do not create these;
-	// boot importers treat nil handles as empty sources.
-	serverConfigKV     jetstream.KeyValue // SERVER_CONFIG    - legacy rooms, memberships
-	serverRuntimeKV    jetstream.KeyValue // SERVER_RUNTIME   - legacy sequences, timestamps, read state
-	serverRBACKV       jetstream.KeyValue // SERVER_RBAC      - legacy RBAC import source
-	serverBodiesKV     jetstream.KeyValue // SERVER_BODIES    - legacy message bodies + attachment metadata records
-	serverReactionsKV  jetstream.KeyValue // SERVER_REACTIONS - legacy emoji reactions
-	serverEventsStream jetstream.Stream   // SERVER_EVENTS    - legacy event stream
+	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
+	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
+	serverBodiesKV jetstream.KeyValue // SERVER_BODIES    - legacy message bodies retained for cleanup
 
 	serverAssets    jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
 
-	memoryCacheKV     jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
-	imageCacheStore   jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
-	legacyCallStateKV jetstream.KeyValue    // CALL_STATE - legacy active voice call import source
+	memoryCacheKV   jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
 }
 
-// newStorage initializes current JetStream resources and opens existing legacy
-// import resources.
+// newStorage initializes current JetStream resources.
 func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
-	serverKV, err := openLegacyKeyValue(ctx, js, "INSTANCE")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy INSTANCE KV bucket: %w", err)
-	}
-
 	// Initialize KMS KEK bucket (excluded from backups for security). App-owned
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
@@ -914,11 +850,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
-	}
-
-	runtimeConfigKV, err := openLegacyKeyValue(ctx, js, "INSTANCE_CONFIG")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy INSTANCE_CONFIG KV bucket: %w", err)
 	}
 
 	runtimeStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
@@ -962,34 +893,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	legacyCallStateKV, err := openLegacyKeyValue(ctx, js, "CALL_STATE")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy CALL_STATE KV bucket: %w", err)
-	}
-
-	serverConfigKV, err := openLegacyKeyValue(ctx, js, "SERVER_CONFIG")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_CONFIG KV bucket: %w", err)
-	}
-
-	serverRBACKV, err := openLegacyKeyValue(ctx, js, "SERVER_RBAC")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_RBAC KV bucket: %w", err)
-	}
-
-	serverRuntimeKV, err := openLegacyKeyValue(ctx, js, "SERVER_RUNTIME")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_RUNTIME KV bucket: %w", err)
-	}
-
 	serverBodiesKV, err := openLegacyKeyValue(ctx, js, "SERVER_BODIES")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open legacy SERVER_BODIES KV bucket: %w", err)
-	}
-
-	serverReactionsKV, err := openLegacyKeyValue(ctx, js, "SERVER_REACTIONS")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_REACTIONS KV bucket: %w", err)
 	}
 
 	serverAssets, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
@@ -1001,14 +907,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
-	}
-	if err := migrateLegacyInstanceAssets(ctx, js, serverAssets); err != nil {
-		return nil, fmt.Errorf("failed to migrate legacy INSTANCE_ASSETS object store: %w", err)
-	}
-
-	serverEventsStream, err := openLegacyStream(ctx, js, "SERVER_EVENTS")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_EVENTS stream: %w", err)
 	}
 
 	// EVT — the event-sourcing log (ADR-033/034).
@@ -1037,126 +935,15 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
 	}
 
-	// Return initialized storage and whether RBAC bucket was newly created
 	return &storage{
-		serverKV:           serverKV,
-		encryptionKV:       encryptionKV,
-		runtimeConfigKV:    runtimeConfigKV,
-		runtimeStateKV:     runtimeStateKV,
-		serverConfigKV:     serverConfigKV,
-		serverRBACKV:       serverRBACKV,
-		serverRuntimeKV:    serverRuntimeKV,
-		serverBodiesKV:     serverBodiesKV,
-		serverReactionsKV:  serverReactionsKV,
-		serverAssets:       serverAssets,
-		serverEventsStream: serverEventsStream,
-		serverEvtStream:    serverEvtStream,
-		memoryCacheKV:      memoryCacheKV,
-		imageCacheStore:    imageCacheStore,
-		legacyCallStateKV:  legacyCallStateKV,
+		encryptionKV:    encryptionKV,
+		runtimeStateKV:  runtimeStateKV,
+		serverBodiesKV:  serverBodiesKV,
+		serverAssets:    serverAssets,
+		serverEvtStream: serverEvtStream,
+		memoryCacheKV:   memoryCacheKV,
+		imageCacheStore: imageCacheStore,
 	}, nil
-}
-
-func migrateLegacyInstanceAssets(ctx context.Context, js jetstream.JetStream, target jetstream.ObjectStore) error {
-	legacy, err := openLegacyObjectStore(ctx, js, "INSTANCE_ASSETS")
-	if err != nil {
-		return err
-	}
-	if legacy == nil {
-		return nil
-	}
-
-	objects, err := legacy.List(ctx)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			return nil
-		}
-		if errors.Is(err, jetstream.ErrNoObjectsFound) {
-			return deleteLegacyInstanceAssetsStore(ctx, js)
-		}
-		return fmt.Errorf("list legacy objects: %w", err)
-	}
-
-	for _, info := range objects {
-		if info == nil || info.Deleted {
-			continue
-		}
-		if err := copyLegacyObject(ctx, legacy, target, info); err != nil {
-			return err
-		}
-	}
-
-	return deleteLegacyInstanceAssetsStore(ctx, js)
-}
-
-func deleteLegacyInstanceAssetsStore(ctx context.Context, js jetstream.JetStream) error {
-	if err := js.DeleteObjectStore(ctx, "INSTANCE_ASSETS"); err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			return nil
-		}
-		return fmt.Errorf("delete legacy INSTANCE_ASSETS object store: %w", err)
-	}
-	return nil
-}
-
-func copyLegacyObject(ctx context.Context, source, target jetstream.ObjectStore, info *jetstream.ObjectInfo) error {
-	if ok, err := legacyObjectAlreadyCopied(ctx, target, info); err != nil {
-		return err
-	} else if ok {
-		return nil
-	}
-
-	reader, err := source.Get(ctx, info.Name)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) || errors.Is(err, jetstream.ErrObjectNotFound) {
-			if ok, verifyErr := legacyObjectAlreadyCopied(ctx, target, info); verifyErr != nil {
-				return verifyErr
-			} else if ok {
-				return nil
-			}
-		}
-		return fmt.Errorf("read legacy INSTANCE_ASSETS object %q: %w", info.Name, err)
-	}
-	defer reader.Close()
-
-	if ok, err := legacyObjectAlreadyCopied(ctx, target, info); err != nil {
-		return err
-	} else if ok {
-		return nil
-	}
-
-	meta := jetstream.ObjectMeta{
-		Name:        info.Name,
-		Description: info.Description,
-		Headers:     info.Headers,
-		Metadata:    info.Metadata,
-	}
-	if _, err := target.Put(ctx, meta, reader); err != nil {
-		return fmt.Errorf("copy legacy INSTANCE_ASSETS object %q into SERVER_ASSETS: %w", info.Name, err)
-	}
-	return nil
-}
-
-func legacyObjectAlreadyCopied(ctx context.Context, target jetstream.ObjectStore, info *jetstream.ObjectInfo) (bool, error) {
-	existing, err := target.GetInfo(ctx, info.Name)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrObjectNotFound) {
-			return false, nil
-		}
-		return false, fmt.Errorf("check existing SERVER_ASSETS object %q: %w", info.Name, err)
-	}
-	if sameObjectContentAndMeta(existing, info) {
-		return true, nil
-	}
-	return false, fmt.Errorf("SERVER_ASSETS object %q already exists with different content", info.Name)
-}
-
-func sameObjectContentAndMeta(a, b *jetstream.ObjectInfo) bool {
-	return a.Digest == b.Digest &&
-		a.Size == b.Size &&
-		a.Description == b.Description &&
-		reflect.DeepEqual(a.Headers, b.Headers) &&
-		reflect.DeepEqual(a.Metadata, b.Metadata)
 }
 
 func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.KeyValue, error) {
@@ -1165,28 +952,6 @@ func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket stri
 		return kv, nil
 	}
 	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return nil, nil
-	}
-	return nil, err
-}
-
-func openLegacyObjectStore(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.ObjectStore, error) {
-	store, err := js.ObjectStore(ctx, bucket)
-	if err == nil {
-		return store, nil
-	}
-	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return nil, nil
-	}
-	return nil, err
-}
-
-func openLegacyStream(ctx context.Context, js jetstream.JetStream, streamName string) (jetstream.Stream, error) {
-	stream, err := js.Stream(ctx, streamName)
-	if err == nil {
-		return stream, nil
-	}
-	if errors.Is(err, jetstream.ErrStreamNotFound) {
 		return nil, nil
 	}
 	return nil, err

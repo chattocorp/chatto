@@ -16,24 +16,8 @@ import (
 // or for a specific room. They are stored as semantic user config events on the
 // user's config aggregate.
 //
-// Legacy SERVER_CONFIG keys are imported by MigrateNotificationPreferencesToES:
-//   - "user_preferences.{userId}" → UserPreferences proto
-//   - "room_user_preferences.{userId}.{roomId}" → RoomUserPreferences proto
-//
 // Inheritance: room-level → server-level → NORMAL (system default).
 // ============================================================================
-
-// spaceUserPreferencesKey returns the legacy KV key for a user's server-level
-// notification preference. Kept for tests and the boot migration.
-func spaceUserPreferencesKey(userID string) string {
-	return "user_preferences." + userID
-}
-
-// roomUserPreferencesKey returns the legacy KV key for a user's room-level
-// notification preference. Kept for tests and the boot migration.
-func roomUserPreferencesKey(userID, roomID string) string {
-	return "room_user_preferences." + userID + "." + roomID
-}
 
 // GetSpaceNotificationLevel returns the user's server-wide notification level.
 // Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.

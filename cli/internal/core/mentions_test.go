@@ -267,7 +267,4 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if len(notifications) != 1 || notifications[0].GetMention() == nil {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
-
-	legacyKey := "room_mention_status." + mentioned.Id + "." + room.Id
-	assertLegacyKeyAbsent(t, core.storage.serverRuntimeKV, legacyKey, "legacy mention status key")
 }

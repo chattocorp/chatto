@@ -8,50 +8,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ============================================================================
-// Key Helper Tests
-// ============================================================================
-
-func TestSpaceUserPreferencesKey(t *testing.T) {
-	tests := []struct {
-		userID   string
-		expected string
-	}{
-		{"user123", "user_preferences.user123"},
-		{"abc", "user_preferences.abc"},
-		{"a1b2c3d4e5f6g7", "user_preferences.a1b2c3d4e5f6g7"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.userID, func(t *testing.T) {
-			result := spaceUserPreferencesKey(tt.userID)
-			if result != tt.expected {
-				t.Errorf("spaceUserPreferencesKey(%q) = %q, want %q", tt.userID, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestRoomUserPreferencesKey(t *testing.T) {
-	tests := []struct {
-		userID   string
-		roomID   string
-		expected string
-	}{
-		{"user123", "room456", "room_user_preferences.user123.room456"},
-		{"abc", "xyz", "room_user_preferences.abc.xyz"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.userID+"_"+tt.roomID, func(t *testing.T) {
-			result := roomUserPreferencesKey(tt.userID, tt.roomID)
-			if result != tt.expected {
-				t.Errorf("roomUserPreferencesKey(%q, %q) = %q, want %q", tt.userID, tt.roomID, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestPrefsProtoRoundTrip(t *testing.T) {
 	levels := []corev1.NotificationLevel{
 		corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
