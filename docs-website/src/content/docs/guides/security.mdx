@@ -104,14 +104,14 @@ This boundary is intentional and enforced in the resolvers under `Query.admin` �
 
 Message bodies are encrypted before being written to JetStream. New messages use a compact versioned envelope:
 
-- Chatto generates a per-user, purpose-scoped message-body DEK epoch, stores the wrapped key in app-owned `ENCRYPTION_KEYS` storage, and records only the content-key ref and wrapping metadata in the user event stream as a `UserDEKGeneratedEvent`.
+- Chatto generates a per-user, purpose-scoped message-body DEK epoch, stores the wrapped key in app-owned `RUNTIME_STATE` storage, and records only the content-key ref and wrapping metadata in the user event stream as a `UserDEKGeneratedEvent`.
 - The body is encrypted with **XChaCha20-Poly1305** using the author's active message-body DEK epoch.
 - Each DEK is wrapped through Chatto's KMS boundary, stored by the application, and addressed by an opaque content-key ref.
 - The encrypted body is authenticated with its event context — event ID, room ID, author ID, message-body DEK epoch, and message-body event type — as Additional Authenticated Data (AAD).
 
-The built-in KMS runs in-process and stores KEKs as protobuf `UserKeyEncryptionKey` records in a dedicated `ENCRYPTION_KEYS` NATS KV bucket under opaque `kek.*` references, with read compatibility for older raw 32-byte `kek.*` records. App-owned protobuf `UserDataEncryptionKey` wrapped DEK records live in the same bucket under `dek.*` references. Raw `user.*` records are legacy direct-key compatibility only. DEK events record their purpose, epoch, content-key ref, and wrapping key ref, which keeps Chatto's durable event shape close to external KMS systems such as Vault, AWS KMS, or HSM-backed providers without making immutable EVT history or the KMS API a permanent DEK registry. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
+The built-in KMS runs in-process and stores KEKs as protobuf `UserKeyEncryptionKey` records in a dedicated `ENCRYPTION_KEYS` NATS KV bucket under opaque `kek.*` references, with read compatibility for older raw 32-byte `kek.*` records. App-owned protobuf `UserDataEncryptionKey` wrapped DEK records live in `RUNTIME_STATE` under opaque `dek.*` content-key references. Raw `user.*` records are legacy direct-key compatibility only. DEK events record their purpose, epoch, content-key ref, wrapping key ref, and wrapping metadata, which keeps Chatto's durable event shape close to external KMS systems such as Vault, AWS KMS, or HSM-backed providers without making immutable EVT history or the KMS API a permanent DEK registry. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
 
-This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the encryption keys bucket.
+This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the KMS KEKs from `ENCRYPTION_KEYS` or an external KMS.
 
 Older message bodies encrypted directly with the user's per-user ChaCha20-Poly1305 key remain readable.
 
@@ -158,7 +158,7 @@ Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded 
 
 `RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
-Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the KEK and wrapped-DEK records to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
+Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the data backup, including the wrapped DEK records in `RUNTIME_STATE`, plus the KEKs from the separate key export to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
 Backups are outside the live account-deletion flow. Restoring an old backup that includes keys, or restoring an old data backup together with an old key export, can make data deleted after that backup readable again. Set retention on backup material, and use lifecycle rules for remote backup buckets, storage-provider snapshots, and versioned object storage.
 
@@ -218,7 +218,8 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 | Secret                              | Storage                                     | Backed up?     |
 | ----------------------------------- | ------------------------------------------- | -------------- |
-| Per-user KEK and wrapped DEK records | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
+| Per-user KEK records                 | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
+| Wrapped app DEK records              | `RUNTIME_STATE` (`dek.*` protobuf records)  | Yes (unusable without KEKs) |
 | Bearer/session token verifiers      | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw tokens) |
 | Account-flow code/link verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw codes/links) |
 | Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |
