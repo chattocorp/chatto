@@ -1,6 +1,6 @@
 import { tick } from 'svelte';
 import { on } from 'svelte/events';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { useFragment } from '$lib/gql';
 import {
@@ -30,6 +30,10 @@ import {
 
 type MessageScope = 'room' | 'thread';
 
+function eventCacheKey(roomId: string, eventId: string): string {
+  return `${roomId}\u0000${eventId}`;
+}
+
 /**
  * Minimum hidden duration before a visibility->visible transition counts as
  * a "tab resume" worth catching up for. Mirrors the eventBus visibility-
@@ -54,6 +58,8 @@ export class MessagesStore {
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
+  private previewEvents = new SvelteMap<string, RoomEventViewFragment | null>();
+  private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
   private roomId = '';
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
@@ -120,6 +126,49 @@ export class MessagesStore {
     return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
   }
 
+  /** Look up an event already known to this room, including off-window preview targets. */
+  getEventById(eventId: string): RoomEventViewFragment | null | undefined {
+    return (
+      this.events.find((e) => e.id === eventId) ?? this.previewEvents.get(this.previewKey(eventId))
+    );
+  }
+
+  /** Fetch an off-window event for previews. Transient errors are not cached. */
+  ensureEvent(eventId: string): Promise<void> | undefined {
+    if (!this.roomId) return undefined;
+    if (this.events.some((e) => e.id === eventId)) return undefined;
+
+    const key = this.previewKey(eventId);
+    if (this.previewEvents.has(key)) return undefined;
+
+    const existing = this.pendingPreviewFetches.get(key);
+    if (existing) return existing;
+
+    const roomId = this.roomId;
+    const promise = this.client
+      .query(RefetchOneQuery, { roomId, eventId })
+      .toPromise()
+      .then((result) => {
+        if (result.error) {
+          console.error('MessagesStore: ensureEvent error:', result.error);
+          return;
+        }
+
+        const fetched = result.data?.room?.event;
+        const event = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
+        this.previewEvents.set(key, event ?? null);
+      })
+      .catch((error: unknown) => {
+        console.error('MessagesStore: ensureEvent failed:', error);
+      })
+      .finally(() => {
+        this.pendingPreviewFetches.delete(key);
+      });
+
+    this.pendingPreviewFetches.set(key, promise);
+    return promise;
+  }
+
   /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
   private startLoad(): number {
     return ++this.#loadId;
@@ -128,6 +177,10 @@ export class MessagesStore {
   /** True if a newer load has started; caller should discard its result. */
   private isStale(thisLoad: number): boolean {
     return this.#loadId !== thisLoad;
+  }
+
+  private previewKey(eventId: string): string {
+    return eventCacheKey(this.roomId, eventId);
   }
 
   setRoom(roomId: string): void {
@@ -482,6 +535,15 @@ export class MessagesStore {
         event: { ...evt, body: null, attachments: [] }
       };
     }
+
+    const previewKey = this.previewKey(messageEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, {
+        ...preview,
+        event: { ...preview.event, body: null, attachments: [] }
+      });
+    }
   }
 
   /**
@@ -509,6 +571,21 @@ export class MessagesStore {
           updatedAt: edit.updatedAt
         }
       };
+    }
+
+    const previewKey = this.previewKey(messageEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, {
+        ...preview,
+        event: {
+          ...preview.event,
+          body: edit.body,
+          attachments: edit.attachments,
+          linkPreview: edit.linkPreview,
+          updatedAt: edit.updatedAt
+        }
+      });
     }
   }
 
@@ -587,6 +664,8 @@ export class MessagesStore {
   private resetState(): void {
     this.events = [];
     this.seenIds = new SvelteSet();
+    this.previewEvents.clear();
+    this.pendingPreviewFetches.clear();
     this.oldestCursor = undefined;
     this.newestCursor = undefined;
     this.hasReachedStart = false;

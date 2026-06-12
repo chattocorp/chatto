@@ -1,6 +1,7 @@
 <script lang="ts">
   import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { MessagesStore } from '$lib/state/room';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
 
@@ -132,11 +133,13 @@
     event,
     compact = false,
     roomId,
+    messageStore = null,
     onOpenThread
   }: {
     event: RoomEventViewFragment;
     compact?: boolean;
     roomId: string;
+    messageStore?: MessagesStore | null;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
   } = $props();
 
@@ -151,7 +154,7 @@
 {#if !event?.event || isDMJoinLeave}
   <!-- Skip unknown event types, stale virtualizer items, and join/leave events in DM rooms -->
 {:else if event.event.__typename === 'MessagePostedEvent'}
-  <MessageEvent {event} {compact} {roomId} {onOpenThread} />
+  <MessageEvent {event} {compact} {roomId} {messageStore} {onOpenThread} />
 {:else}
   <SystemEvent {event} />
 {/if}

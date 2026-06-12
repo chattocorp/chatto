@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import type { RoomMember } from '$lib/state/room';
+  import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
@@ -22,6 +22,7 @@
 
   let {
     roomId,
+    messageStore,
     events,
     // Scroll behavior
     alwaysScrollToBottom = false,
@@ -58,6 +59,7 @@
     pendingHighlightId = null
   }: {
     roomId: string;
+    messageStore: MessagesStore;
     events: RoomEventViewFragment[];
     // Scroll behavior
     alwaysScrollToBottom?: boolean;
@@ -643,6 +645,7 @@
                   event={eventData}
                   compact={!item.isFirstInGroup}
                   {roomId}
+                  {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
                 />
               {/if}

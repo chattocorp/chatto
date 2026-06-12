@@ -95,6 +95,7 @@
 
 <EventList
   {roomId}
+  messageStore={store}
   events={roomEvents}
   alwaysScrollToBottom={false}
   showNewMessagesIndicator={true}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { startDMWith } from '$lib/dm/startDM';
   import { resolve } from '$app/paths';
   import MessageContent from '$lib/components/MessageContent.svelte';
@@ -10,8 +11,14 @@
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
   import { graphql } from '$lib/gql';
-  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
-  import { getRoomPermissions, getRoomMembers, getComposerContext, type RoomMember } from '$lib/state/room';
+  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import {
+    getRoomPermissions,
+    getRoomMembers,
+    getComposerContext,
+    type MessagesStore,
+    type RoomMember
+  } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -32,7 +39,7 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
-  import { useEvent, useMessageActions } from '$lib/hooks';
+  import { useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
   import { buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
@@ -48,11 +55,13 @@
     event,
     compact = false,
     roomId,
+    messageStore = null,
     onOpenThread
   }: {
     event: RoomEventViewFragment;
     compact?: boolean;
     roomId: string;
+    messageStore?: MessagesStore | null;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
   } = $props();
 
@@ -82,7 +91,8 @@
   const canEdit = $derived(
     (isAuthor &&
       event &&
-      Date.now() - new Date(event.createdAt).getTime() < serverInfo.messageEditWindowSeconds * 1000) ||
+      Date.now() - new Date(event.createdAt).getTime() <
+        serverInfo.messageEditWindowSeconds * 1000) ||
       roomPermissions.canManageOthersMessage
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
@@ -311,64 +321,18 @@
   // reply-attribution context, deleted-then-reacted-to messages disappearing).
   const isDeleted = $derived(!msg?.body && !hasAttachments);
 
-  // Reply preview: per-message fetch of the replied-to event.
-  let replyTarget = $state<RoomEventViewFragment | null>(null);
-
-  function fetchReplyTarget(eventId: string) {
-    connection().client
-      .query(
-        graphql(`
-          query ReplyPreview($roomId: ID!, $eventId: ID!) {
-            room(roomId: $roomId) {
-              event(eventId: $eventId) {
-                ...RoomEventView
-              }
-            }
-          }
-        `),
-        { roomId, eventId }
-      )
-      .toPromise()
-      .then((result) => {
-        const ev = result.data?.room?.event;
-        if (ev) {
-          const fetched = useFragment(RoomEventViewFragmentDoc, ev);
-          if (fetched) {
-            replyTarget = fetched;
-          }
-        }
-      });
-  }
-
-  // Fetch reply target when inReplyTo is set
-  $effect(() => {
+  const replyTarget = $derived.by(() => {
     const replyToId = messageEvent?.inReplyTo;
-    if (!replyToId) {
-      replyTarget = null;
-      return;
-    }
-
-    // Reset on new reply target
-    replyTarget = null;
-    fetchReplyTarget(replyToId);
+    if (!replyToId) return null;
+    return messageStore?.getEventById(replyToId);
   });
 
-  // Refetch reply target when the replied-to message is edited or deleted
-  useEvent((spaceEvent) => {
+  // Fetch reply target only when it is outside the already-loaded event window.
+  $effect(() => {
     const replyToId = messageEvent?.inReplyTo;
-    if (!replyToId || !replyTarget) return;
-
-    const evt = spaceEvent.event;
-    if (
-      (evt?.__typename === 'MessageRetractedEvent' ||
-        evt?.__typename === 'MessageEditedEvent') &&
-      evt.roomId === roomId
-    ) {
-      // Check if the deleted/updated message is our reply target
-      if (replyTarget.id === evt.messageEventId) {
-        fetchReplyTarget(replyToId);
-      }
-    }
+    if (!replyToId) return;
+    if (!messageStore) return;
+    untrack(() => messageStore.ensureEvent(replyToId));
   });
 
   // Derive reply preview from locally fetched target
@@ -385,10 +349,7 @@
       ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
       : 'Deleted User';
     const typename = replyTarget.event?.__typename;
-    const body =
-      typename === 'MessagePostedEvent'
-        ? (replyTarget.event.body ?? null)
-        : null;
+    const body = typename === 'MessagePostedEvent' ? (replyTarget.event.body ?? null) : null;
     return { name, body, actor: repliedActor };
   });
 
@@ -518,7 +479,12 @@
 
   function scrollToReplyTarget() {
     // For echo events, open the thread and highlight the replied-to message there
-    if (isEcho && messageEvent?.inReplyTo && messageEvent.echoFromThreadRootEventId && onOpenThread) {
+    if (
+      isEcho &&
+      messageEvent?.inReplyTo &&
+      messageEvent.echoFromThreadRootEventId &&
+      onOpenThread
+    ) {
       onOpenThread(messageEvent.echoFromThreadRootEventId, messageEvent.inReplyTo);
       return;
     }
@@ -588,7 +554,7 @@
             onclick={copyMessageLink}
             oncontextmenu={(e) => e.stopPropagation()}
             title="Click to copy link to this message"
-            class="text-xs whitespace-nowrap text-muted opacity-0 hover:underline group-hover:opacity-100"
+            class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
           >
             {timestamp}
           </a>

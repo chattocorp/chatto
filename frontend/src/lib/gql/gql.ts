@@ -102,7 +102,6 @@ type Documents = {
     "\n    fragment MessageAttachmentView on Attachment {\n      id\n      filename\n      contentType\n      width\n      height\n      assetUrl {\n        url\n        expiresAt\n      }\n      thumbnailAssetUrl(width: 960, height: 800, fit: CONTAIN) {\n        url\n        expiresAt\n      }\n      videoProcessing {\n        status\n        durationMs\n        width\n        height\n        thumbnailAssetUrl {\n          url\n          expiresAt\n        }\n        sourceAvailable\n        variants {\n          assetUrl {\n            url\n            expiresAt\n          }\n          quality\n          width\n          height\n          size\n        }\n        reasonCode\n      }\n    }\n  ": typeof types.MessageAttachmentViewFragmentDoc,
     "\n    mutation FollowThread($input: FollowThreadInput!) {\n      followThread(input: $input)\n    }\n  ": typeof types.FollowThreadDocument,
     "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  ": typeof types.UnfollowThreadDocument,
-    "\n          query ReplyPreview($roomId: ID!, $eventId: ID!) {\n            room(roomId: $roomId) {\n              event(eventId: $eventId) {\n                ...RoomEventView\n              }\n            }\n          }\n        ": typeof types.ReplyPreviewDocument,
     "\n    mutation BanRoomMemberFromMessageEvent($input: BanRoomMemberInput!) {\n      banRoomMember(input: $input)\n    }\n  ": typeof types.BanRoomMemberFromMessageEventDocument,
     "\n    mutation AddReaction($input: AddReactionInput!) {\n      addReaction(input: $input)\n    }\n  ": typeof types.AddReactionDocument,
     "\n    mutation RemoveReaction($input: RemoveReactionInput!) {\n      removeReaction(input: $input)\n    }\n  ": typeof types.RemoveReactionDocument,
@@ -236,7 +235,6 @@ const documents: Documents = {
     "\n    fragment MessageAttachmentView on Attachment {\n      id\n      filename\n      contentType\n      width\n      height\n      assetUrl {\n        url\n        expiresAt\n      }\n      thumbnailAssetUrl(width: 960, height: 800, fit: CONTAIN) {\n        url\n        expiresAt\n      }\n      videoProcessing {\n        status\n        durationMs\n        width\n        height\n        thumbnailAssetUrl {\n          url\n          expiresAt\n        }\n        sourceAvailable\n        variants {\n          assetUrl {\n            url\n            expiresAt\n          }\n          quality\n          width\n          height\n          size\n        }\n        reasonCode\n      }\n    }\n  ": types.MessageAttachmentViewFragmentDoc,
     "\n    mutation FollowThread($input: FollowThreadInput!) {\n      followThread(input: $input)\n    }\n  ": types.FollowThreadDocument,
     "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  ": types.UnfollowThreadDocument,
-    "\n          query ReplyPreview($roomId: ID!, $eventId: ID!) {\n            room(roomId: $roomId) {\n              event(eventId: $eventId) {\n                ...RoomEventView\n              }\n            }\n          }\n        ": types.ReplyPreviewDocument,
     "\n    mutation BanRoomMemberFromMessageEvent($input: BanRoomMemberInput!) {\n      banRoomMember(input: $input)\n    }\n  ": types.BanRoomMemberFromMessageEventDocument,
     "\n    mutation AddReaction($input: AddReactionInput!) {\n      addReaction(input: $input)\n    }\n  ": types.AddReactionDocument,
     "\n    mutation RemoveReaction($input: RemoveReactionInput!) {\n      removeReaction(input: $input)\n    }\n  ": types.RemoveReactionDocument,
@@ -648,10 +646,6 @@ export function graphql(source: "\n    mutation FollowThread($input: FollowThrea
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  "): (typeof documents)["\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n          query ReplyPreview($roomId: ID!, $eventId: ID!) {\n            room(roomId: $roomId) {\n              event(eventId: $eventId) {\n                ...RoomEventView\n              }\n            }\n          }\n        "): (typeof documents)["\n          query ReplyPreview($roomId: ID!, $eventId: ID!) {\n            room(roomId: $roomId) {\n              event(eventId: $eventId) {\n                ...RoomEventView\n              }\n            }\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

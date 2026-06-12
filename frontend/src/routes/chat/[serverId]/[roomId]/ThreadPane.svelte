@@ -293,6 +293,7 @@
 
   <EventList
     {roomId}
+    messageStore={store}
     events={threadEvents}
     alwaysScrollToBottom={false}
     showNewMessagesIndicator={true}

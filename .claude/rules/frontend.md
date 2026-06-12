@@ -18,6 +18,7 @@ When refactoring, prefer:
 - Pulling data orchestration out of `*.svelte` files into a `*.svelte.ts` store, even if there's only one consumer today. This is the canonical shape; one consumer is the start of the pattern, not an exception.
 - Replacing `client.query` / `client.subscription` calls inside components with a store call.
 - Extracting `$state` arrays that are mutated by subscription handlers into a store with explicit mutator methods (so the mutation surface is named and testable).
+- When investigating unexpected GraphQL traffic, capture the operation name(s) first and trace which component or store owns those operations before changing nearby scroll, cache, or pagination logic. Chat surfaces can have row-level helper operations (reply previews, message previews, attachment URL refreshes) that are easy to mistake for timeline page loads.
 
 When NOT to add a store:
 
