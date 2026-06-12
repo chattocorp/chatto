@@ -70,7 +70,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
-		router.Use(gin.Logger())
+		router.Use(requestLogger(logger))
 	}
 
 	s := &HTTPServer{
@@ -99,6 +99,42 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: httpServerReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
+	}
+}
+
+func requestLogger(logger *log.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		query := c.Request.URL.RawQuery
+
+		c.Next()
+
+		status := c.Writer.Status()
+		fields := []any{
+			"status", status,
+			"method", c.Request.Method,
+			"path", path,
+			"latency", time.Since(start).String(),
+			"client_ip", c.ClientIP(),
+			"user_agent", c.Request.UserAgent(),
+			"bytes", c.Writer.Size(),
+		}
+		if query != "" {
+			fields = append(fields, "query", query)
+		}
+		if len(c.Errors) > 0 {
+			fields = append(fields, "errors", c.Errors.ByType(gin.ErrorTypePrivate).String())
+		}
+
+		switch {
+		case status >= http.StatusInternalServerError:
+			logger.Error("HTTP request", fields...)
+		case status >= http.StatusBadRequest:
+			logger.Warn("HTTP request", fields...)
+		default:
+			logger.Info("HTTP request", fields...)
+		}
 	}
 }
 

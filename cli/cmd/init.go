@@ -72,7 +72,8 @@ var initCmd = &cobra.Command{
 		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
-				LogLevel: "debug",
+				LogLevel:  "debug",
+				LogFormat: "auto",
 			},
 			Auth: config.AuthConfig{
 				DirectRegistration: &directRegistration,

@@ -34,7 +34,8 @@ func (d Duration) Duration() time.Duration {
 }
 
 type GeneralConfig struct {
-	LogLevel string `toml:"log_level" env:"CHATTO_LOG_LEVEL" comment:"Log level. Possible values: debug, info, warn, error."`
+	LogLevel  string `toml:"log_level" env:"CHATTO_LOG_LEVEL" comment:"Log level. Possible values: debug, info, warn, error."`
+	LogFormat string `toml:"log_format,commented" env:"CHATTO_LOG_FORMAT" comment:"Log output format. Possible values: auto, text, json, logfmt. Default: auto (text on terminals, JSON otherwise)."`
 }
 
 // TLSConfig contains settings for automatic TLS via Let's Encrypt.
@@ -559,6 +560,12 @@ func (c *ChattoConfig) Validate() error {
 		validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 		if !validLevels[strings.ToLower(c.General.LogLevel)] {
 			errs = append(errs, "general.log_level must be one of: debug, info, warn, error")
+		}
+	}
+	if c.General.LogFormat != "" {
+		validFormats := map[string]bool{"auto": true, "text": true, "json": true, "logfmt": true}
+		if !validFormats[strings.ToLower(c.General.LogFormat)] {
+			errs = append(errs, "general.log_format must be one of: auto, text, json, logfmt")
 		}
 	}
 

@@ -17,6 +17,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/embedded_nats"
@@ -70,8 +71,10 @@ func runServer(configPath string) {
 		log.Fatal("Failed to read configuration", "error", err)
 	}
 
-	setLogLevel(cfg.General.LogLevel)
-	printBanner()
+	configureLogging(cfg.General)
+	if shouldPrintBanner(cfg.General.LogFormat, isLogOutputTerminal()) {
+		printBanner()
+	}
 
 	exitCode := 0
 	defer func() {
@@ -355,6 +358,44 @@ func printBanner() {
 	for line := range strings.SplitSeq(banner, "\n") {
 		log.Info(line)
 	}
+}
+
+func configureLogging(cfg config.GeneralConfig) {
+	setLogFormat(cfg.LogFormat, isLogOutputTerminal())
+	setLogLevel(cfg.LogLevel)
+}
+
+func setLogFormat(format string, outputIsTerminal bool) {
+	switch effectiveLogFormat(format, outputIsTerminal) {
+	case "json":
+		log.SetFormatter(log.JSONFormatter)
+	case "logfmt":
+		log.SetFormatter(log.LogfmtFormatter)
+	default:
+		log.SetFormatter(log.TextFormatter)
+	}
+}
+
+func effectiveLogFormat(format string, outputIsTerminal bool) string {
+	switch strings.ToLower(format) {
+	case "", "auto":
+		if outputIsTerminal {
+			return "text"
+		}
+		return "json"
+	case "json", "logfmt", "text":
+		return strings.ToLower(format)
+	default:
+		return "text"
+	}
+}
+
+func shouldPrintBanner(format string, outputIsTerminal bool) bool {
+	return effectiveLogFormat(format, outputIsTerminal) == "text"
+}
+
+func isLogOutputTerminal() bool {
+	return term.IsTerminal(int(os.Stderr.Fd()))
 }
 
 func setLogLevel(level string) {

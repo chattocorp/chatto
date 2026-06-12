@@ -13,6 +13,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Log level. Values: `debug`, `info`, `warn`, `error`.
 </EnvVar>
 
+<EnvVar name="CHATTO_LOG_FORMAT" toml="general.log_format" default="auto">
+  Log output format. Values: `auto`, `text`, `json`, `logfmt`. `auto` uses text when Chatto is attached to a terminal and JSON otherwise. Use `json` for Loki/Grafana ingestion so each log line includes a structured `level` field.
+</EnvVar>
+
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>

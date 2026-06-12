@@ -126,6 +126,53 @@ signing_secret = "file-assets-secret"
 	}
 }
 
+func TestReadConfig_GeneralLogFormatFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[general]
+log_format = "text"
+
+[webserver]
+port = 5000
+cookie_signing_secret = "file-cookie-secret"
+
+[core]
+secret_key = "file-core-secret"
+
+[core.assets]
+signing_secret = "file-assets-secret"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.General.LogFormat != "text" {
+		t.Fatalf("expected TOML log_format %q, got %q", "text", cfg.General.LogFormat)
+	}
+
+	t.Setenv("CHATTO_LOG_FORMAT", "json")
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if cfg.General.LogFormat != "json" {
+		t.Fatalf("expected env log_format %q, got %q", "json", cfg.General.LogFormat)
+	}
+}
+
 func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
@@ -439,6 +486,33 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.errorMsg)
 			}
 		})
+	}
+}
+
+func TestChattoConfig_Validate_LogFormat(t *testing.T) {
+	base := ChattoConfig{
+		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
+		Core: CoreConfig{
+			SecretKey: "core-secret",
+			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
+		},
+	}
+
+	for _, format := range []string{"", "auto", "text", "json", "logfmt", "JSON"} {
+		t.Run("valid_"+format, func(t *testing.T) {
+			cfg := base
+			cfg.General.LogFormat = format
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("Validate() unexpected error = %v", err)
+			}
+		})
+	}
+
+	cfg := base
+	cfg.General.LogFormat = "pretty"
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "general.log_format must be one of: auto, text, json, logfmt") {
+		t.Fatalf("Validate() error = %v, want invalid log_format error", err)
 	}
 }
 

@@ -8,6 +8,44 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
+func TestEffectiveLogFormat(t *testing.T) {
+	tests := []struct {
+		name             string
+		configuredFormat string
+		outputIsTerminal bool
+		want             string
+	}{
+		{name: "auto uses text on terminal", configuredFormat: "auto", outputIsTerminal: true, want: "text"},
+		{name: "auto uses json off terminal", configuredFormat: "auto", outputIsTerminal: false, want: "json"},
+		{name: "empty defaults to auto text on terminal", configuredFormat: "", outputIsTerminal: true, want: "text"},
+		{name: "empty defaults to auto json off terminal", configuredFormat: "", outputIsTerminal: false, want: "json"},
+		{name: "explicit text", configuredFormat: "text", outputIsTerminal: false, want: "text"},
+		{name: "explicit json", configuredFormat: "json", outputIsTerminal: true, want: "json"},
+		{name: "explicit logfmt", configuredFormat: "logfmt", outputIsTerminal: true, want: "logfmt"},
+		{name: "case insensitive", configuredFormat: "JSON", outputIsTerminal: false, want: "json"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := effectiveLogFormat(tt.configuredFormat, tt.outputIsTerminal); got != tt.want {
+				t.Fatalf("effectiveLogFormat() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestShouldPrintBannerOnlyForTextLogs(t *testing.T) {
+	if !shouldPrintBanner("text", false) {
+		t.Fatal("expected text logs to print banner")
+	}
+	if shouldPrintBanner("json", true) {
+		t.Fatal("expected json logs to suppress banner")
+	}
+	if shouldPrintBanner("auto", false) {
+		t.Fatal("expected auto logs off terminal to suppress banner")
+	}
+}
+
 func TestCloseNATSConnectionWaitsForDrainToComplete(t *testing.T) {
 	ns, _ := testutil.StartNATS(t)
 
