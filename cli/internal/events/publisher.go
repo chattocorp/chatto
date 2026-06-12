@@ -4,7 +4,7 @@
 //   - Every publish is OCC. There is no non-OCC publish primitive.
 //   - Reads come from projections — in-memory Go structs that consume
 //     events and update their state.
-//   - Read-your-writes is opt-in via Projector.WaitForSeq.
+//   - Read-your-writes is opt-in via Projector.WaitFor.
 //
 // See docs/adr/ADR-033, ADR-034, ADR-035 for the broader design.
 package events
@@ -50,6 +50,29 @@ var ErrInvalidEvent = errors.New("invalid event")
 // concurrency guard. Every batch needs at least one guard so there is no
 // accidental "publish without OCC" path through the framework.
 var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
+
+// StreamPosition identifies a committed stream sequence together with the
+// subject or subject filter that made that sequence relevant to the caller.
+//
+// Writers get exact positions from successful publishes. OCC/readiness code
+// can also use wildcard positions such as "evt.room.>" when it first asks the
+// stream for that filter's current tail. Keeping the filter and sequence in one
+// value avoids passing loose subject/seq pairs through domain code.
+type StreamPosition struct {
+	SubjectFilter string
+	Seq           uint64
+}
+
+// SubjectPosition returns a stream position for an exact subject or wildcard
+// subject filter.
+func SubjectPosition(subjectFilter string, seq uint64) StreamPosition {
+	return StreamPosition{SubjectFilter: subjectFilter, Seq: seq}
+}
+
+// IsZero reports whether the position points at no stream message.
+func (p StreamPosition) IsZero() bool {
+	return p.Seq == 0
+}
 
 // Publisher writes events to a JetStream stream with optimistic concurrency
 // control. The stream is expected to be the EVT stream; the Publisher
@@ -429,7 +452,18 @@ func newBatchID() (string, error) {
 //
 // Backed by `GetLastMsgForSubject`, which accepts NATS wildcards.
 func (p *Publisher) LastSubjectSeq(ctx context.Context, subjectOrFilter string) (uint64, error) {
-	return p.lastSubjectSeq(ctx, subjectOrFilter)
+	pos, err := p.LastSubjectPosition(ctx, subjectOrFilter)
+	return pos.Seq, err
+}
+
+// LastSubjectPosition returns the stream's current last position for a subject
+// or wildcard subject filter. A zero sequence means no matching messages exist.
+func (p *Publisher) LastSubjectPosition(ctx context.Context, subjectOrFilter string) (StreamPosition, error) {
+	seq, err := p.lastSubjectSeq(ctx, subjectOrFilter)
+	if err != nil {
+		return StreamPosition{}, err
+	}
+	return SubjectPosition(subjectOrFilter, seq), nil
 }
 
 // SubjectEvents returns events currently published on a subject, in stream

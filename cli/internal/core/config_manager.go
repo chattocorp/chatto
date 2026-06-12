@@ -25,7 +25,7 @@ const maxConfigUpdateRetries = 5
 // ConfigManager handles runtime server configuration.
 //
 // ADR-035 phase 6: writes are event-only (publish to EVT +
-// WaitForSeq for read-your-writes). Reads come from the in-memory
+// WaitFor for read-your-writes). Reads come from the in-memory
 // ConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
 // retained as pre-ES import evidence for MigrateServerConfigToES, but
 // is not written by this code anymore.

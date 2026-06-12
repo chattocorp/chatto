@@ -101,7 +101,7 @@ func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggreg
 		})
 		if err == nil {
 			messageSeq := seqs[len(seqs)-1]
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, messageSeq); err != nil {
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -160,7 +160,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 		})
 		if err == nil {
 			messageSeq := seqs[len(seqs)-1]
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, messageSeq); err != nil {
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -175,10 +175,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 			return 0, fmt.Errorf("read room OCC tail after conflict: %w", seqErr)
 		}
 		if currentSeq > 0 {
-			if err := waitForSeqAll(ctx, currentSeq,
-				waitForProjection("room timeline", c.RoomTimelineProjector),
-				waitForProjection("threads", c.ThreadsProjector),
-			); err != nil {
+			if err := c.roomService.waitForTimelineAndThreads(ctx, events.SubjectPosition(roomFilter, currentSeq)); err != nil {
 				return 0, err
 			}
 		}
@@ -398,7 +395,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// Also wait for ThreadProjection if this is a thread reply, so a
 	// subsequent thread-pane fetch from the same request sees it.
 	if inThread != "" {
-		if err := c.ThreadsProjector.WaitForSeq(ctx, sequenceID); err != nil {
+		if err := c.roomService.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), sequenceID)); err != nil {
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
@@ -814,7 +811,7 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 			},
 		},
 	})
-	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
 
@@ -872,7 +869,7 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 			},
 		})
 		if err == nil {
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(editSubject, seqs[len(seqs)-1])); err != nil {
 				return err
 			}
 			return nil

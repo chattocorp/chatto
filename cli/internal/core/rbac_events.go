@@ -122,7 +122,7 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
 		}
-		if err := c.RBACProjector.WaitForSeq(ctx, filterSeq); err != nil {
+		if err := c.rbacService.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
 		if check != nil {
@@ -134,7 +134,7 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
 		if err == nil {
-			if err := c.RBACProjector.WaitForSeq(ctx, seq); err != nil {
+			if err := c.rbacService.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}
 			return seq, nil
@@ -163,7 +163,7 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
 		}
-		if err := c.RBACProjector.WaitForSeq(ctx, filterSeq); err != nil {
+		if err := c.rbacService.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
 		if check != nil {
@@ -180,7 +180,8 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {
 			lastSeq := seqs[len(seqs)-1]
-			if err := c.RBACProjector.WaitForSeq(ctx, lastSeq); err != nil {
+			lastSubject := chunk[len(chunk)-1].Subject
+			if err := c.rbacService.waitFor(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}
 			return lastSeq, nil

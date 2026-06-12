@@ -42,6 +42,11 @@ type ChattoCore struct {
 	config             config.CoreConfig
 	encryption         *encryptionManager
 	configManager      *ConfigManager
+	roomService        *RoomService
+	userService        *UserService
+	rbacService        *RBACService
+	presenceService    *PresenceService
+	mediaService       *MediaService
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -73,8 +78,8 @@ type ChattoCore struct {
 	// Set from webserver.url config: scheme + host only (no trailing slash).
 	AssetBaseURL string
 
-	// PresenceHub runs a single KV watcher on presence.> per process and fans
-	// out updates to all space subscriptions. Started by (*ChattoCore).Run.
+	// PresenceHub is the compatibility handle for PresenceService's per-process
+	// fanout hub. Started by (*ChattoCore).Run through PresenceService.
 	PresenceHub *PresenceHub
 
 	// EventPublisher writes to the EVT event-sourcing stream
@@ -106,7 +111,7 @@ type ChattoCore struct {
 
 	// ServerConfigProjector runs the consumer + apply loop that keeps
 	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
-	// so writers (ConfigManager mutations) can call WaitForSeq.
+	// so writers (ConfigManager mutations) can call WaitFor.
 	ServerConfigProjector *events.Projector
 
 	// RoomCatalog is the room metadata index inside RoomDirectory.
@@ -133,7 +138,7 @@ type ChattoCore struct {
 	RoomTimeline *RoomTimelineProjection
 
 	// RoomTimelineProjector runs the consumer for RoomTimeline.
-	// Exposed for WaitForSeq from message writers.
+	// Exposed for WaitFor from message writers.
 	RoomTimelineProjector *events.Projector
 
 	// Threads holds an append-only event log per thread root,
@@ -142,7 +147,7 @@ type ChattoCore struct {
 	Threads *ThreadProjection
 
 	// ThreadsProjector runs the consumer for Threads. Exposed for
-	// WaitForSeq from message writers that touch threads.
+	// WaitFor from message writers that touch threads.
 	ThreadsProjector *events.Projector
 
 	// Reactions holds current per-message reaction state derived
@@ -150,7 +155,7 @@ type ChattoCore struct {
 	Reactions *ReactionProjection
 
 	// ReactionsProjector runs the consumer for Reactions. Exposed
-	// for WaitForSeq from reaction writers.
+	// for WaitFor from reaction writers.
 	ReactionsProjector *events.Projector
 
 	// Users holds current user/account/profile/auth lookup state derived
@@ -158,7 +163,7 @@ type ChattoCore struct {
 	Users *UserProjection
 
 	// UsersProjector runs the consumer for Users. Exposed for
-	// WaitForSeq from user/account writers.
+	// WaitFor from user/account writers.
 	UsersProjector *events.Projector
 
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
@@ -166,14 +171,14 @@ type ChattoCore struct {
 	ContentKeys *ContentKeyProjection
 
 	// ContentKeysProjector runs the consumer for ContentKeys. Exposed for
-	// WaitForSeq from encryption writers.
+	// WaitFor from encryption writers.
 	ContentKeysProjector *events.Projector
 
 	// RBAC holds current role, assignment, and permission state derived
 	// from durable RBAC aggregate events.
 	RBAC *RBACProjection
 
-	// RBACProjector runs the consumer for RBAC. Exposed for WaitForSeq
+	// RBACProjector runs the consumer for RBAC. Exposed for WaitFor
 	// from role and permission writers.
 	RBACProjector *events.Projector
 
@@ -192,7 +197,7 @@ type ChattoCore struct {
 }
 
 // Run starts every background service owned by the core — currently
-// PresenceHub and every registered projector — and blocks until ctx is
+// PresenceService and every registered projector — and blocks until ctx is
 // cancelled or any service returns an error. Returns the first error
 // observed (or ctx.Err on shutdown).
 //
@@ -222,7 +227,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	// Block until every projector has entered Run before issuing
 	// projection-backed mutations during boot. Without this,
 	// ensureChannelRoomsAreInAGroup's reads against an empty
-	// projection would silently skip the WaitForSeq path and leave
+	// projection would silently skip the WaitFor path and leave
 	// orphan rooms (rooms created without a group assignment).
 	g.Go(func() error {
 		if err := c.waitForProjectorsStarted(gctx, 5*time.Second); err != nil {
@@ -250,7 +255,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
 		// running and caught up because it reads the RoomGroups
-		// projection and depends on WaitForSeq actually waiting.
+		// projection and depends on WaitFor actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
@@ -269,7 +274,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		return nil
 	})
 
-	g.Go(func() error { return c.PresenceHub.Run(gctx) })
+	g.Go(func() error { return c.presenceService.Run(gctx) })
 
 	return g.Wait()
 }
@@ -412,7 +417,7 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return nil // Encryption not configured
 	}
 
-	if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+	if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return err
 	}
 
@@ -471,10 +476,8 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	if err != nil {
 		return fmt.Errorf("failed to record user key shred event: %w", err)
 	}
-	return waitForSeqAll(ctx, seq,
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-		waitForProjection("thread", c.ThreadsProjector),
-	)
+	subject := events.UserAggregate(userID).SubjectFor(event)
+	return c.roomService.waitForTimelineAndThreads(ctx, events.SubjectPosition(subject, seq))
 }
 
 // AssetsConfig returns the assets configuration as an assets.Config.
@@ -700,9 +703,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	// Build the event-sourcing primitives before any aggregate-specific
-	// wiring so projections and managers that need them can be passed the
+	// wiring so projections and services that need them can be passed the
 	// concrete deps at construction. Order: publisher → projections →
-	// projectors → managers that depend on them.
+	// projectors → services that depend on them.
 	eventPublisher := events.NewPublisher(js, storage.serverEvtStream, logger)
 
 	// newProjector wraps projection construction into one registration
@@ -759,6 +762,20 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
+	roomMgr := newRoomService(
+		roomDirectory,
+		roomDirectoryProjector,
+		roomGroupLayout,
+		roomGroupLayoutProjector,
+		roomTimeline,
+		roomTimelineProjector,
+		threads,
+		threadsProjector,
+		reactions,
+		reactionsProjector,
+	)
+	userMgr := newUserService(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
+	rbacMgr := newRBACService(rbac, rbacProjector)
 
 	core := &ChattoCore{
 		nc:                       nc,
@@ -768,6 +785,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		config:                   cfg,
 		encryption:               encMgr,
 		configManager:            configMgr,
+		roomService:              roomMgr,
+		userService:              userMgr,
+		rbacService:              rbacMgr,
 		s3Client:                 s3Client,
 		EventPublisher:           eventPublisher,
 		RoomDirectory:            roomDirectory,
@@ -800,6 +820,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err := core.migrateLegacyCallStateToMemoryCache(ctx); err != nil {
 		logger.Warn("Failed to copy legacy CALL_STATE entries into MEMORY_CACHE", "error", err)
 	}
+	core.mediaService = NewMediaService(core)
 
 	if err := core.migrateRBACToES(ctx); err != nil {
 		return nil, fmt.Errorf("failed to migrate RBAC to ES: %w", err)
@@ -843,13 +864,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /
-	// MoveRoomToGroup calls can actually WaitForSeq. Doing it here
+	// MoveRoomToGroup calls can actually WaitFor. Doing it here
 	// (when projectors haven't been started yet) would leave orphan
 	// rooms in any subsequent SeedDefaultRooms call.
 
-	// Initialize presence hub (single KV watcher per process). Started
+	// Initialize presence service (single KV watcher per process). Started
 	// by core.Run alongside the projectors.
-	core.PresenceHub = NewPresenceHub(storage.memoryCacheKV, logger)
+	core.presenceService = NewPresenceService(js, storage.memoryCacheKV, logger)
+	core.PresenceHub = core.presenceService.hub
 
 	return core, nil
 }
@@ -1273,7 +1295,7 @@ const natsPublishFlushTimeout = 5 * time.Second
 
 // liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
 // raw EVT republish and GraphQL delivery. In the normal case the local
-// projectors have already advanced and WaitForSeq returns immediately; the
+// projectors have already advanced and WaitFor returns immediately; the
 // timeout covers replica lag or a stuck projector without wedging a
 // subscription goroutine forever.
 const liveEVTProjectionWaitTimeout = 2 * time.Second
@@ -1442,7 +1464,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
 
-	presenceSub, err := c.PresenceHub.Subscribe(ctx)
+	presenceSub, err := c.presenceService.Subscribe(ctx)
 	if err != nil {
 		liveSyncSub.Unsubscribe()
 		liveEVTSub.Unsubscribe()
@@ -1474,7 +1496,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
-			c.PresenceHub.Unsubscribe(presenceSub)
+			c.presenceService.Unsubscribe(presenceSub)
 			close(eventChan)
 		}()
 
@@ -1677,7 +1699,8 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 	defer cancel()
-	if err := c.waitForLiveEVTRoomEvent(waitCtx, event, seq); err != nil {
+	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
+	if err := c.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
 		c.logger.Warn("Timed out waiting for live EVT projection readiness", "subject", msg.Subject, "sequence", seq, "error", err)
 		return nil, false
 	}
@@ -1733,17 +1756,15 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 	}
 }
 
-func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.Event, seq uint64) error {
-	if err := waitForSeqAll(ctx, seq,
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-		waitForProjection("threads", c.ThreadsProjector),
-	); err != nil {
+func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
+	pos := events.SubjectPosition(subject, seq)
+	if err := c.roomService.waitForTimelineAndThreads(ctx, pos); err != nil {
 		return err
 	}
 
 	switch event.GetEvent().(type) {
 	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
-		if err := waitForSeqAll(ctx, seq, waitForProjection("reactions", c.ReactionsProjector)); err != nil {
+		if err := c.roomService.waitForReactions(ctx, pos); err != nil {
 			return err
 		}
 	}
@@ -1757,7 +1778,7 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomDeleted:
-		if err := waitForSeqAll(ctx, seq, waitForProjection("room directory", c.RoomDirectoryProjector)); err != nil {
+		if err := c.roomService.waitForDirectory(ctx, pos); err != nil {
 			return err
 		}
 	}

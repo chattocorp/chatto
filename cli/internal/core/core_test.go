@@ -56,7 +56,7 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 // startCoreServices runs ChattoCore's background services (PresenceHub +
 // projectors) for the duration of a test. Required because membership
-// mutations call WaitForSeq, and StreamMyEvents depends on PresenceHub —
+// mutations call WaitFor, and StreamMyEvents depends on PresenceHub —
 // neither works without the corresponding loop running.
 //
 // Once `core.Run` owns the lifecycle of every background service, new

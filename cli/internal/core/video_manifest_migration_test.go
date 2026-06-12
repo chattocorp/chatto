@@ -194,11 +194,12 @@ func createPostedVideoAttachment(t *testing.T, core *ChattoCore) (*corev1.Room, 
 	if _, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyPost), legacyPost); err != nil {
 		t.Fatalf("append legacy message: %v", err)
 	}
-	_, seq, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventMessagePosted))
+	messageSubject := events.RoomAggregate(room.Id).Subject(events.EventMessagePosted)
+	_, seq, err := core.EventPublisher.SubjectEvents(ctx, messageSubject)
 	if err != nil {
 		t.Fatalf("read legacy message subject: %v", err)
 	}
-	if err := core.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+	if err := core.RoomTimelineProjector.WaitFor(ctx, events.SubjectPosition(messageSubject, seq)); err != nil {
 		t.Fatalf("wait for legacy message projection: %v", err)
 	}
 	return room, user, original
@@ -230,7 +231,7 @@ func waitForVideoSubject(t *testing.T, core *ChattoCore, roomID, eventType strin
 	if len(published) == 0 {
 		t.Fatalf("expected event on %s", subject)
 	}
-	if err := core.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+	if err := core.RoomTimelineProjector.WaitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 		t.Fatalf("wait for room timeline seq %d: %v", seq, err)
 	}
 }

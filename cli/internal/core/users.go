@@ -180,7 +180,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, err
 	}
 	cleanupEncryptionKey = false
-	if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+	if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return nil, err
 	}
 

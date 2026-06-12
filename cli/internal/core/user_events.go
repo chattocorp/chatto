@@ -23,7 +23,7 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 		if err != nil {
 			return 0, fmt.Errorf("read user OCC filter seq: %w", err)
 		}
-		if err := c.UsersProjector.WaitForSeq(ctx, filterSeq); err != nil {
+		if err := c.userService.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for user projection: %w", err)
 		}
 		if check != nil {
@@ -34,7 +34,7 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
 		if err == nil {
-			if err := c.UsersProjector.WaitForSeq(ctx, seq); err != nil {
+			if err := c.userService.waitForUsers(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
 			}
 			return seq, nil
@@ -65,7 +65,7 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 		if err != nil {
 			return 0, fmt.Errorf("read user OCC filter seq: %w", err)
 		}
-		if err := c.UsersProjector.WaitForSeq(ctx, filterSeq); err != nil {
+		if err := c.userService.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for user projection: %w", err)
 		}
 		if check != nil {
@@ -82,7 +82,8 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {
 			lastSeq := seqs[len(seqs)-1]
-			if err := c.UsersProjector.WaitForSeq(ctx, lastSeq); err != nil {
+			lastSubject := chunk[len(chunk)-1].Subject
+			if err := c.userService.waitForUsers(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
 			}
 			return lastSeq, nil

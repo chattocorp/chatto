@@ -187,7 +187,7 @@ func waitForAssetCreationSubject(t *testing.T, core *ChattoCore, roomID string) 
 	if len(published) == 0 {
 		t.Fatalf("expected event on %s", subject)
 	}
-	if err := core.RoomTimelineProjector.WaitForSeq(ctx, seq); err != nil {
+	if err := core.RoomTimelineProjector.WaitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 		t.Fatalf("wait for room timeline seq %d: %v", seq, err)
 	}
 }

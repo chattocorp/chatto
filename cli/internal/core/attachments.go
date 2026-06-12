@@ -25,7 +25,7 @@ import (
 
 // GetAttachmentsStore returns the ObjectStore for attachments.
 // Uses lazy-loading and caching for efficiency.
-func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectStore, error) {
+func (c *MediaService) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectStore, error) {
 	return c.storage.serverAssets, nil
 }
 
@@ -43,7 +43,7 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // asset's user_id, distinct from any future message_event_id that might
 // claim the asset. The returned Attachment has `MessageBodyId` empty — the
 // asset is not (yet) bound to a message; PostMessage references it by id.
-func (c *ChattoCore) UploadAttachment(
+func (c *MediaService) UploadAttachment(
 	ctx context.Context,
 	actorID string,
 	roomID string,
@@ -79,7 +79,7 @@ func (c *ChattoCore) UploadAttachment(
 // (NATS object store or S3) and returns the rendered Attachment proto. No
 // event is emitted — callers are responsible for emitting AssetCreatedEvent
 // with the right owner shape (user upload vs derivative).
-func (c *ChattoCore) uploadAttachmentBinary(
+func (c *MediaService) uploadAttachmentBinary(
 	ctx context.Context,
 	roomID string,
 	filename string,
@@ -183,7 +183,7 @@ type derivativeContext struct {
 // knows this asset is a child of `parentAssetID` (thumbnails, transcoded
 // video variants, etc.). Always attributed to SystemActorID — derivatives
 // are produced by workers, not user actions.
-func (c *ChattoCore) UploadDerivativeAttachment(
+func (c *MediaService) UploadDerivativeAttachment(
 	ctx context.Context,
 	parentAssetID string,
 	derivativeRole corev1.AssetDerivativeRole,
@@ -207,7 +207,7 @@ func (c *ChattoCore) UploadDerivativeAttachment(
 // uploaded binary. Pulled out so UploadAttachment and UploadDerivative-
 // Attachment share the projection-append path; the only difference is the
 // flat owner fields (user vs derivative).
-func (c *ChattoCore) appendAssetCreatedForUpload(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext) error {
+func (c *MediaService) appendAssetCreatedForUpload(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext) error {
 	created := &corev1.AssetCreatedEvent{
 		Asset:                   assetFromAttachment(attachment),
 		OriginalBinaryAvailable: true,
@@ -222,7 +222,7 @@ func (c *ChattoCore) appendAssetCreatedForUpload(ctx context.Context, actorID, r
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{AssetCreated: created},
 	})
-	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
+	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
 		return fmt.Errorf("publish asset creation event: %w", err)
 	}
 	return nil
@@ -245,7 +245,7 @@ type StableAssetURL struct {
 // GetAttachment retrieves an attachment by ID from NATS ObjectStore.
 // This is the legacy path for attachments stored in NATS.
 // Returns a reader for the attachment content and the object info.
-func (c *ChattoCore) GetAttachment(ctx context.Context, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
+func (c *MediaService) GetAttachment(ctx context.Context, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
 	store, err := c.GetAttachmentsStore(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get attachments store: %w", err)
@@ -271,7 +271,7 @@ func (c *ChattoCore) GetAttachment(ctx context.Context, attachmentID string) (io
 // AttachmentInfo.RoomID is NOT populated here — S3 has no equivalent of
 // the NATS `Room-Id` header. Callers that need authorization should
 // instead look up the canonical Attachment record via GetAttachmentRecord.
-func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.ReadCloser, *AttachmentInfo, error) {
+func (c *MediaService) GetS3Attachment(ctx context.Context, s3Key string) (io.ReadCloser, *AttachmentInfo, error) {
 	if c.s3Client == nil {
 		return nil, nil, fmt.Errorf("S3 client not configured")
 	}
@@ -296,7 +296,7 @@ func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.Read
 // for the binary by attachment ID — this handles pre-locator video
 // variants and thumbnails whose backfilled Attachment protos came from
 // minimal standalone records that lacked a `Storage` field.
-func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
+func (c *MediaService) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
 	if attachment == nil {
 		return nil, nil, fmt.Errorf("attachment is nil")
 	}
@@ -338,7 +338,7 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 // legacy `VideoProcessingState.{ThumbnailAttachment, Variants[i].Attachment}`.
 // The EVT manifest migration can import those protos; they have no Storage,
 // so we probe.
-func (c *ChattoCore) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
+func (c *MediaService) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
 	reader, natsInfo, err := c.GetAttachment(ctx, attachmentID)
 	if err == nil {
 		return reader, &AttachmentInfo{
@@ -492,7 +492,7 @@ func cloneAssetRecord(asset *corev1.AssetRecord) *corev1.AssetRecord {
 // missing. The returned Attachment is the in-memory copy from the body
 // proto with `MessageBodyId` populated, so callers can use it to
 // construct signed URLs directly.
-func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
+func (c *MediaService) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
 	if bodyKey == "" || attachmentID == "" {
 		return nil, nil
 	}
@@ -520,7 +520,7 @@ func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachment
 // asset_ids (current format) and falling back to the legacy embedded
 // attachments slice otherwise. The returned slice preserves the body's
 // declared order; missing projection entries are skipped.
-func (c *ChattoCore) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
+func (c *MediaService) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
 	if body == nil {
 		return nil
 	}
@@ -548,7 +548,7 @@ func (c *ChattoCore) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.
 // from the durable video manifest keyed by the original video's attachment
 // ID. Returns (nil, nil) if the manifest is missing or doesn't contain an
 // attachment with the given ID.
-func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
+func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
 	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
@@ -583,7 +583,7 @@ func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginI
 //   - VideoOrigin set: legacy lookup via VideoProcessingState.
 //   - Neither set: new asset-as-aggregate lookup — fetch the asset
 //     directly from the projection by AttachmentID.
-func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
+func (c *MediaService) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
 	if err := loc.Validate(); err != nil {
 		return nil, err
 	}
@@ -603,7 +603,7 @@ func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.Attachm
 // DeleteAttachmentFromStorage deletes an attachment's binary and its
 // cached resizes. When Storage is missing for legacy imported derivatives,
 // it falls back to known backend key layouts by attachment ID.
-func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
+func (c *MediaService) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
 	if attachment == nil {
 		return fmt.Errorf("attachment is nil")
 	}
@@ -613,7 +613,7 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	return deleteErr
 }
 
-func (c *ChattoCore) deleteAttachmentBinary(ctx context.Context, attachment *corev1.Attachment) error {
+func (c *MediaService) deleteAttachmentBinary(ctx context.Context, attachment *corev1.Attachment) error {
 	if attachment.Storage == nil {
 		return c.deleteAttachmentBinaryByID(ctx, attachment.Id)
 	}
@@ -641,7 +641,7 @@ func (c *ChattoCore) deleteAttachmentBinary(ctx context.Context, attachment *cor
 	return nil
 }
 
-func (c *ChattoCore) deleteAttachmentBinaryByID(ctx context.Context, attachmentID string) error {
+func (c *MediaService) deleteAttachmentBinaryByID(ctx context.Context, attachmentID string) error {
 	if attachmentID == "" {
 		return fmt.Errorf("attachment has no id")
 	}
@@ -679,7 +679,7 @@ func (c *ChattoCore) deleteAttachmentBinaryByID(ctx context.Context, attachmentI
 	return natsErr
 }
 
-func (c *ChattoCore) deleteCachedResizesForAttachment(ctx context.Context, attachmentID string) {
+func (c *MediaService) deleteCachedResizesForAttachment(ctx context.Context, attachmentID string) {
 	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for attachment",
@@ -699,7 +699,7 @@ func (c *ChattoCore) deleteCachedResizesForAttachment(ctx context.Context, attac
 //
 // actorID is attributed to the AssetDeletedEvents — typically the user who
 // triggered the parent deletion.
-func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, kind RoomKind, attachmentID string) {
+func (c *MediaService) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, kind RoomKind, attachmentID string) {
 	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachmentID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return
@@ -743,7 +743,7 @@ func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, ac
 // thumbnails and variants. AssetDeletedEvent is appended before the backing
 // bytes are removed so serving paths stop resolving the asset even if storage
 // cleanup is slow or partially fails.
-func (c *ChattoCore) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorID, userID string) int {
+func (c *MediaService) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorID, userID string) int {
 	owned := c.RoomTimeline.MessageAssetsByAuthor(userID)
 	deleted := 0
 	seen := make(map[string]struct{})
@@ -810,7 +810,7 @@ func (c *ChattoCore) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorI
 // layouts. See `GetAttachmentReader` for why this exists.
 //
 // Authorization is the caller's responsibility.
-func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
+func (c *MediaService) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
@@ -834,7 +834,7 @@ func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *
 // probePresignedAttachmentURL is the fallback when an Attachment's
 // `Storage` field isn't populated and the binary might live in S3.
 // Stats the known key layouts; presigns the first hit.
-func (c *ChattoCore) probePresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
+func (c *MediaService) probePresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
 	for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
 		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
 			continue
@@ -887,7 +887,7 @@ const AssetAccessTicketTTL = time.Hour
 // Returns an empty string if `userID` is empty or the locator is
 // otherwise invalid (a programmer error — locators come from trusted
 // resolver code, not user input).
-func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
+func (c *MediaService) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
 	loc.UserID = userID
 	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
 	signed, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
@@ -909,7 +909,7 @@ func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator, userID st
 //
 // `userID` and `AttachmentURLTTL`-bounded expiry are baked into the
 // signed locator — see GetAttachmentURL.
-func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
+func (c *MediaService) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
 	loc.UserID = userID
 	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
 	signedLoc, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
@@ -925,13 +925,13 @@ func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator
 // path identifies the asset; the asset-scoped access ticket authorizes the
 // viewer so browsers and standalone clients can load the URL directly from the
 // owning host without custom headers.
-func (c *ChattoCore) GetStableAttachmentURL(assetID, userID string) string {
+func (c *MediaService) GetStableAttachmentURL(assetID, userID string) string {
 	return c.GetStableAttachmentAssetURL(assetID, userID).URL
 }
 
 // GetStableAttachmentAssetURL returns the canonical URL for an asset binary
 // together with the exact expiry embedded in its access ticket.
-func (c *ChattoCore) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
+func (c *MediaService) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
@@ -945,14 +945,14 @@ func (c *ChattoCore) GetStableAttachmentAssetURL(assetID, userID string) StableA
 // GetStableTransformedAttachmentURL returns the canonical URL for a derived
 // image form factor. The dimensions are visible in the URL; authorization is a
 // scoped access ticket.
-func (c *ChattoCore) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
+func (c *MediaService) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
 	return c.GetStableTransformedAttachmentAssetURL(assetID, userID, width, height, fit).URL
 }
 
 // GetStableTransformedAttachmentAssetURL returns the canonical URL for a
 // derived image form factor together with the exact expiry embedded in its
 // access ticket.
-func (c *ChattoCore) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
+func (c *MediaService) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
@@ -974,7 +974,7 @@ func (c *ChattoCore) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 	}
 }
 
-func (c *ChattoCore) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {
+func (c *MediaService) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {
 	if path == "" {
 		path = fmt.Sprintf("/assets/files/%s", url.PathEscape(assetID))
 	}
@@ -1031,7 +1031,7 @@ func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string)
 // The URL includes HMAC signature to prevent parameter tampering.
 // Format: /assets/server/{key}/t/{params}.{signature}
 // where {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}
-func (c *ChattoCore) GetTransformedServerAssetURL(key string, width, height int, fit string) string {
+func (c *MediaService) GetTransformedServerAssetURL(key string, width, height int, fit string) string {
 	// Generate signed transform path component using the server asset resource ID.
 	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, ServerAssetSignResource, key, width, height, fit)
 
@@ -1044,7 +1044,7 @@ func (c *ChattoCore) GetTransformedServerAssetURL(key string, width, height int,
 // ============================================================================
 
 // ImageCacheEnabled returns whether the image resize cache is enabled.
-func (c *ChattoCore) ImageCacheEnabled() bool {
+func (c *MediaService) ImageCacheEnabled() bool {
 	return c.storage.imageCacheStore != nil
 }
 
@@ -1059,7 +1059,7 @@ func ImageCacheKey(spaceID, attachmentID string, width, height int, fit string) 
 
 // GetCachedResize retrieves a cached resized image.
 // Returns nil, nil if the cache is disabled or the key is not found.
-func (c *ChattoCore) GetCachedResize(ctx context.Context, key string) ([]byte, error) {
+func (c *MediaService) GetCachedResize(ctx context.Context, key string) ([]byte, error) {
 	if c.storage.imageCacheStore == nil {
 		return nil, nil
 	}
@@ -1082,7 +1082,7 @@ func (c *ChattoCore) GetCachedResize(ctx context.Context, key string) ([]byte, e
 
 // StoreCachedResize stores a resized image in the cache.
 // Does nothing if the cache is disabled.
-func (c *ChattoCore) StoreCachedResize(ctx context.Context, key string, data []byte) error {
+func (c *MediaService) StoreCachedResize(ctx context.Context, key string, data []byte) error {
 	if c.storage.imageCacheStore == nil {
 		return nil
 	}
@@ -1106,20 +1106,20 @@ func (c *ChattoCore) StoreCachedResize(ctx context.Context, key string, data []b
 // cache entries written under a {server|DM} prefix are not cleaned up
 // and are left to age out — the transform-URL signer always uses the
 // kind-less prefix now, so no lookups land on them.
-func (c *ChattoCore) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
+func (c *MediaService) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
 	return c.DeleteCachedResizesForKey(ctx, AttachmentSignResource, attachmentID)
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server
 // asset such as a user avatar or server branding image.
-func (c *ChattoCore) DeleteCachedResizesForServerAsset(ctx context.Context, assetID string) (int, error) {
+func (c *MediaService) DeleteCachedResizesForServerAsset(ctx context.Context, assetID string) (int, error) {
 	return c.DeleteCachedResizesForKey(ctx, ServerAssetSignResource, assetID)
 }
 
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
 // Returns the number of deleted cache entries and any error encountered.
 // Does nothing if the cache is disabled.
-func (c *ChattoCore) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
+func (c *MediaService) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
 	if prefix == "" || assetKey == "" {
 		return 0, nil
 	}
@@ -1183,7 +1183,7 @@ func videoProcessingKey(attachmentID string) string {
 //
 // actorID is the user who triggered processing (the message poster, or
 // SystemActorID for boot-recovery paths).
-func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
+func (c *MediaService) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("video processing missing room, message, or attachment")
 	}
@@ -1225,7 +1225,7 @@ func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 // actorID is the user who triggered processing (typically the message
 // poster). Use SystemActorID when the action is driven by boot recovery or
 // other background work with no user actor.
-func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, assetID string) error {
+func (c *MediaService) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, assetID string) error {
 	if roomID == "" || assetID == "" {
 		return fmt.Errorf("asset processing started missing room or asset id")
 	}
@@ -1244,7 +1244,7 @@ func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID s
 // the in-process video processor when they have no completed/failed manifest
 // yet. If the original binary is already gone, it records a durable unavailable
 // state.
-func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
+func (c *MediaService) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 	for _, req := range c.RoomTimeline.UnmanifestedVideoAttachments() {
 		if req.Attachment == nil {
 			continue
@@ -1263,7 +1263,7 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 // PublishAssetProcessing appends a durable asset-processing event to EVT.
 // Refuses events with an empty ActorId — every asset lifecycle event must be
 // attributable to a user (or SystemActorID for worker/migration paths).
-func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
+func (c *MediaService) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
 	if roomID == "" {
 		return fmt.Errorf("asset processing event missing room id")
 	}
@@ -1271,7 +1271,7 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 		return fmt.Errorf("asset processing event missing actor id (use SystemActorID for non-user paths)")
 	}
 	agg := events.RoomAggregate(roomID)
-	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish asset processing event: %w", err)
 	}
 	return nil
@@ -1285,7 +1285,7 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 //
 // actorID is typically SystemActorID — processing outcomes are produced by
 // the video worker, not by a user action.
-func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+func (c *MediaService) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	thumbnailAssetID := ""
 	if thumbnail != nil {
 		thumbnailAssetID = thumbnail.GetId()
@@ -1324,7 +1324,7 @@ func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, k
 //
 // actorID is the user who triggered the deletion (or SystemActorID for
 // background cleanup).
-func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
+func (c *MediaService) RecordAssetDeleted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
 	if roomID == "" || assetID == "" {
 		return fmt.Errorf("asset deletion missing room or asset id")
 	}
@@ -1341,7 +1341,7 @@ func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kin
 //
 // actorID is typically SystemActorID for worker-emitted failures, or the
 // posting user for "source missing" emitted at schedule time.
-func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
+func (c *MediaService) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
