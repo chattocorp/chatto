@@ -21,6 +21,7 @@ Please use the following facts when making decisions about features or implement
 - As of today, we have a handful of Chatto servers running the 0.0.x version lane that we want to eventually upgrade to 0.1.x. 0.1.x must be able to reliably import data from a 0.0.x server.
 - There are no servers deployed running 0.1.x yet, so we can still do breaking changes within this version lane.
 - The focus of 0.1.x is on stabilizing the core data model and APIs, improving documentation, and building out a solid foundation for future features. We want to avoid adding new features that aren't necessary for this stabilization effort.
+- Treat `GET /api/server` as a higher-stability compatibility surface than the GraphQL API. It is the unauthenticated, cross-origin discovery endpoint used by multi-server clients before they can establish GraphQL access, so breaking its URL, CORS behavior, required JSON fields, or OAuth discovery fields can strand older clients. Prefer additive changes and double-check compatibility before changing this endpoint.
 
 Please update this section as the project evolves, and refer to it when making decisions about features or implementation.
 
