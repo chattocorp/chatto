@@ -10,8 +10,8 @@ import (
 )
 
 // buildRoomEventsConnection unwraps core.RoomEvent (which carries the
-// JetStream sequence) into delivered Event envelopes for the GraphQL
-// model and renders the cursor sequences as opaque strings.
+// timeline position) into delivered Event envelopes for the GraphQL
+// model and renders opaque cursors.
 func buildRoomEventsConnection(r *core.RoomEventsResult) *model.RoomEventsConnection {
 	events := make([]core.EventEnvelope, len(r.Events))
 	for i, e := range r.Events {
@@ -22,10 +22,10 @@ func buildRoomEventsConnection(r *core.RoomEventsResult) *model.RoomEventsConnec
 		HasOlder: r.HasOlder,
 		HasNewer: r.HasNewer,
 	}
-	if start := formatRoomEventCursor(r.StartCursorSeq); start != "" {
+	if start := formatRoomEventCursor(r.StartCursor); start != "" {
 		conn.StartCursor = &start
 	}
-	if end := formatRoomEventCursor(r.EndCursorSeq); end != "" {
+	if end := formatRoomEventCursor(r.EndCursor); end != "" {
 		conn.EndCursor = &end
 	}
 	return conn
@@ -33,44 +33,79 @@ func buildRoomEventsConnection(r *core.RoomEventsResult) *model.RoomEventsConnec
 
 // Room-event pagination cursors.
 //
-// Internally a cursor is a JetStream stream sequence (`uint64`). At the
-// GraphQL boundary it's an opaque string of the form `seq:<n>`. The
-// `seq:` prefix exists so a future migration to a richer cursor (e.g.,
-// time-based, or carrying a stream identifier) can be detected without
-// silently mis-parsing old cursors as the new format.
+// Internally, room-visible pagination uses (created_at, stream sequence) so
+// migrated historical events can be displayed chronologically even when their
+// EVT append order was grouped by migration step. At the GraphQL boundary the
+// rich cursor is `pos:<unix-nano>:<seq>`. Legacy `seq:<n>` cursors remain
+// accepted for old in-flight clients and thread pagination.
 //
 // Cursors are exposed via `RoomEventsConnection.startCursor` and
 // `endCursor` and consumed via the `before`/`after` query args. Clients
 // must treat them as opaque.
 
 const cursorSeqPrefix = "seq:"
+const cursorPosPrefix = "pos:"
 
-// formatRoomEventCursor renders a JetStream sequence as the opaque cursor
-// string clients see. Returns "" for sequence 0 so the GraphQL field can
-// be a nullable String — empty pages have no cursor.
-func formatRoomEventCursor(seq uint64) string {
-	if seq == 0 {
+// formatRoomEventCursor renders a room timeline position as the opaque cursor
+// string clients see. Returns "" for zero-value cursors so the GraphQL field
+// can be nullable — empty pages have no cursor.
+func formatRoomEventCursor(cursor core.RoomTimelineCursor) string {
+	if cursor.StreamSeq == 0 {
 		return ""
 	}
-	return cursorSeqPrefix + strconv.FormatUint(seq, 10)
+	if cursor.HasCreatedAt {
+		return cursorPosPrefix + strconv.FormatInt(cursor.CreatedAtUnixNano, 10) + ":" + strconv.FormatUint(cursor.StreamSeq, 10)
+	}
+	return cursorSeqPrefix + strconv.FormatUint(cursor.StreamSeq, 10)
 }
 
-// parseRoomEventCursor decodes an opaque cursor back to a sequence.
+// parseRoomEventCursor decodes an opaque cursor back to a timeline position.
 // Returns 0 with no error if the cursor is the empty string (treated as
 // "no cursor"). Any other malformed input is an error so a stale or
 // hand-edited cursor surfaces clearly rather than silently paging from
 // the start of the stream.
-func parseRoomEventCursor(cursor string) (uint64, error) {
+func parseRoomEventCursor(cursor string) (core.RoomTimelineCursor, error) {
 	if cursor == "" {
-		return 0, nil
+		return core.RoomTimelineCursor{}, nil
 	}
-	rest, ok := strings.CutPrefix(cursor, cursorSeqPrefix)
+	if rest, ok := strings.CutPrefix(cursor, cursorSeqPrefix); ok {
+		seq, err := strconv.ParseUint(rest, 10, 64)
+		if err != nil {
+			return core.RoomTimelineCursor{}, fmt.Errorf("invalid cursor sequence: %w", err)
+		}
+		return core.RoomTimelineCursor{StreamSeq: seq}, nil
+	}
+	rest, ok := strings.CutPrefix(cursor, cursorPosPrefix)
 	if !ok {
-		return 0, fmt.Errorf("invalid cursor format")
+		return core.RoomTimelineCursor{}, fmt.Errorf("invalid cursor format")
 	}
-	seq, err := strconv.ParseUint(rest, 10, 64)
+	timePart, seqPart, ok := strings.Cut(rest, ":")
+	if !ok {
+		return core.RoomTimelineCursor{}, fmt.Errorf("invalid cursor position")
+	}
+	nanos, err := strconv.ParseInt(timePart, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid cursor sequence: %w", err)
+		return core.RoomTimelineCursor{}, fmt.Errorf("invalid cursor timestamp: %w", err)
 	}
-	return seq, nil
+	seq, err := strconv.ParseUint(seqPart, 10, 64)
+	if err != nil {
+		return core.RoomTimelineCursor{}, fmt.Errorf("invalid cursor sequence: %w", err)
+	}
+	return core.RoomTimelineCursor{
+		StreamSeq:         seq,
+		CreatedAtUnixNano: nanos,
+		HasCreatedAt:      true,
+	}, nil
+}
+
+func roomEventPositionCursor(event *core.RoomEvent) core.RoomTimelineCursor {
+	if event == nil {
+		return core.RoomTimelineCursor{}
+	}
+	cursor := core.RoomTimelineCursor{StreamSeq: event.Sequence}
+	if event.Event != nil && event.Event.GetCreatedAt() != nil {
+		cursor.CreatedAtUnixNano = event.Event.GetCreatedAt().AsTime().UnixNano()
+		cursor.HasCreatedAt = true
+	}
+	return cursor
 }

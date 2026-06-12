@@ -601,10 +601,11 @@ func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *mod
 
 	fetchLimit := roomEventsLimit(limit)
 	if after != nil && *after != "" {
-		afterSeq, err := parseRoomEventCursor(*after)
+		afterCursor, err := parseRoomEventCursor(*after)
 		if err != nil {
 			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
+		afterSeq := afterCursor.StreamSeq
 		result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, nil, &afterSeq)
 		if err != nil {
 			return nil, err
@@ -614,10 +615,11 @@ func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *mod
 
 	var beforeSeq *uint64
 	if before != nil && *before != "" {
-		seq, err := parseRoomEventCursor(*before)
+		beforeCursor, err := parseRoomEventCursor(*before)
 		if err != nil {
 			return nil, fmt.Errorf("invalid before cursor: %w", err)
 		}
+		seq := beforeCursor.StreamSeq
 		beforeSeq = &seq
 	}
 	result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, beforeSeq, nil)

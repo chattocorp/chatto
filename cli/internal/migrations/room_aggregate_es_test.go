@@ -329,6 +329,65 @@ func TestMigrateRoomAggregateToES_PreservesLatestLegacyJoinForCurrentMembership(
 	require.Equal(t, "R1", ev.GetUserJoinedRoom().GetRoomId())
 }
 
+func TestMigrateRoomAggregateToES_PreservesLegacyJoinLeaveTimeline(t *testing.T) {
+	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
+	legacyStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     "SERVER_EVENTS_TEST",
+		Subjects: []string{"server.>"},
+		Storage:  jetstream.MemoryStorage,
+	})
+	require.NoError(t, err)
+
+	seedRoom(t, kv, "channel", &corev1.Room{
+		Id:   "R1",
+		Name: "general",
+		Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	})
+
+	joinedAt := time.Date(2026, 3, 17, 13, 38, 0, 0, time.UTC)
+	leftAt := time.Date(2026, 3, 18, 9, 0, 0, 0, time.UTC)
+	legacyEvents := []*corev1.Event{
+		{
+			Id:        "EjoinedThenLeft",
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(joinedAt),
+			Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+			},
+		},
+		{
+			Id:        "EleftAfterJoin",
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(leftAt),
+			Event: &corev1.Event_UserLeftRoom{
+				UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: "R1"},
+			},
+		},
+	}
+	for _, legacyEvent := range legacyEvents {
+		data, err := proto.Marshal(legacyEvent)
+		require.NoError(t, err)
+		_, err = js.Publish(ctx, "server.room.channel.R1.meta", data)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger(), legacyStream))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, info.State.Msgs)
+
+	for i, want := range legacyEvents {
+		msg, err := stream.GetMsg(ctx, uint64(i+2))
+		require.NoError(t, err)
+		var ev corev1.Event
+		require.NoError(t, proto.Unmarshal(msg.Data, &ev))
+		require.Equal(t, want.GetId(), ev.GetId())
+		require.Equal(t, want.GetActorId(), ev.GetActorId())
+		require.True(t, ev.GetCreatedAt().AsTime().Equal(want.GetCreatedAt().AsTime()))
+	}
+}
+
 func TestMigrateRoomAggregateToES_DoesNotResurrectLegacyJoinWithoutMembership(t *testing.T) {
 	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
 	legacyStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{

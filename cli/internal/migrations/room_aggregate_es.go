@@ -18,7 +18,22 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-type legacyRoomMembershipEvents map[string]map[string]*corev1.Event
+type legacyRoomMembershipEvents map[string][]legacyRoomMembershipEvent
+
+type legacyRoomMembershipEvent struct {
+	userID    string
+	createdAt time.Time
+	order     int
+	isJoin    bool
+	event     *corev1.Event
+}
+
+type roomMembershipMigrationEvent struct {
+	userID    string
+	createdAt time.Time
+	order     int
+	event     *corev1.Event
+}
 
 // MigrateRoomAggregateToES seeds the EVT stream from the existing
 // `room.{kind}.{roomID}` keys and both known room membership key shapes
@@ -64,11 +79,11 @@ func MigrateRoomAggregateToES(
 		return fmt.Errorf("load memberships: %w", err)
 	}
 
-	legacyJoins, err := loadLegacyRoomMembershipEvents(ctx, firstLegacyStream(legacyServerEvents), logger)
+	legacyMembershipEvents, err := loadLegacyRoomMembershipEvents(ctx, firstLegacyStream(legacyServerEvents), logger)
 	if err != nil {
 		return fmt.Errorf("load legacy room membership events: %w", err)
 	}
-	applyLegacyMembershipEvents(memberships, legacyJoins)
+	membershipEvents := buildRoomMembershipMigrationEvents(memberships, legacyMembershipEvents)
 
 	var migrated, skipped, archivedEvents, memberEvents, memberBackfillEvents int
 	for _, key := range roomKeys {
@@ -126,11 +141,11 @@ func MigrateRoomAggregateToES(
 			})
 		}
 
-		for _, m := range memberships[room.GetId()] {
-			joinedEvent := m.joinEvent(room.GetId())
+		for _, m := range membershipEvents[room.GetId()] {
+			event := proto.Clone(m.event).(*corev1.Event)
 			batch = append(batch, events.BatchEntry{
-				Subject: agg.SubjectFor(joinedEvent),
-				Event:   joinedEvent,
+				Subject: agg.SubjectFor(event),
+				Event:   event,
 			})
 		}
 
@@ -151,7 +166,7 @@ func MigrateRoomAggregateToES(
 		if room.GetArchived() {
 			archivedEvents++
 		}
-		memberEvents += len(memberships[room.GetId()])
+		memberEvents += len(membershipEvents[room.GetId()])
 	}
 
 	if migrated > 0 || skipped > 0 {
@@ -226,6 +241,16 @@ func (m membershipEntry) joinEvent(roomID string) *corev1.Event {
 	return stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
 		UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
 	}}, m.userID, timestamppb.New(m.createdAt))
+}
+
+func (m membershipEntry) migrationEvent(roomID string, order int) roomMembershipMigrationEvent {
+	event := m.joinEvent(roomID)
+	return roomMembershipMigrationEvent{
+		userID:    m.userID,
+		createdAt: event.GetCreatedAt().AsTime(),
+		order:     order,
+		event:     event,
+	}
 }
 
 // loadMembershipsByRoom reads every `room_membership.>` key and groups
@@ -351,21 +376,29 @@ func loadLegacyRoomMembershipEvents(
 	}
 
 	byRoom := make(legacyRoomMembershipEvents)
+	order := 0
 	for msg := range msgs.Messages() {
+		order++
 		var legacyEvent corev1.Event
 		if err := proto.Unmarshal(msg.Data(), &legacyEvent); err != nil {
 			logger.Warn("room_aggregate ES migration: skipping unmarshalable legacy room meta event", "subject", msg.Subject(), "error", err)
 			continue
 		}
 
-		join := legacyEvent.GetUserJoinedRoom()
-		if join == nil {
+		var roomID string
+		var isJoin bool
+		switch event := legacyEvent.GetEvent().(type) {
+		case *corev1.Event_UserJoinedRoom:
+			roomID = event.UserJoinedRoom.GetRoomId()
+			isJoin = true
+		case *corev1.Event_UserLeftRoom:
+			roomID = event.UserLeftRoom.GetRoomId()
+		default:
 			continue
 		}
-		roomID := join.GetRoomId()
 		userID := legacyEvent.GetActorId()
 		if roomID == "" || userID == "" {
-			logger.Warn("room_aggregate ES migration: skipping legacy room join with missing room or actor", "subject", msg.Subject(), "room_id", roomID, "actor_id", userID)
+			logger.Warn("room_aggregate ES migration: skipping legacy room membership event with missing room or actor", "subject", msg.Subject(), "room_id", roomID, "actor_id", userID)
 			continue
 		}
 
@@ -374,45 +407,101 @@ func loadLegacyRoomMembershipEvents(
 			legacyEvent.Id = newMigrationEventID()
 		}
 
-		roomJoins := byRoom[roomID]
-		if roomJoins == nil {
-			roomJoins = make(map[string]*corev1.Event)
-			byRoom[roomID] = roomJoins
-		}
-		if existing := roomJoins[userID]; existing != nil && legacyEvent.GetCreatedAt().AsTime().Before(existing.GetCreatedAt().AsTime()) {
-			continue
-		}
-		roomJoins[userID] = proto.Clone(&legacyEvent).(*corev1.Event)
+		byRoom[roomID] = append(byRoom[roomID], legacyRoomMembershipEvent{
+			userID:    userID,
+			createdAt: legacyEvent.GetCreatedAt().AsTime(),
+			order:     order,
+			isJoin:    isJoin,
+			event:     proto.Clone(&legacyEvent).(*corev1.Event),
+		})
 	}
 	return byRoom, nil
 }
 
-func applyLegacyMembershipEvents(
+func buildRoomMembershipMigrationEvents(
 	memberships map[string][]membershipEntry,
-	legacyJoins legacyRoomMembershipEvents,
-) {
-	for roomID, joins := range legacyJoins {
-		members := memberships[roomID]
-		seen := make(map[string]int, len(members))
-		for i, member := range members {
-			seen[member.userID] = i
-		}
-
-		for userID, event := range joins {
-			if idx, ok := seen[userID]; ok {
-				members[idx].createdAt = event.GetCreatedAt().AsTime()
-				members[idx].legacyEvent = event
-			}
-		}
-
-		sort.Slice(members, func(i, j int) bool {
-			if !members[i].createdAt.Equal(members[j].createdAt) {
-				return members[i].createdAt.Before(members[j].createdAt)
-			}
-			return members[i].userID < members[j].userID
-		})
-		memberships[roomID] = members
+	legacyEvents legacyRoomMembershipEvents,
+) map[string][]roomMembershipMigrationEvent {
+	byRoom := make(map[string][]roomMembershipMigrationEvent)
+	roomIDs := make(map[string]struct{}, len(memberships)+len(legacyEvents))
+	for roomID := range memberships {
+		roomIDs[roomID] = struct{}{}
 	}
+	for roomID := range legacyEvents {
+		roomIDs[roomID] = struct{}{}
+	}
+
+	for roomID := range roomIDs {
+		syntheticOrder := len(legacyEvents[roomID]) + 1
+		current := make(map[string]membershipEntry)
+		for _, member := range memberships[roomID] {
+			current[member.userID] = member
+		}
+
+		legacyByUser := make(map[string][]legacyRoomMembershipEvent)
+		for _, event := range legacyEvents[roomID] {
+			legacyByUser[event.userID] = append(legacyByUser[event.userID], event)
+		}
+
+		var roomEvents []roomMembershipMigrationEvent
+		for userID, userEvents := range legacyByUser {
+			userEvents = compactLegacyMembershipEvents(userEvents)
+			member, isCurrentMember := current[userID]
+			if len(userEvents) > 0 && userEvents[len(userEvents)-1].isJoin && !isCurrentMember {
+				userEvents = userEvents[:len(userEvents)-1]
+			}
+			for _, event := range userEvents {
+				roomEvents = append(roomEvents, roomMembershipMigrationEvent{
+					userID:    event.userID,
+					createdAt: event.createdAt,
+					order:     event.order,
+					event:     event.event,
+				})
+			}
+			if isCurrentMember && (len(userEvents) == 0 || !userEvents[len(userEvents)-1].isJoin) {
+				roomEvents = append(roomEvents, member.migrationEvent(roomID, syntheticOrder))
+			}
+			delete(current, userID)
+		}
+
+		for _, member := range memberships[roomID] {
+			if _, stillPending := current[member.userID]; !stillPending {
+				continue
+			}
+			roomEvents = append(roomEvents, member.migrationEvent(roomID, syntheticOrder))
+		}
+
+		sort.Slice(roomEvents, func(i, j int) bool {
+			if !roomEvents[i].createdAt.Equal(roomEvents[j].createdAt) {
+				return roomEvents[i].createdAt.Before(roomEvents[j].createdAt)
+			}
+			if roomEvents[i].order != roomEvents[j].order {
+				return roomEvents[i].order < roomEvents[j].order
+			}
+			return roomEvents[i].userID < roomEvents[j].userID
+		})
+		byRoom[roomID] = roomEvents
+	}
+	return byRoom
+}
+
+func compactLegacyMembershipEvents(events []legacyRoomMembershipEvent) []legacyRoomMembershipEvent {
+	sort.Slice(events, func(i, j int) bool {
+		if !events[i].createdAt.Equal(events[j].createdAt) {
+			return events[i].createdAt.Before(events[j].createdAt)
+		}
+		return events[i].order < events[j].order
+	})
+	compacted := make([]legacyRoomMembershipEvent, 0, len(events))
+	for _, event := range events {
+		last := len(compacted) - 1
+		if last >= 0 && compacted[last].isJoin == event.isJoin {
+			compacted[last] = event
+			continue
+		}
+		compacted = append(compacted, event)
+	}
+	return compacted
 }
 
 // listSortedKeys returns the union of keys matching the given filters,

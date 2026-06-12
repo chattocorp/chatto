@@ -1,6 +1,7 @@
 package core
 
 import (
+	"sort"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -205,7 +206,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	entry := &TimelineEntry{StreamSeq: seq, Event: event}
 	p.byRoom[roomID] = append(p.byRoom[roomID], entry)
 	if isVisibleRoomTimelineEntry(event) {
-		p.visibleByRoom[roomID] = append(p.visibleByRoom[roomID], entry)
+		p.insertVisibleRoomEntryLocked(roomID, entry)
 	}
 	if eid := event.GetId(); eid != "" {
 		p.byEventID[eid] = entry
@@ -295,6 +296,17 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 	}
 	return nil
+}
+
+func (p *RoomTimelineProjection) insertVisibleRoomEntryLocked(roomID string, entry *TimelineEntry) {
+	entries := p.visibleByRoom[roomID]
+	idx := sort.Search(len(entries), func(i int) bool {
+		return compareTimelineEntries(entries[i], entry) >= 0
+	})
+	entries = append(entries, nil)
+	copy(entries[idx+1:], entries[idx:])
+	entries[idx] = entry
+	p.visibleByRoom[roomID] = entries
 }
 
 func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
@@ -869,6 +881,23 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	beforeStreamSeq uint64,
 	visible func(*corev1.Event) bool,
 ) []*TimelineEntry {
+	var before *RoomTimelineCursor
+	if beforeStreamSeq > 0 {
+		before = &RoomTimelineCursor{StreamSeq: beforeStreamSeq}
+	}
+	return p.VisibleRoomTimelineByCursor(roomID, limit, before, visible)
+}
+
+// VisibleRoomTimelineByCursor walks the room's timeline newest-first in
+// display order, applying `visible` as a per-entry filter. A position cursor
+// excludes entries at or newer than that display position; a sequence-only
+// cursor keeps the legacy stream-sequence behavior.
+func (p *RoomTimelineProjection) VisibleRoomTimelineByCursor(
+	roomID string,
+	limit int,
+	before *RoomTimelineCursor,
+	visible func(*corev1.Event) bool,
+) []*TimelineEntry {
 	if limit <= 0 {
 		return nil
 	}
@@ -881,7 +910,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	out := make([]*TimelineEntry, 0, limit)
 	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
 		e := entries[i]
-		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
+		if before != nil && !entryBeforeCursor(e, *before) {
 			continue
 		}
 		if p.isHiddenEchoEntryLocked(e) {
@@ -905,6 +934,17 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	afterStreamSeq uint64,
 	visible func(*corev1.Event) bool,
 ) []*TimelineEntry {
+	return p.VisibleRoomTimelineAfterCursor(roomID, limit, RoomTimelineCursor{StreamSeq: afterStreamSeq}, visible)
+}
+
+// VisibleRoomTimelineAfterCursor walks the room's timeline oldest-first in
+// display order, returning entries strictly after the cursor position.
+func (p *RoomTimelineProjection) VisibleRoomTimelineAfterCursor(
+	roomID string,
+	limit int,
+	after RoomTimelineCursor,
+	visible func(*corev1.Event) bool,
+) []*TimelineEntry {
 	if limit <= 0 {
 		return nil
 	}
@@ -916,7 +956,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	}
 	out := make([]*TimelineEntry, 0, limit)
 	for _, e := range entries {
-		if e.StreamSeq <= afterStreamSeq {
+		if !entryAfterCursor(e, after) {
 			continue
 		}
 		if p.isHiddenEchoEntryLocked(e) {
@@ -989,6 +1029,62 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 		}
 	}
 	return out, targetVisibleIndex - start, start > 0, end < visibleCount, true
+}
+
+func compareTimelineEntries(a, b *TimelineEntry) int {
+	aTime := timelineEntryUnixNano(a)
+	bTime := timelineEntryUnixNano(b)
+	if aTime < bTime {
+		return -1
+	}
+	if aTime > bTime {
+		return 1
+	}
+	aSeq := timelineEntrySeq(a)
+	bSeq := timelineEntrySeq(b)
+	if aSeq < bSeq {
+		return -1
+	}
+	if aSeq > bSeq {
+		return 1
+	}
+	return 0
+}
+
+func entryBeforeCursor(entry *TimelineEntry, cursor RoomTimelineCursor) bool {
+	if cursor.HasCreatedAt {
+		entryTime := timelineEntryUnixNano(entry)
+		if entryTime != cursor.CreatedAtUnixNano {
+			return entryTime < cursor.CreatedAtUnixNano
+		}
+		return timelineEntrySeq(entry) < cursor.StreamSeq
+	}
+	return cursor.StreamSeq == 0 || timelineEntrySeq(entry) < cursor.StreamSeq
+}
+
+func entryAfterCursor(entry *TimelineEntry, cursor RoomTimelineCursor) bool {
+	if cursor.HasCreatedAt {
+		entryTime := timelineEntryUnixNano(entry)
+		if entryTime != cursor.CreatedAtUnixNano {
+			return entryTime > cursor.CreatedAtUnixNano
+		}
+		return timelineEntrySeq(entry) > cursor.StreamSeq
+	}
+	return timelineEntrySeq(entry) > cursor.StreamSeq
+}
+
+func timelineEntryUnixNano(entry *TimelineEntry) int64 {
+	if entry == nil {
+		return 0
+	}
+	return roomTimelineUnixNano(entry.Event, entry.StreamSeq)
+}
+
+func timelineEntrySeq(entry *TimelineEntry) uint64 {
+	if entry == nil {
+		return 0
+	}
+	return entry.StreamSeq
 }
 
 func (p *RoomTimelineProjection) isHiddenEchoEntryLocked(entry *TimelineEntry) bool {

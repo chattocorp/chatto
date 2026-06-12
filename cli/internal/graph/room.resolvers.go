@@ -219,24 +219,24 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 
 	var result *core.RoomEventsResult
 	if after != nil && *after != "" {
-		afterSeq, err := parseRoomEventCursor(*after)
+		afterCursor, err := parseRoomEventCursor(*after)
 		if err != nil {
 			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEventsAfter(ctx, core.KindOfRoom(obj), obj.Id, afterSeq, fetchLimit)
+		result, err = r.core.GetRoomEventsAfterCursor(ctx, core.KindOfRoom(obj), obj.Id, afterCursor, fetchLimit)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		var beforeSeq *uint64
+		var beforeCursor *core.RoomTimelineCursor
 		if before != nil && *before != "" {
-			seq, err := parseRoomEventCursor(*before)
+			cursor, err := parseRoomEventCursor(*before)
 			if err != nil {
 				return nil, fmt.Errorf("invalid before cursor: %w", err)
 			}
-			beforeSeq = &seq
+			beforeCursor = &cursor
 		}
-		result, err = r.core.GetRoomEvents(ctx, core.KindOfRoom(obj), obj.Id, fetchLimit, beforeSeq)
+		result, err = r.core.GetRoomEventsByCursor(ctx, core.KindOfRoom(obj), obj.Id, fetchLimit, beforeCursor)
 		if err != nil {
 			return nil, err
 		}
@@ -302,10 +302,10 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		HasNewer:    result.HasNewer,
 	}
 	if len(result.Events) > 0 {
-		if start := formatRoomEventCursor(result.Events[0].Sequence); start != "" {
+		if start := formatRoomEventCursor(roomEventPositionCursor(result.Events[0])); start != "" {
 			out.StartCursor = &start
 		}
-		if end := formatRoomEventCursor(result.Events[len(result.Events)-1].Sequence); end != "" {
+		if end := formatRoomEventCursor(roomEventPositionCursor(result.Events[len(result.Events)-1])); end != "" {
 			out.EndCursor = &end
 		}
 	}

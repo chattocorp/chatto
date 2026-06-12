@@ -6,6 +6,15 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// RoomTimelineCursor is an opaque room-timeline position. StreamSeq keeps
+// old sequence-only cursors working; CreatedAtUnixNano is set for the
+// room-visible index, whose display order is created_at + stream seq.
+type RoomTimelineCursor struct {
+	StreamSeq         uint64
+	CreatedAtUnixNano int64
+	HasCreatedAt      bool
+}
+
 // RoomEvent pairs a *corev1.Event with its stream sequence so the
 // pagination layer can build opaque cursors without re-deriving the
 // sequence per event. Event is embedded so callers can access event
@@ -26,6 +35,8 @@ type RoomEventsResult struct {
 	HasNewer       bool
 	StartCursorSeq uint64
 	EndCursorSeq   uint64
+	StartCursor    RoomTimelineCursor
+	EndCursor      RoomTimelineCursor
 }
 
 // RoomEventsAroundResult contains the result of fetching events around
@@ -54,15 +65,21 @@ type RoomEventsAroundResult struct {
 // evt.room.{R}.{eventType} — kind is a property of the room, not the
 // event).
 func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64) (*RoomEventsResult, error) {
-	limit = clampHistoricalMessageLimit(limit)
-	var before uint64
+	var before *RoomTimelineCursor
 	if beforeSeq != nil {
-		before = *beforeSeq
+		before = &RoomTimelineCursor{StreamSeq: *beforeSeq}
 	}
+	return c.GetRoomEventsByCursor(ctx, kind, room_id, limit, before)
+}
+
+// GetRoomEventsByCursor is the cursor-rich form used by GraphQL room
+// pagination. It returns room-visible entries in chronological display order.
+func (c *ChattoCore) GetRoomEventsByCursor(ctx context.Context, kind RoomKind, room_id string, limit int, before *RoomTimelineCursor) (*RoomEventsResult, error) {
+	limit = clampHistoricalMessageLimit(limit)
 
 	// Bounded newest-first walk via the derived visible-room timeline. Fetch
 	// limit+1 to detect HasOlder without a second call.
-	raw := c.RoomTimeline.VisibleRoomTimeline(room_id, limit+1, before, nil)
+	raw := c.RoomTimeline.VisibleRoomTimelineByCursor(room_id, limit+1, before, nil)
 	hasOlder := len(raw) > limit
 	if hasOlder {
 		raw = raw[:limit]
@@ -81,12 +98,9 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 	r := &RoomEventsResult{
 		Events:   visible,
 		HasOlder: hasOlder,
-		HasNewer: beforeSeq != nil,
+		HasNewer: before != nil,
 	}
-	if len(visible) > 0 {
-		r.StartCursorSeq = visible[0].Sequence
-		r.EndCursorSeq = visible[len(visible)-1].Sequence
-	}
+	setRoomEventsResultPositionCursors(r)
 	return r, nil
 }
 
@@ -160,12 +174,18 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int) (*RoomEventsResult, error) {
+	return c.GetRoomEventsAfterCursor(ctx, kind, roomID, RoomTimelineCursor{StreamSeq: afterSeq}, limit)
+}
+
+// GetRoomEventsAfterCursor returns events after a room-visible cursor in
+// chronological display order.
+func (c *ChattoCore) GetRoomEventsAfterCursor(ctx context.Context, kind RoomKind, roomID string, after RoomTimelineCursor, limit int) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
 	// Walk visible entries oldest-first from the cursor so forward
 	// pagination returns the nearest newer events first. Fetch limit+1
 	// to detect whether another forward page exists.
-	raw := c.RoomTimeline.VisibleRoomTimelineAfter(roomID, limit+1, afterSeq, nil)
+	raw := c.RoomTimeline.VisibleRoomTimelineAfterCursor(roomID, limit+1, after, nil)
 	hasNewer := len(raw) > limit
 	if hasNewer {
 		raw = raw[:limit]
@@ -180,11 +200,39 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 		HasOlder: true, // forward pagination always has older content (everything <= afterSeq).
 		HasNewer: hasNewer,
 	}
-	if len(newer) > 0 {
-		r.StartCursorSeq = newer[0].Sequence
-		r.EndCursorSeq = newer[len(newer)-1].Sequence
-	}
+	setRoomEventsResultPositionCursors(r)
 	return r, nil
+}
+
+func setRoomEventsResultPositionCursors(result *RoomEventsResult) {
+	if result == nil || len(result.Events) == 0 {
+		return
+	}
+	start := result.Events[0]
+	end := result.Events[len(result.Events)-1]
+	result.StartCursorSeq = start.Sequence
+	result.EndCursorSeq = end.Sequence
+	result.StartCursor = roomEventCursor(start.Event, start.Sequence)
+	result.EndCursor = roomEventCursor(end.Event, end.Sequence)
+}
+
+func roomEventCursor(event *corev1.Event, seq uint64) RoomTimelineCursor {
+	cursor := RoomTimelineCursor{StreamSeq: seq}
+	if event != nil && event.GetCreatedAt() != nil {
+		cursor.CreatedAtUnixNano = event.GetCreatedAt().AsTime().UnixNano()
+		cursor.HasCreatedAt = true
+	}
+	return cursor
+}
+
+func roomTimelineUnixNano(event *corev1.Event, seq uint64) int64 {
+	if event != nil && event.GetCreatedAt() != nil {
+		return event.GetCreatedAt().AsTime().UnixNano()
+	}
+	if seq <= uint64(^uint64(0)>>1) {
+		return int64(seq)
+	}
+	return int64(^uint64(0) >> 1)
 }
 
 func clampHistoricalMessageLimit(limit int) int {

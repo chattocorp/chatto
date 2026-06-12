@@ -425,6 +425,38 @@ func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_VisibleTimelineUsesCreatedAtThenStreamSeq(t *testing.T) {
+	p := NewRoomTimelineProjection()
+
+	// Simulates ES migration append order: room aggregate membership facts can
+	// land before imported messages even when their preserved created_at places
+	// them later in the human timeline.
+	applyAll(t, p, []*corev1.Event{
+		roomCreatedTimelineEvent("ENV-CREATE", "R1", "general", 1),
+		joinedEvent("ENV-JOIN-LATE", "R1", "U2", 5),
+		postedEvent(postedOpts{envelopeID: "ENV-MESSAGE", eventID: "M1", roomID: "R1", actorID: "U1", body: "hello", at: 3}),
+	})
+
+	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
+	if got := eventIDs(visible); !slices.Equal(got, []string{"ENV-JOIN-LATE", "ENV-MESSAGE", "ENV-CREATE"}) {
+		t.Fatalf("visible newest-first = %v, want join/message/create by created_at", got)
+	}
+
+	cursor := RoomTimelineCursor{
+		StreamSeq:         3,
+		CreatedAtUnixNano: fixedTime(3).UnixNano(),
+		HasCreatedAt:      true,
+	}
+	older := p.VisibleRoomTimelineByCursor("R1", 10, &cursor, nil)
+	if got := eventIDs(older); !slices.Equal(got, []string{"ENV-CREATE"}) {
+		t.Fatalf("older than message cursor = %v, want create only", got)
+	}
+	newer := p.VisibleRoomTimelineAfterCursor("R1", 10, cursor, nil)
+	if got := eventIDs(newer); !slices.Equal(got, []string{"ENV-JOIN-LATE"}) {
+		t.Fatalf("newer than message cursor = %v, want late join only", got)
+	}
+}
+
 func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*corev1.Event{
@@ -695,9 +727,9 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	stray := &corev1.Event{
 		Id:        "ENV-STRAY",
 		CreatedAt: timestamppb.New(fixedTime(1)),
-			Event: &corev1.Event_ServerMemberDeleted{
-				ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"},
-			},
+		Event: &corev1.Event_ServerMemberDeleted{
+			ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"},
+		},
 	}
 	if err := p.Apply(stray, 1); err != nil {
 		t.Fatalf("Apply: %v", err)

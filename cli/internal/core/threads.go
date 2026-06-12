@@ -168,6 +168,8 @@ func setRoomEventsResultCursors(result *RoomEventsResult) {
 	}
 	result.StartCursorSeq = result.Events[0].Sequence
 	result.EndCursorSeq = result.Events[len(result.Events)-1].Sequence
+	result.StartCursor = RoomTimelineCursor{StreamSeq: result.StartCursorSeq}
+	result.EndCursor = RoomTimelineCursor{StreamSeq: result.EndCursorSeq}
 }
 
 // notifyThreadFollowers creates persistent notifications for all thread followers when someone replies.
