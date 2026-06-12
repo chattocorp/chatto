@@ -5,6 +5,14 @@ inputs:
     description: "Install ffmpeg (only needed for E2E tests with video processing)"
     required: false
     default: "false"
+  install-cli-deps:
+    description: "Install Go/CLI dependencies"
+    required: false
+    default: "true"
+  install-frontend-deps:
+    description: "Install frontend dependencies"
+    required: false
+    default: "true"
 runs:
   using: "composite"
   steps:
@@ -39,9 +47,11 @@ runs:
         sudo apt-get install -y -qq ffmpeg
 
     - name: Install CLI dependencies
+      if: inputs.install-cli-deps == 'true'
       shell: bash
       run: mise deps-cli
 
     - name: Install Frontend dependencies
+      if: inputs.install-frontend-deps == 'true'
       shell: bash
       run: mise deps-frontend
