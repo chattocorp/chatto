@@ -63,11 +63,11 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 		},
 	})
 
-	banSeq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), banEvent)
+	banPos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), banEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomMemberBannedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, banSeq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+	if err := c.roomService.waitForTimeline(ctx, banPos); err != nil {
 		return nil, err
 	}
 
@@ -78,11 +78,11 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 			},
 		},
 	})
-	leaveSeq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), leaveEvent)
+	leavePos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), leaveEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish UserLeftRoomEvent for room ban: %w", err)
 	}
-	if err := waitForSeqAll(ctx, leaveSeq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+	if err := c.roomService.waitForTimeline(ctx, leavePos); err != nil {
 		return nil, err
 	}
 
@@ -122,11 +122,11 @@ func (c *ChattoCore) UnbanRoomMember(ctx context.Context, actorID string, kind R
 			},
 		},
 	})
-	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	pos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
 	if err != nil {
 		return fmt.Errorf("publish RoomMemberUnbannedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+	if err := c.roomService.waitForTimeline(ctx, pos); err != nil {
 		return err
 	}
 	return nil
