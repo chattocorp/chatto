@@ -85,12 +85,26 @@ type Projector struct {
 	waiters   []seqWaiter
 	failedSeq uint64
 	failedErr error
+	failedCh  chan struct{}
 	// started flips true the first time Run is invoked and stays true
 	// for the projector's lifetime. WaitForSeq uses this to short-
 	// circuit during boot-time mutations that happen before
 	// ChattoCore.Run gets a chance to start the consumer (see the
 	// WaitForSeq doc for why).
 	started bool
+}
+
+// ProjectorStatus is a concurrency-safe snapshot of a projector's
+// lifecycle state. Operators use it for diagnostics; core readiness uses
+// Err to surface fatal projection failures.
+type ProjectorStatus struct {
+	Started bool
+	LastSeq uint64
+
+	Failed    bool
+	FailedSeq uint64
+	Failure   string
+	Err       error
 }
 
 type seqWaiter struct {
@@ -102,19 +116,43 @@ type seqWaiter struct {
 // — call Run for that.
 func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
 	return &Projector{
-		js:     js,
-		stream: stream,
-		proj:   proj,
-		logger: logger,
+		js:       js,
+		stream:   stream,
+		proj:     proj,
+		logger:   logger,
+		failedCh: make(chan struct{}),
 	}
+}
+
+// Status returns the projector's current lifecycle state. Safe to call from
+// any goroutine.
+func (p *Projector) Status() ProjectorStatus {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	status := ProjectorStatus{
+		Started: p.started,
+		LastSeq: p.lastSeq,
+	}
+	if p.failedErr != nil {
+		status.Failed = true
+		status.FailedSeq = p.failedSeq
+		status.Failure = p.failedErr.Error()
+		status.Err = p.failedErr
+	}
+	return status
+}
+
+// Err returns the fatal projection error, if the projector has stopped
+// because it could not decode or apply an event.
+func (p *Projector) Err() error {
+	return p.Status().Err
 }
 
 // LastSeq returns the highest stream sequence applied to the projection so
 // far. Safe to call from any goroutine.
 func (p *Projector) LastSeq() uint64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.lastSeq
+	return p.Status().LastSeq
 }
 
 // Started reports whether Run has entered its body — i.e. whether
@@ -122,9 +160,7 @@ func (p *Projector) LastSeq() uint64 {
 // test helpers (and lifecycle code) that need to wait for projectors
 // to come online before issuing reads against the projection.
 func (p *Projector) Started() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.started
+	return p.Status().Started
 }
 
 // Subjects returns the subject filters this projector consumes.
@@ -297,6 +333,7 @@ func (p *Projector) fail(seq uint64, err error) {
 	if p.failedErr == nil {
 		p.failedSeq = seq
 		p.failedErr = fmt.Errorf("%w at seq %d: %w", ErrProjectionFailed, seq, err)
+		close(p.failedCh)
 	}
 	for _, w := range p.waiters {
 		close(w.ch)
@@ -343,8 +380,15 @@ func (p *Projector) Run(ctx context.Context) error {
 	}
 	defer cc.Stop()
 
-	<-ctx.Done()
-	return ctx.Err()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.failedCh:
+		if err := p.Err(); err != nil {
+			return err
+		}
+		return ErrProjectionFailed
+	}
 }
 
 // handleMessage is the per-event callback wired into the OrderedConsumer's
@@ -364,17 +408,19 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 
 	meta, err := msg.Metadata()
 	if err != nil {
-		p.logger.Warn("Skipping event with no metadata", "subject", msg.Subject(), "error", err)
+		p.logger.Error("Projection message metadata failed", "subject", msg.Subject(), "error", err)
+		p.fail(0, fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err))
 		return
 	}
 
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
-		p.logger.Warn("Skipping unmarshalable event",
+		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
+		p.logger.Error("Projection decode failed",
 			"subject", msg.Subject(),
 			"seq", meta.Sequence.Stream,
 			"error", err)
-		p.advance(meta.Sequence.Stream)
+		p.fail(meta.Sequence.Stream, err)
 		return
 	}
 

@@ -255,6 +255,12 @@ type ProjectionState {
   streamLastSequence: String!
   "Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence."
   lag: Int64!
+  "Whether this projection has stopped after a fatal decode or apply error."
+  failed: Boolean!
+  "Failed event-log sequence, serialized as String. Zero when the projection has not failed."
+  failedSequence: String!
+  "Operator-facing failure summary. Empty when the projection has not failed."
+  failure: String!
   "Primary projected entry count for this projection."
   entryCount: Int64!
   "Estimated bytes held in memory by this projection."

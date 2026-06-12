@@ -206,8 +206,17 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
 	for _, projection := range c.projections {
+		projection := projection
 		projector := projection.projector
-		g.Go(func() error { return projector.Run(gctx) })
+		g.Go(func() error {
+			if err := projector.Run(gctx); err != nil {
+				if errors.Is(err, context.Canceled) {
+					return err
+				}
+				return fmt.Errorf("%s projection: %w", projection.name, err)
+			}
+			return nil
+		})
 	}
 
 	// Block until every projector has entered Run before issuing
@@ -302,7 +311,18 @@ func (c *ChattoCore) WaitForBoot(ctx context.Context) error {
 func (c *ChattoCore) WaitForProjectionsCurrent(ctx context.Context) error {
 	for _, projection := range c.projections {
 		if err := projection.projector.WaitForCurrent(ctx); err != nil {
-			return err
+			return fmt.Errorf("%s projection: %w", projection.name, err)
+		}
+	}
+	return nil
+}
+
+// ProjectionHealthError returns the first fatal projection error currently
+// recorded by any registered projector.
+func (c *ChattoCore) ProjectionHealthError() error {
+	for _, projection := range c.projections {
+		if err := projection.projector.Err(); err != nil {
+			return fmt.Errorf("%s projection: %w", projection.name, err)
 		}
 	}
 	return nil
@@ -630,6 +650,9 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	}
 	if _, err := c.storage.serverEvtStream.Info(ctx); err != nil {
 		return fmt.Errorf("EVT not ready: %w", err)
+	}
+	if err := c.ProjectionHealthError(); err != nil {
+		return fmt.Errorf("projection unhealthy: %w", err)
 	}
 	return nil
 }

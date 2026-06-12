@@ -499,6 +499,9 @@ type ComplexityRoot struct {
 		AverageEntryBytes      func(childComplexity int) int
 		EntryCount             func(childComplexity int) int
 		EstimatedBytes         func(childComplexity int) int
+		Failed                 func(childComplexity int) int
+		FailedSequence         func(childComplexity int) int
+		Failure                func(childComplexity int) int
 		Lag                    func(childComplexity int) int
 		LastAppliedSequence    func(childComplexity int) int
 		MatchingStreamSequence func(childComplexity int) int
@@ -3430,6 +3433,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProjectionState.EstimatedBytes(childComplexity), true
+	case "ProjectionState.failed":
+		if e.ComplexityRoot.ProjectionState.Failed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProjectionState.Failed(childComplexity), true
+	case "ProjectionState.failedSequence":
+		if e.ComplexityRoot.ProjectionState.FailedSequence == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProjectionState.FailedSequence(childComplexity), true
+	case "ProjectionState.failure":
+		if e.ComplexityRoot.ProjectionState.Failure == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProjectionState.Failure(childComplexity), true
 	case "ProjectionState.lag":
 		if e.ComplexityRoot.ProjectionState.Lag == nil {
 			break
@@ -5949,6 +5970,12 @@ func (ec *executionContext) childFields_ProjectionState(ctx context.Context, fie
 		return ec.fieldContext_ProjectionState_streamLastSequence(ctx, field)
 	case "lag":
 		return ec.fieldContext_ProjectionState_lag(ctx, field)
+	case "failed":
+		return ec.fieldContext_ProjectionState_failed(ctx, field)
+	case "failedSequence":
+		return ec.fieldContext_ProjectionState_failedSequence(ctx, field)
+	case "failure":
+		return ec.fieldContext_ProjectionState_failure(ctx, field)
 	case "entryCount":
 		return ec.fieldContext_ProjectionState_entryCount(ctx, field)
 	case "estimatedBytes":
@@ -16836,6 +16863,75 @@ func (ec *executionContext) _ProjectionState_lag(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_ProjectionState_lag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _ProjectionState_failed(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProjectionState_failed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Failed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProjectionState_failed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ProjectionState_failedSequence(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProjectionState_failedSequence(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FailedSequence, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProjectionState_failedSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ProjectionState_failure(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProjectionState_failure(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Failure, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProjectionState_failure(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _ProjectionState_entryCount(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
@@ -33823,6 +33919,21 @@ func (ec *executionContext) _ProjectionState(ctx context.Context, sel ast.Select
 			}
 		case "lag":
 			out.Values[i] = ec._ProjectionState_lag(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failed":
+			out.Values[i] = ec._ProjectionState_failed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failedSequence":
+			out.Values[i] = ec._ProjectionState_failedSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failure":
+			out.Values[i] = ec._ProjectionState_failure(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

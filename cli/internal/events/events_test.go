@@ -426,6 +426,17 @@ func (p *trackingProjection) Count() int {
 	return len(p.events)
 }
 
+func waitForProjectorStarted(t *testing.T, projector *Projector) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for !projector.Started() {
+		if time.Now().After(deadline) {
+			t.Fatal("projector did not start")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
@@ -565,6 +576,7 @@ func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
 	go func() { _ = projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
 
 	ctx := testContext(t)
 	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
@@ -581,6 +593,102 @@ func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
 	}
 	if got := projector.LastSeq(); got >= seq {
 		t.Fatalf("LastSeq=%d, want less than failed seq %d", got, seq)
+	}
+
+	status := projector.Status()
+	if !status.Failed {
+		t.Fatal("Status.Failed = false, want true")
+	}
+	if status.FailedSeq != seq {
+		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, seq)
+	}
+	if !errors.Is(status.Err, applyErr) {
+		t.Fatalf("Status.Err = %v, want wrapped apply error", status.Err)
+	}
+}
+
+func TestProjector_RunReturnsProjectionError(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	applyErr := errors.New("apply failed")
+	proj := &failingProjection{
+		trackingProjection: newTrackingProjection(RoomSubjectFilter()),
+		err:                applyErr,
+	}
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	t.Cleanup(cancelRun)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
+
+	ctx := testContext(t)
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrProjectionFailed) {
+			t.Fatalf("want ErrProjectionFailed, got %v", err)
+		}
+		if !errors.Is(err, applyErr) {
+			t.Fatalf("want wrapped apply error, got %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector Run did not return after projection failure")
+	}
+
+	status := projector.Status()
+	if !status.Failed {
+		t.Fatal("Status.Failed = false, want true")
+	}
+	if status.FailedSeq != seq {
+		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, seq)
+	}
+}
+
+func TestProjector_RunFailsOnUnmarshalableEvent(t *testing.T) {
+	js, stream := setupTestStream(t)
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	t.Cleanup(cancelRun)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
+
+	ctx := testContext(t)
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	ack, err := js.Publish(ctx, subject, []byte{0xff},
+		jetstream.WithExpectLastSequencePerSubject(0),
+		jetstream.WithMsgID("bad-protobuf"),
+	)
+	if err != nil {
+		t.Fatalf("raw Publish: %v", err)
+	}
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrProjectionFailed) {
+			t.Fatalf("want ErrProjectionFailed, got %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector Run did not return after decode failure")
+	}
+
+	status := projector.Status()
+	if !status.Failed {
+		t.Fatal("Status.Failed = false, want true")
+	}
+	if status.FailedSeq != ack.Sequence {
+		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, ack.Sequence)
+	}
+	if got := projector.LastSeq(); got >= ack.Sequence {
+		t.Fatalf("LastSeq=%d, want less than failed seq %d", got, ack.Sequence)
 	}
 }
 

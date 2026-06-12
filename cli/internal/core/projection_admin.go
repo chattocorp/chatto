@@ -23,6 +23,9 @@ type ProjectionAdminState struct {
 	MatchingStreamSeq uint64
 	StreamLastSeq     uint64
 	Lag               uint64
+	Failed            bool
+	FailedSeq         uint64
+	Failure           string
 	EntryCount        int64
 	EstimatedBytes    int64
 	AverageEntryBytes int64
@@ -51,7 +54,8 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 		if err != nil {
 			return err
 		}
-		lastApplied := projector.LastSeq()
+		status := projector.Status()
+		lastApplied := status.LastSeq
 		var lag uint64
 		if targetSeq > lastApplied {
 			lag = targetSeq - lastApplied
@@ -63,11 +67,14 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 		states = append(states, ProjectionAdminState{
 			Name:              name,
 			Subjects:          projector.Subjects(),
-			Started:           projector.Started(),
+			Started:           status.Started,
 			LastAppliedSeq:    lastApplied,
 			MatchingStreamSeq: targetSeq,
 			StreamLastSeq:     streamLastSeq,
 			Lag:               lag,
+			Failed:            status.Failed,
+			FailedSeq:         status.FailedSeq,
+			Failure:           status.Failure,
 			EntryCount:        entries,
 			EstimatedBytes:    estimatedBytes,
 			AverageEntryBytes: avg,

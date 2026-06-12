@@ -716,6 +716,12 @@ type ProjectionState struct {
 	StreamLastSequence string `json:"streamLastSequence"`
 	// Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence.
 	Lag int `json:"lag"`
+	// Whether this projection has stopped after a fatal decode or apply error.
+	Failed bool `json:"failed"`
+	// Failed event-log sequence, serialized as String. Zero when the projection has not failed.
+	FailedSequence string `json:"failedSequence"`
+	// Operator-facing failure summary. Empty when the projection has not failed.
+	Failure string `json:"failure"`
 	// Primary projected entry count for this projection.
 	EntryCount int `json:"entryCount"`
 	// Estimated bytes held in memory by this projection.
