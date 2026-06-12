@@ -690,7 +690,7 @@ export class MessagesStore {
   }
 
   private catchUpRoomForward(thisLoad: number, after: string): void {
-    const seenBeforeFetch = new Set<string>(this.seenIds);
+    const seenBeforeFetch = new SvelteSet<string>(this.seenIds);
 
     this.client
       .query(RoomAfterQuery, {
