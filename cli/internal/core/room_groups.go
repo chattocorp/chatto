@@ -20,9 +20,7 @@ const maxMoveRoomToGroupRetries = 5
 // per-group room-membership events live on `evt.group.{G}`; the
 // operator-defined inter-group ordering lives on the singleton
 // `evt.layout.default` aggregate. The legacy `room_group.{id}` and
-// `room_layout` KV records are no longer written; they remain
-// populated from pre-phase-6 history and the boot-time migrations,
-// kept around solely to allow a rollback to a pre-phase-6 binary.
+// `room_layout` KV records are no longer written or read by current code.
 //
 // Reads compose three read-model indexes:
 //   - RoomGroups: per-group metadata + ordered room_ids

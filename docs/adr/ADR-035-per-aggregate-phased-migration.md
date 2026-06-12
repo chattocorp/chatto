@@ -51,8 +51,8 @@ Cleanup was deferred for every aggregate until the full set of aggregates had be
 
 Original rationale for deferring cleanup:
 
-- **Import evidence.** Keeping legacy data available makes it possible to inspect what was imported if a projection or event-shape bug appears during rollout.
-- **Importer safety.** Boot importers are idempotent and cheap after first run. Keeping them around lets scratch restores, partial boots, and re-runs use the same production code path.
+- **Import evidence.** Keeping legacy data available made it possible to inspect what was imported if a projection or event-shape bug appeared during rollout.
+- **Importer safety.** Boot importers were idempotent and cheap after first run. Keeping them around let scratch restores, partial boots, and re-runs use the same production code path during the rollout window.
 - **Interface review window.** Holding off on irreversible deletion lets us shape the new event/projection/manager APIs across all aggregates before committing to the cleanup.
 
 Cleanup unblocked once: (a) every aggregate had reached event-only writes, (b) the new system had burned in across the existing servers, and (c) the projection and mutator APIs were stable enough for the 0.1.x lane.
@@ -63,7 +63,7 @@ An earlier draft of this ADR (and a now-deleted `chatto evt migrate` CLI) had ea
 
 Running the migrations at boot inside `NewChattoCore` avoids the multi-process problem entirely. The cost is one extra step at startup; the steady-state cost (after first boot) is a KV key scan and per-subject OCC check, both O(aggregates).
 
-Manual re-runs are not currently exposed. If we ever need them — e.g. for testing or rolling back a botched stream — we'd add the surface (likely a GraphQL admin mutation) at that point.
+Manual re-runs were never exposed, and the boot importers have since been removed. Any future repair or backfill would need a new explicit tool rather than relying on this rollout path.
 
 ### First aggregate: room membership
 
@@ -130,19 +130,19 @@ If we hit a migration where this turns out to be the wrong call, we add the shad
 
 ## Consequences
 
-- **Per-aggregate cadence.** Each migration is one or more PRs: event/projection/importer first, then direct read/write cutover. Many can land in parallel across aggregates once the framework stabilises.
-- **Two systems coexist, but not as mirrors.** The old `SERVER_EVENTS` stream, legacy KV buckets, and the new `EVT` stream all exist during the migration window. For migrated aggregates, only `EVT` is written; legacy storage is pre-cutover data and import evidence.
+- **Per-aggregate cadence.** Each migration landed as one or more PRs: event/projection/importer first, then direct read/write cutover.
+- **Two systems coexisted, but not as mirrors.** The old `SERVER_EVENTS` stream, legacy KV buckets, and the new `EVT` stream existed together during the migration window. For migrated aggregates, only `EVT` was written; legacy storage was pre-cutover data and import evidence.
 - **Cutover is not independently revertable after new writes.** This is the cost of avoiding dual-write. Rollout discipline moves to backup, scratch restore, real-data validation, and fix-forward readiness.
-- **Migration functions accumulate temporary surface.** The boot-import surface was intentionally carried through rollout and removed once cleanup unblocked.
+- **Migration functions accumulated temporary surface.** The boot-import surface was intentionally carried through rollout and removed once cleanup unblocked.
 - **No divergence safety net at cutover.** Cutover relies on tests plus validation against a copy of production/community data. A latent projection bug could cause user-visible incorrectness. We accept this for migration velocity in alpha and revisit if any migration burns us.
-- **The framework matures through use.** Room membership shakes out the first version of the internal events package. Aggregates two through five will refine it; the remainder should be mechanical.
-- **Messages were pulled forward once the framework existed.** Messages are the highest-volume migration and the aggregate that ADR-033's RAM win actually unlocks. We still validate them harder than smaller aggregates, but they do not wait for users/RBAC/read-state.
+- **The framework matured through use.** Room membership shook out the first version of the internal events package, and later aggregates refined it.
+- **Messages were pulled forward once the framework existed.** Messages were the highest-volume migration and the aggregate that ADR-033's RAM win actually unlocked.
 
 ## Out of scope for this ADR
 
 - The specific protobuf event additions for each aggregate — decided per-aggregate at migration time.
 - Snapshot strategy and the projection-restore-from-snapshot path — deferred.
-- Long-term retention of the legacy `SERVER_EVENTS` stream after the last aggregate migrates — handled as a one-off cleanup later.
+- Long-term retention of the legacy `SERVER_EVENTS` stream after the last aggregate migrates — now handled by the 2026-06-12 cleanup.
 - A general "framework readiness" gate before starting aggregate two. We start the next aggregate when the previous direct-cutover path has enough test and rollout confidence; no separate framework-quality checkpoint.
 
 ## Related

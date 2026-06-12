@@ -63,7 +63,7 @@ func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerCon
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
-// migration code and tests that bypass the compose step.
+// tests and controlled repair paths that bypass the compose step.
 func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
 	return cm.publish(ctx, actorID, cfg)
 }

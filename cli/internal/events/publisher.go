@@ -37,9 +37,9 @@ type Logger interface {
 }
 
 // ErrConflict is returned from AppendAt when the supplied expected sequence
-// doesn't match the stream's current state for the subject. Callers in
-// migration code use errors.Is(err, ErrConflict) to skip already-emitted
-// subjects without inspecting raw NATS error codes.
+// doesn't match the stream's current state for the subject. Deterministic
+// replay or repair callers can use errors.Is(err, ErrConflict) without
+// inspecting raw NATS error codes.
 var ErrConflict = errors.New("expected-last-subject-sequence mismatch")
 
 // ErrInvalidEvent is returned when the event payload is nil or otherwise
@@ -67,8 +67,7 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger Logger
 }
 
 // StreamUsage returns the current message and byte totals for the bound
-// stream. Rollout tooling uses this to report how many EVT records each
-// importer appended without making every importer expose bespoke counters.
+// stream.
 func (p *Publisher) StreamUsage(ctx context.Context) (messages, bytes uint64, err error) {
 	info, err := p.stream.Info(ctx)
 	if err != nil {
@@ -165,10 +164,8 @@ func (p *Publisher) AppendEventually(ctx context.Context, subject string, event 
 // fresh subject expects 0 ("no prior message"). After a successful
 // publish, the returned seq becomes the next call's expectedSeq.
 //
-// Used by migration code: for the first event on each subject, pass 0;
-// thread the returned seq forward for subsequent events. A conflict on
-// the first event means the subject is already migrated; the caller
-// can skip the rest of the subject's events.
+// For deterministic replay, pass 0 for the first event on a fresh subject and
+// thread the returned seq forward for subsequent events on that subject.
 func (p *Publisher) AppendAt(ctx context.Context, subject string, event *corev1.Event, expectedSeq uint64) (uint64, error) {
 	if err := validateEvent(event); err != nil {
 		return 0, err
@@ -433,9 +430,7 @@ func (p *Publisher) LastSubjectSeq(ctx context.Context, subjectOrFilter string) 
 }
 
 // SubjectEvents returns events currently published on a subject, in stream
-// order, plus the stream sequence of the last matching event. Migration code
-// uses this to resume imports without duplicating events after a crash or
-// failed boot.
+// order, plus the stream sequence of the last matching event.
 func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev1.Event, uint64, error) {
 	consumer, err := p.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    []string{subject},

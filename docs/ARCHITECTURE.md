@@ -628,9 +628,8 @@ Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-bas
 
 A transitional `attachment.{roomId}.{attachmentId}` key shape existed
 in this bucket between #575 and #581 as a per-attachment authz index;
-it was retired by the signed-locator URL scheme (ADR-032) and any
-leftover entries are swept at boot by the `DropLegacyAttachmentRecords`
-migration. New code should not write to `attachment.*` keys here.
+it was retired by the signed-locator URL scheme (ADR-032). New code should not
+write to `attachment.*` keys here.
 
 **SERVER\_REACTIONS keys:**
 

@@ -331,13 +331,8 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 // key and the pre-Phase-4 server/DM-prefixed legacy keys. Whichever
 // backend has the binary wins.
 //
-// This is load-bearing for pre-locator video variants and thumbnails:
-// `BackfillAttachmentRecords` (long-since deleted) wrote minimal
-// `Attachment{Id, RoomId}` records for those, and
-// `BackfillAttachmentLocatorData` copied those minimal records into
-// legacy `VideoProcessingState.{ThumbnailAttachment, Variants[i].Attachment}`.
-// The EVT manifest migration can import those protos; they have no Storage,
-// so we probe.
+// This is load-bearing for older video variants and thumbnails whose
+// attachment protos have no Storage field, so we probe.
 func (c *ChattoCore) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
 	reader, natsInfo, err := c.GetAttachment(ctx, attachmentID)
 	if err == nil {
