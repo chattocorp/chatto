@@ -63,11 +63,11 @@ jobs:
 
   test-e2e:
     runs-on: ubicloud-standard-4
-    name: test-e2e (${{ matrix.shard }}/4)
+    name: test-e2e (${{ matrix.shard }}/3)
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -91,7 +91,7 @@ jobs:
         run: mise build-e2e-server
 
       - name: Run E2E tests
-        run: cd frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
+        run: cd frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/3
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
