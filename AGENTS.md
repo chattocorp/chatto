@@ -20,10 +20,17 @@ Please use the following facts when making decisions about features or implement
 - This project is currently in early development.
 - The 0.1.x event-sourcing architecture has been rolled out to all existing Chatto servers/instances.
 - Pre-0.1.0 boot importers and their verification settings have been removed. Do not add new code that depends on importing a 0.0.x server into the 0.1.x event-sourced shape.
+- We're preparing a release of 0.1.0, the first public version that users can self-host or provision through Chatto Cloud. A milestone of the same name is available on GitHub to track work related to this release.
 - The focus of 0.1.x is on stabilizing the core data model and APIs, improving documentation, and building out a solid foundation for future features. We want to avoid adding new features that aren't necessary for this stabilization effort.
-- Treat `GET /api/server` as a higher-stability compatibility surface than the GraphQL API. It is the unauthenticated, cross-origin discovery endpoint used by multi-server clients before they can establish GraphQL access, so breaking its URL, CORS behavior, required JSON fields, or OAuth discovery fields can strand older clients. Prefer additive changes and double-check compatibility before changing this endpoint.
 
 Please update this section as the project evolves, and refer to it when making decisions about features or implementation.
+
+### Breaking Changes
+
+- While we're in 0.x.y, it is fine to make breaking changes to the GraphQL API, but please only make them when absolutely necessary, and alert the user accordingly.
+- Protocol Buffer messages that we are using in our persisted JetStream streams (EVT, RUNTIME_STATE, maybe others) are more stable, and breaking changes to their structure should be avoided. Protocol Buffer messages that are only used for transient communication (live events, etc.) are less stable, and can be changed more freely. (But please consider that changes to these might also lead to changes in the GraphQL API!)
+- Treat `GET /api/server` as a higher-stability compatibility surface than the GraphQL API. It is the unauthenticated, cross-origin discovery endpoint used by multi-server clients before they can establish GraphQL access, so breaking its URL, CORS behavior, required JSON fields, or OAuth discovery fields can strand older clients. Prefer additive changes and double-check compatibility before changing this endpoint.
+
 
 ### When making changes...
 
