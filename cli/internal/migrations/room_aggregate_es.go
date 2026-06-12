@@ -18,6 +18,8 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+type legacyRoomMembershipEvents map[string]map[string]*corev1.Event
+
 // MigrateRoomAggregateToES seeds the EVT stream from the existing
 // `room.{kind}.{roomID}` keys and both known room membership key shapes
 // in SERVER_CONFIG (ADR-035 phase 3 for the room aggregate):
@@ -50,6 +52,7 @@ func MigrateRoomAggregateToES(
 	serverConfigKV jetstream.KeyValue,
 	publisher *events.Publisher,
 	logger *log.Logger,
+	legacyServerEvents ...jetstream.Stream,
 ) error {
 	roomKeys, err := listSortedKeys(ctx, serverConfigKV, "room.channel.*", "room.dm.*")
 	if err != nil {
@@ -60,6 +63,12 @@ func MigrateRoomAggregateToES(
 	if err != nil {
 		return fmt.Errorf("load memberships: %w", err)
 	}
+
+	legacyJoins, err := loadLegacyRoomMembershipEvents(ctx, firstLegacyStream(legacyServerEvents), logger)
+	if err != nil {
+		return fmt.Errorf("load legacy room membership events: %w", err)
+	}
+	applyLegacyMembershipEvents(memberships, legacyJoins)
 
 	var migrated, skipped, archivedEvents, memberEvents, memberBackfillEvents int
 	for _, key := range roomKeys {
@@ -118,9 +127,7 @@ func MigrateRoomAggregateToES(
 		}
 
 		for _, m := range memberships[room.GetId()] {
-			joinedEvent := stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
-				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.GetId()},
-			}}, m.userID, timestamppb.New(m.createdAt))
+			joinedEvent := m.joinEvent(room.GetId())
 			batch = append(batch, events.BatchEntry{
 				Subject: agg.SubjectFor(joinedEvent),
 				Event:   joinedEvent,
@@ -191,9 +198,7 @@ func backfillMissingRoomMemberships(
 			continue
 		}
 
-		event := stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
-		}}, membership.userID, timestamppb.New(membership.createdAt))
+		event := membership.joinEvent(roomID)
 
 		seq, err := publisher.AppendAt(ctx, subject, event, expectedSeq)
 		if err != nil {
@@ -209,8 +214,18 @@ func backfillMissingRoomMemberships(
 // its room_membership entry. Used to order UserJoinedRoom events
 // chronologically within each room's seed batch.
 type membershipEntry struct {
-	userID    string
-	createdAt time.Time
+	userID      string
+	createdAt   time.Time
+	legacyEvent *corev1.Event
+}
+
+func (m membershipEntry) joinEvent(roomID string) *corev1.Event {
+	if m.legacyEvent != nil {
+		return proto.Clone(m.legacyEvent).(*corev1.Event)
+	}
+	return stamp(&corev1.Event{Event: &corev1.Event_UserJoinedRoom{
+		UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
+	}}, m.userID, timestamppb.New(m.createdAt))
 }
 
 // loadMembershipsByRoom reads every `room_membership.>` key and groups
@@ -288,6 +303,115 @@ func parseRoomMembershipKey(key string) (roomID string, userID string, ok bool) 
 		return parts[2], parts[1], true
 	default:
 		return "", "", false
+	}
+}
+
+func firstLegacyStream(streams []jetstream.Stream) jetstream.Stream {
+	if len(streams) == 0 {
+		return nil
+	}
+	return streams[0]
+}
+
+func loadLegacyRoomMembershipEvents(
+	ctx context.Context,
+	stream jetstream.Stream,
+	logger *log.Logger,
+) (legacyRoomMembershipEvents, error) {
+	if stream == nil {
+		return nil, nil
+	}
+
+	consumer, err := stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		FilterSubjects:    []string{"server.room.*.*.meta"},
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckNonePolicy,
+		MemoryStorage:     true,
+		InactiveThreshold: 30 * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create legacy room membership consumer on SERVER_EVENTS: %w", err)
+	}
+	defer stream.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+
+	info, err := consumer.Info(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get legacy room membership consumer info: %w", err)
+	}
+	if info.NumPending == 0 {
+		return nil, nil
+	}
+
+	msgs, err := consumer.Fetch(int(info.NumPending), jetstream.FetchMaxWait(60*time.Second))
+	if err != nil && !errors.Is(err, jetstream.ErrNoMessages) {
+		return nil, fmt.Errorf("fetch legacy room membership events: %w", err)
+	}
+	if msgs == nil {
+		return nil, nil
+	}
+
+	byRoom := make(legacyRoomMembershipEvents)
+	for msg := range msgs.Messages() {
+		var legacyEvent corev1.Event
+		if err := proto.Unmarshal(msg.Data(), &legacyEvent); err != nil {
+			logger.Warn("room_aggregate ES migration: skipping unmarshalable legacy room meta event", "subject", msg.Subject(), "error", err)
+			continue
+		}
+
+		join := legacyEvent.GetUserJoinedRoom()
+		if join == nil {
+			continue
+		}
+		roomID := join.GetRoomId()
+		userID := legacyEvent.GetActorId()
+		if roomID == "" || userID == "" {
+			logger.Warn("room_aggregate ES migration: skipping legacy room join with missing room or actor", "subject", msg.Subject(), "room_id", roomID, "actor_id", userID)
+			continue
+		}
+
+		legacyEvent.CreatedAt = preserveTimestamp(legacyEvent.GetCreatedAt())
+		if legacyEvent.GetId() == "" {
+			legacyEvent.Id = newMigrationEventID()
+		}
+
+		roomJoins := byRoom[roomID]
+		if roomJoins == nil {
+			roomJoins = make(map[string]*corev1.Event)
+			byRoom[roomID] = roomJoins
+		}
+		if existing := roomJoins[userID]; existing != nil && !legacyEvent.GetCreatedAt().AsTime().Before(existing.GetCreatedAt().AsTime()) {
+			continue
+		}
+		roomJoins[userID] = proto.Clone(&legacyEvent).(*corev1.Event)
+	}
+	return byRoom, nil
+}
+
+func applyLegacyMembershipEvents(
+	memberships map[string][]membershipEntry,
+	legacyJoins legacyRoomMembershipEvents,
+) {
+	for roomID, joins := range legacyJoins {
+		members := memberships[roomID]
+		seen := make(map[string]int, len(members))
+		for i, member := range members {
+			seen[member.userID] = i
+		}
+
+		for userID, event := range joins {
+			if idx, ok := seen[userID]; ok {
+				members[idx].createdAt = event.GetCreatedAt().AsTime()
+				members[idx].legacyEvent = event
+			}
+		}
+
+		sort.Slice(members, func(i, j int) bool {
+			if !members[i].createdAt.Equal(members[j].createdAt) {
+				return members[i].createdAt.Before(members[j].createdAt)
+			}
+			return members[i].userID < members[j].userID
+		})
+		memberships[roomID] = members
 	}
 }
 

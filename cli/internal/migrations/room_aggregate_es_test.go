@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -230,6 +231,88 @@ func TestMigrateRoomAggregateToES_ChronologicalMembershipOrder(t *testing.T) {
 		require.NoError(t, proto.Unmarshal(msg.Data, &ev))
 		require.Equal(t, wantActor, ev.GetActorId(), "join #%d actor", i)
 	}
+}
+
+func TestMigrateRoomAggregateToES_PreservesLegacyJoinEnvelope(t *testing.T) {
+	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
+	legacyStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     "SERVER_EVENTS_TEST",
+		Subjects: []string{"server.>"},
+		Storage:  jetstream.MemoryStorage,
+	})
+	require.NoError(t, err)
+
+	seedRoom(t, kv, "dm", &corev1.Room{
+		Id:   "DM1",
+		Kind: corev1.RoomKind_ROOM_KIND_DM,
+	})
+	seedMembership(t, kv, "dm", "DM1", "U1")
+
+	legacyCreatedAt := time.Date(2026, 3, 17, 13, 38, 0, 0, time.UTC)
+	legacyJoin := &corev1.Event{
+		Id:        "ElegacyJoinU1",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.New(legacyCreatedAt),
+		Event: &corev1.Event_UserJoinedRoom{
+			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "DM1"},
+		},
+	}
+	data, err := proto.Marshal(legacyJoin)
+	require.NoError(t, err)
+	_, err = js.Publish(ctx, "server.room.dm.DM1.meta", data)
+	require.NoError(t, err)
+
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger(), legacyStream))
+
+	msg, err := stream.GetMsg(ctx, 2)
+	require.NoError(t, err)
+	var ev corev1.Event
+	require.NoError(t, proto.Unmarshal(msg.Data, &ev))
+	require.Equal(t, "ElegacyJoinU1", ev.GetId())
+	require.Equal(t, "U1", ev.GetActorId())
+	require.True(t, ev.GetCreatedAt().AsTime().Equal(legacyCreatedAt))
+	require.Equal(t, "DM1", ev.GetUserJoinedRoom().GetRoomId())
+}
+
+func TestMigrateRoomAggregateToES_DoesNotResurrectLegacyJoinWithoutMembership(t *testing.T) {
+	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
+	legacyStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     "SERVER_EVENTS_TEST",
+		Subjects: []string{"server.>"},
+		Storage:  jetstream.MemoryStorage,
+	})
+	require.NoError(t, err)
+
+	seedRoom(t, kv, "channel", &corev1.Room{
+		Id:   "R1",
+		Name: "general",
+		Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	})
+
+	legacyJoin := &corev1.Event{
+		Id:        "EdepartedJoin",
+		ActorId:   "Udeparted",
+		CreatedAt: timestamppb.New(time.Date(2026, 3, 17, 13, 38, 0, 0, time.UTC)),
+		Event: &corev1.Event_UserJoinedRoom{
+			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+		},
+	}
+	data, err := proto.Marshal(legacyJoin)
+	require.NoError(t, err)
+	_, err = js.Publish(ctx, "server.room.channel.R1.meta", data)
+	require.NoError(t, err)
+
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger(), legacyStream))
+
+	info, err := stream.Info(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, info.State.Msgs)
+
+	msg, err := stream.GetMsg(ctx, 1)
+	require.NoError(t, err)
+	var ev corev1.Event
+	require.NoError(t, proto.Unmarshal(msg.Data, &ev))
+	require.NotNil(t, ev.GetRoomCreated())
 }
 
 // firstAggregateSeq returns the lowest stream sequence carrying a

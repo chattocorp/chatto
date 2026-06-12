@@ -113,21 +113,9 @@
   const scrollState = composerContext.scrollState;
   const userSettings = getUserSettings();
 
-  // Sort events chronologically. Uses createdAt with event ID tiebreaker for
-  // the rare case of sub-millisecond concurrent posts. Events from JetStream
-  // are already ordered; this is a safety net for merged live + historical data.
-  let sortedEvents = $derived(
-    [...events].sort((a, b) => {
-      const timeA = new Date(a.createdAt).getTime();
-      const timeB = new Date(b.createdAt).getTime();
-      if (timeA !== timeB) return timeA - timeB;
-      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-    })
-  );
-
   // Filter events based on configuration
   let filteredEvents = $derived(
-    sortedEvents.filter((e) => {
+    events.filter((e) => {
       if (e.event?.__typename !== 'MessagePostedEvent') return true;
 
       const msg = e.event;

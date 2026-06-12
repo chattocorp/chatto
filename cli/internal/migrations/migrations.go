@@ -122,7 +122,7 @@ func RunAll(
 	// seed together: a RoomCreatedEvent first, then the chronologically
 	// ordered UserJoinedRoomEvents. Atomic AppendBatch keeps that invariant.
 	if err := run("room_aggregate_es", serverConfigKV != nil, func() error {
-		return MigrateRoomAggregateToES(ctx, serverConfigKV, publisher, logger)
+		return MigrateRoomAggregateToES(ctx, serverConfigKV, publisher, logger, serverEventsStream)
 	}); err != nil {
 		return err
 	}
