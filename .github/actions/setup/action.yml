@@ -29,15 +29,24 @@ runs:
       with:
         version: 10
 
+    # Keep module downloads stable, but let the compiled package cache roll forward
+    # with source changes. A go.sum-only build-cache key restores quickly, then
+    # refuses to save fresher local package artifacts on every exact cache hit.
     - name: Cache Go modules
       uses: actions/cache@v5
       with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: go-${{ runner.os }}-${{ hashFiles('cli/go.sum') }}
+        path: ~/go/pkg/mod
+        key: go-mod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum') }}
         restore-keys: |
-          go-${{ runner.os }}-
+          go-mod-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Cache Go build artifacts
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/go-build
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'cli/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/src/**', 'frontend/static/**', 'frontend/svelte.config.js', 'frontend/tsconfig.json', 'frontend/vite.config.ts', 'mise.toml') }}
+        restore-keys: |
+          go-build-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Install ffmpeg (required for video processing e2e tests)
       if: inputs.install-ffmpeg == 'true'

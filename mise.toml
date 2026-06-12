@@ -118,7 +118,7 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../frontend/e2e/fixtures/bin/chatto ."
 sources = ["**/*.go", "internal/http_server/.client/**/*"]
 outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 
