@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 )
 
@@ -29,6 +30,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - DELETE /auth/test/emails - Clear all captured emails
 //   - POST /auth/test/verify-email - Directly verify a user's email
 //   - POST /auth/test/create-user - Directly create a user without registration flow
+//   - POST /auth/test/create-user-session - Create, verify, join defaults, and log in a test user
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/oauth-authorize - Mint an OAuth authorization code without UI interaction
@@ -123,6 +125,82 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			"id":          user.Id,
 			"login":       user.Login,
 			"displayName": user.DisplayName,
+		})
+	})
+
+	// Test-only endpoint to create a ready-to-use E2E user in one round trip.
+	// This keeps ordinary browser tests isolated while avoiding the repeated
+	// create -> verify -> login -> list rooms -> join rooms setup sequence.
+	auth.POST("test/create-user-session", func(c *gin.Context) {
+		var req struct {
+			Login            string `json:"login" binding:"required"`
+			DisplayName      string `json:"displayName"`
+			Password         string `json:"password" binding:"required"`
+			Email            string `json:"email" binding:"required,email"`
+			JoinDefaultRooms *bool  `json:"joinDefaultRooms"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if !isValidLogin(req.Login) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive periods)"})
+			return
+		}
+
+		displayName := req.DisplayName
+		if displayName == "" {
+			displayName = req.Login
+		}
+
+		ctx := c.Request.Context()
+		user, err := s.core.CreateVerifiedUser(ctx, core.SystemActorID, req.Login, displayName, req.Password, req.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		joinDefaultRooms := true
+		if req.JoinDefaultRooms != nil {
+			joinDefaultRooms = *req.JoinDefaultRooms
+		}
+		if joinDefaultRooms {
+			rooms, err := s.core.ListRooms(ctx, core.KindChannel)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			defaults := map[string]struct{}{
+				"announcements": {},
+				"general":       {},
+			}
+			for _, room := range rooms {
+				if _, ok := defaults[room.Name]; !ok {
+					continue
+				}
+				if _, err := s.core.JoinRoom(ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+			}
+		}
+
+		if err := s.createCookieSession(c, user.Id, "test_create_user_session"); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := s.core.RecordLoginSucceeded(ctx, user.Id, req.Login); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"user": gin.H{
+				"id":          user.Id,
+				"login":       user.Login,
+				"displayName": user.DisplayName,
+			},
 		})
 	})
 

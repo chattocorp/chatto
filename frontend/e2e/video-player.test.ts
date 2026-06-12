@@ -8,6 +8,8 @@ import { TIMEOUTS } from './constants';
 // Video processing (ffmpeg transcode) can take up to 45s for small test videos.
 const VIDEO_PROCESSING_TIMEOUT = 45_000;
 
+test.use({ serverOptions: { env: { CHATTO_VIDEO_ENABLED: 'true' } } });
+
 test.describe('video player @ffmpeg', () => {
 	test.setTimeout(90_000);
 
