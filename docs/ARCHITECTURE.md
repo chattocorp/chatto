@@ -291,7 +291,7 @@ messages/threads, reactions, RBAC, and auth workflow audit facts.
 **Migrated event-sourced aggregates:**
 
 - `EVT` is the source of truth.
-- Boot importers seed `EVT` from pre-ES KV/`SERVER_EVENTS` data when those resources exist.
+- Fresh deployments seed only current invariants such as default RBAC roles and the default room group; pre-0.1 data importers are no longer part of the boot path.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded facts such as edits, retractions, reactions, assets, and thread replies; visible readers skip or fold those facts before serving the room timeline.
 - Writes append to `EVT` only; legacy KV/stream data is not maintained as a mirror.
@@ -413,7 +413,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 - Direct NATS Core publishes (`publishLiveEvent()`): transient `corev1.LiveEvent` messages on `live.sync.>` with no stream storage.
 - `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room events to clients.
 
-`SERVER_EVENTS` no longer has a `RePublish` live path and runtime code no longer writes legacy `server.>` mirrors. Remaining use is boot-import/read-only inspection of pre-ES data.
+`SERVER_EVENTS` no longer has a `RePublish` live path and runtime code no longer writes legacy `server.>` mirrors. Historical `SERVER_EVENTS` streams may still appear in old backups, but current boot and live-delivery paths do not read or import them.
 
 **Transient live sync events** (`live.sync.{user,config,room}.>`):
 
@@ -477,8 +477,8 @@ Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` 
 | `verified_emails.{userId}.{sha256(email)}` | One verified email per entry (proto `VerifiedEmail`) |
 | `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
 | `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
-| `instance.logo`                        | Legacy server logo asset reference, imported into EVT config events |
-| `instance.banner`                      | Legacy server banner asset reference, imported into EVT config events |
+| `instance.logo`                        | Legacy server logo asset reference |
+| `instance.banner`                      | Legacy server banner asset reference |
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
@@ -581,10 +581,10 @@ survives restart but is not content/domain history. See
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Legacy `SERVER_RUNTIME` `room_read_event.*` keys are copied here at boot; older `room_read_status.*` sequence keys are orphaned and ignored. |
-| `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Values copied from legacy `thread_last_opened.*` may be 8-byte UnixNano timestamps until rewritten by a new read action. |
+| `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Historical `SERVER_RUNTIME` `room_read_event.*` and `room_read_status.*` keys are no longer imported. |
+| `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Historical `thread_last_opened.*` values are no longer imported. |
 | `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
-| `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. Legacy `INSTANCE` keys are copied here at boot; the endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
+| `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. The endpoint hash keeps multiple devices per user while deduplicating the same browser subscription; historical `INSTANCE` push subscription keys are no longer imported. |
 | `email_otp.{hmac(subject)}.{hmac(code)}` | Shared registration and email-verification OTP code JSON. Registration values carry normalized email; authenticated email-verification values carry user ID and email. The subject hash scopes registration by email and authenticated verification by user/email, the code hash verifies the submitted six-digit code, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `email_otp.{hmac(subject)}.challenge` | Shared OTP challenge JSON with failed-attempt and issued-code counters. Wrong-code attempts update this record revision-safely, five wrong guesses exhaust the challenge until TTL, and at most ten codes can be issued for one challenge window. Uses per-key 15-minute TTL. |
 | `registration_completion.{hmac}` | Registration completion token JSON created after code verification. Uses per-key 15-minute TTL. |
@@ -602,9 +602,9 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
-| `video.{attachmentId}`                 | Legacy video processing state imported to EVT video manifest events at boot |
-| `attachment_records.backfilled`        | Sentinel set after the `BackfillAttachmentRecords` boot migration completes; short-circuits the scan on subsequent boots. |
-| `video_manifest_es.migrated`           | Sentinel set after legacy `video.*` records are imported into EVT |
+| `video.{attachmentId}`                 | Legacy video processing state |
+| `attachment_records.backfilled`        | Historical boot-migration sentinel |
+| `video_manifest_es.migrated`           | Historical video-manifest import sentinel |
 
 These keys don't carry a kind segment — `roomId` is globally unique, so direct lookup works for DM and channel rooms alike.
 
@@ -615,7 +615,7 @@ These keys don't carry a kind segment — `roomId` is globally unique, so direct
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status; per-key 60s TTL |
 | `call.{spaceId}.{roomId}`                  | JSON active voice call participant list          |
 
-Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is also volatile and is repopulated by LiveKit webhooks; legacy `CALL_STATE` entries are copied into `MEMORY_CACHE` on boot during the storage rename.
+Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is also volatile and is repopulated by LiveKit webhooks after restart; the retired `CALL_STATE` bucket is no longer imported.
 
 **SERVER\_BODIES keys:**
 
@@ -647,7 +647,7 @@ Notes: Current reaction writes append durable `ReactionAdded` / `ReactionRemoved
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
 | `SERVER_ASSETS`             | Asset binaries (avatars, server icon/banner, link previews, message attachments) |
 
-Pre-0.1 servers stored user avatars, server logo/banner, and link-preview images in `INSTANCE_ASSETS`. On 0.1 boot, Chatto copies those objects into `SERVER_ASSETS` with the same object names and headers before importing legacy pointers, then deletes the legacy `INSTANCE_ASSETS` object store. Fresh/current deployments do not create `INSTANCE_ASSETS`.
+Pre-0.1 servers stored user avatars, server logo/banner, and link-preview images in `INSTANCE_ASSETS`. Current deployments serve assets from `SERVER_ASSETS` and no longer create, copy, import, or delete `INSTANCE_ASSETS` during boot.
 
 **ASSET_CACHE keys:**
 
@@ -779,13 +779,13 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `RUNTIME_STATE` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is retained only as import evidence and for legacy backup restores.
+Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `RUNTIME_STATE` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is historical pre-0.1 storage and is no longer imported during boot.
 
 **Message Identifiers:**
 
 - **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for GraphQL `Event.id`, reactions, thread metadata, message-body lookup, attachments, and projections.
 - **Payload**: `MessagePostedEvent` is payload-only. It carries room/thread/echo fields, but not an event ID, message-body ID alias, or embedded body.
-- **Legacy import**: older `SERVER_EVENTS` records may contain an unknown-field `message_body_id` pointing at the legacy `{userId}.{eventId}` `SERVER_BODIES` key. The ES importer uses that only while copying legacy state into `MessageBodyEvent` + bodyless `MessagePostedEvent` EVT facts.
+- **Historical bodies**: older `SERVER_EVENTS` records may contain an unknown-field `message_body_id` pointing at the legacy `{userId}.{eventId}` `SERVER_BODIES` key. Current message reads use `MessageBodyEvent` facts from `EVT`; `SERVER_BODIES` is retained only as historical storage and for account-deletion cleanup of old body records.
 
 **Write Path:**
 

@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-06-01
+**Last reviewed:** 2026-06-12
 
 ## Overview
 
@@ -26,7 +26,7 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 
 ### 2. Call state is memory-backed, deliberately ephemeral
 
-**Decision:** Call state lives in the memory-backed, non-backed-up `MEMORY_CACHE` bucket. If JetStream restarts, the call state vanishes. The retired `CALL_STATE` bucket is copied into `MEMORY_CACHE` on boot when present so active calls survive the storage rename during upgrade.
+**Decision:** Call state lives in the memory-backed, non-backed-up `MEMORY_CACHE` bucket. If JetStream restarts, the call state vanishes. The retired `CALL_STATE` bucket is historical and is no longer imported on boot.
 **Why:** Call state is "who's connected right now". After a restart, the source of truth is LiveKit — and as participants reconnect, the webhooks repopulate the state automatically. Persisting it would waste storage and risk showing a stale "who's in the call" list across restarts.
 **Tradeoff:** A brief window after restart where the API reports no active calls until participants reconnect and webhooks land. Acceptable for an ephemeral concept.
 
