@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -119,6 +121,60 @@ func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 	}
 	if srv.WriteTimeout != 0 {
 		t.Fatalf("WriteTimeout = %s, want 0", srv.WriteTimeout)
+	}
+}
+
+func TestShutdownServerForcesCloseAfterTimeout(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enteredOnce sync.Once
+	srv := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			enteredOnce.Do(func() { close(entered) })
+			<-release
+		}),
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	go func() {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Errorf("Serve returned unexpected error: %v", err)
+		}
+	}()
+
+	clientDone := make(chan struct{})
+	go func() {
+		defer close(clientDone)
+		_, _ = http.Get("http://" + ln.Addr().String())
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not receive request")
+	}
+
+	shutdownDone := make(chan error, 1)
+	testServer := &HTTPServer{logger: log.WithPrefix("test.HTTP")}
+	go func() { shutdownDone <- testServer.shutdownServerWithTimeout(srv, 25*time.Millisecond) }()
+
+	select {
+	case err := <-shutdownDone:
+		if err == nil {
+			t.Fatal("shutdownServer returned nil; wanted graceful shutdown timeout")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("shutdownServer did not return after forced close")
+	}
+
+	close(release)
+	select {
+	case <-clientDone:
+	case <-time.After(time.Second):
+		t.Fatal("client request did not release after forced close")
 	}
 }
 

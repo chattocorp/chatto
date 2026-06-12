@@ -51,6 +51,7 @@ type HTTPServer struct {
 const (
 	httpServerReadHeaderTimeout = 10 * time.Second
 	httpServerIdleTimeout       = 2 * time.Minute
+	httpServerShutdownTimeout   = 5 * time.Second
 )
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
@@ -229,13 +230,20 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) shutdownServer(server *http.Server) error {
+	return s.shutdownServerWithTimeout(server, httpServerShutdownTimeout)
+}
+
+func (s *HTTPServer) shutdownServerWithTimeout(server *http.Server, timeout time.Duration) error {
 	s.logger.Info("Shutting down server", "addr", server.Addr)
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		s.logger.Error("Server forced to shutdown", "addr", server.Addr, "error", err)
+		if closeErr := server.Close(); closeErr != nil {
+			return fmt.Errorf("graceful shutdown: %w; forced close: %w", err, closeErr)
+		}
 		return err
 	}
 

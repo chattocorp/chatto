@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -71,8 +73,17 @@ func runServer(configPath string) {
 	setLogLevel(cfg.General.LogLevel)
 	printBanner()
 
-	// Create context that cancels on SIGINT/SIGTERM
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	exitCode := 0
+	defer func() {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+	}()
+
+	// Conductor stops foreground run scripts with SIGHUP before escalating.
+	// Chatto has no reload-on-HUP behavior, so treat it as graceful shutdown
+	// alongside the usual terminal and supervisor stop signals.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	// Use errgroup to coordinate services
@@ -82,18 +93,21 @@ func runServer(configPath string) {
 	var embeddedNATS *server.Server
 	if cfg.NATS.Embedded.Enabled {
 		var err error
-		embeddedNATS, err = embedded_nats.Start(ctx, g, &cfg.NATS.Embedded)
+		embeddedNATS, err = embedded_nats.StartServer(&cfg.NATS.Embedded)
 		if err != nil {
 			log.Fatal("Failed to start embedded NATS server", "error", err)
 		}
+		defer embedded_nats.ShutdownServer(embeddedNATS)
 	}
 
 	// Connect to NATS
-	nc, err := connectToNATS(cfg, embeddedNATS)
+	nc, err := connectToNATS(ctx, cfg, embeddedNATS)
 	if err != nil {
-		log.Fatal("Failed to connect to NATS", "error", err)
+		log.Error("Failed to connect to NATS", "error", err)
+		exitCode = 1
+		return
 	}
-	defer nc.Close()
+	defer closeNATSConnection(nc)
 
 	// Create Chatto core
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
@@ -102,7 +116,9 @@ func runServer(configPath string) {
 	cfg.Core.Owners = cfg.Owners
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
-		log.Fatal("Failed to create Chatto core", "error", err)
+		log.Error("Failed to create Chatto core", "error", err)
+		exitCode = 1
+		return
 	}
 
 	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
@@ -134,13 +150,23 @@ func runServer(configPath string) {
 	// RoomGroups projection — without this wait, the projection is
 	// still empty and the seeded rooms land without a group.
 	if err := chattoCore.WaitForBoot(ctx); err != nil {
-		log.Fatal("Core boot never completed", "error", err)
+		if ctx.Err() != nil {
+			return
+		}
+		log.Error("Core boot never completed", "error", err)
+		exitCode = 1
+		return
 	}
 
 	// Seed `announcements` + `general` on first boot of a fresh server.
 	// Idempotent — no-op once any channel room exists.
 	if err := chattoCore.SeedDefaultRooms(ctx); err != nil {
-		log.Fatal("Failed to seed default rooms", "error", err)
+		if ctx.Err() != nil {
+			return
+		}
+		log.Error("Failed to seed default rooms", "error", err)
+		exitCode = 1
+		return
 	}
 
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
@@ -171,7 +197,9 @@ func runServer(configPath string) {
 		Version: Version,
 	})
 	if err != nil {
-		log.Fatal("Failed to create HTTP server", "error", err)
+		log.Error("Failed to create HTTP server", "error", err)
+		exitCode = 1
+		return
 	}
 	g.Go(func() error {
 		return httpServer.Run(ctx)
@@ -179,12 +207,59 @@ func runServer(configPath string) {
 
 	// Wait for all services to complete (or one to fail)
 	if err := g.Wait(); err != nil && err != context.Canceled {
-		log.Fatal("Server failed", "error", err)
+		log.Error("Server failed", "error", err)
+		exitCode = 1
+	}
+}
+
+func closeNATSConnection(nc *nats.Conn) {
+	if nc == nil {
+		return
+	}
+
+	if nc.IsClosed() {
+		return
+	}
+
+	drained := make(chan struct{})
+	var closeDrained sync.Once
+	previousClosedHandler := nc.ClosedHandler()
+	nc.SetClosedHandler(func(conn *nats.Conn) {
+		if previousClosedHandler != nil {
+			previousClosedHandler(conn)
+		}
+		closeDrained.Do(func() {
+			close(drained)
+		})
+	})
+
+	if err := nc.Drain(); err != nil {
+		log.Warn("Failed to drain NATS connection before close", "error", err)
+		nc.Close()
+		closeDrained.Do(func() {
+			close(drained)
+		})
+		return
+	}
+
+	timeout := nc.Opts.DrainTimeout
+	if timeout <= 0 {
+		timeout = nats.DefaultDrainTimeout
+	}
+
+	// nats.Conn.drainConnection waits up to DrainTimeout for subscriptions,
+	// then does a publish FlushTimeout with a hard-coded 5 second budget.
+	waitTimeout := timeout + 6*time.Second
+	select {
+	case <-drained:
+	case <-time.After(waitTimeout):
+		log.Warn("Timed out waiting for NATS connection drain to complete", "timeout", waitTimeout)
+		nc.Close()
 	}
 }
 
 // connectToNATS establishes a connection to NATS with appropriate options.
-func connectToNATS(cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
+func connectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
 	logger := log.WithPrefix("nats")
 
 	var connectOpts []nats.Option
@@ -210,6 +285,7 @@ func connectToNATS(cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.
 		nats.MaxReconnects(-1),                   // Unlimited reconnection attempts
 		nats.ReconnectWait(100*time.Millisecond), // Quick initial reconnection
 		nats.ReconnectBufSize(8*1024*1024),       // 8MB buffer for pending messages during reconnect
+		nats.DrainTimeout(5*time.Second),
 		nats.ErrorHandler(func(_ *nats.Conn, sub *nats.Subscription, err error) {
 			if sub != nil {
 				logger.Error("NATS subscription error", "subject", sub.Subject, "error", err)
@@ -245,13 +321,22 @@ func connectToNATS(cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.
 		err error
 	)
 	for attempt := range 10 {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		nc, err = nats.Connect(natsURL, connectOpts...)
 		if err == nil {
 			break
 		}
 		if attempt < 9 {
 			logger.Warn("Failed to connect to NATS, retrying", "error", err, "attempt", attempt+1)
-			time.Sleep(2 * time.Second)
+			timer := time.NewTimer(2 * time.Second)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return nil, ctx.Err()
+			case <-timer.C:
+			}
 		}
 	}
 	if err != nil {

@@ -128,6 +128,32 @@ depends = ["deps-frontend"]
 dir = "frontend"
 run = "pnpm storybook"
 
+[tasks.dev-backend]
+description = "Build and run the local development backend"
+dir = "cli"
+run = "go build -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+
+[tasks.dev-frontend]
+description = "Run the local development frontend"
+dir = "frontend"
+run = "exec ./node_modules/.bin/vite dev"
+
+[tasks.dev-frontend-codegen]
+description = "Run frontend GraphQL codegen in watch mode"
+dir = "frontend"
+run = "exec ./node_modules/.bin/graphql-codegen --watch"
+
+[tasks.dev]
+description = "Run the local Tilt development stack"
+raw = true
+run = """
+if [ -n "${TILT_PORT:-}" ]; then
+  exec tilt up --stream --port "$TILT_PORT"
+fi
+
+exec tilt up --stream
+"""
+
 [tasks.chatto]
 description = "Runs the CLI app with the given arguments"
 depends = ["deps-cli"]
@@ -143,6 +169,13 @@ description = "Run CLI tests"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
 run = "go test -tags test_endpoints ./..."
+sources = ["**/*.go"]
+
+[tasks.test-cli-shutdown]
+description = "Run backend process shutdown integration tests"
+depends = ["deps-cli"]
+dir = "cli"
+run = "go test -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
 sources = ["**/*.go"]
 
 [tasks.lint-frontend]
