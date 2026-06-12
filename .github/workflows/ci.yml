@@ -61,8 +61,13 @@ jobs:
       - name: Run Go tests
         run: cd cli && go test -tags test_endpoints ./...
 
-  test-e2e-build:
+  test-e2e:
     runs-on: ubicloud-standard-4
+    name: test-e2e (${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -70,25 +75,34 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install Playwright dependencies
+        run: cd frontend && pnpm exec playwright install chromium --with-deps
+        timeout-minutes: 5
+
       - name: Build E2E server
         run: mise build-e2e-server
 
-      - name: Upload E2E server
-        uses: actions/upload-artifact@v7
-        with:
-          name: chatto-e2e-server
-          path: frontend/e2e/fixtures/bin/chatto
-          if-no-files-found: error
-          retention-days: 1
+      - name: Run E2E tests
+        run: cd frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
 
-  test-e2e:
-    needs: test-e2e-build
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: playwright-report-${{ matrix.shard }}-of-4
+          path: frontend/playwright-report/
+          retention-days: 14
+
+  test-e2e-media:
     runs-on: ubicloud-standard-4
-    name: test-e2e (${{ matrix.shard }}/4)
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -110,24 +124,16 @@ jobs:
         run: cd frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 5
 
-      - name: Download E2E server
-        uses: actions/download-artifact@v7
-        with:
-          name: chatto-e2e-server
-          path: frontend/e2e/fixtures/bin
+      - name: Build E2E server
+        run: mise build-e2e-server
 
-      - name: Prepare E2E server
-        run: chmod +x frontend/e2e/fixtures/bin/chatto
-
-      - name: Run E2E tests
-        run: cd frontend && pnpm exec playwright test --shard=${{ matrix.shard }}/4
-        env:
-          CHATTO_E2E_SKIP_SERVER_BUILD: "1"
+      - name: Run media E2E tests
+        run: cd frontend && pnpm exec playwright test --grep @ffmpeg
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: playwright-report-${{ matrix.shard }}-of-4
+          name: playwright-report-media
           path: frontend/playwright-report/
           retention-days: 14

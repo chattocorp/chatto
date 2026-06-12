@@ -8,7 +8,7 @@ import * as routes from './routes';
 // Video processing (ffmpeg transcode) can take up to 60s for small test files on CI.
 const VIDEO_PROCESSING_TIMEOUT = 60_000;
 
-test.describe('animated GIF to video conversion', () => {
+test.describe('animated GIF to video conversion @ffmpeg', () => {
 	test.setTimeout(120_000);
 
 	test('animated GIF is converted to looping video player', async ({

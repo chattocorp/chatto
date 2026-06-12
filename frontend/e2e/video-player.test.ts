@@ -8,7 +8,7 @@ import { TIMEOUTS } from './constants';
 // Video processing (ffmpeg transcode) can take up to 45s for small test videos.
 const VIDEO_PROCESSING_TIMEOUT = 45_000;
 
-test.describe('video player', () => {
+test.describe('video player @ffmpeg', () => {
 	test.setTimeout(90_000);
 
 	test('uploaded video renders Vidstack player without settings menu', async ({
