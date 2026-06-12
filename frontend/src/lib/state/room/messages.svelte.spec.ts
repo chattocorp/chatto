@@ -24,7 +24,7 @@ class FakeGqlClient {
 						: queryDataQueue.length > 1
 							? queryDataQueue.shift()
 							: queryDataQueue[0];
-				return Promise.resolve({ data, error: null });
+				return Promise.resolve(data).then((resolvedData) => ({ data: resolvedData, error: null }));
 			}
 		}));
 		this.client = {
@@ -44,6 +44,14 @@ async function settle() {
 	await Promise.resolve();
 	await Promise.resolve();
 	flushSync();
+}
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((r) => {
+		resolve = r;
+	});
+	return { promise, resolve };
 }
 
 function threadMessageEvent(id: string, threadRootEventId: string | null = null) {
@@ -99,6 +107,32 @@ function threadQueryResult({
 						hasNewer
 					}
 				}
+			}
+		}
+	};
+}
+
+function roomEventsResult({
+	events,
+	startCursor,
+	endCursor,
+	hasOlder,
+	hasNewer
+}: {
+	events: unknown[];
+	startCursor: string | null;
+	endCursor: string | null;
+	hasOlder: boolean;
+	hasNewer: boolean;
+}) {
+	return {
+		room: {
+			events: {
+				events,
+				startCursor,
+				endCursor,
+				hasOlder,
+				hasNewer
 			}
 		}
 	};
@@ -393,6 +427,69 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		await settle();
 		expect(fake.queryMock).toHaveBeenCalledTimes(2);
 
+		store.dispose();
+	});
+
+	it('keeps already-loaded room events before reconnect catch-up pages', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1'), threadMessageEvent('m2')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:2',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			roomEventsResult({
+				events: [threadMessageEvent('m3'), threadMessageEvent('m4')],
+				startCursor: 'seq:3',
+				endCursor: 'seq:4',
+				hasOlder: false,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+
+		fake.bumpReconnect();
+		await settle();
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3', 'm4']);
+		store.dispose();
+	});
+
+	it('keeps live room events after in-flight reconnect catch-up pages', async () => {
+		const catchUp = deferred<unknown>();
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1'), threadMessageEvent('m2')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:2',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			catchUp.promise
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+
+		fake.bumpReconnect();
+		store.ingestServerEvent(threadMessageEvent('m5') as never);
+		catchUp.resolve(
+			roomEventsResult({
+				events: [threadMessageEvent('m3'), threadMessageEvent('m4')],
+				startCursor: 'seq:3',
+				endCursor: 'seq:4',
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		await settle();
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3', 'm4', 'm5']);
 		store.dispose();
 	});
 

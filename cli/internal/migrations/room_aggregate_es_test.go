@@ -274,6 +274,61 @@ func TestMigrateRoomAggregateToES_PreservesLegacyJoinEnvelope(t *testing.T) {
 	require.Equal(t, "DM1", ev.GetUserJoinedRoom().GetRoomId())
 }
 
+func TestMigrateRoomAggregateToES_PreservesLatestLegacyJoinForCurrentMembership(t *testing.T) {
+	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
+	legacyStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     "SERVER_EVENTS_TEST",
+		Subjects: []string{"server.>"},
+		Storage:  jetstream.MemoryStorage,
+	})
+	require.NoError(t, err)
+
+	seedRoom(t, kv, "channel", &corev1.Room{
+		Id:   "R1",
+		Name: "general",
+		Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	})
+	seedMembership(t, kv, "channel", "R1", "U1")
+
+	firstJoinedAt := time.Date(2026, 3, 17, 13, 38, 0, 0, time.UTC)
+	rejoinedAt := time.Date(2026, 5, 8, 9, 0, 0, 0, time.UTC)
+	legacyJoins := []*corev1.Event{
+		{
+			Id:        "EfirstJoin",
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(firstJoinedAt),
+			Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+			},
+		},
+		{
+			Id:        "Erejoin",
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(rejoinedAt),
+			Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+			},
+		},
+	}
+	for _, legacyJoin := range legacyJoins {
+		data, err := proto.Marshal(legacyJoin)
+		require.NoError(t, err)
+		_, err = js.Publish(ctx, "server.room.channel.R1.meta", data)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, MigrateRoomAggregateToES(ctx, kv, publisher, testLogger(), legacyStream))
+
+	msg, err := stream.GetMsg(ctx, 2)
+	require.NoError(t, err)
+	var ev corev1.Event
+	require.NoError(t, proto.Unmarshal(msg.Data, &ev))
+	require.Equal(t, "Erejoin", ev.GetId())
+	require.Equal(t, "U1", ev.GetActorId())
+	require.True(t, ev.GetCreatedAt().AsTime().Equal(rejoinedAt))
+	require.Equal(t, "R1", ev.GetUserJoinedRoom().GetRoomId())
+}
+
 func TestMigrateRoomAggregateToES_DoesNotResurrectLegacyJoinWithoutMembership(t *testing.T) {
 	ctx, kv, stream, publisher, js := setupTestESWithJS(t)
 	legacyStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{

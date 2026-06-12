@@ -530,6 +530,33 @@ export class MessagesStore {
     return newOnes.length;
   }
 
+  private mergeForwardPage(
+    rawEvents: readonly RawEvent[],
+    seenBeforeFetch: ReadonlySet<string>
+  ): RoomEventViewFragment[] {
+    const fetched = unmask(rawEvents);
+    const newSeen = new SvelteSet<string>();
+    const merged: RoomEventViewFragment[] = [];
+
+    const add = (event: RoomEventViewFragment) => {
+      if (newSeen.has(event.id)) return;
+      newSeen.add(event.id);
+      merged.push(event);
+    };
+
+    for (const event of this.events) {
+      if (seenBeforeFetch.has(event.id)) add(event);
+    }
+    for (const event of fetched) add(event);
+    for (const event of this.events) {
+      if (!seenBeforeFetch.has(event.id)) add(event);
+    }
+
+    this.events = merged;
+    this.seenIds = newSeen;
+    return fetched;
+  }
+
   /**
    * Replace the buffer with fetched events but preserve any subscription
    * events that arrived during the in-flight query. Always the right
@@ -663,6 +690,8 @@ export class MessagesStore {
   }
 
   private catchUpRoomForward(thisLoad: number, after: string): void {
+    const seenBeforeFetch = new Set<string>(this.seenIds);
+
     this.client
       .query(RoomAfterQuery, {
         roomId: this.roomId,
@@ -679,23 +708,17 @@ export class MessagesStore {
         const page = result.data?.room?.events;
         if (!page) return;
 
-        const fetched = unmask(page.events);
-        const strategy = page.hasNewer ? 'replace' : 'append';
+        const fetched = this.mergeForwardPage(page.events, seenBeforeFetch);
         console.debug(
           '[MessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
           this.roomId,
           after,
           fetched.length,
           page.hasNewer,
-          strategy
+          'merge-forward'
         );
-        if (page.hasNewer) {
-          this.replaceWithFetchedAndUpdateCursors(page);
-        } else {
-          if (page.endCursor) {
-            this.newestCursor = page.endCursor;
-          }
-          this.appendMany(fetched);
+        if (page.endCursor) {
+          this.newestCursor = page.endCursor;
         }
       })
       .catch((error: unknown) => {

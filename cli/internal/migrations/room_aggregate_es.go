@@ -379,7 +379,7 @@ func loadLegacyRoomMembershipEvents(
 			roomJoins = make(map[string]*corev1.Event)
 			byRoom[roomID] = roomJoins
 		}
-		if existing := roomJoins[userID]; existing != nil && !legacyEvent.GetCreatedAt().AsTime().Before(existing.GetCreatedAt().AsTime()) {
+		if existing := roomJoins[userID]; existing != nil && legacyEvent.GetCreatedAt().AsTime().Before(existing.GetCreatedAt().AsTime()) {
 			continue
 		}
 		roomJoins[userID] = proto.Clone(&legacyEvent).(*corev1.Event)
