@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.1.0-beta.3](https://github.com/chattocorp/chatto/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2026-06-12)
+
+
+### Bug Fixes
+
+* **timeline:** preserve migrated room join order ([#801](https://github.com/chattocorp/chatto/issues/801)) ([53547ca](https://github.com/chattocorp/chatto/commit/53547ca794af634fe60bcbcaa98fc7477bb64da1))
+
 ## [0.1.0-beta.2](https://github.com/chattocorp/chatto/compare/v0.1.0-beta.1...v0.1.0-beta.2) (2026-06-11)
 
 
