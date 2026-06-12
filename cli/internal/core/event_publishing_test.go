@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -58,12 +60,8 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 		t.Fatalf("DeleteRoom: %v", err)
 	}
 
-	count, err := countStreamMessages(ctx, core.storage.serverEventsStream, []string{"server.>"})
-	if err != nil {
-		t.Fatalf("count SERVER_EVENTS messages: %v", err)
-	}
-	if count != 0 {
-		t.Fatalf("SERVER_EVENTS got %d runtime messages, want 0", count)
+	if _, err := core.js.Stream(ctx, "SERVER_EVENTS"); !errors.Is(err, jetstream.ErrStreamNotFound) {
+		t.Fatalf("legacy stream SERVER_EVENTS lookup error = %v, want ErrStreamNotFound", err)
 	}
 }
 

@@ -514,9 +514,7 @@ const testUserID = "Uviewer"
 
 // TestGetAttachmentReader_ProbesWhenStorageMissing covers the
 // fallback path GetAttachmentReader takes when handed an Attachment
-// whose `Storage` field is nil — the situation produced by
-// BackfillAttachmentLocatorData copying minimal pre-locator standalone
-// records into VideoProcessingState entries.
+// whose `Storage` field is nil, as older video derivative records can be.
 func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 	t.Run("falls back to NATS by attachment ID", func(t *testing.T) {
 		core, _ := setupTestCore(t)
@@ -528,9 +526,8 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 			t.Fatalf("UploadAttachment: %v", err)
 		}
 
-		// Pre-locator migration would have produced this shape:
-		// Id + RoomId but no Storage. Verify GetAttachmentReader
-		// can still find the binary by probing.
+		// Older derivative metadata may contain Id + RoomId but no Storage.
+		// Verify GetAttachmentReader can still find the binary by probing.
 		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
 		reader, info, err := core.GetAttachmentReader(ctx, minimal)
 		if err != nil {

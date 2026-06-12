@@ -24,11 +24,8 @@ const maxConfigUpdateRetries = 5
 
 // ConfigManager handles runtime server configuration.
 //
-// ADR-035 phase 6: writes are event-only (publish to EVT +
-// WaitForSeq for read-your-writes). Reads come from the in-memory
-// ConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
-// retained as pre-ES import evidence for MigrateServerConfigToES, but
-// is not written by this code anymore.
+// Writes are event-only (publish to EVT + WaitForSeq for read-your-writes).
+// Reads come from the in-memory ConfigProjection.
 type ConfigManager struct {
 	service    *ConfigService
 	projection *ConfigProjection
@@ -66,7 +63,7 @@ func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerCon
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
-// migration code and tests that bypass the compose step.
+// tests and controlled repair paths that bypass the compose step.
 func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
 	return cm.publish(ctx, actorID, cfg)
 }

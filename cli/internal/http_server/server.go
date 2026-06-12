@@ -51,6 +51,7 @@ type HTTPServer struct {
 const (
 	httpServerReadHeaderTimeout = 10 * time.Second
 	httpServerIdleTimeout       = 2 * time.Minute
+	httpServerShutdownTimeout   = 5 * time.Second
 )
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
@@ -69,7 +70,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
-		router.Use(gin.Logger())
+		router.Use(requestLogger(logger))
 	}
 
 	s := &HTTPServer{
@@ -98,6 +99,42 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: httpServerReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
+	}
+}
+
+func requestLogger(logger *log.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		query := c.Request.URL.RawQuery
+
+		c.Next()
+
+		status := c.Writer.Status()
+		fields := []any{
+			"status", status,
+			"method", c.Request.Method,
+			"path", path,
+			"latency", time.Since(start).String(),
+			"client_ip", c.ClientIP(),
+			"user_agent", c.Request.UserAgent(),
+			"bytes", c.Writer.Size(),
+		}
+		if query != "" {
+			fields = append(fields, "query", query)
+		}
+		if len(c.Errors) > 0 {
+			fields = append(fields, "errors", c.Errors.ByType(gin.ErrorTypePrivate).String())
+		}
+
+		switch {
+		case status >= http.StatusInternalServerError:
+			logger.Error("HTTP request", fields...)
+		case status >= http.StatusBadRequest:
+			logger.Warn("HTTP request", fields...)
+		default:
+			logger.Info("HTTP request", fields...)
+		}
 	}
 }
 
@@ -229,13 +266,20 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) shutdownServer(server *http.Server) error {
+	return s.shutdownServerWithTimeout(server, httpServerShutdownTimeout)
+}
+
+func (s *HTTPServer) shutdownServerWithTimeout(server *http.Server, timeout time.Duration) error {
 	s.logger.Info("Shutting down server", "addr", server.Addr)
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		s.logger.Error("Server forced to shutdown", "addr", server.Addr, "error", err)
+		if closeErr := server.Close(); closeErr != nil {
+			return fmt.Errorf("graceful shutdown: %w; forced close: %w", err, closeErr)
+		}
 		return err
 	}
 

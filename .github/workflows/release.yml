@@ -1,0 +1,126 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubicloud-standard-4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch main
+        run: git fetch origin +refs/heads/main:refs/remotes/origin/main
+
+      - name: Verify release-please tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+
+          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main."
+            exit 1
+          fi
+
+          parent_count="$(git rev-list --parents -n 1 "$tag_commit" | awk '{ print NF - 1 }')"
+          if [[ "$parent_count" -lt 1 ]]; then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit has no parent to compare against."
+            exit 1
+          fi
+
+          disallowed=()
+          while IFS= read -r path; do
+            case "$path" in
+              .release-please-config.json|\
+              .release-please-config-prerelease.json|\
+              .release-please-manifest.json|\
+              .release-please-manifest-prerelease.json|\
+              CHANGELOG.md|\
+              cli/version.go|\
+              frontend/package.json)
+                ;;
+              *)
+                disallowed+=("$path")
+                ;;
+            esac
+          done < <(git diff --name-only "${tag_commit}^" "$tag_commit")
+
+          if (( ${#disallowed[@]} > 0 )); then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit contains non-release-please files."
+            printf 'Disallowed file: %s\n' "${disallowed[@]}"
+            exit 1
+          fi
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Build frontend once
+        run: mise build-frontend
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          # Use a PAT so the release is authored by a user account rather
+          # than github-actions[bot]. Bot-authored releases don't get
+          # GitHub's autolink rendering for commit SHAs and #NNN PR refs.
+          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend Docker tags
+        id: frontend_tags
+        shell: bash
+        run: |
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}"
+            if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
+              echo "ghcr.io/chattocorp/chatto-client:next"
+            else
+              echo "ghcr.io/chattocorp/chatto-client:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.frontend.prebuilt
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.frontend_tags.outputs.tags }}
+          cache-from: type=gha,scope=chatto-client
+          cache-to: type=gha,scope=chatto-client,mode=max

@@ -563,7 +563,6 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
 			t.Fatalf("Expected thread follow in RUNTIME_STATE: %v", err)
 		}
-		assertLegacyKeyAbsent(t, core.storage.serverRuntimeKV, key, "legacy SERVER_RUNTIME follow")
 
 		isFollowing, err := core.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
 		if err != nil {

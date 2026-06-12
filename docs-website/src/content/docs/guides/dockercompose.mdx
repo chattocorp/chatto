@@ -172,6 +172,7 @@ By the end of this section, your project directory will look like this:
    CHATTO_CORE_SECRET_KEY=<generate-me>
    CHATTO_CORE_ASSETS_SIGNING_SECRET=<generate-me>
    CHATTO_LOG_LEVEL=info
+   CHATTO_LOG_FORMAT=json
 
    # LiveKit
    CHATTO_LIVEKIT_ENABLED=true
@@ -251,7 +252,7 @@ For notifications when the browser is closed. Generate VAPID keys with `npx web-
 CHATTO_PUSH_ENABLED=true
 CHATTO_PUSH_VAPID_PUBLIC_KEY=BNx...
 CHATTO_PUSH_VAPID_PRIVATE_KEY=...
-CHATTO_PUSH_VAPID_SUBJECT=mailto:admin@example.com
+CHATTO_PUSH_VAPID_SUBJECT=admin@example.com
 ```
 
 ### Video Processing

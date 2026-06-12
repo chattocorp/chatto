@@ -3,6 +3,23 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.1.0-beta.4](https://github.com/chattocorp/chatto/compare/v0.1.0-beta.3...v0.1.0-beta.4) (2026-06-12)
+
+
+### Features
+
+* **pwa:** enrich web app manifest ([#808](https://github.com/chattocorp/chatto/issues/808)) ([2c6fe8b](https://github.com/chattocorp/chatto/commit/2c6fe8be747f7041706128c43c5d97403ca8a4cf))
+
+
+### Bug Fixes
+
+* emit structured logs for Loki ([#815](https://github.com/chattocorp/chatto/issues/815)) ([25ab64a](https://github.com/chattocorp/chatto/commit/25ab64a48d4bea686bf2c2e09a11d0f5e711f562))
+* harden backend shutdown handling ([#814](https://github.com/chattocorp/chatto/issues/814)) ([59d344b](https://github.com/chattocorp/chatto/commit/59d344b5839c252e12ab88b74d5fc9d16bece5f6))
+* Harden Docker images ([0b227e9](https://github.com/chattocorp/chatto/commit/0b227e9c131ddab9983b3fa07d152ca80cfb441e))
+* improve web push provider compatibility ([#816](https://github.com/chattocorp/chatto/issues/816)) ([2e0d464](https://github.com/chattocorp/chatto/commit/2e0d464b141c821c673b74cea2235265617943c2))
+* **projections:** fail visibly on projection errors ([#803](https://github.com/chattocorp/chatto/issues/803)) ([6959161](https://github.com/chattocorp/chatto/commit/695916195f1a3aaa087b5264f2cec95f8fa12070))
+* **projections:** introduce stream positions and services ([#812](https://github.com/chattocorp/chatto/issues/812)) ([240970c](https://github.com/chattocorp/chatto/commit/240970c749cf4da90fad6a23b163b3a96550d465))
+
 ## [0.1.0-beta.3](https://github.com/chattocorp/chatto/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2026-06-12)
 
 

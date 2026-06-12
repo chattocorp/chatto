@@ -13,7 +13,7 @@ local_resource(
 local_resource(
     'backend',
     cmd='',
-    serve_cmd='mise x -- go run -tags bootstrap . start',
+    serve_cmd='mise run dev-backend',
     serve_dir='cli',
     serve_env={
         'CHATTO_WEBSERVER_PORT': str(backend_port),
@@ -38,7 +38,7 @@ local_resource(
 local_resource(
     'frontend',
     cmd='',
-    serve_cmd='mise x -- pnpm dev',
+    serve_cmd='mise run dev-frontend',
     serve_dir='frontend',
     serve_env={
         'VITE_PORT': str(frontend_port),
@@ -57,7 +57,7 @@ local_resource(
 local_resource(
     'frontend-codegen',
     cmd='',
-    serve_cmd='mise x -- pnpm codegen --watch',
+    serve_cmd='mise run dev-frontend-codegen',
     serve_dir='frontend',
     resource_deps=['frontend-deps'],
     allow_parallel=True,

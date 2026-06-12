@@ -34,7 +34,8 @@ func (d Duration) Duration() time.Duration {
 }
 
 type GeneralConfig struct {
-	LogLevel string `toml:"log_level" env:"CHATTO_LOG_LEVEL" comment:"Log level. Possible values: debug, info, warn, error."`
+	LogLevel  string `toml:"log_level" env:"CHATTO_LOG_LEVEL" comment:"Log level. Possible values: debug, info, warn, error."`
+	LogFormat string `toml:"log_format,commented" env:"CHATTO_LOG_FORMAT" comment:"Log output format. Possible values: auto, text, json, logfmt. Default: auto (text on terminals, JSON otherwise)."`
 }
 
 // TLSConfig contains settings for automatic TLS via Let's Encrypt.
@@ -181,14 +182,12 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey          string        `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets             AssetsConfig  `toml:"assets"`
-	ESBootVerify       bool          `toml:"es_boot_verify,commented" env:"CHATTO_CORE_ES_BOOT_VERIFY" comment:"Log event-sourcing import/projection verification during boot. Intended for local rollout dry-runs; scans EVT and legacy stores."`
-	ESBootVerifyStrict bool          `toml:"es_boot_verify_strict,commented" env:"CHATTO_CORE_ES_BOOT_VERIFY_STRICT" comment:"Fail boot when event-sourcing import/projection verification reports problems. Intended for live cutover and rollout gates."`
-	AuthTokenTTL       time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	Replicas           int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits             LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners             OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey    string        `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
+	Assets       AssetsConfig  `toml:"assets"`
+	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	Replicas     int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits       LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
 // OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
@@ -394,7 +393,7 @@ type PushConfig struct {
 	Enabled         bool   `toml:"enabled" env:"CHATTO_PUSH_ENABLED" comment:"Enable Web Push notifications. Default: false (opt-in to avoid third-party server contact)."`
 	VAPIDPublicKey  string `toml:"vapid_public_key" env:"CHATTO_PUSH_VAPID_PUBLIC_KEY" comment:"VAPID public key (base64-encoded). Generate with: openssl ecparam -genkey -name prime256v1 | openssl ec -pubout"`
 	VAPIDPrivateKey string `toml:"vapid_private_key" env:"CHATTO_PUSH_VAPID_PRIVATE_KEY" comment:"VAPID private key (base64-encoded). NEVER SHARE THIS!"`
-	VAPIDSubject    string `toml:"vapid_subject" env:"CHATTO_PUSH_VAPID_SUBJECT" comment:"VAPID subject (mailto: or https: URL). Used by push services to contact the operator."`
+	VAPIDSubject    string `toml:"vapid_subject" env:"CHATTO_PUSH_VAPID_SUBJECT" comment:"VAPID subject (operator email, optional mailto: prefix, or https: URL). Used by push services to contact the operator."`
 }
 
 // IsConfigured returns true if push notifications are enabled and all required VAPID fields are set.
@@ -561,6 +560,12 @@ func (c *ChattoConfig) Validate() error {
 		validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 		if !validLevels[strings.ToLower(c.General.LogLevel)] {
 			errs = append(errs, "general.log_level must be one of: debug, info, warn, error")
+		}
+	}
+	if c.General.LogFormat != "" {
+		validFormats := map[string]bool{"auto": true, "text": true, "json": true, "logfmt": true}
+		if !validFormats[strings.ToLower(c.General.LogFormat)] {
+			errs = append(errs, "general.log_format must be one of: auto, text, json, logfmt")
 		}
 	}
 

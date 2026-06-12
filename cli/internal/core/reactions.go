@@ -180,7 +180,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 		if err != nil {
 			return false, fmt.Errorf("read OCC filter seq: %w", err)
 		}
-		if err := c.waitForRoomReactionsCurrent(ctx, roomID); err != nil {
+		if err := c.roomService.waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
 			return false, err
 		}
 
@@ -194,7 +194,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, filterSeq)
 		if err == nil {
-			if err := c.ReactionsProjector.WaitForSeq(ctx, seq); err != nil {
+			if err := c.roomService.waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
 				return false, fmt.Errorf("wait for reactions projection: %w", err)
 			}
 			return true, nil

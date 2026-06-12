@@ -17,14 +17,16 @@ class FakeGqlClient {
 	constructor(queryData: unknown = null) {
 		const queryDataQueue = Array.isArray(queryData) ? [...queryData] : null;
 		this.queryMock = vi.fn(() => ({
-			toPromise: () => {
+			toPromise: async () => {
 				const data =
 					queryDataQueue === null
 						? queryData
 						: queryDataQueue.length > 1
 							? queryDataQueue.shift()
 							: queryDataQueue[0];
-				return Promise.resolve(data).then((resolvedData) => ({ data: resolvedData, error: null }));
+				const resolvedData = await Promise.resolve(data);
+				if (isOperationResult(resolvedData)) return resolvedData;
+				return { data: resolvedData, error: null };
 			}
 		}));
 		this.client = {
@@ -38,6 +40,10 @@ class FakeGqlClient {
 		this.reconnectCount++;
 		flushSync();
 	}
+}
+
+function isOperationResult(value: unknown): value is { data: unknown; error: unknown } {
+	return typeof value === 'object' && value !== null && ('data' in value || 'error' in value);
 }
 
 async function settle() {
@@ -139,6 +145,86 @@ function roomEventsResult({
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+	it('serves already-loaded events by id without querying GraphQL', async () => {
+		const loaded = threadMessageEvent('m1');
+		const fake = new FakeGqlClient(
+			roomEventsResult({
+				events: [loaded],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		expect(store.getEventById('m1')?.id).toBe(loaded.id);
+		await store.ensureEvent('m1');
+
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('deduplicates concurrent off-window event fetches', async () => {
+		const target = threadMessageEvent('target');
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{ room: { event: target } }
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await Promise.all([store.ensureEvent('target'), store.ensureEvent('target')]);
+
+		expect(store.getEventById('target')?.id).toBe('target');
+		expect(fake.queryMock).toHaveBeenCalledOnce();
+		store.dispose();
+	});
+
+	it('does not cache transient off-window event fetch errors as missing', async () => {
+		const target = threadMessageEvent('target');
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{ data: null, error: new Error('temporary failure') },
+			{ room: { event: target } }
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.ensureEvent('target');
+		expect(store.getEventById('target')).toBeUndefined();
+
+		await store.ensureEvent('target');
+
+		expect(store.getEventById('target')?.id).toBe('target');
+		expect(fake.queryMock).toHaveBeenCalledTimes(2);
+		errorSpy.mockRestore();
+		store.dispose();
+	});
+
 	it('applies MessageEditedEvent payloads inline without refetching', async () => {
 		const fake = new FakeGqlClient({
 			room: {

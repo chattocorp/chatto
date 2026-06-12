@@ -16,7 +16,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Legacy INSTANCE KV keys imported by MigrateServerBrandingToES.
+// Historical INSTANCE KV keys for server branding.
 const (
 	serverLogoKey   = "instance.logo"
 	serverBannerKey = "instance.banner"

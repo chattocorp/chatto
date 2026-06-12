@@ -120,7 +120,7 @@ const maxRoomNameClaimRetries = 5
 // ADR-031.
 //
 // ADR-035 phase 6: event-only. Name uniqueness is enforced via
-// JetStream wildcard OCC against `evt.room.>` — the room manager
+// JetStream wildcard OCC against `evt.room.>` — the room service
 // reads its projection's LastSeq, checks the name is unused, then
 // publishes RoomCreatedEvent with that seq as the expected-last for
 // the filter. Concurrent room mutations from any process (this one
@@ -199,10 +199,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
 	}
 
-	if err := waitForSeqAll(ctx, createdSeq,
-		waitForProjection("room directory", c.RoomDirectoryProjector),
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-	); err != nil {
+	createdSubject := events.RoomAggregate(room_id).SubjectFor(createdEvent)
+	if err := c.roomService.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(createdSubject, createdSeq)); err != nil {
 		return nil, err
 	}
 	return room, nil
@@ -327,10 +325,8 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 
 	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
 
-	if err := waitForSeqAll(ctx, updatedSeq,
-		waitForProjection("room directory", c.RoomDirectoryProjector),
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-	); err != nil {
+	updatedSubject := events.RoomAggregate(room_id).SubjectFor(updatedEvent)
+	if err := c.roomService.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(updatedSubject, updatedSeq)); err != nil {
 		return nil, err
 	}
 	return room, nil
@@ -357,7 +353,8 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			},
 		},
 	})
-	seq, err := c.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room_id).SubjectFor(event), event)
+	deletedSubject := events.RoomAggregate(room_id).SubjectFor(event)
+	seq, err := c.EventPublisher.AppendEventually(ctx, deletedSubject, event)
 	if err != nil {
 		return fmt.Errorf("publish RoomDeletedEvent: %w", err)
 	}
@@ -394,14 +391,12 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 
 	// Read-your-writes: every projection that needs to drop state
 	// must have applied its event before we return.
-	if err := waitForSeqAll(ctx, seq,
-		waitForProjection("room directory", c.RoomDirectoryProjector),
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-	); err != nil {
+	if err := c.roomService.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(deletedSubject, seq)); err != nil {
 		return err
 	}
 	if groupRemovedSeq > 0 {
-		if err := waitForSeqAll(ctx, groupRemovedSeq, waitForProjection("room group layout", c.RoomGroupLayoutProjector)); err != nil {
+		groupRemovedSubject := events.GroupAggregate(room.GetGroupId()).Subject(events.EventRoomRemovedFromGroup)
+		if err := c.roomService.waitForGroupLayout(ctx, events.SubjectPosition(groupRemovedSubject, groupRemovedSeq)); err != nil {
 			return err
 		}
 	}
@@ -427,11 +422,11 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 			},
 		},
 	})
-	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent)
+	pos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+	if err := c.roomService.waitForTimeline(ctx, pos); err != nil {
 		return nil, err
 	}
 
@@ -462,11 +457,11 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 			},
 		},
 	})
-	seq, err := c.RoomDirectoryProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent)
+	pos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, seq, waitForProjection("room timeline", c.RoomTimelineProjector)); err != nil {
+	if err := c.roomService.waitForTimeline(ctx, pos); err != nil {
 		return nil, err
 	}
 

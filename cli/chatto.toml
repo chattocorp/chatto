@@ -2,6 +2,7 @@
 
 [general]
 log_level = 'debug'
+log_format = 'text'
 
 [webserver]
 url = 'http://localhost:5173'

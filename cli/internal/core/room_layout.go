@@ -7,13 +7,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// roomLayoutKey identifies the legacy KV key that used to hold the
-// room layout document. Phase 6 stopped writing it; the constant
-// stays around because the boot-time migration in
-// internal/migrations/room_layout_es.go still reads from it. KV
-// itself is retained for rollback per ADR-035's deferred phase 7.
-const roomLayoutKey = "room_layout"
-
 // PublishRoomGroupsUpdated publishes a live event notifying clients that the
 // channel-room groups (their ordering, names, or membership) changed.
 // Authorization: published to the deployment-scoped config subject, delivered

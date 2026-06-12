@@ -11,9 +11,11 @@
 - Single executable with everything out of the box (exceptions for pluggable advanced features like full-text search)
 - Reliable message sending and delivery is OF THE HIGHEST PRIORITY - must be ROCK-SOLID
 
-## Early Stage
+## Project Maturity
 
-No data migration needed; breaking changes to APIs and storage schemas are acceptable.
+Chatto has public servers running with real user data. Breaking changes to
+storage schemas or APIs need an explicit compatibility, migration, or rollout
+plan; do not assume data can be discarded.
 
 ## Public API Surface
 

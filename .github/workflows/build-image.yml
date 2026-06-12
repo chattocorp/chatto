@@ -1,0 +1,83 @@
+name: build image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref or SHA to build. Defaults to the selected workflow ref."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-image:
+    runs-on: ubicloud-standard-4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref_name }}
+
+      - name: Resolve image metadata
+        id: image
+        run: |
+          set -euo pipefail
+
+          sha="$(git rev-parse HEAD)"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Image"
+            echo
+            echo "- Commit: \`${sha}\`"
+            echo "- Image: \`ghcr.io/chattocorp/chatto:${sha}\`"
+            echo "- Platform: \`linux/amd64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build frontend assets for CLI image
+        run: mise build-frontend
+
+      - name: Prepare Docker context
+        run: |
+          set -euo pipefail
+
+          context="/tmp/chatto-docker/linux-amd64"
+          mkdir -p "$context"
+          cp Dockerfile.goreleaser "$context/Dockerfile"
+          cp docker-entrypoint.sh "$context/docker-entrypoint.sh"
+
+          (
+            cd cli
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$context/chatto" .
+          )
+
+      - name: Build and push Chatto image
+        uses: docker/build-push-action@v6
+        with:
+          context: /tmp/chatto-docker/linux-amd64
+          file: /tmp/chatto-docker/linux-amd64/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/chattocorp/chatto:${{ steps.image.outputs.sha }}
+          cache-from: type=gha,scope=chatto-manual-amd64
+          cache-to: type=gha,mode=max,scope=chatto-manual-amd64
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
+            org.opencontainers.image.version=${{ steps.image.outputs.sha }}

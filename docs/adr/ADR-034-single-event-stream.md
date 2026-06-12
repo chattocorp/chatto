@@ -86,7 +86,7 @@ Transient UI sync signals that are not durable facts use a separate `corev1.Live
 
 ### Coexistence with the legacy stream
 
-During the migration window (ADR-035), the existing `SERVER_EVENTS` stream continues to serve aggregates that have not yet been migrated. The two streams operate side by side until the last aggregate moves off `SERVER_EVENTS`, after which the legacy stream is decommissioned.
+During the migration window (ADR-035), the existing `SERVER_EVENTS` stream served aggregates that had not yet moved to `EVT`. That window is now closed: current runtime code no longer opens, writes, imports, or republishes `SERVER_EVENTS`.
 
 ## Consequences
 
@@ -96,7 +96,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream conti
 - **Single point of contention for hot streams.** Writes across all aggregates serialize through one stream leader. For Chatto's scale (one server per deployment, not a multi-tenant SaaS) this is acceptable. If we ever need to scale past a single stream's write throughput, [ADR-013](ADR-013-per-space-stream-sharding.md) shows the codebase can carry a sharding abstraction — that's a future option, not a current need.
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}.>`. The framework wraps consumer creation around the projection's declared subjects.
 - **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
-- **Two streams during migration.** `EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
+- **Legacy stream is decommissioned.** Historical backups may still contain `SERVER_EVENTS`, but current runtime behavior is centered on `EVT`.
 - **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.
 
 ## Out of scope for this ADR

@@ -13,6 +13,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Log level. Values: `debug`, `info`, `warn`, `error`.
 </EnvVar>
 
+<EnvVar name="CHATTO_LOG_FORMAT" toml="general.log_format" default="auto">
+  Log output format. Values: `auto`, `text`, `json`, `logfmt`. `auto` uses text when Chatto is attached to a terminal and JSON otherwise. Use `json` for Loki/Grafana ingestion so each log line includes a structured `level` field.
+</EnvVar>
+
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
@@ -272,7 +276,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_PUSH_VAPID_SUBJECT" toml="push.vapid_subject">
-  VAPID subject identifier. Must be a `mailto:` or `https:` URL.
+  VAPID subject identifier. Use an operator email address, optionally prefixed with `mailto:`, or an `https:` contact URL.
 </EnvVar>
 
 ## Video Processing

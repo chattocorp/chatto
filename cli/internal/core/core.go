@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/migrations"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -33,7 +31,7 @@ import (
 
 // ChattoCore is the central hub for all Chatto operations.
 // It provides a unified API for spaces, users, rooms, and messages,
-// managing current JetStream resources and legacy import handles internally.
+// managing current JetStream resources internally.
 type ChattoCore struct {
 	nc                 *nats.Conn
 	js                 jetstream.JetStream
@@ -42,6 +40,11 @@ type ChattoCore struct {
 	config             config.CoreConfig
 	encryption         *encryptionManager
 	configManager      *ConfigManager
+	roomService        *RoomService
+	userService        *UserService
+	rbacService        *RBACService
+	presenceService    *PresenceService
+	mediaService       *MediaService
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -73,8 +76,8 @@ type ChattoCore struct {
 	// Set from webserver.url config: scheme + host only (no trailing slash).
 	AssetBaseURL string
 
-	// PresenceHub runs a single KV watcher on presence.> per process and fans
-	// out updates to all space subscriptions. Started by (*ChattoCore).Run.
+	// PresenceHub is the compatibility handle for PresenceService's per-process
+	// fanout hub. Started by (*ChattoCore).Run through PresenceService.
 	PresenceHub *PresenceHub
 
 	// EventPublisher writes to the EVT event-sourcing stream
@@ -106,7 +109,7 @@ type ChattoCore struct {
 
 	// ServerConfigProjector runs the consumer + apply loop that keeps
 	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
-	// so writers (ConfigManager mutations) can call WaitForSeq.
+	// so writers (ConfigManager mutations) can call WaitFor.
 	ServerConfigProjector *events.Projector
 
 	// RoomCatalog is the room metadata index inside RoomDirectory.
@@ -133,7 +136,7 @@ type ChattoCore struct {
 	RoomTimeline *RoomTimelineProjection
 
 	// RoomTimelineProjector runs the consumer for RoomTimeline.
-	// Exposed for WaitForSeq from message writers.
+	// Exposed for WaitFor from message writers.
 	RoomTimelineProjector *events.Projector
 
 	// Threads holds an append-only event log per thread root,
@@ -142,7 +145,7 @@ type ChattoCore struct {
 	Threads *ThreadProjection
 
 	// ThreadsProjector runs the consumer for Threads. Exposed for
-	// WaitForSeq from message writers that touch threads.
+	// WaitFor from message writers that touch threads.
 	ThreadsProjector *events.Projector
 
 	// Reactions holds current per-message reaction state derived
@@ -150,7 +153,7 @@ type ChattoCore struct {
 	Reactions *ReactionProjection
 
 	// ReactionsProjector runs the consumer for Reactions. Exposed
-	// for WaitForSeq from reaction writers.
+	// for WaitFor from reaction writers.
 	ReactionsProjector *events.Projector
 
 	// Users holds current user/account/profile/auth lookup state derived
@@ -158,7 +161,7 @@ type ChattoCore struct {
 	Users *UserProjection
 
 	// UsersProjector runs the consumer for Users. Exposed for
-	// WaitForSeq from user/account writers.
+	// WaitFor from user/account writers.
 	UsersProjector *events.Projector
 
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
@@ -166,14 +169,14 @@ type ChattoCore struct {
 	ContentKeys *ContentKeyProjection
 
 	// ContentKeysProjector runs the consumer for ContentKeys. Exposed for
-	// WaitForSeq from encryption writers.
+	// WaitFor from encryption writers.
 	ContentKeysProjector *events.Projector
 
 	// RBAC holds current role, assignment, and permission state derived
 	// from durable RBAC aggregate events.
 	RBAC *RBACProjection
 
-	// RBACProjector runs the consumer for RBAC. Exposed for WaitForSeq
+	// RBACProjector runs the consumer for RBAC. Exposed for WaitFor
 	// from role and permission writers.
 	RBACProjector *events.Projector
 
@@ -192,7 +195,7 @@ type ChattoCore struct {
 }
 
 // Run starts every background service owned by the core — currently
-// PresenceHub and every registered projector — and blocks until ctx is
+// PresenceService and every registered projector — and blocks until ctx is
 // cancelled or any service returns an error. Returns the first error
 // observed (or ctx.Err on shutdown).
 //
@@ -222,7 +225,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	// Block until every projector has entered Run before issuing
 	// projection-backed mutations during boot. Without this,
 	// ensureChannelRoomsAreInAGroup's reads against an empty
-	// projection would silently skip the WaitForSeq path and leave
+	// projection would silently skip the WaitFor path and leave
 	// orphan rooms (rooms created without a group assignment).
 	g.Go(func() error {
 		if err := c.waitForProjectorsStarted(gctx, 5*time.Second); err != nil {
@@ -250,26 +253,15 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
 		// running and caught up because it reads the RoomGroups
-		// projection and depends on WaitForSeq actually waiting.
+		// projection and depends on WaitFor actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
-		}
-		if c.config.ESBootVerify {
-			if err := c.WaitForProjectionsCurrent(gctx); err != nil {
-				return fmt.Errorf("wait for projections current: %w", err)
-			}
-			if err := c.logESBootVerification(gctx); err != nil {
-				if c.config.ESBootVerifyStrict {
-					return err
-				}
-				c.logger.Warn("ES boot verification reported problems", "error", err)
-			}
 		}
 		close(c.bootDone)
 		return nil
 	})
 
-	g.Go(func() error { return c.PresenceHub.Run(gctx) })
+	g.Go(func() error { return c.presenceService.Run(gctx) })
 
 	return g.Wait()
 }
@@ -412,7 +404,7 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return nil // Encryption not configured
 	}
 
-	if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+	if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return err
 	}
 
@@ -471,10 +463,8 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	if err != nil {
 		return fmt.Errorf("failed to record user key shred event: %w", err)
 	}
-	return waitForSeqAll(ctx, seq,
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-		waitForProjection("thread", c.ThreadsProjector),
-	)
+	subject := events.UserAggregate(userID).SubjectFor(event)
+	return c.roomService.waitForTimelineAndThreads(ctx, events.SubjectPosition(subject, seq))
 }
 
 // AssetsConfig returns the assets configuration as an assets.Config.
@@ -668,7 +658,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
 	}
 
-	// Initialize storage (current resources plus optional legacy import sources).
+	// Initialize storage.
 	storage, err := newStorage(js, ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
@@ -700,9 +690,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	// Build the event-sourcing primitives before any aggregate-specific
-	// wiring so projections and managers that need them can be passed the
+	// wiring so projections and services that need them can be passed the
 	// concrete deps at construction. Order: publisher → projections →
-	// projectors → managers that depend on them.
+	// projectors → services that depend on them.
 	eventPublisher := events.NewPublisher(js, storage.serverEvtStream, logger)
 
 	// newProjector wraps projection construction into one registration
@@ -759,6 +749,20 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
+	roomMgr := newRoomService(
+		roomDirectory,
+		roomDirectoryProjector,
+		roomGroupLayout,
+		roomGroupLayoutProjector,
+		roomTimeline,
+		roomTimelineProjector,
+		threads,
+		threadsProjector,
+		reactions,
+		reactionsProjector,
+	)
+	userMgr := newUserService(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
+	rbacMgr := newRBACService(rbac, rbacProjector)
 
 	core := &ChattoCore{
 		nc:                       nc,
@@ -768,6 +772,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		config:                   cfg,
 		encryption:               encMgr,
 		configManager:            configMgr,
+		roomService:              roomMgr,
+		userService:              userMgr,
+		rbacService:              rbacMgr,
 		s3Client:                 s3Client,
 		EventPublisher:           eventPublisher,
 		RoomDirectory:            roomDirectory,
@@ -797,40 +804,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		bootDone:                 make(chan struct{}),
 	}
 
-	if err := core.migrateLegacyCallStateToMemoryCache(ctx); err != nil {
-		logger.Warn("Failed to copy legacy CALL_STATE entries into MEMORY_CACHE", "error", err)
-	}
+	core.mediaService = NewMediaService(core)
 
-	if err := core.migrateRBACToES(ctx); err != nil {
-		return nil, fmt.Errorf("failed to migrate RBAC to ES: %w", err)
-	}
-
-	// Run boot-time data migrations. Idempotent and cheap on subsequent
-	// boots (each migration short-circuits when no legacy data remains).
-	// See cli/internal/migrations for the registry, including the
-	// ADR-035 ES seed migrations that need the event publisher we just
-	// constructed.
-	//
-	// In the typical embedded-NATS deployment the NATS server has no
-	// TCP listener, so we can't run migrations from a second process —
-	// the boot path is the only safe place for them.
-	if err := migrations.RunAll(
-		ctx,
-		storage.serverKV, storage.serverConfigKV, storage.serverBodiesKV, storage.serverRuntimeKV, storage.runtimeConfigKV,
-		storage.runtimeStateKV,
-		storage.serverEventsStream, storage.serverReactionsKV,
-		eventPublisher,
-		encMgr.keyWrapper,
-		encMgr.contentKeys,
-		logger,
-	); err != nil {
-		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
-	}
-	if err := core.migrateAssetCreationsToES(ctx); err != nil {
-		return nil, fmt.Errorf("failed to migrate asset creations to ES: %w", err)
-	}
-	if err := core.migrateVideoManifestsToES(ctx); err != nil {
-		return nil, fmt.Errorf("failed to migrate video manifests to ES: %w", err)
+	if err := core.seedDefaultRBAC(ctx); err != nil {
+		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)
@@ -843,13 +820,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /
-	// MoveRoomToGroup calls can actually WaitForSeq. Doing it here
+	// MoveRoomToGroup calls can actually WaitFor. Doing it here
 	// (when projectors haven't been started yet) would leave orphan
 	// rooms in any subsequent SeedDefaultRooms call.
 
-	// Initialize presence hub (single KV watcher per process). Started
+	// Initialize presence service (single KV watcher per process). Started
 	// by core.Run alongside the projectors.
-	core.PresenceHub = NewPresenceHub(storage.memoryCacheKV, logger)
+	core.presenceService = NewPresenceService(js, storage.memoryCacheKV, logger)
+	core.PresenceHub = core.presenceService.hub
 
 	return core, nil
 }
@@ -867,40 +845,21 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 // Storage
 // ============================================================================
 
-// storage encapsulates JetStream resources used by Chatto Core. Current
-// resources are provisioned at startup; legacy import resources are opened only
-// when they already exist.
+// storage encapsulates JetStream resources used by Chatto Core.
 type storage struct {
-	encryptionKV    jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
-	serverKV        jetstream.KeyValue // INSTANCE        - legacy user/config import source
-	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - legacy runtime configuration import source
-	runtimeStateKV  jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
-
-	// Legacy import resources. Fresh ES-only deployments do not create these;
-	// boot importers treat nil handles as empty sources.
-	serverConfigKV     jetstream.KeyValue // SERVER_CONFIG    - legacy rooms, memberships
-	serverRuntimeKV    jetstream.KeyValue // SERVER_RUNTIME   - legacy sequences, timestamps, read state
-	serverRBACKV       jetstream.KeyValue // SERVER_RBAC      - legacy RBAC import source
-	serverBodiesKV     jetstream.KeyValue // SERVER_BODIES    - legacy message bodies + attachment metadata records
-	serverReactionsKV  jetstream.KeyValue // SERVER_REACTIONS - legacy emoji reactions
-	serverEventsStream jetstream.Stream   // SERVER_EVENTS    - legacy event stream
+	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
+	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
+	serverBodiesKV jetstream.KeyValue // SERVER_BODIES    - legacy message bodies retained for cleanup
 
 	serverAssets    jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
 
-	memoryCacheKV     jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
-	imageCacheStore   jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
-	legacyCallStateKV jetstream.KeyValue    // CALL_STATE - legacy active voice call import source
+	memoryCacheKV   jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
 }
 
-// newStorage initializes current JetStream resources and opens existing legacy
-// import resources.
+// newStorage initializes current JetStream resources.
 func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
-	serverKV, err := openLegacyKeyValue(ctx, js, "INSTANCE")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy INSTANCE KV bucket: %w", err)
-	}
-
 	// Initialize KMS KEK bucket (excluded from backups for security). App-owned
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
@@ -914,11 +873,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
-	}
-
-	runtimeConfigKV, err := openLegacyKeyValue(ctx, js, "INSTANCE_CONFIG")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy INSTANCE_CONFIG KV bucket: %w", err)
 	}
 
 	runtimeStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
@@ -962,34 +916,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	legacyCallStateKV, err := openLegacyKeyValue(ctx, js, "CALL_STATE")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy CALL_STATE KV bucket: %w", err)
-	}
-
-	serverConfigKV, err := openLegacyKeyValue(ctx, js, "SERVER_CONFIG")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_CONFIG KV bucket: %w", err)
-	}
-
-	serverRBACKV, err := openLegacyKeyValue(ctx, js, "SERVER_RBAC")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_RBAC KV bucket: %w", err)
-	}
-
-	serverRuntimeKV, err := openLegacyKeyValue(ctx, js, "SERVER_RUNTIME")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_RUNTIME KV bucket: %w", err)
-	}
-
 	serverBodiesKV, err := openLegacyKeyValue(ctx, js, "SERVER_BODIES")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open legacy SERVER_BODIES KV bucket: %w", err)
-	}
-
-	serverReactionsKV, err := openLegacyKeyValue(ctx, js, "SERVER_REACTIONS")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_REACTIONS KV bucket: %w", err)
 	}
 
 	serverAssets, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
@@ -1001,14 +930,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
-	}
-	if err := migrateLegacyInstanceAssets(ctx, js, serverAssets); err != nil {
-		return nil, fmt.Errorf("failed to migrate legacy INSTANCE_ASSETS object store: %w", err)
-	}
-
-	serverEventsStream, err := openLegacyStream(ctx, js, "SERVER_EVENTS")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_EVENTS stream: %w", err)
 	}
 
 	// EVT — the event-sourcing log (ADR-033/034).
@@ -1037,126 +958,15 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
 	}
 
-	// Return initialized storage and whether RBAC bucket was newly created
 	return &storage{
-		serverKV:           serverKV,
-		encryptionKV:       encryptionKV,
-		runtimeConfigKV:    runtimeConfigKV,
-		runtimeStateKV:     runtimeStateKV,
-		serverConfigKV:     serverConfigKV,
-		serverRBACKV:       serverRBACKV,
-		serverRuntimeKV:    serverRuntimeKV,
-		serverBodiesKV:     serverBodiesKV,
-		serverReactionsKV:  serverReactionsKV,
-		serverAssets:       serverAssets,
-		serverEventsStream: serverEventsStream,
-		serverEvtStream:    serverEvtStream,
-		memoryCacheKV:      memoryCacheKV,
-		imageCacheStore:    imageCacheStore,
-		legacyCallStateKV:  legacyCallStateKV,
+		encryptionKV:    encryptionKV,
+		runtimeStateKV:  runtimeStateKV,
+		serverBodiesKV:  serverBodiesKV,
+		serverAssets:    serverAssets,
+		serverEvtStream: serverEvtStream,
+		memoryCacheKV:   memoryCacheKV,
+		imageCacheStore: imageCacheStore,
 	}, nil
-}
-
-func migrateLegacyInstanceAssets(ctx context.Context, js jetstream.JetStream, target jetstream.ObjectStore) error {
-	legacy, err := openLegacyObjectStore(ctx, js, "INSTANCE_ASSETS")
-	if err != nil {
-		return err
-	}
-	if legacy == nil {
-		return nil
-	}
-
-	objects, err := legacy.List(ctx)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			return nil
-		}
-		if errors.Is(err, jetstream.ErrNoObjectsFound) {
-			return deleteLegacyInstanceAssetsStore(ctx, js)
-		}
-		return fmt.Errorf("list legacy objects: %w", err)
-	}
-
-	for _, info := range objects {
-		if info == nil || info.Deleted {
-			continue
-		}
-		if err := copyLegacyObject(ctx, legacy, target, info); err != nil {
-			return err
-		}
-	}
-
-	return deleteLegacyInstanceAssetsStore(ctx, js)
-}
-
-func deleteLegacyInstanceAssetsStore(ctx context.Context, js jetstream.JetStream) error {
-	if err := js.DeleteObjectStore(ctx, "INSTANCE_ASSETS"); err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			return nil
-		}
-		return fmt.Errorf("delete legacy INSTANCE_ASSETS object store: %w", err)
-	}
-	return nil
-}
-
-func copyLegacyObject(ctx context.Context, source, target jetstream.ObjectStore, info *jetstream.ObjectInfo) error {
-	if ok, err := legacyObjectAlreadyCopied(ctx, target, info); err != nil {
-		return err
-	} else if ok {
-		return nil
-	}
-
-	reader, err := source.Get(ctx, info.Name)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) || errors.Is(err, jetstream.ErrObjectNotFound) {
-			if ok, verifyErr := legacyObjectAlreadyCopied(ctx, target, info); verifyErr != nil {
-				return verifyErr
-			} else if ok {
-				return nil
-			}
-		}
-		return fmt.Errorf("read legacy INSTANCE_ASSETS object %q: %w", info.Name, err)
-	}
-	defer reader.Close()
-
-	if ok, err := legacyObjectAlreadyCopied(ctx, target, info); err != nil {
-		return err
-	} else if ok {
-		return nil
-	}
-
-	meta := jetstream.ObjectMeta{
-		Name:        info.Name,
-		Description: info.Description,
-		Headers:     info.Headers,
-		Metadata:    info.Metadata,
-	}
-	if _, err := target.Put(ctx, meta, reader); err != nil {
-		return fmt.Errorf("copy legacy INSTANCE_ASSETS object %q into SERVER_ASSETS: %w", info.Name, err)
-	}
-	return nil
-}
-
-func legacyObjectAlreadyCopied(ctx context.Context, target jetstream.ObjectStore, info *jetstream.ObjectInfo) (bool, error) {
-	existing, err := target.GetInfo(ctx, info.Name)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrObjectNotFound) {
-			return false, nil
-		}
-		return false, fmt.Errorf("check existing SERVER_ASSETS object %q: %w", info.Name, err)
-	}
-	if sameObjectContentAndMeta(existing, info) {
-		return true, nil
-	}
-	return false, fmt.Errorf("SERVER_ASSETS object %q already exists with different content", info.Name)
-}
-
-func sameObjectContentAndMeta(a, b *jetstream.ObjectInfo) bool {
-	return a.Digest == b.Digest &&
-		a.Size == b.Size &&
-		a.Description == b.Description &&
-		reflect.DeepEqual(a.Headers, b.Headers) &&
-		reflect.DeepEqual(a.Metadata, b.Metadata)
 }
 
 func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.KeyValue, error) {
@@ -1165,28 +975,6 @@ func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket stri
 		return kv, nil
 	}
 	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return nil, nil
-	}
-	return nil, err
-}
-
-func openLegacyObjectStore(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.ObjectStore, error) {
-	store, err := js.ObjectStore(ctx, bucket)
-	if err == nil {
-		return store, nil
-	}
-	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return nil, nil
-	}
-	return nil, err
-}
-
-func openLegacyStream(ctx context.Context, js jetstream.JetStream, streamName string) (jetstream.Stream, error) {
-	stream, err := js.Stream(ctx, streamName)
-	if err == nil {
-		return stream, nil
-	}
-	if errors.Is(err, jetstream.ErrStreamNotFound) {
 		return nil, nil
 	}
 	return nil, err
@@ -1273,7 +1061,7 @@ const natsPublishFlushTimeout = 5 * time.Second
 
 // liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
 // raw EVT republish and GraphQL delivery. In the normal case the local
-// projectors have already advanced and WaitForSeq returns immediately; the
+// projectors have already advanced and WaitFor returns immediately; the
 // timeout covers replica lag or a stuck projector without wedging a
 // subscription goroutine forever.
 const liveEVTProjectionWaitTimeout = 2 * time.Second
@@ -1442,7 +1230,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
 
-	presenceSub, err := c.PresenceHub.Subscribe(ctx)
+	presenceSub, err := c.presenceService.Subscribe(ctx)
 	if err != nil {
 		liveSyncSub.Unsubscribe()
 		liveEVTSub.Unsubscribe()
@@ -1474,7 +1262,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
-			c.PresenceHub.Unsubscribe(presenceSub)
+			c.presenceService.Unsubscribe(presenceSub)
 			close(eventChan)
 		}()
 
@@ -1677,7 +1465,8 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 	defer cancel()
-	if err := c.waitForLiveEVTRoomEvent(waitCtx, event, seq); err != nil {
+	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
+	if err := c.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
 		c.logger.Warn("Timed out waiting for live EVT projection readiness", "subject", msg.Subject, "sequence", seq, "error", err)
 		return nil, false
 	}
@@ -1733,17 +1522,15 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 	}
 }
 
-func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.Event, seq uint64) error {
-	if err := waitForSeqAll(ctx, seq,
-		waitForProjection("room timeline", c.RoomTimelineProjector),
-		waitForProjection("threads", c.ThreadsProjector),
-	); err != nil {
+func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
+	pos := events.SubjectPosition(subject, seq)
+	if err := c.roomService.waitForTimelineAndThreads(ctx, pos); err != nil {
 		return err
 	}
 
 	switch event.GetEvent().(type) {
 	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
-		if err := waitForSeqAll(ctx, seq, waitForProjection("reactions", c.ReactionsProjector)); err != nil {
+		if err := c.roomService.waitForReactions(ctx, pos); err != nil {
 			return err
 		}
 	}
@@ -1757,7 +1544,7 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, event *corev1.
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomDeleted:
-		if err := waitForSeqAll(ctx, seq, waitForProjection("room directory", c.RoomDirectoryProjector)); err != nil {
+		if err := c.roomService.waitForDirectory(ctx, pos); err != nil {
 			return err
 		}
 	}

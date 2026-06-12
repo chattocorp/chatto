@@ -20,9 +20,7 @@ const maxMoveRoomToGroupRetries = 5
 // per-group room-membership events live on `evt.group.{G}`; the
 // operator-defined inter-group ordering lives on the singleton
 // `evt.layout.default` aggregate. The legacy `room_group.{id}` and
-// `room_layout` KV records are no longer written; they remain
-// populated from pre-phase-6 history and the boot-time migrations,
-// kept around solely to allow a rollback to a pre-phase-6 binary.
+// `room_layout` KV records are no longer written or read by current code.
 //
 // Reads compose three read-model indexes:
 //   - RoomGroups: per-group metadata + ordered room_ids
@@ -70,7 +68,7 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 			},
 		},
 	})
-	if _, err := c.RoomGroupLayoutProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.GroupAggregate(group.Id), createdEvent); err != nil {
+	if _, err := c.roomService.appendGroupLayoutEventually(ctx, c.EventPublisher, events.GroupAggregate(group.Id), createdEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomGroupCreatedEvent: %w", err)
 	}
 
@@ -108,7 +106,7 @@ func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name
 			},
 		},
 	})
-	if _, err := c.RoomGroupLayoutProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupAggregate(groupID), updatedEvent); err != nil {
+	if _, err := c.roomService.appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), updatedEvent); err != nil {
 		return nil, fmt.Errorf("publish RoomGroupUpdatedEvent: %w", err)
 	}
 
@@ -163,7 +161,7 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 			},
 		},
 	})
-	if _, err := c.RoomGroupLayoutProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, events.GroupAggregate(groupID), deletedEvent); err != nil {
+	if _, err := c.roomService.appendGroupLayoutEventually(ctx, c.EventPublisher, events.GroupAggregate(groupID), deletedEvent); err != nil {
 		return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
 	}
 
@@ -194,7 +192,7 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 			return fmt.Errorf("read room-group OCC seq: %w", err)
 		}
 		if filterSeq > 0 {
-			if err := c.RoomGroupLayoutProjector.WaitForSeq(ctx, filterSeq); err != nil {
+			if err := c.roomService.waitForGroupLayout(ctx, events.SubjectPosition(occFilter, filterSeq)); err != nil {
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
 		}
@@ -262,7 +260,8 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 			// Wait on the final seq — the projector applies in stream order
 			// so reaching the last batch entry's seq implies every earlier
 			// entry's Apply has also landed.
-			if err := c.RoomGroupLayoutProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
+			lastSubject := entries[len(entries)-1].Subject
+			if err := c.roomService.waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
 			return nil
@@ -353,7 +352,7 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 			},
 		},
 	})
-	if _, err := c.RoomGroupLayoutProjector.AppendAndWait(ctx, c.EventPublisher, events.GroupAggregate(groupID), reorderedEvent); err != nil {
+	if _, err := c.roomService.appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), reorderedEvent); err != nil {
 		return fmt.Errorf("publish RoomsInGroupReorderedEvent: %w", err)
 	}
 
@@ -429,7 +428,7 @@ func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, 
 			},
 		},
 	})
-	if _, err := c.RoomGroupLayoutProjector.AppendAndWait(ctx, c.EventPublisher, events.LayoutAggregate(), event); err != nil {
+	if _, err := c.roomService.appendGroupLayout(ctx, c.EventPublisher, events.LayoutAggregate(), event); err != nil {
 		return fmt.Errorf("publish RoomGroupsReorderedEvent: %w", err)
 	}
 	return nil

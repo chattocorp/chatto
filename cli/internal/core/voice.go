@@ -60,10 +60,6 @@ func callStateKey(spaceID, roomID string) string {
 	return "call." + spaceID + "." + roomID
 }
 
-func legacyCallStateKey(spaceID, roomID string) string {
-	return spaceID + "." + roomID
-}
-
 // LiveKitRoomName constructs a deterministic LiveKit room name from space and room IDs.
 // When serverID is non-empty, the room name is prefixed with "{serverID}." so the
 // webhook bridge can route events to the correct Chatto server in shared deployments.
@@ -299,49 +295,6 @@ func (c *ChattoCore) writeCallState(ctx context.Context, key string, state *call
 		_, err = c.storage.memoryCacheKV.Update(ctx, key, data, revision)
 	}
 	return err
-}
-
-func (c *ChattoCore) migrateLegacyCallStateToMemoryCache(ctx context.Context) error {
-	if c.storage.legacyCallStateKV == nil {
-		return nil
-	}
-
-	lister, err := c.storage.legacyCallStateKV.ListKeys(ctx)
-	if errors.Is(err, jetstream.ErrNoKeysFound) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("list legacy call state keys: %w", err)
-	}
-	defer lister.Stop()
-
-	copied := 0
-	for key := range lister.Keys() {
-		entry, err := c.storage.legacyCallStateKV.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return fmt.Errorf("get legacy call state %s: %w", key, err)
-		}
-		parts := strings.SplitN(key, ".", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			c.logger.Warn("Skipping malformed legacy call state key", "key", key)
-			continue
-		}
-		newKey := callStateKey(parts[0], parts[1])
-		if _, err := c.storage.memoryCacheKV.Create(ctx, newKey, entry.Value()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				continue
-			}
-			return fmt.Errorf("copy legacy call state %s: %w", key, err)
-		}
-		copied++
-	}
-	if copied > 0 {
-		c.logger.Info("Copied legacy CALL_STATE entries into MEMORY_CACHE", "copied", copied)
-	}
-	return nil
 }
 
 // PublishCallParticipantJoined publishes a live event notifying room members

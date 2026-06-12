@@ -1,20 +1,26 @@
-FROM alpine:latest
+FROM alpine:3.22
 
 ARG NATS_CLI_VERSION=0.4.0
 ARG TARGETARCH
 
-RUN apk add --no-cache ca-certificates tzdata ffmpeg \
+RUN set -eux; \
+ apk add --no-cache ca-certificates tzdata ffmpeg \
  && apk add --no-cache --virtual .build-deps curl unzip \
  && case "$TARGETARCH" in \
       amd64) arch=amd64 ;; \
       arm64) arch=arm64 ;; \
       *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
     esac \
- && curl -fsSL -o /tmp/nats.zip \
-      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/nats-${NATS_CLI_VERSION}-linux-${arch}.zip" \
- && unzip -j /tmp/nats.zip "*/nats" -d /usr/local/bin/ \
+ && archive="nats-${NATS_CLI_VERSION}-linux-${arch}.zip" \
+ && curl -fsSL -o "/tmp/${archive}" \
+      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/${archive}" \
+ && curl -fsSL -o /tmp/nats-SHA256SUMS \
+      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/SHA256SUMS" \
+ && cd /tmp \
+ && grep "  ${archive}$" nats-SHA256SUMS | sha256sum -c - \
+ && unzip -j "/tmp/${archive}" "*/nats" -d /usr/local/bin/ \
  && chmod +x /usr/local/bin/nats \
- && rm /tmp/nats.zip \
+ && rm "/tmp/${archive}" /tmp/nats-SHA256SUMS \
  && apk del .build-deps \
  && addgroup -g 10001 chatto \
  && adduser -D -u 10001 -G chatto -h /home/chatto -s /sbin/nologin chatto

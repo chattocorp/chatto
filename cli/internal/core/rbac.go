@@ -71,7 +71,8 @@ func listKeysWithPattern(ctx context.Context, kv jetstream.KeyValue, pattern str
 const rbacDefaultsSentinel = "defaults_initialized"
 
 // initServerRBAC exists for older tests and tools that explicitly ask for the
-// historical bootstrap step. NewChattoCore seeds RBAC through migrateRBACToES.
+// historical bootstrap step. NewChattoCore seeds the default RBAC aggregate
+// directly on fresh servers.
 func (c *ChattoCore) initServerRBAC(ctx context.Context) error {
 	return c.CreateDefaultRoles(ctx)
 }

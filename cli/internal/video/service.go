@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/config"
@@ -48,6 +49,8 @@ type Service struct {
 	stopped     bool
 }
 
+const videoProcessingShutdownTimeout = 10 * time.Second
+
 // NewService creates a new process-local video processing service and registers
 // it as core's best-effort video processing handler.
 func NewService(chattoCore *core.ChattoCore, cfg config.VideoConfig, logger *log.Logger) (*Service, error) {
@@ -71,6 +74,10 @@ func NewService(chattoCore *core.ChattoCore, cfg config.VideoConfig, logger *log
 // Run starts the video processing service. Blocks until ctx is cancelled.
 // Implements service.Service.
 func (s *Service) Run(ctx context.Context) error {
+	return s.run(ctx, videoProcessingShutdownTimeout)
+}
+
+func (s *Service) run(ctx context.Context, shutdownTimeout time.Duration) error {
 	maxConcurrent := s.config.MaxConcurrentOrDefault()
 	s.logger.Info("Video processing service started",
 		"ffmpeg", s.ffmpegPath,
@@ -81,12 +88,14 @@ func (s *Service) Run(ctx context.Context) error {
 	// Recover any in-flight assets that were enqueued by a prior process
 	// but have no terminal manifest yet. The projection has to be caught up
 	// before we can look anything up, so wait for boot first.
-	go func() {
-		if err := s.core.WaitForBoot(ctx); err != nil {
-			return
-		}
-		s.core.RecoverUnmanifestedVideoAttachments(ctx)
-	}()
+	if s.core != nil {
+		go func() {
+			if err := s.core.WaitForBoot(ctx); err != nil {
+				return
+			}
+			s.core.RecoverUnmanifestedVideoAttachments(ctx)
+		}()
+	}
 
 	<-ctx.Done()
 	s.logger.Info("Shutting down video processing service, waiting for in-flight jobs...")
@@ -95,7 +104,19 @@ func (s *Service) Run(ctx context.Context) error {
 	s.stopped = true
 	s.mu.Unlock()
 	s.cancel()
-	s.wg.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(shutdownTimeout):
+		s.logger.Warn("Video processing service shutdown timed out; exiting with jobs still in flight",
+			"timeout", shutdownTimeout)
+	}
 
 	s.logger.Info("Video processing service stopped")
 

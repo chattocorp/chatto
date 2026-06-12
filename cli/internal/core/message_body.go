@@ -28,7 +28,7 @@ type DecryptedMessageBody struct {
 // GetFullMessageBody returns the decrypted message body for a message.
 //
 // `messageBodyKey` is the legacy compound key `{userId}.{eventId}`
-// retained for API compatibility with the pre-ES resolver layer. We
+// retained for API compatibility with older resolver call sites. We
 // extract the eventId from the second segment, look the message up in
 // the RoomTimelineProjection, and fold any subsequent edit / retract
 // events to produce the current body. The userId prefix on the key is
