@@ -1,36 +1,42 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-12
 
 ## Overview
 
-Users can mention each other in messages with `@username` syntax. A mention notifies the recipient, contributes to the room's pending-notification indicator in the sidebar, and renders the mention as styled text in the message body.
+Users can mention users, roles, and room-scoped virtual groups with `@handle` syntax. A delivered mention notifies the recipient users, contributes to the room's pending-notification indicator in the sidebar, and renders the mention as styled text in the message body.
 
 ## Behavior
 
 - Typing `@` followed by at least one character opens the autocomplete popup in the composer.
-- Matching is fuzzy against both the user's login and display name. Prefix matches rank higher than substring matches.
+- Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and server role names. Prefix matches rank higher than substring matches.
 - Pressing Tab completes the first match and appends a space. Pressing Tab again cycles to the next candidate.
-- Valid mentions render with highlight styling in the posted message. Self-mentions get additional styling.
+- `@username` mentions notify that user if they are a current room member.
+- `@role` mentions notify current room members who currently hold that server role.
+- `@all` mentions every current room member, regardless of presence.
+- `@here` mentions current room members whose presence is not offline.
+- `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.
+- Valid user and virtual mentions render with highlight styling in the posted message. Self-mentions get additional styling.
 - Mentions inside code blocks, pre-formatted text, and blockquotes are not styled — they render as plain text.
 - Mentioning yourself does not produce a notification.
-- Mentioning a user who isn't a member of the server leaves the `@name` as plain text — the mention is not delivered.
+- Mentioning a user who isn't a room member leaves the `@name` as plain text — the mention is not delivered.
+- If a message would notify more than 10 users, the composer asks for confirmation before sending. The backend enforces the same guard for API callers.
 - Mentions are resolved when a message is first posted. Editing a message later does not add, remove, dismiss, or re-send mention notifications.
 
 ## Design Decisions
 
-### 1. Only server members can be mentioned
+### 1. One shared `@` namespace
 
-**Decision:** Mentions only resolve against users who are members of the server. Mentions of non-members are silently dropped (rendered as plain text).
-**Why:** Mentioning a non-member would either need to invite them (privacy hazard) or no-op (the current behavior, which preserves the typed text). The no-op is the conservative choice.
-**Tradeoff:** Users can't ping someone who hasn't joined yet. They have to invite first, then mention.
+**Decision:** Users, roles, and virtual handles all use `@handle`. User logins cannot use existing role names or virtual handles, and custom role names cannot use existing user logins or virtual handles.
+**Why:** Users already understand `@` as "direct attention". A second prefix would make role mentions harder to discover and harder to tab-complete. A single case-insensitive namespace keeps parsing and autocomplete predictable.
+**Tradeoff:** A server cannot have a user and role with the same mention handle. Early 0.1.x servers can resolve any existing collisions manually.
 
-### 2. No `@channel` or `@here`
+### 2. Mentions are room-scoped
 
-**Decision:** Only individual user mentions exist. There's no `@channel`, `@everyone`, `@here`, or other broadcast form.
-**Why:** Broadcast mentions are a common source of noise and abuse in chat apps. Without them, the cost of mentioning is bounded.
-**Tradeoff:** Operators who want a "shout into the room" mechanism have to use room-wide notifications (see FDR-012, `ALL_MESSAGES` notification level) — which is opt-in per user per room and lower-stakes.
+**Decision:** Mentions only deliver to users who are current members of the room being posted to. Role mentions intersect role membership with room membership.
+**Why:** Room membership is the visibility boundary for the message. Notifying a non-member would either leak context or create a notification they cannot open.
+**Tradeoff:** A role mention may reach fewer people than the full server role assignment list. Authors who need a broader audience must post in a room that contains that audience.
 
 ### 3. Mentions are post-time facts
 
@@ -56,9 +62,15 @@ Users can mention each other in messages with `@username` syntax. A mention noti
 **Why:** Mention attention state has the same lifecycle as other notifications: it is pending until the user views or dismisses it, syncs across devices, and expires with notification retention. Keeping it in the notification model avoids duplicated state.
 **Tradeoff:** Mention dots follow notification dismissal semantics. Dismissing a mention notification clears the corresponding sidebar attention signal.
 
+### 7. Large mention sends require confirmation
+
+**Decision:** A message whose mentions would notify more than 10 users requires explicit confirmation. The count is computed after deduplication, excluding the author, excluding users muted for the room, and applying room-membership constraints.
+**Why:** Role and room-wide mentions are useful operational tools, but accidental broad pings are costly. Confirmation preserves the feature while catching the common "I did not realize this reaches everyone" mistake.
+**Tradeoff:** Senders occasionally see one extra prompt for intentional broadcasts.
+
 ## Permissions
 
-No dedicated mention permission. Anyone who can post in a room can mention any server member.
+No dedicated mention permission. Anyone who can post in a room can mention any user, role, or virtual handle that resolves inside that room.
 
 ## Related
 

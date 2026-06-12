@@ -434,6 +434,9 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 	if err := validateRoleMetadata(displayName, description); err != nil {
 		return nil, err
 	}
+	if c.roleNameConflictsWithMentionHandle(name) {
+		return nil, ErrRoleAlreadyExists
+	}
 	if IsSystemRole(name) {
 		return nil, ErrRoleAlreadyExists
 	}

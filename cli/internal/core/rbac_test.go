@@ -707,6 +707,25 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 			t.Error("Expected error for system role name")
 		}
 	})
+
+	t.Run("rejects virtual mention handles", func(t *testing.T) {
+		for _, name := range []string{"all", "here"} {
+			_, err := core.CreateServerRole(ctx, name, name, "Should fail")
+			if !errors.Is(err, ErrRoleAlreadyExists) {
+				t.Errorf("CreateServerRole(%q) error = %v, want ErrRoleAlreadyExists", name, err)
+			}
+		}
+	})
+
+	t.Run("rejects existing user logins", func(t *testing.T) {
+		if _, err := core.CreateUser(ctx, SystemActorID, "role-collision-user", "Role Collision", "password123"); err != nil {
+			t.Fatalf("CreateUser role-collision-user: %v", err)
+		}
+		_, err := core.CreateServerRole(ctx, "role-collision-user", "Role Collision", "Should fail")
+		if !errors.Is(err, ErrRoleAlreadyExists) {
+			t.Errorf("CreateServerRole existing login error = %v, want ErrRoleAlreadyExists", err)
+		}
+	})
 }
 
 // ============================================================================

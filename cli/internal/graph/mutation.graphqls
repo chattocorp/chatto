@@ -236,6 +236,8 @@ input PostMessageInput {
   inReplyTo: ID
   "Also echo this thread reply to the main channel for visibility (requires message.echo permission)."
   alsoSendToChannel: Boolean
+  "Confirms sending when @mentions would notify more than 10 users."
+  largeMentionConfirmed: Boolean
   "Link preview data from the composer. Server stores this directly without fetching."
   linkPreview: LinkPreviewInput
 }

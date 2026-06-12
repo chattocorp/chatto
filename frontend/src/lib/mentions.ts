@@ -43,6 +43,11 @@ export function findMemberByMention(
   );
 }
 
+function isVirtualMention(username: string): boolean {
+  const lower = username.toLowerCase();
+  return lower === 'all' || lower === 'here';
+}
+
 /**
  * Check if a specific user is mentioned in text.
  * Uses the room members list to validate that mentions refer to actual users.
@@ -94,7 +99,7 @@ export function wrapValidMentions(
   currentUserLogin?: string
 ): string {
   // Handle empty input
-  if (!html || members.length === 0) {
+  if (!html) {
     return html;
   }
 
@@ -144,7 +149,7 @@ export function wrapValidMentions(
         fragments.push(prefix);
       }
 
-      // Check if this is a valid mention (matches a room member)
+      // Check if this is a valid mention (matches a room member or virtual handle)
       const mentionedMember = findMemberByMention(username, members);
       if (mentionedMember) {
         // Create styled element for valid mention
@@ -154,6 +159,11 @@ export function wrapValidMentions(
           mentionedMember.login.toLowerCase() === currentUserLogin.toLowerCase();
         span.className = isSelfMention ? 'mention mention-self' : 'mention';
         span.setAttribute('data-user-id', mentionedMember.id);
+        span.textContent = `@${username}`;
+        fragments.push(span);
+      } else if (isVirtualMention(username)) {
+        const span = doc.createElement('span');
+        span.className = 'mention mention-broadcast';
         span.textContent = `@${username}`;
         fragments.push(span);
       } else {

@@ -62,6 +62,9 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	if isBlocked {
 		return nil, ErrUsernameBlocked
 	}
+	if c.loginConflictsWithMentionHandle(login) {
+		return nil, ErrUsernameBlocked
+	}
 
 	// Enforce server-wide user limit at signup as a UX gate so people don't sign up
 	// only to be blocked at verification. The verification check (in addVerifiedEmail)
@@ -762,6 +765,9 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 			return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
 		}
 		if isBlocked {
+			return nil, ErrUsernameBlocked
+		}
+		if c.loginConflictsWithMentionHandle(newLogin) {
 			return nil, ErrUsernameBlocked
 		}
 	}

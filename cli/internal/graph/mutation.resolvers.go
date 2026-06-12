@@ -219,6 +219,17 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		body = *input.Body
 	}
 
+	largeMentionConfirmed := input.LargeMentionConfirmed != nil && *input.LargeMentionConfirmed
+	if body != "" && !largeMentionConfirmed {
+		recipientCount, err := r.core.MentionNotificationRecipientCountForBody(ctx, kind, input.RoomID, user.Id, body)
+		if err != nil {
+			return nil, err
+		}
+		if recipientCount > core.LargeMentionNotificationThreshold {
+			return nil, largeMentionConfirmationError(recipientCount)
+		}
+	}
+
 	// Process file uploads if any (file uploads stay direct via HTTP)
 	var attachments []*corev1.Attachment
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
@@ -334,6 +345,9 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			postMessageOptions = append(postMessageOptions, core.WithVideoProcessingAssets(videoProcessingAssetIDs...))
 		}
 	}
+	if largeMentionConfirmed {
+		postMessageOptions = append(postMessageOptions, core.WithLargeMentionConfirmed())
+	}
 
 	assetIDs := make([]string, 0, len(attachments))
 	for _, att := range attachments {
@@ -343,6 +357,9 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, assetIDs, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
 	if err != nil {
+		if confirmErr, ok := err.(*core.MentionConfirmationRequiredError); ok {
+			return nil, largeMentionConfirmationError(confirmErr.RecipientCount)
+		}
 		return nil, err
 	}
 

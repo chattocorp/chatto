@@ -34,6 +34,7 @@ type Documents = {
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": typeof types.UserAvatarUserFragmentDoc,
     "\n          query ValidateSpaceAccess {\n            server {\n              profile {\n                name\n                bannerUrl\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageServer\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": typeof types.ValidateSpaceAccessDocument,
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": typeof types.PostMessageDocument,
+    "\n    query ComposerMentionRoles {\n      server {\n        roles {\n          name\n          isSystem\n          position\n        }\n      }\n    }\n  ": typeof types.ComposerMentionRolesDocument,
     "\n    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {\n      updateMessage(input: $input)\n    }\n  ": typeof types.UpdateMessageFromInputDocument,
     "\n  query LinkPreviewForComposer($url: String!) {\n    linkPreview(url: $url) {\n      ...LinkPreviewView\n      imageAssetId\n    }\n  }\n": typeof types.LinkPreviewForComposerDocument,
     "\n        query MatrixTierRoles($roomId: ID, $groupId: ID) {\n          admin {\n            rbac {\n              rolePermissionTierMatrix(roomId: $roomId, groupId: $groupId) {\n                applicablePermissions\n                roles {\n                  roleName\n                  displayName\n                  description\n                  isSystem\n                  position\n                  override {\n                    permissions\n                    permissionDenials\n                  }\n                  inheritedAllows\n                  inheritedDenials\n                }\n              }\n            }\n          }\n        }\n      ": typeof types.MatrixTierRolesDocument,
@@ -168,6 +169,7 @@ const documents: Documents = {
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": types.UserAvatarUserFragmentDoc,
     "\n          query ValidateSpaceAccess {\n            server {\n              profile {\n                name\n                bannerUrl\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageServer\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": types.ValidateSpaceAccessDocument,
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": types.PostMessageDocument,
+    "\n    query ComposerMentionRoles {\n      server {\n        roles {\n          name\n          isSystem\n          position\n        }\n      }\n    }\n  ": types.ComposerMentionRolesDocument,
     "\n    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {\n      updateMessage(input: $input)\n    }\n  ": types.UpdateMessageFromInputDocument,
     "\n  query LinkPreviewForComposer($url: String!) {\n    linkPreview(url: $url) {\n      ...LinkPreviewView\n      imageAssetId\n    }\n  }\n": types.LinkPreviewForComposerDocument,
     "\n        query MatrixTierRoles($roomId: ID, $groupId: ID) {\n          admin {\n            rbac {\n              rolePermissionTierMatrix(roomId: $roomId, groupId: $groupId) {\n                applicablePermissions\n                roles {\n                  roleName\n                  displayName\n                  description\n                  isSystem\n                  position\n                  override {\n                    permissions\n                    permissionDenials\n                  }\n                  inheritedAllows\n                  inheritedDenials\n                }\n              }\n            }\n          }\n        }\n      ": types.MatrixTierRolesDocument,
@@ -376,6 +378,10 @@ export function graphql(source: "\n          query ValidateSpaceAccess {\n      
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    query ComposerMentionRoles {\n      server {\n        roles {\n          name\n          isSystem\n          position\n        }\n      }\n    }\n  "): (typeof documents)["\n    query ComposerMentionRoles {\n      server {\n        roles {\n          name\n          isSystem\n          position\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

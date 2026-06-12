@@ -186,7 +186,8 @@ describe('MessageComposer', () => {
     prepareFilesMock.mockImplementation(async (files: File[]) => files);
     mutationMock.mockReset();
     mutationMock.mockImplementation((_mutation, variables) => {
-      if (variables?.input?.eventId) return Promise.resolve({ data: updateMutationData, error: null });
+      if (variables?.input?.eventId)
+        return Promise.resolve({ data: updateMutationData, error: null });
       return Promise.resolve({ data: mutationData, error: null });
     });
     queryMock.mockReset();
@@ -528,11 +529,9 @@ describe('MessageComposer', () => {
 
     it('clears staged attachments when edit mode is active at mount', async () => {
       const roomId = 'room_edit_attachments';
-      const firstRender = renderMessageComposer(
-        { roomId },
-        new Map([['$$_urql', mockClient]]),
-        { exactRoomId: true }
-      );
+      const firstRender = renderMessageComposer({ roomId }, new Map([['$$_urql', mockClient]]), {
+        exactRoomId: true
+      });
       const file = selectFirstAttachment(
         q(firstRender.container, 'input[type="file"]') as HTMLInputElement
       );
@@ -543,11 +542,9 @@ describe('MessageComposer', () => {
       // The composer should discard attachments because editMessage only supports text.
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'editable';
-      const { container } = renderMessageComposer(
-        { roomId },
-        new Map([['$$_urql', mockClient]]),
-        { exactRoomId: true }
-      );
+      const { container } = renderMessageComposer({ roomId }, new Map([['$$_urql', mockClient]]), {
+        exactRoomId: true
+      });
       expect(q(container, 'button[title="Attach file"]')).toBeNull();
       expect(file.name).toBe('paste.png');
       expect(q(container, 'img')).toBeNull();
@@ -613,21 +610,23 @@ describe('MessageComposer', () => {
 
   describe('link preview composer behavior', () => {
     function mockLinkPreview(url: string) {
-      queryMock.mockResolvedValueOnce({
-        data: {
-          linkPreview: {
-            url,
-            title: 'Preview title',
-            description: 'Preview description',
-            imageUrl: null,
-            siteName: 'Preview site',
-            embedType: null,
-            embedId: null,
-            imageAssetId: 'asset_preview'
-          }
-        },
-        error: null
-      });
+      queryMock
+        .mockResolvedValueOnce({ data: { server: { roles: [] } }, error: null })
+        .mockResolvedValueOnce({
+          data: {
+            linkPreview: {
+              url,
+              title: 'Preview title',
+              description: 'Preview description',
+              imageUrl: null,
+              siteName: 'Preview site',
+              embedType: null,
+              embedId: null,
+              imageAssetId: 'asset_preview'
+            }
+          },
+          error: null
+        });
     }
 
     it('fetches a non-message-link preview and sends it with the post mutation', async () => {
@@ -641,7 +640,7 @@ describe('MessageComposer', () => {
 
       await typeInEditor(editor, `Look ${url}`);
 
-      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledOnce(), { timeout: 1000 });
+      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
       await expect.element(q(container, '[data-testid="link-preview-card"]')).toBeInTheDocument();
 
       (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
@@ -666,7 +665,7 @@ describe('MessageComposer', () => {
       const editor = q(container, '[data-testid="message-input"]')!;
 
       await typeInEditor(editor, `Dismiss ${url}`);
-      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledOnce(), { timeout: 1000 });
+      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
       (q(container, 'button[aria-label="Dismiss preview"]') as HTMLButtonElement).click();
 
       (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();

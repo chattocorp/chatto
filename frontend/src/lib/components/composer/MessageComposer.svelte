@@ -19,7 +19,7 @@
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
-  import { AutocompleteState } from './autocomplete.svelte';
+  import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -101,8 +101,10 @@
   const linkPreviews = new LinkPreviewState(() => connection().client);
   const autocomplete = new AutocompleteState(
     () => editorApi,
-    () => members
+    () => members,
+    () => mentionRoles
   );
+  let mentionRoles = $state<MentionRole[]>([]);
 
   // Dynamic placeholder changes between normal and edit mode
   let currentPlaceholder = $derived(
@@ -173,6 +175,18 @@
     }
   `);
 
+  const ComposerMentionRolesQuery = graphql(`
+    query ComposerMentionRoles {
+      server {
+        roles {
+          name
+          isSystem
+          position
+        }
+      }
+    }
+  `);
+
   const UpdateMessageMutation = graphql(`
     mutation UpdateMessageFromInput($input: UpdateMessageInput!) {
       updateMessage(input: $input)
@@ -181,6 +195,33 @@
 
   $effect(() => {
     return linkPreviews.scheduleDetection(message, isEditing);
+  });
+
+  $effect(() => {
+    const client = connection().client;
+    let cancelled = false;
+
+    async function loadMentionRoles() {
+      const response = await client.query(ComposerMentionRolesQuery, {});
+      if (cancelled) return;
+      if (response.error) {
+        mentionRoles = [];
+        return;
+      }
+      mentionRoles =
+        response.data?.server?.roles
+          .filter((role) => role.name !== 'everyone')
+          .map((role) => ({
+            name: role.name,
+            isSystem: role.isSystem,
+            position: role.position
+          })) ?? [];
+    }
+
+    void loadMentionRoles();
+    return () => {
+      cancelled = true;
+    };
   });
 
   let loading = $state(false);
@@ -306,6 +347,21 @@
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
+  function mentionConfirmationCount(error: unknown): number | null {
+    const graphQLErrors =
+      error && typeof error === 'object' && 'graphQLErrors' in error
+        ? (error.graphQLErrors as Array<{ extensions?: Record<string, unknown> }>)
+        : [];
+
+    for (const graphQLError of graphQLErrors) {
+      const extensions = graphQLError.extensions;
+      if (extensions?.code !== 'MENTION_CONFIRMATION_REQUIRED') continue;
+      const count = extensions.recipientCount;
+      if (typeof count === 'number') return count;
+    }
+    return null;
+  }
+
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
@@ -327,7 +383,7 @@
     loading = true;
 
     try {
-      const response = await connection().client.mutation(PostMessageMutation, {
+      const buildInput = (largeMentionConfirmed: boolean) => ({
         input: {
           roomId,
           body: bodyToSend || null,
@@ -335,9 +391,31 @@
           threadRootEventId: inThread ?? null,
           inReplyTo: inReplyTo ?? null,
           linkPreview: linkPreviewInput,
-          alsoSendToChannel: alsoSendToChannel || null
+          alsoSendToChannel: alsoSendToChannel || null,
+          largeMentionConfirmed: largeMentionConfirmed || null
         }
       });
+
+      let response = await connection().client.mutation(PostMessageMutation, buildInput(false));
+
+      if (response.error) {
+        const confirmationCount = mentionConfirmationCount(response.error);
+        if (confirmationCount !== null) {
+          const confirmed = window.confirm(
+            `This message will notify ${confirmationCount} people. Send it anyway?`
+          );
+          if (confirmed) {
+            response = await connection().client.mutation(PostMessageMutation, buildInput(true));
+          } else {
+            message = bodyToSend;
+            editorApi?.setContent(bodyToSend);
+            if (filesToSend) {
+              attachments.restore(attachments.filesToPreviewItems(filesToSend));
+            }
+            return;
+          }
+        }
+      }
 
       if (response.error) {
         toast.error('Failed to send message');
@@ -550,7 +628,7 @@
               data-testid="audio-attachment-preview"
               class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
             >
-              <span class="iconify uil--music text-lg text-muted"></span>
+              <span class="iconify text-lg text-muted uil--music"></span>
             </div>
           {:else}
             <div class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200">
@@ -604,6 +682,7 @@
         bind:this={autocomplete.mentionRef}
         query={autocomplete.mention.query}
         {members}
+        roles={mentionRoles}
         onSelect={handleMentionSelect}
         onClose={closeMentionAutocomplete}
       />
