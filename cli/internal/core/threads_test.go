@@ -722,6 +722,39 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 	})
 
+	t.Run("returns a paged followed thread list", func(t *testing.T) {
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 0)
+		if err != nil {
+			t.Fatalf("Failed to list followed thread page: %v", err)
+		}
+		if page.TotalCount != 2 {
+			t.Fatalf("TotalCount = %d, want 2", page.TotalCount)
+		}
+		if !page.HasMore {
+			t.Fatal("HasMore = false, want true for first page")
+		}
+		if len(page.Threads) != 1 {
+			t.Fatalf("page len = %d, want 1", len(page.Threads))
+		}
+		if page.Threads[0].ThreadRootEventID != rootMsg2.Id {
+			t.Errorf("first page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg2.Id)
+		}
+
+		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 1)
+		if err != nil {
+			t.Fatalf("Failed to list followed thread second page: %v", err)
+		}
+		if page.HasMore {
+			t.Fatal("HasMore = true, want false for final page")
+		}
+		if len(page.Threads) != 1 {
+			t.Fatalf("second page len = %d, want 1", len(page.Threads))
+		}
+		if page.Threads[0].ThreadRootEventID != rootMsg1.Id {
+			t.Errorf("second page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg1.Id)
+		}
+	})
+
 	t.Run("includes correct metadata", func(t *testing.T) {
 		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
