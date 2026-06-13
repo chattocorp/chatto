@@ -4,13 +4,8 @@ import type { Client } from '@urql/svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import { MessagesStore } from './messages.svelte';
 
-/**
- * Minimal GraphQLClient stand-in. `reconnectCount` is a Svelte `$state` so
- * the store's internal `$effect.root` reacts to `bumpReconnect()` just like
- * it would with a real client.
- */
 class FakeGqlClient {
-	reconnectCount = $state(0);
+	reconnectCount = 0;
 	client: Client;
 	queryMock: ReturnType<typeof vi.fn>;
 
@@ -36,10 +31,6 @@ class FakeGqlClient {
 		} as unknown as Client;
 	}
 
-	bumpReconnect() {
-		this.reconnectCount++;
-		flushSync();
-	}
 }
 
 function isOperationResult(value: unknown): value is { data: unknown; error: unknown } {
@@ -50,14 +41,6 @@ async function settle() {
 	await Promise.resolve();
 	await Promise.resolve();
 	flushSync();
-}
-
-function deferred<T>() {
-	let resolve!: (value: T) => void;
-	const promise = new Promise<T>((r) => {
-		resolve = r;
-	});
-	return { promise, resolve };
 }
 
 function threadMessageEvent(id: string, threadRootEventId: string | null = null) {
@@ -81,7 +64,27 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
 			replyCount: 0,
 			lastReplyAt: null,
 			threadParticipants: [],
-			viewerIsFollowingThread: null
+			viewerIsFollowingThread: null,
+			reactions: []
+		}
+	};
+}
+
+function messageWithReaction(id: string, emoji: string) {
+	const event = threadMessageEvent(id);
+	return {
+		...event,
+		event: {
+			...event.event,
+			reactions: [
+				{
+					__typename: 'ReactionSummary',
+					emoji,
+					count: 1,
+					hasReacted: false,
+					users: []
+				}
+			]
 		}
 	};
 }
@@ -350,6 +353,48 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
+	it('refetches a loaded message when a replayed reaction event arrives', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{ room: { event: messageWithReaction('m1', 'heart') } }
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent({
+			id: 'reaction-1',
+			createdAt: '2026-05-27T00:00:01Z',
+			actorId: 'u2',
+			actor: null,
+			deliveryCursor: 'seq:2',
+			event: {
+				__typename: 'ReactionAddedEvent',
+				roomId: 'room-1',
+				messageEventId: 'm1',
+				emoji: 'heart'
+			}
+		} as never);
+		await settle();
+
+		expect(fake.queryMock).toHaveBeenCalledOnce();
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', eventId: 'm1' });
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'heart', count: 1 }]
+		});
+		store.dispose();
+	});
+
 	it('hides only the echo when an echo is retracted', async () => {
 		const fake = new FakeGqlClient({
 			room: {
@@ -501,111 +546,6 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
-	it('triggers a catch-up query when reconnectCount increments', async () => {
-		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setRoom('room-1');
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-
-		fake.bumpReconnect();
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(2);
-
-		store.dispose();
-	});
-
-	it('keeps already-loaded room events before reconnect catch-up pages', async () => {
-		const fake = new FakeGqlClient([
-			roomEventsResult({
-				events: [threadMessageEvent('m1'), threadMessageEvent('m2')],
-				startCursor: 'seq:1',
-				endCursor: 'seq:2',
-				hasOlder: false,
-				hasNewer: false
-			}),
-			roomEventsResult({
-				events: [threadMessageEvent('m3'), threadMessageEvent('m4')],
-				startCursor: 'seq:3',
-				endCursor: 'seq:4',
-				hasOlder: false,
-				hasNewer: true
-			})
-		]);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setRoom('room-1');
-		await settle();
-
-		fake.bumpReconnect();
-		await settle();
-
-		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3', 'm4']);
-		store.dispose();
-	});
-
-	it('keeps live room events after in-flight reconnect catch-up pages', async () => {
-		const catchUp = deferred<unknown>();
-		const fake = new FakeGqlClient([
-			roomEventsResult({
-				events: [threadMessageEvent('m1'), threadMessageEvent('m2')],
-				startCursor: 'seq:1',
-				endCursor: 'seq:2',
-				hasOlder: false,
-				hasNewer: false
-			}),
-			catchUp.promise
-		]);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setRoom('room-1');
-		await settle();
-
-		fake.bumpReconnect();
-		store.ingestServerEvent(threadMessageEvent('m5') as never);
-		catchUp.resolve(
-			roomEventsResult({
-				events: [threadMessageEvent('m3'), threadMessageEvent('m4')],
-				startCursor: 'seq:3',
-				endCursor: 'seq:4',
-				hasOlder: false,
-				hasNewer: false
-			})
-		);
-		await settle();
-
-		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3', 'm4', 'm5']);
-		store.dispose();
-	});
-
-	it('stops reacting to reconnects after dispose()', async () => {
-		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setRoom('room-1');
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-
-		store.dispose();
-		fake.bumpReconnect();
-		await settle();
-
-		// Still just the initial fetchLatest — the reconnect listener is gone.
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-	});
-
-	it('does not catch up if setRoom has not been called', async () => {
-		const fake = new FakeGqlClient();
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		fake.bumpReconnect();
-		await settle();
-
-		expect(fake.queryMock).not.toHaveBeenCalled();
-		store.dispose();
-	});
-
 	it('dispose() is idempotent', () => {
 		const fake = new FakeGqlClient();
 		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
@@ -662,45 +602,4 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 		store.dispose();
 	});
 
-	it('triggers a catch-up query when reconnectCount increments', async () => {
-		const fake = new FakeGqlClient({
-			room: {
-				event: {
-					id: 't1',
-					event: {
-						__typename: 'MessagePostedEvent',
-						threadReplies: {
-							events: [],
-							startCursor: null,
-							endCursor: null,
-							hasOlder: false,
-							hasNewer: false
-						}
-					}
-				}
-			}
-		});
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setThread('room-1', 't1');
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-
-		fake.bumpReconnect();
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(2);
-
-		store.dispose();
-	});
-
-	it('does not catch up if setThread has not been called', async () => {
-		const fake = new FakeGqlClient();
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		fake.bumpReconnect();
-		await settle();
-
-		expect(fake.queryMock).not.toHaveBeenCalled();
-		store.dispose();
-	});
 });

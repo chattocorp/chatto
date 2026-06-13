@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
-import { eventBusManager } from './eventBus.svelte';
+import { FULL_REFRESH_REQUIRED_EVENT, eventBusManager } from './eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 
 /**
@@ -44,6 +44,10 @@ class FakeGqlClient {
 	bumpReconnect() {
 		this.reconnectCount++;
 		flushSync();
+	}
+
+	get subscriptionMock() {
+		return this.client.subscription as ReturnType<typeof vi.fn>;
 	}
 }
 
@@ -149,6 +153,78 @@ describe('eventBusManager subscription robustness', () => {
 
 		expect(fake.subscribeCalls).toBe(2);
 		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('ws reconnected'))).toBe(true);
+	});
+
+	it('resumes from the last durable delivery cursor on reconnect', () => {
+		const fake = new FakeGqlClient();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		expect(fake.subscriptionMock.mock.calls[0][1]).toEqual({ after: null });
+
+		fake.current.next({
+			data: {
+				myEvents: {
+					actorId: 'a',
+					deliveryCursor: 'seq:10',
+					event: { __typename: 'ServerUpdatedEvent' }
+				}
+			}
+		});
+		fake.bumpReconnect();
+
+		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: 'seq:10' });
+	});
+
+	it('does not advance the resume cursor for heartbeat or transient events', () => {
+		const fake = new FakeGqlClient();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+
+		fake.current.next({
+			data: { myEvents: { actorId: '', event: { __typename: 'HeartbeatEvent' } } }
+		});
+		fake.current.next({
+			data: {
+				myEvents: {
+					actorId: 'u1',
+					deliveryCursor: null,
+					event: { __typename: 'UserTypingEvent', roomId: 'room-1' }
+				}
+			}
+		});
+		fake.bumpReconnect();
+
+		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: null });
+	});
+
+	it('requests a full refresh and clears the cursor when replay is rejected', () => {
+		const fake = new FakeGqlClient();
+		const onFullRefresh = vi.fn();
+		window.addEventListener(FULL_REFRESH_REQUIRED_EVENT, onFullRefresh);
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+
+		fake.current.next({
+			data: {
+				myEvents: {
+					actorId: 'a',
+					deliveryCursor: 'signed-cursor',
+					event: { __typename: 'ServerUpdatedEvent' }
+				}
+			}
+		});
+		fake.current.next({
+			error: {
+				graphQLErrors: [
+					{ extensions: { code: 'MY_EVENTS_FULL_REFRESH_REQUIRED' } }
+				]
+			}
+		});
+		fake.bumpReconnect();
+
+		expect(onFullRefresh).toHaveBeenCalledTimes(1);
+		expect((onFullRefresh.mock.calls[0][0] as CustomEvent).detail).toEqual({
+			serverId: TEST_SERVER
+		});
+		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: null });
+		window.removeEventListener(FULL_REFRESH_REQUIRED_EVENT, onFullRefresh);
 	});
 
 	it('does NOT re-subscribe when stopBus is called (teardown guard)', () => {

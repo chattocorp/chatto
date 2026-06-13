@@ -33,6 +33,23 @@ const VISIBILITY_RESUBSCRIBE_AFTER_MS = 30_000;
 // post-incident screenshots show a clean timeline of subscription health
 // without needing verbose console filtering enabled.
 const LIVENESS_SUMMARY_INTERVAL_MS = 60_000;
+const FULL_REFRESH_REQUIRED_CODE = 'MY_EVENTS_FULL_REFRESH_REQUIRED';
+export const FULL_REFRESH_REQUIRED_EVENT = 'chattofullrefreshrequired';
+
+function requiresFullRefresh(error: unknown): boolean {
+	const graphQLErrors = (error as { graphQLErrors?: Array<{ extensions?: { code?: unknown } }> })
+		?.graphQLErrors;
+	return graphQLErrors?.some((e) => e.extensions?.code === FULL_REFRESH_REQUIRED_CODE) ?? false;
+}
+
+function requestFullRefresh(serverId: string) {
+	if (typeof window === 'undefined') return;
+	window.dispatchEvent(
+		new CustomEvent(FULL_REFRESH_REQUIRED_EVENT, {
+			detail: { serverId }
+		})
+	);
+}
 
 class EventBusManager {
 	// SvelteMap so getBus() is a reactive read — consumers like NotificationSync
@@ -82,6 +99,7 @@ class EventBusManager {
 		let heartbeatCount = 0;
 		let dispatchedEventCount = 0;
 		let resubscribeCount = 0;
+		let lastDeliveryCursor: string | null = null;
 		// Set while we're tearing down a subscription (either to replace it
 		// or because the bus is stopping). Prevents `onEnd` from firing a
 		// reentrant resubscribe in response to our own unsubscribe.
@@ -90,7 +108,7 @@ class EventBusManager {
 
 		const subscribeOnce = () =>
 			pipe(
-				client.subscription(MyServerEventsSubscriptionDoc, {}),
+				client.subscription(MyServerEventsSubscriptionDoc, { after: lastDeliveryCursor }),
 				onEnd(() => {
 					if (teardownInProgress || stopped) return;
 					console.warn(`[eventBus:${serverId}] subscription source ended`);
@@ -98,6 +116,15 @@ class EventBusManager {
 				}),
 				urqlSubscribe((result) => {
 					if (result.error) {
+						if (requiresFullRefresh(result.error)) {
+							lastDeliveryCursor = null;
+							console.warn(
+								`[eventBus:${serverId}] replay cursor rejected; forcing full refresh`,
+								result.error
+							);
+							requestFullRefresh(serverId);
+							return;
+						}
 						// Surface subscription errors so unreachable servers and other
 						// real failures are visible in the dev console. Don't refresh
 						// lastEventAt — an error storm without data should not mask a
@@ -111,6 +138,9 @@ class EventBusManager {
 					lastEventAt = Date.now();
 					if (!result.data) return;
 					const event = result.data.myEvents;
+					if (event.deliveryCursor) {
+						lastDeliveryCursor = event.deliveryCursor;
+					}
 					// Heartbeats are pure liveness signals — already accounted for
 					// via lastEventAt above. Don't dispatch to handlers.
 					if (event.event?.__typename === 'HeartbeatEvent') {

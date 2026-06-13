@@ -196,11 +196,12 @@ type ComplexityRoot struct {
 	}
 
 	Event struct {
-		Actor     func(childComplexity int) int
-		ActorID   func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		Event     func(childComplexity int) int
-		ID        func(childComplexity int) int
+		Actor          func(childComplexity int) int
+		ActorID        func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		DeliveryCursor func(childComplexity int) int
+		Event          func(childComplexity int) int
+		ID             func(childComplexity int) int
 	}
 
 	EventLogConnection struct {
@@ -807,7 +808,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		MyEvents func(childComplexity int) int
+		MyEvents func(childComplexity int, after *string) int
 	}
 
 	SystemInfo struct {
@@ -1009,6 +1010,7 @@ type EventResolver interface {
 	CreatedAt(ctx context.Context, obj core.EventEnvelope) (*timestamppb.Timestamp, error)
 	ActorID(ctx context.Context, obj core.EventEnvelope) (*string, error)
 	Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error)
+	DeliveryCursor(ctx context.Context, obj core.EventEnvelope) (*string, error)
 	Event(ctx context.Context, obj core.EventEnvelope) (model.EventType, error)
 }
 type FollowedThreadResolver interface {
@@ -1274,7 +1276,7 @@ type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error)
+	MyEvents(ctx context.Context, after *string) (<-chan core.EventEnvelope, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32, fit *model.FitMode) (*string, error)
@@ -1818,6 +1820,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Event.CreatedAt(childComplexity), true
+	case "Event.deliveryCursor":
+		if e.ComplexityRoot.Event.DeliveryCursor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.DeliveryCursor(childComplexity), true
 	case "Event.event":
 		if e.ComplexityRoot.Event.Event == nil {
 			break
@@ -4763,7 +4771,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Subscription.MyEvents(childComplexity), true
+		args, err := ec.field_Subscription_myEvents_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.MyEvents(childComplexity, args["after"].(*string)), true
 
 	case "SystemInfo.account":
 		if e.ComplexityRoot.SystemInfo.Account == nil {
@@ -5670,6 +5683,8 @@ func (ec *executionContext) childFields_Event(ctx context.Context, field graphql
 		return ec.fieldContext_Event_actorId(ctx, field)
 	case "actor":
 		return ec.fieldContext_Event_actor(ctx, field)
+	case "deliveryCursor":
+		return ec.fieldContext_Event_deliveryCursor(ctx, field)
 	case "event":
 		return ec.fieldContext_Event_event(ctx, field)
 	}
@@ -8326,6 +8341,20 @@ func (ec *executionContext) field_Server_viewerCanManageUser_args(ctx context.Co
 	return args, nil
 }
 
+func (ec *executionContext) field_Subscription_myEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "after",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_User_avatarUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -10419,6 +10448,29 @@ func (ec *executionContext) fieldContext_Event_actor(_ context.Context, field gr
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Event_deliveryCursor(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_deliveryCursor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Event().DeliveryCursor(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Event_deliveryCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Event_event(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
@@ -22194,7 +22246,8 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 			return ec.fieldContext_Subscription_myEvents(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Subscription().MyEvents(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().MyEvents(ctx, fc.Args["after"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
@@ -22204,7 +22257,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Subscription_myEvents(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -22213,6 +22266,17 @@ func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Event(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_myEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -30573,6 +30637,39 @@ func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, ob
 					}
 				}()
 				res = ec._Event_actor(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "deliveryCursor":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Event_deliveryCursor(ctx, field, obj)
 				return res
 			}
 

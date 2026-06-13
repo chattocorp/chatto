@@ -1,5 +1,4 @@
 import { tick } from 'svelte';
-import { on } from 'svelte/events';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { useFragment } from '$lib/gql';
@@ -35,14 +34,6 @@ function eventCacheKey(roomId: string, eventId: string): string {
 }
 
 /**
- * Minimum hidden duration before a visibility->visible transition counts as
- * a "tab resume" worth catching up for. Mirrors the eventBus visibility-
- * resubscribe threshold and the GraphQL client's suspend-detector window
- * so all three layers react on the same horizon.
- */
-const TAB_RESUME_GAP_MS = 30_000;
-
-/**
  * Message store for both the main room timeline and a single thread pane.
  * The scope-specific methods (`setRoom` / `setThread`) choose which Core
  * GraphQL connection backs the list while the lifecycle, pagination, refetch,
@@ -68,52 +59,17 @@ export class MessagesStore {
    *  it via {@link isStale} to discard results from superseded loads. */
   #loadId = 0;
 
-  #disposeLifecycle: (() => void) | null = null;
-
   constructor(
-    private readonly gqlClient: GraphQLClient,
+    gqlClient: GraphQLClient,
     private readonly getCurrentUserId: () => string | null
   ) {
     this.client = gqlClient.client;
-    this.#disposeLifecycle = $effect.root(() => {
-      // Reactive: re-run when reconnectCount changes, fire catchUp on
-      // genuine increments.
-      let lastSeen = this.gqlClient.reconnectCount;
-      $effect(() => {
-        const n = this.gqlClient.reconnectCount;
-        if (n <= lastSeen) return;
-        const prev = lastSeen;
-        lastSeen = n;
-        console.debug('[MessagesStore] reconnectCount %d -> %d, catching up', prev, n);
-        this.catchUp();
-      });
-
-      // Non-reactive: register a document visibilitychange listener and
-      // let $effect.root tear it down via the returned cleanup.
-      if (typeof document === 'undefined') return;
-      let lastVisibleAt = Date.now();
-      return on(document, 'visibilitychange', () => {
-        if (document.visibilityState !== 'visible') {
-          lastVisibleAt = Date.now();
-          return;
-        }
-        const gap = Date.now() - lastVisibleAt;
-        lastVisibleAt = Date.now();
-        if (gap > TAB_RESUME_GAP_MS) {
-          console.debug(
-            '[MessagesStore] visible after %ds hidden -> catching up',
-            Math.round(gap / 1000)
-          );
-          this.catchUp();
-        }
-      });
-    });
   }
 
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    this.#disposeLifecycle?.();
-    this.#disposeLifecycle = null;
+    // The message store has no owned subscriptions. Server-event replay is
+    // managed by the singleton event bus.
   }
 
   /** Root-level events only (excludes thread replies). */
@@ -307,18 +263,6 @@ export class MessagesStore {
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
       this.isLoadingMore = false;
-    }
-  }
-
-  private catchUp(): void {
-    if (!this.scope || !this.roomId) return;
-    if (this.scope === 'thread' && !this.threadRootEventId) return;
-
-    const thisLoad = this.startLoad();
-    if (this.events.length === 0) {
-      this.fetchInitial(thisLoad);
-    } else {
-      this.catchUpForward(thisLoad);
     }
   }
 
@@ -607,33 +551,6 @@ export class MessagesStore {
     return newOnes.length;
   }
 
-  private mergeForwardPage(
-    rawEvents: readonly RawEvent[],
-    seenBeforeFetch: ReadonlySet<string>
-  ): RoomEventViewFragment[] {
-    const fetched = unmask(rawEvents);
-    const newSeen = new SvelteSet<string>();
-    const merged: RoomEventViewFragment[] = [];
-
-    const add = (event: RoomEventViewFragment) => {
-      if (newSeen.has(event.id)) return;
-      newSeen.add(event.id);
-      merged.push(event);
-    };
-
-    for (const event of this.events) {
-      if (seenBeforeFetch.has(event.id)) add(event);
-    }
-    for (const event of fetched) add(event);
-    for (const event of this.events) {
-      if (!seenBeforeFetch.has(event.id)) add(event);
-    }
-
-    this.events = merged;
-    this.seenIds = newSeen;
-    return fetched;
-  }
-
   /**
    * Replace the buffer with fetched events but preserve any subscription
    * events that arrived during the in-flight query. Always the right
@@ -690,14 +607,6 @@ export class MessagesStore {
     this.fetchLatest(thisLoad);
   }
 
-  private fetchInitial(thisLoad: number): void {
-    if (this.scope === 'thread') {
-      this.fetchThread(thisLoad);
-    } else {
-      this.fetchLatest(thisLoad);
-    }
-  }
-
   private fetchLatest(thisLoad: number): void {
     this.client
       .query(RoomLatestQuery, {
@@ -752,94 +661,6 @@ export class MessagesStore {
         if (this.isStale(thisLoad)) return;
         console.error('MessagesStore: fetchThread failed:', error);
         this.isInitialLoading = false;
-      });
-  }
-
-  private catchUpForward(thisLoad: number): void {
-    if (!this.newestCursor) {
-      this.fetchInitial(thisLoad);
-      return;
-    }
-
-    if (this.scope === 'thread') {
-      this.catchUpThreadForward(thisLoad, this.newestCursor);
-    } else {
-      this.catchUpRoomForward(thisLoad, this.newestCursor);
-    }
-  }
-
-  private catchUpRoomForward(thisLoad: number, after: string): void {
-    const seenBeforeFetch = new SvelteSet<string>(this.seenIds);
-
-    this.client
-      .query(RoomAfterQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE,
-        after
-      })
-      .toPromise()
-      .then((result) => {
-        if (this.isStale(thisLoad)) return;
-        if (result.error) {
-          console.error('MessagesStore: room catchUp error:', result.error);
-          return;
-        }
-        const page = result.data?.room?.events;
-        if (!page) return;
-
-        const fetched = this.mergeForwardPage(page.events, seenBeforeFetch);
-        console.debug(
-          '[MessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
-          this.roomId,
-          after,
-          fetched.length,
-          page.hasNewer,
-          'merge-forward'
-        );
-        if (page.endCursor) {
-          this.newestCursor = page.endCursor;
-        }
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: room catchUp failed:', error);
-      });
-  }
-
-  private catchUpThreadForward(thisLoad: number, after: string): void {
-    this.client
-      .query(ThreadEventsQuery, {
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE,
-        after
-      })
-      .toPromise()
-      .then((result) => {
-        if (this.isStale(thisLoad)) return;
-        if (result.error) {
-          console.error('MessagesStore: thread catchUp error:', result.error);
-          return;
-        }
-
-        const page = threadRepliesConnection(result.data?.room?.event);
-        if (!page) return;
-
-        const newerReplies = unmask(page.events);
-        if (page.endCursor) {
-          this.newestCursor = page.endCursor;
-        }
-
-        this.appendMany(newerReplies);
-        this.sortThreadEvents();
-
-        if (page.hasNewer) {
-          this.fetchThread(thisLoad);
-        }
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: thread catchUp failed:', error);
       });
   }
 

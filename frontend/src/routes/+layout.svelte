@@ -20,7 +20,10 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+  import {
+    FULL_REFRESH_REQUIRED_EVENT,
+    eventBusManager
+  } from '$lib/state/server/eventBus.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -121,6 +124,17 @@
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(() => {
     if (sidebarNav.isMobile) sidebarNav.close();
+  });
+
+  function handleFullRefreshRequired(event: Event) {
+    const detail = (event as CustomEvent<{ serverId?: string }>).detail;
+    console.warn('[eventBus:%s] full refresh required', detail?.serverId ?? 'unknown');
+    window.location.reload();
+  }
+
+  $effect(() => {
+    window.addEventListener(FULL_REFRESH_REQUIRED_EVENT, handleFullRefreshRequired);
+    return () => window.removeEventListener(FULL_REFRESH_REQUIRED_EVENT, handleFullRefreshRequired);
   });
 
   // Page title

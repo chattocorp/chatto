@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"hmans.de/chatto/internal/core"
 )
@@ -17,14 +18,28 @@ import (
 // Backed by a single core stream (StreamMyEvents) that consumes
 // `live.sync.>` transient LiveEvent messages and `live.evt.>` raw EVT
 // republish messages, plus presence and heartbeats.
-func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error) {
+func (r *subscriptionResolver) MyEvents(ctx context.Context, after *string) (<-chan core.EventEnvelope, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	events, err := r.core.StreamMyEvents(ctx, user.Id)
+	var afterSeq uint64
+	if after != nil {
+		afterSeq, err = r.core.ParseEventDeliveryCursor(user.Id, *after, time.Now())
+		if err != nil {
+			if core.EventReplayRequiresFullRefresh(err) {
+				return nil, myEventsFullRefreshRequiredError(err)
+			}
+			return nil, fmt.Errorf("invalid after cursor: %w", err)
+		}
+	}
+
+	events, err := r.core.StreamMyEvents(ctx, user.Id, afterSeq)
 	if err != nil {
+		if core.EventReplayRequiresFullRefresh(err) {
+			return nil, myEventsFullRefreshRequiredError(err)
+		}
 		return nil, fmt.Errorf("subscribe events: %w", err)
 	}
 	return events, nil
