@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ type ChattoCore struct {
 	roomService        *RoomService
 	userService        *UserService
 	rbacService        *RBACService
+	mentionables       *MentionablesService
 	presenceService    *PresenceService
 	mediaService       *MediaService
 	callService        *CallService
@@ -187,6 +189,14 @@ type ChattoCore struct {
 	// RBACProjector runs the consumer for RBAC. Exposed for WaitFor
 	// from role and permission writers.
 	RBACProjector *events.Projector
+
+	// Mentionables owns the global @handle namespace derived from user and
+	// RBAC facts.
+	Mentionables *MentionablesProjection
+
+	// MentionablesProjector runs the consumer for Mentionables. Exposed for
+	// WaitFor from handle-changing user and role writers.
+	MentionablesProjector *events.Projector
 
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus
@@ -759,6 +769,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	rbac := NewRBACProjection()
 	rbacProjector := newProjector(rbac, "RBAC", rbac.adminProjectionEstimate)
 
+	mentionables := NewMentionablesProjection(encMgr.keyWrapper, encMgr.contentKeys)
+	mentionablesProjector := newProjector(mentionables, "Mentionables", mentionables.adminProjectionEstimate)
+
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
 	roomMgr := newRoomService(
@@ -775,6 +788,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	)
 	userMgr := newUserService(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
 	rbacMgr := newRBACService(rbac, rbacProjector)
+	mentionablesMgr := newMentionablesService(mentionables, mentionablesProjector)
 
 	core := &ChattoCore{
 		nc:                       nc,
@@ -787,6 +801,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		roomService:              roomMgr,
 		userService:              userMgr,
 		rbacService:              rbacMgr,
+		mentionables:             mentionablesMgr,
 		s3Client:                 s3Client,
 		EventPublisher:           eventPublisher,
 		RoomDirectory:            roomDirectory,
@@ -814,6 +829,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ContentKeysProjector:     contentKeysProjector,
 		RBAC:                     rbac,
 		RBACProjector:            rbacProjector,
+		Mentionables:             mentionables,
+		MentionablesProjector:    mentionablesProjector,
 		projections:              projections,
 		bootDone:                 make(chan struct{}),
 	}
@@ -1211,7 +1228,7 @@ func isTerminalIteratorError(err error) bool {
 //
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
-func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan EventEnvelope, error) {
+func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string, afterSeq uint64) (<-chan EventEnvelope, error) {
 	// memberRooms is the per-subscription visibility cache: the user
 	// receives live events for rooms they are an explicit member of.
 	// Seeded from `room_membership.*` records and mutated on
@@ -1230,8 +1247,8 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	// overflow NATS Core drops messages and transitions the
 	// subscription to SlowConsumer state — slowConsumerCh below
 	// catches that and tears the resolver down so the client can
-	// re-subscribe (and pick up missed history via the GraphQL
-	// catch-up path) rather than silently miss events.
+	// re-subscribe (and pick up missed durable room events via
+	// myEvents(after:)) rather than silently miss events.
 	msgChan := make(chan *nats.Msg, 256)
 	liveSyncSub, err := c.nc.ChanSubscribe(subjects.LiveSyncAllEvents(), msgChan)
 	if err != nil {
@@ -1251,6 +1268,43 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		liveSyncSub.Unsubscribe()
 		liveEVTSub.Unsubscribe()
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
+	}
+
+	replayTailSeq := uint64(0)
+	var replayCandidates []myEventsReplayCandidate
+	if afterSeq > 0 {
+		replayTail, err := c.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		if err != nil {
+			liveSyncSub.Unsubscribe()
+			liveEVTSub.Unsubscribe()
+			c.presenceService.Unsubscribe(presenceSub)
+			return nil, fmt.Errorf("read room EVT stream tail for myEvents replay: %w", err)
+		}
+		replayTailSeq = replayTail.Seq
+		if replayTailSeq > afterSeq {
+			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+			err := c.roomService.waitForMyEventsReplayTail(waitCtx, c.EventPublisher, replayTail)
+			cancel()
+			if err != nil {
+				liveSyncSub.Unsubscribe()
+				liveEVTSub.Unsubscribe()
+				c.presenceService.Unsubscribe(presenceSub)
+				return nil, fmt.Errorf("wait for myEvents replay projection readiness: %w", err)
+			}
+			if err := c.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
+				liveSyncSub.Unsubscribe()
+				liveEVTSub.Unsubscribe()
+				c.presenceService.Unsubscribe(presenceSub)
+				return nil, err
+			}
+			replayCandidates, err = c.collectMissedRoomEventsReplay(memberRooms, afterSeq, replayTailSeq, maxMyEventsReplayEvents)
+			if err != nil {
+				liveSyncSub.Unsubscribe()
+				liveEVTSub.Unsubscribe()
+				c.presenceService.Unsubscribe(presenceSub)
+				return nil, err
+			}
+		}
 	}
 
 	eventChan := make(chan EventEnvelope)
@@ -1291,6 +1345,12 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 			}
 		}
 
+		if len(replayCandidates) > 0 {
+			if !c.sendMissedRoomEventsReplay(ctx, userID, memberRooms, replayCandidates, send) {
+				return
+			}
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -1319,6 +1379,11 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 				}
 
 			case msg := <-msgChan:
+				if replayTailSeq > 0 && strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
+					if seq := liveEVTMsgSeq(msg); seq > 0 && seq <= replayTailSeq {
+						continue
+					}
+				}
 				event, ok := c.filterLiveEvent(ctx, userID, memberRooms, msg)
 				if !ok {
 					continue
@@ -1356,6 +1421,56 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}()
 
 	return eventChan, nil
+}
+
+type myEventsReplayCandidate struct {
+	roomID string
+	entry  *TimelineEntry
+}
+
+func (c *ChattoCore) collectMissedRoomEventsReplay(memberRooms map[string]struct{}, afterSeq, throughSeq uint64, limit int) ([]myEventsReplayCandidate, error) {
+	roomIDs := make([]string, 0, len(memberRooms))
+	for roomID := range memberRooms {
+		roomIDs = append(roomIDs, roomID)
+	}
+	sort.Strings(roomIDs)
+
+	candidates := make([]myEventsReplayCandidate, 0)
+	for _, roomID := range roomIDs {
+		remaining := limit + 1 - len(candidates)
+		entries := c.RoomTimeline.RoomTimelineBetween(roomID, afterSeq, throughSeq, isDeliverableLiveEVTRoomEvent, remaining)
+		for _, entry := range entries {
+			candidates = append(candidates, myEventsReplayCandidate{roomID: roomID, entry: entry})
+			if len(candidates) > limit {
+				return nil, newEventReplayTooLargeError(limit)
+			}
+		}
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].entry.StreamSeq == candidates[j].entry.StreamSeq {
+			return candidates[i].entry.Event.GetId() < candidates[j].entry.Event.GetId()
+		}
+		return candidates[i].entry.StreamSeq < candidates[j].entry.StreamSeq
+	})
+	return candidates, nil
+}
+
+func (c *ChattoCore) sendMissedRoomEventsReplay(ctx context.Context, userID string, memberRooms map[string]struct{}, candidates []myEventsReplayCandidate, send func(EventEnvelope) bool) bool {
+	for _, candidate := range candidates {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		event, ok := c.filterReadyEVTEvent(userID, memberRooms, candidate.roomID, candidate.entry.Event, candidate.entry.StreamSeq)
+		if !ok {
+			continue
+		}
+		if !send(event) {
+			return false
+		}
+	}
+	return true
 }
 
 // populateMemberRoomsCache (re)builds the per-subscription room
@@ -1477,9 +1592,9 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 		return nil, false
 	}
 
-	seq, err := strconv.ParseUint(msg.Header.Get(nats.JSSequence), 10, 64)
-	if err != nil || seq == 0 {
-		c.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence), "error", err)
+	seq := liveEVTMsgSeq(msg)
+	if seq == 0 {
+		c.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence))
 		return nil, false
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
@@ -1487,6 +1602,25 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 	if err := c.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
 		c.logger.Warn("Timed out waiting for live EVT projection readiness", "subject", msg.Subject, "sequence", seq, "error", err)
+		return nil, false
+	}
+
+	return c.filterReadyEVTEvent(userID, memberRooms, roomID, event, seq)
+}
+
+func liveEVTMsgSeq(msg *nats.Msg) uint64 {
+	if msg == nil {
+		return 0
+	}
+	seq, err := strconv.ParseUint(msg.Header.Get(nats.JSSequence), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return seq
+}
+
+func (c *ChattoCore) filterReadyEVTEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
+	if roomID == "" || event == nil || !isDeliverableLiveEVTRoomEvent(event) || seq == 0 {
 		return nil, false
 	}
 
@@ -1513,7 +1647,7 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 	if !isMember {
 		return nil, false
 	}
-	return NewEVTEventEnvelope(event), true
+	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
 
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {

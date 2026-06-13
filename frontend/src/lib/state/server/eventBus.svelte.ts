@@ -33,6 +33,46 @@ const VISIBILITY_RESUBSCRIBE_AFTER_MS = 30_000;
 // post-incident screenshots show a clean timeline of subscription health
 // without needing verbose console filtering enabled.
 const LIVENESS_SUMMARY_INTERVAL_MS = 60_000;
+const FULL_REFRESH_REQUIRED_CODE = 'MY_EVENTS_FULL_REFRESH_REQUIRED';
+export const FULL_REFRESH_REQUIRED_EVENT = 'chattofullrefreshrequired';
+
+function requiresFullRefresh(error: unknown): boolean {
+	const graphQLErrors = (error as { graphQLErrors?: Array<{ extensions?: { code?: unknown } }> })
+		?.graphQLErrors;
+	return graphQLErrors?.some((e) => e.extensions?.code === FULL_REFRESH_REQUIRED_CODE) ?? false;
+}
+
+function requestFullRefresh(serverId: string) {
+	if (typeof window === 'undefined') return;
+	window.dispatchEvent(
+		new CustomEvent(FULL_REFRESH_REQUIRED_EVENT, {
+			detail: { serverId }
+		})
+	);
+}
+
+function cursorDebug(cursor: string | null) {
+	if (!cursor) return { present: false };
+	return {
+		present: true,
+		length: cursor.length,
+		suffix: cursor.slice(-8)
+	};
+}
+
+function errorDebug(error: unknown) {
+	const graphQLErrors = (error as { graphQLErrors?: Array<{ message?: string; extensions?: { code?: unknown } }> })
+		?.graphQLErrors;
+	const networkError = (error as { networkError?: unknown })?.networkError;
+	return {
+		message: error instanceof Error ? error.message : undefined,
+		graphQLErrors: graphQLErrors?.map((e) => ({
+			message: e.message,
+			code: e.extensions?.code
+		})),
+		networkError: networkError instanceof Error ? networkError.message : networkError
+	};
+}
 
 class EventBusManager {
 	// SvelteMap so getBus() is a reactive read — consumers like NotificationSync
@@ -82,26 +122,68 @@ class EventBusManager {
 		let heartbeatCount = 0;
 		let dispatchedEventCount = 0;
 		let resubscribeCount = 0;
+		let lastDeliveryCursor: string | null = null;
+		let subscriptionGeneration = 0;
 		// Set while we're tearing down a subscription (either to replace it
 		// or because the bus is stopping). Prevents `onEnd` from firing a
 		// reentrant resubscribe in response to our own unsubscribe.
 		let teardownInProgress = false;
 		let stopped = false;
 
-		const subscribeOnce = () =>
-			pipe(
-				client.subscription(MyServerEventsSubscriptionDoc, {}),
+		const debugState = () => ({
+			generation: subscriptionGeneration,
+			handlers: handlers.size,
+			events: dispatchedEventCount,
+			heartbeats: heartbeatCount,
+			resubscribes: resubscribeCount,
+			lastEventAgeMs: Date.now() - lastEventAt,
+			cursor: cursorDebug(lastDeliveryCursor),
+			visible: typeof document === 'undefined' ? undefined : document.visibilityState === 'visible'
+		});
+
+		const subscribeOnce = (reason: string) => {
+			subscriptionGeneration++;
+			const generation = subscriptionGeneration;
+			console.debug(`[eventBus:${serverId}] subscribing`, {
+				reason,
+				...debugState()
+			});
+			return pipe(
+				client.subscription(MyServerEventsSubscriptionDoc, { after: lastDeliveryCursor }),
 				onEnd(() => {
 					if (teardownInProgress || stopped) return;
+					console.debug(`[eventBus:${serverId}] subscription source ended`, {
+						sourceGeneration: generation,
+						...debugState()
+					});
 					console.warn(`[eventBus:${serverId}] subscription source ended`);
 					resubscribe('subscription source ended');
 				}),
 				urqlSubscribe((result) => {
 					if (result.error) {
+						if (requiresFullRefresh(result.error)) {
+							console.debug(`[eventBus:${serverId}] replay cursor rejected`, {
+								generation,
+								state: debugState(),
+								error: errorDebug(result.error)
+							});
+							lastDeliveryCursor = null;
+							console.warn(
+								`[eventBus:${serverId}] replay cursor rejected; forcing full refresh`,
+								result.error
+							);
+							requestFullRefresh(serverId);
+							return;
+						}
 						// Surface subscription errors so unreachable servers and other
 						// real failures are visible in the dev console. Don't refresh
 						// lastEventAt — an error storm without data should not mask a
 						// stalled pipeline from the watchdog.
+						console.debug(`[eventBus:${serverId}] subscription error state`, {
+							generation,
+							state: debugState(),
+							error: errorDebug(result.error)
+						});
 						console.error(
 							`[eventBus:${serverId}] subscription error`,
 							result.error
@@ -109,8 +191,25 @@ class EventBusManager {
 						return;
 					}
 					lastEventAt = Date.now();
-					if (!result.data) return;
+					if (!result.data) {
+						console.debug(`[eventBus:${serverId}] subscription result without data`, {
+							sourceGeneration: generation,
+							...debugState()
+						});
+						return;
+					}
 					const event = result.data.myEvents;
+					if (event.deliveryCursor) {
+						const previousCursor = lastDeliveryCursor;
+						lastDeliveryCursor = event.deliveryCursor;
+						console.debug(`[eventBus:${serverId}] delivery cursor advanced`, {
+							generation,
+							eventId: event.id,
+							eventType: event.event?.__typename,
+							previous: cursorDebug(previousCursor),
+							next: cursorDebug(lastDeliveryCursor)
+						});
+					}
 					// Heartbeats are pure liveness signals — already accounted for
 					// via lastEventAt above. Don't dispatch to handlers.
 					if (event.event?.__typename === 'HeartbeatEvent') {
@@ -122,7 +221,12 @@ class EventBusManager {
 					console.debug(
 						`[eventBus:${serverId}] event dispatched`,
 						event.event?.__typename ?? '<unknown>',
-						`(total: ${dispatchedEventCount})`
+						{
+							generation,
+							eventId: event.id,
+							total: dispatchedEventCount,
+							cursor: cursorDebug(lastDeliveryCursor)
+						}
 					);
 					// Run handlers in isolation: a throw from one handler must not
 					// stop the others or tear down the subscription itself.
@@ -138,10 +242,15 @@ class EventBusManager {
 					}
 				})
 			);
+		};
 
 		const resubscribe = (reason: string) => {
 			if (stopped) return;
 			resubscribeCount++;
+			console.debug(`[eventBus:${serverId}] resubscribe requested`, {
+				reason,
+				...debugState()
+			});
 			console.warn(
 				`[eventBus:${serverId}] re-subscribing (${reason}; total resubscribes: ${resubscribeCount}; lastEvent: ${Math.round((Date.now() - lastEventAt) / 1000)}s ago)`
 			);
@@ -149,11 +258,11 @@ class EventBusManager {
 			this.#subscriptions.get(serverId)?.unsubscribe();
 			teardownInProgress = false;
 			lastEventAt = Date.now();
-			this.#subscriptions.set(serverId, subscribeOnce());
+			this.#subscriptions.set(serverId, subscribeOnce(reason));
 		};
 
-		console.debug(`[eventBus:${serverId}] bus started`);
-		this.#subscriptions.set(serverId, subscribeOnce());
+		console.debug(`[eventBus:${serverId}] bus started`, debugState());
+		this.#subscriptions.set(serverId, subscribeOnce('initial start'));
 
 		const watchdog = setInterval(() => {
 			if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
@@ -221,6 +330,7 @@ class EventBusManager {
 			// Flag the closure so the upcoming sub.unsubscribe() in stopBus
 			// doesn't fire a reentrant resubscribe through onEnd.
 			stopped = true;
+			console.debug(`[eventBus:${serverId}] bus stopping`, debugState());
 			clearInterval(watchdog);
 			clearInterval(livenessSummary);
 			if (typeof document !== 'undefined') {

@@ -268,7 +268,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// rooms via the API without per-test permission setup. This file is
 	// behind a `bootstrap` build tag, so production binaries never run this
 	// code and `everyone` does not get room.create on real deployments.
-	if err := c.GrantServerPermission(ctx, core.RoleEveryone, core.PermRoomCreate); err != nil {
+	if err := c.GrantServerPermission(ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomCreate); err != nil {
 		logger.Warn("Failed to grant room.create to everyone on bootstrap server", "error", err)
 	}
 	return true

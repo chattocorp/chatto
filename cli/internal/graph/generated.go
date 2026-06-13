@@ -196,11 +196,12 @@ type ComplexityRoot struct {
 	}
 
 	Event struct {
-		Actor     func(childComplexity int) int
-		ActorID   func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		Event     func(childComplexity int) int
-		ID        func(childComplexity int) int
+		Actor          func(childComplexity int) int
+		ActorID        func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		DeliveryCursor func(childComplexity int) int
+		Event          func(childComplexity int) int
+		ID             func(childComplexity int) int
 	}
 
 	EventLogConnection struct {
@@ -569,6 +570,7 @@ type ComplexityRoot struct {
 		Name              func(childComplexity int) int
 		PermissionDenials func(childComplexity int) int
 		Permissions       func(childComplexity int) int
+		Pingable          func(childComplexity int) int
 		Position          func(childComplexity int) int
 	}
 
@@ -809,7 +811,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		MyEvents func(childComplexity int) int
+		MyEvents func(childComplexity int, after *string) int
 	}
 
 	SystemInfo struct {
@@ -1012,6 +1014,7 @@ type EventResolver interface {
 	CreatedAt(ctx context.Context, obj core.EventEnvelope) (*timestamppb.Timestamp, error)
 	ActorID(ctx context.Context, obj core.EventEnvelope) (*string, error)
 	Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error)
+	DeliveryCursor(ctx context.Context, obj core.EventEnvelope) (*string, error)
 	Event(ctx context.Context, obj core.EventEnvelope) (model.EventType, error)
 }
 type FollowedThreadResolver interface {
@@ -1279,7 +1282,7 @@ type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error)
+	MyEvents(ctx context.Context, after *string) (<-chan core.EventEnvelope, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32, fit *model.FitMode) (*string, error)
@@ -1823,6 +1826,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Event.CreatedAt(childComplexity), true
+	case "Event.deliveryCursor":
+		if e.ComplexityRoot.Event.DeliveryCursor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.DeliveryCursor(childComplexity), true
 	case "Event.event":
 		if e.ComplexityRoot.Event.Event == nil {
 			break
@@ -3795,6 +3804,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Role.Permissions(childComplexity), true
+	case "Role.pingable":
+		if e.ComplexityRoot.Role.Pingable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Role.Pingable(childComplexity), true
 	case "Role.position":
 		if e.ComplexityRoot.Role.Position == nil {
 			break
@@ -4790,7 +4805,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Subscription.MyEvents(childComplexity), true
+		args, err := ec.field_Subscription_myEvents_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.MyEvents(childComplexity, args["after"].(*string)), true
 
 	case "SystemInfo.account":
 		if e.ComplexityRoot.SystemInfo.Account == nil {
@@ -5704,6 +5724,8 @@ func (ec *executionContext) childFields_Event(ctx context.Context, field graphql
 		return ec.fieldContext_Event_actorId(ctx, field)
 	case "actor":
 		return ec.fieldContext_Event_actor(ctx, field)
+	case "deliveryCursor":
+		return ec.fieldContext_Event_deliveryCursor(ctx, field)
 	case "event":
 		return ec.fieldContext_Event_event(ctx, field)
 	}
@@ -6066,6 +6088,8 @@ func (ec *executionContext) childFields_Role(ctx context.Context, field graphql.
 		return ec.fieldContext_Role_isSystem(ctx, field)
 	case "position":
 		return ec.fieldContext_Role_position(ctx, field)
+	case "pingable":
+		return ec.fieldContext_Role_pingable(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
 }
@@ -8390,6 +8414,20 @@ func (ec *executionContext) field_Server_viewerCanManageUser_args(ctx context.Co
 	return args, nil
 }
 
+func (ec *executionContext) field_Subscription_myEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "after",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_User_avatarUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -10483,6 +10521,29 @@ func (ec *executionContext) fieldContext_Event_actor(_ context.Context, field gr
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Event_deliveryCursor(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Event_deliveryCursor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Event().DeliveryCursor(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Event_deliveryCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Event", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Event_event(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
@@ -18361,6 +18422,29 @@ func (ec *executionContext) fieldContext_Role_position(_ context.Context, field 
 	return graphql.NewScalarFieldContext("Role", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _Role_pingable(ctx context.Context, field graphql.CollectedField, obj *core.RoleWithPermissions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Role_pingable(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Pingable, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Role_pingable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Role", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _RolePermissionMatrix_roleName(ctx context.Context, field graphql.CollectedField, obj *model.RolePermissionMatrix) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22346,7 +22430,8 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 			return ec.fieldContext_Subscription_myEvents(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Subscription().MyEvents(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().MyEvents(ctx, fc.Args["after"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
@@ -22356,7 +22441,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Subscription_myEvents(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -22365,6 +22450,17 @@ func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Event(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_myEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -25997,7 +26093,7 @@ func (ec *executionContext) unmarshalInputCreateRoleInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "displayName", "description"}
+	fieldsInOrder := [...]string{"name", "displayName", "description", "pingable"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26065,6 +26161,13 @@ func (ec *executionContext) unmarshalInputCreateRoleInput(ctx context.Context, o
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "pingable":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pingable"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pingable = data
 		}
 	}
 	return it, nil
@@ -27256,7 +27359,7 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "linkPreview"}
+	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "mentionConfirmationToken", "linkPreview"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -27327,6 +27430,13 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 				return it, err
 			}
 			it.AlsoSendToChannel = data
+		case "mentionConfirmationToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mentionConfirmationToken"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MentionConfirmationToken = data
 		case "linkPreview":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkPreview"))
 			data, err := ec.unmarshalOLinkPreviewInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLinkPreviewInput(ctx, v)
@@ -28186,7 +28296,7 @@ func (ec *executionContext) unmarshalInputUpdateRoleInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "displayName", "description"}
+	fieldsInOrder := [...]string{"name", "displayName", "description", "pingable"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -28254,6 +28364,13 @@ func (ec *executionContext) unmarshalInputUpdateRoleInput(ctx context.Context, o
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "pingable":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pingable"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pingable = data
 		}
 	}
 	return it, nil
@@ -30778,6 +30895,39 @@ func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, ob
 					}
 				}()
 				res = ec._Event_actor(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "deliveryCursor":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Event_deliveryCursor(ctx, field, obj)
 				return res
 			}
 
@@ -35087,6 +35237,11 @@ func (ec *executionContext) _Role(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "position":
 			out.Values[i] = ec._Role_position(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "pingable":
+			out.Values[i] = ec._Role_pingable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

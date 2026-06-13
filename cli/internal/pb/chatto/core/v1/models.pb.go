@@ -944,6 +944,7 @@ type Role struct {
 	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"` // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Position      int32                  `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"` // Hierarchy position: lower = higher rank. Owner=0, Everyone=MAX_INT32
+	Pingable      bool                   `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"` // Whether messages can ping users assigned to this role.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1004,6 +1005,13 @@ func (x *Role) GetPosition() int32 {
 		return x.Position
 	}
 	return 0
+}
+
+func (x *Role) GetPingable() bool {
+	if x != nil {
+		return x.Pingable
+	}
+	return false
 }
 
 // UserPresence represents a user's current live presence status.
@@ -2077,12 +2085,13 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\astorage\"H\n" +
 	"\x0eRoomMembership\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aroom_id\x18\x03 \x01(\tR\x06roomIdJ\x04\b\x02\x10\x03\"{\n" +
+	"\aroom_id\x18\x03 \x01(\tR\x06roomIdJ\x04\b\x02\x10\x03\"\x97\x01\n" +
 	"\x04Role\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
-	"\bposition\x18\x04 \x01(\x05R\bposition\"J\n" +
+	"\bposition\x18\x04 \x01(\x05R\bposition\x12\x1a\n" +
+	"\bpingable\x18\x05 \x01(\bR\bpingable\"J\n" +
 	"\fUserPresence\x12:\n" +
 	"\x06status\x18\x01 \x01(\x0e2\".chatto.core.v1.UserPresenceStatusR\x06status\"A\n" +
 	"\x0ePresenceChange\x12\x17\n" +

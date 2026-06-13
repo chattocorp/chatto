@@ -14,7 +14,11 @@ function member(login: string, displayName = login): RoomMember {
   };
 }
 
-function editor(initialText: string): { api: TipTapEditorApi; getText: () => string; setText: (text: string) => void } {
+function editor(initialText: string): {
+  api: TipTapEditorApi;
+  getText: () => string;
+  setText: (text: string) => void;
+} {
   let text = initialText;
   let cursor = text.length;
   return {
@@ -46,7 +50,10 @@ function tabEvent(): KeyboardEvent {
 describe('AutocompleteState', () => {
   it('gives emoji autocomplete priority over mention autocomplete', () => {
     const fakeEditor = editor('@al');
-    const state = new AutocompleteState(() => fakeEditor.api, () => [member('alice')]);
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => [member('alice')]
+    );
 
     state.update();
     expect(state.mention?.query).toBe('al');
@@ -63,7 +70,8 @@ describe('AutocompleteState', () => {
     const fakeEditor = editor('@ali');
     const state = new AutocompleteState(
       () => fakeEditor.api,
-      () => [member('alice'), member('alicia')]
+      () => [member('alice'), member('alicia')],
+      () => []
     );
 
     const firstTab = tabEvent();
@@ -83,7 +91,8 @@ describe('AutocompleteState', () => {
     const fakeEditor = editor('@ali');
     const state = new AutocompleteState(
       () => fakeEditor.api,
-      () => [member('alice'), member('alicia')]
+      () => [member('alice'), member('alicia')],
+      () => []
     );
 
     state.update();
@@ -99,9 +108,34 @@ describe('AutocompleteState', () => {
     expect(state.tabCompletion?.candidates).toEqual(['alice', 'alicia']);
   });
 
+  it('completes virtual and role mention handles', () => {
+    const fakeEditor = editor('@he');
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => [member('helena')],
+      () => [{ name: 'helpdesk', pingable: true }]
+    );
+
+    state.update();
+    expect(state.mention?.query).toBe('he');
+
+    const firstTab = tabEvent();
+    expect(state.handleTabCompletion(firstTab)).toBe(true);
+    expect(fakeEditor.getText()).toBe('@helena ');
+
+    expect(state.handleTabCompletion(tabEvent())).toBe(true);
+    expect(fakeEditor.getText()).toBe('@here ');
+
+    expect(state.handleTabCompletion(tabEvent())).toBe(true);
+    expect(fakeEditor.getText()).toBe('@helpdesk ');
+  });
+
   it('selects an emoji by replacing the shortcode before the cursor', () => {
     const fakeEditor = editor('hello :fi');
-    const state = new AutocompleteState(() => fakeEditor.api, () => []);
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => []
+    );
 
     state.update();
     state.selectEmoji('🔥');

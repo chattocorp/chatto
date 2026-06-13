@@ -56,7 +56,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Reaction** — Emoji attached to a message by a user. See [FDR-005](fdr/FDR-005-reactions.md).
 
-**Mention** — `@user` syntax in a message that notifies the referenced user. See [FDR-006](fdr/FDR-006-mentions.md).
+**Mention** — `@handle` syntax in a message that notifies referenced users, pingable roles, or virtual room groups such as `@all` and `@here`. See [FDR-006](fdr/FDR-006-mentions.md).
 
 **Attachment** — File (image, document, video) uploaded alongside a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
 
@@ -78,7 +78,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **RBAC (Role-Based Access Control)** — The model: roles bundle permissions, users hold roles. See [ADR-005](adr/ADR-005-hierarchy-wins-rbac.md).
 
-**Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created.
+**Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created. Role names share the message-mention namespace with user logins, and each role can be marked pingable to allow `@role` pings.
 
 **Permission** — Named capability gate, e.g. `message.post`, `role.assign`. Strings use hyphens, never underscores. The full list lives in `cli/internal/core/permissions.go`.
 

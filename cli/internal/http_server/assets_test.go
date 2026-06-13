@@ -1209,7 +1209,7 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 	env := setupAssetTestServerWithS3(t)
 
-	owner, err := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	owner, err := env.core.CreateUser(env.ctx, "system", "asset-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)
 	}
@@ -1221,7 +1221,7 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
-	env.login(t, "owner", "password123")
+	env.login(t, "asset-owner", "password123")
 	imageData := createAssetTestPNG(t, 400, 300)
 	operations := fmt.Sprintf(`{
 		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",

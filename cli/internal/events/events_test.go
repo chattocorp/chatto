@@ -854,6 +854,14 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("EventSubjectFilter", func(t *testing.T) {
+		got := EventSubjectFilter()
+		want := "evt.>"
+		if got != want {
+			t.Errorf("EventSubjectFilter: got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("RoomEventTypeFilter", func(t *testing.T) {
 		got := RoomEventTypeFilter(EventUserJoinedRoom)
 		want := "evt.room.*.user_joined"

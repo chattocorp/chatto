@@ -68,8 +68,7 @@
   });
 
   // Drive store loads from roomId / manual-refetch prop changes. Silent
-  // reconnect + tab-resume catch-ups are owned by the store itself — they
-  // do not flow through this effect.
+  // reconnect + tab-resume catch-ups are owned by the server event bus.
   $effect(() => {
     void refetchTrigger;
     store.setRoom(roomId);

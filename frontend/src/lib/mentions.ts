@@ -43,6 +43,16 @@ export function findMemberByMention(
   );
 }
 
+function isVirtualMention(username: string): boolean {
+  const lower = username.toLowerCase();
+  return lower === 'all' || lower === 'here';
+}
+
+function findRoleMention(username: string, roleHandles: string[]): string | undefined {
+  const lower = username.toLowerCase();
+  return roleHandles.find((role) => role.toLowerCase() === lower);
+}
+
 /**
  * Check if a specific user is mentioned in text.
  * Uses the room members list to validate that mentions refer to actual users.
@@ -81,20 +91,23 @@ function isInsideExcludedElement(node: Node): boolean {
  *
  * Uses DOMParser to properly traverse the DOM tree, ensuring we only process
  * text nodes that are NOT inside excluded elements (code, pre, blockquote).
- * Only mentions that match actual room members are styled.
+ * Only mentions that match actual room members, virtual handles, or known
+ * server role handles are styled.
  *
  * @param html - The rendered HTML string (from markdown)
  * @param members - List of room members to validate mentions against
  * @param currentUserLogin - Optional login of the current user (for self-mention highlighting)
+ * @param roleHandles - Valid server role mention handles
  * @returns HTML string with valid mentions wrapped in <span class="mention"> (or "mention mention-self")
  */
 export function wrapValidMentions(
   html: string,
   members: RoomMember[],
-  currentUserLogin?: string
+  currentUserLogin?: string,
+  roleHandles: string[] = []
 ): string {
   // Handle empty input
-  if (!html || members.length === 0) {
+  if (!html) {
     return html;
   }
 
@@ -144,7 +157,7 @@ export function wrapValidMentions(
         fragments.push(prefix);
       }
 
-      // Check if this is a valid mention (matches a room member)
+      // Check if this is a valid mention (matches a room member or virtual handle)
       const mentionedMember = findMemberByMention(username, members);
       if (mentionedMember) {
         // Create styled element for valid mention
@@ -156,9 +169,23 @@ export function wrapValidMentions(
         span.setAttribute('data-user-id', mentionedMember.id);
         span.textContent = `@${username}`;
         fragments.push(span);
+      } else if (isVirtualMention(username)) {
+        const span = doc.createElement('span');
+        span.className = 'mention mention-broadcast';
+        span.textContent = `@${username}`;
+        fragments.push(span);
       } else {
-        // Leave invalid mentions as plain text
-        fragments.push(`@${username}`);
+        const roleName = findRoleMention(username, roleHandles);
+        if (roleName) {
+          const span = doc.createElement('span');
+          span.className = 'mention mention-role';
+          span.setAttribute('data-role-name', roleName);
+          span.textContent = `@${username}`;
+          fragments.push(span);
+        } else {
+          // Leave invalid mentions as plain text
+          fragments.push(`@${username}`);
+        }
       }
 
       lastIndex = matchStart + fullMatch.length;

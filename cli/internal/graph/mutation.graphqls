@@ -236,6 +236,8 @@ input PostMessageInput {
   inReplyTo: ID
   "Also echo this thread reply to the main channel for visibility (requires message.echo permission)."
   alsoSendToChannel: Boolean
+  "Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts."
+  mentionConfirmationToken: String
   "Link preview data from the composer. Server stores this directly without fetching."
   linkPreview: LinkPreviewInput
 }

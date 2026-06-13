@@ -85,7 +85,7 @@ func TestJoinGroup_SkipsAlreadyJoinedAndNonJoinable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom restricted: %v", err)
 	}
-	if err := env.core.DenyUserRoomPermission(env.ctx, restricted.Id, member.Id, core.PermRoomJoin); err != nil {
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, restricted.Id, member.Id, core.PermRoomJoin); err != nil {
 		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 

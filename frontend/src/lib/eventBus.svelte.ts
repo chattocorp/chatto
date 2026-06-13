@@ -23,11 +23,12 @@ import {
 import { eventBusManager } from './state/server/eventBus.svelte';
 
 export const MyServerEventsSubscriptionDoc = graphql(`
-  subscription MyServerEvents {
-    myEvents {
+  subscription MyServerEvents($after: String) {
+    myEvents(after: $after) {
       id
       createdAt
       actorId
+      deliveryCursor
       actor {
         ...UserAvatarUser
       }

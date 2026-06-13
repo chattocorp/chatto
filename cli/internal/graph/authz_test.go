@@ -226,7 +226,7 @@ func TestRequireServerPermission(t *testing.T) {
 		}
 
 		// Deny message.post for everyone role
-		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
@@ -461,7 +461,7 @@ func TestRequireUserAdminTarget(t *testing.T) {
 	env := setupTestResolver(t)
 
 	regular := env.createVerifiedUser(t, "regular", "Regular", "password123")
-	moderator := env.createVerifiedUser(t, "moderator", "Moderator", "password123")
+	moderator := env.createVerifiedUser(t, "moderator-user", "Moderator", "password123")
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole moderator: %v", err)
 	}

@@ -21,6 +21,13 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
   await page.locator('body').waitFor({ state: 'visible' });
 }
 
+async function expectLoggedOutRedirect(page: Page): Promise<void> {
+  await expect(page).toHaveURL(
+    (url) => url.pathname === routes.root || url.pathname === routes.login,
+    { timeout: TIMEOUTS.REALTIME_EVENT }
+  );
+}
+
 test.describe('Cross-Tab Sign-Out', () => {
   test('server-side: logout in one tab disconnects another tab via SessionTerminatedEvent', async ({
     browser,
@@ -68,8 +75,8 @@ test.describe('Cross-Tab Sign-Out', () => {
       // Wait for the session terminated event to be received
       await sessionTerminatedLog;
 
-      // Tab 2 should redirect to /chat (unauthenticated view)
-      await page2.waitForURL('/', { timeout: TIMEOUTS.REALTIME_EVENT });
+      // Tab 2 should leave the authenticated chat surface.
+      await expectLoggedOutRedirect(page2);
     } finally {
       await context2.close();
     }
@@ -104,8 +111,9 @@ test.describe('Cross-Tab Sign-Out', () => {
         ch.close();
       });
 
-      // Tab 2 should receive the BroadcastChannel message and redirect to /chat
-      await page2.waitForURL('/', { timeout: TIMEOUTS.REALTIME_EVENT });
+      // Tab 2 should receive the BroadcastChannel message and leave the
+      // authenticated chat surface.
+      await expectLoggedOutRedirect(page2);
     } finally {
       await page2.close();
     }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -12,6 +13,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -127,6 +129,58 @@ func TestEventLog_AuthorizationDenied(t *testing.T) {
 
 	_, err = adminQ.EventLogEntry(ctx, nil, "1")
 	require.True(t, errors.Is(err, core.ErrPermissionDenied), "EventLogEntry should deny non-auditor, got: %v", err)
+}
+
+func TestRBACMutationsUseAuthenticatedActorInEventLog(t *testing.T) {
+	env := setupTestResolver(t)
+	ctx := env.authContext()
+	mutation := env.resolver.Mutation()
+
+	roleName := "auditactor"
+	_, err := mutation.CreateRole(ctx, model.CreateRoleInput{
+		Name:        roleName,
+		DisplayName: "Audit Actor",
+		Description: "Role used to verify RBAC audit attribution",
+	})
+	require.NoError(t, err)
+
+	pingable := true
+	_, err = mutation.UpdateRole(ctx, model.UpdateRoleInput{
+		Name:        roleName,
+		DisplayName: "Audit Actor",
+		Description: "Role used to verify RBAC audit attribution",
+		Pingable:    &pingable,
+	})
+	require.NoError(t, err)
+
+	_, err = mutation.GrantPermission(ctx, model.GrantPermissionInput{
+		RoleName:   roleName,
+		Permission: string(core.PermRoomJoin),
+	})
+	require.NoError(t, err)
+
+	_, err = mutation.DeleteRole(ctx, model.DeleteRoleInput{Name: roleName})
+	require.NoError(t, err)
+
+	limit := int32(50)
+	conn, err := env.resolver.AdminQueries().EventLog(ctx, nil, &limit, nil)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	requireEventLogActor(t, conn.Entries, "RbacRoleCreatedEvent", env.testUser.Id, roleName)
+	requireEventLogActor(t, conn.Entries, "RbacRolePingableChangedEvent", env.testUser.Id, roleName)
+	requireEventLogActor(t, conn.Entries, "RbacPermissionGrantedEvent", env.testUser.Id, roleName)
+	requireEventLogActor(t, conn.Entries, "RbacRoleDeletedEvent", env.testUser.Id, roleName)
+}
+
+func requireEventLogActor(t *testing.T, entries []*model.EventLogEntry, eventType, actorID, payloadSubstring string) {
+	t.Helper()
+	for _, entry := range entries {
+		if entry.EventType == eventType && entry.ActorID == actorID && strings.Contains(entry.PayloadJSON, payloadSubstring) {
+			return
+		}
+	}
+	t.Fatalf("missing %s entry for actor %s containing %q", eventType, actorID, payloadSubstring)
 }
 
 func TestEventLogTotalCountUsesWideInteger(t *testing.T) {

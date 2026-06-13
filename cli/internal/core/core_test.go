@@ -559,7 +559,7 @@ func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyEvents(subCtx, user.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents failed: %v", err)
 	}
@@ -640,7 +640,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyEvents(subCtx, user1.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user1.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents failed: %v", err)
 	}

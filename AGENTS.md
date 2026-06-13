@@ -25,12 +25,31 @@ Please use the following facts when making decisions about features or implement
 
 Please update this section as the project evolves, and refer to it when making decisions about features or implementation.
 
+### General Coding and Design Guidelines
+
+- Prefer simplicity and clarity over cleverness.
+- Where feasible, write code comments that explain intent.
+- Make sure the code is well-tested, and that tests are easy to understand and maintain.
+
+### Specific Rules for Frontend Code
+
+- Checkboxes and similar in the Server Admin UI should save their change immediately on click, confirmed through a toast notification.
+- Use "Save" buttons only for forms with multiple fields that need to be submitted together, and make sure they are disabled until a change is made.
+- Never silence linter warnings.
+- Avoid Svelte's $effect like the plague. In almost all cases, there are better Svelte tools to do the same thing (eg. $derived, attachments, ...)
+
+### Specific Rules for Backend Code
+
+- Keep in mind that multiple replicas of the same server may be running, so anything you build must be ready to work in such a setup. Never assume that there is only ever a single replica.
+- State changes go into the EVT stream. Do not litter RUNTIME_STATE or other KV buckets with durable state unless it's something that we deliberately don't want to put into the main EVT event stream (eg. encryption keys, ephemeral state like typing notifications, last-read markers, etc.)
+- All state interactions should go through a Service responsible for a specific domain; that Service should create and maintain whatever projections it needs to do its work, and expose methods for the rest of the codebase to interact with it. Avoid direct interactions with JetStream, KV, or projections from outside of Services.
+- Never log PII. Logs must not include raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subject identifiers, tokens, passwords, auth codes, reset links, raw IP addresses, or full query strings. Prefer opaque Chatto IDs, counts, booleans, event names, and already-safe hashes from audit-specific code.
+
 ### Breaking Changes
 
 - While we're in 0.x.y, it is fine to make breaking changes to the GraphQL API, but please only make them when absolutely necessary, and alert the user accordingly.
 - Protocol Buffer messages that we are using in our persisted JetStream streams (EVT, RUNTIME_STATE, maybe others) are more stable, and breaking changes to their structure should be avoided. Protocol Buffer messages that are only used for transient communication (live events, etc.) are less stable, and can be changed more freely. (But please consider that changes to these might also lead to changes in the GraphQL API!)
 - Treat `GET /api/server` as a higher-stability compatibility surface than the GraphQL API. It is the unauthenticated, cross-origin discovery endpoint used by multi-server clients before they can establish GraphQL access, so breaking its URL, CORS behavior, required JSON fields, or OAuth discovery fields can strand older clients. Prefer additive changes and double-check compatibility before changing this endpoint.
-
 
 ### When making changes...
 
@@ -45,10 +64,3 @@ Please update this section as the project evolves, and refer to it when making d
 - When creating or editing multiline GitHub PR/issue bodies with `gh`, write real Markdown to a file/stdin and use `--body-file`. Do not pass escaped `\n` sequences to `--body`; they render literally. Afterward, verify the stored body with `gh pr view --json body --jq .body` or equivalent before telling the user the PR is ready.
 - Please keep ADRs and FDRs up to date.
 - When the PR closes an issue, please include this information in the PR title or body (e.g. "Fixes #123") so GitHub can link and auto-close them.
-
-### General Coding and Design Guidelines
-
-- Prefer simplicity and clarity over cleverness.
-- Where feasible, write code comments that explain intent.
-- Make sure the code is well-tested, and that tests are easy to understand and maintain.
-- Never log PII. Logs must not include raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subject identifiers, tokens, passwords, auth codes, reset links, raw IP addresses, or full query strings. Prefer opaque Chatto IDs, counts, booleans, event names, and already-safe hashes from audit-specific code.

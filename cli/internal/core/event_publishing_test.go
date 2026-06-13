@@ -135,7 +135,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	// Subscribe as viewer — they should receive the deletion event.
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
 		t.Fatalf("DenyServerPermission message.post: %v", err)
 	}
 	canPostMessage, err := core.HasServerPermission(ctx, target.Id, PermMessagePost)
@@ -336,7 +336,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, target.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, target.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
@@ -427,6 +427,184 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 		case <-timeout:
 			t.Fatal("viewer never received MessageEditedEvent from live.evt republish")
 		}
+	}
+}
+
+func TestStreamMyEvents_ReplaysMissedReactionAfterCursor(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "replay-reaction-author", "Replay Reaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "replay-reaction-viewer", "Replay Reaction Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "replay-reactions", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "react to this", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	afterSeq, err := core.GetEventSequence(ctx, KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	if afterSeq == 0 {
+		t.Fatal("message sequence was not projected")
+	}
+	if added, err := core.AddReaction(ctx, KindChannel, room.Id, posted.Id, "thumbsup", author.Id); err != nil {
+		t.Fatalf("AddReaction: %v", err)
+	} else if !added {
+		t.Fatal("AddReaction returned false, want true")
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, afterSeq)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case ev, ok := <-eventChan:
+			if !ok {
+				t.Fatal("event stream closed unexpectedly")
+			}
+			evt := ev.EVTEvent()
+			if evt == nil {
+				continue
+			}
+			reaction := evt.GetReactionAdded()
+			if reaction == nil {
+				continue
+			}
+			if reaction.GetRoomId() != room.Id {
+				t.Fatalf("ReactionAdded room = %q, want %q", reaction.GetRoomId(), room.Id)
+			}
+			if reaction.GetMessageEventId() != posted.Id {
+				t.Fatalf("ReactionAdded messageEventId = %q, want %q", reaction.GetMessageEventId(), posted.Id)
+			}
+			if ev.DeliverySeq() <= afterSeq {
+				t.Fatalf("DeliverySeq = %d, want > %d", ev.DeliverySeq(), afterSeq)
+			}
+			return
+		case <-timeout:
+			t.Fatal("viewer never received missed ReactionAddedEvent replay")
+		}
+	}
+}
+
+func TestStreamMyEvents_DoesNotReplayRoomEventsAfterViewerLeft(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "replay-left-author", "Replay Left Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "replay-left-viewer", "Replay Left Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "replay-left", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "before leave", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage before leave: %v", err)
+	}
+	afterSeq, err := core.GetEventSequence(ctx, KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	if err := core.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "after leave", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage after leave: %v", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, afterSeq)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	select {
+	case ev, ok := <-eventChan:
+		if !ok {
+			t.Fatal("event stream closed unexpectedly")
+		}
+		if liveEventRoomID(ev) == room.Id {
+			t.Fatalf("replayed room event after viewer left: %T", ev.EVTEvent().GetEvent())
+		}
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
+func TestStreamMyEvents_ReplayBudgetRequiresFullRefresh(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "replay-budget-author", "Replay Budget Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "replay-budget-viewer", "Replay Budget Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "replay-budget", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	first, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "first", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage first: %v", err)
+	}
+	afterSeq, err := core.GetEventSequence(ctx, KindChannel, room.Id, first.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence first: %v", err)
+	}
+	for _, body := range []string{"second", "third"} {
+		if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, body, nil, "", "", nil, false); err != nil {
+			t.Fatalf("PostMessage %s: %v", body, err)
+		}
+	}
+
+	memberRooms := map[string]struct{}{room.Id: {}}
+	if _, err := core.collectMissedRoomEventsReplay(memberRooms, afterSeq, 0, 1); !errors.Is(err, ErrEventReplayTooLarge) {
+		t.Fatalf("collectMissedRoomEventsReplay error = %v, want ErrEventReplayTooLarge", err)
 	}
 }
 

@@ -17,6 +17,8 @@ export type RoomData = {
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
   members: RoomMember[];
+  membersTotalCount: number;
+  membersHasMore: boolean;
 };
 
 export type DMData = {
@@ -102,6 +104,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
                 users {
                   ...UserAvatarUser
                 }
+                totalCount
+                hasMore
               }
             }
             server {
@@ -145,7 +149,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
           canManageRoom: resp.data.room.viewerCanManageRoom,
           canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers,
-          members: resp.data.room.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m))
+          members: resp.data.room.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
+          membersTotalCount: resp.data.room.members.totalCount,
+          membersHasMore: resp.data.room.members.hasMore
         };
       })
       .catch((err) => {
@@ -174,6 +180,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
                 users {
                   ...UserAvatarUser
                 }
+                totalCount
+                hasMore
               }
             }
             viewer {

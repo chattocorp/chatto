@@ -15,6 +15,8 @@ type Role {
   isSystem: Boolean!
   "Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0."
   position: Int!
+  "Whether @role pings notify users assigned to this role."
+  pingable: Boolean!
 }
 
 "Input for creating a new role."
@@ -25,6 +27,8 @@ input CreateRoleInput {
   displayName: String! @length(max: 80)
   "Role description."
   description: String! @length(max: 500)
+  "Whether @role pings notify users assigned to this role. Defaults to false."
+  pingable: Boolean
 }
 
 "Input for updating an existing role."
@@ -35,6 +39,8 @@ input UpdateRoleInput {
   displayName: String! @length(max: 80)
   "Role description."
   description: String! @length(max: 500)
+  "Whether @role pings notify users assigned to this role. Omit to leave unchanged."
+  pingable: Boolean
 }
 
 """

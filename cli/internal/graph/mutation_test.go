@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -91,7 +92,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 
 		// Grant room.create to the everyone role
-		err = env.core.GrantServerPermission(env.ctx, core.RoleEveryone, core.PermRoomCreate)
+		err = env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to grant permission: %v", err)
 		}
@@ -107,6 +108,79 @@ func TestCreateRoom_Authorization(t *testing.T) {
 			t.Fatal("expected room, got nil")
 		}
 	})
+}
+
+func TestPostMessage_LargeMentionConfirmationUsesScopedToken(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	for i := 0; i < core.LargeMentionNotificationThreshold+1; i++ {
+		user, err := env.core.CreateUser(env.ctx, "system", "large-mention-target-"+string(rune('a'+i)), "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target %d: %v", i, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom target %d: %v", i, err)
+		}
+		if err := env.core.SetPresence(env.ctx, user.Id, core.PresenceStatusOnline); err != nil {
+			t.Fatalf("SetPresence target %d: %v", i, err)
+		}
+	}
+
+	_, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Body:   ptr("@here token"),
+	})
+	if err == nil {
+		t.Fatal("PostMessage without confirmation succeeded, want confirmation error")
+	}
+	var gqlErr *gqlerror.Error
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("PostMessage confirmation err = %T %v, want gqlerror.Error", err, err)
+	}
+	if gqlErr.Extensions["code"] != "MENTION_CONFIRMATION_REQUIRED" {
+		t.Fatalf("confirmation error code = %v", gqlErr.Extensions["code"])
+	}
+	if gqlErr.Extensions["recipientCount"] != core.LargeMentionNotificationThreshold+1 {
+		t.Fatalf("recipientCount = %v, want %d", gqlErr.Extensions["recipientCount"], core.LargeMentionNotificationThreshold+1)
+	}
+	token, ok := gqlErr.Extensions["mentionConfirmationToken"].(string)
+	if !ok || token == "" {
+		t.Fatalf("mentionConfirmationToken = %v, want non-empty string", gqlErr.Extensions["mentionConfirmationToken"])
+	}
+
+	_, err = mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:                   env.testRoom.Id,
+		Body:                     ptr("@here changed"),
+		MentionConfirmationToken: &token,
+	})
+	if err == nil {
+		t.Fatal("PostMessage with mismatched token scope succeeded, want confirmation error")
+	}
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("PostMessage mismatched token err = %T %v, want gqlerror.Error", err, err)
+	}
+	if gqlErr.Extensions["code"] != "MENTION_CONFIRMATION_REQUIRED" {
+		t.Fatalf("mismatched token error code = %v", gqlErr.Extensions["code"])
+	}
+
+	driftUser, err := env.core.CreateUser(env.ctx, "system", "large-mention-drift", "Drift", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser drift: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, driftUser.Id, core.KindChannel, driftUser.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("JoinRoom drift: %v", err)
+	}
+	if err := env.core.SetPresence(env.ctx, driftUser.Id, core.PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence drift: %v", err)
+	}
+	if _, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:                   env.testRoom.Id,
+		Body:                     ptr("@here token"),
+		MentionConfirmationToken: &token,
+	}); err != nil {
+		t.Fatalf("PostMessage with valid token after recipient drift: %v", err)
+	}
 }
 
 // ============================================================================
@@ -464,10 +538,10 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 
 	t.Run("member with post-in-thread denied cannot post any thread reply", func(t *testing.T) {
 		groupID := env.testRoom.GroupId
-		if err := env.core.DenyGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+		if err := env.core.DenyGroupPermission(env.ctx, core.SystemActorID, groupID, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessagePostInThread)
+		defer env.core.GrantGroupPermission(env.ctx, core.SystemActorID, groupID, core.RoleEveryone, core.PermMessagePostInThread)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for deny test", nil, "", "", nil, false)
 		if err != nil {
@@ -501,10 +575,10 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 	})
 
 	t.Run("denying message.post does not affect thread replies", func(t *testing.T) {
-		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost)
+		defer env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for independence test", nil, "", "", nil, false)
 		if err != nil {
@@ -896,10 +970,10 @@ func TestBanRoomMember_Authorization(t *testing.T) {
 		if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, env.testRoom.Id); err != nil {
 			t.Fatalf("JoinRoom target: %v", err)
 		}
-		if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomMemberBan); err != nil {
+		if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleAdmin, core.PermRoomMemberBan); err != nil {
 			t.Fatalf("DenyRoomPermission room.ban-member: %v", err)
 		}
-		if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
+		if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
 			t.Fatalf("GrantRoomPermission room.manage: %v", err)
 		}
 
@@ -930,7 +1004,7 @@ func TestBanRoomMember_Authorization(t *testing.T) {
 				t.Fatalf("JoinRoom moderator: %v", err)
 			}
 		}
-		if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleModerator, core.PermRoomMemberBan); err != nil {
+		if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleModerator, core.PermRoomMemberBan); err != nil {
 			t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
 		}
 
@@ -1771,7 +1845,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 
 		// Deny echo at room level for everyone role (testUser is space owner, has roles.manage)
-		err = env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermMessageEcho)
+		err = env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermMessageEcho)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
@@ -1802,7 +1876,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 
 		// Deny message.post at room level for everyone role
-		err = env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermMessagePost)
+		err = env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermMessagePost)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}

@@ -38,7 +38,7 @@ func TestGrantServerPermission(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("creates allow decision for valid permission", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleModerator, PermMessagePost)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
@@ -50,13 +50,13 @@ func TestGrantServerPermission(t *testing.T) {
 
 	t.Run("removes existing denial when granting", func(t *testing.T) {
 		// First deny the permission
-		err := core.DenyServerPermission(ctx, RoleModerator, PermMessagePost)
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
 		// Now grant it - should remove the denial
-		err = core.GrantServerPermission(ctx, RoleModerator, PermMessagePost)
+		err = core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
@@ -67,7 +67,7 @@ func TestGrantServerPermission(t *testing.T) {
 	})
 
 	t.Run("rejects unrecognised permission", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleModerator, Permission("not.a.real.permission"))
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, Permission("not.a.real.permission"))
 		if err == nil {
 			t.Error("Expected error for invalid permission")
 		}
@@ -79,7 +79,7 @@ func TestDenyServerPermission(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("creates deny decision", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
@@ -91,13 +91,13 @@ func TestDenyServerPermission(t *testing.T) {
 
 	t.Run("removes existing grant when denying", func(t *testing.T) {
 		// First grant the permission
-		err := core.GrantServerPermission(ctx, RoleEveryone, PermMessagePost)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
 		// Now deny it - should remove the grant
-		err = core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
+		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
@@ -108,7 +108,7 @@ func TestDenyServerPermission(t *testing.T) {
 	})
 
 	t.Run("rejects unrecognised permission", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, RoleModerator, Permission("not.real.permission"))
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, Permission("not.real.permission"))
 		if err == nil {
 			t.Error("Expected error for invalid permission")
 		}
@@ -121,13 +121,13 @@ func TestClearServerPermissionState(t *testing.T) {
 
 	t.Run("clears both grant and denial", func(t *testing.T) {
 		// Grant a permission
-		err := core.GrantServerPermission(ctx, RoleModerator, PermMessagePost)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to grant: %v", err)
 		}
 
 		// Clear it
-		err = core.ClearServerPermissionState(ctx, RoleModerator, PermMessagePost)
+		err = core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("ClearServerPermissionState() error = %v", err)
 		}
@@ -138,7 +138,7 @@ func TestClearServerPermissionState(t *testing.T) {
 	})
 
 	t.Run("succeeds when clearing non-existent key", func(t *testing.T) {
-		err := core.ClearServerPermissionState(ctx, RoleEveryone, PermMessagePost)
+		err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Errorf("Expected no error when clearing non-existent key, got: %v", err)
 		}
@@ -156,7 +156,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
 	t.Run("creates allow decision for server role", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleEveryone, PermRoomCreate)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() error = %v", err)
 		}
@@ -168,7 +168,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 
 	t.Run("works for role override at space level", func(t *testing.T) {
 		// Instance role override at space level
-		err := core.GrantServerPermission(ctx, RoleModerator, PermRoomJoin)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() for role error = %v", err)
 		}
@@ -190,7 +190,7 @@ func TestDenySpaceRolePermission(t *testing.T) {
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
 	t.Run("creates deny decision in server RBAC", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenySpaceRolePermission() error = %v", err)
 		}
@@ -209,9 +209,9 @@ func TestClearSpaceRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at space level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantServerPermission(ctx, RoleEveryone, PermRoomJoin)
+		_ = core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 
-		err := core.ClearServerPermissionState(ctx, RoleEveryone, PermRoomJoin)
+		err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("ClearSpaceRolePermission() error = %v", err)
 		}
@@ -234,7 +234,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
 	t.Run("creates allow decision for room-level permission", func(t *testing.T) {
-		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+		err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantRoomRolePermission() error = %v", err)
 		}
@@ -245,7 +245,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermAdminUsersView)
+		err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -260,7 +260,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
 	t.Run("creates deny decision at room level", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyRoomRolePermission() error = %v", err)
 		}
@@ -271,7 +271,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermAdminUsersView)
+		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -287,9 +287,9 @@ func TestClearRoomRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at room level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermRoomJoin)
+		_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
 
-		err := core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomJoin)
+		err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("ClearRoomRolePermission() error = %v", err)
 		}
@@ -309,24 +309,24 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("granting same permission twice succeeds", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleModerator, PermMessagePost)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("First grant failed: %v", err)
 		}
 
-		err = core.GrantServerPermission(ctx, RoleModerator, PermMessagePost)
+		err = core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Errorf("Second grant should succeed (idempotent), got: %v", err)
 		}
 	})
 
 	t.Run("denying same permission twice succeeds", func(t *testing.T) {
-		err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("First deny failed: %v", err)
 		}
 
-		err = core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
+		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Errorf("Second deny should succeed (idempotent), got: %v", err)
 		}
@@ -336,13 +336,13 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 		perm := PermMessagePost
 
 		// Grant
-		err := core.GrantServerPermission(ctx, RoleEveryone, perm)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Grant failed: %v", err)
 		}
 
 		// Now deny
-		err = core.DenyServerPermission(ctx, RoleEveryone, perm)
+		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Deny failed: %v", err)
 		}
@@ -452,7 +452,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 	})
 
 	t.Run("ensure default permissions backfills missing grants without overriding denies", func(t *testing.T) {
-		if err := core.ClearServerPermissionState(ctx, RoleModerator, PermRoomMemberBan); err != nil {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermRoomMemberBan); err != nil {
 			t.Fatalf("ClearServerPermissionState: %v", err)
 		}
 		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionNone {
@@ -465,7 +465,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 			t.Fatalf("decision after ensure = %s, want %s", got, DecisionAllow)
 		}
 
-		if err := core.DenyServerPermission(ctx, RoleModerator, PermRoomMemberBan); err != nil {
+		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermRoomMemberBan); err != nil {
 			t.Fatalf("DenyServerPermission: %v", err)
 		}
 		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
@@ -488,7 +488,7 @@ func TestPermissionOpsWithCancelledContext(t *testing.T) {
 	cancel() // Cancel immediately
 
 	t.Run("grant fails with cancelled context", func(t *testing.T) {
-		err := core.GrantServerPermission(ctx, RoleModerator, PermMessagePost)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err == nil {
 			t.Error("Expected error with cancelled context")
 		}

@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-06-12
+**Last reviewed:** 2026-06-13
 
 ## Overview
 
@@ -46,6 +46,12 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Decision:** The recent-reactions list lives in `localStorage`, not on the server.
 **Why:** Server-side recents would mean a "your recents" query on every message hover (frequent and small) and a new write per reaction. Local storage is free and fast. The downside — losing recents between devices — is small relative to the cost.
 **Tradeoff:** Recents don't sync across devices.
+
+### 6. Reconnect catch-up uses resumable myEvents, not visible timeline rows
+
+**Decision:** Missed reaction add/remove events are recovered through `Subscription.myEvents(after:)`. Durable EVT-backed subscription events carry a server-signed, user-bound opaque `deliveryCursor`; the web client remembers the latest cursor and passes it when the singleton event bus resubscribes after reconnect or wake.
+**Why:** Reactions mutate existing message rows. If a client reconnects after missing only a reaction, visible timeline pagination has no new row to return. Replaying the raw durable reaction event through `myEvents` keeps the API model simple: queries fetch current projected state, and the subscription delivers the durable facts the client missed.
+**Tradeoff:** Replay is limited to durable room EVT facts for rooms the user is currently a member of. Invalid, expired, or over-budget cursors force a full refresh from projected query state instead of replaying. Transient sync signals and presence changes remain live-only, and clients still refetch the affected message row when a replayed reaction arrives.
 
 ## Permissions
 

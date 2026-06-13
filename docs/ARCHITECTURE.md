@@ -108,7 +108,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`; `members` is offset-paginated. |
+| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`; `members` is offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are recovered on reconnect through `Subscription.myEvents(after:)`, not through room timeline pagination. |
 
 **RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 
@@ -229,7 +229,7 @@ Like `Query.admin`, the `admin: AdminMutations` field returns `null` for unauthe
 
 | Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ---- |
-| `myEvents`            | The single subscription. Multiplexes durable room events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing, voice call join/leave facts) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
+| `myEvents(after:)`            | The single subscription. Multiplexes durable room events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing, voice call join/leave facts) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Durable EVT-backed events include a server-signed, user-bound `deliveryCursor`. When `after` is supplied, durable EVT room facts newer than that cursor are replayed from the in-memory room timeline projection before live delivery continues; invalid, expired, or over-budget cursors require a full refresh. Transient events, presence changes, and heartbeats are not replayed. |
 
 There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
 
@@ -293,7 +293,7 @@ messages/threads, reactions, RBAC, and auth workflow audit facts.
 - `EVT` is the source of truth.
 - Fresh deployments seed only current invariants such as default RBAC roles and the default room group; pre-0.1 data importers are no longer part of the boot path.
 - Reads come from in-memory projections rebuilt from `EVT`.
-- Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded facts such as edits, retractions, reactions, assets, and thread replies; visible readers skip or fold those facts before serving the room timeline.
+- Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded facts such as edits, retractions, reactions, assets, and thread replies; visible readers skip or fold those facts before serving the room timeline. `Subscription.myEvents(after:)` uses the raw room log for reconnect replay so folded facts can reach the client as ordinary durable events without appearing as standalone timeline rows in `Room.events`.
 - Writes append to `EVT` only; legacy KV/stream data is not maintained as a mirror.
 - Read-your-writes is provided by waiting for the local projector to reach the append sequence.
 
@@ -361,7 +361,7 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 2. **Direct Live Publish** (transient):
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
-The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that subscribes to `live.sync.>` and `live.evt.>`. For deliverable raw EVT room messages, it reads the republished `Nats-Sequence` header, waits for the local projections needed by authorization and follow-up resolvers, filters by the subscribing user, and then emits the GraphQL event. Transient `LiveEvent` messages are adapted at this API boundary into the public GraphQL event shape. There is no per-connection JetStream consumer.
+The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that subscribes to `live.sync.>` and `live.evt.>`. For deliverable raw EVT room messages, it reads the republished `Nats-Sequence` header, waits for the local projections needed by authorization and follow-up resolvers, filters by the subscribing user, and then emits the GraphQL event with an opaque `deliveryCursor`. The cursor is signed with the server-side core secret, bound to the authenticated user, and expires after seven days; clients must treat it as an opaque token. When a client reconnects with `after`, the server subscribes to live feeds first, captures the current room-EVT tail sequence, waits for the replay projections to reach that tail, refreshes the subscriber's current room memberships, plans a bounded replay from `RoomTimelineProjection`, then skips any buffered live EVT messages at or below that tail to avoid duplicates. Current room membership is the replay privacy boundary: rooms the user no longer belongs to are not replayed, even if the cursor predates the leave/ban/delete. If replay would exceed the server budget (currently 1000 durable room facts), GraphQL returns `MY_EVENTS_FULL_REFRESH_REQUIRED` and the web client discards the cursor and reloads from projected state. Transient `LiveEvent` messages are adapted at this API boundary into the public GraphQL event shape. There is no per-connection JetStream consumer.
 
 ### Event Streams
 
@@ -441,6 +441,7 @@ Voice call joins/leaves are durable room-call EVT facts under `evt.room_call.{ro
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
 - One `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages, and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Authorization is applied per event: room membership for room subjects, `isAuthorizedForLiveEvent` for user/config/member subjects, and projection readiness before deliverable `live.evt.>` events.
+- Optional reconnect replay from `RoomTimelineProjection` when the client supplies a valid signed `myEvents(after:)` cursor. Replay is limited to durable room EVT facts for rooms the user is currently a member of and capped by a per-subscription event budget; transient sync and presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
 
@@ -804,6 +805,7 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 
 - Room-level message history is served from `RoomTimelineProjection`, which keeps the raw room event log plus derived indexes for latest body state, hidden echoes, assets, and room-visible timeline entries.
 - Initial loads and cursor pagination walk the derived visible-room index so thread replies, edits, retractions, reactions, asset-processing facts, and directly hidden echoes do not count as separate room timeline rows.
+- Reconnect catch-up uses `Subscription.myEvents(after:)`, keyed by the signed subscription `deliveryCursor`. The web client keeps the most recent durable cursor in its event bus and passes it on resubscribe; replayed reactions/edits/retractions/assets arrive through the same event handlers as live events. If the server rejects the cursor as invalid, expired, or too expensive to replay, the client performs a full refresh from projected query state.
 - `eventsAround` uses the same visible-room index to center jump-to-message windows on the target's visible position.
 - Thread panes read the root message from `RoomTimelineProjection` and cursor-paginated replies from `ThreadProjection`.
 

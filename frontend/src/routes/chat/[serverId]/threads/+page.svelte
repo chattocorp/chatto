@@ -17,7 +17,13 @@
 	import { formatDate } from '$lib/utils/formatTime';
 	import { onThreadFollowChanged } from '$lib/eventBus.svelte';
 	import { useEvent } from '$lib/hooks';
-	import { createRoomPermissions, DEFAULT_ROOM_PERMISSIONS, createRoomMembers, createComposerContext } from '$lib/state/room';
+	import {
+		createRoomPermissions,
+		DEFAULT_ROOM_PERMISSIONS,
+		createRoomMembers,
+		createComposerContext,
+		createMentionRoles
+	} from '$lib/state/room';
 
 	// Provide stub room contexts so MessageEvent can render in read-only mode.
 	// All permissions are false (no editing, deleting, reacting from this view),
@@ -25,6 +31,7 @@
 	createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
 	createRoomMembers();
 	createComposerContext();
+	createMentionRoles();
 
 	const connection = useConnection();
 	const userSettings = getUserSettings();
@@ -102,19 +109,24 @@
 		loading = true;
 		error = null;
 
-		const result = await connection().client
-			.query(MyFollowedThreadsDoc, {})
-			.toPromise();
+		try {
+			const result = await connection().client.query(MyFollowedThreadsDoc, {}).toPromise();
 
-		if (thisId !== loadId) return;
+			if (thisId !== loadId) return;
 
-		if (result.error) {
-			error = result.error.message;
-		} else if (result.data?.viewer) {
-			threads = result.data.viewer.followedThreads.threads.map(mapThread);
+			if (result.error) {
+				error = result.error.message;
+			} else if (result.data?.viewer) {
+				threads = result.data.viewer.followedThreads.threads.map(mapThread);
+			}
+		} catch (e) {
+			if (thisId !== loadId) return;
+			error = e instanceof Error ? e.message : 'Failed to load threads';
+		} finally {
+			if (thisId === loadId) {
+				loading = false;
+			}
 		}
-
-		loading = false;
 	}
 
 	$effect(() => {

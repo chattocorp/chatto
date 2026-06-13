@@ -933,6 +933,41 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	return out
 }
 
+// RoomTimelineBetween walks the raw room timeline oldest-first and returns
+// matching entries with afterStreamSeq < seq <= throughStreamSeq. A zero
+// throughStreamSeq means "no upper bound".
+func (p *RoomTimelineProjection) RoomTimelineBetween(
+	roomID string,
+	afterStreamSeq uint64,
+	throughStreamSeq uint64,
+	include func(*corev1.Event) bool,
+	limit int,
+) []*TimelineEntry {
+	if limit <= 0 {
+		return nil
+	}
+	p.RLock()
+	defer p.RUnlock()
+	entries := p.byRoom[roomID]
+	out := make([]*TimelineEntry, 0, limit)
+	for _, e := range entries {
+		if e.StreamSeq <= afterStreamSeq {
+			continue
+		}
+		if throughStreamSeq > 0 && e.StreamSeq > throughStreamSeq {
+			break
+		}
+		if include != nil && !include(e.Event) {
+			continue
+		}
+		out = append(out, e)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out
+}
+
 // VisibleRoomTimelineAround returns a room-visible window centered on eventID
 // in oldest-first order. It walks the derived visible-room slice instead of the
 // raw room log, so edits/reactions/assets/thread replies are not revisited when

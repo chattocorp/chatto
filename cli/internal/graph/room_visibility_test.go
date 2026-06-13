@@ -21,8 +21,8 @@ func TestRoomResolver_ListableButNotJoinable(t *testing.T) {
 	// the listable-but-not-joinable state.
 	viewer := env.createVerifiedUser(t, "list-only-viewer", "Viewer", "password123")
 
-	if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
-		t.Fatalf("DenyRoomPermission(room.join, everyone): %v", err)
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyRoomPermission(room.join, core.SystemActorID, everyone): %v", err)
 	}
 
 	ctx := env.authContextForUser(viewer)
@@ -54,8 +54,8 @@ func TestRoomResolver_HiddenWhenListDenied(t *testing.T) {
 
 	viewer := env.createVerifiedUser(t, "hidden-viewer", "Viewer", "password123")
 
-	if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission(room.list, everyone): %v", err)
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission(room.list, core.SystemActorID, everyone): %v", err)
 	}
 
 	ctx := env.authContextForUser(viewer)
@@ -82,8 +82,8 @@ func TestRoomResolver_ListableForMemberEvenWhenListDenied(t *testing.T) {
 		t.Fatalf("JoinRoom: %v", err)
 	}
 
-	if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission(room.list, everyone): %v", err)
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission(room.list, core.SystemActorID, everyone): %v", err)
 	}
 
 	ctx := env.authContextForUser(viewer)

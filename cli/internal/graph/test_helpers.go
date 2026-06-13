@@ -36,6 +36,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 
 	// Create ChattoCore
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
@@ -169,6 +170,7 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 
 	// Create ChattoCore
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

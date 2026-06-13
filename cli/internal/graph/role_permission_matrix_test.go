@@ -62,7 +62,7 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 	env := setupTestResolver(t)
 	rbac := env.resolver.RbacQueries()
 
-	if err := env.core.GrantServerPermission(env.ctx, "moderator", core.PermMessageManage); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, "moderator", core.PermMessageManage); err != nil {
 		t.Fatalf("GrantServerPermission: %v", err)
 	}
 

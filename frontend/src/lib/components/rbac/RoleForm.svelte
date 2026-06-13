@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { Button, TextInput, TextArea } from '$lib/ui/form';
+  import { Button, Checkbox, TextInput, TextArea } from '$lib/ui/form';
 
   let {
     name = $bindable(''),
     displayName = $bindable(''),
     description = $bindable(''),
+    pingable = $bindable(false),
     nameEditable = true,
     saving = false,
     submitLabel = 'Save',
@@ -16,6 +17,7 @@
     name?: string;
     displayName?: string;
     description?: string;
+    pingable?: boolean;
     nameEditable?: boolean;
     saving?: boolean;
     submitLabel?: string;
@@ -94,6 +96,14 @@
     rows={3}
     disabled={saving}
     placeholder="Optional description for this role"
+  />
+
+  <Checkbox
+    id="pingable"
+    bind:checked={pingable}
+    label="Allow people to ping this role"
+    disabled={saving}
+    description="Pingable roles appear in @ autocomplete and notify assigned room members."
   />
 
   <div class="flex gap-2 pt-2">

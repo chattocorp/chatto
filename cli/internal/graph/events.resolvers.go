@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
@@ -220,6 +221,23 @@ func (r *eventResolver) ActorID(ctx context.Context, obj core.EventEnvelope) (*s
 // Actor is the resolver for the actor field.
 func (r *eventResolver) Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error) {
 	return r.resolveEventActor(ctx, obj)
+}
+
+// DeliveryCursor is the resolver for the deliveryCursor field.
+func (r *eventResolver) DeliveryCursor(ctx context.Context, obj core.EventEnvelope) (*string, error) {
+	if obj == nil {
+		return nil, nil
+	}
+	seq := obj.DeliverySeq()
+	if seq == 0 {
+		return nil, nil
+	}
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cursor := r.core.FormatEventDeliveryCursor(user.Id, seq, time.Now())
+	return nilIfEmpty(cursor), nil
 }
 
 // Event is the resolver for the event field.

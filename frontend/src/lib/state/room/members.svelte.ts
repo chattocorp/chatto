@@ -19,6 +19,9 @@ export type RoomMember = {
 
 export type RoomMembersState = {
   members: RoomMember[];
+  totalCount: number;
+  hasMore: boolean;
+  loadingMore: boolean;
   /** Live presence updates - may contain more recent status than members array */
   livePresence: SvelteMap<string, PresenceStatus>;
   /**
@@ -41,6 +44,9 @@ export function createRoomMembers() {
   const state = $state<{ current: RoomMembersState }>({
     current: {
       members: [],
+      totalCount: 0,
+      hasMore: false,
+      loadingMore: false,
       livePresence: new SvelteMap(),
       presenceVersion: 0
     }
@@ -48,9 +54,35 @@ export function createRoomMembers() {
   setMembersState(state);
 
   return {
+    get current() {
+      return state.current;
+    },
+
     /** Replace the member list */
-    setMembers(members: RoomMember[]) {
+    setMembers(
+      members: RoomMember[],
+      pagination: { totalCount?: number; hasMore?: boolean } = {}
+    ) {
       state.current.members = members;
+      state.current.totalCount = pagination.totalCount ?? members.length;
+      state.current.hasMore = pagination.hasMore ?? false;
+    },
+
+    /** Append another page, skipping members already loaded */
+    appendMembers(
+      members: RoomMember[],
+      pagination: { totalCount?: number; hasMore?: boolean } = {}
+    ) {
+      const nextMembers = members.filter(
+        (member) => !state.current.members.some((loaded) => loaded.id === member.id)
+      );
+      state.current.members = [...state.current.members, ...nextMembers];
+      state.current.totalCount = pagination.totalCount ?? state.current.members.length;
+      state.current.hasMore = pagination.hasMore ?? false;
+    },
+
+    setLoadingMore(loading: boolean) {
+      state.current.loadingMore = loading;
     },
 
     /** Update presence for a single user */
@@ -62,6 +94,9 @@ export function createRoomMembers() {
     /** Clear all data (call when leaving room) */
     clear() {
       state.current.members = [];
+      state.current.totalCount = 0;
+      state.current.hasMore = false;
+      state.current.loadingMore = false;
       state.current.livePresence.clear();
       state.current.presenceVersion = 0;
     }
