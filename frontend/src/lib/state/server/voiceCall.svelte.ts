@@ -181,6 +181,7 @@ export class VoiceCallState {
       }
 
       const keyProvider = new ExternalE2EEKeyProvider();
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Vite worker bundling requires the built-in URL constructor.
       this.e2eeWorker = new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), {
         type: 'module'
       });

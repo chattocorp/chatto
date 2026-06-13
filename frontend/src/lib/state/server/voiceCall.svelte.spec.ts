@@ -7,12 +7,14 @@ let lastKeyProvider: { setKey: ReturnType<typeof vi.fn> } | null = null;
 
 vi.mock('livekit-client', () => {
   class MockExternalE2EEKeyProvider {
-    setKey = vi.fn(async (key: string) => {
-      calls.push(`setKey:${key}`);
-    });
+    setKey: ReturnType<typeof vi.fn>;
 
     constructor() {
-      lastKeyProvider = this;
+      const setKey = vi.fn(async (key: string) => {
+        calls.push(`setKey:${key}`);
+      });
+      this.setKey = setKey;
+      lastKeyProvider = { setKey };
     }
   }
 
