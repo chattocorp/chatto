@@ -153,7 +153,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		Event:   accountCreated,
 	}}
 	if password != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
@@ -306,7 +306,7 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 	}
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
