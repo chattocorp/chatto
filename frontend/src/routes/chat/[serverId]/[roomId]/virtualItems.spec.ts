@@ -100,6 +100,12 @@ describe('buildVirtualItems', () => {
     expect(items[0]).toMatchObject({ type: 'start-marker' });
   });
 
+  it('omits start-marker when showStartMarker is false', () => {
+    const events = [makeMessageEvent({ id: 'e1' })];
+    const items = buildVirtualItems(meta(events), null, true, false);
+    expect(items.find((i) => i.type === 'start-marker')).toBeUndefined();
+  });
+
   it('does not emit start-marker for an empty event list even if hasReachedStart', () => {
     expect(buildVirtualItems([], null, true)).toEqual([]);
   });

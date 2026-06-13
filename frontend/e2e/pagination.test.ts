@@ -240,9 +240,7 @@ test.describe('message pagination', () => {
     if (!box) throw new Error('Container not visible');
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
-    const startMarker = page.getByText(
-      "You've reached the very beginning of this conversation."
-    );
+    const startMarker = page.getByText('This is the beginning of this conversation.');
 
     let markerVisible = false;
     for (let i = 0; i < 60; i++) {
