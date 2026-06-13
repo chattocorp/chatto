@@ -508,6 +508,63 @@ func TestStreamMyEvents_ReplaysMissedReactionAfterCursor(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_DoesNotReplayRoomEventsAfterViewerLeft(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "replay-left-author", "Replay Left Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "replay-left-viewer", "Replay Left Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "replay-left", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "before leave", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage before leave: %v", err)
+	}
+	afterSeq, err := core.GetEventSequence(ctx, KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	if err := core.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "after leave", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage after leave: %v", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id, afterSeq)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	select {
+	case ev, ok := <-eventChan:
+		if !ok {
+			t.Fatal("event stream closed unexpectedly")
+		}
+		if liveEventRoomID(ev) == room.Id {
+			t.Fatalf("replayed room event after viewer left: %T", ev.EVTEvent().GetEvent())
+		}
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
 func TestStreamMyEvents_ReplayBudgetRequiresFullRefresh(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

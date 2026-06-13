@@ -1241,15 +1241,30 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string, afterSeq
 	replayTailSeq := uint64(0)
 	var replayCandidates []myEventsReplayCandidate
 	if afterSeq > 0 {
-		info, err := c.storage.serverEvtStream.Info(ctx)
+		replayTail, err := c.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
 		if err != nil {
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
 			c.presenceService.Unsubscribe(presenceSub)
-			return nil, fmt.Errorf("read EVT stream tail for myEvents replay: %w", err)
+			return nil, fmt.Errorf("read room EVT stream tail for myEvents replay: %w", err)
 		}
-		replayTailSeq = info.State.LastSeq
+		replayTailSeq = replayTail.Seq
 		if replayTailSeq > afterSeq {
+			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+			err := c.roomService.waitForMyEventsReplayTail(waitCtx, c.EventPublisher, replayTail)
+			cancel()
+			if err != nil {
+				liveSyncSub.Unsubscribe()
+				liveEVTSub.Unsubscribe()
+				c.presenceService.Unsubscribe(presenceSub)
+				return nil, fmt.Errorf("wait for myEvents replay projection readiness: %w", err)
+			}
+			if err := c.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
+				liveSyncSub.Unsubscribe()
+				liveEVTSub.Unsubscribe()
+				c.presenceService.Unsubscribe(presenceSub)
+				return nil, err
+			}
 			replayCandidates, err = c.collectMissedRoomEventsReplay(memberRooms, afterSeq, replayTailSeq, maxMyEventsReplayEvents)
 			if err != nil {
 				liveSyncSub.Unsubscribe()
