@@ -176,7 +176,7 @@ func (r *Resolver) assetCreationForProcessing(assetID string) *corev1.AssetCreat
 	if assetID == "" {
 		return nil
 	}
-	declared, ok := r.core.RoomTimeline.AssetCreation(assetID)
+	declared, ok := r.core.Assets.AssetCreation(assetID)
 	if !ok {
 		return nil
 	}
@@ -184,7 +184,7 @@ func (r *Resolver) assetCreationForProcessing(assetID string) *corev1.AssetCreat
 }
 
 func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool) bool {
-	created, ok := r.core.RoomTimeline.AssetCreation(assetID)
+	created, ok := r.core.Assets.AssetCreation(assetID)
 	if !ok || created == nil {
 		return fallback
 	}

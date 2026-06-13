@@ -92,7 +92,7 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatal("expected local video processing request")
 	}
 
-	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(attachment.Id)
+	manifest, ok := core.Assets.VideoAttachmentManifest(attachment.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("expected AssetProcessingStarted manifest, got %+v", manifest)
 	}

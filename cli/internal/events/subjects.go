@@ -26,6 +26,7 @@ const (
 	AggregateGroup  = "group"
 	AggregateLayout = "layout"
 	AggregateUser   = "user"
+	AggregateAsset  = "asset"
 	AggregateRBAC   = "rbac"
 	AggregateAuth   = "auth"
 )
@@ -438,6 +439,13 @@ func UserAggregate(userID string) Aggregate {
 	return Aggregate{Type: AggregateUser, ID: userID}
 }
 
+// AssetAggregate is the typed constructor for an asset aggregate. It owns
+// binary lifecycle and processing facts; room visibility is carried by the
+// asset payload/projections, not by the subject namespace.
+func AssetAggregate(assetID string) Aggregate {
+	return Aggregate{Type: AggregateAsset, ID: assetID}
+}
+
 // RBACAggregate is the typed constructor for server-level RBAC events:
 // role definitions/order and server-scoped permission decisions.
 func RBACAggregate() Aggregate {
@@ -496,6 +504,11 @@ func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" 
 // Pattern: evt.user.>
 func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
 
+// AssetSubjectFilter returns the wildcard filter matching every asset
+// aggregate event.
+// Pattern: evt.asset.>
+func AssetSubjectFilter() string { return SubjectRoot + AggregateAsset + ".>" }
+
 // RBACSubjectFilter returns the wildcard filter matching every RBAC aggregate
 // event.
 // Pattern: evt.rbac.>
@@ -540,6 +553,12 @@ func UserEventTypeFilter(eventType string) string {
 	return AggregateEventTypeFilter(AggregateUser, eventType)
 }
 
+// AssetEventTypeFilter is the asset analogue of RoomEventTypeFilter.
+// Pattern: evt.asset.*.{eventType}
+func AssetEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateAsset, eventType)
+}
+
 // RBACEventTypeFilter is the RBAC analogue of RoomEventTypeFilter.
 // Pattern: evt.rbac.*.{eventType}
 func RBACEventTypeFilter(eventType string) string {
@@ -564,6 +583,12 @@ func ParseGroupSubject(subject string) (groupID string, ok bool) {
 // subject. Accepts durable and republished live forms.
 func ParseUserSubject(subject string) (userID string, ok bool) {
 	return parseAggregateSubject(subject, AggregateUser)
+}
+
+// ParseAssetSubject extracts the assetID from an asset-aggregate event
+// subject. Accepts durable and republished live forms.
+func ParseAssetSubject(subject string) (assetID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateAsset)
 }
 
 // parseAggregateSubject extracts the aggregate ID from a subject of the

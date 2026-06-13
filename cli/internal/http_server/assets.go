@@ -342,12 +342,12 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 		return nil, false
 	}
 
-	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
+	declared, ok := s.core.Assets.AssetCreation(assetID)
 	if !ok || declared == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return nil, false
 	}
-	roomID, ok := s.core.RoomTimeline.AssetRoomID(assetID)
+	roomID, ok := s.core.Assets.AssetRoomID(assetID)
 	if !ok {
 		s.logger.Warn("Asset has no room scope", "attachment_id", assetID)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})

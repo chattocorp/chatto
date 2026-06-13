@@ -310,13 +310,13 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
+	if err := env.core.Assets.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
+	if err := env.core.Assets.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
 		t.Fatalf("Apply derivative asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
+	if err := env.core.Assets.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video manifest: %v", err)
 	}
 
@@ -356,10 +356,10 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
+	if err := env.core.Assets.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
+	if err := env.core.Assets.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video failure: %v", err)
 	}
 

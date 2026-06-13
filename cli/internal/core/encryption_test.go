@@ -411,11 +411,12 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message body should be tombstoned by UserKeyShreddedEvent before decrypt")
 
-	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventAssetDeleted))
-	require.NoError(t, err)
-	require.Len(t, deletedEvents, 3)
 	deletedIDs := map[string]bool{}
-	for _, e := range deletedEvents {
+	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(att.Id).Subject(events.EventAssetDeleted))
+		require.NoError(t, err)
+		require.Len(t, deletedEvents, 1)
+		e := deletedEvents[0]
 		deletedIDs[e.GetAssetDeleted().GetAssetId()] = true
 	}
 	require.True(t, deletedIDs[original.Id], "source asset should get AssetDeletedEvent")

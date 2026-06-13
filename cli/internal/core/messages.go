@@ -248,7 +248,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if id == "" {
 			continue
 		}
-		declared, ok := c.RoomTimeline.AssetCreation(id)
+		declared, ok := c.Assets.AssetCreation(id)
 		if !ok || declared == nil || declared.GetAsset() == nil {
 			c.logger.Warn("PostMessage references unknown asset; dropping",
 				"asset_id", id, "room_id", room_id, "actor_id", user_id)

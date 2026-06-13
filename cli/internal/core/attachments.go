@@ -35,7 +35,7 @@ func (c *MediaService) GetAttachmentsStore(ctx context.Context) (jetstream.Objec
 // S3) is determined by configuration.
 //
 // UploadAttachment stores a binary in the configured backend, emits a
-// durable AssetCreatedEvent into the room aggregate (so the asset becomes
+// durable AssetCreatedEvent into the asset aggregate (so the asset becomes
 // a first-class entity from the moment its bytes hit storage), and returns
 // the rendered Attachment view for the caller.
 //
@@ -222,7 +222,7 @@ func (c *MediaService) appendAssetCreatedForUpload(ctx context.Context, actorID,
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{AssetCreated: created},
 	})
-	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
+	if err := c.appendAssetEventEventually(ctx, attachment.GetId(), event); err != nil {
 		return fmt.Errorf("publish asset creation event: %w", err)
 	}
 	return nil
@@ -528,7 +528,7 @@ func (c *MediaService) MessageBodyAttachments(body *corev1.MessageBody) []*corev
 		if id == "" {
 			continue
 		}
-		declared, ok := c.RoomTimeline.AssetCreation(id)
+		declared, ok := c.Assets.AssetCreation(id)
 		if !ok {
 			continue
 		}
@@ -547,7 +547,7 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
-	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(videoOriginID)
+	manifest, ok := c.Assets.VideoAttachmentManifest(videoOriginID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return nil, nil
 	}
@@ -556,13 +556,13 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 		return nil, nil
 	}
 	if video.GetThumbnailAssetId() == attachmentID {
-		if declared, ok := c.RoomTimeline.AssetCreation(attachmentID); ok {
+		if declared, ok := c.Assets.AssetCreation(attachmentID); ok {
 			return attachmentFromAsset(declared.GetAsset()), nil
 		}
 	}
 	for _, v := range video.Variants {
 		if v.GetAssetId() == attachmentID {
-			if declared, ok := c.RoomTimeline.AssetCreation(attachmentID); ok {
+			if declared, ok := c.Assets.AssetCreation(attachmentID); ok {
 				return attachmentFromAsset(declared.GetAsset()), nil
 			}
 		}
@@ -588,7 +588,7 @@ func (c *MediaService) LookupAttachment(ctx context.Context, loc signedurl.Attac
 	if loc.VideoOrigin != "" {
 		return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
 	}
-	declared, ok := c.RoomTimeline.AssetCreation(loc.AttachmentID)
+	declared, ok := c.Assets.AssetCreation(loc.AttachmentID)
 	if !ok || declared == nil {
 		return nil, nil
 	}
@@ -695,7 +695,7 @@ func (c *MediaService) deleteCachedResizesForAttachment(ctx context.Context, att
 // actorID is attributed to the AssetDeletedEvents — typically the user who
 // triggered the parent deletion.
 func (c *MediaService) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, kind RoomKind, attachmentID string) {
-	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachmentID)
+	manifest, ok := c.Assets.VideoAttachmentManifest(attachmentID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return
 	}
@@ -707,7 +707,7 @@ func (c *MediaService) DeleteVideoDerivativesForAttachment(ctx context.Context, 
 		if id == "" {
 			return
 		}
-		declared, ok := c.RoomTimeline.AssetCreation(id)
+		declared, ok := c.Assets.AssetCreation(id)
 		if !ok {
 			return
 		}
@@ -744,7 +744,7 @@ func (c *MediaService) DeleteMessageOwnedAssetsForUser(ctx context.Context, acto
 	seen := make(map[string]struct{})
 
 	for _, ref := range owned {
-		for _, assetID := range c.RoomTimeline.AssetSubtreeIDs(ref.AssetID) {
+		for _, assetID := range c.Assets.AssetSubtreeIDs(ref.AssetID) {
 			if assetID == "" {
 				continue
 			}
@@ -753,7 +753,7 @@ func (c *MediaService) DeleteMessageOwnedAssetsForUser(ctx context.Context, acto
 			}
 			seen[assetID] = struct{}{}
 
-			declared, ok := c.RoomTimeline.AssetCreation(assetID)
+			declared, ok := c.Assets.AssetCreation(assetID)
 			if !ok || declared == nil {
 				continue
 			}
@@ -1219,7 +1219,7 @@ func (c *MediaService) ScheduleVideoProcessingForMessageAttachment(ctx context.C
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("video processing missing room, message, or attachment")
 	}
-	if manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil {
+	if manifest, ok := c.Assets.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil {
 		if manifest.Succeeded != nil || manifest.Failed != nil {
 			return nil
 		}
@@ -1277,7 +1277,7 @@ func (c *MediaService) RecordAssetProcessingStarted(ctx context.Context, actorID
 // yet. If the original binary is already gone, it records a durable unavailable
 // state.
 func (c *MediaService) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
-	for _, req := range c.RoomTimeline.UnmanifestedVideoAttachments() {
+	for _, req := range c.UnmanifestedVideoAttachments() {
 		if req.Attachment == nil {
 			continue
 		}
@@ -1292,6 +1292,39 @@ func (c *MediaService) RecoverUnmanifestedVideoAttachments(ctx context.Context) 
 	}
 }
 
+func (c *MediaService) UnmanifestedVideoAttachments() []VideoProcessingRequest {
+	var out []VideoProcessingRequest
+	for _, owner := range c.RoomTimeline.MessageAssetOwners() {
+		if owner.RoomID == "" || owner.MessageEventID == "" || owner.AssetID == "" {
+			continue
+		}
+		if c.RoomTimeline.MessageTombstoned(owner.MessageEventID) {
+			continue
+		}
+		declared, ok := c.Assets.AssetCreation(owner.AssetID)
+		if !ok || declared == nil {
+			continue
+		}
+		asset := declared.GetAsset()
+		if asset == nil {
+			continue
+		}
+		if _, hasManifest := c.Assets.VideoAttachmentManifest(owner.AssetID); hasManifest {
+			continue
+		}
+		contentType := asset.GetContentType()
+		if !strings.HasPrefix(contentType, "video/") && contentType != "image/gif" {
+			continue
+		}
+		out = append(out, VideoProcessingRequest{
+			RoomID:         owner.RoomID,
+			MessageEventID: owner.MessageEventID,
+			Attachment:     attachmentFromAsset(asset),
+		})
+	}
+	return out
+}
+
 // PublishAssetProcessing appends a durable asset-processing event to EVT.
 // Refuses events with an empty ActorId — every asset lifecycle event must be
 // attributable to a user (or SystemActorID for worker/migration paths).
@@ -1302,8 +1335,11 @@ func (c *MediaService) PublishAssetProcessing(ctx context.Context, kind RoomKind
 	if event.GetActorId() == "" {
 		return fmt.Errorf("asset processing event missing actor id (use SystemActorID for non-user paths)")
 	}
-	agg := events.RoomAggregate(roomID)
-	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, agg, event); err != nil {
+	assetID := assetIDOfLifecycleEvent(event)
+	if assetID == "" {
+		return fmt.Errorf("asset processing event missing asset id")
+	}
+	if err := c.appendAssetEventEventually(ctx, assetID, event); err != nil {
 		return fmt.Errorf("publish asset processing event: %w", err)
 	}
 	return nil
@@ -1365,7 +1401,46 @@ func (c *MediaService) RecordAssetDeleted(ctx context.Context, actorID string, k
 			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
 		},
 	})
-	return c.PublishAssetProcessing(ctx, kind, roomID, event)
+	if err := c.appendAssetEventEventually(ctx, assetID, event); err != nil {
+		return fmt.Errorf("publish asset deletion event: %w", err)
+	}
+	return nil
+}
+
+func (c *MediaService) appendAssetEventEventually(ctx context.Context, assetID string, event *corev1.Event) error {
+	if assetID == "" {
+		return fmt.Errorf("asset event missing asset id")
+	}
+	subject := events.AssetAggregate(assetID).SubjectFor(event)
+	seq, err := c.EventPublisher.AppendEventually(ctx, subject, event)
+	if err != nil {
+		return err
+	}
+	pos := events.SubjectPosition(subject, seq)
+	return waitForPositionAll(ctx, pos, waitForProjection("assets", c.AssetsProjector))
+}
+
+func assetIDOfLifecycleEvent(event *corev1.Event) string {
+	if event == nil {
+		return ""
+	}
+	switch ev := event.GetEvent().(type) {
+	case *corev1.Event_AssetCreated:
+		if ev.AssetCreated.GetAsset() == nil {
+			return ""
+		}
+		return ev.AssetCreated.GetAsset().GetId()
+	case *corev1.Event_AssetProcessingStarted:
+		return ev.AssetProcessingStarted.GetAssetId()
+	case *corev1.Event_AssetProcessingSucceeded:
+		return ev.AssetProcessingSucceeded.GetAssetId()
+	case *corev1.Event_AssetProcessingFailed:
+		return ev.AssetProcessingFailed.GetAssetId()
+	case *corev1.Event_AssetDeleted:
+		return ev.AssetDeleted.GetAssetId()
+	default:
+		return ""
+	}
 }
 
 // RecordAssetProcessingFailed builds and publishes a durable failed

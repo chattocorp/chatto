@@ -667,6 +667,20 @@ func (p *RoomTimelineProjection) MessageAssetsByAuthor(userID string) []MessageA
 	return out
 }
 
+func (p *RoomTimelineProjection) MessageAssetOwners() []MessageAssetRef {
+	p.RLock()
+	defer p.RUnlock()
+	out := make([]MessageAssetRef, 0, len(p.assetMessageOwner))
+	for assetID, owner := range p.assetMessageOwner {
+		out = append(out, MessageAssetRef{
+			RoomID:         owner.roomID,
+			MessageEventID: owner.messageEventID,
+			AssetID:        assetID,
+		})
+	}
+	return out
+}
+
 func (p *RoomTimelineProjection) AssetSubtreeIDs(assetID string) []string {
 	p.RLock()
 	defer p.RUnlock()

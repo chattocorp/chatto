@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -56,12 +57,26 @@ func TestMediaServiceUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
 		t.Fatalf("UploadAttachment returned error: %v", err)
 	}
 
-	declared, ok := core.RoomTimeline.AssetCreation(attachment.GetId())
+	declared, ok := core.Assets.AssetCreation(attachment.GetId())
 	if !ok {
 		t.Fatal("asset creation was not projected")
 	}
 	if declared.GetAsset().GetId() != attachment.GetId() {
 		t.Fatalf("projected asset id = %q, want %q", declared.GetAsset().GetId(), attachment.GetId())
+	}
+	assetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(attachment.GetId()).Subject(events.EventAssetCreated))
+	if err != nil {
+		t.Fatalf("SubjectEvents(asset_created asset aggregate): %v", err)
+	}
+	if len(assetEvents) != 1 {
+		t.Fatalf("asset aggregate asset_created events = %d, want 1", len(assetEvents))
+	}
+	roomAssetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventAssetCreated))
+	if err != nil {
+		t.Fatalf("SubjectEvents(asset_created room aggregate): %v", err)
+	}
+	if len(roomAssetEvents) != 0 {
+		t.Fatalf("room aggregate asset_created events = %d, want 0", len(roomAssetEvents))
 	}
 
 	reader, info, err := service.GetAttachmentReader(ctx, attachment)
@@ -115,7 +130,7 @@ func TestMediaServiceUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 		t.Fatalf("UploadDerivativeAttachment returned error: %v", err)
 	}
 
-	declared, ok := core.RoomTimeline.AssetCreation(derivative.GetId())
+	declared, ok := core.Assets.AssetCreation(derivative.GetId())
 	if !ok {
 		t.Fatal("derivative asset creation was not projected")
 	}
@@ -341,7 +356,7 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 	if !requested {
 		t.Fatal("video processing callback was not invoked")
 	}
-	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(original.GetId())
+	manifest, ok := core.Assets.VideoAttachmentManifest(original.GetId())
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after schedule = %#v, %v; want started", manifest, ok)
 	}
@@ -353,7 +368,7 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 	if err := service.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, variants); err != nil {
 		t.Fatalf("RecordAssetProcessed returned error: %v", err)
 	}
-	manifest, ok = core.RoomTimeline.VideoAttachmentManifest(original.GetId())
+	manifest, ok = core.Assets.VideoAttachmentManifest(original.GetId())
 	if !ok || manifest.Succeeded == nil {
 		t.Fatalf("manifest after processed = %#v, %v; want succeeded", manifest, ok)
 	}
@@ -367,7 +382,7 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 	if err := service.RecordAssetProcessingFailed(ctx, SystemActorID, KindChannel, room.Id, "E-message", original.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 		t.Fatalf("RecordAssetProcessingFailed returned error: %v", err)
 	}
-	manifest, ok = core.RoomTimeline.VideoAttachmentManifest(original.GetId())
+	manifest, ok = core.Assets.VideoAttachmentManifest(original.GetId())
 	if !ok || manifest.Failed == nil || manifest.Succeeded != nil {
 		t.Fatalf("manifest after failed = %#v, %v; want failed only", manifest, ok)
 	}
@@ -375,7 +390,7 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 	if err := service.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, original.GetId()); err != nil {
 		t.Fatalf("RecordAssetDeleted returned error: %v", err)
 	}
-	if _, ok := core.RoomTimeline.AssetCreation(original.GetId()); ok {
+	if _, ok := core.Assets.AssetCreation(original.GetId()); ok {
 		t.Fatal("asset creation still projected after RecordAssetDeleted")
 	}
 }

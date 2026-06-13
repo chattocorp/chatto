@@ -10,8 +10,9 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // ASSET EVENTS
 //
 // Top-level Event oneof tags owned by this file:
-//   - 450-474: durable asset lifecycle and processing events on evt.room.* or
-//     evt.user.*, depending on owner scope
+//   - 450-474: durable asset lifecycle and processing events on evt.asset.*
+//     for message-owned binaries. Older beta histories may contain these
+//     events on evt.room.* and projections must keep reading those legacy lanes.
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
