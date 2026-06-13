@@ -265,17 +265,34 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser role user: %v", err)
 	}
+	adminUser, err := core.CreateUser(ctx, "system", "admin-user", "Admin User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin user: %v", err)
+	}
+	moderatorUser, err := core.CreateUser(ctx, "system", "moderator-user", "Moderator User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser moderator user: %v", err)
+	}
 
 	room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "mentions-room", "Mentions")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	for _, userID := range []string{alice.Id, bob.Id, carol.Id, roleUser.Id} {
+	for _, userID := range []string{owner.Id, alice.Id, bob.Id, carol.Id, roleUser.Id, adminUser.Id, moderatorUser.Id} {
 		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
 			t.Fatalf("JoinRoom %s: %v", userID, err)
 		}
 	}
 
+	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole owner: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole adminUser: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, moderatorUser.Id, RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole moderatorUser: %v", err)
+	}
 	if _, err := core.CreateServerRole(ctx, "support", "Support", "Support team"); err != nil {
 		t.Fatalf("CreateServerRole: %v", err)
 	}
@@ -307,9 +324,27 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ResolveRoomMentions role: %v", err)
 		}
-		if len(got) != 1 || got[0] != roleUser.Id {
-			t.Fatalf("ResolveRoomMentions role = %v, want [%s]", got, roleUser.Id)
+		requireUserIDs(t, got, roleUser.Id)
+	})
+
+	t.Run("system role mentions include higher-ranked room members", func(t *testing.T) {
+		ownerMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleOwner})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions owner: %v", err)
 		}
+		requireUserIDs(t, ownerMention, owner.Id)
+
+		adminMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleAdmin})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions admin: %v", err)
+		}
+		requireUserIDs(t, adminMention, owner.Id, adminUser.Id)
+
+		moderatorMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleModerator})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions moderator: %v", err)
+		}
+		requireUserIDs(t, moderatorMention, owner.Id, adminUser.Id, moderatorUser.Id)
 	})
 
 	t.Run("all and here expand from room membership and presence", func(t *testing.T) {
@@ -317,22 +352,32 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ResolveRoomMentions all: %v", err)
 		}
-		if len(all) != 4 {
-			t.Fatalf("@all resolved %d users, want 4: %v", len(all), all)
-		}
+		requireUserIDs(t, all, owner.Id, alice.Id, bob.Id, carol.Id, roleUser.Id, adminUser.Id, moderatorUser.Id)
 
 		here, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"here"})
 		if err != nil {
 			t.Fatalf("ResolveRoomMentions here: %v", err)
 		}
-		seen := map[string]bool{}
-		for _, userID := range here {
-			seen[userID] = true
-		}
-		if len(here) != 2 || !seen[alice.Id] || !seen[bob.Id] {
-			t.Fatalf("@here resolved %v, want alice and bob", here)
-		}
+		requireUserIDs(t, here, alice.Id, bob.Id)
 	})
+}
+
+func requireUserIDs(t *testing.T, got []string, want ...string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("got user IDs %v, want %v", got, want)
+	}
+
+	seen := make(map[string]struct{}, len(got))
+	for _, userID := range got {
+		seen[userID] = struct{}{}
+	}
+	for _, userID := range want {
+		if _, ok := seen[userID]; !ok {
+			t.Fatalf("got user IDs %v, want %v", got, want)
+		}
+	}
 }
 
 func TestChattoCore_LargeMentionConfirmation(t *testing.T) {

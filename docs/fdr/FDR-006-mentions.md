@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-06-12
+**Last reviewed:** 2026-06-13
 
 ## Overview
 
@@ -13,7 +13,8 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and server role names. Prefix matches rank higher than substring matches.
 - Pressing Tab completes the first match and appends a space. Pressing Tab again cycles to the next candidate.
 - `@username` mentions notify that user if they are a current room member.
-- `@role` mentions notify current room members who currently hold that server role.
+- Custom `@role` mentions notify current room members who currently hold that server role.
+- System role mentions follow the role hierarchy: `@owner` reaches room owners, `@admin` reaches room admins and owners, and `@moderator` reaches room moderators, admins, and owners. Custom role mentions remain explicit membership only.
 - `@all` mentions every current room member, regardless of presence.
 - `@here` mentions current room members whose presence is not offline.
 - `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.
@@ -34,7 +35,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 
 ### 2. Mentions are room-scoped
 
-**Decision:** Mentions only deliver to users who are current members of the room being posted to. Role mentions intersect role membership with room membership.
+**Decision:** Mentions only deliver to users who are current members of the room being posted to. Custom role mentions intersect explicit role membership with room membership. System role mentions intersect room membership with RBAC rank, so higher-ranked users are included in lower system-role mentions.
 **Why:** Room membership is the visibility boundary for the message. Notifying a non-member would either leak context or create a notification they cannot open.
 **Tradeoff:** A role mention may reach fewer people than the full server role assignment list. Authors who need a broader audience must post in a room that contains that audience.
 
