@@ -52,7 +52,7 @@
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
 
-  useRoomMembersSync(() => ({
+  const roomMembers = useRoomMembersSync(() => ({
     roomId,
     isDM: room.isDM,
     roomData: room.roomData,
@@ -360,6 +360,7 @@
           loading={room.isRoomLoading}
           canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
           currentUserId={currentUser.user?.id ?? null}
+          onLoadMoreMembers={roomMembers.loadMoreMembers}
         />
       </div>
     {/if}

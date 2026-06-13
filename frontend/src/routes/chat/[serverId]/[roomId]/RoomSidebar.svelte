@@ -39,12 +39,14 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
     loading = false,
     roomId,
     canBanRoomMembers = false,
-    currentUserId = null
+    currentUserId = null,
+    onLoadMoreMembers
   }: {
     loading?: boolean;
     roomId: string;
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
+    onLoadMoreMembers?: () => void | Promise<void>;
   } = $props();
 
   const connection = useConnection();
@@ -52,6 +54,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   // Get members from shared store (populated by Room.svelte)
   const membersState = $derived(getRoomMembersState());
   const members = $derived(membersState.members);
+  const memberCount = $derived(membersState.totalCount);
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
@@ -164,7 +167,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
     edge="left"
     label="Resize members pane"
   />
-  <PaneHeader title="Members ({members.length})" {loading} skeletonButtons={0} />
+  <PaneHeader title="Members ({memberCount})" {loading} skeletonButtons={0} />
 
   <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Member list">
     {#if loading}
@@ -198,6 +201,18 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
           defaultCollapsed
           class="mt-4"
         />
+      {/if}
+
+      {#if membersState.hasMore}
+        <button
+          type="button"
+          class="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted transition-colors hover:border-text/30 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={membersState.loadingMore}
+          onclick={() => onLoadMoreMembers?.()}
+        >
+          <span class="iconify text-base uil--angle-down"></span>
+          {membersState.loadingMore ? 'Loading members...' : 'Load more members'}
+        </button>
       {/if}
     {/if}
 
