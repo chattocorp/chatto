@@ -223,25 +223,17 @@ func (s *CallService) AppendLeft(ctx context.Context, roomID, userID string, sou
 }
 
 func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) error {
-	aggregate := events.RoomCallAggregate(roomID)
+	aggregate := events.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
-		expectedSeq, err := s.publisher.LastSubjectSeq(ctx, filter)
-		if err != nil {
-			return fmt.Errorf("read room-call aggregate tail: %w", err)
-		}
-		if expectedSeq > 0 {
-			if err := s.projector.WaitFor(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
-				return err
-			}
-		}
-		if s.callParticipantTransitionAlreadyApplied(roomID, userID, joined) {
+		snapshot := s.projection.RoomSnapshot(roomID)
+		if callParticipantTransitionAlreadyApplied(snapshot.Participants, userID, joined) {
 			return nil
 		}
 
 		event := newCallParticipantEvent(roomID, userID, joined, source)
 		subject := aggregate.SubjectFor(event)
-		seq, err := s.publisher.AppendAtFilter(ctx, subject, event, filter, expectedSeq)
+		seq, err := s.publisher.AppendAtFilter(ctx, subject, event, filter, snapshot.Seq)
 		if err == nil {
 			return s.projector.WaitFor(ctx, events.SubjectPosition(filter, seq))
 		}
@@ -249,24 +241,16 @@ func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, u
 			return err
 		}
 
-		latestSeq, latestErr := s.publisher.LastSubjectSeq(ctx, filter)
-		if latestErr != nil {
-			return fmt.Errorf("read conflicted room-call aggregate tail: %w", latestErr)
-		}
-		if latestSeq > expectedSeq {
-			if waitErr := s.projector.WaitFor(ctx, events.SubjectPosition(filter, latestSeq)); waitErr != nil {
-				return waitErr
-			}
-			if s.callParticipantTransitionAlreadyApplied(roomID, userID, joined) {
-				return nil
-			}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
 }
 
-func (s *CallService) callParticipantTransitionAlreadyApplied(roomID, userID string, joined bool) bool {
-	active := s.projection.Participants(roomID)
+func callParticipantTransitionAlreadyApplied(active []CallParticipant, userID string, joined bool) bool {
 	for _, participant := range active {
 		if participant.UserID == userID {
 			return joined

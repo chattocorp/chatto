@@ -344,7 +344,7 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
-	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantJoined))
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -381,7 +381,7 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -414,12 +414,36 @@ func TestCallState_JoinIdempotent(t *testing.T) {
 	if len(participants) != 1 {
 		t.Errorf("Expected 1 participant (idempotent), got %d", len(participants))
 	}
-	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantJoined))
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
 	if len(eventsForRoom) != 1 {
 		t.Errorf("Expected 1 durable join fact for the active transition, got %d", len(eventsForRoom))
+	}
+}
+
+func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	roomEvent := newEvent("admin1", &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
+		},
+	})
+	seq, err := core.CallStateProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
+	if err != nil {
+		t.Fatalf("append room event() error = %v", err)
+	}
+
+	snapshot := core.CallState.RoomSnapshot(roomID)
+	if snapshot.Seq != seq {
+		t.Fatalf("RoomSnapshot().Seq = %d, want %d", snapshot.Seq, seq)
+	}
+	if len(snapshot.Participants) != 0 {
+		t.Fatalf("RoomSnapshot().Participants = %d, want 0", len(snapshot.Participants))
 	}
 }
 
@@ -433,7 +457,7 @@ func TestCallState_LeaveNotInCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() for absent user should not error, got %v", err)
 	}
-	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantLeft))
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -453,7 +477,7 @@ func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) 
 	if err := core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", ""); err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
-	joins, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	joins, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantJoined))
 	if err != nil {
 		t.Fatalf("SubjectEvents(joined) error = %v", err)
 	}
@@ -467,7 +491,7 @@ func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) 
 	if err := core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1"); err != nil {
 		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
 	}
-	leaves, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	leaves, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantLeft))
 	if err != nil {
 		t.Fatalf("SubjectEvents(left) error = %v", err)
 	}
@@ -490,7 +514,7 @@ func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
 		}
 	}
 
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -682,7 +706,7 @@ func TestVoiceCallE2EEKey_VolatileReuse(t *testing.T) {
 	if key1 != key2 {
 		t.Fatalf("E2EE key should be reused for the room")
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}

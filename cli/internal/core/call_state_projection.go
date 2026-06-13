@@ -14,38 +14,52 @@ type CallParticipant struct {
 	Source   corev1.CallParticipantEventSource
 }
 
-// CallStateProjection derives the active-call snapshot from durable room-call
+// CallStateProjection derives the active-call snapshot from durable room
 // facts. It deliberately keeps only process-local projection state; LiveKit
 // reconciliation appends more facts instead of mutating the projection directly.
 type CallStateProjection struct {
 	events.MemoryProjection
-	rooms map[string]map[string]CallParticipant
+	rooms   map[string]map[string]CallParticipant
+	roomSeq map[string]uint64
+}
+
+type CallRoomSnapshot struct {
+	Participants []CallParticipant
+	Seq          uint64
 }
 
 func NewCallStateProjection() *CallStateProjection {
 	return &CallStateProjection{
-		rooms: make(map[string]map[string]CallParticipant),
+		rooms:   make(map[string]map[string]CallParticipant),
+		roomSeq: make(map[string]uint64),
 	}
 }
 
 func (p *CallStateProjection) Subjects() []string {
-	return []string{events.RoomCallSubjectFilter()}
+	return []string{events.RoomSubjectFilter()}
 }
 
-func (p *CallStateProjection) Apply(event *corev1.Event, _ uint64) error {
-	if event == nil || event.GetActorId() == "" {
+func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
+	if event == nil {
+		return nil
+	}
+	roomID := roomIDOfEvent(event)
+	if roomID == "" {
 		return nil
 	}
 
 	p.Lock()
 	defer p.Unlock()
 
+	if seq > p.roomSeq[roomID] {
+		p.roomSeq[roomID] = seq
+	}
+	if event.GetActorId() == "" {
+		return nil
+	}
+
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_VoiceCallParticipantJoined:
-		roomID := e.VoiceCallParticipantJoined.GetRoomId()
-		if roomID == "" {
-			return nil
-		}
 		joinedAt := int64(0)
 		if ts := event.GetCreatedAt(); ts != nil {
 			joinedAt = ts.AsTime().Unix()
@@ -70,16 +84,14 @@ func (p *CallStateProjection) Apply(event *corev1.Event, _ uint64) error {
 			Source:   source,
 		}
 	case *corev1.Event_VoiceCallParticipantLeft:
-		roomID := e.VoiceCallParticipantLeft.GetRoomId()
-		if roomID == "" {
-			return nil
-		}
 		if participants := p.rooms[roomID]; participants != nil {
 			delete(participants, event.GetActorId())
 			if len(participants) == 0 {
 				delete(p.rooms, roomID)
 			}
 		}
+	case *corev1.Event_RoomDeleted:
+		delete(p.rooms, roomID)
 	}
 	return nil
 }
@@ -99,6 +111,19 @@ func callParticipantSourcePriority(source corev1.CallParticipantEventSource) int
 func (p *CallStateProjection) Participants(roomID string) []CallParticipant {
 	p.RLock()
 	defer p.RUnlock()
+	return p.participantsLocked(roomID)
+}
+
+func (p *CallStateProjection) RoomSnapshot(roomID string) CallRoomSnapshot {
+	p.RLock()
+	defer p.RUnlock()
+	return CallRoomSnapshot{
+		Participants: p.participantsLocked(roomID),
+		Seq:          p.roomSeq[roomID],
+	}
+}
+
+func (p *CallStateProjection) participantsLocked(roomID string) []CallParticipant {
 	participants := p.rooms[roomID]
 	if len(participants) == 0 {
 		return nil

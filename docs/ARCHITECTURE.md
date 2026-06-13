@@ -436,7 +436,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
-Voice call joins/leaves are durable room-call EVT facts under `evt.room_call.{roomId}.participant_joined` and `evt.room_call.{roomId}.participant_left`, republished to `live.evt.>` for realtime subscription delivery. The aggregate ID is the room ID; room membership remains the authorization boundary for live delivery.
+Voice call joins/leaves are durable room EVT facts under `evt.room.{roomId}.call_joined` and `evt.room.{roomId}.call_left`, republished to `live.evt.>` for realtime subscription delivery. Room membership remains the authorization boundary for live delivery.
 
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 

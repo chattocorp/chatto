@@ -830,11 +830,11 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
-	t.Run("RoomCallAggregate subject", func(t *testing.T) {
-		got := RoomCallAggregate("ROOM123").Subject(EventCallParticipantJoined)
-		want := "evt.room_call.ROOM123.participant_joined"
+	t.Run("RoomAggregate call subject", func(t *testing.T) {
+		got := RoomAggregate("ROOM123").Subject(EventCallParticipantJoined)
+		want := "evt.room.ROOM123.call_joined"
 		if got != want {
-			t.Errorf("RoomCallAggregate.Subject: got %q, want %q", got, want)
+			t.Errorf("RoomAggregate.Subject(call): got %q, want %q", got, want)
 		}
 	})
 
@@ -843,14 +843,6 @@ func TestSubjectHelpers(t *testing.T) {
 		want := "evt.room.>"
 		if got != want {
 			t.Errorf("RoomSubjectFilter: got %q, want %q", got, want)
-		}
-	})
-
-	t.Run("RoomCallSubjectFilter", func(t *testing.T) {
-		got := RoomCallSubjectFilter()
-		want := "evt.room_call.>"
-		if got != want {
-			t.Errorf("RoomCallSubjectFilter: got %q, want %q", got, want)
 		}
 	})
 
@@ -867,14 +859,6 @@ func TestSubjectHelpers(t *testing.T) {
 		want := "evt.room.*.user_joined"
 		if got != want {
 			t.Errorf("RoomEventTypeFilter: got %q, want %q", got, want)
-		}
-	})
-
-	t.Run("RoomCallEventTypeFilter", func(t *testing.T) {
-		got := RoomCallEventTypeFilter(EventCallParticipantJoined)
-		want := "evt.room_call.*.participant_joined"
-		if got != want {
-			t.Errorf("RoomCallEventTypeFilter: got %q, want %q", got, want)
 		}
 	})
 
@@ -909,7 +893,9 @@ func TestSubjectHelpers(t *testing.T) {
 			wantOK  bool
 		}{
 			{"evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"evt.room.ROOM123.call_joined", "ROOM123", true},
 			{"live.evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"live.evt.room.ROOM123.call_left", "ROOM123", true},
 			{"evt.user.U1.user_deleted", "", false},
 			{"evt.room.", "", false},
 			{"evt.room.ROOM123", "", false}, // missing event-type segment
@@ -925,27 +911,6 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
-	t.Run("ParseRoomCallSubject", func(t *testing.T) {
-		cases := []struct {
-			subject string
-			wantID  string
-			wantOK  bool
-		}{
-			{"evt.room_call.ROOM123.participant_joined", "ROOM123", true},
-			{"live.evt.room_call.ROOM123.participant_left", "ROOM123", true},
-			{"evt.room.ROOM123.user_joined", "", false},
-			{"evt.room_call.", "", false},
-			{"evt.room_call.ROOM123", "", false},
-			{"unrelated.subject", "", false},
-		}
-		for _, c := range cases {
-			id, ok := ParseRoomCallSubject(c.subject)
-			if id != c.wantID || ok != c.wantOK {
-				t.Errorf("ParseRoomCallSubject(%q) = (%q, %v), want (%q, %v)",
-					c.subject, id, ok, c.wantID, c.wantOK)
-			}
-		}
-	})
 }
 
 func TestSubjectMatchesFilter(t *testing.T) {

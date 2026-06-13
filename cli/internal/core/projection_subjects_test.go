@@ -29,9 +29,9 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{events.RoomSubjectFilter()},
 		},
 		{
-			name: "call state uses room-call aggregate namespace",
+			name: "call state uses room aggregate namespace",
 			got:  NewCallStateProjection().Subjects(),
-			want: []string{events.RoomCallSubjectFilter()},
+			want: []string{events.RoomSubjectFilter()},
 		},
 		{
 			name: "room group layout uses group namespace plus layout namespace",

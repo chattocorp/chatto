@@ -1210,8 +1210,8 @@ func isTerminalIteratorError(err error) bool {
 // authorization before forwarding the event through GraphQL.
 //
 // Authorization:
-//   - Room-scoped events (live.sync.room.>, deliverable live.evt.room.>,
-//     and deliverable live.evt.room_call.>) are delivered only for rooms
+//   - Room-scoped events (live.sync.room.> and deliverable live.evt.room.>)
+//     are delivered only for rooms
 //     where the user is a member. The membership set is pre-loaded
 //     across both kinds (channel + dm) and updated as join/leave/
 //     room-deleted events arrive.
@@ -1582,9 +1582,6 @@ func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, mem
 
 func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool) {
 	roomID, ok := events.ParseRoomSubject(msg.Subject)
-	if !ok {
-		roomID, ok = events.ParseRoomCallSubject(msg.Subject)
-	}
 	if !ok {
 		return nil, false
 	}

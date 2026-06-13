@@ -189,7 +189,7 @@ func appendCallJoinedEventForTest(ctx context.Context, publisher *events.Publish
 			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: roomID, Source: source},
 		},
 	})
-	_, err := projector.AppendEventuallyAndWait(ctx, publisher, events.RoomCallAggregate(roomID), event)
+	_, err := projector.AppendEventuallyAndWait(ctx, publisher, events.RoomAggregate(roomID), event)
 	return err
 }
 
@@ -199,6 +199,6 @@ func appendCallLeftEventForTest(ctx context.Context, publisher *events.Publisher
 			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: roomID, Source: source},
 		},
 	})
-	_, err := projector.AppendEventuallyAndWait(ctx, publisher, events.RoomCallAggregate(roomID), event)
+	_, err := projector.AppendEventuallyAndWait(ctx, publisher, events.RoomAggregate(roomID), event)
 	return err
 }
