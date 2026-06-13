@@ -1268,29 +1268,20 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string, afterSeq
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
-	replayTails := myEventsReplayTails{}
+	replayCutoffSeq := uint64(0)
 	var replayCandidates []myEventsReplayCandidate
 	if afterSeq > 0 {
-		roomReplayTail, err := c.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		replayTail, err := c.EventPublisher.LastSubjectPosition(ctx, events.SubjectRoot+">")
 		if err != nil {
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
 			c.presenceService.Unsubscribe(presenceSub)
-			return nil, fmt.Errorf("read room EVT stream tail for myEvents replay: %w", err)
+			return nil, fmt.Errorf("read EVT stream tail for myEvents replay: %w", err)
 		}
-		assetReplayTail, err := c.EventPublisher.LastSubjectPosition(ctx, events.AssetSubjectFilter())
-		if err != nil {
-			liveSyncSub.Unsubscribe()
-			liveEVTSub.Unsubscribe()
-			c.presenceService.Unsubscribe(presenceSub)
-			return nil, fmt.Errorf("read asset EVT stream tail for myEvents replay: %w", err)
-		}
-		replayTails = myEventsReplayTails{roomSeq: roomReplayTail.Seq, assetSeq: assetReplayTail.Seq}
-		if replayTails.roomSeq > afterSeq || replayTails.assetSeq > afterSeq {
+		replayCutoffSeq = replayTail.Seq
+		if replayCutoffSeq > afterSeq {
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-			if replayTails.roomSeq > afterSeq {
-				err = c.roomService.waitForMyEventsReplayTail(waitCtx, c.EventPublisher, roomReplayTail)
-			}
+			err = c.roomService.waitForMyEventsReplayCurrent(waitCtx)
 			if err == nil {
 				err = c.AssetsProjector.WaitForCurrent(waitCtx)
 			}
@@ -1307,7 +1298,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string, afterSeq
 				c.presenceService.Unsubscribe(presenceSub)
 				return nil, err
 			}
-			replayCandidates, err = c.collectMissedEventsReplay(memberRooms, afterSeq, replayTails, maxMyEventsReplayEvents)
+			replayCandidates, err = c.collectMissedEventsReplay(memberRooms, afterSeq, replayCutoffSeq, maxMyEventsReplayEvents)
 			if err != nil {
 				liveSyncSub.Unsubscribe()
 				liveEVTSub.Unsubscribe()
@@ -1390,7 +1381,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string, afterSeq
 
 			case msg := <-msgChan:
 				if strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
-					if seq := liveEVTMsgSeq(msg); replayTails.shouldSkip(msg.Subject, seq) {
+					if seq := liveEVTMsgSeq(msg); replayCutoffSeq > 0 && seq > 0 && seq <= replayCutoffSeq {
 						continue
 					}
 				}
@@ -1439,25 +1430,7 @@ type myEventsReplayCandidate struct {
 	event  *corev1.Event
 }
 
-type myEventsReplayTails struct {
-	roomSeq  uint64
-	assetSeq uint64
-}
-
-func (t myEventsReplayTails) shouldSkip(subject string, seq uint64) bool {
-	if seq == 0 {
-		return false
-	}
-	if _, ok := events.ParseRoomSubject(subject); ok {
-		return t.roomSeq > 0 && seq <= t.roomSeq
-	}
-	if _, ok := events.ParseAssetSubject(subject); ok {
-		return t.assetSeq > 0 && seq <= t.assetSeq
-	}
-	return false
-}
-
-func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, afterSeq uint64, tails myEventsReplayTails, limit int) ([]myEventsReplayCandidate, error) {
+func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, afterSeq, throughSeq uint64, limit int) ([]myEventsReplayCandidate, error) {
 	roomIDs := make([]string, 0, len(memberRooms))
 	for roomID := range memberRooms {
 		roomIDs = append(roomIDs, roomID)
@@ -1480,7 +1453,7 @@ func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, 
 	}
 	for _, roomID := range roomIDs {
 		remaining := limit + 1 - len(candidates)
-		entries := c.RoomTimeline.RoomTimelineBetween(roomID, afterSeq, tails.roomSeq, isDeliverableLiveEVTRoomEvent, remaining)
+		entries := c.RoomTimeline.RoomTimelineBetween(roomID, afterSeq, throughSeq, isDeliverableLiveEVTRoomEvent, remaining)
 		for _, entry := range entries {
 			if err := appendCandidate(myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event}); err != nil {
 				return nil, err
@@ -1488,7 +1461,7 @@ func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, 
 		}
 	}
 
-	assetEntries := c.Assets.AssetEventsBetweenForRooms(afterSeq, tails.assetSeq, memberRooms, isDeliverableLiveEVTAssetEvent, limit+1-len(candidates))
+	assetEntries := c.Assets.AssetEventsBetweenForRooms(afterSeq, throughSeq, memberRooms, isDeliverableLiveEVTAssetEvent, limit+1-len(candidates))
 	for _, entry := range assetEntries {
 		roomID, ok := c.Assets.AssetRoomID(assetIDOfLifecycleEvent(entry.Event))
 		if !ok {
@@ -1510,7 +1483,7 @@ func replayCandidateKey(candidate myEventsReplayCandidate) string {
 }
 
 func (c *ChattoCore) collectMissedRoomEventsReplay(memberRooms map[string]struct{}, afterSeq, throughSeq uint64, limit int) ([]myEventsReplayCandidate, error) {
-	return c.collectMissedEventsReplay(memberRooms, afterSeq, myEventsReplayTails{roomSeq: throughSeq}, limit)
+	return c.collectMissedEventsReplay(memberRooms, afterSeq, throughSeq, limit)
 }
 
 func (c *ChattoCore) sendMissedRoomEventsReplay(ctx context.Context, userID string, memberRooms map[string]struct{}, candidates []myEventsReplayCandidate, send func(EventEnvelope) bool) bool {

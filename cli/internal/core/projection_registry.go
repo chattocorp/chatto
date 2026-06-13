@@ -31,6 +31,15 @@ func waitForPositionAll(ctx context.Context, pos events.StreamPosition, targets 
 	return nil
 }
 
+func waitForCurrentAll(ctx context.Context, targets ...projectionWaitTarget) error {
+	for _, target := range targets {
+		if err := target.projector.WaitForCurrent(ctx); err != nil {
+			return fmt.Errorf("wait for %s projection: %w", target.name, err)
+		}
+	}
+	return nil
+}
+
 func waitForProjectionSubjectsCurrent(ctx context.Context, publisher *events.Publisher, name string, projector *events.Projector, subjects ...string) error {
 	var target events.StreamPosition
 	for _, subject := range subjects {
