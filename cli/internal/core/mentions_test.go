@@ -293,10 +293,10 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, moderatorUser.Id, RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole moderatorUser: %v", err)
 	}
-	if _, err := core.CreateServerRole(ctx, "support", "Support", "Support team", true); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "support", "Support", "Support team", true); err != nil {
 		t.Fatalf("CreateServerRole: %v", err)
 	}
-	if _, err := core.CreateServerRole(ctx, "quiet", "Quiet", "Quiet team"); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "quiet", "Quiet", "Quiet team"); err != nil {
 		t.Fatalf("CreateServerRole quiet: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, roleUser.Id, "support"); err != nil {

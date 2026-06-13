@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-06-12
+**Last reviewed:** 2026-06-13
 
 ## Overview
 
@@ -20,6 +20,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Operators can designate owners via `owners.emails` in `chatto.toml`. Matching users are auto-assigned the `owner` role when their email is verified, and already-verified matching users are assigned the role on server boot.
 - GraphQL RBAC editor and inspection queries live under `Query.admin.rbac`. `Query.admin` is an authenticated namespace; the RBAC fields keep their narrower gates such as `role.manage` or `room.manage`.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
+- User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
 
 ## Design Decisions
 
@@ -64,6 +65,8 @@ Chatto controls who can do what through role-based access control. Every authent
 **Decision:** Role definitions, role order, assignments, and explicit permission decisions are durable events, with reads served from an in-memory RBAC projection.
 **Why:** This aligns RBAC with Chatto's current event-sourced architecture and makes authorization reads rebuildable from the deployment event log. See ADR-033 and ADR-035.
 **Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes.
+
+User-triggered RBAC events are audit facts as well as state facts, so their event envelope actor is the user who performed the operation. Core APIs still accept `SystemActorID` for trusted non-user paths such as bootstrapping default roles and permissions.
 
 ### 8. Permission-decision events carry typed scope and subject
 

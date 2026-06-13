@@ -27,10 +27,10 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateServerRole(ctx, "denytest", "Deny message.post", "Test deny role"); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "denytest", "Deny message.post", "Test deny role"); err != nil {
 		t.Fatalf("create deny role: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, "denytest", PermMessagePost); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, "denytest", PermMessagePost); err != nil {
 		t.Fatalf("deny perm: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
@@ -50,7 +50,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	// Room-level override: deny message.post for the everyone space role in this
 	// room. Higher-rank roles (owner) should still post via the hierarchy walk.
-	if err := core.DenyRoomPermission(ctx, room.Id, "everyone", PermMessagePost); err != nil {
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, "everyone", PermMessagePost); err != nil {
 		t.Fatalf("deny room perm: %v", err)
 	}
 
@@ -200,7 +200,7 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	user, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-level", "User", "password123")
 
 	t.Run("server-level user grant appears in trace", func(t *testing.T) {
-		if err := core.GrantUserPermission(ctx, user.Id, PermAdminUsersView); err != nil {
+		if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView); err != nil {
 			t.Fatalf("GrantUserPermission: %v", err)
 		}
 		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
@@ -224,7 +224,7 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 
 	t.Run("server-level user deny appears in trace", func(t *testing.T) {
 		other, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-deny", "Other", "password123")
-		if err := core.DenyUserPermission(ctx, other.Id, PermMessagePost); err != nil {
+		if err := core.DenyUserPermission(ctx, SystemActorID, other.Id, PermMessagePost); err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
 		exp, err := core.permissionResolver.ExplainServerPermission(ctx, other.Id, PermMessagePost)
@@ -242,7 +242,7 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	t.Run("room-scoped user grant appears in trace at LevelRoom", func(t *testing.T) {
 		roomUser, _ := core.CreateUser(ctx, SystemActorID, "explainer-room-user", "Room User", "password123")
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "explainer-room", "Room")
-		if err := core.GrantUserRoomPermission(ctx, room.Id, roomUser.Id, PermMessageManage); err != nil {
+		if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, roomUser.Id, PermMessageManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
 		exp, err := core.permissionResolver.ExplainRoomPermission(ctx, roomUser.Id, KindChannel, room.Id, PermMessageManage)

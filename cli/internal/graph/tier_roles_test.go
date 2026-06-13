@@ -51,7 +51,7 @@ func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 	env := setupTestResolver(t)
 	rbac := env.resolver.RbacQueries()
 
-	if err := env.core.GrantServerPermission(env.ctx, core.RoleAdmin, core.PermMessagePost); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleAdmin, core.PermMessagePost); err != nil {
 		t.Fatalf("seed server grant: %v", err)
 	}
 
@@ -110,7 +110,7 @@ func TestTierRoles_ServerScopeAuthorization(t *testing.T) {
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, manager.Id, core.RoleModerator); err != nil {
 			t.Fatalf("AssignServerRole: %v", err)
 		}
-		if err := env.core.GrantServerPermission(env.ctx, core.RoleModerator, core.PermRoleManage); err != nil {
+		if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleModerator, core.PermRoleManage); err != nil {
 			t.Fatalf("GrantServerPermission role.manage: %v", err)
 		}
 		got, err := rbac.RolePermissionTierMatrix(env.authContextForUser(manager), nil, nil, nil)
@@ -131,7 +131,7 @@ func TestTierRoles_RoomManagerCanInspectTheirRoom(t *testing.T) {
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, manager.Id, core.RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
-	if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleModerator, core.PermRoomManage); err != nil {
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleModerator, core.PermRoomManage); err != nil {
 		t.Fatalf("GrantRoomPermission room.manage: %v", err)
 	}
 
@@ -150,10 +150,10 @@ func TestTierRoles_RoomOverridesMatchCoreState(t *testing.T) {
 	env := setupTestResolver(t)
 	rbac := env.resolver.RbacQueries()
 
-	if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
 		t.Fatalf("seed room grant: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermMessagePost); err != nil {
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleAdmin, core.PermMessagePost); err != nil {
 		t.Fatalf("seed room deny: %v", err)
 	}
 
@@ -197,7 +197,7 @@ func TestTierRoles_RoomScopeGroupDenyShadowsServerAllow(t *testing.T) {
 	// explicit deny at the room's group on everyone — the matrix's room-scope
 	// inheritance baseline should now report DENY, with no parallel ALLOW.
 	groupID := env.testRoom.GroupId
-	if err := env.core.DenyGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessagePost); err != nil {
+	if err := env.core.DenyGroupPermission(env.ctx, core.SystemActorID, groupID, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyGroupPermission: %v", err)
 	}
 
@@ -240,7 +240,7 @@ func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 	// Seed a deny on admin at server scope for room.create — pinning the
 	// inheritedDenials path. Also rely on the default everyone allow for
 	// message.post (seeded at server scope) for the inheritedAllows path.
-	if err := env.core.DenyServerPermission(env.ctx, core.RoleAdmin, core.PermRoomCreate); err != nil {
+	if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleAdmin, core.PermRoomCreate); err != nil {
 		t.Fatalf("DenyServerPermission: %v", err)
 	}
 

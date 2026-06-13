@@ -170,7 +170,7 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 
 	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyServerPermission(ctx, RoleEveryone, PermMessagePost)
+	err = core1.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
@@ -513,7 +513,7 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 	}
 
 	// Deny space.create on the everyone role (low rank)
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 	// Admin role still has space.create granted (from InitServerDefaults)
@@ -577,7 +577,7 @@ func TestChattoCore_HierarchyWins_LowRankDenyBlocksWhenNoHigherGrant(t *testing.
 	userID := "hierarchy-regular"
 
 	// Deny space.create on the everyone role
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermMessagePost); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
@@ -628,10 +628,10 @@ func TestChattoCore_HierarchyWins_OwnerBeatsEverythingElse(t *testing.T) {
 	}
 
 	// Deny admin.view-users on both admin and everyone roles
-	if err := core.DenyServerPermission(ctx, RoleEveryone, PermAdminUsersView); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
 		t.Fatalf("Failed to deny everyone: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, RoleAdmin, PermAdminUsersView); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleAdmin, PermAdminUsersView); err != nil {
 		t.Fatalf("Failed to deny admin: %v", err)
 	}
 	// Owner role still has admin.view-users granted
@@ -666,7 +666,7 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("creates role successfully", func(t *testing.T) {
-		role, err := core.CreateServerRole(ctx, "customrole", "Custom Role", "A custom role")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "customrole", "Custom Role", "A custom role")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
@@ -676,7 +676,7 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 	})
 
 	t.Run("accepts role name with dashes", func(t *testing.T) {
-		role, err := core.CreateServerRole(ctx, "custom-role", "Custom", "Dashes allowed")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "custom-role", "Custom", "Dashes allowed")
 		if err != nil {
 			t.Fatalf("CreateServerRole(custom-role): %v", err)
 		}
@@ -686,7 +686,7 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 	})
 
 	t.Run("accepts role name with numbers", func(t *testing.T) {
-		role, err := core.CreateServerRole(ctx, "tier2", "Tier 2", "Numbers allowed")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "tier2", "Tier 2", "Numbers allowed")
 		if err != nil {
 			t.Fatalf("CreateServerRole(tier2): %v", err)
 		}
@@ -696,14 +696,14 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 	})
 
 	t.Run("rejects role name with leading dash", func(t *testing.T) {
-		_, err := core.CreateServerRole(ctx, "-custom", "Custom", "Should fail")
+		_, err := core.CreateServerRole(ctx, SystemActorID, "-custom", "Custom", "Should fail")
 		if !errors.Is(err, ErrInvalidRoleName) {
 			t.Errorf("Expected ErrInvalidRoleName, got %v", err)
 		}
 	})
 
 	t.Run("rejects system role names", func(t *testing.T) {
-		_, err := core.CreateServerRole(ctx, RoleAdmin, "Admin", "Should fail")
+		_, err := core.CreateServerRole(ctx, SystemActorID, RoleAdmin, "Admin", "Should fail")
 		if err == nil {
 			t.Error("Expected error for system role name")
 		}
@@ -711,7 +711,7 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 
 	t.Run("rejects virtual mention handles", func(t *testing.T) {
 		for _, name := range []string{"all", "here"} {
-			_, err := core.CreateServerRole(ctx, name, name, "Should fail")
+			_, err := core.CreateServerRole(ctx, SystemActorID, name, name, "Should fail")
 			if !errors.Is(err, ErrRoleAlreadyExists) {
 				t.Errorf("CreateServerRole(%q) error = %v, want ErrRoleAlreadyExists", name, err)
 			}
@@ -722,7 +722,7 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 		if _, err := core.CreateUser(ctx, SystemActorID, "role-collision-user", "Role Collision", "password123"); err != nil {
 			t.Fatalf("CreateUser role-collision-user: %v", err)
 		}
-		_, err := core.CreateServerRole(ctx, "role-collision-user", "Role Collision", "Should fail")
+		_, err := core.CreateServerRole(ctx, SystemActorID, "role-collision-user", "Role Collision", "Should fail")
 		if !errors.Is(err, ErrRoleAlreadyExists) {
 			t.Errorf("CreateServerRole existing login error = %v, want ErrRoleAlreadyExists", err)
 		}
@@ -745,7 +745,7 @@ func TestChattoCore_MentionablesServiceSerializesUserAndRoleCreation(t *testing.
 	}()
 	go func() {
 		defer wg.Done()
-		_, roleErr = core.CreateServerRole(ctx, handle, "Race Claim", "")
+		_, roleErr = core.CreateServerRole(ctx, SystemActorID, handle, "Race Claim", "")
 	}()
 	wg.Wait()
 
@@ -757,7 +757,7 @@ func TestChattoCore_MentionablesServiceSerializesUserAndRoleCreation(t *testing.
 		if !errors.Is(roleErr, ErrRoleAlreadyExists) {
 			t.Fatalf("role err = %v, want ErrRoleAlreadyExists", roleErr)
 		}
-		if _, err := core.CreateServerRole(ctx, handle, "Race Claim", ""); !errors.Is(err, ErrRoleAlreadyExists) {
+		if _, err := core.CreateServerRole(ctx, SystemActorID, handle, "Race Claim", ""); !errors.Is(err, ErrRoleAlreadyExists) {
 			t.Fatalf("CreateServerRole after user claim err = %v, want ErrRoleAlreadyExists", err)
 		}
 		return
@@ -775,10 +775,10 @@ func TestChattoCore_DeleteServerRoleReleasesMentionHandle(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	if _, err := core.CreateServerRole(ctx, "released-role", "Released", ""); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "released-role", "Released", ""); err != nil {
 		t.Fatalf("CreateServerRole: %v", err)
 	}
-	if err := core.DeleteServerRole(ctx, "released-role"); err != nil {
+	if err := core.DeleteServerRole(ctx, SystemActorID, "released-role"); err != nil {
 		t.Fatalf("DeleteServerRole: %v", err)
 	}
 	if _, err := core.CreateUser(ctx, SystemActorID, "released-role", "Released", "password123"); err != nil {
@@ -830,7 +830,7 @@ func TestChattoCore_AssignServerRole(t *testing.T) {
 		userID := "assign-custom-test"
 
 		// Create a custom role first (must have instance- prefix)
-		_, err := core.CreateServerRole(ctx, "tester", "Tester", "QA tester")
+		_, err := core.CreateServerRole(ctx, SystemActorID, "tester", "Tester", "QA tester")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
@@ -996,7 +996,7 @@ func TestChattoCore_GetUserServerRoles(t *testing.T) {
 		}
 
 		// Create custom role (must have instance- prefix)
-		core.CreateServerRole(ctx, "editor", "Editor", "Content editor")
+		core.CreateServerRole(ctx, SystemActorID, "editor", "Editor", "Content editor")
 
 		// Assign multiple roles
 		core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin)
@@ -1213,11 +1213,11 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 
 	t.Run("reorders custom roles", func(t *testing.T) {
 		// Create custom roles
-		_, err := core.CreateServerRole(ctx, "alpha", "Alpha", "First custom role")
+		_, err := core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "First custom role")
 		if err != nil {
 			t.Fatalf("Failed to create alpha role: %v", err)
 		}
-		_, err = core.CreateServerRole(ctx, "beta", "Beta", "Second custom role")
+		_, err = core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Second custom role")
 		if err != nil {
 			t.Fatalf("Failed to create beta role: %v", err)
 		}
@@ -1236,7 +1236,7 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 		t.Logf("Initial positions: alpha=%d, beta=%d", alphaInitialPos, betaInitialPos)
 
 		// Reorder: put beta before alpha
-		reordered, err := core.ReorderServerRoles(ctx, []string{"beta", "alpha"})
+		reordered, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"beta", "alpha"})
 		if err != nil {
 			t.Fatalf("Failed to reorder: %v", err)
 		}
@@ -1262,28 +1262,28 @@ func TestChattoCore_ReorderServerRoles(t *testing.T) {
 	})
 
 	t.Run("rejects system role reordering", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, []string{RoleAdmin, RoleModerator})
+		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{RoleAdmin, RoleModerator})
 		if err == nil {
 			t.Error("Expected error when trying to reorder system roles")
 		}
 	})
 
 	t.Run("rejects incomplete custom role list", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, []string{"alpha"})
+		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha"})
 		if err == nil {
 			t.Error("Expected error when reorder omits a custom role")
 		}
 	})
 
 	t.Run("rejects duplicate custom roles", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, []string{"alpha", "alpha"})
+		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha", "alpha"})
 		if err == nil {
 			t.Error("Expected error when reorder includes a duplicate role")
 		}
 	})
 
 	t.Run("rejects unknown custom role", func(t *testing.T) {
-		_, err := core.ReorderServerRoles(ctx, []string{"alpha", "gamma"})
+		_, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"alpha", "gamma"})
 		if !errors.Is(err, ErrRoleNotFound) {
 			t.Fatalf("Expected ErrRoleNotFound, got %v", err)
 		}
@@ -1322,7 +1322,7 @@ func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("custom role gets position between everyone and moderator", func(t *testing.T) {
-		role, err := core.CreateServerRole(ctx, "reviewer", "Reviewer", "Code reviewer")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "reviewer", "Reviewer", "Code reviewer")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
@@ -1341,14 +1341,14 @@ func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
 
 	t.Run("position preserved after update", func(t *testing.T) {
 		// Create a role
-		role, err := core.CreateServerRole(ctx, "editor", "Editor", "Content editor")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "editor", "Editor", "Content editor")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
 		originalPos := role.Position
 
 		// Update the display name
-		updated, err := core.UpdateServerRole(ctx, "editor", "Super Editor", "Super content editor")
+		updated, err := core.UpdateServerRole(ctx, SystemActorID, "editor", "Super Editor", "Super content editor")
 		if err != nil {
 			t.Fatalf("Failed to update role: %v", err)
 		}
@@ -1361,7 +1361,7 @@ func TestChattoCore_CreateServerRole_PositionAssignment(t *testing.T) {
 	t.Run("multiple custom roles can be created", func(t *testing.T) {
 		roles := []string{"helper", "triage", "support"}
 		for _, name := range roles {
-			_, err := core.CreateServerRole(ctx, name, name, "Test role")
+			_, err := core.CreateServerRole(ctx, SystemActorID, name, name, "Test role")
 			if err != nil {
 				t.Fatalf("Failed to create role %s: %v", name, err)
 			}
@@ -1393,7 +1393,7 @@ func TestChattoCore_CreateRole(t *testing.T) {
 	// Create a space first (roles are per-space)
 
 	// Create a role
-	role, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
+	role, err := core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate content")
 	if err != nil {
 		t.Fatalf("Failed to create role: %v", err)
 	}
@@ -1420,7 +1420,7 @@ func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
 	ctx := testContext(t)
 
 	// Try to create role with invalid name
-	_, err := core.CreateServerRole(ctx, "Invalid-Name", "Invalid", "Should fail")
+	_, err := core.CreateServerRole(ctx, SystemActorID, "Invalid-Name", "Invalid", "Should fail")
 	if err == nil {
 		t.Error("Expected error for invalid role name")
 	}
@@ -1436,7 +1436,7 @@ func TestChattoCore_RoleMetadataLengthLimits(t *testing.T) {
 	t.Run("create accepts values at max length", func(t *testing.T) {
 		role, err := core.CreateServerRole(
 			ctx,
-			"maxrole",
+			SystemActorID, "maxrole",
 			strings.Repeat("d", MaxRoleDisplayNameLength),
 			strings.Repeat("x", MaxRoleDescriptionLength),
 		)
@@ -1449,20 +1449,20 @@ func TestChattoCore_RoleMetadataLengthLimits(t *testing.T) {
 	})
 
 	t.Run("create rejects over-limit display name", func(t *testing.T) {
-		_, err := core.CreateServerRole(ctx, "longdisplay", strings.Repeat("d", MaxRoleDisplayNameLength+1), "")
+		_, err := core.CreateServerRole(ctx, SystemActorID, "longdisplay", strings.Repeat("d", MaxRoleDisplayNameLength+1), "")
 		assertStringLengthError(t, err, "role display name", MaxRoleDisplayNameLength)
 	})
 
 	t.Run("create rejects over-limit description", func(t *testing.T) {
-		_, err := core.CreateServerRole(ctx, "longdescription", "Role", strings.Repeat("d", MaxRoleDescriptionLength+1))
+		_, err := core.CreateServerRole(ctx, SystemActorID, "longdescription", "Role", strings.Repeat("d", MaxRoleDescriptionLength+1))
 		assertStringLengthError(t, err, "role description", MaxRoleDescriptionLength)
 	})
 
 	t.Run("update rejects over-limit metadata", func(t *testing.T) {
-		if _, err := core.CreateServerRole(ctx, "editable", "Editable", ""); err != nil {
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "editable", "Editable", ""); err != nil {
 			t.Fatalf("CreateServerRole: %v", err)
 		}
-		_, err := core.UpdateServerRole(ctx, "editable", strings.Repeat("d", MaxRoleDisplayNameLength+1), "")
+		_, err := core.UpdateServerRole(ctx, SystemActorID, "editable", strings.Repeat("d", MaxRoleDisplayNameLength+1), "")
 		assertStringLengthError(t, err, "role display name", MaxRoleDisplayNameLength)
 	})
 }
@@ -1472,13 +1472,13 @@ func TestChattoCore_CreateRole_Duplicate(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a role
-	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "First")
+	_, err := core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "First")
 	if err != nil {
 		t.Fatalf("Failed to create first role: %v", err)
 	}
 
 	// Try to create same role again
-	_, err = core.CreateServerRole(ctx, "testmod", "Test Mod 2", "Second")
+	_, err = core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod 2", "Second")
 	if err == nil {
 		t.Error("Expected error for duplicate role")
 	}
@@ -1492,7 +1492,7 @@ func TestChattoCore_GetRole(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a role
-	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
+	_, err := core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate content")
 	if err != nil {
 		t.Fatalf("Failed to create role: %v", err)
 	}
@@ -1541,8 +1541,8 @@ func TestChattoCore_ListRoles(t *testing.T) {
 	}
 
 	// Create some additional roles
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Test mod role")
-	core.CreateServerRole(ctx, "vip", "VIP", "VIP role")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Test mod role")
+	core.CreateServerRole(ctx, SystemActorID, "vip", "VIP", "VIP role")
 
 	// List again - should have 6 total (4 default + 2 custom)
 	roles, err = core.ListServerRoles(ctx)
@@ -1559,13 +1559,13 @@ func TestChattoCore_UpdateRole(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a role
-	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
+	_, err := core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate content")
 	if err != nil {
 		t.Fatalf("Failed to create role: %v", err)
 	}
 
 	// Update it
-	updated, err := core.UpdateServerRole(ctx, "testmod", "Super Moderator", "Enhanced moderation")
+	updated, err := core.UpdateServerRole(ctx, SystemActorID, "testmod", "Super Moderator", "Enhanced moderation")
 	if err != nil {
 		t.Fatalf("Failed to update role: %v", err)
 	}
@@ -1594,13 +1594,13 @@ func TestChattoCore_DeleteRole(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a role
-	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
+	_, err := core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate content")
 	if err != nil {
 		t.Fatalf("Failed to create role: %v", err)
 	}
 
 	// Delete it
-	err = core.DeleteServerRole(ctx, "testmod")
+	err = core.DeleteServerRole(ctx, SystemActorID, "testmod")
 	if err != nil {
 		t.Fatalf("Failed to delete role: %v", err)
 	}
@@ -1624,7 +1624,7 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 	}
 
 	// Try to delete - should fail
-	err = core.DeleteServerRole(ctx, RoleOwner)
+	err = core.DeleteServerRole(ctx, SystemActorID, RoleOwner)
 	if err == nil {
 		t.Error("Expected error when deleting system role")
 	}
@@ -1634,7 +1634,7 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 	}
 
 	// Also test everyone role
-	err = core.DeleteServerRole(ctx, RoleEveryone)
+	err = core.DeleteServerRole(ctx, SystemActorID, RoleEveryone)
 	if !errors.Is(err, ErrCannotDeleteSystemRole) {
 		t.Errorf("Expected ErrCannotDeleteSystemRole for everyone role, got %v", err)
 	}
@@ -1645,14 +1645,14 @@ func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a role, grant permissions, and assign to a user
-	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	_, err := core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 	if err != nil {
 		t.Fatalf("Failed to create role: %v", err)
 	}
 
 	// Grant permissions
-	core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
-	core.GrantServerPermission(ctx, "testmod", PermRoomManage)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoomManage)
 
 	// Assign role to a user
 	core.AssignServerRole(ctx, SystemActorID, "test-user", "testmod")
@@ -1676,7 +1676,7 @@ func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	}
 
 	// Delete the role
-	err = core.DeleteServerRole(ctx, "testmod")
+	err = core.DeleteServerRole(ctx, SystemActorID, "testmod")
 	if err != nil {
 		t.Fatalf("Failed to delete role: %v", err)
 	}
@@ -1704,10 +1704,10 @@ func TestChattoCore_GrantRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Grant a permission
-	err := core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
+	err := core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Failed to grant permission: %v", err)
 	}
@@ -1731,11 +1731,11 @@ func TestChattoCore_GrantRolePermission_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Grant same permission twice
-	core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
-	err := core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
+	err := core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Second grant should not fail: %v", err)
 	}
@@ -1755,10 +1755,10 @@ func TestChattoCore_GrantRolePermission_InvalidPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Try to grant an invalid permission
-	err := core.GrantServerPermission(ctx, "testmod", Permission("invalid_perm"))
+	err := core.GrantServerPermission(ctx, SystemActorID, "testmod", Permission("invalid_perm"))
 	if err == nil {
 		t.Error("Expected error when granting invalid permission")
 	}
@@ -1773,11 +1773,11 @@ func TestChattoCore_RevokeRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Grant then revoke
-	core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
-	err := core.RevokeServerPermission(ctx, "testmod", PermRoleAssign)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
+	err := core.RevokeServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Failed to revoke permission: %v", err)
 	}
@@ -1793,10 +1793,10 @@ func TestChattoCore_RevokeRolePermission_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Revoke permission that was never granted
-	err := core.RevokeServerPermission(ctx, "testmod", PermRoleAssign)
+	err := core.RevokeServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Revoking non-existent permission should not fail: %v", err)
 	}
@@ -1806,12 +1806,12 @@ func TestChattoCore_GetRolePermissions_Multiple(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Grant multiple permissions
-	core.GrantServerPermission(ctx, "testmod", PermRoomJoin)
-	core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
-	core.GrantServerPermission(ctx, "testmod", PermRoomManage)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoomJoin)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoomManage)
 
 	perms, err := core.GetServerRolePermissions(ctx, "testmod")
 	if err != nil {
@@ -1843,7 +1843,7 @@ func TestChattoCore_GetRolePermissions_Empty(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// No permissions granted yet
 	perms, err := core.GetServerRolePermissions(ctx, "testmod")
@@ -1864,7 +1864,7 @@ func TestChattoCore_AssignRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Assign role to user
 	err := core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -1891,7 +1891,7 @@ func TestChattoCore_AssignRole_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Assign same role twice
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -1922,7 +1922,7 @@ func TestChattoCore_RevokeRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Assign then revoke
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -1942,7 +1942,7 @@ func TestChattoCore_RevokeRole_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Revoke role that was never assigned
 	err := core.RevokeServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -2015,8 +2015,8 @@ func TestChattoCore_GetUserRoles_Multiple(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
-	core.CreateServerRole(ctx, "vip", "VIP", "VIP user")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "vip", "VIP", "VIP user")
 
 	// Assign multiple roles
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -2049,7 +2049,7 @@ func TestChattoCore_GetRoleUsers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// Assign role to multiple users
 	core.AssignServerRole(ctx, SystemActorID, "user1", "testmod")
@@ -2080,7 +2080,7 @@ func TestChattoCore_GetRoleUsers_Empty(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
 
 	// No users assigned yet
 	users, err := core.GetRoleUsers(ctx, "testmod")
@@ -2101,8 +2101,8 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
-	core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
 
 	// User should have the permission
@@ -2129,11 +2129,11 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create two roles with different permissions
-	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
-	core.GrantServerPermission(ctx, "testmod", PermRoleAssign)
+	core.CreateServerRole(ctx, SystemActorID, "testmod", "Test Mod", "Can moderate")
+	core.GrantServerPermission(ctx, SystemActorID, "testmod", PermRoleAssign)
 
-	core.CreateServerRole(ctx, "admin", "Admin", "Full access")
-	core.GrantServerPermission(ctx, "admin", PermServerManage)
+	core.CreateServerRole(ctx, SystemActorID, "admin", "Admin", "Full access")
+	core.GrantServerPermission(ctx, SystemActorID, "admin", PermServerManage)
 
 	// Assign both roles to user
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -2223,7 +2223,7 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
 
 	// Grant message.post at room level for member role
-	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to grant room permission: %v", err)
 	}
@@ -2248,7 +2248,7 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
 
 	// Deny message.post at room level
-	err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to deny room permission: %v", err)
 	}
@@ -2272,8 +2272,8 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
 
 	// Grant, then clear
-	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
-	err := core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePost)
+	core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+	err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to clear room permission: %v", err)
 	}
@@ -2297,7 +2297,7 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General")
 
 	// space.manage is not room-scoped — should fail
-	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermServerManage)
+	err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermServerManage)
 	if err == nil {
 		t.Error("Expected error for non-room-scoped permission, got nil")
 	}
@@ -2311,7 +2311,7 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-beta", "Room Beta")
 
 	// Deny message.post only in room1
-	core.DenyRoomPermission(ctx, room1.Id, RoleEveryone, PermMessagePost)
+	core.DenyRoomPermission(ctx, SystemActorID, room1.Id, RoleEveryone, PermMessagePost)
 
 	// Room1 should have the denial
 	grants1, denials1, _ := core.GetRoomRolePermissions(ctx, room1.Id, RoleEveryone)
@@ -2341,8 +2341,8 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General")
 
 	// Deny, then grant — should clear the denial
-	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
-	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
+	core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 
 	grants, denials, _ := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if len(grants) != 1 || grants[0] != PermMessagePost {
@@ -2421,7 +2421,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 	}
 
 	// Grant role.manage to moderator role
-	err := core.GrantServerPermission(ctx, RoleModerator, PermRoleManage)
+	err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleManage)
 	if err != nil {
 		t.Fatalf("Failed to grant role permission: %v", err)
 	}
@@ -2450,7 +2450,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 
 	// User joins space
 	// First grant room.create to everyone role (not granted by default)
-	err := core.GrantServerPermission(ctx, RoleEveryone, PermRoomCreate)
+	err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 	if err != nil {
 		t.Fatalf("Failed to grant permission: %v", err)
 	}
@@ -2466,7 +2466,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 
 	// Deny room.create to everyone role
-	err = core.DenyServerPermission(ctx, RoleEveryone, PermRoomCreate)
+	err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
@@ -2507,7 +2507,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	}
 
 	// Deny room.join to moderator role
-	err := core.DenyServerPermission(ctx, RoleModerator, PermRoomJoin)
+	err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermRoomJoin)
 	if err != nil {
 		t.Fatalf("Failed to deny role permission: %v", err)
 	}
@@ -2545,7 +2545,7 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 	core.AssignServerRole(ctx, SystemActorID, mod, RoleModerator)
 
 	// Grant role assignment permission to moderator so we can test hierarchy
-	core.GrantServerPermission(ctx, RoleModerator, PermRoleAssign)
+	core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleAssign)
 
 	t.Run("owner can assign moderator role", func(t *testing.T) {
 		// Owner (position 1000) can assign moderator
@@ -2567,7 +2567,7 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 
 	t.Run("regular member without explicit roles is blocked by role hierarchy", func(t *testing.T) {
 		// Create a custom role
-		core.CreateServerRole(ctx, "helper", "Helper", "Can help")
+		core.CreateServerRole(ctx, SystemActorID, "helper", "Helper", "Can help")
 
 		// Regular member only has the implicit "everyone" role (position 0),
 		// which cannot manage any concrete role.
@@ -2579,7 +2579,7 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 
 	t.Run("moderator can assign lower-ranked custom role", func(t *testing.T) {
 		// Create a custom role (will be lower rank than moderator)
-		role, _ := core.CreateServerRole(ctx, "editor", "Editor", "Can edit")
+		role, _ := core.CreateServerRole(ctx, SystemActorID, "editor", "Editor", "Can edit")
 		// Verify the custom role has a position lower than moderator
 		// (position is lower number = lower rank)
 		if role.Position >= PositionModerator {
@@ -2633,7 +2633,7 @@ func TestChattoCore_RevokeRole_PeerProtection(t *testing.T) {
 	core.AssignServerRole(ctx, SystemActorID, modB, RoleModerator)
 
 	// Grant role assignment permission to moderators so we can test hierarchy
-	core.GrantServerPermission(ctx, RoleModerator, PermRoleAssign)
+	core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoleAssign)
 
 	t.Run("moderator A cannot revoke moderator B's moderator role", func(t *testing.T) {
 		// Both are equal rank (moderator), so neither can demote the other
@@ -2686,7 +2686,7 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 
 	t.Run("first custom role gets position after system roles", func(t *testing.T) {
 		// System roles: everyone (0), moderator (100), admin (900), owner (1000)
-		role, err := core.CreateServerRole(ctx, "editor", "Editor", "Can edit")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "editor", "Editor", "Can edit")
 		if err != nil {
 			t.Fatalf("CreateRole failed: %v", err)
 		}
@@ -2698,14 +2698,14 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 	})
 
 	t.Run("position preserved after display name update", func(t *testing.T) {
-		role, err := core.CreateServerRole(ctx, "contributor", "Contributor", "Can contribute")
+		role, err := core.CreateServerRole(ctx, SystemActorID, "contributor", "Contributor", "Can contribute")
 		if err != nil {
 			t.Fatalf("CreateRole failed: %v", err)
 		}
 		originalPos := role.Position
 
 		// Update display name
-		updated, err := core.UpdateServerRole(ctx, "contributor", "Super Contributor", "Can contribute a lot")
+		updated, err := core.UpdateServerRole(ctx, SystemActorID, "contributor", "Super Contributor", "Can contribute a lot")
 		if err != nil {
 			t.Fatalf("UpdateRole failed: %v", err)
 		}
@@ -2717,13 +2717,13 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 
 	t.Run("roles can be reordered via ReorderServerRoles", func(t *testing.T) {
 		// Create multiple custom roles
-		core.CreateServerRole(ctx, "alpha", "Alpha", "Alpha role")
-		core.CreateServerRole(ctx, "beta", "Beta", "Beta role")
+		core.CreateServerRole(ctx, SystemActorID, "alpha", "Alpha", "Alpha role")
+		core.CreateServerRole(ctx, SystemActorID, "beta", "Beta", "Beta role")
 
 		// Reorder all custom roles. ReorderServerRoles requires a complete
 		// custom-role list so clients cannot accidentally drop roles from the
 		// authoritative ordering event.
-		roles, err := core.ReorderServerRoles(ctx, []string{"editor", "contributor", "beta", "alpha"})
+		roles, err := core.ReorderServerRoles(ctx, SystemActorID, []string{"editor", "contributor", "beta", "alpha"})
 		if err != nil {
 			t.Fatalf("ReorderServerRoles failed: %v", err)
 		}

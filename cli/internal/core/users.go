@@ -1012,7 +1012,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Revoke all role assignments (server-wide, no per-space loop needed).
-	if err := c.RevokeAllUserRoles(ctx, userID); err != nil {
+	if err := c.RevokeAllUserRoles(ctx, actorID, userID); err != nil {
 		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
 	}
 

@@ -92,7 +92,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 
 		// Grant room.create to the everyone role
-		err = env.core.GrantServerPermission(env.ctx, core.RoleEveryone, core.PermRoomCreate)
+		err = env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to grant permission: %v", err)
 		}
@@ -538,10 +538,10 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 
 	t.Run("member with post-in-thread denied cannot post any thread reply", func(t *testing.T) {
 		groupID := env.testRoom.GroupId
-		if err := env.core.DenyGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+		if err := env.core.DenyGroupPermission(env.ctx, core.SystemActorID, groupID, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessagePostInThread)
+		defer env.core.GrantGroupPermission(env.ctx, core.SystemActorID, groupID, core.RoleEveryone, core.PermMessagePostInThread)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for deny test", nil, "", "", nil, false)
 		if err != nil {
@@ -575,10 +575,10 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 	})
 
 	t.Run("denying message.post does not affect thread replies", func(t *testing.T) {
-		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost)
+		defer env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for independence test", nil, "", "", nil, false)
 		if err != nil {
@@ -970,10 +970,10 @@ func TestBanRoomMember_Authorization(t *testing.T) {
 		if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, env.testRoom.Id); err != nil {
 			t.Fatalf("JoinRoom target: %v", err)
 		}
-		if err := env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomMemberBan); err != nil {
+		if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleAdmin, core.PermRoomMemberBan); err != nil {
 			t.Fatalf("DenyRoomPermission room.ban-member: %v", err)
 		}
-		if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
+		if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
 			t.Fatalf("GrantRoomPermission room.manage: %v", err)
 		}
 
@@ -1004,7 +1004,7 @@ func TestBanRoomMember_Authorization(t *testing.T) {
 				t.Fatalf("JoinRoom moderator: %v", err)
 			}
 		}
-		if err := env.core.GrantRoomPermission(env.ctx, env.testRoom.Id, core.RoleModerator, core.PermRoomMemberBan); err != nil {
+		if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleModerator, core.PermRoomMemberBan); err != nil {
 			t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
 		}
 
@@ -1845,7 +1845,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 
 		// Deny echo at room level for everyone role (testUser is space owner, has roles.manage)
-		err = env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermMessageEcho)
+		err = env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermMessageEcho)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
@@ -1876,7 +1876,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 
 		// Deny message.post at room level for everyone role
-		err = env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermMessagePost)
+		err = env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermMessagePost)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}

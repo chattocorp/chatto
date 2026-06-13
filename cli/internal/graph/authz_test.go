@@ -226,7 +226,7 @@ func TestRequireServerPermission(t *testing.T) {
 		}
 
 		// Deny message.post for everyone role
-		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 

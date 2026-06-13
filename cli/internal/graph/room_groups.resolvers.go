@@ -189,7 +189,7 @@ func (r *mutationResolver) GrantGroupPermission(ctx context.Context, input model
 		return false, err
 	}
 	perm := core.Permission(input.Permission)
-	if err := r.core.GrantGroupPermission(ctx, input.GroupID, input.Subject, perm); err != nil {
+	if err := r.core.GrantGroupPermission(ctx, user.Id, input.GroupID, input.Subject, perm); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -205,7 +205,7 @@ func (r *mutationResolver) DenyGroupPermission(ctx context.Context, input model.
 		return false, err
 	}
 	perm := core.Permission(input.Permission)
-	if err := r.core.DenyGroupPermission(ctx, input.GroupID, input.Subject, perm); err != nil {
+	if err := r.core.DenyGroupPermission(ctx, user.Id, input.GroupID, input.Subject, perm); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -221,7 +221,7 @@ func (r *mutationResolver) ClearGroupPermissionState(ctx context.Context, input 
 		return false, err
 	}
 	perm := core.Permission(input.Permission)
-	if err := r.core.ClearGroupPermissionState(ctx, input.GroupID, input.Subject, perm); err != nil {
+	if err := r.core.ClearGroupPermissionState(ctx, user.Id, input.GroupID, input.Subject, perm); err != nil {
 		return false, err
 	}
 	return true, nil

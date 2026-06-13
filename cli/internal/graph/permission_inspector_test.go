@@ -84,7 +84,7 @@ func TestPermissionExplanation_RoleManagerInspectsAnotherUser(t *testing.T) {
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, manager.Id, core.RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
-	if err := env.core.GrantServerPermission(env.ctx, core.RoleModerator, core.PermRoleManage); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleModerator, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantServerPermission role.manage: %v", err)
 	}
 

@@ -837,7 +837,7 @@ func TestChattoCore_CreateUser_MentionNamespaceReserved(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	if _, err := core.CreateServerRole(ctx, "helpdesk", "Helpdesk", ""); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "helpdesk", "Helpdesk", ""); err != nil {
 		t.Fatalf("CreateServerRole helpdesk: %v", err)
 	}
 
@@ -862,7 +862,7 @@ func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
 	if _, err := core.UpdateUserLogin(ctx, user.Id, "newhandle"); err != nil {
 		t.Fatalf("UpdateUserLogin: %v", err)
 	}
-	if _, err := core.CreateServerRole(ctx, "oldhandle", "Old Handle", ""); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "oldhandle", "Old Handle", ""); err != nil {
 		t.Fatalf("CreateServerRole with released login: %v", err)
 	}
 }

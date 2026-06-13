@@ -70,7 +70,7 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 
 	// Deny message.post on the user at server scope. Should show up as a
 	// solid DENY override on the server column.
-	if err := env.core.DenyUserPermission(env.ctx, target.Id, core.PermMessagePost); err != nil {
+	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, target.Id, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyUserPermission: %v", err)
 	}
 

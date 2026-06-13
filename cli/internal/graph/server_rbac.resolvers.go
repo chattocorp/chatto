@@ -28,7 +28,7 @@ func (r *mutationResolver) GrantPermission(ctx context.Context, input model.Gran
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.GrantServerPermission(ctx, input.RoleName, core.Permission(input.Permission)); err != nil {
+	if err := r.core.GrantServerPermission(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -47,7 +47,7 @@ func (r *mutationResolver) RevokePermission(ctx context.Context, input model.Rev
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.RevokeServerPermission(ctx, input.RoleName, core.Permission(input.Permission)); err != nil {
+	if err := r.core.RevokeServerPermission(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -66,7 +66,7 @@ func (r *mutationResolver) DenyPermission(ctx context.Context, input model.DenyP
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.DenyServerPermission(ctx, input.RoleName, core.Permission(input.Permission)); err != nil {
+	if err := r.core.DenyServerPermission(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -85,7 +85,7 @@ func (r *mutationResolver) ClearPermissionState(ctx context.Context, input model
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.ClearServerPermissionState(ctx, input.RoleName, core.Permission(input.Permission)); err != nil {
+	if err := r.core.ClearServerPermissionState(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -111,7 +111,7 @@ func (r *mutationResolver) CreateRole(ctx context.Context, input model.CreateRol
 	if input.Pingable != nil {
 		pingable = *input.Pingable
 	}
-	role, err := r.core.CreateServerRole(ctx, input.Name, input.DisplayName, input.Description, pingable)
+	role, err := r.core.CreateServerRole(ctx, user.Id, input.Name, input.DisplayName, input.Description, pingable)
 	if err != nil {
 		return nil, err
 	}
@@ -136,9 +136,9 @@ func (r *mutationResolver) UpdateRole(ctx context.Context, input model.UpdateRol
 
 	var role *core.RoleWithPermissions
 	if input.Pingable != nil {
-		role, err = r.core.UpdateServerRole(ctx, input.Name, input.DisplayName, input.Description, *input.Pingable)
+		role, err = r.core.UpdateServerRole(ctx, user.Id, input.Name, input.DisplayName, input.Description, *input.Pingable)
 	} else {
-		role, err = r.core.UpdateServerRole(ctx, input.Name, input.DisplayName, input.Description)
+		role, err = r.core.UpdateServerRole(ctx, user.Id, input.Name, input.DisplayName, input.Description)
 	}
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func (r *mutationResolver) DeleteRole(ctx context.Context, input model.DeleteRol
 		return false, core.ErrPermissionDenied
 	}
 
-	if err := r.core.DeleteServerRole(ctx, input.Name); err != nil {
+	if err := r.core.DeleteServerRole(ctx, user.Id, input.Name); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -241,7 +241,7 @@ func (r *mutationResolver) ReorderRoles(ctx context.Context, input model.Reorder
 		return nil, core.ErrPermissionDenied
 	}
 
-	roles, err := r.core.ReorderServerRoles(ctx, input.RoleNames)
+	roles, err := r.core.ReorderServerRoles(ctx, caller.Id, input.RoleNames)
 	if err != nil {
 		return nil, err
 	}
@@ -268,15 +268,15 @@ func (r *mutationResolver) GrantUserPermission(ctx context.Context, input model.
 	perm := core.Permission(input.Permission)
 	switch {
 	case input.RoomID != nil:
-		if err := r.core.GrantUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
+		if err := r.core.GrantUserRoomPermission(ctx, caller.Id, *input.RoomID, input.UserID, perm); err != nil {
 			return false, err
 		}
 	case input.GroupID != nil:
-		if err := r.core.GrantUserGroupPermission(ctx, *input.GroupID, input.UserID, perm); err != nil {
+		if err := r.core.GrantUserGroupPermission(ctx, caller.Id, *input.GroupID, input.UserID, perm); err != nil {
 			return false, err
 		}
 	default:
-		if err := r.core.GrantUserPermission(ctx, input.UserID, perm); err != nil {
+		if err := r.core.GrantUserPermission(ctx, caller.Id, input.UserID, perm); err != nil {
 			return false, err
 		}
 	}
@@ -298,15 +298,15 @@ func (r *mutationResolver) DenyUserPermission(ctx context.Context, input model.D
 	perm := core.Permission(input.Permission)
 	switch {
 	case input.RoomID != nil:
-		if err := r.core.DenyUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
+		if err := r.core.DenyUserRoomPermission(ctx, caller.Id, *input.RoomID, input.UserID, perm); err != nil {
 			return false, err
 		}
 	case input.GroupID != nil:
-		if err := r.core.DenyUserGroupPermission(ctx, *input.GroupID, input.UserID, perm); err != nil {
+		if err := r.core.DenyUserGroupPermission(ctx, caller.Id, *input.GroupID, input.UserID, perm); err != nil {
 			return false, err
 		}
 	default:
-		if err := r.core.DenyUserPermission(ctx, input.UserID, perm); err != nil {
+		if err := r.core.DenyUserPermission(ctx, caller.Id, input.UserID, perm); err != nil {
 			return false, err
 		}
 	}
@@ -328,15 +328,15 @@ func (r *mutationResolver) ClearUserPermissionState(ctx context.Context, input m
 	perm := core.Permission(input.Permission)
 	switch {
 	case input.RoomID != nil:
-		if err := r.core.ClearUserRoomPermissionState(ctx, *input.RoomID, input.UserID, perm); err != nil {
+		if err := r.core.ClearUserRoomPermissionState(ctx, caller.Id, *input.RoomID, input.UserID, perm); err != nil {
 			return false, err
 		}
 	case input.GroupID != nil:
-		if err := r.core.ClearUserGroupPermissionState(ctx, *input.GroupID, input.UserID, perm); err != nil {
+		if err := r.core.ClearUserGroupPermissionState(ctx, caller.Id, *input.GroupID, input.UserID, perm); err != nil {
 			return false, err
 		}
 	default:
-		if err := r.core.ClearUserPermissionState(ctx, input.UserID, perm); err != nil {
+		if err := r.core.ClearUserPermissionState(ctx, caller.Id, input.UserID, perm); err != nil {
 			return false, err
 		}
 	}
