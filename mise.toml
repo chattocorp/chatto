@@ -23,7 +23,7 @@ run = { task = "deps" }
 [tasks.deps-cli]
 description = "Install Go dependencies"
 dir = "cli"
-run = "go get ./..."
+run = "go mod download"
 sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
