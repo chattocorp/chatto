@@ -8,6 +8,7 @@
   import { graphql } from '$lib/gql';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
+  import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
@@ -165,6 +166,7 @@
         pingable: resp.data.updateRole.pingable
       };
       editPingable = resp.data.updateRole.pingable;
+      toast.success(resp.data.updateRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
     }
 
     savingPingable = false;
