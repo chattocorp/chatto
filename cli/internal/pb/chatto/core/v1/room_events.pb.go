@@ -487,8 +487,8 @@ func (x *ServerMemberDeletedEvent) GetUserId() string {
 // RECONCILIATION facts represent observed media-server state.
 type CallParticipantJoinedEvent struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
-	RoomId        string                     `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Source        CallParticipantEventSource `protobuf:"varint,3,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Source        CallParticipantEventSource `protobuf:"varint,2,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -544,8 +544,8 @@ func (x *CallParticipantJoinedEvent) GetSource() CallParticipantEventSource {
 // represent observed media-server state.
 type CallParticipantLeftEvent struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
-	RoomId        string                     `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Source        CallParticipantEventSource `protobuf:"varint,3,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Source        CallParticipantEventSource `protobuf:"varint,2,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -619,13 +619,13 @@ const file_chatto_core_v1_room_events_proto_rawDesc = "" +
 	"\x11UserLeftRoomEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"C\n" +
 	"\x18ServerMemberDeletedEvent\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\x89\x01\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"y\n" +
 	"\x1aCallParticipantJoinedEvent\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12B\n" +
-	"\x06source\x18\x03 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06sourceJ\x04\b\x01\x10\x02R\bspace_id\"\x87\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12B\n" +
+	"\x06source\x18\x02 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"w\n" +
 	"\x18CallParticipantLeftEvent\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12B\n" +
-	"\x06source\x18\x03 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06sourceJ\x04\b\x01\x10\x02R\bspace_id*\xd0\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12B\n" +
+	"\x06source\x18\x02 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source*\xd0\x01\n" +
 	"\x1aCallParticipantEventSource\x12-\n" +
 	")CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CALL_PARTICIPANT_EVENT_SOURCE_USER\x10\x01\x12)\n" +

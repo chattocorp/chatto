@@ -113,10 +113,8 @@ enum CallParticipantEventSource {
 // facts represent explicit user intent and may be optimistic; LIVEKIT and
 // RECONCILIATION facts represent observed media-server state.
 message CallParticipantJoinedEvent {
-  reserved 1;
-  reserved "space_id";
-  string room_id = 2;
-  CallParticipantEventSource source = 3;
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
 }
 
 // Event: a user left or attempted to leave a voice call in a room.
@@ -125,8 +123,6 @@ message CallParticipantJoinedEvent {
 // facts represent explicit user intent; LIVEKIT and RECONCILIATION facts
 // represent observed media-server state.
 message CallParticipantLeftEvent {
-  reserved 1;
-  reserved "space_id";
-  string room_id = 2;
-  CallParticipantEventSource source = 3;
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
 }
