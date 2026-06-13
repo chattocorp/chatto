@@ -729,7 +729,7 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 	})
 }
 
-func TestChattoCore_MentionHandleClaimSerializesUserAndRoleCreation(t *testing.T) {
+func TestChattoCore_MentionablesServiceSerializesUserAndRoleCreation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

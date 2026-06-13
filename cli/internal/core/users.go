@@ -28,7 +28,8 @@ import (
 // ============================================================================
 
 // CreateUser creates a new user.
-// Uses atomic login claim via kv.Create to prevent race conditions.
+// Uses the mentionables projection plus stream-wide OCC to prevent user/role
+// handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 // Note: actorID parameter is retained for future use (e.g., admin-created users) but is not currently used.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
@@ -81,19 +82,6 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	// Generate user ID upfront
 	userID := NewUserID()
-	mentionHandleClaimed, err := c.claimUserMentionHandle(ctx, login, userID)
-	if err != nil {
-		return nil, err
-	}
-	cleanupMentionHandleClaim := mentionHandleClaimed
-	defer func() {
-		if cleanupMentionHandleClaim {
-			claim := mentionHandleClaim{Kind: mentionHandleOwnerUser, ID: userID}
-			if err := c.releaseMentionHandle(context.WithoutCancel(ctx), login, claim); err != nil {
-				c.logger.Warn("failed to clean up mention handle claim after failed signup", "error", err, "login", login, "user_id", userID)
-			}
-		}
-	}()
 
 	now := timestamppb.Now()
 	user := &corev1.User{
@@ -186,16 +174,12 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		})
 	}
 
-	_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-		if c.Users.LoginExists(login) {
-			return ErrLoginAlreadyTaken
-		}
-		return nil
+	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+		return c.requireLoginMentionHandleAvailable(login)
 	})
 	if err != nil {
 		return nil, err
 	}
-	cleanupMentionHandleClaim = false
 	cleanupEncryptionKey = false
 	if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return nil, err
@@ -773,7 +757,6 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 	}
 
 	caseOnly := strings.EqualFold(user.Login, newLogin)
-	mentionHandleClaimed := false
 	if !caseOnly {
 		isBlocked, err := c.configManager.IsUsernameBlocked(ctx, newLogin)
 		if err != nil {
@@ -785,18 +768,6 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 		if c.loginConflictsWithMentionHandle(newLogin) {
 			return nil, ErrUsernameBlocked
 		}
-		mentionHandleClaimed, err = c.claimUserMentionHandle(ctx, newLogin, userID)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if mentionHandleClaimed {
-				claim := mentionHandleClaim{Kind: mentionHandleOwnerUser, ID: userID}
-				if err := c.releaseMentionHandle(context.WithoutCancel(ctx), newLogin, claim); err != nil {
-					c.logger.Warn("failed to clean up mention handle claim after failed login change", "error", err, "login", newLogin, "user_id", userID)
-				}
-			}
-		}()
 	}
 
 	// Check cooldown (skipped on admin path)
@@ -835,23 +806,18 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 			Event:   cooldownStarted,
 		})
 	}
-	if _, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-		if !caseOnly && c.Users.LoginExists(newLogin) {
-			return ErrLoginAlreadyTaken
-		}
-		return nil
-	}); err != nil {
+	if !caseOnly {
+		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			return c.requireLoginMentionHandleAvailable(newLogin)
+		})
+	} else {
+		_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), nil)
+	}
+	if err != nil {
 		if errors.Is(err, ErrLoginAlreadyTaken) {
 			return nil, ErrLoginAlreadyTaken
 		}
 		return nil, fmt.Errorf("failed to store user: %w", err)
-	}
-	mentionHandleClaimed = false
-	if !caseOnly {
-		oldClaim := mentionHandleClaim{Kind: mentionHandleOwnerUser, ID: userID}
-		if err := c.releaseMentionHandle(ctx, user.Login, oldClaim); err != nil {
-			c.logger.Warn("failed to release old mention handle after login change", "error", err, "login", user.Login, "user_id", userID)
-		}
 	}
 	user.Login = newLogin
 
@@ -1029,10 +995,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
 		return fmt.Errorf("failed to mark user deleted: %w", err)
-	}
-	claim := mentionHandleClaim{Kind: mentionHandleOwnerUser, ID: userID}
-	if err := c.releaseMentionHandle(ctx, user.Login, claim); err != nil {
-		c.logger.Warn("failed to release mention handle after user deletion", "error", err, "login", user.Login, "user_id", userID)
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {
 		c.logger.Warn("Failed to revoke runtime credentials during deletion", "user_id", userID, "error", err)

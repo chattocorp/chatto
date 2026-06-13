@@ -461,6 +461,13 @@ func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
 
+// EventSubjectFilter returns the wildcard filter matching every event in the
+// EVT stream. Use sparingly: most invariants should OCC against a narrower
+// aggregate namespace, but cross-aggregate invariants may need the stream-wide
+// boundary.
+// Pattern: evt.>
+func EventSubjectFilter() string { return SubjectRoot + ">" }
+
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.
 // Pattern: evt.room.>

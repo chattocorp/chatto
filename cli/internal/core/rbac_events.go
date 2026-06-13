@@ -152,6 +152,56 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 	return 0, fmt.Errorf("RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
+func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *corev1.Event, check func() error) (uint64, error) {
+	filter := events.EventSubjectFilter()
+
+	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return 0, fmt.Errorf("read mentionable OCC filter seq: %w", err)
+		}
+		if err := c.mentionables.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
+			return 0, fmt.Errorf("wait for mentionables projection: %w", err)
+		}
+
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		if err != nil {
+			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
+		}
+		if err := c.rbacService.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+
+		if check != nil {
+			if err := check(); err != nil {
+				return 0, err
+			}
+		}
+		subject := rbacSubjectForEvent(event)
+
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
+		if err == nil {
+			if err := c.rbacService.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
+				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
+			}
+			if err := c.mentionables.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
+				return 0, fmt.Errorf("wait for mentionables projection: %w", err)
+			}
+			return seq, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return 0, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(mentionableRetryDelay(attempt)):
+		}
+	}
+	return 0, fmt.Errorf("mentionable RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+}
+
 func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.BatchEntry, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil

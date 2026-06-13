@@ -63,6 +63,11 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				events.UserEventTypeFilter(events.EventUserKeyShredded),
 			},
 		},
+		{
+			name: "mentionables uses stream-wide namespace",
+			got:  NewMentionablesProjection(nil, nil).Subjects(),
+			want: []string{events.EventSubjectFilter()},
+		},
 	}
 
 	for _, tc := range cases {

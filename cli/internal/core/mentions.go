@@ -51,6 +51,24 @@ func (c *ChattoCore) roleNameConflictsWithMentionHandle(roleName string) bool {
 	return c.Users.LoginExists(roleName)
 }
 
+func (c *ChattoCore) requireLoginMentionHandleAvailable(login string) error {
+	availability := c.mentionables.Availability(login, nil)
+	if availability.Available {
+		return nil
+	}
+	if availability.OwnerKind == mentionableOwnerUser {
+		return ErrLoginAlreadyTaken
+	}
+	return ErrUsernameBlocked
+}
+
+func (c *ChattoCore) requireRoleMentionHandleAvailable(roleName string) error {
+	if c.mentionables.Availability(roleName, nil).Available {
+		return nil
+	}
+	return ErrRoleAlreadyExists
+}
+
 // mentionRegex matches @username patterns in message text.
 // Usernames can contain alphanumeric characters, underscores, hyphens, and dots.
 // Dots are only allowed as internal separators (not trailing) to avoid capturing

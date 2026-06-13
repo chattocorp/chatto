@@ -441,25 +441,15 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 	if IsSystemRole(name) {
 		return nil, ErrRoleAlreadyExists
 	}
-	mentionHandleClaimed, err := c.claimRoleMentionHandle(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	cleanupMentionHandleClaim := mentionHandleClaimed
-	defer func() {
-		if cleanupMentionHandleClaim {
-			claim := mentionHandleClaim{Kind: mentionHandleOwnerRole, ID: name}
-			if err := c.releaseMentionHandle(context.WithoutCancel(ctx), name, claim); err != nil {
-				c.logger.Warn("failed to clean up mention handle claim after failed role creation", "error", err, "role", name)
-			}
-		}
-	}()
 
 	var role *corev1.Role
 	event := newEvent(SystemActorID, &corev1.Event{})
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
+	if _, err := c.appendRBACEventWithMentionableCheck(ctx, event, func() error {
 		if c.RBAC.RoleExists(name) {
 			return ErrRoleAlreadyExists
+		}
+		if err := c.requireRoleMentionHandleAvailable(name); err != nil {
+			return err
 		}
 		role = &corev1.Role{
 			Name:        name,
@@ -479,7 +469,6 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 	}); err != nil {
 		return nil, err
 	}
-	cleanupMentionHandleClaim = false
 
 	c.logger.Info("Created role", "name", name, "display_name", displayName, "position", role.GetPosition())
 
@@ -613,11 +602,6 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, name string) error {
 		return nil
 	}); err != nil {
 		return err
-	}
-
-	claim := mentionHandleClaim{Kind: mentionHandleOwnerRole, ID: name}
-	if err := c.releaseMentionHandle(ctx, name, claim); err != nil {
-		c.logger.Warn("failed to release mention handle after role deletion", "error", err, "role", name)
 	}
 
 	c.logger.Info("Deleted role", "role", name)
