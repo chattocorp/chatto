@@ -215,29 +215,64 @@ func generateVoiceCallE2EEKey() (string, error) {
 }
 
 func (s *CallService) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallParticipantJoined{
-			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
-				RoomId: roomID,
-				Source: source,
-			},
-		},
-	})
-	_, err := s.projector.AppendEventuallyAndWait(ctx, s.publisher, events.RoomCallAggregate(roomID), event)
-	return err
+	return s.appendParticipantTransition(ctx, roomID, userID, true, source)
 }
 
 func (s *CallService) AppendLeft(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallParticipantLeft{
-			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{
-				RoomId: roomID,
-				Source: source,
-			},
-		},
-	})
-	_, err := s.projector.AppendEventuallyAndWait(ctx, s.publisher, events.RoomCallAggregate(roomID), event)
-	return err
+	return s.appendParticipantTransition(ctx, roomID, userID, false, source)
+}
+
+func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) error {
+	aggregate := events.RoomCallAggregate(roomID)
+	filter := aggregate.AllEventsFilter()
+	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
+		expectedSeq, err := s.publisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("read room-call aggregate tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := s.projector.WaitFor(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return err
+			}
+		}
+		if s.callParticipantTransitionAlreadyApplied(roomID, userID, joined) {
+			return nil
+		}
+
+		event := newCallParticipantEvent(roomID, userID, joined, source)
+		subject := aggregate.SubjectFor(event)
+		seq, err := s.publisher.AppendAtFilter(ctx, subject, event, filter, expectedSeq)
+		if err == nil {
+			return s.projector.WaitFor(ctx, events.SubjectPosition(filter, seq))
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+
+		latestSeq, latestErr := s.publisher.LastSubjectSeq(ctx, filter)
+		if latestErr != nil {
+			return fmt.Errorf("read conflicted room-call aggregate tail: %w", latestErr)
+		}
+		if latestSeq > expectedSeq {
+			if waitErr := s.projector.WaitFor(ctx, events.SubjectPosition(filter, latestSeq)); waitErr != nil {
+				return waitErr
+			}
+			if s.callParticipantTransitionAlreadyApplied(roomID, userID, joined) {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
+}
+
+func (s *CallService) callParticipantTransitionAlreadyApplied(roomID, userID string, joined bool) bool {
+	active := s.projection.Participants(roomID)
+	for _, participant := range active {
+		if participant.UserID == userID {
+			return joined
+		}
+	}
+	return !joined
 }
 
 func (s *CallService) ReconcileRoomParticipants(ctx context.Context, roomID string, observedUserIDs []string) error {
@@ -279,55 +314,16 @@ func (s *CallService) reconciliationConflictResolved(roomID, userID string, join
 }
 
 func (s *CallService) appendReconciliationEvent(ctx context.Context, roomID, userID string, joined bool) error {
-	aggregate := events.RoomCallAggregate(roomID)
-	filter := aggregate.AllEventsFilter()
-	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
-		expectedSeq, err := s.publisher.LastSubjectSeq(ctx, filter)
-		if err != nil {
-			return fmt.Errorf("read room-call aggregate tail: %w", err)
-		}
-		if expectedSeq > 0 {
-			if err := s.projector.WaitFor(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
-				return err
-			}
-			if s.reconciliationMismatchResolved(roomID, userID, joined) {
-				return nil
-			}
-		}
-
-		event := newReconciliationCallEvent(roomID, userID, joined)
-		subject := aggregate.SubjectFor(event)
-		seq, err := s.publisher.AppendAtFilter(ctx, subject, event, filter, expectedSeq)
-		if err == nil {
-			return s.projector.WaitFor(ctx, events.SubjectPosition(filter, seq))
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return err
-		}
-
-		latestSeq, latestErr := s.publisher.LastSubjectSeq(ctx, filter)
-		if latestErr != nil {
-			return fmt.Errorf("read conflicted room-call aggregate tail: %w", latestErr)
-		}
-		if latestSeq > expectedSeq {
-			if waitErr := s.projector.WaitFor(ctx, events.SubjectPosition(filter, latestSeq)); waitErr != nil {
-				return waitErr
-			}
-			if s.reconciliationMismatchResolved(roomID, userID, joined) {
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("append call reconciliation after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
+	return s.appendParticipantTransition(ctx, roomID, userID, joined, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
 }
 
-func newReconciliationCallEvent(roomID, userID string, joined bool) *corev1.Event {
+func newCallParticipantEvent(roomID, userID string, joined bool, source corev1.CallParticipantEventSource) *corev1.Event {
 	if joined {
 		return newEvent(userID, &corev1.Event{
 			Event: &corev1.Event_VoiceCallParticipantJoined{
 				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
 					RoomId: roomID,
-					Source: corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION,
+					Source: source,
 				},
 			},
 		})
@@ -336,7 +332,7 @@ func newReconciliationCallEvent(roomID, userID string, joined bool) *corev1.Even
 		Event: &corev1.Event_VoiceCallParticipantLeft{
 			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{
 				RoomId: roomID,
-				Source: corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION,
+				Source: source,
 			},
 		},
 	})

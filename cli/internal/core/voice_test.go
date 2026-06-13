@@ -406,7 +406,7 @@ func TestCallState_JoinIdempotent(t *testing.T) {
 	ctx := testContext(t)
 	roomID := "room1"
 
-	// Join twice — should not duplicate
+	// Join twice while still active: one participant and one durable transition.
 	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "")
 	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "")
 
@@ -418,8 +418,8 @@ func TestCallState_JoinIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
-	if len(eventsForRoom) != 2 {
-		t.Errorf("Expected duplicate durable join facts for audit, got %d", len(eventsForRoom))
+	if len(eventsForRoom) != 1 {
+		t.Errorf("Expected 1 durable join fact for the active transition, got %d", len(eventsForRoom))
 	}
 }
 
@@ -427,10 +427,81 @@ func TestCallState_LeaveNotInCall(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Leave when not in a call still records the observed leave fact.
-	err := core.HandleCallParticipantLeft(ctx, "space1", "room1", "user1")
+	// Leave when not in a call is a no-op, not a duplicate transition fact.
+	roomID := "room1"
+	err := core.HandleCallParticipantLeft(ctx, "space1", roomID, "user1")
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() for absent user should not error, got %v", err)
+	}
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(eventsForRoom) != 0 {
+		t.Fatalf("Expected no durable leave fact for absent user, got %d", len(eventsForRoom))
+	}
+}
+
+func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	if err := core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", ""); err != nil {
+		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
+	}
+	joins, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	if err != nil {
+		t.Fatalf("SubjectEvents(joined) error = %v", err)
+	}
+	if len(joins) != 1 {
+		t.Fatalf("Expected USER+LIVEKIT join reports to produce 1 durable transition fact, got %d", len(joins))
+	}
+
+	if err := core.RecordCallParticipantLeft(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantLeft() error = %v", err)
+	}
+	if err := core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1"); err != nil {
+		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
+	}
+	leaves, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	if err != nil {
+		t.Fatalf("SubjectEvents(left) error = %v", err)
+	}
+	if len(leaves) != 1 {
+		t.Fatalf("Expected USER+LIVEKIT leave reports to produce 1 durable transition fact, got %d", len(leaves))
+	}
+}
+
+func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	for i := 0; i < 2; i++ {
+		if err := core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", ""); err != nil {
+			t.Fatalf("HandleCallParticipantJoined(%d) error = %v", i, err)
+		}
+		if err := core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1"); err != nil {
+			t.Fatalf("HandleCallParticipantLeft(%d) error = %v", i, err)
+		}
+	}
+
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 4 {
+		t.Fatalf("Expected join/leave/join/leave to produce 4 durable transition facts, got %d", len(callEvents))
+	}
+	if callEvents[0].GetVoiceCallParticipantJoined() == nil ||
+		callEvents[1].GetVoiceCallParticipantLeft() == nil ||
+		callEvents[2].GetVoiceCallParticipantJoined() == nil ||
+		callEvents[3].GetVoiceCallParticipantLeft() == nil {
+		t.Fatalf("Expected alternating joined/left call events")
 	}
 }
 

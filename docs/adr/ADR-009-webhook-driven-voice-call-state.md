@@ -23,17 +23,17 @@ Persist voice call join/leave transitions as durable room-call EVT facts:
 - Explicit client intent writes `USER`-sourced call facts through `joinVoiceCall` / `leaveVoiceCall`.
 - `POST /webhooks/livekit` receives HMAC-validated LiveKit events and writes matching `LIVEKIT`-sourced facts.
 - A call-state service/projection consumes durable call facts and serves `activeCallRoomIds` / `callParticipants`.
-- The projection folds duplicate facts idempotently per participant while preserving duplicates in EVT for audit.
-- On startup and periodically, the call-state service compares projected state to LiveKit's current room/participant state and appends `RECONCILIATION` facts for mismatches. Reconciliation appends use wildcard-filter OCC against `evt.room_call.{roomId}.>`; on conflict, the service waits for the projection to catch up and skips the append if another replica already corrected the mismatch.
+- The call-state service writes join/leave transition facts idempotently per participant state. Duplicate reports from user intent, LiveKit, or reconciliation are skipped after projection catch-up; a real join/leave/join sequence still appends every state-changing transition.
+- On startup and periodically, the call-state service compares projected state to LiveKit's current room/participant state and appends `RECONCILIATION` facts for mismatches. Call transition appends use wildcard-filter OCC against `evt.room_call.{roomId}.>`; on conflict, the service waits for the projection to catch up and skips the append if another replica already applied the transition.
 - Call join/leave EVT facts are delivered through the durable live EVT subscription path, but they are hidden from normal visible room timelines.
 - `MEMORY_CACHE` is still acceptable for volatile secrets such as LiveKit E2EE keys; it is no longer the active participant snapshot source.
 
 ## Consequences
 
 - **Crash resilience**: If a client crashes or loses network, LiveKit detects the WebRTC disconnect and fires a `participant_left` webhook. No ghost participants.
-- **Auditability**: Explicit user intent and LiveKit-observed state are durable EVT facts. This makes call lifecycle delivery replayable and inspectable without exposing the internal source enum publicly.
+- **Auditability**: State-changing user intent and LiveKit-observed transitions are durable EVT facts. This makes call lifecycle delivery replayable and inspectable without exposing the internal source enum publicly, while avoiding duplicate facts for the same active-state transition.
 - **Projection source of truth**: Active call reads come from a projection/service. The projection may show optimistic `USER` state briefly, then LiveKit or reconciliation facts confirm or remove it.
-- **Reconciliation**: A process restart no longer loses the local active participant snapshot permanently; the service queries LiveKit and appends correction facts for rooms/participants that differ from the projection. The `room_call` aggregate lets multiple replicas reconcile without a leader lease while avoiding duplicate correction facts after OCC conflicts.
+- **Reconciliation**: A process restart no longer loses the local active participant snapshot permanently; the service queries LiveKit and appends correction facts for rooms/participants that differ from the projection. The `room_call` aggregate lets multiple replicas reconcile without a leader lease while avoiding duplicate transition facts after OCC conflicts.
 - **Latency**: Remote observers can see user intent before LiveKit webhook confirmation. Incorrect optimistic state is corrected by LiveKit leave events or reconciliation.
 - **Webhook URL must be reachable**: LiveKit must be able to POST to Chatto's webhook endpoint. In development, this typically requires a tunnel or local LiveKit server.
 - **Graceful degradation**: When LiveKit is not configured, all voice APIs return null/empty and the frontend hides call UI entirely.

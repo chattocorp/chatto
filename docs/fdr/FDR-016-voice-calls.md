@@ -23,13 +23,13 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 
 **Decision:** `CallParticipantJoinedEvent` and `CallParticipantLeftEvent` are persisted in the `room_call` EVT aggregate keyed by room ID. Explicit frontend join/leave writes use source `USER`; LiveKit webhook writes use source `LIVEKIT`; reconciliation writes use source `RECONCILIATION`. GraphQL exposes the same public event shape without the internal source.
 **Why:** Calls are realtime/audit facts that should survive process restarts and be delivered through the same durable live EVT path as other room facts. Keeping source internal lets projections distinguish optimistic user intent from media-server observation without adding public API surface.
-**Tradeoff:** Duplicate user/LiveKit facts are expected and preserved for audit. The active participant projection folds them idempotently. Reconciliation uses wildcard-filter OCC against `evt.room_call.{roomId}.>` so joined and left corrections are guarded by one room-call aggregate boundary.
+**Tradeoff:** Duplicate user/LiveKit/reconciliation reports are collapsed at the call-state write boundary when they do not change participant state. A real join, leave, and later rejoin still records each transition. The service uses wildcard-filter OCC against `evt.room_call.{roomId}.>` so joined and left transitions are guarded by one room-call aggregate boundary across replicas.
 
 ### 2. Active call state is projection-backed and reconciled
 
 **Decision:** Active participant snapshots come from a call-state service/projection over durable call facts, not from `MEMORY_CACHE`. User joins can create pending/optimistic state; LiveKit and reconciliation facts confirm or correct it. On startup and periodically, Chatto compares active LiveKit rooms/participants to the projection and appends reconciliation facts for mismatches.
 **Why:** The UI needs current participant state, but it should not depend only on volatile KV state or only on historical replay. EVT gives durable audit/live delivery, while LiveKit reconciliation keeps "who is connected now" grounded in the media server.
-**Tradeoff:** The projection can briefly show optimistic state before LiveKit confirms or reconciliation corrects it. Multiple replicas may reconcile concurrently; reconciliation facts are OCC-gated on the room-call aggregate and rechecked after conflicts.
+**Tradeoff:** The projection can briefly show optimistic state before LiveKit or reconciliation corrects it. If LiveKit reports the same already-active transition, the duplicate report is skipped instead of appending another public call event. Multiple replicas may reconcile concurrently; call transition facts are OCC-gated on the room-call aggregate and rechecked after conflicts.
 
 ### 3. Graceful degradation when LiveKit isn't configured
 
