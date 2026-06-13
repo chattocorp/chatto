@@ -56,16 +56,19 @@ const TEST_SERVER = 'test-server-bus';
 describe('eventBusManager subscription robustness', () => {
 	let consoleError: ReturnType<typeof vi.spyOn>;
 	let consoleWarn: ReturnType<typeof vi.spyOn>;
+	let consoleDebug: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 		consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 	});
 
 	afterEach(() => {
 		eventBusManager.stopBus(TEST_SERVER);
 		consoleError.mockRestore();
 		consoleWarn.mockRestore();
+		consoleDebug.mockRestore();
 		vi.useRealTimers();
 	});
 
@@ -224,6 +227,11 @@ describe('eventBusManager subscription robustness', () => {
 			serverId: TEST_SERVER
 		});
 		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: null });
+		expect(
+			consoleDebug.mock.calls.some((c: unknown[]) =>
+				String(c[0]).includes('replay cursor rejected')
+			)
+		).toBe(true);
 		window.removeEventListener(FULL_REFRESH_REQUIRED_EVENT, onFullRefresh);
 	});
 
