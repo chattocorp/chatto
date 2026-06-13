@@ -742,9 +742,18 @@ func (c *MediaService) DeleteMessageOwnedAssetsForUser(ctx context.Context, acto
 	owned := c.RoomTimeline.MessageAssetsByAuthor(userID)
 	deleted := 0
 	seen := make(map[string]struct{})
+	type deletionTarget struct {
+		assetID    string
+		roomID     string
+		kind       RoomKind
+		attachment *corev1.Attachment
+	}
+	var targets []deletionTarget
 
 	for _, ref := range owned {
-		for _, assetID := range c.Assets.AssetSubtreeIDs(ref.AssetID) {
+		subtree := c.Assets.AssetSubtreeIDs(ref.AssetID)
+		for i := len(subtree) - 1; i >= 0; i-- {
+			assetID := subtree[i]
 			if assetID == "" {
 				continue
 			}
@@ -773,25 +782,34 @@ func (c *MediaService) DeleteMessageOwnedAssetsForUser(ctx context.Context, acto
 					"error", err)
 				continue
 			}
-			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, assetID); err != nil {
-				c.logger.Warn("Failed to publish asset deletion event during user asset cleanup",
-					"asset_id", assetID,
-					"room_id", roomID,
+			targets = append(targets, deletionTarget{
+				assetID:    assetID,
+				roomID:     roomID,
+				kind:       kind,
+				attachment: attachmentFromAsset(declared.GetAsset()),
+			})
+		}
+	}
+
+	for _, target := range targets {
+		if err := c.RecordAssetDeleted(ctx, actorID, target.kind, target.roomID, target.assetID); err != nil {
+			c.logger.Warn("Failed to publish asset deletion event during user asset cleanup",
+				"asset_id", target.assetID,
+				"room_id", target.roomID,
+				"user_id", userID,
+				"error", err)
+			continue
+		}
+		if target.attachment != nil {
+			if err := c.DeleteAttachmentFromStorage(ctx, target.attachment); err != nil {
+				c.logger.Warn("Failed to delete attachment during user asset cleanup",
+					"asset_id", target.assetID,
+					"room_id", target.roomID,
 					"user_id", userID,
 					"error", err)
-				continue
 			}
-			if att := attachmentFromAsset(declared.GetAsset()); att != nil {
-				if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
-					c.logger.Warn("Failed to delete attachment during user asset cleanup",
-						"asset_id", assetID,
-						"room_id", roomID,
-						"user_id", userID,
-						"error", err)
-				}
-			}
-			deleted++
 		}
+		deleted++
 	}
 	return deleted
 }

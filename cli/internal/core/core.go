@@ -1465,13 +1465,25 @@ func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, 
 	sort.Strings(roomIDs)
 
 	candidates := make([]myEventsReplayCandidate, 0)
+	seen := make(map[string]struct{})
+	appendCandidate := func(candidate myEventsReplayCandidate) error {
+		key := replayCandidateKey(candidate)
+		if _, ok := seen[key]; ok {
+			return nil
+		}
+		seen[key] = struct{}{}
+		candidates = append(candidates, candidate)
+		if len(candidates) > limit {
+			return newEventReplayTooLargeError(limit)
+		}
+		return nil
+	}
 	for _, roomID := range roomIDs {
 		remaining := limit + 1 - len(candidates)
 		entries := c.RoomTimeline.RoomTimelineBetween(roomID, afterSeq, tails.roomSeq, isDeliverableLiveEVTRoomEvent, remaining)
 		for _, entry := range entries {
-			candidates = append(candidates, myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event})
-			if len(candidates) > limit {
-				return nil, newEventReplayTooLargeError(limit)
+			if err := appendCandidate(myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event}); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -1482,13 +1494,19 @@ func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, 
 		if !ok {
 			continue
 		}
-		candidates = append(candidates, myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event})
-		if len(candidates) > limit {
-			return nil, newEventReplayTooLargeError(limit)
+		if err := appendCandidate(myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event}); err != nil {
+			return nil, err
 		}
 	}
 	sortAssetReplayCandidates(candidates)
 	return candidates, nil
+}
+
+func replayCandidateKey(candidate myEventsReplayCandidate) string {
+	if candidate.event != nil && candidate.event.GetId() != "" {
+		return "event:" + candidate.event.GetId()
+	}
+	return fmt.Sprintf("seq:%d", candidate.seq)
 }
 
 func (c *ChattoCore) collectMissedRoomEventsReplay(memberRooms map[string]struct{}, afterSeq, throughSeq uint64, limit int) ([]myEventsReplayCandidate, error) {
