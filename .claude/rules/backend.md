@@ -39,6 +39,19 @@ NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS 
 - **Subject structure changes are high-risk**: Changes to NATS subject patterns cascade into stream configs, consumer filters, and query logic (e.g., `GetLastMsgForSubject`, `WithSubjectFilter`). They need careful end-to-end verification including e2e tests.
 - **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. `SERVER_EVENTS` is historical pre-0.1 storage and is no longer opened by the runtime; new writes must never mirror to it.
 
+## RUNTIME_STATE Boundary
+
+`RUNTIME_STATE` is not a dumping ground for domain state. Use it for persisted
+latest-value runtime records such as sessions, auth/workflow tokens, pending
+notifications, push subscriptions, cached previews, and wrapped DEK records.
+
+If the state represents a durable domain fact, an invariant, or data that can
+reasonably be derived from durable events, prefer an `EVT` fact plus a
+properly synchronized projection/service. For uniqueness and cross-aggregate
+invariants, close races with JetStream OCC or atomic EVT batches over the
+relevant subject/filter; do not sidestep the domain model by adding another
+`RUNTIME_STATE` key unless the record is truly runtime/latest-value state.
+
 ## Room Event Query Behavior
 
 `GetRoomEvents`, `GetRoomEventsAfter`, and `GetRoomEventsAround` read from
