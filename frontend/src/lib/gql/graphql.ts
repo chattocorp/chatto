@@ -2012,10 +2012,10 @@ export type PostMessageInput = {
   attachments?: InputMaybe<Array<Scalars['Upload']['input']>>;
   /** The message content. Optional if attachments are provided. */
   body?: InputMaybe<Scalars['String']['input']>;
+  /** Confirms sending when @mentions would notify this exact recipient count. Stale confirmations are rejected with the updated count. */
+  confirmedMentionRecipientCount?: InputMaybe<Scalars['Int']['input']>;
   /** Event ID of the message this responds to (attribution only, does not affect routing or permissions). */
   inReplyTo?: InputMaybe<Scalars['ID']['input']>;
-  /** Confirms sending when @mentions would notify more than 10 users. */
-  largeMentionConfirmed?: InputMaybe<Scalars['Boolean']['input']>;
   /** Link preview data from the composer. Server stores this directly without fetching. */
   linkPreview?: InputMaybe<LinkPreviewInput>;
   /** The ID of the room to post to. */

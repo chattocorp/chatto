@@ -219,14 +219,17 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		body = *input.Body
 	}
 
-	largeMentionConfirmed := input.LargeMentionConfirmed != nil && *input.LargeMentionConfirmed
-	if body != "" && !largeMentionConfirmed {
+	mentionRecipientCountConfirmed := false
+	if body != "" {
 		recipientCount, err := r.core.MentionNotificationRecipientCountForBody(ctx, kind, input.RoomID, user.Id, body)
 		if err != nil {
 			return nil, err
 		}
 		if recipientCount > core.LargeMentionNotificationThreshold {
-			return nil, largeMentionConfirmationError(recipientCount)
+			if input.ConfirmedMentionRecipientCount == nil || int(*input.ConfirmedMentionRecipientCount) != recipientCount {
+				return nil, largeMentionConfirmationError(recipientCount)
+			}
+			mentionRecipientCountConfirmed = true
 		}
 	}
 
@@ -345,7 +348,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			postMessageOptions = append(postMessageOptions, core.WithVideoProcessingAssets(videoProcessingAssetIDs...))
 		}
 	}
-	if largeMentionConfirmed {
+	if mentionRecipientCountConfirmed {
 		postMessageOptions = append(postMessageOptions, core.WithLargeMentionConfirmed())
 	}
 

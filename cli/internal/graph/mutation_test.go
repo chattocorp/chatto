@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -107,6 +108,50 @@ func TestCreateRoom_Authorization(t *testing.T) {
 			t.Fatal("expected room, got nil")
 		}
 	})
+}
+
+func TestPostMessage_LargeMentionConfirmationUsesRecipientCount(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	for i := 0; i < core.LargeMentionNotificationThreshold+1; i++ {
+		user, err := env.core.CreateUser(env.ctx, "system", "large-mention-target-"+string(rune('a'+i)), "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target %d: %v", i, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom target %d: %v", i, err)
+		}
+	}
+
+	staleCount := int32(core.LargeMentionNotificationThreshold)
+	_, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:                         env.testRoom.Id,
+		Body:                           ptr("@all stale"),
+		ConfirmedMentionRecipientCount: &staleCount,
+	})
+	if err == nil {
+		t.Fatal("PostMessage with stale confirmation succeeded, want confirmation error")
+	}
+	var gqlErr *gqlerror.Error
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("PostMessage stale confirmation err = %T %v, want gqlerror.Error", err, err)
+	}
+	if gqlErr.Extensions["code"] != "MENTION_CONFIRMATION_REQUIRED" {
+		t.Fatalf("confirmation error code = %v", gqlErr.Extensions["code"])
+	}
+	if gqlErr.Extensions["recipientCount"] != core.LargeMentionNotificationThreshold+1 {
+		t.Fatalf("recipientCount = %v, want %d", gqlErr.Extensions["recipientCount"], core.LargeMentionNotificationThreshold+1)
+	}
+
+	confirmedCount := int32(core.LargeMentionNotificationThreshold + 1)
+	if _, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:                         env.testRoom.Id,
+		Body:                           ptr("@all confirmed"),
+		ConfirmedMentionRecipientCount: &confirmedCount,
+	}); err != nil {
+		t.Fatalf("PostMessage with matching confirmation: %v", err)
+	}
 }
 
 // ============================================================================

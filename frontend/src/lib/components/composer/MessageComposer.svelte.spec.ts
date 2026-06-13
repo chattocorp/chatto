@@ -587,6 +587,41 @@ describe('MessageComposer', () => {
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
+    it('retries large mention sends with the confirmed recipient count', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mutationMock
+        .mockResolvedValueOnce({
+          data: null,
+          error: {
+            graphQLErrors: [
+              {
+                extensions: {
+                  code: 'MENTION_CONFIRMATION_REQUIRED',
+                  recipientCount: 12
+                }
+              }
+            ]
+          }
+        })
+        .mockResolvedValueOnce({ data: mutationData, error: null });
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await typeInEditor(editor, '@all hello');
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(2));
+      expect(confirmSpy).toHaveBeenCalledWith(
+        'This message will notify 12 people. Send it anyway?'
+      );
+      expect(mutationMock.mock.calls[0][1].input.confirmedMentionRecipientCount).toBeNull();
+      expect(mutationMock.mock.calls[1][1].input.confirmedMentionRecipientCount).toBe(12);
+    });
+
     it('restores text and attachments after a failed post', async () => {
       mutationMock.mockResolvedValueOnce({ data: null, error: new Error('nope') });
       const { container } = renderMessageComposer(

@@ -383,7 +383,7 @@
     loading = true;
 
     try {
-      const buildInput = (largeMentionConfirmed: boolean) => ({
+      const buildInput = (confirmedMentionRecipientCount: number | null) => ({
         input: {
           roomId,
           body: bodyToSend || null,
@@ -392,11 +392,11 @@
           inReplyTo: inReplyTo ?? null,
           linkPreview: linkPreviewInput,
           alsoSendToChannel: alsoSendToChannel || null,
-          largeMentionConfirmed: largeMentionConfirmed || null
+          confirmedMentionRecipientCount
         }
       });
 
-      let response = await connection().client.mutation(PostMessageMutation, buildInput(false));
+      let response = await connection().client.mutation(PostMessageMutation, buildInput(null));
 
       if (response.error) {
         const confirmationCount = mentionConfirmationCount(response.error);
@@ -405,7 +405,10 @@
             `This message will notify ${confirmationCount} people. Send it anyway?`
           );
           if (confirmed) {
-            response = await connection().client.mutation(PostMessageMutation, buildInput(true));
+            response = await connection().client.mutation(
+              PostMessageMutation,
+              buildInput(confirmationCount)
+            );
           } else {
             message = bodyToSend;
             editorApi?.setContent(bodyToSend);
