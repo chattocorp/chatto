@@ -351,7 +351,9 @@ type ComplexityRoot struct {
 		GrantUserPermission        func(childComplexity int, input model.GrantUserPermissionInput) int
 		JoinGroup                  func(childComplexity int, input model.JoinGroupInput) int
 		JoinRoom                   func(childComplexity int, input model.JoinRoomInput) int
+		JoinVoiceCall              func(childComplexity int, input model.VoiceCallIntentInput) int
 		LeaveRoom                  func(childComplexity int, input model.LeaveRoomInput) int
+		LeaveVoiceCall             func(childComplexity int, input model.VoiceCallIntentInput) int
 		MarkRoomAsRead             func(childComplexity int, input model.MarkRoomAsReadInput) int
 		MarkThreadAsRead           func(childComplexity int, input model.MarkThreadAsReadInput) int
 		MoveRoomToGroup            func(childComplexity int, input model.MoveRoomToGroupInput) int
@@ -951,7 +953,8 @@ type ComplexityRoot struct {
 	}
 
 	VoiceCallToken struct {
-		Token func(childComplexity int) int
+		E2EEKey func(childComplexity int) int
+		Token   func(childComplexity int) int
 	}
 }
 
@@ -1126,6 +1129,8 @@ type MutationResolver interface {
 	DenyRoomPermission(ctx context.Context, input model.DenyRoomPermissionInput) (bool, error)
 	ClearRoomPermission(ctx context.Context, input model.ClearRoomPermissionInput) (bool, error)
 	UpdateSettings(ctx context.Context, input model.UpdateSettingsInput) (*model.UserSettings, error)
+	JoinVoiceCall(ctx context.Context, input model.VoiceCallIntentInput) (bool, error)
+	LeaveVoiceCall(ctx context.Context, input model.VoiceCallIntentInput) (bool, error)
 }
 type NewDirectMessageNotificationEventResolver interface {
 	Sender(ctx context.Context, obj *corev1.NewDirectMessageNotificationEvent) (*corev1.User, error)
@@ -2645,6 +2650,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.JoinRoom(childComplexity, args["input"].(model.JoinRoomInput)), true
+	case "Mutation.joinVoiceCall":
+		if e.ComplexityRoot.Mutation.JoinVoiceCall == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_joinVoiceCall_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.JoinVoiceCall(childComplexity, args["input"].(model.VoiceCallIntentInput)), true
 	case "Mutation.leaveRoom":
 		if e.ComplexityRoot.Mutation.LeaveRoom == nil {
 			break
@@ -2656,6 +2672,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.LeaveRoom(childComplexity, args["input"].(model.LeaveRoomInput)), true
+	case "Mutation.leaveVoiceCall":
+		if e.ComplexityRoot.Mutation.LeaveVoiceCall == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_leaveVoiceCall_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.LeaveVoiceCall(childComplexity, args["input"].(model.VoiceCallIntentInput)), true
 	case "Mutation.markRoomAsRead":
 		if e.ComplexityRoot.Mutation.MarkRoomAsRead == nil {
 			break
@@ -5302,6 +5329,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ViewerNotificationPreference.Level(childComplexity), true
 
+	case "VoiceCallToken.e2eeKey":
+		if e.ComplexityRoot.VoiceCallToken.E2EEKey == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VoiceCallToken.E2EEKey(childComplexity), true
 	case "VoiceCallToken.token":
 		if e.ComplexityRoot.VoiceCallToken.Token == nil {
 			break
@@ -5380,6 +5413,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUploadAvatarInput,
 		ec.unmarshalInputUploadServerBannerInput,
 		ec.unmarshalInputUploadServerLogoInput,
+		ec.unmarshalInputVoiceCallIntentInput,
 	)
 	first := true
 
@@ -6568,6 +6602,8 @@ func (ec *executionContext) childFields_VoiceCallToken(ctx context.Context, fiel
 	switch field.Name {
 	case "token":
 		return ec.fieldContext_VoiceCallToken_token(ctx, field)
+	case "e2eeKey":
+		return ec.fieldContext_VoiceCallToken_e2eeKey(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type VoiceCallToken", field.Name)
 }
@@ -7482,12 +7518,40 @@ func (ec *executionContext) field_Mutation_joinRoom_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_joinVoiceCall_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.VoiceCallIntentInput, error) {
+			return ec.unmarshalNVoiceCallIntentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVoiceCallIntentInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_leaveRoom_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.LeaveRoomInput, error) {
 			return ec.unmarshalNLeaveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveRoomInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_leaveVoiceCall_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.VoiceCallIntentInput, error) {
+			return ec.unmarshalNVoiceCallIntentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVoiceCallIntentInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -15098,6 +15162,94 @@ func (ec *executionContext) fieldContext_Mutation_updateSettings(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateSettings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_joinVoiceCall(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_joinVoiceCall(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().JoinVoiceCall(ctx, fc.Args["input"].(model.VoiceCallIntentInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_joinVoiceCall(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_joinVoiceCall_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_leaveVoiceCall(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_leaveVoiceCall(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().LeaveVoiceCall(ctx, fc.Args["input"].(model.VoiceCallIntentInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_leaveVoiceCall(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_leaveVoiceCall_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -24359,6 +24511,29 @@ func (ec *executionContext) fieldContext_VoiceCallToken_token(_ context.Context,
 	return graphql.NewScalarFieldContext("VoiceCallToken", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _VoiceCallToken_e2eeKey(ctx context.Context, field graphql.CollectedField, obj *core.VoiceCallToken) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VoiceCallToken_e2eeKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.E2EEKey, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VoiceCallToken_e2eeKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VoiceCallToken", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -28489,6 +28664,36 @@ func (ec *executionContext) unmarshalInputUploadServerLogoInput(ctx context.Cont
 				return it, err
 			}
 			it.File = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputVoiceCallIntentInput(ctx context.Context, obj any) (model.VoiceCallIntentInput, error) {
+	var it model.VoiceCallIntentInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"roomId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "roomId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomID = data
 		}
 	}
 	return it, nil
@@ -32803,6 +33008,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateSettings":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateSettings(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "joinVoiceCall":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_joinVoiceCall(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "leaveVoiceCall":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_leaveVoiceCall(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -40755,6 +40974,11 @@ func (ec *executionContext) _VoiceCallToken(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "e2eeKey":
+			out.Values[i] = ec._VoiceCallToken_e2eeKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -42703,6 +42927,11 @@ func (ec *executionContext) marshalNViewerNotificationPreference2ᚖhmansᚗde�
 		return graphql.Null
 	}
 	return ec._ViewerNotificationPreference(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVoiceCallIntentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVoiceCallIntentInput(ctx context.Context, v any) (model.VoiceCallIntentInput, error) {
+	res, err := ec.unmarshalInputVoiceCallIntentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

@@ -21,13 +21,14 @@ const (
 
 // Aggregate type segments. Stable identifiers; once written, never renamed.
 const (
-	AggregateRoom   = "room"
-	AggregateConfig = "config"
-	AggregateGroup  = "group"
-	AggregateLayout = "layout"
-	AggregateUser   = "user"
-	AggregateRBAC   = "rbac"
-	AggregateAuth   = "auth"
+	AggregateRoom     = "room"
+	AggregateRoomCall = "room_call"
+	AggregateConfig   = "config"
+	AggregateGroup    = "group"
+	AggregateLayout   = "layout"
+	AggregateUser     = "user"
+	AggregateRBAC     = "rbac"
+	AggregateAuth     = "auth"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -88,6 +89,10 @@ const (
 	// derived from these durable events by the reaction projection.
 	EventReactionAdded   = "reaction_added"
 	EventReactionRemoved = "reaction_removed"
+
+	// Room call aggregate
+	EventCallParticipantJoined = "participant_joined"
+	EventCallParticipantLeft   = "participant_left"
 
 	// Group aggregate
 	EventRoomGroupCreated      = "group_created"
@@ -194,6 +199,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomMemberBanned
 	case *corev1.Event_RoomMemberUnbanned:
 		return EventRoomMemberUnbanned
+	case *corev1.Event_VoiceCallParticipantJoined:
+		return EventCallParticipantJoined
+	case *corev1.Event_VoiceCallParticipantLeft:
+		return EventCallParticipantLeft
 
 	case *corev1.Event_MessagePosted:
 		return EventMessagePosted
@@ -401,6 +410,13 @@ func RoomAggregate(roomID string) Aggregate {
 	return Aggregate{Type: AggregateRoom, ID: roomID}
 }
 
+// RoomCallAggregate is the typed constructor for room-scoped call state.
+// It is keyed by room ID while keeping call participant lifecycle events in
+// their own aggregate namespace for OCC and projection focus.
+func RoomCallAggregate(roomID string) Aggregate {
+	return Aggregate{Type: AggregateRoomCall, ID: roomID}
+}
+
 // GroupAggregate is the typed constructor for a room-group aggregate
 // handle. All group lifecycle events and group room-membership events
 // publish under GroupAggregate(groupID).
@@ -466,6 +482,11 @@ func AuthAggregate() Aggregate {
 // Pattern: evt.room.>
 func RoomSubjectFilter() string { return SubjectRoot + AggregateRoom + ".>" }
 
+// RoomCallSubjectFilter returns the wildcard filter matching every event of
+// every room-call aggregate, across all event types.
+// Pattern: evt.room_call.>
+func RoomCallSubjectFilter() string { return SubjectRoot + AggregateRoomCall + ".>" }
+
 // GroupSubjectFilter returns the wildcard filter matching every event of
 // every room-group aggregate.
 // Pattern: evt.group.>
@@ -512,6 +533,13 @@ func RoomEventTypeFilter(eventType string) string {
 	return AggregateEventTypeFilter(AggregateRoom, eventType)
 }
 
+// RoomCallEventTypeFilter returns a cross-aggregate, event-type-narrow
+// filter for room-call aggregates.
+// Pattern: evt.room_call.*.{eventType}
+func RoomCallEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateRoomCall, eventType)
+}
+
 // GroupEventTypeFilter is the group analogue of RoomEventTypeFilter.
 // Pattern: evt.group.*.{eventType}
 func GroupEventTypeFilter(eventType string) string {
@@ -542,6 +570,12 @@ func RBACEventTypeFilter(eventType string) string {
 // the subject doesn't match either shape.
 func ParseRoomSubject(subject string) (roomID string, ok bool) {
 	return parseAggregateSubject(subject, AggregateRoom)
+}
+
+// ParseRoomCallSubject extracts the roomID from a room-call aggregate event
+// subject. Accepts durable and republished live forms.
+func ParseRoomCallSubject(subject string) (roomID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateRoomCall)
 }
 
 // ParseGroupSubject extracts the groupID from a group-aggregate event

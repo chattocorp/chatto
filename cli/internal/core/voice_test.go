@@ -1,10 +1,14 @@
 package core
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/golang-jwt/jwt/v5"
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestLiveKitRoomName(t *testing.T) {
@@ -215,7 +219,7 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 	login := "testuser"
 	avatarURL := "https://example.com/avatar.jpg"
 
-	result, err := GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL)
+	result, err := GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, "e2ee-test-key")
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
 	}
@@ -224,6 +228,9 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 	}
 	if result.Token == "" {
 		t.Fatal("GenerateVoiceCallToken() returned empty token")
+	}
+	if result.E2EEKey != "e2ee-test-key" {
+		t.Fatalf("E2EEKey = %q, want %q", result.E2EEKey, "e2ee-test-key")
 	}
 
 	// Parse the JWT to verify claims (without full validation since we're using a test secret)
@@ -288,7 +295,7 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 }
 
 func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
-	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "")
+	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "", "e2ee-test-key")
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
 	}
@@ -315,7 +322,7 @@ func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
 }
 
 // ============================================================================
-// Call State KV Tests (require embedded NATS)
+// Call State Projection Tests (require embedded NATS)
 // ============================================================================
 
 func TestCallState_JoinAndLeave(t *testing.T) {
@@ -332,13 +339,24 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 		t.Errorf("Expected 0 participants, got %d", len(participants))
 	}
 
-	// Join — adds participant to KV
+	// Join — appends a durable LiveKit-observed fact
 	err = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "https://example.com/alice.jpg")
 	if err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
-	if _, err := core.storage.memoryCacheKV.Get(ctx, callStateKey("channel", roomID)); err != nil {
-		t.Fatalf("expected call state in MEMORY_CACHE: %v", err)
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(eventsForRoom) != 1 {
+		t.Fatalf("Expected 1 durable join fact, got %d", len(eventsForRoom))
+	}
+	joined := eventsForRoom[0].GetVoiceCallParticipantJoined()
+	if joined == nil {
+		t.Fatal("Expected voice call joined event")
+	}
+	if joined.GetSource() != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT {
+		t.Fatalf("Source = %v, want LIVEKIT", joined.GetSource())
 	}
 
 	participants, err = core.GetCallParticipants(ctx, "channel", roomID)
@@ -351,23 +369,27 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if participants[0].UserID != "user1" {
 		t.Errorf("UserID = %q, want %q", participants[0].UserID, "user1")
 	}
-	if participants[0].DisplayName != "Alice" {
-		t.Errorf("DisplayName = %q, want %q", participants[0].DisplayName, "Alice")
-	}
-	if participants[0].Login != "alice" {
-		t.Errorf("Login = %q, want %q", participants[0].Login, "alice")
-	}
-	if participants[0].AvatarURL != "https://example.com/alice.jpg" {
-		t.Errorf("AvatarURL = %q, want %q", participants[0].AvatarURL, "https://example.com/alice.jpg")
+	if participants[0].Source != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT {
+		t.Errorf("Source = %v, want LIVEKIT", participants[0].Source)
 	}
 	if participants[0].JoinedAt == 0 {
 		t.Error("JoinedAt should not be zero")
 	}
 
-	// Leave — removes participant, deletes key when empty
+	// Leave — appends a durable LiveKit-observed fact and removes active participant
 	err = core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1")
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 2 {
+		t.Fatalf("Expected 2 durable call participant facts, got %d", len(callEvents))
+	}
+	if callEvents[1].GetVoiceCallParticipantLeft() == nil {
+		t.Fatal("Expected voice call left event")
 	}
 
 	participants, err = core.GetCallParticipants(ctx, "channel", roomID)
@@ -392,13 +414,20 @@ func TestCallState_JoinIdempotent(t *testing.T) {
 	if len(participants) != 1 {
 		t.Errorf("Expected 1 participant (idempotent), got %d", len(participants))
 	}
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(eventsForRoom) != 2 {
+		t.Errorf("Expected duplicate durable join facts for audit, got %d", len(eventsForRoom))
+	}
 }
 
 func TestCallState_LeaveNotInCall(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Leave when not in a call — should be a no-op
+	// Leave when not in a call still records the observed leave fact.
 	err := core.HandleCallParticipantLeft(ctx, "space1", "room1", "user1")
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() for absent user should not error, got %v", err)
@@ -452,45 +481,141 @@ func TestGetActiveCallRoomIDs(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	space1 := "space1"
-	space2 := "space2"
-
 	// No active calls initially
-	ids, err := core.GetActiveCallRoomIDs(ctx, space1)
-	if err != nil {
-		t.Fatalf("GetActiveCallRoomIDs() error = %v", err)
-	}
+	ids := core.CallState.ActiveRoomIDs()
 	if len(ids) != 0 {
 		t.Errorf("Expected 0 room IDs, got %d", len(ids))
 	}
 
 	// Add calls in multiple rooms
-	_ = core.HandleCallParticipantJoined(ctx, space1, "room1", "user1", "Alice", "alice", "")
-	_ = core.HandleCallParticipantJoined(ctx, space1, "room2", "user2", "Bob", "bob", "")
-	_ = core.HandleCallParticipantJoined(ctx, space2, "room3", "user3", "Carol", "carol", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", "room1", "user1", "Alice", "alice", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", "room2", "user2", "Bob", "bob", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", "room3", "user3", "Carol", "carol", "")
 
-	// Space1 should have 2 rooms
-	ids, err = core.GetActiveCallRoomIDs(ctx, space1)
-	if err != nil {
-		t.Fatalf("GetActiveCallRoomIDs() error = %v", err)
-	}
-	if len(ids) != 2 {
-		t.Errorf("Expected 2 room IDs for space1, got %d: %v", len(ids), ids)
-	}
-
-	// Space2 should have 1 room
-	ids, err = core.GetActiveCallRoomIDs(ctx, space2)
-	if err != nil {
-		t.Fatalf("GetActiveCallRoomIDs() error = %v", err)
-	}
-	if len(ids) != 1 {
-		t.Errorf("Expected 1 room ID for space2, got %d: %v", len(ids), ids)
+	ids = core.CallState.ActiveRoomIDs()
+	if len(ids) != 3 {
+		t.Errorf("Expected 3 room IDs, got %d: %v", len(ids), ids)
 	}
 
 	// Remove all participants from room1 — should no longer appear
-	_ = core.HandleCallParticipantLeft(ctx, space1, "room1", "user1")
-	ids, _ = core.GetActiveCallRoomIDs(ctx, space1)
-	if len(ids) != 1 {
-		t.Errorf("Expected 1 room ID after leave, got %d: %v", len(ids), ids)
+	_ = core.HandleCallParticipantLeft(ctx, "channel", "room1", "user1")
+	ids = core.CallState.ActiveRoomIDs()
+	if len(ids) != 2 {
+		t.Errorf("Expected 2 room IDs after leave, got %d: %v", len(ids), ids)
+	}
+}
+
+func TestCallState_UserIntentFacts(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	participants, err := core.GetCallParticipants(ctx, "channel", roomID)
+	if err != nil {
+		t.Fatalf("GetCallParticipants() error = %v", err)
+	}
+	if len(participants) != 1 {
+		t.Fatalf("Expected 1 participant, got %d", len(participants))
+	}
+	if participants[0].Source != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER {
+		t.Fatalf("Source = %v, want USER", participants[0].Source)
+	}
+
+	if err := core.RecordCallParticipantLeft(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantLeft() error = %v", err)
+	}
+	participants, _ = core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected 0 participants after explicit leave, got %d", len(participants))
+	}
+}
+
+func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.callService.ReconcileRoomParticipants(ctx, roomID, []string{"user1"}); err != nil {
+		t.Fatalf("ReconcileRoomParticipants(join) error = %v", err)
+	}
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 1 {
+		t.Fatalf("Expected 1 participant after reconcile join, got %d", len(participants))
+	}
+	if participants[0].Source != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION {
+		t.Fatalf("Source = %v, want RECONCILIATION", participants[0].Source)
+	}
+
+	if err := core.callService.ReconcileRoomParticipants(ctx, roomID, nil); err != nil {
+		t.Fatalf("ReconcileRoomParticipants(leave) error = %v", err)
+	}
+	participants, _ = core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected 0 participants after reconcile leave, got %d", len(participants))
+	}
+}
+
+func TestCallState_ReconciliationRechecksAfterConflict(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+	calls := 0
+
+	err := core.callService.reconcileRoomParticipants(ctx, roomID, []string{"user1"}, func(ctx context.Context, roomID, userID string, joined bool) error {
+		calls++
+		if calls != 1 {
+			t.Fatalf("appendEvent called %d times, want 1", calls)
+		}
+		if !joined {
+			t.Fatal("Expected reconciliation to append a join correction")
+		}
+		if err := core.callService.AppendJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION); err != nil {
+			t.Fatalf("AppendJoined() error = %v", err)
+		}
+		return events.ErrConflict
+	})
+	if err != nil && !errors.Is(err, events.ErrConflict) {
+		t.Fatalf("reconcileRoomParticipants() error = %v", err)
+	}
+	if err != nil {
+		t.Fatalf("Expected conflict to be resolved by projection recheck, got %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("appendEvent called %d times, want 1", calls)
+	}
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 1 {
+		t.Fatalf("Expected 1 participant after simulated concurrent correction, got %d", len(participants))
+	}
+}
+
+func TestVoiceCallE2EEKey_VolatileReuse(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	key1, err := core.GetVoiceCallE2EEKey(ctx, roomID)
+	if err != nil {
+		t.Fatalf("GetVoiceCallE2EEKey() error = %v", err)
+	}
+	key2, err := core.GetVoiceCallE2EEKey(ctx, roomID)
+	if err != nil {
+		t.Fatalf("GetVoiceCallE2EEKey() second error = %v", err)
+	}
+	if key1 == "" {
+		t.Fatal("E2EE key should not be empty")
+	}
+	if key1 != key2 {
+		t.Fatalf("E2EE key should be reused for the room")
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomCallAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 0 {
+		t.Fatalf("E2EE key generation should not append call EVT facts, got %d", len(callEvents))
 	}
 }

@@ -240,7 +240,8 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
-		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
+		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved,
+		*corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft:
 		return false
 	}
 	return true

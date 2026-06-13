@@ -121,10 +121,11 @@ canonical state.
   replica count, no global TTL, and a limit-marker TTL for expiring presence
   sessions. It is excluded from backups and is expected to clear on a full
   JetStream restart. Current occupants are user presence records
-  `presence.{userId}` with per-key TTL and active voice calls
-  `call.{spaceId}.{roomId}`. The retired `USER_PRESENCE` and `CALL_STATE`
-  buckets are historical pre-0.1 shapes; fresh boots do not provision or
-  import them.
+  `presence.{userId}` with per-key TTL and volatile LiveKit E2EE room keys
+  `voice.e2ee.{roomId}`. Active voice call participants are projection-backed
+  durable room facts, not `MEMORY_CACHE` state. The retired `USER_PRESENCE` and
+  `CALL_STATE` buckets are historical pre-0.1 shapes; fresh boots do not
+  provision or import them.
 
 ## Related
 

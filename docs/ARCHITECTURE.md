@@ -123,7 +123,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                       | Description                                                                |
 | --------------------------- | -------------------------------------------------------------------------- |
-| `activeCallRoomIds`         | Room IDs that currently have an active LiveKit voice call.                 |
+| `activeCallRoomIds`         | Room IDs that currently have an active LiveKit voice call, read from the call-state projection. |
 | `linkPreview(url)`          | Fetch (and cache) Open Graph metadata for a URL.                           |
 
 **Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
@@ -229,7 +229,7 @@ Like `Query.admin`, the `admin: AdminMutations` field returns `null` for unauthe
 
 | Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ---- |
-| `myEvents`            | The single subscription. Multiplexes durable room events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, voice call lifecycle, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
+| `myEvents`            | The single subscription. Multiplexes durable room events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing, voice call join/leave facts) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
 
 There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
 
@@ -259,7 +259,7 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
-| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
+| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and LiveKit E2EE room keys; excluded from backups |
 | Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
 | Historical KV | `INSTANCE`          | Pre-0.1 users, verified emails, branding, display preferences, and push subscriptions |
@@ -340,8 +340,8 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, historical replay, projection source of truth |
-| Room live-only              | NATS Core  | UserTyping, CallParticipantJoined, CallParticipantLeft | Ephemeral room notifications where another store/projection is source of truth |
+| JetStream-stored (room / room-call) | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallParticipantJoined, CallParticipantLeft | Ordering guarantees, historical replay, projection source of truth |
+| Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
 The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`, and GraphQL exposes both through one `Event` envelope with typed payloads as members of the `EventType` union. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
@@ -435,8 +435,8 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
-| `live.sync.room.{kind}.{roomId}.call_joined`             | Participant joined the LiveKit voice call |
-| `live.sync.room.{kind}.{roomId}.call_left`               | Participant left the LiveKit voice call |
+
+Voice call joins/leaves are durable room-call EVT facts under `evt.room_call.{roomId}.participant_joined` and `evt.room_call.{roomId}.participant_left`, republished to `live.evt.>` for realtime subscription delivery. The aggregate ID is the room ID; room membership remains the authorization boundary for live delivery.
 
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
@@ -449,7 +449,7 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, LiveKit E2EE keys keyed `voice.e2ee.{roomId}` |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 | `LINK_PREVIEW_CACHE`          | File    | No       | Legacy retired standalone link-preview cache; current entries live in `RUNTIME_STATE` |
 | `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
@@ -613,9 +613,9 @@ These keys don't carry a kind segment — `roomId` is globally unique, so direct
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status; per-key 60s TTL |
-| `call.{spaceId}.{roomId}`                  | JSON active voice call participant list          |
+| `voice.e2ee.{roomId}`                      | Volatile shared LiveKit E2EE key for a room      |
 
-Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is also volatile and is repopulated by LiveKit webhooks after restart; the retired `CALL_STATE` bucket is no longer imported.
+Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Active voice call participants are served from the call-state projection over durable room EVT facts and reconciled against LiveKit; the retired `CALL_STATE` bucket is no longer imported.
 
 **SERVER\_BODIES keys:**
 

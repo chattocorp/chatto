@@ -45,6 +45,7 @@ type ChattoCore struct {
 	rbacService        *RBACService
 	presenceService    *PresenceService
 	mediaService       *MediaService
+	callService        *CallService
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -138,6 +139,13 @@ type ChattoCore struct {
 	// RoomTimelineProjector runs the consumer for RoomTimeline.
 	// Exposed for WaitFor from message writers.
 	RoomTimelineProjector *events.Projector
+
+	// CallState holds active voice-call participants derived from durable
+	// room-call join/leave facts.
+	CallState *CallStateProjection
+
+	// CallStateProjector runs the consumer for CallState.
+	CallStateProjector *events.Projector
 
 	// Threads holds an append-only event log per thread root,
 	// derived from the same evt.room.> firehose. Source of truth
@@ -262,6 +270,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error { return c.presenceService.Run(gctx) })
+	g.Go(func() error { return c.callService.Run(gctx) })
 
 	return g.Wait()
 }
@@ -732,6 +741,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomTimeline := NewRoomTimelineProjection()
 	roomTimelineProjector := newProjector(roomTimeline, "Room Timeline", roomTimeline.adminProjectionEstimate)
 
+	callState := NewCallStateProjection()
+	callStateProjector := newProjector(callState, "Call State", callState.adminProjectionEstimate)
+
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "Threads", threads.adminProjectionEstimate)
 
@@ -790,6 +802,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomLayout:               roomLayout,
 		RoomTimeline:             roomTimeline,
 		RoomTimelineProjector:    roomTimelineProjector,
+		CallState:                callState,
+		CallStateProjector:       callStateProjector,
 		Threads:                  threads,
 		ThreadsProjector:         threadsProjector,
 		Reactions:                reactions,
@@ -805,6 +819,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	core.mediaService = NewMediaService(core)
+	core.callService = NewCallService(eventPublisher, callState, callStateProjector, storage.memoryCacheKV, nil, logger.WithPrefix("core.CallService"))
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
@@ -933,7 +948,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}
 
 	// EVT — the event-sourcing log (ADR-033/034).
-	// Subjects are evt.{aggregateType}.{aggregateId}; live.evt.> is
+	// Subjects are evt.{aggregateType}.{aggregateId}.{eventType}; live.evt.> is
 	// the republish target so projections and live subscribers consume
 	// from a single NATS Core path.
 	serverEvtStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
@@ -1178,7 +1193,8 @@ func isTerminalIteratorError(err error) bool {
 // authorization before forwarding the event through GraphQL.
 //
 // Authorization:
-//   - Room events (live.sync.room.> and deliverable live.evt.room.>) are delivered only for rooms
+//   - Room-scoped events (live.sync.room.>, deliverable live.evt.room.>,
+//     and deliverable live.evt.room_call.>) are delivered only for rooms
 //     where the user is a member. The membership set is pre-loaded
 //     across both kinds (channel + dm) and updated as join/leave/
 //     room-deleted events arrive.
@@ -1452,6 +1468,9 @@ func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, mem
 func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool) {
 	roomID, ok := events.ParseRoomSubject(msg.Subject)
 	if !ok {
+		roomID, ok = events.ParseRoomCallSubject(msg.Subject)
+	}
+	if !ok {
 		return nil, false
 	}
 	if !isDeliverableLiveEVTRoomEvent(event) {
@@ -1515,7 +1534,9 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded,
 		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
+		*corev1.Event_AssetDeleted,
+		*corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft:
 		return true
 	default:
 		return false
@@ -1524,6 +1545,11 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 
 func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
+	switch event.GetEvent().(type) {
+	case *corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft:
+		return c.CallStateProjector.WaitFor(ctx, pos)
+	}
+
 	if err := c.roomService.waitForTimelineAndThreads(ctx, pos); err != nil {
 		return err
 	}

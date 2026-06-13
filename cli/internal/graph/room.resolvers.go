@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -327,6 +328,10 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 
 	avatarSize := 96
 	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize, "cover")
+	e2eeKey, err := r.core.GetVoiceCallE2EEKey(ctx, obj.Id)
+	if err != nil {
+		return nil, err
+	}
 
 	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, core.LegacySpaceIDForRoomKind(core.KindOfRoom(obj)), obj.Id)
 	token, err := core.GenerateVoiceCallToken(
@@ -337,6 +342,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 		user.DisplayName,
 		user.Login,
 		avatarURL,
+		e2eeKey,
 	)
 	if err != nil {
 		return nil, err
@@ -362,16 +368,19 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 		return nil, err
 	}
 
-	result := make([]*model.CallParticipant, len(participants))
-	for i, p := range participants {
-		result[i] = &model.CallParticipant{
-			User: &corev1.User{
-				Id:          p.UserID,
-				Login:       p.Login,
-				DisplayName: p.DisplayName,
-			},
-			JoinedAt: timestamppb.New(time.Unix(p.JoinedAt, 0)),
+	result := make([]*model.CallParticipant, 0, len(participants))
+	for _, p := range participants {
+		user, err := r.getUser(ctx, p.UserID)
+		if err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				continue
+			}
+			return nil, err
 		}
+		result = append(result, &model.CallParticipant{
+			User:     user,
+			JoinedAt: timestamppb.New(time.Unix(p.JoinedAt, 0)),
+		})
 	}
 	return result, nil
 }

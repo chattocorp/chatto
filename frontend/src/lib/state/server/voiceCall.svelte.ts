@@ -12,6 +12,7 @@ import {
   Track,
   AudioPresets,
   VideoPresets,
+  ExternalE2EEKeyProvider,
   type Participant,
   type RemoteTrack,
   type RemoteTrackPublication
@@ -49,8 +50,21 @@ const VoiceCallTokenQuery = graphql(`
     room(roomId: $roomId) {
       voiceCallToken {
         token
+        e2eeKey
       }
     }
+  }
+`);
+
+const JoinVoiceCallMutation = graphql(`
+  mutation JoinVoiceCall($roomId: ID!) {
+    joinVoiceCall(input: { roomId: $roomId })
+  }
+`);
+
+const LeaveVoiceCallMutation = graphql(`
+  mutation LeaveVoiceCall($roomId: ID!) {
+    leaveVoiceCall(input: { roomId: $roomId })
   }
 `);
 
@@ -87,6 +101,7 @@ export class VoiceCallState {
 
   // Internal LiveKit room instance
   private room: Room | null = null;
+  private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
 
   // Non-reactive audio level cache — updated at 60ms by the polling interval,
@@ -146,18 +161,36 @@ export class VoiceCallState {
     this.roomId = roomId;
 
     try {
-      // Get token from server (pure query, no side effects)
-      const result = await this.#client
-        .query(VoiceCallTokenQuery, { roomId })
+      const intentResult = await this.#client
+        .mutation(JoinVoiceCallMutation, { roomId })
         .toPromise();
+      if (intentResult.error) {
+        throw intentResult.error;
+      }
+
+      // Get token from server (pure query, no side effects)
+      const result = await this.#client.query(VoiceCallTokenQuery, { roomId }).toPromise();
+      if (result.error) {
+        throw result.error;
+      }
 
       const token = result.data?.room?.voiceCallToken?.token;
-      if (!token) {
+      const e2eeKey = result.data?.room?.voiceCallToken?.e2eeKey;
+      if (!token || !e2eeKey) {
         throw new Error('Failed to get voice call token');
       }
 
+      const keyProvider = new ExternalE2EEKeyProvider();
+      this.e2eeWorker = new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), {
+        type: 'module'
+      });
+
       // Create and connect LiveKit room
       this.room = new Room({
+        encryption: {
+          keyProvider,
+          worker: this.e2eeWorker
+        },
         audioCaptureDefaults: {
           autoGainControl: true,
           echoCancellation: true,
@@ -179,6 +212,8 @@ export class VoiceCallState {
 
       this.setupRoomEventListeners();
 
+      await keyProvider.setKey(e2eeKey);
+      await this.room.setE2EEEnabled(true);
       await this.room.connect(livekitUrl, token);
 
       // Try to enable microphone, but join muted if no device is available
@@ -193,7 +228,6 @@ export class VoiceCallState {
       this.connected = true;
       this.updateParticipants();
       await this.refreshDevices();
-
     } catch (err) {
       console.error('Failed to join voice call:', err);
       this.cleanup();
@@ -209,7 +243,14 @@ export class VoiceCallState {
   async leave(): Promise<void> {
     if (!this.room) return;
 
-    // Disconnect from LiveKit — the server learns about this via LiveKit webhooks
+    const roomId = this.roomId;
+    if (roomId) {
+      await this.#client
+        .mutation(LeaveVoiceCallMutation, { roomId })
+        .toPromise()
+        .catch(() => {});
+    }
+
     this.room.disconnect();
     this.cleanup();
   }
@@ -522,6 +563,8 @@ export class VoiceCallState {
       this.room.removeAllListeners();
       this.room = null;
     }
+    this.e2eeWorker?.terminate();
+    this.e2eeWorker = null;
     this.connected = false;
     this.connecting = false;
     this.roomId = null;
@@ -575,4 +618,3 @@ function getParticipantVideoTrack(participant: Participant): Track | null {
   }
   return null;
 }
-

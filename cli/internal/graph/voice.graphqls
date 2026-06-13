@@ -8,6 +8,8 @@ Token for joining a LiveKit voice call.
 type VoiceCallToken {
   "The LiveKit JWT token."
   token: String!
+  "Shared LiveKit E2EE key for this room. Distributed by Chatto, never by LiveKit."
+  e2eeKey: String!
 }
 
 """
@@ -31,6 +33,23 @@ extend type Query {
   Requires server membership.
   """
   activeCallRoomIds: [ID!]!
+}
+
+extend type Mutation {
+  """
+  Join a room's voice call as the current user.
+  """
+  joinVoiceCall(input: VoiceCallIntentInput!): Boolean!
+
+  """
+  Leave a room's voice call as the current user.
+  """
+  leaveVoiceCall(input: VoiceCallIntentInput!): Boolean!
+}
+
+input VoiceCallIntentInput {
+  "The room whose voice call is being joined or left."
+  roomId: ID!
 }
 
 # ==============================================================================

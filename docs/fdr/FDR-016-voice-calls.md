@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-06-12
+**Last reviewed:** 2026-06-13
 
 ## Overview
 
@@ -12,23 +12,24 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 - Members of a room with the right permission see a "Join call" button in the room header.
 - Joining the call opens a panel showing each participant's avatar (with a speaking-indicator ring), a mute toggle, an audio device selector, and a hang-up button.
 - Other rooms with an active call show a small headphone icon in the sidebar so members know there's a conversation happening.
-- A member's join/leave is visible to the others in the call within roughly a round-trip — the local participant sees themselves in the call instantly, but others see the indicator after the LiveKit webhook reaches Chatto.
+- A member's join/leave is visible to the others in the call through durable room EVT facts. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection.
 - Hanging up disconnects from LiveKit and clears the participant from everyone else's view.
+- New clients always enable LiveKit E2EE before connecting. Chatto distributes a volatile per-room shared key with the LiveKit join token; the key is never written to EVT.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
 
 ## Design Decisions
 
-### 1. LiveKit webhooks are the sole source of participant state changes
+### 1. Call join/leave are durable room facts with internal source
 
-**Decision:** Participant join/leave events come from LiveKit's webhooks, never from client-side mutations. Chatto's `MEMORY_CACHE` call state (`call.{spaceId}.{roomId}`) is updated only in response to a `participant_joined`, `participant_left`, or `room_finished` webhook.
-**Why:** Client-driven join/leave is brittle — a crashed tab or lost network never sends the leave mutation, and the participant looks stuck in the call forever. LiveKit detects WebRTC transport-level disconnects and fires `participant_left` whether the client cooperated or not. See ADR-009.
-**Tradeoff:** Joining is slightly delayed for remote observers (the webhook has to round-trip from LiveKit to Chatto before others see you). Acceptable in exchange for never-stuck participants. The local user sees themselves immediately because the LiveKit Room object exposes local state without the webhook.
+**Decision:** `CallParticipantJoinedEvent` and `CallParticipantLeftEvent` are persisted in the `room_call` EVT aggregate keyed by room ID. Explicit frontend join/leave writes use source `USER`; LiveKit webhook writes use source `LIVEKIT`; reconciliation writes use source `RECONCILIATION`. GraphQL exposes the same public event shape without the internal source.
+**Why:** Calls are realtime/audit facts that should survive process restarts and be delivered through the same durable live EVT path as other room facts. Keeping source internal lets projections distinguish optimistic user intent from media-server observation without adding public API surface.
+**Tradeoff:** Duplicate user/LiveKit facts are expected and preserved for audit. The active participant projection folds them idempotently. Reconciliation uses wildcard-filter OCC against `evt.room_call.{roomId}.>` so joined and left corrections are guarded by one room-call aggregate boundary.
 
-### 2. Call state is memory-backed, deliberately ephemeral
+### 2. Active call state is projection-backed and reconciled
 
-**Decision:** Call state lives in the memory-backed, non-backed-up `MEMORY_CACHE` bucket. If JetStream restarts, the call state vanishes. The retired `CALL_STATE` bucket is historical and is no longer imported on boot.
-**Why:** Call state is "who's connected right now". After a restart, the source of truth is LiveKit — and as participants reconnect, the webhooks repopulate the state automatically. Persisting it would waste storage and risk showing a stale "who's in the call" list across restarts.
-**Tradeoff:** A brief window after restart where the API reports no active calls until participants reconnect and webhooks land. Acceptable for an ephemeral concept.
+**Decision:** Active participant snapshots come from a call-state service/projection over durable call facts, not from `MEMORY_CACHE`. User joins can create pending/optimistic state; LiveKit and reconciliation facts confirm or correct it. On startup and periodically, Chatto compares active LiveKit rooms/participants to the projection and appends reconciliation facts for mismatches.
+**Why:** The UI needs current participant state, but it should not depend only on volatile KV state or only on historical replay. EVT gives durable audit/live delivery, while LiveKit reconciliation keeps "who is connected now" grounded in the media server.
+**Tradeoff:** The projection can briefly show optimistic state before LiveKit confirms or reconciliation corrects it. Multiple replicas may reconcile concurrently; reconciliation facts are OCC-gated on the room-call aggregate and rechecked after conflicts.
 
 ### 3. Graceful degradation when LiveKit isn't configured
 
@@ -54,11 +55,18 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 **Why:** Real LiveKit isn't realistic to run in CI, but webhook flow is exactly the thing E2E tests need to exercise. Build-tag gating keeps the endpoints out of production. See ADR-020.
 **Tradeoff:** Two webhook entry points (real + test); test ones are well-isolated and trivially removable from prod builds.
 
+### 7. E2EE keys are app-owned volatile call state
+
+**Decision:** `voiceCallToken` returns both `token` and `e2eeKey`. The backend generates/reuses a per-room E2EE key in volatile runtime storage and never persists it to EVT. The frontend creates an `ExternalE2EEKeyProvider`, configures the LiveKit E2EE worker, sets the key, enables E2EE, then connects.
+**Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared room key.
+**Tradeoff:** Always-on E2EE breaks media compatibility with older clients that do not enable E2EE.
+
 ## Permissions
 
 - `voiceCallToken` query — requires room membership.
 - `callParticipants` query — requires room membership.
 - `activeCallRoomIds` query — requires server membership.
+- `joinVoiceCall` / `leaveVoiceCall` mutations — require room membership.
 
 Voice calling doesn't have a dedicated permission today; room membership is the gate.
 

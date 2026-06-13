@@ -830,6 +830,14 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("RoomCallAggregate subject", func(t *testing.T) {
+		got := RoomCallAggregate("ROOM123").Subject(EventCallParticipantJoined)
+		want := "evt.room_call.ROOM123.participant_joined"
+		if got != want {
+			t.Errorf("RoomCallAggregate.Subject: got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("RoomSubjectFilter", func(t *testing.T) {
 		got := RoomSubjectFilter()
 		want := "evt.room.>"
@@ -838,11 +846,27 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("RoomCallSubjectFilter", func(t *testing.T) {
+		got := RoomCallSubjectFilter()
+		want := "evt.room_call.>"
+		if got != want {
+			t.Errorf("RoomCallSubjectFilter: got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("RoomEventTypeFilter", func(t *testing.T) {
 		got := RoomEventTypeFilter(EventUserJoinedRoom)
 		want := "evt.room.*.user_joined"
 		if got != want {
 			t.Errorf("RoomEventTypeFilter: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("RoomCallEventTypeFilter", func(t *testing.T) {
+		got := RoomCallEventTypeFilter(EventCallParticipantJoined)
+		want := "evt.room_call.*.participant_joined"
+		if got != want {
+			t.Errorf("RoomCallEventTypeFilter: got %q, want %q", got, want)
 		}
 	})
 
@@ -888,6 +912,28 @@ func TestSubjectHelpers(t *testing.T) {
 			id, ok := ParseRoomSubject(c.subject)
 			if id != c.wantID || ok != c.wantOK {
 				t.Errorf("ParseRoomSubject(%q) = (%q, %v), want (%q, %v)",
+					c.subject, id, ok, c.wantID, c.wantOK)
+			}
+		}
+	})
+
+	t.Run("ParseRoomCallSubject", func(t *testing.T) {
+		cases := []struct {
+			subject string
+			wantID  string
+			wantOK  bool
+		}{
+			{"evt.room_call.ROOM123.participant_joined", "ROOM123", true},
+			{"live.evt.room_call.ROOM123.participant_left", "ROOM123", true},
+			{"evt.room.ROOM123.user_joined", "", false},
+			{"evt.room_call.", "", false},
+			{"evt.room_call.ROOM123", "", false},
+			{"unrelated.subject", "", false},
+		}
+		for _, c := range cases {
+			id, ok := ParseRoomCallSubject(c.subject)
+			if id != c.wantID || ok != c.wantOK {
+				t.Errorf("ParseRoomCallSubject(%q) = (%q, %v), want (%q, %v)",
 					c.subject, id, ok, c.wantID, c.wantOK)
 			}
 		}
@@ -969,6 +1015,24 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				},
 			},
 			want: EventThreadCreated,
+		},
+		{
+			name: "CallParticipantJoined",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallParticipantJoined{
+					VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1"},
+				},
+			},
+			want: EventCallParticipantJoined,
+		},
+		{
+			name: "CallParticipantLeft",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallParticipantLeft{
+					VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: "R1"},
+				},
+			},
+			want: EventCallParticipantLeft,
 		},
 		{
 			name: "UserKeyShredded",

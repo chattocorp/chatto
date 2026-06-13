@@ -1350,6 +1350,11 @@ type ViewerNotificationPreference struct {
 	EffectiveLevel NotificationLevel `json:"effectiveLevel"`
 }
 
+type VoiceCallIntentInput struct {
+	// The room whose voice call is being joined or left.
+	RoomID string `json:"roomId"`
+}
+
 // Fit mode for image transformations.
 type FitMode string
 

@@ -94,7 +94,9 @@ type Documents = {
     "\n  query GetMyServerRooms {\n    viewer {\n      user {\n        id\n        rooms {\n          id\n          name\n          type\n          hasUnread\n          archived\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n          members(limit: 100) {\n            users {\n              ...UserAvatarUser\n            }\n          }\n        }\n      }\n    }\n    server {\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": typeof types.GetMyServerRoomsDocument,
     "\n          query GetServerInfo {\n            server {\n              directRegistrationEnabled\n              profile {\n                name\n                welcomeMessage\n                description\n                logoUrl\n                bannerUrl\n              }\n            }\n          }\n        ": typeof types.GetServerInfoDocument,
     "\n          query GetAuthenticatedServerSettings {\n            server {\n              pushNotificationsEnabled\n              vapidPublicKey\n              livekitUrl\n              videoProcessingEnabled\n              maxUploadSize\n              maxVideoUploadSize\n              messageEditWindowSeconds\n              profile {\n                motd\n              }\n            }\n          }\n        ": typeof types.GetAuthenticatedServerSettingsDocument,
-    "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n      }\n    }\n  }\n": typeof types.GetVoiceCallTokenDocument,
+    "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n        e2eeKey\n      }\n    }\n  }\n": typeof types.GetVoiceCallTokenDocument,
+    "\n  mutation JoinVoiceCall($roomId: ID!) {\n    joinVoiceCall(input: { roomId: $roomId })\n  }\n": typeof types.JoinVoiceCallDocument,
+    "\n  mutation LeaveVoiceCall($roomId: ID!) {\n    leaveVoiceCall(input: { roomId: $roomId })\n  }\n": typeof types.LeaveVoiceCallDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": typeof types.LeaveRoomFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": typeof types.DeleteMessageFromModalDocument,
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": typeof types.DeleteLinkPreviewFromModalDocument,
@@ -227,7 +229,9 @@ const documents: Documents = {
     "\n  query GetMyServerRooms {\n    viewer {\n      user {\n        id\n        rooms {\n          id\n          name\n          type\n          hasUnread\n          archived\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n          members(limit: 100) {\n            users {\n              ...UserAvatarUser\n            }\n          }\n        }\n      }\n    }\n    server {\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": types.GetMyServerRoomsDocument,
     "\n          query GetServerInfo {\n            server {\n              directRegistrationEnabled\n              profile {\n                name\n                welcomeMessage\n                description\n                logoUrl\n                bannerUrl\n              }\n            }\n          }\n        ": types.GetServerInfoDocument,
     "\n          query GetAuthenticatedServerSettings {\n            server {\n              pushNotificationsEnabled\n              vapidPublicKey\n              livekitUrl\n              videoProcessingEnabled\n              maxUploadSize\n              maxVideoUploadSize\n              messageEditWindowSeconds\n              profile {\n                motd\n              }\n            }\n          }\n        ": types.GetAuthenticatedServerSettingsDocument,
-    "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n      }\n    }\n  }\n": types.GetVoiceCallTokenDocument,
+    "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n        e2eeKey\n      }\n    }\n  }\n": types.GetVoiceCallTokenDocument,
+    "\n  mutation JoinVoiceCall($roomId: ID!) {\n    joinVoiceCall(input: { roomId: $roomId })\n  }\n": types.JoinVoiceCallDocument,
+    "\n  mutation LeaveVoiceCall($roomId: ID!) {\n    leaveVoiceCall(input: { roomId: $roomId })\n  }\n": types.LeaveVoiceCallDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": types.LeaveRoomFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": types.DeleteMessageFromModalDocument,
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": types.DeleteLinkPreviewFromModalDocument,
@@ -617,7 +621,15 @@ export function graphql(source: "\n          query GetAuthenticatedServerSetting
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n        e2eeKey\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n        e2eeKey\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation JoinVoiceCall($roomId: ID!) {\n    joinVoiceCall(input: { roomId: $roomId })\n  }\n"): (typeof documents)["\n  mutation JoinVoiceCall($roomId: ID!) {\n    joinVoiceCall(input: { roomId: $roomId })\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LeaveVoiceCall($roomId: ID!) {\n    leaveVoiceCall(input: { roomId: $roomId })\n  }\n"): (typeof documents)["\n  mutation LeaveVoiceCall($roomId: ID!) {\n    leaveVoiceCall(input: { roomId: $roomId })\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

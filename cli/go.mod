@@ -36,6 +36,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	github.com/twitchtv/twirp v8.1.3+incompatible
 	github.com/vektah/gqlparser/v2 v2.5.33
 	github.com/vikstrous/dataloadgen v0.0.10
 	github.com/wneessen/go-mail v0.7.3
@@ -162,7 +163,6 @@ require (
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
-	github.com/twitchtv/twirp v8.1.3+incompatible // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/urfave/cli/v3 v3.8.0 // indirect
