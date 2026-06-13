@@ -66,6 +66,8 @@ func (p *RBACProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyRoleDisplayNameChanged(e.RbacRoleDisplayNameChanged.GetRoleName(), e.RbacRoleDisplayNameChanged.GetDisplayName())
 	case *corev1.Event_RbacRoleDescriptionChanged:
 		p.applyRoleDescriptionChanged(e.RbacRoleDescriptionChanged.GetRoleName(), e.RbacRoleDescriptionChanged.GetDescription())
+	case *corev1.Event_RbacRolePingableChanged:
+		p.applyRolePingableChanged(e.RbacRolePingableChanged.GetRoleName(), e.RbacRolePingableChanged.GetPingable())
 	case *corev1.Event_RbacRoleDeleted:
 		p.applyRoleDeleted(e.RbacRoleDeleted.GetRoleName())
 	case *corev1.Event_RbacRolesReordered:
@@ -110,6 +112,7 @@ func rbacRoleFromCreated(event *corev1.RbacRoleCreatedEvent) *corev1.Role {
 		DisplayName: event.GetDisplayName(),
 		Description: event.GetDescription(),
 		Position:    event.GetRank(),
+		Pingable:    event.GetPingable(),
 	}
 }
 
@@ -143,6 +146,19 @@ func (p *RBACProjection) applyRoleDescriptionChanged(roleName, description strin
 	}
 	updated := proto.Clone(role).(*corev1.Role)
 	updated.Description = description
+	p.roles[roleName] = updated
+}
+
+func (p *RBACProjection) applyRolePingableChanged(roleName string, pingable bool) {
+	if roleName == "" {
+		return
+	}
+	role := p.roles[roleName]
+	if role == nil {
+		return
+	}
+	updated := proto.Clone(role).(*corev1.Role)
+	updated.Pingable = pingable
 	p.roles[roleName] = updated
 }
 

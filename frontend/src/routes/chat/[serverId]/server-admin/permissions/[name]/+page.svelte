@@ -10,7 +10,7 @@
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, TextInput, TextArea, FormError } from '$lib/ui/form';
+  import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
 
   type User = { id: string; login: string; displayName: string };
@@ -32,6 +32,7 @@
   // Form state for editing metadata
   let editDisplayName = $state('');
   let editDescription = $state('');
+  let editPingable = $state(false);
 
   async function loadData() {
     loading = true;
@@ -51,6 +52,7 @@
               permissionDenials
               isSystem
               position
+              pingable
             }
             roleUsers(roleName: $name) {
               id
@@ -85,6 +87,7 @@
     if (role) {
       editDisplayName = role.displayName;
       editDescription = role.description;
+      editPingable = role.pingable;
     }
 
     loading = false;
@@ -97,7 +100,7 @@
   });
 
   async function saveMetadata() {
-    if (!role || role.isSystem) return;
+    if (!role) return;
 
     saving = true;
     error = null;
@@ -109,6 +112,7 @@
             name
             displayName
             description
+            pingable
           }
         }
       `),
@@ -116,7 +120,8 @@
         input: {
           name: role.name,
           displayName: editDisplayName,
-          description: editDescription
+          description: editDescription,
+          pingable: editPingable
         }
       }
     );
@@ -161,8 +166,12 @@
   );
 
   const metadataChanged = $derived(
-    role && (editDisplayName !== role.displayName || editDescription !== role.description)
+    role &&
+      (editDisplayName !== role.displayName ||
+        editDescription !== role.description ||
+        editPingable !== role.pingable)
   );
+  const canEditPingable = $derived(role?.name !== 'everyone');
 </script>
 
 <PageTitle title={`${role?.displayName ?? 'Edit Role'} | Space Admin`} />
@@ -210,6 +219,24 @@
               <div class="text-muted">{role.description}</div>
             </div>
             <p class="text-sm text-muted">System role metadata cannot be modified.</p>
+            <Checkbox
+              id="pingable"
+              bind:checked={editPingable}
+              label="Allow people to ping this role"
+              disabled={saving || !canEditPingable}
+              description={canEditPingable
+                ? 'Pingable roles appear in @ autocomplete and notify assigned room members.'
+                : 'Use @all for room-wide delivery; everyone is not a role ping handle.'}
+            />
+            <div class="flex gap-2">
+              <Button
+                variant="primary"
+                disabled={!metadataChanged || saving}
+                onclick={saveMetadata}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           {:else}
             <TextInput
               id="displayName"
@@ -222,6 +249,15 @@
               testid="role-form-description"
               label="Description"
               bind:value={editDescription}
+            />
+            <Checkbox
+              id="pingable"
+              bind:checked={editPingable}
+              label="Allow people to ping this role"
+              disabled={saving || !canEditPingable}
+              description={canEditPingable
+                ? 'Pingable roles appear in @ autocomplete and notify assigned room members.'
+                : 'Use @all for room-wide delivery; everyone is not a role ping handle.'}
             />
             <div class="flex gap-2">
               <Button
@@ -250,9 +286,8 @@
       <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
       {#if canManageRoles && role}
         <Hint>
-          This role's grants and denials across every scope. Combined with the user's other
-          roles at resolution time — use the per-user matrix to see what an individual user
-          ends up with.
+          This role's grants and denials across every scope. Combined with the user's other roles at
+          resolution time — use the per-user matrix to see what an individual user ends up with.
         </Hint>
         <RolePermissionsMatrix roleName={role.name} />
       {/if}
@@ -267,7 +302,12 @@
             clickable={canAssignRoles}
             emptyMessage="No users have this role"
             onUserClick={(user) =>
-              goto(resolve('/chat/[serverId]/server-admin/members/[userId]', { serverId: serverSegment, userId: user.id }))}
+              goto(
+                resolve('/chat/[serverId]/server-admin/members/[userId]', {
+                  serverId: serverSegment,
+                  userId: user.id
+                })
+              )}
           />
         {/if}
       </Panel>

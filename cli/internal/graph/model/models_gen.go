@@ -216,6 +216,8 @@ type CreateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Defaults to false.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for creating a new room group.
@@ -1260,6 +1262,8 @@ type UpdateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Omit to leave unchanged.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for updating an existing room group.

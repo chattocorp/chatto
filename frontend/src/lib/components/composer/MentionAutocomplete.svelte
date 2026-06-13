@@ -57,7 +57,7 @@ Shows matching room members when typing @username in chat input.
     }
 
     for (const role of roles) {
-      if (role.name === 'everyone') continue;
+      if (!role.pingable || role.name === 'everyone') continue;
       const score = fuzzyMatch(query, role.name);
       if (score && score > 0) {
         scored.push({ type: 'role', handle: role.name, role, score, priority: 2 });

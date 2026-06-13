@@ -127,8 +127,7 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // room-scoped broadcasts:
 //   - @all: every current room member
 //   - @here: current room members whose presence is not OFFLINE
-//   - @owner/@admin/@moderator: current room members at or above that rank
-//   - @custom-role: current room members explicitly assigned that server role
+//   - @pingable-role: current room members explicitly assigned that server role
 //   - @user: that user, if they are a current room member
 //
 // Invalid handles are silently ignored, matching existing @user behavior.
@@ -203,23 +202,10 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 			continue
 		}
 
-		if c.RBAC.RoleExists(normalized) {
-			if isHierarchicalMentionRole(normalized) {
-				targetPosition, ok := c.RBAC.RolePosition(normalized)
-				if !ok {
-					continue
-				}
-				for _, member := range members {
-					if member == nil {
-						continue
-					}
-					if c.RBAC.GetUserHighestPosition(member.UserId) >= targetPosition {
-						add(member.UserId)
-					}
-				}
+		if role, ok := c.RBAC.GetRole(normalized); ok {
+			if !role.GetPingable() {
 				continue
 			}
-
 			roleUsers, err := c.GetRoleUsers(ctx, normalized)
 			if err != nil {
 				if err != ErrRoleNotFound {
@@ -242,15 +228,6 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 	}
 
 	return userIDs, nil
-}
-
-func isHierarchicalMentionRole(roleName string) bool {
-	switch roleName {
-	case RoleOwner, RoleAdmin, RoleModerator:
-		return true
-	default:
-		return false
-	}
 }
 
 func (c *ChattoCore) mentionNotificationRecipientCount(ctx context.Context, roomID, authorID string, mentionedUserIDs []string) (int, error) {

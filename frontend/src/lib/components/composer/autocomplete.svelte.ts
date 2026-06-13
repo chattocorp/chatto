@@ -7,6 +7,7 @@ export type MentionRole = {
   name: string;
   isSystem?: boolean;
   position?: number;
+  pingable?: boolean;
 };
 
 type TabCompletionState = {
@@ -187,7 +188,7 @@ export class AutocompleteState {
     }
 
     for (const role of this.getRoles()) {
-      if (role.name === 'everyone') continue;
+      if (!role.pingable || role.name === 'everyone') continue;
       const score = fuzzyMatch(partial, role.name);
       if (score && score > 0) {
         scored.push({ handle: role.name, score, priority: 2 });

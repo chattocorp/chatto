@@ -4,6 +4,7 @@ export type MentionRole = {
   name: string;
   isSystem: boolean;
   position: number;
+  pingable: boolean;
 };
 
 export type MentionRolesState = {

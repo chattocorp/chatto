@@ -113,7 +113,7 @@ describe('AutocompleteState', () => {
     const state = new AutocompleteState(
       () => fakeEditor.api,
       () => [member('helena')],
-      () => [{ name: 'helpdesk' }]
+      () => [{ name: 'helpdesk', pingable: true }]
     );
 
     state.update();

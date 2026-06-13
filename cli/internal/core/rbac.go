@@ -48,6 +48,7 @@ type RoleWithPermissions struct {
 	PermissionDenials []Permission // Permissions denied by this role
 	IsSystem          bool
 	Position          int32 // Higher = higher rank. Everyone=0, Owner=1000
+	Pingable          bool
 }
 
 // listKeysWithPattern returns all keys matching a pattern from a KV bucket.
@@ -419,6 +420,7 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 			PermissionDenials: denials,
 			IsSystem:          IsSystemRole(role.Name),
 			Position:          role.Position,
+			Pingable:          role.Pingable,
 		})
 	}
 
@@ -428,7 +430,11 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 // CreateServerRole creates a new custom server role.
 // Role names must be lowercase letters only (e.g., "editor", "moderator").
 // System role names (owner, admin, moderator, everyone) are reserved.
-func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
+func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {
+	pingable := false
+	if len(pingableValue) > 0 {
+		pingable = pingableValue[0]
+	}
 	if err := ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
@@ -456,6 +462,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 			DisplayName: displayName,
 			Description: description,
 			Position:    c.RBAC.NextAvailablePosition(),
+			Pingable:    pingable,
 		}
 		event.Event = &corev1.Event_RbacRoleCreated{
 			RbacRoleCreated: &corev1.RbacRoleCreatedEvent{
@@ -463,6 +470,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 				DisplayName: role.GetDisplayName(),
 				Description: role.GetDescription(),
 				Rank:        role.GetPosition(),
+				Pingable:    role.GetPingable(),
 			},
 		}
 		return nil
@@ -480,12 +488,13 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 		PermissionDenials: []Permission{},
 		IsSystem:          false,
 		Position:          role.GetPosition(),
+		Pingable:          role.GetPingable(),
 	}, nil
 }
 
 // UpdateServerRole updates an existing role's metadata.
 // The role name cannot be changed.
-func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
+func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {
 	if err := validateRoleMetadata(displayName, description); err != nil {
 		return nil, err
 	}
@@ -507,6 +516,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, de
 			DisplayName: displayName,
 			Description: existing.GetDescription(),
 			Position:    existing.GetPosition(),
+			Pingable:    existing.GetPingable(),
 		}
 		return nil
 	}); err != nil {
@@ -531,11 +541,40 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, de
 			DisplayName: existing.GetDisplayName(),
 			Description: description,
 			Position:    existing.GetPosition(),
+			Pingable:    existing.GetPingable(),
 		}
 		return nil
 	}); err != nil {
 		if !errors.Is(err, errRBACNoop) {
 			return nil, err
+		}
+	}
+
+	if len(pingableValue) > 0 {
+		pingable := pingableValue[0]
+		if _, err := c.appendRBACEvent(ctx, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRolePingableChanged{
+			RbacRolePingableChanged: &corev1.RbacRolePingableChangedEvent{RoleName: name, Pingable: pingable},
+		}}), func() error {
+			existing, ok := c.RBAC.GetRole(name)
+			if !ok {
+				return ErrRoleNotFound
+			}
+			if existing.GetPingable() == pingable {
+				updated = existing
+				return errRBACNoop
+			}
+			updated = &corev1.Role{
+				Name:        existing.GetName(),
+				DisplayName: existing.GetDisplayName(),
+				Description: existing.GetDescription(),
+				Position:    existing.GetPosition(),
+				Pingable:    pingable,
+			}
+			return nil
+		}); err != nil {
+			if !errors.Is(err, errRBACNoop) {
+				return nil, err
+			}
 		}
 	}
 
@@ -559,6 +598,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, de
 		PermissionDenials: denials,
 		IsSystem:          IsSystemRole(name),
 		Position:          updated.Position,
+		Pingable:          updated.Pingable,
 	}, nil
 }
 
@@ -581,6 +621,7 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 		PermissionDenials: denials,
 		IsSystem:          IsSystemRole(name),
 		Position:          role.Position,
+		Pingable:          role.Pingable,
 	}, nil
 }
 
@@ -665,6 +706,7 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string)
 			PermissionDenials: denials,
 			IsSystem:          IsSystemRole(role.Name),
 			Position:          role.Position,
+			Pingable:          role.Pingable,
 		})
 	}
 

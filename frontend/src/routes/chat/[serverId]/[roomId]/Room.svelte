@@ -81,6 +81,7 @@
           name
           isSystem
           position
+          pingable
         }
       }
     }
@@ -103,7 +104,8 @@
           .map((role) => ({
             name: role.name,
             isSystem: role.isSystem,
-            position: role.position
+            position: role.position,
+            pingable: role.pingable
           })) ?? []
       );
     }

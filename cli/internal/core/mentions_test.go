@@ -293,14 +293,20 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, moderatorUser.Id, RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole moderatorUser: %v", err)
 	}
-	if _, err := core.CreateServerRole(ctx, "support", "Support", "Support team"); err != nil {
+	if _, err := core.CreateServerRole(ctx, "support", "Support", "Support team", true); err != nil {
 		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, "quiet", "Quiet", "Quiet team"); err != nil {
+		t.Fatalf("CreateServerRole quiet: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, roleUser.Id, "support"); err != nil {
 		t.Fatalf("AssignServerRole roleUser: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, outsider.Id, "support"); err != nil {
 		t.Fatalf("AssignServerRole outsider: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, roleUser.Id, "quiet"); err != nil {
+		t.Fatalf("AssignServerRole quiet roleUser: %v", err)
 	}
 	if err := core.SetPresence(ctx, alice.Id, PresenceStatusOnline); err != nil {
 		t.Fatalf("SetPresence alice: %v", err)
@@ -327,24 +333,32 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 		requireUserIDs(t, got, roleUser.Id)
 	})
 
-	t.Run("system role mentions include higher-ranked room members", func(t *testing.T) {
+	t.Run("non-pingable role mentions are ignored", func(t *testing.T) {
+		got, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"quiet"})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions quiet role: %v", err)
+		}
+		requireUserIDs(t, got)
+	})
+
+	t.Run("system role mentions require explicit pingability and assignment", func(t *testing.T) {
 		ownerMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleOwner})
 		if err != nil {
 			t.Fatalf("ResolveRoomMentions owner: %v", err)
 		}
-		requireUserIDs(t, ownerMention, owner.Id)
+		requireUserIDs(t, ownerMention)
 
 		adminMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleAdmin})
 		if err != nil {
 			t.Fatalf("ResolveRoomMentions admin: %v", err)
 		}
-		requireUserIDs(t, adminMention, owner.Id, adminUser.Id)
+		requireUserIDs(t, adminMention)
 
 		moderatorMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleModerator})
 		if err != nil {
 			t.Fatalf("ResolveRoomMentions moderator: %v", err)
 		}
-		requireUserIDs(t, moderatorMention, owner.Id, adminUser.Id, moderatorUser.Id)
+		requireUserIDs(t, moderatorMention, moderatorUser.Id)
 	})
 
 	t.Run("all and here expand from room membership and presence", func(t *testing.T) {
