@@ -27081,7 +27081,7 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "confirmedMentionRecipientCount", "linkPreview"}
+	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "mentionConfirmationToken", "linkPreview"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -27152,13 +27152,13 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 				return it, err
 			}
 			it.AlsoSendToChannel = data
-		case "confirmedMentionRecipientCount":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("confirmedMentionRecipientCount"))
-			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+		case "mentionConfirmationToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mentionConfirmationToken"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ConfirmedMentionRecipientCount = data
+			it.MentionConfirmationToken = data
 		case "linkPreview":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkPreview"))
 			data, err := ec.unmarshalOLinkPreviewInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLinkPreviewInput(ctx, v)

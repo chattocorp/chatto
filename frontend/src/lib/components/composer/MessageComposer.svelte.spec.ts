@@ -587,7 +587,7 @@ describe('MessageComposer', () => {
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
-    it('retries large mention sends with the confirmed recipient count', async () => {
+    it('retries large mention sends with the confirmation token', async () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
       mutationMock
         .mockResolvedValueOnce({
@@ -597,7 +597,8 @@ describe('MessageComposer', () => {
               {
                 extensions: {
                   code: 'MENTION_CONFIRMATION_REQUIRED',
-                  recipientCount: 12
+                  recipientCount: 12,
+                  mentionConfirmationToken: 'jwt.confirmation.token'
                 }
               }
             ]
@@ -618,8 +619,10 @@ describe('MessageComposer', () => {
       expect(confirmSpy).toHaveBeenCalledWith(
         'This message will notify 12 people. Send it anyway?'
       );
-      expect(mutationMock.mock.calls[0][1].input.confirmedMentionRecipientCount).toBeNull();
-      expect(mutationMock.mock.calls[1][1].input.confirmedMentionRecipientCount).toBe(12);
+      expect(mutationMock.mock.calls[0][1].input.mentionConfirmationToken).toBeNull();
+      expect(mutationMock.mock.calls[1][1].input.mentionConfirmationToken).toBe(
+        'jwt.confirmation.token'
+      );
     });
 
     it('restores text and attachments after a failed post', async () => {

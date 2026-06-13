@@ -65,7 +65,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 
 ### 7. Large mention sends require confirmation
 
-**Decision:** A message whose mentions would notify more than 10 users requires explicit confirmation. The count is computed after deduplication, excluding the author, excluding users muted for the room, and applying room-membership constraints.
+**Decision:** A message whose mentions would notify more than 10 users requires explicit confirmation. The count is computed after deduplication, excluding the author, excluding users muted for the room, and applying room-membership constraints. The backend returns a short-lived confirmation token scoped to the author, room, message body, thread target, and echo flag; the retry uses that token so live recipient-count drift does not force repeated prompts.
 **Why:** Role and room-wide mentions are useful operational tools, but accidental broad pings are costly. Confirmation preserves the feature while catching the common "I did not realize this reaches everyone" mistake.
 **Tradeoff:** Senders occasionally see one extra prompt for intentional broadcasts.
 

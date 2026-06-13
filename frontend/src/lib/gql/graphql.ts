@@ -2012,12 +2012,12 @@ export type PostMessageInput = {
   attachments?: InputMaybe<Array<Scalars['Upload']['input']>>;
   /** The message content. Optional if attachments are provided. */
   body?: InputMaybe<Scalars['String']['input']>;
-  /** Confirms sending when @mentions would notify this exact recipient count. Stale confirmations are rejected with the updated count. */
-  confirmedMentionRecipientCount?: InputMaybe<Scalars['Int']['input']>;
   /** Event ID of the message this responds to (attribution only, does not affect routing or permissions). */
   inReplyTo?: InputMaybe<Scalars['ID']['input']>;
   /** Link preview data from the composer. Server stores this directly without fetching. */
   linkPreview?: InputMaybe<LinkPreviewInput>;
+  /** Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts. */
+  mentionConfirmationToken?: InputMaybe<Scalars['String']['input']>;
   /** The ID of the room to post to. */
   roomId: Scalars['ID']['input'];
   /** Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post). */

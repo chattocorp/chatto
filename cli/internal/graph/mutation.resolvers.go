@@ -219,6 +219,27 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		body = *input.Body
 	}
 
+	// Get threading fields if provided
+	var inThread string
+	if input.ThreadRootEventID != nil {
+		inThread = *input.ThreadRootEventID
+	}
+	var inReplyTo string
+	if input.InReplyTo != nil {
+		inReplyTo = *input.InReplyTo
+	}
+
+	// Extract alsoSendToChannel from input (defaults to false)
+	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
+
+	mentionConfirmationScope := core.MentionConfirmationScope{
+		UserID:            user.Id,
+		RoomID:            input.RoomID,
+		Kind:              kind,
+		Body:              body,
+		ThreadRootEventID: inThread,
+		AlsoSendToChannel: alsoSendToChannel,
+	}
 	mentionRecipientCountConfirmed := false
 	if body != "" {
 		recipientCount, err := r.core.MentionNotificationRecipientCountForBody(ctx, kind, input.RoomID, user.Id, body)
@@ -226,8 +247,16 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			return nil, err
 		}
 		if recipientCount > core.LargeMentionNotificationThreshold {
-			if input.ConfirmedMentionRecipientCount == nil || int(*input.ConfirmedMentionRecipientCount) != recipientCount {
-				return nil, largeMentionConfirmationError(recipientCount)
+			token := ""
+			if input.MentionConfirmationToken != nil {
+				token = *input.MentionConfirmationToken
+			}
+			if err := r.core.ValidateMentionConfirmationToken(token, mentionConfirmationScope); err != nil {
+				nextToken, err := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, recipientCount)
+				if err != nil {
+					return nil, err
+				}
+				return nil, largeMentionConfirmationError(recipientCount, nextToken)
 			}
 			mentionRecipientCountConfirmed = true
 		}
@@ -278,19 +307,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			attachments = append(attachments, attachment)
 		}
 	}
-
-	// Get threading fields if provided
-	var inThread string
-	if input.ThreadRootEventID != nil {
-		inThread = *input.ThreadRootEventID
-	}
-	var inReplyTo string
-	if input.InReplyTo != nil {
-		inReplyTo = *input.InReplyTo
-	}
-
-	// Extract alsoSendToChannel from input (defaults to false)
-	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
 
 	// Authorization: if echoing to channel, check message.echo AND message.post permissions.
 	// An echo creates a root-level message, so it requires the same permission as posting directly.
@@ -361,7 +377,11 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, assetIDs, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
 	if err != nil {
 		if confirmErr, ok := err.(*core.MentionConfirmationRequiredError); ok {
-			return nil, largeMentionConfirmationError(confirmErr.RecipientCount)
+			token, tokenErr := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, confirmErr.RecipientCount)
+			if tokenErr != nil {
+				return nil, tokenErr
+			}
+			return nil, largeMentionConfirmationError(confirmErr.RecipientCount, token)
 		}
 		return nil, err
 	}

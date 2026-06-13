@@ -686,8 +686,8 @@ type PostMessageInput struct {
 	InReplyTo *string `json:"inReplyTo,omitempty"`
 	// Also echo this thread reply to the main channel for visibility (requires message.echo permission).
 	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
-	// Confirms sending when @mentions would notify this exact recipient count. Stale confirmations are rejected with the updated count.
-	ConfirmedMentionRecipientCount *int32 `json:"confirmedMentionRecipientCount,omitempty"`
+	// Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts.
+	MentionConfirmationToken *string `json:"mentionConfirmationToken,omitempty"`
 	// Link preview data from the composer. Server stores this directly without fetching.
 	LinkPreview *LinkPreviewInput `json:"linkPreview,omitempty"`
 }

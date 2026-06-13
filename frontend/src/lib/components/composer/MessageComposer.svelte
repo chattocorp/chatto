@@ -347,7 +347,12 @@
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
-  function mentionConfirmationCount(error: unknown): number | null {
+  type MentionConfirmation = {
+    recipientCount: number;
+    token: string;
+  };
+
+  function mentionConfirmation(error: unknown): MentionConfirmation | null {
     const graphQLErrors =
       error && typeof error === 'object' && 'graphQLErrors' in error
         ? (error.graphQLErrors as Array<{ extensions?: Record<string, unknown> }>)
@@ -357,7 +362,10 @@
       const extensions = graphQLError.extensions;
       if (extensions?.code !== 'MENTION_CONFIRMATION_REQUIRED') continue;
       const count = extensions.recipientCount;
-      if (typeof count === 'number') return count;
+      const token = extensions.mentionConfirmationToken;
+      if (typeof count === 'number' && typeof token === 'string' && token) {
+        return { recipientCount: count, token };
+      }
     }
     return null;
   }
@@ -383,7 +391,7 @@
     loading = true;
 
     try {
-      const buildInput = (confirmedMentionRecipientCount: number | null) => ({
+      const buildInput = (mentionConfirmationToken: string | null) => ({
         input: {
           roomId,
           body: bodyToSend || null,
@@ -392,22 +400,22 @@
           inReplyTo: inReplyTo ?? null,
           linkPreview: linkPreviewInput,
           alsoSendToChannel: alsoSendToChannel || null,
-          confirmedMentionRecipientCount
+          mentionConfirmationToken
         }
       });
 
       let response = await connection().client.mutation(PostMessageMutation, buildInput(null));
 
       if (response.error) {
-        const confirmationCount = mentionConfirmationCount(response.error);
-        if (confirmationCount !== null) {
+        const confirmation = mentionConfirmation(response.error);
+        if (confirmation !== null) {
           const confirmed = window.confirm(
-            `This message will notify ${confirmationCount} people. Send it anyway?`
+            `This message will notify ${confirmation.recipientCount} people. Send it anyway?`
           );
           if (confirmed) {
             response = await connection().client.mutation(
               PostMessageMutation,
-              buildInput(confirmationCount)
+              buildInput(confirmation.token)
             );
           } else {
             message = bodyToSend;
