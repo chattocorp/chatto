@@ -219,6 +219,49 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		body = *input.Body
 	}
 
+	// Get threading fields if provided
+	var inThread string
+	if input.ThreadRootEventID != nil {
+		inThread = *input.ThreadRootEventID
+	}
+	var inReplyTo string
+	if input.InReplyTo != nil {
+		inReplyTo = *input.InReplyTo
+	}
+
+	// Extract alsoSendToChannel from input (defaults to false)
+	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
+
+	mentionConfirmationScope := core.MentionConfirmationScope{
+		UserID:            user.Id,
+		RoomID:            input.RoomID,
+		Kind:              kind,
+		Body:              body,
+		ThreadRootEventID: inThread,
+		AlsoSendToChannel: alsoSendToChannel,
+	}
+	mentionRecipientCountConfirmed := false
+	if body != "" {
+		recipientCount, err := r.core.MentionNotificationRecipientCountForBody(ctx, kind, input.RoomID, user.Id, body)
+		if err != nil {
+			return nil, err
+		}
+		if recipientCount > core.LargeMentionNotificationThreshold {
+			token := ""
+			if input.MentionConfirmationToken != nil {
+				token = *input.MentionConfirmationToken
+			}
+			if err := r.core.ValidateMentionConfirmationToken(token, mentionConfirmationScope); err != nil {
+				nextToken, err := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, recipientCount)
+				if err != nil {
+					return nil, err
+				}
+				return nil, largeMentionConfirmationError(recipientCount, nextToken)
+			}
+			mentionRecipientCountConfirmed = true
+		}
+	}
+
 	// Process file uploads if any (file uploads stay direct via HTTP)
 	var attachments []*corev1.Attachment
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
@@ -264,19 +307,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			attachments = append(attachments, attachment)
 		}
 	}
-
-	// Get threading fields if provided
-	var inThread string
-	if input.ThreadRootEventID != nil {
-		inThread = *input.ThreadRootEventID
-	}
-	var inReplyTo string
-	if input.InReplyTo != nil {
-		inReplyTo = *input.InReplyTo
-	}
-
-	// Extract alsoSendToChannel from input (defaults to false)
-	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
 
 	// Authorization: if echoing to channel, check message.echo AND message.post permissions.
 	// An echo creates a root-level message, so it requires the same permission as posting directly.
@@ -334,6 +364,9 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			postMessageOptions = append(postMessageOptions, core.WithVideoProcessingAssets(videoProcessingAssetIDs...))
 		}
 	}
+	if mentionRecipientCountConfirmed {
+		postMessageOptions = append(postMessageOptions, core.WithLargeMentionConfirmed())
+	}
 
 	assetIDs := make([]string, 0, len(attachments))
 	for _, att := range attachments {
@@ -343,6 +376,13 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, assetIDs, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
 	if err != nil {
+		if confirmErr, ok := err.(*core.MentionConfirmationRequiredError); ok {
+			token, tokenErr := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, confirmErr.RecipientCount)
+			if tokenErr != nil {
+				return nil, tokenErr
+			}
+			return nil, largeMentionConfirmationError(confirmErr.RecipientCount, token)
+		}
 		return nil, err
 	}
 

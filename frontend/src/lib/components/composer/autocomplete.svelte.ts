@@ -3,6 +3,13 @@ import { fuzzyMatch } from '$lib/fuzzyMatch';
 import { searchEmojis } from '$lib/emoji';
 import type { TipTapEditorApi } from './TipTapEditor.svelte';
 
+export type MentionRole = {
+  name: string;
+  isSystem?: boolean;
+  position?: number;
+  pingable?: boolean;
+};
+
 type TabCompletionState = {
   candidates: string[];
   index: number;
@@ -29,7 +36,8 @@ export class AutocompleteState {
 
   constructor(
     private readonly getEditorApi: () => TipTapEditorApi | null,
-    private readonly getMembers: () => RoomMember[]
+    private readonly getMembers: () => RoomMember[],
+    private readonly getRoles: () => MentionRole[] = () => []
   ) {}
 
   resetForRoom(): void {
@@ -62,20 +70,20 @@ export class AutocompleteState {
     this.emoji = null;
   }
 
-  selectMention(login: string, viaTab: boolean): void {
+  selectMention(handle: string, viaTab: boolean): void {
     if (!this.mention) return;
 
     const triggerStart = this.mention.triggerStart;
     const originalPartial = this.mention.query;
 
-    this.applyCompletion(login, triggerStart);
+    this.applyCompletion(handle, triggerStart);
     this.mention = null;
 
     if (!viaTab) return;
 
-    const candidates = this.findMatchingMembers(originalPartial);
+    const candidates = this.findMatchingMentions(originalPartial);
     if (candidates.length > 1) {
-      const selectedIdx = candidates.indexOf(login);
+      const selectedIdx = candidates.indexOf(handle);
       this.tabCompletion = {
         candidates,
         index: selectedIdx >= 0 ? selectedIdx : 0,
@@ -90,15 +98,18 @@ export class AutocompleteState {
     if (!editorApi) return false;
 
     if (this.tabCompletion && this.tabCompletion.candidates.length > 1) {
-      const currentUsername = this.tabCompletion.candidates[this.tabCompletion.index];
-      const expectedCursorPos = this.tabCompletion.triggerStart + 1 + currentUsername.length + 1;
+      const currentHandle = this.tabCompletion.candidates[this.tabCompletion.index];
+      const expectedCursorPos = this.tabCompletion.triggerStart + 1 + currentHandle.length + 1;
       const currentPos = editorApi.getTextBeforeCursor().length;
 
       if (currentPos === expectedCursorPos) {
         event.preventDefault();
         const nextIndex = (this.tabCompletion.index + 1) % this.tabCompletion.candidates.length;
         this.tabCompletion = { ...this.tabCompletion, index: nextIndex };
-        this.applyCompletion(this.tabCompletion.candidates[nextIndex], this.tabCompletion.triggerStart);
+        this.applyCompletion(
+          this.tabCompletion.candidates[nextIndex],
+          this.tabCompletion.triggerStart
+        );
         return true;
       }
     }
@@ -108,7 +119,7 @@ export class AutocompleteState {
 
     event.preventDefault();
 
-    const candidates = this.findMatchingMembers(mentionInfo.partial);
+    const candidates = this.findMatchingMentions(mentionInfo.partial);
     if (candidates.length > 0) {
       this.tabCompletion = {
         candidates,
@@ -146,7 +157,7 @@ export class AutocompleteState {
     }
 
     const partial = this.getMentionPartialAtCursor();
-    if (partial && this.findMatchingMembers(partial.partial).length > 0) {
+    if (partial && this.findMatchingMentions(partial.partial).length > 0) {
       this.mention = {
         query: partial.partial,
         triggerStart: partial.start
@@ -156,8 +167,8 @@ export class AutocompleteState {
     }
   }
 
-  private findMatchingMembers(partial: string): string[] {
-    const scored: { login: string; score: number }[] = [];
+  private findMatchingMentions(partial: string): string[] {
+    const scored: { handle: string; score: number; priority: number }[] = [];
 
     for (const m of this.getMembers()) {
       const loginScore = fuzzyMatch(partial, m.login);
@@ -165,12 +176,29 @@ export class AutocompleteState {
       const bestScore = Math.max(loginScore ?? -1, displayScore ?? -1);
 
       if (bestScore > 0) {
-        scored.push({ login: m.login, score: bestScore });
+        scored.push({ handle: m.login, score: bestScore, priority: 0 });
       }
     }
 
-    scored.sort((a, b) => b.score - a.score);
-    return scored.map((s) => s.login);
+    for (const target of ['all', 'here']) {
+      const score = fuzzyMatch(partial, target);
+      if (score && score > 0) {
+        scored.push({ handle: target, score, priority: 1 });
+      }
+    }
+
+    for (const role of this.getRoles()) {
+      if (!role.pingable || role.name === 'everyone') continue;
+      const score = fuzzyMatch(partial, role.name);
+      if (score && score > 0) {
+        scored.push({ handle: role.name, score, priority: 2 });
+      }
+    }
+
+    scored.sort(
+      (a, b) => a.priority - b.priority || b.score - a.score || a.handle.localeCompare(b.handle)
+    );
+    return scored.map((s) => s.handle);
   }
 
   private getEmojiPartialAtCursor(): { query: string; start: number } | null {
@@ -201,12 +229,12 @@ export class AutocompleteState {
     };
   }
 
-  private applyCompletion(username: string, atPosition: number): void {
+  private applyCompletion(handle: string, atPosition: number): void {
     const editorApi = this.getEditorApi();
     if (!editorApi) return;
 
     const textBefore = editorApi.getTextBeforeCursor();
     const charsToReplace = textBefore.length - atPosition;
-    editorApi.replaceTextBeforeCursor(charsToReplace, '@' + username + ' ');
+    editorApi.replaceTextBeforeCursor(charsToReplace, '@' + handle + ' ');
   }
 }

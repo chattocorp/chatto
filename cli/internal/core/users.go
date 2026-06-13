@@ -28,7 +28,8 @@ import (
 // ============================================================================
 
 // CreateUser creates a new user.
-// Uses atomic login claim via kv.Create to prevent race conditions.
+// Uses the mentionables projection plus stream-wide OCC to prevent user/role
+// handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 // Note: actorID parameter is retained for future use (e.g., admin-created users) but is not currently used.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
@@ -60,6 +61,9 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
 	}
 	if isBlocked {
+		return nil, ErrUsernameBlocked
+	}
+	if c.loginConflictsWithMentionHandle(login) {
 		return nil, ErrUsernameBlocked
 	}
 
@@ -170,11 +174,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		})
 	}
 
-	_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-		if c.Users.LoginExists(login) {
-			return ErrLoginAlreadyTaken
-		}
-		return nil
+	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+		return c.requireLoginMentionHandleAvailable(login)
 	})
 	if err != nil {
 		return nil, err
@@ -764,6 +765,9 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 		if isBlocked {
 			return nil, ErrUsernameBlocked
 		}
+		if c.loginConflictsWithMentionHandle(newLogin) {
+			return nil, ErrUsernameBlocked
+		}
 	}
 
 	// Check cooldown (skipped on admin path)
@@ -802,12 +806,14 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 			Event:   cooldownStarted,
 		})
 	}
-	if _, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-		if !caseOnly && c.Users.LoginExists(newLogin) {
-			return ErrLoginAlreadyTaken
-		}
-		return nil
-	}); err != nil {
+	if !caseOnly {
+		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			return c.requireLoginMentionHandleAvailable(newLogin)
+		})
+	} else {
+		_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), nil)
+	}
+	if err != nil {
 		if errors.Is(err, ErrLoginAlreadyTaken) {
 			return nil, ErrLoginAlreadyTaken
 		}

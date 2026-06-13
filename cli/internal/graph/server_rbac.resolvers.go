@@ -107,7 +107,11 @@ func (r *mutationResolver) CreateRole(ctx context.Context, input model.CreateRol
 		return nil, core.ErrPermissionDenied
 	}
 
-	role, err := r.core.CreateServerRole(ctx, input.Name, input.DisplayName, input.Description)
+	pingable := false
+	if input.Pingable != nil {
+		pingable = *input.Pingable
+	}
+	role, err := r.core.CreateServerRole(ctx, input.Name, input.DisplayName, input.Description, pingable)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +134,12 @@ func (r *mutationResolver) UpdateRole(ctx context.Context, input model.UpdateRol
 		return nil, core.ErrPermissionDenied
 	}
 
-	role, err := r.core.UpdateServerRole(ctx, input.Name, input.DisplayName, input.Description)
+	var role *core.RoleWithPermissions
+	if input.Pingable != nil {
+		role, err = r.core.UpdateServerRole(ctx, input.Name, input.DisplayName, input.Description, *input.Pingable)
+	} else {
+		role, err = r.core.UpdateServerRole(ctx, input.Name, input.DisplayName, input.Description)
+	}
 	if err != nil {
 		return nil, err
 	}

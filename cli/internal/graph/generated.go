@@ -568,6 +568,7 @@ type ComplexityRoot struct {
 		Name              func(childComplexity int) int
 		PermissionDenials func(childComplexity int) int
 		Permissions       func(childComplexity int) int
+		Pingable          func(childComplexity int) int
 		Position          func(childComplexity int) int
 	}
 
@@ -3776,6 +3777,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Role.Permissions(childComplexity), true
+	case "Role.pingable":
+		if e.ComplexityRoot.Role.Pingable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Role.Pingable(childComplexity), true
 	case "Role.position":
 		if e.ComplexityRoot.Role.Position == nil {
 			break
@@ -6047,6 +6054,8 @@ func (ec *executionContext) childFields_Role(ctx context.Context, field graphql.
 		return ec.fieldContext_Role_isSystem(ctx, field)
 	case "position":
 		return ec.fieldContext_Role_position(ctx, field)
+	case "pingable":
+		return ec.fieldContext_Role_pingable(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
 }
@@ -18261,6 +18270,29 @@ func (ec *executionContext) fieldContext_Role_position(_ context.Context, field 
 	return graphql.NewScalarFieldContext("Role", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _Role_pingable(ctx context.Context, field graphql.CollectedField, obj *core.RoleWithPermissions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Role_pingable(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Pingable, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Role_pingable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Role", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _RolePermissionMatrix_roleName(ctx context.Context, field graphql.CollectedField, obj *model.RolePermissionMatrix) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -25886,7 +25918,7 @@ func (ec *executionContext) unmarshalInputCreateRoleInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "displayName", "description"}
+	fieldsInOrder := [...]string{"name", "displayName", "description", "pingable"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -25954,6 +25986,13 @@ func (ec *executionContext) unmarshalInputCreateRoleInput(ctx context.Context, o
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "pingable":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pingable"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pingable = data
 		}
 	}
 	return it, nil
@@ -27145,7 +27184,7 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "linkPreview"}
+	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "mentionConfirmationToken", "linkPreview"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -27216,6 +27255,13 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 				return it, err
 			}
 			it.AlsoSendToChannel = data
+		case "mentionConfirmationToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mentionConfirmationToken"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MentionConfirmationToken = data
 		case "linkPreview":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkPreview"))
 			data, err := ec.unmarshalOLinkPreviewInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLinkPreviewInput(ctx, v)
@@ -28075,7 +28121,7 @@ func (ec *executionContext) unmarshalInputUpdateRoleInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "displayName", "description"}
+	fieldsInOrder := [...]string{"name", "displayName", "description", "pingable"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -28143,6 +28189,13 @@ func (ec *executionContext) unmarshalInputUpdateRoleInput(ctx context.Context, o
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "pingable":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pingable"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pingable = data
 		}
 	}
 	return it, nil
@@ -34965,6 +35018,11 @@ func (ec *executionContext) _Role(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "position":
 			out.Values[i] = ec._Role_position(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "pingable":
+			out.Values[i] = ec._Role_pingable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

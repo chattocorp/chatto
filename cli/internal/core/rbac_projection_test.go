@@ -18,6 +18,7 @@ func TestRBACProjection_RoleMetadataAndReorder(t *testing.T) {
 			DisplayName: "Alpha",
 			Description: "First",
 			Rank:        10,
+			Pingable:    true,
 		},
 	}})
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacRoleCreated{
@@ -40,6 +41,12 @@ func TestRBACProjection_RoleMetadataAndReorder(t *testing.T) {
 			Description: "Renamed first",
 		},
 	}})
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacRolePingableChanged{
+		RbacRolePingableChanged: &corev1.RbacRolePingableChangedEvent{
+			RoleName: "alpha",
+			Pingable: false,
+		},
+	}})
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacRolesReordered{
 		RbacRolesReordered: &corev1.RbacRolesReorderedEvent{
 			RoleNames: []string{"beta", "alpha"},
@@ -58,6 +65,9 @@ func TestRBACProjection_RoleMetadataAndReorder(t *testing.T) {
 	}
 	if alpha.GetPosition() != PositionCustomFirst+1 {
 		t.Fatalf("alpha position = %d, want %d", alpha.GetPosition(), PositionCustomFirst+1)
+	}
+	if alpha.GetPingable() {
+		t.Fatal("alpha pingable = true, want false")
 	}
 
 	beta, ok := p.GetRole("beta")

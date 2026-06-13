@@ -15,6 +15,7 @@
   import {
     getRoomPermissions,
     getRoomMembers,
+    getMentionRoles,
     getComposerContext,
     type MessagesStore,
     type RoomMember
@@ -75,6 +76,11 @@
   const isTouch = isTouchDevice();
   // Wrap in $derived to ensure reactivity when the member list changes
   const members = $derived(getRoomMembers());
+  const mentionRoleHandles = $derived(
+    getMentionRoles()
+      .filter((role) => role.pingable && role.name !== 'everyone')
+      .map((role) => role.name)
+  );
   // Actor may be null if the user has been deleted.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ? useFragment(UserAvatarFragment, event.actor) : null);
@@ -672,6 +678,7 @@
             <MessageContent
               body={msg.body}
               {members}
+              roleHandles={mentionRoleHandles}
               edited={isEdited}
               onMentionClick={showPopoverForMember}
             />

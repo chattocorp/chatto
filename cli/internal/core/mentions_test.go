@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -236,6 +237,203 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	})
 }
 
+func TestChattoCore_ResolveRoomMentions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, err := core.CreateUser(ctx, "system", "owneruser", "Owner User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	alice, err := core.CreateUser(ctx, "system", "alice-room", "Alice", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := core.CreateUser(ctx, "system", "bob-room", "Bob", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	carol, err := core.CreateUser(ctx, "system", "carol-room", "Carol", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser carol: %v", err)
+	}
+	outsider, err := core.CreateUser(ctx, "system", "outsider-room", "Outsider", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	roleUser, err := core.CreateUser(ctx, "system", "role-user", "Role User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser role user: %v", err)
+	}
+	adminUser, err := core.CreateUser(ctx, "system", "admin-user", "Admin User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin user: %v", err)
+	}
+	moderatorUser, err := core.CreateUser(ctx, "system", "moderator-user", "Moderator User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser moderator user: %v", err)
+	}
+
+	room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "mentions-room", "Mentions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{owner.Id, alice.Id, bob.Id, carol.Id, roleUser.Id, adminUser.Id, moderatorUser.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+
+	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole owner: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole adminUser: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, moderatorUser.Id, RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole moderatorUser: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, "support", "Support", "Support team", true); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, "quiet", "Quiet", "Quiet team"); err != nil {
+		t.Fatalf("CreateServerRole quiet: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, roleUser.Id, "support"); err != nil {
+		t.Fatalf("AssignServerRole roleUser: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, outsider.Id, "support"); err != nil {
+		t.Fatalf("AssignServerRole outsider: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, roleUser.Id, "quiet"); err != nil {
+		t.Fatalf("AssignServerRole quiet roleUser: %v", err)
+	}
+	if err := core.SetPresence(ctx, alice.Id, PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence alice: %v", err)
+	}
+	if err := core.SetPresence(ctx, bob.Id, PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence bob: %v", err)
+	}
+
+	t.Run("direct users must be room members", func(t *testing.T) {
+		got, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"alice-room", "outsider-room"})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions: %v", err)
+		}
+		if len(got) != 1 || got[0] != alice.Id {
+			t.Fatalf("ResolveRoomMentions direct users = %v, want [%s]", got, alice.Id)
+		}
+	})
+
+	t.Run("role mentions intersect role users with room members", func(t *testing.T) {
+		got, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"support"})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions role: %v", err)
+		}
+		requireUserIDs(t, got, roleUser.Id)
+	})
+
+	t.Run("non-pingable role mentions are ignored", func(t *testing.T) {
+		got, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"quiet"})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions quiet role: %v", err)
+		}
+		requireUserIDs(t, got)
+	})
+
+	t.Run("system role mentions require explicit pingability and assignment", func(t *testing.T) {
+		ownerMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleOwner})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions owner: %v", err)
+		}
+		requireUserIDs(t, ownerMention)
+
+		adminMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleAdmin})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions admin: %v", err)
+		}
+		requireUserIDs(t, adminMention)
+
+		moderatorMention, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{RoleModerator})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions moderator: %v", err)
+		}
+		requireUserIDs(t, moderatorMention, moderatorUser.Id)
+	})
+
+	t.Run("all and here expand from room membership and presence", func(t *testing.T) {
+		all, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"all"})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions all: %v", err)
+		}
+		requireUserIDs(t, all, owner.Id, alice.Id, bob.Id, carol.Id, roleUser.Id, adminUser.Id, moderatorUser.Id)
+
+		here, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"here"})
+		if err != nil {
+			t.Fatalf("ResolveRoomMentions here: %v", err)
+		}
+		requireUserIDs(t, here, alice.Id, bob.Id)
+	})
+}
+
+func requireUserIDs(t *testing.T, got []string, want ...string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("got user IDs %v, want %v", got, want)
+	}
+
+	seen := make(map[string]struct{}, len(got))
+	for _, userID := range got {
+		seen[userID] = struct{}{}
+	}
+	for _, userID := range want {
+		if _, ok := seen[userID]; !ok {
+			t.Fatalf("got user IDs %v, want %v", got, want)
+		}
+	}
+}
+
+func TestChattoCore_LargeMentionConfirmation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, "system", "large-author", "Large Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "large-mentions", "Large Mentions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	for i := 0; i < LargeMentionNotificationThreshold+1; i++ {
+		user, err := core.CreateUser(ctx, "system", "large-target-"+string(rune('a'+i)), "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target %d: %v", i, err)
+		}
+		if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom target %d: %v", i, err)
+		}
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all important", nil, "", "", nil, false); err == nil {
+		t.Fatal("PostMessage succeeded without confirmation, want confirmation error")
+	} else {
+		var confirmErr *MentionConfirmationRequiredError
+		if !errors.As(err, &confirmErr) {
+			t.Fatalf("PostMessage err = %v, want MentionConfirmationRequiredError", err)
+		}
+		if confirmErr.RecipientCount != LargeMentionNotificationThreshold+1 {
+			t.Fatalf("RecipientCount = %d, want %d", confirmErr.RecipientCount, LargeMentionNotificationThreshold+1)
+		}
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all confirmed", nil, "", "", nil, false, WithLargeMentionConfirmed()); err != nil {
+		t.Fatalf("PostMessage with confirmation: %v", err)
+	}
+}
+
 func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -254,6 +452,9 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	if _, err := core.JoinRoom(ctx, mentioner.Id, KindChannel, mentioner.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom mentioner: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom mentioned: %v", err)
 	}
 
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, mentioner.Id, "hello @mentioneduser", nil, "", "", nil, false); err != nil {

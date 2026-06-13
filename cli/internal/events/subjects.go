@@ -139,6 +139,7 @@ const (
 	EventRBACRoleCreated            = "role_created"
 	EventRBACRoleDisplayNameChanged = "role_display_name_changed"
 	EventRBACRoleDescriptionChanged = "role_description_changed"
+	EventRBACRolePingableChanged    = "role_pingable_changed"
 	EventRBACRoleDeleted            = "role_deleted"
 	EventRBACRolesReordered         = "roles_reordered"
 	EventRBACRoleAssigned           = "role_assigned"
@@ -307,6 +308,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACRoleDisplayNameChanged
 	case *corev1.Event_RbacRoleDescriptionChanged:
 		return EventRBACRoleDescriptionChanged
+	case *corev1.Event_RbacRolePingableChanged:
+		return EventRBACRolePingableChanged
 	case *corev1.Event_RbacRoleDeleted:
 		return EventRBACRoleDeleted
 	case *corev1.Event_RbacRolesReordered:
@@ -460,6 +463,13 @@ func RBACScopedAggregate(scopeID string) Aggregate {
 func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
+
+// EventSubjectFilter returns the wildcard filter matching every event in the
+// EVT stream. Use sparingly: most invariants should OCC against a narrower
+// aggregate namespace, but cross-aggregate invariants may need the stream-wide
+// boundary.
+// Pattern: evt.>
+func EventSubjectFilter() string { return SubjectRoot + ">" }
 
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.

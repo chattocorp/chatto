@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"hmans.de/chatto/internal/config"
@@ -707,6 +708,82 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 			t.Error("Expected error for system role name")
 		}
 	})
+
+	t.Run("rejects virtual mention handles", func(t *testing.T) {
+		for _, name := range []string{"all", "here"} {
+			_, err := core.CreateServerRole(ctx, name, name, "Should fail")
+			if !errors.Is(err, ErrRoleAlreadyExists) {
+				t.Errorf("CreateServerRole(%q) error = %v, want ErrRoleAlreadyExists", name, err)
+			}
+		}
+	})
+
+	t.Run("rejects existing user logins", func(t *testing.T) {
+		if _, err := core.CreateUser(ctx, SystemActorID, "role-collision-user", "Role Collision", "password123"); err != nil {
+			t.Fatalf("CreateUser role-collision-user: %v", err)
+		}
+		_, err := core.CreateServerRole(ctx, "role-collision-user", "Role Collision", "Should fail")
+		if !errors.Is(err, ErrRoleAlreadyExists) {
+			t.Errorf("CreateServerRole existing login error = %v, want ErrRoleAlreadyExists", err)
+		}
+	})
+}
+
+func TestChattoCore_MentionablesServiceSerializesUserAndRoleCreation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	const handle = "raceclaim"
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var userErr error
+	var roleErr error
+	go func() {
+		defer wg.Done()
+		_, userErr = core.CreateUser(ctx, SystemActorID, handle, "Race Claim", "password123")
+	}()
+	go func() {
+		defer wg.Done()
+		_, roleErr = core.CreateServerRole(ctx, handle, "Race Claim", "")
+	}()
+	wg.Wait()
+
+	if (userErr == nil) == (roleErr == nil) {
+		t.Fatalf("CreateUser err = %v, CreateServerRole err = %v; want exactly one success", userErr, roleErr)
+	}
+
+	if userErr == nil {
+		if !errors.Is(roleErr, ErrRoleAlreadyExists) {
+			t.Fatalf("role err = %v, want ErrRoleAlreadyExists", roleErr)
+		}
+		if _, err := core.CreateServerRole(ctx, handle, "Race Claim", ""); !errors.Is(err, ErrRoleAlreadyExists) {
+			t.Fatalf("CreateServerRole after user claim err = %v, want ErrRoleAlreadyExists", err)
+		}
+		return
+	}
+
+	if !errors.Is(userErr, ErrUsernameBlocked) && !errors.Is(userErr, ErrLoginAlreadyTaken) {
+		t.Fatalf("user err = %v, want ErrUsernameBlocked or ErrLoginAlreadyTaken", userErr)
+	}
+	if _, err := core.CreateUser(ctx, SystemActorID, handle, "Race Claim", "password123"); !errors.Is(err, ErrUsernameBlocked) {
+		t.Fatalf("CreateUser after role claim err = %v, want ErrUsernameBlocked", err)
+	}
+}
+
+func TestChattoCore_DeleteServerRoleReleasesMentionHandle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if _, err := core.CreateServerRole(ctx, "released-role", "Released", ""); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if err := core.DeleteServerRole(ctx, "released-role"); err != nil {
+		t.Fatalf("DeleteServerRole: %v", err)
+	}
+	if _, err := core.CreateUser(ctx, SystemActorID, "released-role", "Released", "password123"); err != nil {
+		t.Fatalf("CreateUser after role deletion: %v", err)
+	}
 }
 
 // ============================================================================

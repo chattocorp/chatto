@@ -216,6 +216,8 @@ type CreateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Defaults to false.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for creating a new room group.
@@ -686,6 +688,8 @@ type PostMessageInput struct {
 	InReplyTo *string `json:"inReplyTo,omitempty"`
 	// Also echo this thread reply to the main channel for visibility (requires message.echo permission).
 	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
+	// Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts.
+	MentionConfirmationToken *string `json:"mentionConfirmationToken,omitempty"`
 	// Link preview data from the composer. Server stores this directly without fetching.
 	LinkPreview *LinkPreviewInput `json:"linkPreview,omitempty"`
 }
@@ -1258,6 +1262,8 @@ type UpdateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Omit to leave unchanged.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for updating an existing room group.

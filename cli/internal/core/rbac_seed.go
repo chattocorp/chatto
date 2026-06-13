@@ -51,24 +51,28 @@ func defaultRBACRoles() map[string]*corev1.Role {
 			DisplayName: "Owner",
 			Description: "Full server control",
 			Position:    PositionOwner,
+			Pingable:    false,
 		},
 		RoleAdmin: {
 			Name:        RoleAdmin,
 			DisplayName: "Admin",
 			Description: "Full administrative access to the server",
 			Position:    PositionAdmin,
+			Pingable:    false,
 		},
 		RoleModerator: {
 			Name:        RoleModerator,
 			Description: "View access to admin panels without management permissions",
 			DisplayName: "Moderator",
 			Position:    PositionModerator,
+			Pingable:    true,
 		},
 		RoleEveryone: {
 			Name:        RoleEveryone,
 			DisplayName: "Everyone",
 			Description: "All authenticated users",
 			Position:    PositionEveryone,
+			Pingable:    false,
 		},
 	}
 }
@@ -117,6 +121,7 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 				DisplayName: role.GetDisplayName(),
 				Description: role.GetDescription(),
 				Rank:        role.GetPosition(),
+				Pingable:    role.GetPingable(),
 			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

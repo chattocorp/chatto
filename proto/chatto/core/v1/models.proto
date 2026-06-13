@@ -151,6 +151,7 @@ message Role {
   string display_name = 2; // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
   string description = 3;
   int32 position = 4; // Hierarchy position: lower = higher rank. Owner=0, Everyone=MAX_INT32
+  bool pingable = 5; // Whether messages can ping users assigned to this role.
 }
 
 // UserPresenceStatus indicates a user's online presence status.

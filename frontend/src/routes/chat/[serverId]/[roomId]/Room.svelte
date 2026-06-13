@@ -6,11 +6,25 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
+  import { graphql } from '$lib/gql';
   import VoiceCallButton from '$lib/components/voice/VoiceCallButton.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
-  import { useRoomData, useRoomMembersSync, useRoomUnread, useEvent, createTypingIndicator } from '$lib/hooks';
+  import {
+    useRoomData,
+    useRoomMembersSync,
+    useRoomUnread,
+    useEvent,
+    createTypingIndicator
+  } from '$lib/hooks';
   import { appState, sidebarNav } from '$lib/state/globals.svelte';
-  import { createComposerContext, getRoomMembers, createRoomPermissions, DEFAULT_ROOM_PERMISSIONS } from '$lib/state/room';
+  import {
+    createComposerContext,
+    createMentionRoles,
+    getRoomMembers,
+    createRoomPermissions,
+    DEFAULT_ROOM_PERMISSIONS
+  } from '$lib/state/room';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
@@ -26,6 +40,7 @@
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
+  const connection = useConnection();
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -36,7 +51,13 @@
 
   function openThread(threadRootEventId: string, highlightEventId?: string) {
     pendingThreadHighlight = highlightEventId ?? null;
-    goto(resolve('/chat/[serverId]/[roomId]/[threadId]', { serverId: serverSegment, roomId, threadId: threadRootEventId }));
+    goto(
+      resolve('/chat/[serverId]/[roomId]/[threadId]', {
+        serverId: serverSegment,
+        roomId,
+        threadId: threadRootEventId
+      })
+    );
   }
 
   function closeThread() {
@@ -45,12 +66,55 @@
 
   // Create context-based state (must be synchronous, before children render)
   const composerContext = createComposerContext({ scroll: true });
+  const mentionRoles = createMentionRoles();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
+
+  const RoomMentionRolesQuery = graphql(`
+    query RoomMentionRoles {
+      server {
+        roles {
+          name
+          isSystem
+          position
+          pingable
+        }
+      }
+    }
+  `);
+
+  $effect(() => {
+    const client = connection().client;
+    let cancelled = false;
+
+    async function loadMentionRoles() {
+      const response = await client.query(RoomMentionRolesQuery, {});
+      if (cancelled) return;
+      if (response.error) {
+        mentionRoles.clear();
+        return;
+      }
+      mentionRoles.setRoles(
+        response.data?.server?.roles
+          .filter((role) => role.name !== 'everyone')
+          .map((role) => ({
+            name: role.name,
+            isSystem: role.isSystem,
+            position: role.position,
+            pingable: role.pingable
+          })) ?? []
+      );
+    }
+
+    void loadMentionRoles();
+    return () => {
+      cancelled = true;
+    };
+  });
 
   const roomMembers = useRoomMembersSync(() => ({
     roomId,

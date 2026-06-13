@@ -16,6 +16,7 @@
   let name = $state('');
   let displayName = $state('');
   let description = $state('');
+  let pingable = $state(false);
   let creating = $state(false);
   let error = $state<string | null>(null);
   let canManageRoles = $state(false);
@@ -60,6 +61,7 @@
             name
             displayName
             description
+            pingable
           }
         }
       `),
@@ -67,7 +69,8 @@
         input: {
           name: name.trim(),
           displayName: displayName.trim(),
-          description: description.trim()
+          description: description.trim(),
+          pingable
         }
       }
     );
@@ -79,9 +82,13 @@
     }
 
     // Navigate to the new role's detail page
-    goto(resolve('/chat/[serverId]/server-admin/permissions/[name]', { serverId: serverIdToSegment(getActiveServer()), name: name.trim() }));
+    goto(
+      resolve('/chat/[serverId]/server-admin/permissions/[name]', {
+        serverId: serverIdToSegment(getActiveServer()),
+        name: name.trim()
+      })
+    );
   }
-
 </script>
 
 <PageTitle title="Create Role | Space Admin" />
@@ -90,7 +97,9 @@
   <PaneHeader
     title="Create Role"
     subtitle="Create a new role for this space"
-    backHref={resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverIdToSegment(getActiveServer()) })}
+    backHref={resolve('/chat/[serverId]/server-admin/permissions', {
+      serverId: serverIdToSegment(getActiveServer())
+    })}
     backLabel="Back to permissions"
     showMobileNav
   />
@@ -113,6 +122,7 @@
           bind:name
           bind:displayName
           bind:description
+          bind:pingable
           saving={creating}
           submitLabel="Create Role"
           savingLabel="Creating..."

@@ -44,6 +44,7 @@ type ChattoCore struct {
 	roomService        *RoomService
 	userService        *UserService
 	rbacService        *RBACService
+	mentionables       *MentionablesService
 	presenceService    *PresenceService
 	mediaService       *MediaService
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
@@ -180,6 +181,14 @@ type ChattoCore struct {
 	// RBACProjector runs the consumer for RBAC. Exposed for WaitFor
 	// from role and permission writers.
 	RBACProjector *events.Projector
+
+	// Mentionables owns the global @handle namespace derived from user and
+	// RBAC facts.
+	Mentionables *MentionablesProjection
+
+	// MentionablesProjector runs the consumer for Mentionables. Exposed for
+	// WaitFor from handle-changing user and role writers.
+	MentionablesProjector *events.Projector
 
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus
@@ -748,6 +757,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	rbac := NewRBACProjection()
 	rbacProjector := newProjector(rbac, "RBAC", rbac.adminProjectionEstimate)
 
+	mentionables := NewMentionablesProjection(encMgr.keyWrapper, encMgr.contentKeys)
+	mentionablesProjector := newProjector(mentionables, "Mentionables", mentionables.adminProjectionEstimate)
+
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
 	roomMgr := newRoomService(
@@ -764,6 +776,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	)
 	userMgr := newUserService(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
 	rbacMgr := newRBACService(rbac, rbacProjector)
+	mentionablesMgr := newMentionablesService(mentionables, mentionablesProjector)
 
 	core := &ChattoCore{
 		nc:                       nc,
@@ -776,6 +789,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		roomService:              roomMgr,
 		userService:              userMgr,
 		rbacService:              rbacMgr,
+		mentionables:             mentionablesMgr,
 		s3Client:                 s3Client,
 		EventPublisher:           eventPublisher,
 		RoomDirectory:            roomDirectory,
@@ -801,6 +815,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ContentKeysProjector:     contentKeysProjector,
 		RBAC:                     rbac,
 		RBACProjector:            rbacProjector,
+		Mentionables:             mentionables,
+		MentionablesProjector:    mentionablesProjector,
 		projections:              projections,
 		bootDone:                 make(chan struct{}),
 	}

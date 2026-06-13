@@ -5,8 +5,8 @@ import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
 import { PresenceStatus } from '$lib/gql/graphql';
 
-function renderMessage(body: string, members: RoomMember[] = []) {
-  return render(MessageContent, { props: { body, members } });
+function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
+  return render(MessageContent, { props: { body, members, roleHandles } });
 }
 
 function member(login: string): RoomMember {
@@ -299,6 +299,14 @@ describe('MessageContent component', () => {
       // Wait for markdown to render so we know the prose pass completed
       await expect.poll(() => q(container, '.prose')).toBeTruthy();
       expect(q(container, 'span.mention')).toBeNull();
+    });
+
+    it('wraps a known role mention when role handles include the name', async () => {
+      const { container } = renderMessage('Hello @admin!', [], ['admin']);
+      await expect.poll(() => q(container, 'span.mention-role')).toBeTruthy();
+      const span = q(container, 'span.mention-role')!;
+      expect(span.textContent).toBe('@admin');
+      expect(span.getAttribute('data-role-name')).toBe('admin');
     });
   });
 });

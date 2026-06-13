@@ -170,10 +170,10 @@ func TestCanDeleteUser(t *testing.T) {
 
 	t.Run("self-deletion denied when user.delete.self permission is revoked", func(t *testing.T) {
 		// Create a custom role that denies self-deletion
-		if _, err := core.CreateServerRole(ctx, "noselfdelete", "No Self Delete", ""); err != nil {
+		if _, err := core.CreateServerRole(ctx, "selfdelete-denied", "No Self Delete", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := core.DenyServerPermission(ctx, "noselfdelete", PermUserDeleteSelf); err != nil {
+		if err := core.DenyServerPermission(ctx, "selfdelete-denied", PermUserDeleteSelf); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
 
@@ -182,7 +182,7 @@ func TestCanDeleteUser(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		if err := core.AssignServerRole(ctx, SystemActorID, blockedUser.Id, "noselfdelete"); err != nil {
+		if err := core.AssignServerRole(ctx, SystemActorID, blockedUser.Id, "selfdelete-denied"); err != nil {
 			t.Fatalf("failed to assign role: %v", err)
 		}
 

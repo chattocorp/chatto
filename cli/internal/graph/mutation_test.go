@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -107,6 +108,79 @@ func TestCreateRoom_Authorization(t *testing.T) {
 			t.Fatal("expected room, got nil")
 		}
 	})
+}
+
+func TestPostMessage_LargeMentionConfirmationUsesScopedToken(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	for i := 0; i < core.LargeMentionNotificationThreshold+1; i++ {
+		user, err := env.core.CreateUser(env.ctx, "system", "large-mention-target-"+string(rune('a'+i)), "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target %d: %v", i, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom target %d: %v", i, err)
+		}
+		if err := env.core.SetPresence(env.ctx, user.Id, core.PresenceStatusOnline); err != nil {
+			t.Fatalf("SetPresence target %d: %v", i, err)
+		}
+	}
+
+	_, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Body:   ptr("@here token"),
+	})
+	if err == nil {
+		t.Fatal("PostMessage without confirmation succeeded, want confirmation error")
+	}
+	var gqlErr *gqlerror.Error
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("PostMessage confirmation err = %T %v, want gqlerror.Error", err, err)
+	}
+	if gqlErr.Extensions["code"] != "MENTION_CONFIRMATION_REQUIRED" {
+		t.Fatalf("confirmation error code = %v", gqlErr.Extensions["code"])
+	}
+	if gqlErr.Extensions["recipientCount"] != core.LargeMentionNotificationThreshold+1 {
+		t.Fatalf("recipientCount = %v, want %d", gqlErr.Extensions["recipientCount"], core.LargeMentionNotificationThreshold+1)
+	}
+	token, ok := gqlErr.Extensions["mentionConfirmationToken"].(string)
+	if !ok || token == "" {
+		t.Fatalf("mentionConfirmationToken = %v, want non-empty string", gqlErr.Extensions["mentionConfirmationToken"])
+	}
+
+	_, err = mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:                   env.testRoom.Id,
+		Body:                     ptr("@here changed"),
+		MentionConfirmationToken: &token,
+	})
+	if err == nil {
+		t.Fatal("PostMessage with mismatched token scope succeeded, want confirmation error")
+	}
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("PostMessage mismatched token err = %T %v, want gqlerror.Error", err, err)
+	}
+	if gqlErr.Extensions["code"] != "MENTION_CONFIRMATION_REQUIRED" {
+		t.Fatalf("mismatched token error code = %v", gqlErr.Extensions["code"])
+	}
+
+	driftUser, err := env.core.CreateUser(env.ctx, "system", "large-mention-drift", "Drift", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser drift: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, driftUser.Id, core.KindChannel, driftUser.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("JoinRoom drift: %v", err)
+	}
+	if err := env.core.SetPresence(env.ctx, driftUser.Id, core.PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence drift: %v", err)
+	}
+	if _, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:                   env.testRoom.Id,
+		Body:                     ptr("@here token"),
+		MentionConfirmationToken: &token,
+	}); err != nil {
+		t.Fatalf("PostMessage with valid token after recipient drift: %v", err)
+	}
 }
 
 // ============================================================================

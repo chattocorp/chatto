@@ -172,6 +172,7 @@ message Event {
     RbacPermissionGrantedEvent rbac_permission_granted = 810;
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
+    RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
 
     // ----- Moderation (840-899, durable, room-owned) -----
     RoomMemberBannedEvent room_member_banned = 840;

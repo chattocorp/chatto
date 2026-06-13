@@ -833,6 +833,40 @@ func TestChattoCore_CreateUser_BlockedUsername(t *testing.T) {
 	})
 }
 
+func TestChattoCore_CreateUser_MentionNamespaceReserved(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if _, err := core.CreateServerRole(ctx, "helpdesk", "Helpdesk", ""); err != nil {
+		t.Fatalf("CreateServerRole helpdesk: %v", err)
+	}
+
+	for _, login := range []string{"all", "here", "helpdesk", "HELPDESK"} {
+		t.Run(login, func(t *testing.T) {
+			_, err := core.CreateUser(ctx, "system", login, login, "password123")
+			if !errors.Is(err, ErrUsernameBlocked) {
+				t.Fatalf("CreateUser(%q) error = %v, want ErrUsernameBlocked", login, err)
+			}
+		})
+	}
+}
+
+func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "oldhandle", "Old Handle", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.UpdateUserLogin(ctx, user.Id, "newhandle"); err != nil {
+		t.Fatalf("UpdateUserLogin: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, "oldhandle", "Old Handle", ""); err != nil {
+		t.Fatalf("CreateServerRole with released login: %v", err)
+	}
+}
+
 func TestChattoCore_UpdateUserLogin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
