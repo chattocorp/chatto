@@ -24,6 +24,7 @@ plan; do not assume data can be discarded.
 ## Code Style & Approach
 
 - **Prefer the simplest possible approach first.** Do not over-engineer solutions. If a fix can be done in 2-3 lines, do not create abstractions, wrappers, or complex architectures. Wait for user feedback before adding complexity.
+- **Never log PII.** Runtime logs, request logs, debug logs, and test-only helper logs must not include raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subject identifiers, tokens, passwords, auth codes, reset links, raw IP addresses, or full query strings. Prefer opaque Chatto IDs, counts, booleans, event names, and already-safe hashes from audit-specific code.
 - **When fixing bugs involving caches or state, prefer minimal, targeted invalidation** over clearing entire caches. Avoid full-page reload flashes or broad cache wipes. Only invalidate the specific stale data.
 - **Functions that depend on "which server" should require an explicit server ID parameter.** Don't default to a global "current server" — it creates coupling and timing bugs. Navigation helpers, storage functions, and state lookups all take `serverId` as the first parameter.
 

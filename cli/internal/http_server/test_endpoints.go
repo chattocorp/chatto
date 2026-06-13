@@ -282,7 +282,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 					log.Warn("Failed to auto-verify OAuth email", "error", err, "userId", newUser.Id)
 					// Don't fail - continue with login
 				} else {
-					log.Info("Auto-verified OAuth email", "userId", newUser.Id, "email", req.Email)
+					log.Info("Auto-verified OAuth email", "userId", newUser.Id)
 				}
 			}
 

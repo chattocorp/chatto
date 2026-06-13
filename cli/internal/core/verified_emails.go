@@ -242,10 +242,10 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	if c.config.Owners.IsServerOwnerEmail(email) {
 		if err := c.AssignServerRole(ctx, SystemActorID, userID, RoleOwner); err != nil {
 			c.logger.Warn("Failed to auto-assign owner role on email verification",
-				"user_id", userID, "email", email, "error", err)
+				"user_id", userID, "error", err)
 		} else {
 			c.logger.Info("Auto-promoted user to owner via owners.emails match",
-				"user_id", userID, "email", email)
+				"user_id", userID)
 		}
 	}
 
@@ -319,7 +319,7 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 				return fmt.Errorf("assign owner role to %s: %w", userID, err)
 			}
 			promoted++
-			c.logger.Info("Applied owners.emails owner role", "user_id", userID, "email", ve.Email)
+			c.logger.Info("Applied owners.emails owner role", "user_id", userID)
 			break
 		}
 	}

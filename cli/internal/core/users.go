@@ -201,7 +201,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
 
-	c.logger.Info("Created user", "id", userID, "login", login)
+	c.logger.Info("Created user", "id", userID)
 
 	return user, nil
 }
@@ -237,7 +237,7 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 // rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —
 // failures are logged but not returned, since the caller is already in an error path.
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
-	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
+	c.logger.Warn("rolling back user creation", "user_id", user.Id)
 	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
 }
 
@@ -685,7 +685,7 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 	}
 	user.DisplayName = displayName
 
-	c.logger.Info("Updated user display name", "id", userID, "displayName", displayName)
+	c.logger.Info("Updated user display name", "id", userID)
 
 	// Publish profile update event
 	c.publishUserProfileUpdate(ctx, userID)
@@ -702,7 +702,7 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Info("Admin updated user display name", "id", userID, "display_name", displayName)
+	c.logger.Info("Admin updated user display name", "id", userID)
 	return user, nil
 }
 
@@ -730,7 +730,7 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Info("Admin updated user login", "id", userID, "new_login", newLogin)
+	c.logger.Info("Admin updated user login", "id", userID)
 	return user, nil
 }
 
@@ -815,7 +815,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 	}
 	user.Login = newLogin
 
-	c.logger.Info("Updated user login", "id", userID, "new_login", newLogin)
+	c.logger.Info("Updated user login", "id", userID)
 
 	// Publish profile update event
 	c.publishUserProfileUpdate(ctx, userID)
@@ -938,9 +938,7 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 // This performs GDPR-compliant deletion including removal of message bodies.
 // Authorization: Caller must verify CanDeleteUser(actorID, userID) before calling.
 func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) error {
-	// Get the user first to get their login for index cleanup
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
+	if _, err := c.GetUser(ctx, userID); err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
 
@@ -1028,7 +1026,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "error", err)
 	}
 
-	c.logger.Info("Deleted user account", "id", userID, "login", user.Login)
+	c.logger.Info("Deleted user account", "id", userID)
 
 	return nil
 }

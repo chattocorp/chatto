@@ -171,7 +171,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 		// Check for error from provider
 		if errCode := c.Query("error"); errCode != "" {
-			log.Warn("OIDC provider returned error", "error", errCode, "description", c.Query("error_description"))
+			log.Warn("OIDC provider returned error", "error", errCode)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_denied")
 			return
 		}
@@ -217,12 +217,12 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			return
 		}
 
-		log.Info("OIDC token verified", "sub", idToken.Subject, "issuer", idToken.Issuer)
+		log.Info("OIDC token verified", "issuer", idToken.Issuer)
 
 		// Some providers (e.g. Zitadel) don't include email in the ID token.
 		// Fall back to the userinfo endpoint.
 		if claims.Email == "" {
-			log.Info("OIDC ID token missing email, falling back to userinfo", "sub", idToken.Subject)
+			log.Info("OIDC ID token missing email, falling back to userinfo")
 			userInfo, err := op.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 			if err != nil {
 				log.Error("Failed to fetch OIDC userinfo", "error", err)
@@ -256,15 +256,15 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		}
 
 		if user != nil {
-			log.Info("OIDC login matched by subject", "sub", subject, "userId", user.Id)
+			log.Info("OIDC login matched by subject", "userId", user.Id)
 		} else {
 			// 2. No subject link — try to find existing user by verified email
 			user, _ = s.core.GetUserByVerifiedEmail(ctx, claims.Email)
 
 			if user != nil {
-				log.Info("OIDC login matched by email, linking subject", "sub", subject, "userId", user.Id)
+				log.Info("OIDC login matched by email, linking subject", "userId", user.Id)
 			} else {
-				log.Info("OIDC login creating new user", "sub", subject)
+				log.Info("OIDC login creating new user")
 				// 3. No existing user — create a new one
 				login := deriveLoginFromEmail(claims.Email)
 				displayName := claims.Name
@@ -288,9 +288,9 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 			// Link the OIDC subject to this user for future logins
 			if err := s.core.LinkOIDCSubject(ctx, issuer, subject, user.Id); err != nil {
-				log.Error("Failed to link OIDC subject", "error", err, "userId", user.Id, "subject", subject)
+				log.Error("Failed to link OIDC subject", "error", err, "userId", user.Id)
 			} else {
-				log.Info("Linked OIDC subject to user", "userId", user.Id, "subject", subject)
+				log.Info("Linked OIDC subject to user", "userId", user.Id)
 			}
 		}
 

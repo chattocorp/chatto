@@ -45,7 +45,18 @@ func TestRequestLoggerUsesConfiguredFormatter(t *testing.T) {
 	assertLogField(t, line, "msg", "HTTP request")
 	assertLogField(t, line, "method", http.MethodGet)
 	assertLogField(t, line, "path", "/missing")
-	assertLogField(t, line, "query", "asset=avatar")
+	if got := line["query_present"]; got != true {
+		t.Fatalf("query_present field = %v, want true", got)
+	}
+	if _, ok := line["query"]; ok {
+		t.Fatalf("request log should not include raw query string: %v", line["query"])
+	}
+	if got := line["client_ip_present"]; got != true {
+		t.Fatalf("client_ip_present field = %v, want true", got)
+	}
+	if _, ok := line["client_ip"]; ok {
+		t.Fatalf("request log should not include raw client IP: %v", line["client_ip"])
+	}
 	assertLogField(t, line, "user_agent", "chatto-test")
 
 	if got := line["status"]; got != float64(http.StatusNotFound) {

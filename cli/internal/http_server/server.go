@@ -106,7 +106,7 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		query := c.Request.URL.RawQuery
+		hasQuery := c.Request.URL.RawQuery != ""
 
 		c.Next()
 
@@ -116,15 +116,15 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 			"method", c.Request.Method,
 			"path", path,
 			"latency", time.Since(start).String(),
-			"client_ip", c.ClientIP(),
+			"client_ip_present", c.ClientIP() != "",
 			"user_agent", c.Request.UserAgent(),
 			"bytes", c.Writer.Size(),
 		}
-		if query != "" {
-			fields = append(fields, "query", query)
+		if hasQuery {
+			fields = append(fields, "query_present", true)
 		}
 		if len(c.Errors) > 0 {
-			fields = append(fields, "errors", c.Errors.ByType(gin.ErrorTypePrivate).String())
+			fields = append(fields, "error_count", len(c.Errors.ByType(gin.ErrorTypePrivate)))
 		}
 
 		switch {

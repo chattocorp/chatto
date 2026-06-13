@@ -144,7 +144,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
 				log.Warn("Failed to append failed-login audit event", "error", auditErr)
 			}
-			log.Error("Login failed", "login", login, "error", err)
+			log.Error("Login failed", "error", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
@@ -155,7 +155,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
 					log.Warn("Failed to append stale-login audit event", "error", auditErr)
 				}
-				log.Warn("Login became stale before session creation", "login", login, "userId", user.Id)
+				log.Warn("Login became stale before session creation", "userId", user.Id)
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 				return
 			}
@@ -183,7 +183,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
 					log.Warn("Failed to append stale-login audit event", "error", auditErr)
 				}
-				log.Warn("Login became stale before bearer token creation", "login", login, "userId", user.Id)
+				log.Warn("Login became stale before bearer token creation", "userId", user.Id)
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 				return
 			}
@@ -204,7 +204,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		log.Info("User logged in successfully", "userId", user.Id, "login", user.Login)
+		log.Info("User logged in successfully", "userId", user.Id)
 
 		response := gin.H{
 			"success": true,
@@ -251,11 +251,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Check if email is already claimed — but always return 200 to prevent enumeration
 		emailClaimed, err := s.core.IsEmailClaimed(ctx, req.Email)
 		if err != nil {
-			log.Error("Failed to check email availability", "email", req.Email, "error", err)
+			log.Error("Failed to check email availability", "error", err)
 		}
 		if emailClaimed {
 			// Don't reveal that the email is taken — just return success
-			log.Info("Registration attempt for already-claimed email", "email", req.Email)
+			log.Info("Registration attempt for already-claimed email")
 			c.JSON(http.StatusOK, gin.H{
 				"message": "If this email is available, you will receive a registration code.",
 			})
@@ -267,13 +267,13 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationCodeLimitExceeded) ||
 				errors.Is(err, core.ErrRegistrationCodeExhausted) {
-				log.Info("Registration code request throttled", "email", req.Email)
+				log.Info("Registration code request throttled")
 				c.JSON(http.StatusOK, gin.H{
 					"message": "If this email is available, you will receive a registration code.",
 				})
 				return
 			}
-			log.Error("Failed to create registration code", "email", req.Email, "error", err)
+			log.Error("Failed to create registration code", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -286,12 +286,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code),
 		})
 		if err != nil {
-			log.Error("Failed to send registration email", "email", req.Email, "error", err)
+			log.Error("Failed to send registration email", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 			return
 		}
 
-		log.Info("Sent registration email", "email", req.Email)
+		log.Info("Sent registration email")
 		c.JSON(http.StatusOK, gin.H{
 			"message": "If this email is available, you will receive a registration code.",
 		})
@@ -325,7 +325,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired registration code"})
 				return
 			}
-			log.Error("Failed to verify registration code", "email", req.Email, "error", err)
+			log.Error("Failed to verify registration code", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -384,7 +384,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Check if login is blocked
 		isBlocked, err := s.core.ConfigManager().IsUsernameBlocked(ctx, req.Login)
 		if err != nil {
-			log.Error("Failed to check blocked usernames", "login", req.Login, "error", err)
+			log.Error("Failed to check blocked usernames", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -396,7 +396,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Check if email was claimed while token was outstanding
 		emailClaimed, err := s.core.IsEmailClaimed(ctx, tokenData.Email)
 		if err != nil {
-			log.Error("Failed to check email availability", "email", tokenData.Email, "error", err)
+			log.Error("Failed to check email availability", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -428,7 +428,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			log.Error("Registration failed", "login", req.Login, "error", err)
+			log.Error("Registration failed", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -448,7 +448,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		log.Info("User registered and logged in", "userId", user.Id, "login", user.Login)
+		log.Info("User registered and logged in", "userId", user.Id)
 
 		response := gin.H{
 			"success": true,
@@ -493,7 +493,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many verification code requests. Please try again later."})
 				return
 			}
-			log.Error("Failed to create email verification code", "userId", user.Id, "email", body.Email, "error", err)
+			log.Error("Failed to create email verification code", "userId", user.Id, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
@@ -503,7 +503,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			Subject: fmt.Sprintf("Verify your email for %s", serverName),
 			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, code),
 		}); err != nil {
-			log.Error("Failed to send email verification code", "userId", user.Id, "email", body.Email, "error", err)
+			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
@@ -542,7 +542,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusConflict, gin.H{"error": "This email address is already in use"})
 				return
 			}
-			log.Error("Email verification failed", "userId", user.Id, "email", body.Email, "error", err)
+			log.Error("Email verification failed", "userId", user.Id, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Email verification failed"})
 			return
 		}
@@ -583,9 +583,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
 			})
 			if err != nil {
-				log.Error("Failed to send password reset email", "email", normalizedEmail, "error", err)
+				log.Error("Failed to send password reset email", "error", err)
 			} else {
-				log.Info("Sent password reset email", "email", normalizedEmail)
+				log.Info("Sent password reset email")
 			}
 		}
 

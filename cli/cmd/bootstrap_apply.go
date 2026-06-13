@@ -61,7 +61,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		}
 		if created {
 			usersCreated++
-			logger.Info("Created user from [bootstrap]", "login", u.Login, "user_id", userID)
+			logger.Info("Created user from [bootstrap]", "user_id", userID)
 		} else {
 			usersExisting++
 		}
@@ -144,10 +144,10 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 	}
 
 	if existing, err := c.GetUserByLogin(ctx, u.Login); err == nil && existing != nil {
-		logger.Debug("[bootstrap] user already exists; skipping create", "login", u.Login)
+		logger.Debug("[bootstrap] user already exists; skipping create", "user_id", existing.Id)
 		// Still try to apply role + email below (idempotent).
-		assignBootstrapRole(ctx, logger, c, existing.Id, u.ServerRole, u.Login)
-		ensureBootstrapEmail(ctx, logger, c, existing.Id, u.Email, u.Login)
+		assignBootstrapRole(ctx, logger, c, existing.Id, u.ServerRole)
+		ensureBootstrapEmail(ctx, logger, c, existing.Id, u.Email)
 		return existing.Id, false
 	}
 
@@ -158,29 +158,29 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 
 	user, err := c.CreateUser(ctx, "system", u.Login, displayName, u.Password)
 	if err != nil {
-		logger.Error("Failed to create [bootstrap] user", "login", u.Login, "error", err)
+		logger.Error("Failed to create [bootstrap] user", "error", err)
 		return "", false
 	}
 
-	ensureBootstrapEmail(ctx, logger, c, user.Id, u.Email, u.Login)
-	assignBootstrapRole(ctx, logger, c, user.Id, u.ServerRole, u.Login)
+	ensureBootstrapEmail(ctx, logger, c, user.Id, u.Email)
+	assignBootstrapRole(ctx, logger, c, user.Id, u.ServerRole)
 
 	return user.Id, true
 }
 
-func ensureBootstrapEmail(ctx context.Context, logger *log.Logger, c *core.ChattoCore, userID, email, login string) {
+func ensureBootstrapEmail(ctx context.Context, logger *log.Logger, c *core.ChattoCore, userID, email string) {
 	if email == "" {
 		return
 	}
 	if err := c.AddVerifiedEmailDirect(ctx, userID, email); err != nil {
 		// ErrEmailAlreadyVerified is fine — the email is already attached.
 		if !errors.Is(err, core.ErrEmailAlreadyVerified) {
-			logger.Warn("Failed to add verified email for [bootstrap] user", "login", login, "email", email, "error", err)
+			logger.Warn("Failed to add verified email for [bootstrap] user", "user_id", userID, "error", err)
 		}
 	}
 }
 
-func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.ChattoCore, userID, role, login string) {
+func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.ChattoCore, userID, role string) {
 	if role == "" {
 		return
 	}
@@ -193,12 +193,12 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 	case "moderator":
 		roleName = core.RoleModerator
 	default:
-		logger.Warn("Unknown instance_role in [bootstrap]; ignoring", "login", login, "role", role)
+		logger.Warn("Unknown instance_role in [bootstrap]; ignoring", "user_id", userID, "role", role)
 		return
 	}
 	// SystemActorID bypasses hierarchy checks — bootstrap operates as the system.
 	if err := c.AssignServerRole(ctx, core.SystemActorID, userID, roleName); err != nil {
-		logger.Warn("Failed to assign role for [bootstrap] user", "login", login, "role", role, "error", err)
+		logger.Warn("Failed to assign role for [bootstrap] user", "user_id", userID, "role", role, "error", err)
 	}
 }
 

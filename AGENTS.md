@@ -51,3 +51,4 @@ Please update this section as the project evolves, and refer to it when making d
 - Prefer simplicity and clarity over cleverness.
 - Where feasible, write code comments that explain intent.
 - Make sure the code is well-tested, and that tests are easy to understand and maintain.
+- Never log PII. Logs must not include raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subject identifiers, tokens, passwords, auth codes, reset links, raw IP addresses, or full query strings. Prefer opaque Chatto IDs, counts, booleans, event names, and already-safe hashes from audit-specific code.
