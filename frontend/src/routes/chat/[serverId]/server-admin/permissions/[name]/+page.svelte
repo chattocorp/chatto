@@ -25,6 +25,7 @@
   let canAssignRoles = $state(false);
   let loading = $state(true);
   let saving = $state(false);
+  let savingPingable = $state(false);
   let deleting = $state(false);
   let showDeleteConfirm = $state(false);
   let error = $state<string | null>(null);
@@ -33,6 +34,17 @@
   let editDisplayName = $state('');
   let editDescription = $state('');
   let editPingable = $state(false);
+
+  const UpdateRoleDetailPageMutation = graphql(`
+    mutation UpdateRoleDetailPage($input: UpdateRoleInput!) {
+      updateRole(input: $input) {
+        name
+        displayName
+        description
+        pingable
+      }
+    }
+  `);
 
   async function loadData() {
     loading = true;
@@ -100,31 +112,18 @@
   });
 
   async function saveMetadata() {
-    if (!role) return;
+    if (!role || savingPingable) return;
 
     saving = true;
     error = null;
 
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation UpdateRoleDetailPage($input: UpdateRoleInput!) {
-          updateRole(input: $input) {
-            name
-            displayName
-            description
-            pingable
-          }
-        }
-      `),
-      {
-        input: {
-          name: role.name,
-          displayName: editDisplayName,
-          description: editDescription,
-          pingable: editPingable
-        }
+    const resp = await connection().client.mutation(UpdateRoleDetailPageMutation, {
+      input: {
+        name: role.name,
+        displayName: editDisplayName,
+        description: editDescription
       }
-    );
+    });
 
     if (resp.error) {
       error = resp.error.message;
@@ -134,6 +133,41 @@
     }
 
     saving = false;
+  }
+
+  async function savePingable(event: Event) {
+    if (!role || !canEditPingable || saving) return;
+
+    const target = event.currentTarget as HTMLInputElement;
+    const nextPingable = target.checked;
+    const previousPingable = role.pingable;
+
+    if (nextPingable === previousPingable) return;
+
+    savingPingable = true;
+    error = null;
+
+    const resp = await connection().client.mutation(UpdateRoleDetailPageMutation, {
+      input: {
+        name: role.name,
+        displayName: role.displayName,
+        description: role.description,
+        pingable: nextPingable
+      }
+    });
+
+    if (resp.error || !resp.data?.updateRole) {
+      editPingable = previousPingable;
+      error = resp.error?.message ?? 'Failed to update role ping setting';
+    } else {
+      role = {
+        ...role,
+        pingable: resp.data.updateRole.pingable
+      };
+      editPingable = resp.data.updateRole.pingable;
+    }
+
+    savingPingable = false;
   }
 
   async function deleteRole() {
@@ -166,10 +200,7 @@
   );
 
   const metadataChanged = $derived(
-    role &&
-      (editDisplayName !== role.displayName ||
-        editDescription !== role.description ||
-        editPingable !== role.pingable)
+    role && (editDisplayName !== role.displayName || editDescription !== role.description)
   );
   const canEditPingable = $derived(role?.name !== 'everyone');
 </script>
@@ -223,20 +254,12 @@
               id="pingable"
               bind:checked={editPingable}
               label="Allow people to ping this role"
-              disabled={saving || !canEditPingable}
+              onchange={savePingable}
+              disabled={saving || savingPingable || !canEditPingable}
               description={canEditPingable
                 ? 'Pingable roles appear in @ autocomplete and notify assigned room members.'
                 : 'Use @all for room-wide delivery; everyone is not a role ping handle.'}
             />
-            <div class="flex gap-2">
-              <Button
-                variant="primary"
-                disabled={!metadataChanged || saving}
-                onclick={saveMetadata}
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
           {:else}
             <TextInput
               id="displayName"
@@ -254,7 +277,8 @@
               id="pingable"
               bind:checked={editPingable}
               label="Allow people to ping this role"
-              disabled={saving || !canEditPingable}
+              onchange={savePingable}
+              disabled={saving || savingPingable || !canEditPingable}
               description={canEditPingable
                 ? 'Pingable roles appear in @ autocomplete and notify assigned room members.'
                 : 'Use @all for room-wide delivery; everyone is not a role ping handle.'}
@@ -262,7 +286,7 @@
             <div class="flex gap-2">
               <Button
                 variant="primary"
-                disabled={!metadataChanged || saving}
+                disabled={!metadataChanged || saving || savingPingable}
                 onclick={saveMetadata}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
