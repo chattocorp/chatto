@@ -15,11 +15,13 @@
   let {
     body,
     members = [],
+    roleHandles = [],
     edited = false,
     onMentionClick
   }: {
     body: string;
     members?: RoomMember[];
+    roleHandles?: string[];
     edited?: boolean;
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
   } = $props();
@@ -59,14 +61,14 @@
   async function render(
     body: string,
     members: RoomMember[],
+    roleHandles: string[],
     edited: boolean,
     viewerLogin: string | undefined
   ): Promise<string> {
     const html = await renderMd(body);
-    const wrapped = wrapValidMentions(html, members, viewerLogin);
+    const wrapped = wrapValidMentions(html, members, viewerLogin, roleHandles);
     return edited ? injectEditedMarker(wrapped) : wrapped;
   }
-
 
   // Handle clicks on links (open in system browser) and mentions (trigger callback).
   function handleContentClick(event: MouseEvent) {
@@ -105,7 +107,7 @@
 </script>
 
 <div class="prose max-w-none min-w-0" role="presentation" onclick={handleContentClick}>
-  {#await render(body, members, edited, viewerLogin)}
+  {#await render(body, members, roleHandles, edited, viewerLogin)}
     <!-- Show escaped body while loading -->
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}

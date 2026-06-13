@@ -18,7 +18,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 - `@all` mentions every current room member, regardless of presence.
 - `@here` mentions current room members whose presence is not offline.
 - `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.
-- Valid user and virtual mentions render with highlight styling in the posted message. Self-mentions get additional styling.
+- Valid user, role, and virtual mentions render with highlight styling in the posted message. Self-mentions get additional styling.
 - Mentions inside code blocks, pre-formatted text, and blockquotes are not styled — they render as plain text.
 - Mentioning yourself does not produce a notification.
 - Mentioning a user who isn't a room member leaves the `@name` as plain text — the mention is not delivered.
