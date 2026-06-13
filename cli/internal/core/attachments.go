@@ -718,7 +718,7 @@ func (c *MediaService) DeleteVideoDerivativesForAttachment(ctx context.Context, 
 				"origin_attachment_id", attachmentID,
 				"error", err)
 		}
-		if roomID := assetCreatedRoomID(declared); roomID != "" {
+		if roomID, ok := c.Assets.AssetRoomID(id); ok {
 			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, id); err != nil {
 				c.logger.Warn("Failed to publish derivative asset deletion event",
 					"attachment_id", id,

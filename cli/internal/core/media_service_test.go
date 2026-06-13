@@ -395,6 +395,56 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 	}
 }
 
+func TestMediaServiceDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	service := core.mediaService
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-video-inherited", "Media video inherited")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := service.UploadAttachment(ctx, SystemActorID, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment returned error: %v", err)
+	}
+
+	thumbnail := &corev1.Attachment{Id: "A-inherited-thumb"}
+	if err := core.Assets.Apply(&corev1.Event{
+		Id: "E-inherited-thumb-created",
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				OriginalBinaryAvailable: true,
+				Asset: &corev1.AssetRecord{
+					Id:          thumbnail.GetId(),
+					Filename:    "thumb.png",
+					ContentType: "image/png",
+				},
+				ParentAssetId:  original.GetId(),
+				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
+			},
+		},
+	}, 999); err != nil {
+		t.Fatalf("Apply inherited thumbnail creation: %v", err)
+	}
+
+	if err := service.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, nil); err != nil {
+		t.Fatalf("RecordAssetProcessed returned error: %v", err)
+	}
+	service.DeleteVideoDerivativesForAttachment(ctx, SystemActorID, KindChannel, original.GetId())
+
+	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(thumbnail.GetId()).Subject(events.EventAssetDeleted))
+	if err != nil {
+		t.Fatalf("SubjectEvents(asset_deleted): %v", err)
+	}
+	if len(deletedEvents) != 1 {
+		t.Fatalf("thumbnail asset_deleted events = %d, want 1", len(deletedEvents))
+	}
+	if roomID, ok := core.Assets.AssetRoomID(thumbnail.GetId()); !ok || roomID != room.Id {
+		t.Fatalf("deleted thumbnail room = %q, %v; want %q, true", roomID, ok, room.Id)
+	}
+}
+
 func TestMediaServiceMessageBodyAttachmentLookups(t *testing.T) {
 	core, _ := setupTestCore(t)
 	service := core.mediaService
