@@ -10,10 +10,12 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 ## Behavior
 
 - `Cmd+K` / `Ctrl+K` opens the palette from anywhere in the app. `Escape` or clicking outside closes it.
-- On open, the palette fetches the user's accessible spaces, rooms, and DMs in parallel from all connected Chatto servers.
+- On open, the palette fetches the user's accessible spaces, rooms, and DMs in parallel from all connected Chatto servers. While the user types a non-`#` query, it also searches the member directory on each connected server where the viewer can start DMs.
 - Typing filters results with a fuzzy matcher. Items match on both label and detail (e.g., the containing space name); label matches score higher.
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
 - When the search field is empty, results group as: a "Recent" section first (if any), then by kind — "Go to" (well-known destinations), "Space", "Room", "DM" — each section alphabetical.
+- Server member results are search-only; they do not appear in the empty palette. Selecting a member starts or reuses a 1:1 DM with that user and navigates to the resulting DM room. Selecting the current user starts or reuses their self-DM.
+- Existing DM rooms appear in the empty palette but are not included in typed search results; typed user lookup is handled through the server member results instead.
 - "Go to" destinations are: **Browse Spaces** (shown only if any connected server grants `room.create` or equivalent listing access), **Direct Messages** (shown if any connected server has visible DM conversations or allows starting DMs), **Notifications** (always shown).
 - DMs show participants' avatars (up to two for the "other" participants, or the self-avatar for self-DMs) and display names; spaces and rooms show the space logo.
 - Multi-server setups show the server name as a detail label so destinations with similar names disambiguate.
@@ -23,9 +25,9 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 
 ## Design Decisions
 
-### 1. Per-server parallel fetch on open
+### 1. Per-server parallel fetch on open and search
 
-**Decision:** Every time the palette opens, it fires queries in parallel against every connected Chatto server to fetch the user's spaces, rooms, and DMs. Each server uses `requestPolicy: 'network-only'`. One server's failure doesn't block others.
+**Decision:** Every time the palette opens, it fires queries in parallel against every connected Chatto server to fetch the user's spaces, rooms, and DMs. Typed, non-`#` searches also query each connected server's authenticated member directory where the viewer can start DMs. Each server uses `requestPolicy: 'network-only'`. One server's failure doesn't block others.
 **Why:** A multi-server user expects to see everything in one palette. Pre-loading and caching the global list would mean a stale cache problem; fetching on open keeps it correct. Parallel-with-Promise.allSettled keeps a slow server from breaking the whole palette. See ADR-025.
 **Tradeoff:** Open latency depends on the slowest responding server. In practice queries are small and fast.
 

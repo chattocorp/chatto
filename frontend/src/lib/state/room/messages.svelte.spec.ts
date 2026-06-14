@@ -61,6 +61,7 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
 			threadRootEventId,
 			echoOfEventId: null,
 			echoFromThreadRootEventId: null,
+			channelEchoEventId: null,
 			replyCount: 0,
 			lastReplyAt: null,
 			threadParticipants: [],
@@ -555,6 +556,60 @@ describe('MessagesStore — room lifecycle ownership', () => {
 });
 
 describe('MessagesStore — thread lifecycle ownership', () => {
+	it('links and unlinks visible echoes for thread replies from live events', async () => {
+		const fake = new FakeGqlClient(
+			threadQueryResult({
+				replies: [threadMessageEvent('reply1', 't1')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent({
+			id: 'echo1',
+			createdAt: '2026-05-27T00:00:02Z',
+			actorId: 'u1',
+			actor: null,
+			event: {
+				...threadMessageEvent('echo1').event,
+				echoOfEventId: 'reply1',
+				echoFromThreadRootEventId: 't1'
+			}
+		} as never);
+
+		expect(store.threadEvents.find((event) => event.id === 'reply1')?.event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			channelEchoEventId: 'echo1'
+		});
+
+		store.ingestServerEvent({
+			id: 'retract-echo1',
+			createdAt: '2026-05-27T00:00:03Z',
+			actorId: 'u1',
+			actor: null,
+			event: {
+				__typename: 'MessageRetractedEvent',
+				roomId: 'room-1',
+				messageEventId: 'echo1',
+				retractedReason: null
+			}
+		} as never);
+
+		expect(store.threadEvents.find((event) => event.id === 'reply1')?.event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			channelEchoEventId: null
+		});
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
 	it('loads older reply pages when the first thread page is not complete', async () => {
 		const fake = new FakeGqlClient([
 			threadQueryResult({

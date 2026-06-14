@@ -98,6 +98,7 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 | `RBACService`           | [`rbac_service.go`](../cli/internal/core/rbac_service.go)                                                                    | RBAC projection readiness for role, assignment, and permission writes                                                       |
 | `MentionablesService`   | [`mentionables_projection.go`](../cli/internal/core/mentionables_projection.go)                                              | Global mention-handle namespace lookup and readiness                                                                        |
 | `PresenceService`       | [`presence_service.go`](../cli/internal/core/presence_service.go), [`presence_hub.go`](../cli/internal/core/presence_hub.go) | Per-process watcher/fanout for live presence state in `MEMORY_CACHE`                                                       |
+| `CallService`           | [`call_service.go`](../cli/internal/core/call_service.go), [`voice.go`](../cli/internal/core/voice.go)                       | Durable LiveKit call lifecycle/participant facts, call-state projection readiness, KMS-backed E2EE key resolution, and LiveKit reconciliation |
 | `MediaService`          | [`media_service.go`](../cli/internal/core/media_service.go), [`attachments.go`](../cli/internal/core/attachments.go)          | Attachment/media binary storage, signed asset URLs, transformed image cache operations                                      |
 | `AssetService`          | [`asset_service.go`](../cli/internal/core/asset_service.go), [`asset_projection.go`](../cli/internal/core/asset_projection.go)  | Durable asset lifecycle facts, processing transitions, tombstones, derivative cleanup ordering, asset projection readiness and reads |
 | `video.Service`         | [`service.go`](../cli/internal/video/service.go)                                                                             | Process-local video/animated-GIF processing; emits asset processing result events                                           |
@@ -116,6 +117,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, asset reconnect replay |
 | Threads            | Threads              | `evt.room.>`, `evt.user.*.user_key_shredded`               | Per-thread reply logs, summaries, participants, reply counts                               |
 | Reactions          | Reactions            | `evt.room.*.reaction_added`, `evt.room.*.reaction_removed` | Current per-message reaction sets and summaries                                            |
+| Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, and active room IDs                           |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
 | Users              | Users                | `evt.user.>`                                               | Account/profile/auth lookup state, verified emails, OAuth subjects, encrypted user PII     |
 | Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded` | Active and shredded user DEK epochs for message bodies and user PII                        |
@@ -170,7 +172,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                       | Description                                                                |
 | --------------------------- | -------------------------------------------------------------------------- |
-| `activeCallRoomIds`         | Room IDs that currently have an active LiveKit voice call.                 |
+| `activeCallRoomIds`         | Room IDs that currently have an active LiveKit voice call, read from the call-state projection. |
 | `linkPreview(url)`          | Fetch (and cache) Open Graph metadata for a URL.                           |
 
 **Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
@@ -207,7 +209,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | Mutation                  | Description                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------- |
 | `postMessage`             | Post a message (root or thread reply; optional attachments / link previews / echo-to-channel).|
-| `updateMessage`           | Update own message body (3-hour window).                                                     |
+| `updateMessage`           | Update own message body (3-hour window); optional thread-reply echo reconciliation.           |
 | `deleteMessage`           | Delete message body (GDPR crypto-shred); event stays in stream as audit trail.               |
 | `deleteAttachment`        | Delete an attachment from own message.                                                       |
 | `deleteLinkPreview`       | Delete a link preview from own message.                                                      |
@@ -238,6 +240,13 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `updateMyPresence`                | Set caller's presence status (`OFFLINE` is implicit on disconnect, not a valid input).       |
 | `subscribeToPush`                 | Register a Web Push subscription for this device.                                            |
 | `unsubscribeFromPush`             | Remove a previously-registered Web Push subscription.                                        |
+
+**Voice calls** ([`voice.graphqls`](../cli/internal/graph/voice.graphqls))
+
+| Mutation                          | Description                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| `joinVoiceCall`                   | Record the caller's intent to join a LiveKit room call as a durable room fact.               |
+| `leaveVoiceCall`                  | Record the caller's intent to leave a LiveKit room call as a durable room fact.              |
 
 **Room groups** ([`room_groups.graphqls`](../cli/internal/graph/room_groups.graphqls))
 
@@ -276,7 +285,7 @@ Like `Query.admin`, the `admin: AdminMutations` field returns `null` for unauthe
 
 | Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ---- |
-| `myEvents(after:)`            | The single subscription. Multiplexes durable room/asset events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, voice call lifecycle, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. Asset lifecycle events are authorized through the room scope recorded on their `AssetCreatedEvent`. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Durable EVT-backed events include a server-signed, user-bound `deliveryCursor`. When `after` is supplied, durable EVT room and asset facts newer than that cursor are replayed from in-memory projections before live delivery continues; invalid, expired, or over-budget cursors require a full refresh. Transient events, presence changes, and heartbeats are not replayed. |
+| `myEvents(after:)`            | The single subscription. Multiplexes durable room/asset events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing, voice call lifecycle/participant facts) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. Asset lifecycle events are authorized through the room scope recorded on their `AssetCreatedEvent`. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. Durable EVT-backed events include a server-signed, user-bound `deliveryCursor`. When `after` is supplied, durable EVT room and asset facts newer than that cursor are replayed from in-memory projections before live delivery continues; invalid, expired, or over-budget cursors require a full refresh. Transient events, presence changes, and heartbeats are not replayed. |
 
 There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
 
@@ -307,8 +316,8 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | ------- | ----------------------------- | ------------------------------------------- |
 | Stream  | `EVT`                         | Durable event-sourcing log for domain facts |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
-| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
-| KV      | `ENCRYPTION_KEYS`             | KMS key-encryption keys; excluded from backups |
+| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state for presence; excluded from backups |
+| KV      | `ENCRYPTION_KEYS`             | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
 | Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
 | Objects | `ASSET_CACHE`                 | Optional cached image transforms with TTL    |
 
@@ -318,7 +327,8 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 is the source of truth and reads come from in-memory projections. If event
 publishing fails, the write fails. Current aggregates include room
 membership/metadata, room groups/layout, server config, users,
-messages/threads, reactions, assets, RBAC, and auth workflow audit facts.
+messages/threads, reactions, voice call participation, assets, RBAC, and
+auth workflow audit facts.
 
 ### Consistency Model
 
@@ -362,8 +372,8 @@ Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/in
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notifications, wrapped app DEKs |
-| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence and active voice-call state                               |
-| KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys; excluded from backups                              |
+| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence                                                           |
+| KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Asset binaries for avatars, branding, link previews, attachments, derivatives |
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
 | NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
@@ -393,8 +403,8 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, reconnect replay, projection source of truth |
-| Room live-only              | NATS Core  | UserTyping, CallParticipantJoined, CallParticipantLeft | Ephemeral room notifications where another store/projection is source of truth |
+| JetStream-stored (room) | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
+| Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
 The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`, and GraphQL exposes both through one `Event` envelope with typed payloads as members of the `EventType` union. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
@@ -457,6 +467,10 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
 | `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
 | `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |
+| `evt.room.{roomId}.call_started`                             | `CallStartedEvent`                                  |
+| `evt.room.{roomId}.call_joined`                              | `CallParticipantJoinedEvent`                        |
+| `evt.room.{roomId}.call_left`                                | `CallParticipantLeftEvent`                          |
+| `evt.room.{roomId}.call_ended`                               | `CallEndedEvent`                                    |
 | `evt.room.{roomId}.room_member_banned`                       | `RoomMemberBannedEvent`                             |
 | `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
 | `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`                                  |
@@ -569,8 +583,8 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
-| `live.sync.room.{kind}.{roomId}.call_joined`             | Participant joined the LiveKit voice call |
-| `live.sync.room.{kind}.{roomId}.call_left`               | Participant left the LiveKit voice call |
+
+Voice call lifecycle and participant transitions are durable room EVT facts under `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`, republished to `live.evt.>` for realtime subscription delivery. Room membership remains the authorization boundary for live delivery.
 
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
@@ -584,16 +598,17 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
-| `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL |
+| `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
 **ENCRYPTION_KEYS keys:**
 
-| Key             | Description                       |
-| --------------- | --------------------------------- |
-| `kek.{keyRef}`  | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref |
+| Key                   | Description                       |
+| --------------------- | --------------------------------- |
+| `kek.{keyRef}`        | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref |
+| `call.e2ee.{callId}`  | Protobuf `UserKeyEncryptionKey` record containing the raw LiveKit E2EE key for one active call; referenced by `CallStartedEvent.e2ee_key_ref` and shredded when `CallEndedEvent` commits |
 
-Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{contentKeyRef}`.
+Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process `internal/kms` boundary for KEK creation, DEK wrap/unwrap, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{contentKeyRef}`.
 
 **RUNTIME\_STATE keys:**
 
@@ -624,9 +639,8 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status; per-key 60s TTL |
-| `call.{spaceId}.{roomId}`                  | JSON active voice call participant list          |
 
-Notes: Memory-based storage is not persisted and not backed up. Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is volatile and is repopulated by LiveKit webhooks after restart.
+Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Active voice call participants are served from the call-state projection over durable room EVT facts and reconciled against LiveKit; per-call LiveKit E2EE keys live behind the KMS boundary in `ENCRYPTION_KEYS`, and the retired `CALL_STATE` bucket is no longer imported.
 
 ### Object Store Buckets
 
@@ -784,11 +798,13 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
+- Thread replies can be echoed to the room timeline at post time or during the author's edit window. Echoes are separate `MessagePostedEvent` facts with `echo_of_event_id`; removing an edit-time echo appends a normal `MessageRetractedEvent` for the echo artifact.
 - Thread reply lists are cursor-paginated; reply counts, participants, followed-thread pages, and last-reply timestamps are derived from the `ThreadProjection`.
 
 **Read Path:**
 
 - Room-level message history is served from `RoomTimelineProjection`, which keeps the raw room event log plus derived indexes for latest body state, hidden echoes, message asset references, and room-visible timeline entries. Asset metadata, processing manifests, and derivative graphs are served from `AssetProjection`.
+- `MessagePostedEvent.channelEchoEventId` is a GraphQL-only derived field backed by `RoomTimelineProjection`'s echo-link index; it is not stored in the protobuf payload.
 - Initial loads and cursor pagination walk the derived visible-room index so thread replies, edits, retractions, reactions, asset-processing facts, and directly hidden echoes do not count as separate room timeline rows.
 - Reconnect catch-up uses `Subscription.myEvents(after:)`, keyed by the signed subscription `deliveryCursor`. The web client keeps the most recent durable cursor in its event bus and passes it on resubscribe; replayed reactions/edits/retractions/asset lifecycle facts arrive through the same event handlers as live events. If the server rejects the cursor as invalid, expired, or too expensive to replay, the client performs a full refresh from projected query state.
 - `eventsAround` uses the same visible-room index to center jump-to-message windows on the target's visible position.

@@ -552,6 +552,12 @@ func (s *MyEventsService) waitForLiveEVTRoomEvent(ctx context.Context, subject s
 		return err
 	}
 
+	if eventNeedsCallStateProjection(event) {
+		if err := s.core.CallStateProjector.WaitFor(ctx, pos); err != nil {
+			return err
+		}
+	}
+
 	if isAssetLifecycleEvent(event) {
 		if err := s.core.assetLifecycle().waitForAssets(ctx, pos); err != nil {
 			return err

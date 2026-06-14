@@ -33,6 +33,9 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     eventId,
     deleteEventId = eventId,
     messageBody,
+    threadRootEventId = null,
+    channelEchoEventId = null,
+    canAddChannelEcho = false,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -48,6 +51,9 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     eventId: string;
     deleteEventId?: string;
     messageBody: string;
+    threadRootEventId?: string | null;
+    channelEchoEventId?: string | null;
+    canAddChannelEcho?: boolean;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -67,7 +73,10 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     messageEventId,
     eventId,
     deleteEventId,
-    messageBody
+    messageBody,
+    threadRootEventId,
+    channelEchoEventId,
+    canAddChannelEcho
   });
 
   const hasActions = $derived(!!onReplyInRoom || !!onReply || canEdit || !!onOpenMenu);

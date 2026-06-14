@@ -20,6 +20,7 @@ This is the easiest backup to restore correctly. Keep the passphrase somewhere s
 Backups contain all persistent JetStream streams, KV buckets, and object stores:
 
 - **Server data** — users, memberships, roles, permissions, notifications, rooms, messages, threads, reactions, message bodies
+- **Call facts** — room-scoped call start/join/leave/end events used to rebuild active call participant state
 - **Assets** — user avatars, server icon and banner, message attachments
 
 ## What's excluded
@@ -30,7 +31,7 @@ Certain streams are intentionally excluded:
 |--------|--------|
 | Encryption keys | Security: excluded by default, unless you pass `--include-keys`. |
 | User presence | Ephemeral (memory-only), reconstructed at runtime |
-| Call state | Ephemeral (memory-only), reconstructed by LiveKit webhooks |
+| LiveKit E2EE call keys | Stored in `ENCRYPTION_KEYS` and excluded unless key backups are explicitly included; active calls cannot be recovered without them |
 | Link preview cache | Regeneratable on demand |
 | Asset cache | Regeneratable (resized image variants) |
 

@@ -136,6 +136,12 @@ func runServer(configPath string) {
 		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())
 	}
 
+	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
+		log.Error("Failed to configure LiveKit call-state reconciliation", "error", err)
+		exitCode = 1
+		return
+	}
+
 	// Set up push notification callback if push is enabled
 	setupPushNotifications(chattoCore, cfg)
 

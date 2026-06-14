@@ -48,6 +48,14 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.ReactionAdded.GetRoomId()
 	case *corev1.Event_ReactionRemoved:
 		return e.ReactionRemoved.GetRoomId()
+	case *corev1.Event_VoiceCallParticipantJoined:
+		return e.VoiceCallParticipantJoined.GetRoomId()
+	case *corev1.Event_VoiceCallParticipantLeft:
+		return e.VoiceCallParticipantLeft.GetRoomId()
+	case *corev1.Event_VoiceCallStarted:
+		return e.VoiceCallStarted.GetRoomId()
+	case *corev1.Event_VoiceCallEnded:
+		return e.VoiceCallEnded.GetRoomId()
 	}
 	return ""
 }
@@ -113,6 +121,9 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //   - RoomMemberBannedEvent / RoomMemberUnbannedEvent — moderation audit facts,
 //     projected for admin surfaces but not displayed as chat timeline items.
 //
+//   - Voice call lifecycle and participant events — projected into call state
+//     and delivered live, but not displayed as chat timeline items.
+//
 // Visible: root messages, room lifecycle (created/updated/archived/
 // unarchived/deleted), memberships (user_joined / user_left).
 func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
@@ -128,7 +139,9 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
-		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
+		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved,
+		*corev1.Event_VoiceCallStarted, *corev1.Event_VoiceCallEnded,
+		*corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft:
 		return false
 	}
 	return true
@@ -152,7 +165,11 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded,
 		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
+		*corev1.Event_AssetDeleted,
+		*corev1.Event_VoiceCallStarted,
+		*corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft,
+		*corev1.Event_VoiceCallEnded:
 		return true
 	default:
 		return false
@@ -191,6 +208,18 @@ func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomDeleted:
+		return true
+	default:
+		return false
+	}
+}
+
+func eventNeedsCallStateProjection(event *corev1.Event) bool {
+	switch event.GetEvent().(type) {
+	case *corev1.Event_VoiceCallStarted,
+		*corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft,
+		*corev1.Event_VoiceCallEnded:
 		return true
 	default:
 		return false

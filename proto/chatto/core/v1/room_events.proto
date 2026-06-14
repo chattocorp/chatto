@@ -14,6 +14,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //   - 300-304: room lifecycle on evt.room.{roomId}.*
 //   - 310-311: room membership on evt.room.{roomId}.*
 //   - 320: server-wide account deletion fan-out
+//   - 330-333: voice call lifecycle and participant lifecycle on evt.room.{roomId}.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -90,4 +91,60 @@ message ServerMemberDeletedEvent {
   reserved 1;
   reserved "space_id";
   string user_id = 2;
+}
+
+// ============================================================================
+// VOICE CALL EVENTS
+// ============================================================================
+
+enum CallParticipantEventSource {
+  CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED = 0;
+  // The user explicitly requested the transition through Chatto.
+  CALL_PARTICIPANT_EVENT_SOURCE_USER = 1;
+  // LiveKit reported the transition through a webhook.
+  CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT = 2;
+  // Chatto reconciled its local projection against LiveKit's current room state.
+  CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION = 3;
+}
+
+// Event: a user joined or attempted to join a voice call in a room.
+//
+// The participant is identified by the parent Event.actor_id. USER-sourced
+// facts represent explicit user intent and may be optimistic; LIVEKIT and
+// RECONCILIATION facts represent observed media-server state.
+message CallParticipantJoinedEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// Event: a user left or attempted to leave a voice call in a room.
+//
+// The participant is identified by the parent Event.actor_id. USER-sourced
+// facts represent explicit user intent; LIVEKIT and RECONCILIATION facts
+// represent observed media-server state.
+message CallParticipantLeftEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// Event: a voice call session started in a room.
+//
+// The e2ee_key_ref points to a per-call LiveKit E2EE key stored behind the KMS
+// boundary. The raw key is deliberately not stored in EVT.
+message CallStartedEvent {
+  string room_id = 1;
+  string call_id = 2;
+  string e2ee_key_ref = 3;
+  CallParticipantEventSource source = 4;
+}
+
+// Event: a voice call session ended in a room.
+//
+// The associated KMS call key is shredded when this fact is committed.
+message CallEndedEvent {
+  string room_id = 1;
+  string call_id = 2;
+  CallParticipantEventSource source = 3;
 }

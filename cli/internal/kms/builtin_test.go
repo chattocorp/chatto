@@ -134,6 +134,48 @@ func TestBuiltinRejectsWrongPrefixRefs(t *testing.T) {
 	require.ErrorIs(t, k.ShredKey(ctx, "other.content"), ErrInvalidKeyRef)
 }
 
+func TestBuiltinCallKeyLifecycle(t *testing.T) {
+	k, ctx := setupBuiltinKMS(t)
+
+	keyRef, encoded, err := k.CreateCallKey(ctx, "C123")
+	require.NoError(t, err)
+	require.Equal(t, CallKeyRef("C123"), keyRef)
+	require.NotEmpty(t, encoded)
+
+	got, err := k.GetCallKey(ctx, keyRef)
+	require.NoError(t, err)
+	require.Equal(t, encoded, got)
+
+	exists, err := k.CallKeyExists(ctx, keyRef)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	require.NoError(t, k.ShredCallKey(ctx, keyRef))
+	exists, err = k.CallKeyExists(ctx, keyRef)
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	_, err = k.GetCallKey(ctx, keyRef)
+	require.ErrorIs(t, err, encryption.ErrKeyNotFound)
+}
+
+func TestBuiltinCallKeysAreNotKEKRefs(t *testing.T) {
+	k, ctx := setupBuiltinKMS(t)
+
+	keyRef, _, err := k.CreateCallKey(ctx, "C456")
+	require.NoError(t, err)
+
+	contentKey, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	_, err = k.WrapContentKey(ctx, keyRef, contentKey, []byte("aad"))
+	require.ErrorIs(t, err, ErrInvalidKeyRef)
+
+	_, err = k.UnwrapContentKey(ctx, keyRef, WrappedContentKey{}, []byte("aad"))
+	require.ErrorIs(t, err, ErrInvalidKeyRef)
+
+	require.ErrorIs(t, k.ShredCallKey(ctx, "kek.not-call"), ErrInvalidKeyRef)
+}
+
 func TestBuiltinRejectsUserProtobufRecord(t *testing.T) {
 	k, ctx := setupBuiltinKMS(t)
 	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{

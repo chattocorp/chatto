@@ -274,23 +274,3 @@ message SessionTerminatedEvent {
   // Reason for termination: "logout", "admin_boot", "account_deleted"
   string reason = 1;
 }
-
-// ============================================================================
-// VOICE CALL EVENTS (room-scoped)
-// ============================================================================
-
-// Notifies room members that a user joined a voice call.
-// Published as a live room event when a user requests a call token.
-message CallParticipantJoinedEvent {
-  reserved 1;
-  reserved "space_id";
-  string room_id = 2;
-}
-
-// Notifies room members that a user left a voice call.
-// Published as a live room event when a user explicitly leaves.
-message CallParticipantLeftEvent {
-  reserved 1;
-  reserved "space_id";
-  string room_id = 2;
-}

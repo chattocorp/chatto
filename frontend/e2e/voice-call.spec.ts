@@ -85,15 +85,25 @@ test.describe('Voice calls', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 		await chatPage.createSpace();
-		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
-		const data = await graphqlQuery<{ room: { voiceCallToken: { token: string } | null } | null }>(
+		const intent = await graphqlQuery<{ joinVoiceCall: boolean }>(
+			page,
+			`mutation($roomId: ID!) {
+				joinVoiceCall(input: { roomId: $roomId })
+			}`,
+			{ roomId }
+		);
+		expect(intent.joinVoiceCall).toBe(true);
+
+		const data = await graphqlQuery<{
+			room: { voiceCallToken: { token: string; e2eeKey: string } | null } | null;
+		}>(
 			page,
 			`query($roomId: ID!) {
 				room(roomId: $roomId) {
-					voiceCallToken { token }
+					voiceCallToken { token e2eeKey }
 				}
 			}`,
 			{ roomId }
@@ -103,6 +113,7 @@ test.describe('Voice calls', () => {
 		const token = data.room!.voiceCallToken;
 		expect(token).not.toBeNull();
 		expect(token!.token).toBeTruthy();
+		expect(token!.e2eeKey).toBeTruthy();
 		// JWT tokens have 3 base64url parts separated by dots
 		expect(token!.token.split('.')).toHaveLength(3);
 	});

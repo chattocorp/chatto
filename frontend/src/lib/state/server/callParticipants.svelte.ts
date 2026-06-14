@@ -5,7 +5,7 @@
  * to room members who haven't joined yet.
  *
  * Data sources:
- * - Initial load: `callParticipants` GraphQL query (from MEMORY_CACHE call state)
+ * - Initial load: `callParticipants` GraphQL query (from the call-state projection)
  * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
  */
 

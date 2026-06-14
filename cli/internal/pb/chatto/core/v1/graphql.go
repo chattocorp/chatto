@@ -32,8 +32,10 @@ func (*ReactionAddedEvent) IsEventType()            {}
 func (*ReactionRemovedEvent) IsEventType()          {}
 func (*UserTypingEvent) IsEventType()               {}
 func (*PresenceChangedEvent) IsEventType()          {}
+func (*CallStartedEvent) IsEventType()              {}
 func (*CallParticipantJoinedEvent) IsEventType()    {}
 func (*CallParticipantLeftEvent) IsEventType()      {}
+func (*CallEndedEvent) IsEventType()                {}
 
 // Deployment-scoped events.
 

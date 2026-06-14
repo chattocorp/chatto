@@ -4,7 +4,7 @@
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
-  import { getComposerContext } from '$lib/state/room';
+  import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
   import MessageEventSkeleton from './MessageEventSkeleton.svelte';
@@ -153,6 +153,7 @@
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
     if (!enableLastEditableFinder) return;
@@ -166,7 +167,23 @@
         if (e.actorId !== userId) continue;
         if (e.event?.__typename !== 'MessagePostedEvent') continue;
         if (e.event?.body == null) continue;
-        return { eventId: e.id, body: e.event.body };
+        const isEcho = !!e.event.echoOfEventId;
+        const eventId = isEcho ? e.event.echoOfEventId! : e.id;
+        const threadRootEventId = isEcho
+          ? (e.event.echoFromThreadRootEventId ?? null)
+          : (e.event.threadRootEventId ?? null);
+        const channelEchoEventId = isEcho ? e.id : (e.event.channelEchoEventId ?? null);
+        const canAddChannelEcho =
+          !!threadRootEventId &&
+          (!!channelEchoEventId ||
+            (roomPermissions.canEchoMessage && roomPermissions.canPostMessage));
+        return {
+          eventId,
+          body: e.event.body,
+          threadRootEventId,
+          channelEchoEventId,
+          canAddChannelEcho
+        };
       }
       return null;
     });

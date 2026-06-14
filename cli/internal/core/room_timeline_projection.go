@@ -435,6 +435,35 @@ func (p *RoomTimelineProjection) IsHiddenEcho(eventID string) bool {
 	return ok
 }
 
+// ChannelEchoEventID returns the first visible echo event for an original
+// thread reply, if one exists. Hidden/retracted echoes are ignored.
+func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if originalEventID == "" {
+		return "", false
+	}
+	for _, echoID := range p.echoLinks[originalEventID] {
+		if echoID == "" {
+			continue
+		}
+		if _, hidden := p.hiddenEchoes[echoID]; hidden {
+			continue
+		}
+		if _, retracted := p.retractedFlags[echoID]; retracted {
+			continue
+		}
+		if _, ok := p.byEventID[echoID]; !ok {
+			continue
+		}
+		if origID := p.echoOriginalIDLocked(echoID); origID != originalEventID {
+			continue
+		}
+		return echoID, true
+	}
+	return "", false
+}
+
 // VideoAttachmentManifest returns the latest durable processing outcome for
 // the original video attachment ID, if one has been projected. The returned
 // protos are clones so callers can inspect or adapt them freely.

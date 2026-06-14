@@ -5,8 +5,8 @@ import "testing"
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 11 {
-		t.Fatalf("registered projections = %d, want 11", len(core.projections))
+	if len(core.projections) != 12 {
+		t.Fatalf("registered projections = %d, want 12", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -34,6 +34,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 	if _, ok := registryNames["Room Group Layout"]; !ok {
 		t.Fatal("Room Group Layout projection is not registered")
+	}
+	if _, ok := registryNames["Call State"]; !ok {
+		t.Fatal("Call State projection is not registered")
 	}
 	if _, ok := registryNames["Assets"]; !ok {
 		t.Fatal("Assets projection is not registered")

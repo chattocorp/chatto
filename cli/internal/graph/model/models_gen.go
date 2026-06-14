@@ -1236,6 +1236,8 @@ type UpdateMessageInput struct {
 	EventID string `json:"eventId"`
 	// The new message content.
 	Body string `json:"body"`
+	// For thread replies, whether the reply should have a visible channel echo after saving. Omit to preserve current echo state.
+	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
 }
 
 // Input for updating the current user's presence status.
@@ -1354,6 +1356,11 @@ type ViewerNotificationPreference struct {
 	Level NotificationLevel `json:"level"`
 	// The effective level after inheritance resolution (never DEFAULT).
 	EffectiveLevel NotificationLevel `json:"effectiveLevel"`
+}
+
+type VoiceCallIntentInput struct {
+	// The room whose voice call is being joined or left.
+	RoomID string `json:"roomId"`
 }
 
 // Fit mode for image transformations.

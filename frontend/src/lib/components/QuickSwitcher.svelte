@@ -16,11 +16,12 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
+  import { toast } from '$lib/ui/toast';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
 
   type ResultItem = {
-    kind: 'room' | 'dm' | 'destination' | 'server';
+    kind: 'room' | 'dm' | 'destination' | 'server' | 'user';
     id: string;
     label: string;
     detail: string;
@@ -29,6 +30,7 @@
     serverLogo?: ServerLogo;
     participants?: UserAvatarUserFragment[];
     currentUserId?: string;
+    targetUserId?: string;
     href?: string;
     icon?: string;
     score: number;
@@ -37,9 +39,13 @@
   let query = $state('');
   let selectedIndex = $state(0);
   let loading = $state(false);
+  let userSearchLoading = $state(false);
   let allItems = $state.raw<ResultItem[]>([]);
+  let userItems = $state.raw<ResultItem[]>([]);
   let dialogEl: HTMLDialogElement | undefined = $state();
   let inputEl: HTMLInputElement | undefined = $state();
+  let userSearchTimer: ReturnType<typeof setTimeout> | undefined;
+  let userSearchRequestId = 0;
 
   // --- GraphQL queries ---
 
@@ -70,6 +76,32 @@
             }
           }
         }
+      }
+    }
+  `);
+
+  const MembersQuery = graphql(`
+    query QuickSwitcherMembers($search: String) {
+      viewer {
+        canStartDMs
+        user {
+          id
+        }
+      }
+      server {
+        members(search: $search, limit: 20) {
+          users {
+            ...UserAvatarUser
+          }
+        }
+      }
+    }
+  `);
+
+  const StartDMMutation = graphql(`
+    mutation QuickSwitcherStartDM($input: StartDMInput!) {
+      startDM(input: $input) {
+        id
       }
     }
   `);
@@ -179,6 +211,69 @@
     loading = false;
   }
 
+  function scheduleUserSearch(raw: string) {
+    if (userSearchTimer) clearTimeout(userSearchTimer);
+
+    const search = raw.trim();
+    const requestId = ++userSearchRequestId;
+
+    if (!quickSwitcher.visible || !search || search.startsWith('#')) {
+      userItems = [];
+      userSearchLoading = false;
+      return;
+    }
+
+    userSearchLoading = true;
+    userSearchTimer = setTimeout(() => {
+      void loadUserResults(search, requestId);
+    }, 200);
+  }
+
+  function handleQueryInput(e: Event) {
+    scheduleUserSearch((e.currentTarget as HTMLInputElement).value);
+  }
+
+  async function loadUserResults(search: string, requestId: number) {
+    const instances = serverRegistry.servers;
+    const multiInstance = instances.length > 1;
+    const opts = { requestPolicy: 'network-only' as const };
+    const items: ResultItem[] = [];
+
+    await Promise.allSettled(
+      instances.map(async (instance) => {
+        const client = graphqlClientManager.getClient(instance.id).client;
+        const store = serverRegistry.tryGetStore(instance.id);
+        const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
+        const serverLabel = multiInstance ? serverName : '';
+
+        const result = await client.query(MembersQuery, { search }, opts).toPromise();
+        const viewer = result.data?.viewer;
+        if (!viewer?.canStartDMs) return;
+
+        const currentUserId = viewer.user.id;
+        for (const member of result.data?.server.members.users ?? []) {
+          const user = useFragment(UserAvatarUserFragmentDoc, member);
+          items.push({
+            kind: 'user',
+            id: user.id,
+            label: user.displayName || user.login,
+            detail: [user.login ? `@${user.login}` : '', serverLabel].filter(Boolean).join(' · '),
+            serverId: instance.id,
+            serverName,
+            participants: [user],
+            currentUserId,
+            targetUserId: user.id,
+            score: 0
+          });
+        }
+      })
+    );
+
+    if (requestId !== userSearchRequestId) return;
+    userItems = items;
+    userSearchLoading = false;
+  }
+
   function getHostname(url: string): string {
     try {
       return new URL(url).hostname;
@@ -193,6 +288,7 @@
     const raw = query.trim();
     const recentUrls = recentQuickSwitcher.urls;
     const recentSet = new Set(recentUrls);
+    const searchableItems = [...allItems.filter((item) => item.kind !== 'dm'), ...userItems];
 
     if (!raw) {
       // Split into recent and non-recent groups
@@ -216,17 +312,23 @@
       });
 
       // Sort rest by kind then alphabetically
-      const kindOrder: Record<ResultItem['kind'], number> = { destination: 0, server: 1, room: 2, dm: 3 };
-      rest.sort(
-        (a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.label.localeCompare(b.label)
-      );
+      const kindOrder: Record<ResultItem['kind'], number> = {
+        destination: 0,
+        server: 1,
+        room: 2,
+        dm: 3,
+        user: 4
+      };
+      rest.sort((a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.label.localeCompare(b.label));
 
       return [...recent, ...rest];
     }
 
     const isChannelFilter = raw.startsWith('#');
     const q = isChannelFilter ? raw.slice(1) : raw;
-    const pool = isChannelFilter ? allItems.filter((item) => item.kind === 'room') : allItems;
+    const pool = isChannelFilter
+      ? allItems.filter((item) => item.kind === 'room')
+      : searchableItems;
 
     if (isChannelFilter && !q) {
       return [...pool].sort((a, b) => a.label.localeCompare(b.label));
@@ -267,10 +369,16 @@
       query = '';
       selectedIndex = 0;
       allItems = [];
+      userItems = [];
+      scheduleUserSearch('');
       dialogEl?.showModal();
       requestAnimationFrame(() => inputEl?.focus());
       loadAll();
     } else {
+      if (userSearchTimer) clearTimeout(userSearchTimer);
+      userItems = [];
+      userSearchLoading = false;
+      userSearchRequestId++;
       dialogEl?.close();
     }
   });
@@ -279,13 +387,59 @@
 
   function itemUrl(item: ResultItem): string | undefined {
     if ((item.kind === 'destination' || item.kind === 'server') && item.href) return item.href;
-    if (item.kind === 'dm') return resolve('/chat/[serverId]/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
-    if (item.kind === 'room') return resolve('/chat/[serverId]/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
+    if (item.kind === 'dm')
+      return resolve('/chat/[serverId]/[roomId]', {
+        serverId: serverIdToSegment(item.serverId),
+        roomId: item.id
+      });
+    if (item.kind === 'room')
+      return resolve('/chat/[serverId]/[roomId]', {
+        serverId: serverIdToSegment(item.serverId),
+        roomId: item.id
+      });
     return undefined;
   }
 
-  function select(item: ResultItem) {
+  async function startDMFromUser(item: ResultItem) {
+    if (!item.targetUserId) throw new Error('Missing DM target');
+
+    const result = await graphqlClientManager
+      .getClient(item.serverId)
+      .client.mutation(StartDMMutation, {
+        input: {
+          participantIds: item.targetUserId === item.currentUserId ? [] : [item.targetUserId]
+        }
+      })
+      .toPromise();
+
+    const roomId = result.data?.startDM.id;
+    if (!roomId) throw result.error ?? new Error('Failed to start DM');
+
+    return roomId;
+  }
+
+  async function select(item: ResultItem) {
     quickSwitcher.close();
+
+    if (item.kind === 'user') {
+      try {
+        const roomId = await startDMFromUser(item);
+        const url = resolve('/chat/[serverId]/[roomId]', {
+          serverId: serverIdToSegment(item.serverId),
+          roomId
+        });
+        recentQuickSwitcher.record(url);
+        goto(
+          resolve('/chat/[serverId]/[roomId]', {
+            serverId: serverIdToSegment(item.serverId),
+            roomId
+          })
+        );
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to start DM');
+      }
+      return;
+    }
 
     const url = itemUrl(item);
     if (url) {
@@ -330,7 +484,8 @@
     destination: 'Go to',
     server: 'Server',
     room: 'Room',
-    dm: 'DM'
+    dm: 'DM',
+    user: 'User'
   };
 
   function isRecent(item: ResultItem): boolean {
@@ -357,7 +512,11 @@
   function dmAvatarParticipants(item: ResultItem): UserAvatarUserFragment[] {
     if (!item.participants) return [];
     const others = item.participants.filter((p) => p.id !== item.currentUserId);
-    return (others.length === 0 ? item.participants.slice(0, 1) : others.slice(0, 2));
+    return others.length === 0 ? item.participants.slice(0, 1) : others.slice(0, 2);
+  }
+
+  function userAvatarParticipant(item: ResultItem): UserAvatarUserFragment | null {
+    return item.participants?.[0] ?? null;
   }
 </script>
 
@@ -378,87 +537,106 @@
   class="quick-switcher m-auto mt-[15vh] max-h-none max-w-none overflow-visible border-none bg-transparent p-0 text-inherit backdrop:bg-black/50"
 >
   {#if quickSwitcher.visible}
-  <div class="flex w-140 max-w-[90vw] flex-col gap-1 rounded-lg border border-text/10 bg-surface-100 p-1 text-sm shadow-xl">
-    <!-- Search section -->
-    <div class="menu-section">
-      <div class="flex items-center gap-2 px-3 py-1.5">
-        <span class="sidebar-icon iconify text-muted uil--search"></span>
-        <input
-          bind:this={inputEl}
-          bind:value={query}
-          onkeydown={handleKeydown}
-          type="text"
-          placeholder="Go to server, room, or conversation..."
-          class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
-        />
-        {#if loading}
-          <span class="sidebar-icon iconify animate-spin text-muted uil--spinner-alt"></span>
-        {/if}
-        <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
+    <div
+      class="flex w-140 max-w-[90vw] flex-col gap-1 rounded-lg border border-text/10 bg-surface-100 p-1 text-sm shadow-xl"
+    >
+      <!-- Search section -->
+      <div class="menu-section">
+        <div class="flex items-center gap-2 px-3 py-1.5">
+          <span class="sidebar-icon iconify text-muted uil--search"></span>
+          <input
+            bind:this={inputEl}
+            bind:value={query}
+            oninput={handleQueryInput}
+            onkeydown={handleKeydown}
+            type="text"
+            placeholder="Go to server, room, or conversation..."
+            class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
+          />
+          {#if loading || userSearchLoading}
+            <span class="sidebar-icon iconify animate-spin text-muted uil--spinner-alt"></span>
+          {/if}
+          <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
+        </div>
+      </div>
+
+      <!-- Results section -->
+      <div class="max-h-80 overflow-y-auto menu-section">
+        <nav class="sidebar-nav">
+          {#if filtered.length === 0 && !loading && !userSearchLoading}
+            <p class="px-3 py-6 text-center text-muted">No results</p>
+          {:else}
+            {#each filtered as item, i (`${item.serverId}:${item.kind}:${item.id}`)}
+              {@const header = showGroupHeader(i)}
+
+              {#if header}
+                <div class="px-3 pt-2 pb-0.5 text-xs font-medium text-muted uppercase">
+                  {header}
+                </div>
+              {/if}
+
+              <button
+                data-index={i}
+                type="button"
+                class={['sidebar-item text-left', i === selectedIndex ? 'bg-surface-100' : '']}
+                onclick={() => select(item)}
+                onpointerenter={() => (selectedIndex = i)}
+              >
+                {#if item.kind === 'destination' && item.icon}
+                  <span class="sidebar-icon iconify text-muted {item.icon}"></span>
+                {:else if item.kind === 'user'}
+                  {@const user = userAvatarParticipant(item)}
+                  <span class="sidebar-icon">
+                    {#if user}
+                      <UserAvatar {user} size="xs" showPresence={false} />
+                    {:else}
+                      <span class="sidebar-icon iconify text-muted uil--user"></span>
+                    {/if}
+                  </span>
+                {:else if item.kind === 'dm' && item.participants}
+                  <span class="sidebar-icon">
+                    <div class="flex -space-x-2">
+                      {#each dmAvatarParticipants(item) as participant (participant.id)}
+                        <UserAvatar user={participant} size="xs" showPresence={false} />
+                      {/each}
+                    </div>
+                  </span>
+                {:else if item.serverLogo}
+                  {@const logo = item.serverLogo}
+                  <span
+                    class="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded text-[10px] font-bold"
+                    style:background={logo.logoUrl ? undefined : getGradientForName(logo.name)}
+                  >
+                    {#if logo.logoUrl}
+                      <SkeletonImg
+                        src={logo.logoUrl}
+                        alt={logo.name}
+                        class="h-full w-full object-cover"
+                      />
+                    {:else}
+                      <span class="text-white">{logo.name[0]?.toUpperCase() ?? '?'}</span>
+                    {/if}
+                  </span>
+                {:else}
+                  <span class="sidebar-icon text-muted">#</span>
+                {/if}
+
+                <span class="min-w-0 flex-1 truncate">
+                  {#if item.kind === 'room'}<span class="text-muted">#</span
+                    >{/if}{item.label}{#if item.detail}<span class="text-muted"
+                      >&nbsp;· {item.detail}</span
+                    >{/if}
+                </span>
+
+                {#if !query.trim()}
+                  <span class="shrink-0 text-xs text-muted">{kindLabels[item.kind]}</span>
+                {/if}
+              </button>
+            {/each}
+          {/if}
+        </nav>
       </div>
     </div>
-
-    <!-- Results section -->
-    <div class="menu-section max-h-80 overflow-y-auto">
-      <nav class="sidebar-nav">
-        {#if filtered.length === 0 && !loading}
-          <p class="px-3 py-6 text-center text-muted">No results</p>
-        {:else}
-          {#each filtered as item, i (`${item.serverId}:${item.kind}:${item.id}`)}
-            {@const header = showGroupHeader(i)}
-
-            {#if header}
-              <div class="px-3 pt-2 pb-0.5 text-xs font-medium text-muted uppercase">
-                {header}
-              </div>
-            {/if}
-
-            <button
-              data-index={i}
-              type="button"
-              class={[
-                'sidebar-item text-left',
-                i === selectedIndex ? 'bg-surface-100' : ''
-              ]}
-              onclick={() => select(item)}
-              onpointerenter={() => (selectedIndex = i)}
-            >
-              {#if item.kind === 'destination' && item.icon}
-                <span class="sidebar-icon iconify text-muted {item.icon}"></span>
-              {:else if item.kind === 'dm' && item.participants}
-                <span class="sidebar-icon">
-                  <div class="flex -space-x-2">
-                    {#each dmAvatarParticipants(item) as participant (participant.id)}
-                      <UserAvatar user={participant} size="xs" showPresence={false} />
-                    {/each}
-                  </div>
-                </span>
-              {:else if item.serverLogo}
-                {@const logo = item.serverLogo}
-                <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded text-[10px] font-bold" style:background={logo.logoUrl ? undefined : getGradientForName(logo.name)}>
-                  {#if logo.logoUrl}
-                    <SkeletonImg src={logo.logoUrl} alt={logo.name} class="h-full w-full object-cover" />
-                  {:else}
-                    <span class="text-white">{logo.name[0]?.toUpperCase() ?? '?'}</span>
-                  {/if}
-                </span>
-              {:else}
-                <span class="sidebar-icon text-muted">#</span>
-              {/if}
-
-              <span class="min-w-0 flex-1 truncate">
-                {#if item.kind === 'room'}<span class="text-muted">#</span>{/if}{item.label}{#if item.detail}<span class="text-muted">&nbsp;· {item.detail}</span>{/if}
-              </span>
-
-              {#if !query.trim()}
-                <span class="shrink-0 text-xs text-muted">{kindLabels[item.kind]}</span>
-              {/if}
-            </button>
-          {/each}
-        {/if}
-      </nav>
-    </div>
-  </div>
   {/if}
 </dialog>
 

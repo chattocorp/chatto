@@ -830,6 +830,14 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("RoomAggregate call subject", func(t *testing.T) {
+		got := RoomAggregate("ROOM123").Subject(EventCallParticipantJoined)
+		want := "evt.room.ROOM123.call_joined"
+		if got != want {
+			t.Errorf("RoomAggregate.Subject(call): got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("RoomSubjectFilter", func(t *testing.T) {
 		got := RoomSubjectFilter()
 		want := "evt.room.>"
@@ -885,7 +893,9 @@ func TestSubjectHelpers(t *testing.T) {
 			wantOK  bool
 		}{
 			{"evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"evt.room.ROOM123.call_joined", "ROOM123", true},
 			{"live.evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"live.evt.room.ROOM123.call_left", "ROOM123", true},
 			{"evt.user.U1.user_deleted", "", false},
 			{"evt.room.", "", false},
 			{"evt.room.ROOM123", "", false}, // missing event-type segment
@@ -900,6 +910,7 @@ func TestSubjectHelpers(t *testing.T) {
 			}
 		}
 	})
+
 }
 
 func TestSubjectMatchesFilter(t *testing.T) {
@@ -977,6 +988,42 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				},
 			},
 			want: EventThreadCreated,
+		},
+		{
+			name: "CallStarted",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallStarted{
+					VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallStarted,
+		},
+		{
+			name: "CallParticipantJoined",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallParticipantJoined{
+					VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallParticipantJoined,
+		},
+		{
+			name: "CallParticipantLeft",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallParticipantLeft{
+					VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallParticipantLeft,
+		},
+		{
+			name: "CallEnded",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallEnded{
+					VoiceCallEnded: &corev1.CallEndedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallEnded,
 		},
 		{
 			name: "UserKeyShredded",

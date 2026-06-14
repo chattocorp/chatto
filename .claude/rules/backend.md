@@ -36,6 +36,7 @@ NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS 
   2. Use `kv.Update(ctx, key, value, revision)` for atomic update (fails if revision changed)
   3. For new keys, use `kv.Create()` instead (fails if key exists)
   4. Retry on `jetstream.ErrKeyExists` up to a max attempts (e.g., 5 retries)
+- **Projection-backed OCC decisions**: If a mutation decision comes from a projection, the OCC token must describe the same event-log prefix as the projected state. Prefer an owning service/projection snapshot that returns both derived state and its applied sequence for the relevant subject/filter, then publish with that expected sequence. Do not read the stream tail and decide from a potentially stale projection; that can append duplicate or invalid facts.
 - **Subject structure changes are high-risk**: Changes to NATS subject patterns cascade into stream configs, consumer filters, and query logic (e.g., `GetLastMsgForSubject`, `WithSubjectFilter`). They need careful end-to-end verification including e2e tests.
 - **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. `SERVER_EVENTS` is historical pre-0.1 storage and is no longer opened by the runtime; new writes must never mirror to it.
 

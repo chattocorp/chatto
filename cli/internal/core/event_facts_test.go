@@ -45,6 +45,14 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			roomID:  "",
 			visible: false,
 		},
+		{
+			name: "voice call started",
+			event: &corev1.Event{Event: &corev1.Event_VoiceCallStarted{
+				VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1"},
+			}},
+			roomID:  "R1",
+			visible: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -68,6 +76,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 		liveRoomEVT bool
 		reactions   bool
 		directory   bool
+		callState   bool
 	}{
 		{
 			name: "created",
@@ -80,6 +89,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveRoomEVT: false,
 			reactions:   false,
 			directory:   false,
+			callState:   false,
 		},
 		{
 			name: "processing started",
@@ -92,6 +102,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveRoomEVT: true,
 			reactions:   false,
 			directory:   false,
+			callState:   false,
 		},
 		{
 			name: "message posted",
@@ -103,6 +114,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveRoomEVT: true,
 			reactions:   false,
 			directory:   false,
+			callState:   false,
 		},
 		{
 			name: "reaction added",
@@ -114,6 +126,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveRoomEVT: true,
 			reactions:   true,
 			directory:   false,
+			callState:   false,
 		},
 		{
 			name: "room member joined",
@@ -125,6 +138,19 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveRoomEVT: true,
 			reactions:   false,
 			directory:   true,
+			callState:   false,
+		},
+		{
+			name: "voice call participant joined",
+			event: &corev1.Event{Event: &corev1.Event_VoiceCallParticipantJoined{
+				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			directory:   false,
+			callState:   true,
 		},
 	}
 	for _, tt := range tests {
@@ -146,6 +172,9 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			}
 			if got := eventNeedsRoomDirectoryProjection(tt.event); got != tt.directory {
 				t.Fatalf("eventNeedsRoomDirectoryProjection = %v, want %v", got, tt.directory)
+			}
+			if got := eventNeedsCallStateProjection(tt.event); got != tt.callState {
+				t.Fatalf("eventNeedsCallStateProjection = %v, want %v", got, tt.callState)
 			}
 		})
 	}

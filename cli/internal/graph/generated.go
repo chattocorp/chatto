@@ -165,16 +165,28 @@ type ComplexityRoot struct {
 		Width             func(childComplexity int) int
 	}
 
+	CallEndedEvent struct {
+		CallId func(childComplexity int) int
+		RoomId func(childComplexity int) int
+	}
+
 	CallParticipant struct {
 		JoinedAt func(childComplexity int) int
 		User     func(childComplexity int) int
 	}
 
 	CallParticipantJoinedEvent struct {
+		CallId func(childComplexity int) int
 		RoomId func(childComplexity int) int
 	}
 
 	CallParticipantLeftEvent struct {
+		CallId func(childComplexity int) int
+		RoomId func(childComplexity int) int
+	}
+
+	CallStartedEvent struct {
+		CallId func(childComplexity int) int
 		RoomId func(childComplexity int) int
 	}
 
@@ -296,6 +308,7 @@ type ComplexityRoot struct {
 	MessagePostedEvent struct {
 		Attachments               func(childComplexity int) int
 		Body                      func(childComplexity int) int
+		ChannelEchoEventID        func(childComplexity int) int
 		EchoFromThreadRootEventID func(childComplexity int) int
 		EchoOfEventID             func(childComplexity int) int
 		InReplyTo                 func(childComplexity int) int
@@ -352,7 +365,9 @@ type ComplexityRoot struct {
 		GrantUserPermission        func(childComplexity int, input model.GrantUserPermissionInput) int
 		JoinGroup                  func(childComplexity int, input model.JoinGroupInput) int
 		JoinRoom                   func(childComplexity int, input model.JoinRoomInput) int
+		JoinVoiceCall              func(childComplexity int, input model.VoiceCallIntentInput) int
 		LeaveRoom                  func(childComplexity int, input model.LeaveRoomInput) int
+		LeaveVoiceCall             func(childComplexity int, input model.VoiceCallIntentInput) int
 		MarkRoomAsRead             func(childComplexity int, input model.MarkRoomAsReadInput) int
 		MarkThreadAsRead           func(childComplexity int, input model.MarkThreadAsReadInput) int
 		MoveRoomToGroup            func(childComplexity int, input model.MoveRoomToGroupInput) int
@@ -953,7 +968,8 @@ type ComplexityRoot struct {
 	}
 
 	VoiceCallToken struct {
-		Token func(childComplexity int) int
+		E2EEKey func(childComplexity int) int
+		Token   func(childComplexity int) int
 	}
 }
 
@@ -1052,6 +1068,7 @@ type MessagePostedEventResolver interface {
 	UpdatedAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	EchoOfEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
 	EchoFromThreadRootEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	ChannelEchoEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
 	ReplyCount(ctx context.Context, obj *model.MessagePostedEvent) (int32, error)
 	LastReplyAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	ThreadParticipants(ctx context.Context, obj *model.MessagePostedEvent, first *int32) ([]*corev1.User, error)
@@ -1129,6 +1146,8 @@ type MutationResolver interface {
 	DenyRoomPermission(ctx context.Context, input model.DenyRoomPermissionInput) (bool, error)
 	ClearRoomPermission(ctx context.Context, input model.ClearRoomPermissionInput) (bool, error)
 	UpdateSettings(ctx context.Context, input model.UpdateSettingsInput) (*model.UserSettings, error)
+	JoinVoiceCall(ctx context.Context, input model.VoiceCallIntentInput) (bool, error)
+	LeaveVoiceCall(ctx context.Context, input model.VoiceCallIntentInput) (bool, error)
 }
 type NewDirectMessageNotificationEventResolver interface {
 	Sender(ctx context.Context, obj *corev1.NewDirectMessageNotificationEvent) (*corev1.User, error)
@@ -1708,6 +1727,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Attachment.Width(childComplexity), true
 
+	case "CallEndedEvent.callId":
+		if e.ComplexityRoot.CallEndedEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallEndedEvent.CallId(childComplexity), true
+	case "CallEndedEvent.roomId":
+		if e.ComplexityRoot.CallEndedEvent.RoomId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallEndedEvent.RoomId(childComplexity), true
+
 	case "CallParticipant.joinedAt":
 		if e.ComplexityRoot.CallParticipant.JoinedAt == nil {
 			break
@@ -1721,6 +1753,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CallParticipant.User(childComplexity), true
 
+	case "CallParticipantJoinedEvent.callId":
+		if e.ComplexityRoot.CallParticipantJoinedEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallParticipantJoinedEvent.CallId(childComplexity), true
 	case "CallParticipantJoinedEvent.roomId":
 		if e.ComplexityRoot.CallParticipantJoinedEvent.RoomId == nil {
 			break
@@ -1728,12 +1766,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CallParticipantJoinedEvent.RoomId(childComplexity), true
 
+	case "CallParticipantLeftEvent.callId":
+		if e.ComplexityRoot.CallParticipantLeftEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallParticipantLeftEvent.CallId(childComplexity), true
 	case "CallParticipantLeftEvent.roomId":
 		if e.ComplexityRoot.CallParticipantLeftEvent.RoomId == nil {
 			break
 		}
 
 		return e.ComplexityRoot.CallParticipantLeftEvent.RoomId(childComplexity), true
+
+	case "CallStartedEvent.callId":
+		if e.ComplexityRoot.CallStartedEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallStartedEvent.CallId(childComplexity), true
+	case "CallStartedEvent.roomId":
+		if e.ComplexityRoot.CallStartedEvent.RoomId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallStartedEvent.RoomId(childComplexity), true
 
 	case "ConnectionInfo.connected":
 		if e.ComplexityRoot.ConnectionInfo.Connected == nil {
@@ -2192,6 +2249,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MessagePostedEvent.Body(childComplexity), true
+	case "MessagePostedEvent.channelEchoEventId":
+		if e.ComplexityRoot.MessagePostedEvent.ChannelEchoEventID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MessagePostedEvent.ChannelEchoEventID(childComplexity), true
 	case "MessagePostedEvent.echoFromThreadRootEventId":
 		if e.ComplexityRoot.MessagePostedEvent.EchoFromThreadRootEventID == nil {
 			break
@@ -2654,6 +2717,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.JoinRoom(childComplexity, args["input"].(model.JoinRoomInput)), true
+	case "Mutation.joinVoiceCall":
+		if e.ComplexityRoot.Mutation.JoinVoiceCall == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_joinVoiceCall_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.JoinVoiceCall(childComplexity, args["input"].(model.VoiceCallIntentInput)), true
 	case "Mutation.leaveRoom":
 		if e.ComplexityRoot.Mutation.LeaveRoom == nil {
 			break
@@ -2665,6 +2739,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.LeaveRoom(childComplexity, args["input"].(model.LeaveRoomInput)), true
+	case "Mutation.leaveVoiceCall":
+		if e.ComplexityRoot.Mutation.LeaveVoiceCall == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_leaveVoiceCall_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.LeaveVoiceCall(childComplexity, args["input"].(model.VoiceCallIntentInput)), true
 	case "Mutation.markRoomAsRead":
 		if e.ComplexityRoot.Mutation.MarkRoomAsRead == nil {
 			break
@@ -5322,6 +5407,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ViewerNotificationPreference.Level(childComplexity), true
 
+	case "VoiceCallToken.e2eeKey":
+		if e.ComplexityRoot.VoiceCallToken.E2EEKey == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VoiceCallToken.E2EEKey(childComplexity), true
 	case "VoiceCallToken.token":
 		if e.ComplexityRoot.VoiceCallToken.Token == nil {
 			break
@@ -5400,6 +5491,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUploadAvatarInput,
 		ec.unmarshalInputUploadServerBannerInput,
 		ec.unmarshalInputUploadServerLogoInput,
+		ec.unmarshalInputVoiceCallIntentInput,
 	)
 	first := true
 
@@ -6592,6 +6684,8 @@ func (ec *executionContext) childFields_VoiceCallToken(ctx context.Context, fiel
 	switch field.Name {
 	case "token":
 		return ec.fieldContext_VoiceCallToken_token(ctx, field)
+	case "e2eeKey":
+		return ec.fieldContext_VoiceCallToken_e2eeKey(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type VoiceCallToken", field.Name)
 }
@@ -7506,12 +7600,40 @@ func (ec *executionContext) field_Mutation_joinRoom_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_joinVoiceCall_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.VoiceCallIntentInput, error) {
+			return ec.unmarshalNVoiceCallIntentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVoiceCallIntentInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_leaveRoom_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.LeaveRoomInput, error) {
 			return ec.unmarshalNLeaveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveRoomInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_leaveVoiceCall_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.VoiceCallIntentInput, error) {
+			return ec.unmarshalNVoiceCallIntentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVoiceCallIntentInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -9986,6 +10108,52 @@ func (ec *executionContext) fieldContext_Attachment_videoProcessing(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _CallEndedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallEndedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallEndedEvent_roomId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallEndedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallEndedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallEndedEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallEndedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallEndedEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallEndedEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallEndedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) _CallParticipant_user(ctx context.Context, field graphql.CollectedField, obj *model.CallParticipant) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10064,6 +10232,29 @@ func (ec *executionContext) fieldContext_CallParticipantJoinedEvent_roomId(_ con
 	return graphql.NewScalarFieldContext("CallParticipantJoinedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
+func (ec *executionContext) _CallParticipantJoinedEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantJoinedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallParticipantJoinedEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallParticipantJoinedEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallParticipantJoinedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) _CallParticipantLeftEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantLeftEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10085,6 +10276,75 @@ func (ec *executionContext) _CallParticipantLeftEvent_roomId(ctx context.Context
 }
 func (ec *executionContext) fieldContext_CallParticipantLeftEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CallParticipantLeftEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallParticipantLeftEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantLeftEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallParticipantLeftEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallParticipantLeftEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallParticipantLeftEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallStartedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallStartedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallStartedEvent_roomId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallStartedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallStartedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallStartedEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallStartedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallStartedEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallStartedEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallStartedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _ConnectionInfo_connected(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionInfo) (ret graphql.Marshaler) {
@@ -12078,6 +12338,29 @@ func (ec *executionContext) _MessagePostedEvent_echoFromThreadRootEventId(ctx co
 	)
 }
 func (ec *executionContext) fieldContext_MessagePostedEvent_echoFromThreadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MessagePostedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _MessagePostedEvent_channelEchoEventId(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MessagePostedEvent_channelEchoEventId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.MessagePostedEvent().ChannelEchoEventID(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MessagePostedEvent_channelEchoEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("MessagePostedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
 }
 
@@ -15159,6 +15442,94 @@ func (ec *executionContext) fieldContext_Mutation_updateSettings(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateSettings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_joinVoiceCall(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_joinVoiceCall(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().JoinVoiceCall(ctx, fc.Args["input"].(model.VoiceCallIntentInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_joinVoiceCall(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_joinVoiceCall_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_leaveVoiceCall(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_leaveVoiceCall(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().LeaveVoiceCall(ctx, fc.Args["input"].(model.VoiceCallIntentInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_leaveVoiceCall(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_leaveVoiceCall_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -24455,6 +24826,29 @@ func (ec *executionContext) fieldContext_VoiceCallToken_token(_ context.Context,
 	return graphql.NewScalarFieldContext("VoiceCallToken", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _VoiceCallToken_e2eeKey(ctx context.Context, field graphql.CollectedField, obj *core.VoiceCallToken) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VoiceCallToken_e2eeKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.E2EEKey, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VoiceCallToken_e2eeKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VoiceCallToken", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -27983,7 +28377,7 @@ func (ec *executionContext) unmarshalInputUpdateMessageInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "eventId", "body"}
+	fieldsInOrder := [...]string{"roomId", "eventId", "body", "alsoSendToChannel"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -28031,6 +28425,13 @@ func (ec *executionContext) unmarshalInputUpdateMessageInput(ctx context.Context
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "alsoSendToChannel":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("alsoSendToChannel"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AlsoSendToChannel = data
 		}
 	}
 	return it, nil
@@ -28611,6 +29012,36 @@ func (ec *executionContext) unmarshalInputUploadServerLogoInput(ctx context.Cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputVoiceCallIntentInput(ctx context.Context, obj any) (model.VoiceCallIntentInput, error) {
+	var it model.VoiceCallIntentInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"roomId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "roomId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomID = data
+		}
+	}
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -28789,6 +29220,11 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._HeartbeatEvent(ctx, sel, obj)
+	case *corev1.CallStartedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CallStartedEvent(ctx, sel, obj)
 	case *corev1.CallParticipantLeftEvent:
 		if obj == nil {
 			return graphql.Null
@@ -28799,6 +29235,11 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._CallParticipantJoinedEvent(ctx, sel, obj)
+	case *corev1.CallEndedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CallEndedEvent(ctx, sel, obj)
 	case *corev1.AssetProcessingSucceededEvent:
 		if obj == nil {
 			return graphql.Null
@@ -30229,6 +30670,50 @@ func (ec *executionContext) _Attachment(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var callEndedEventImplementors = []string{"CallEndedEvent", "EventType"}
+
+func (ec *executionContext) _CallEndedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallEndedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, callEndedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CallEndedEvent")
+		case "roomId":
+			out.Values[i] = ec._CallEndedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallEndedEvent_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var callParticipantImplementors = []string{"CallParticipant"}
 
 func (ec *executionContext) _CallParticipant(ctx context.Context, sel ast.SelectionSet, obj *model.CallParticipant) graphql.Marshaler {
@@ -30289,6 +30774,11 @@ func (ec *executionContext) _CallParticipantJoinedEvent(ctx context.Context, sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "callId":
+			out.Values[i] = ec._CallParticipantJoinedEvent_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -30325,6 +30815,55 @@ func (ec *executionContext) _CallParticipantLeftEvent(ctx context.Context, sel a
 			out.Values[i] = graphql.MarshalString("CallParticipantLeftEvent")
 		case "roomId":
 			out.Values[i] = ec._CallParticipantLeftEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallParticipantLeftEvent_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var callStartedEventImplementors = []string{"CallStartedEvent", "EventType"}
+
+func (ec *executionContext) _CallStartedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallStartedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, callStartedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CallStartedEvent")
+		case "roomId":
+			out.Values[i] = ec._CallStartedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallStartedEvent_callId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -32172,6 +32711,39 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "channelEchoEventId":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessagePostedEvent_channelEchoEventId(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "replyCount":
 			field := field
 
@@ -32953,6 +33525,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateSettings":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateSettings(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "joinVoiceCall":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_joinVoiceCall(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "leaveVoiceCall":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_leaveVoiceCall(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -40910,6 +41496,11 @@ func (ec *executionContext) _VoiceCallToken(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "e2eeKey":
+			out.Values[i] = ec._VoiceCallToken_e2eeKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -42858,6 +43449,11 @@ func (ec *executionContext) marshalNViewerNotificationPreference2ᚖhmansᚗde�
 		return graphql.Null
 	}
 	return ec._ViewerNotificationPreference(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVoiceCallIntentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐVoiceCallIntentInput(ctx context.Context, v any) (model.VoiceCallIntentInput, error) {
+	res, err := ec.unmarshalInputVoiceCallIntentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

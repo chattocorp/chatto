@@ -231,6 +231,20 @@
   // Check if this is an echo (MessagePostedEvent with echoOfEventId set)
   const isEcho = $derived(messageEvent?.echoOfEventId != null);
 
+  const editEventId = $derived(isEcho ? messageEvent!.echoOfEventId! : event.id);
+  const editThreadRootEventId = $derived(
+    isEcho ? (messageEvent?.echoFromThreadRootEventId ?? null) : (messageEvent?.threadRootEventId ?? null)
+  );
+  const editChannelEchoEventId = $derived(
+    isEcho ? event.id : (messageEvent?.channelEchoEventId ?? null)
+  );
+  const canReconcileChannelEcho = $derived(
+    isAuthor &&
+      !!editThreadRootEventId &&
+      (!!editChannelEchoEventId ||
+        (roomPermissions.canEchoMessage && roomPermissions.canPostMessage))
+  );
+
   // Common message data for rendering (body, attachments, reactions, updatedAt)
   const msg = $derived(messageEvent);
 
@@ -738,9 +752,12 @@
           serverId={getActiveServer()}
           {roomId}
           messageEventId={event.id}
-          eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+          eventId={editEventId}
           deleteEventId={event.id}
           messageBody={msg.body ?? ''}
+          threadRootEventId={editThreadRootEventId}
+          channelEchoEventId={editChannelEchoEventId}
+          canAddChannelEcho={canReconcileChannelEcho}
           reactions={msg?.reactions ?? []}
           canReact={roomPermissions.canReact}
           {canEdit}
@@ -791,9 +808,12 @@
         serverId={getActiveServer()}
         {roomId}
         messageEventId={event.id}
-        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        threadRootEventId={editThreadRootEventId}
+        channelEchoEventId={editChannelEchoEventId}
+        canAddChannelEcho={canReconcileChannelEcho}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}
@@ -824,9 +844,12 @@
         serverId={getActiveServer()}
         {roomId}
         messageEventId={event.id}
-        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        threadRootEventId={editThreadRootEventId}
+        channelEchoEventId={editChannelEchoEventId}
+        canAddChannelEcho={canReconcileChannelEcho}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}

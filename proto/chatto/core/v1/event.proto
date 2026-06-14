@@ -79,6 +79,12 @@ message Event {
     UserLeftRoomEvent user_left_room = 311;
     ServerMemberDeletedEvent server_member_deleted = 320;
 
+    // ----- Voice calls (330-339, durable room facts) -----
+    CallParticipantJoinedEvent voice_call_participant_joined = 330;
+    CallParticipantLeftEvent voice_call_participant_left = 331;
+    CallStartedEvent voice_call_started = 332;
+    CallEndedEvent voice_call_ended = 333;
+
     // ----- Messages (400-424) -----
     MessagePostedEvent message_posted = 400;
     // Durable edit / retract variants for the EVT stream (ADR-033/034/035,
