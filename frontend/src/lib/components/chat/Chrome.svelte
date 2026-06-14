@@ -49,18 +49,18 @@
     },
     {
       href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
-      label: 'Preferences',
+      label: 'Display',
       icon: 'iconify uil--clock'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
-      label: 'Account',
-      icon: 'iconify uil--setting'
     },
     {
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
       label: 'Notifications',
       icon: 'iconify uil--bell'
+    },
+    {
+      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
+      label: 'Account',
+      icon: 'iconify uil--setting'
     }
   ]);
 
@@ -72,11 +72,6 @@
   // Detect if we're on the My Threads page
   const isMyThreadsActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]/threads', { serverId: serverSegment })
-  );
-
-  // Detect if we're on the Preferences page
-  const isPreferencesActive = $derived(
-    page.url.pathname === resolve('/chat/[serverId]/preferences', { serverId: serverSegment })
   );
 
   // Create server chrome permissions context (must be synchronous during init)
@@ -303,13 +298,6 @@
                   Overview
                 </a>
                 <MyThreadsNavItem active={isMyThreadsActive} />
-                <a
-                  href={resolve('/chat/[serverId]/preferences', { serverId: serverSegment })}
-                  class={['sidebar-item', isPreferencesActive ? 'bg-surface-100' : '']}
-                >
-                  <span class="sidebar-icon iconify uil--bell"></span>
-                  Preferences
-                </a>
                 {#key isAdminMode}
                   <AdminSidebarGroup
                     currentPath={page.url.pathname}
