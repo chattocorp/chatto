@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
+  import { PresenceStatus } from '$lib/gql/graphql';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -46,8 +47,10 @@
   }
   const currentUserState = serverRegistry.getStore(originServer.id).currentUser;
   // svelte-ignore state_referenced_locally
-  currentUserState.user = user;
+  currentUserState.user = { ...user, presenceStatus: PresenceStatus.Online };
   currentUserState.loading = false;
+  // svelte-ignore state_referenced_locally
+  presenceCache.update(user.id, PresenceStatus.Online);
 
   // Initialize user settings from the user's settings data
   // svelte-ignore state_referenced_locally
