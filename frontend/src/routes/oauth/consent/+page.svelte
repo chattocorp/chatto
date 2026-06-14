@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { csrfFetch } from '$lib/auth/csrf';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError } from '$lib/ui/form';
@@ -80,7 +81,7 @@
     submitting = decision;
 
     try {
-      const response = await fetch(`/oauth/consent/${decision}`, {
+      const response = await csrfFetch(`/oauth/consent/${decision}`, {
         method: 'POST',
         credentials: 'include',
         signal: AbortSignal.timeout(10000)

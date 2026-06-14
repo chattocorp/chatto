@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { TIMEOUTS } from '../constants';
+import { csrfHeaders } from '../fixtures/csrf';
 import * as routes from '../routes';
 
 /**
@@ -412,7 +413,7 @@ export class AuthPage {
     const emailData = await this.getLastVerificationEmail();
     const code = this.extractVerificationCode(emailData.body);
     const response = await this.page.request.post('/auth/verify-email/confirm-code', {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await csrfHeaders(this.page)) },
       data: { email, code }
     });
     expect(response.ok()).toBeTruthy();

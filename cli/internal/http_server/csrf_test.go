@@ -59,6 +59,12 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 		clearCSRFCookie(c)
 		c.String(http.StatusOK, "logged out")
 	})
+	router.POST("/auth/verify-email/request-code", func(c *gin.Context) {
+		c.String(http.StatusOK, "verification ok")
+	})
+	router.POST("/auth/login", func(c *gin.Context) {
+		c.String(http.StatusOK, "login ok")
+	})
 	router.POST("/oauth/token", func(c *gin.Context) {
 		c.String(http.StatusOK, "token ok")
 	})
@@ -243,6 +249,61 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 		if !foundExpiredCookie {
 			t.Fatal("logout did not expire the CSRF cookie")
+		}
+	})
+
+	t.Run("rejects other cookie-authenticated unsafe routes without token", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		csrfCookieValue(t, client, server.URL)
+
+		resp, err := client.Post(server.URL+"/auth/verify-email/request-code", "application/json", strings.NewReader("{}"))
+		if err != nil {
+			t.Fatalf("verification request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 403; body=%s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("accepts other cookie-authenticated unsafe routes with matching token", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		token := csrfCookieValue(t, client, server.URL)
+
+		req, err := http.NewRequest(http.MethodPost, server.URL+"/auth/verify-email/request-code", strings.NewReader("{}"))
+		if err != nil {
+			t.Fatalf("create verification request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(csrfHeaderName, token)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("verification request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("exempts public auth endpoints even when a session exists", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		csrfCookieValue(t, client, server.URL)
+
+		resp, err := client.Post(server.URL+"/auth/login", "application/json", strings.NewReader("{}"))
+		if err != nil {
+			t.Fatalf("login request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
 		}
 	})
 

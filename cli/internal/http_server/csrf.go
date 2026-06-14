@@ -60,9 +60,25 @@ func (s *HTTPServer) requiresCSRF(c *gin.Context) bool {
 	if isSafeHTTPMethod(c.Request.Method) {
 		return false
 	}
-	switch c.Request.URL.Path {
-	case "/api/graphql", "/auth/logout":
-		return sessions.Default(c).Get("user_id") != nil
+	if sessions.Default(c).Get("user_id") == nil {
+		return false
+	}
+	return !isCSRFExemptUnsafePath(c.Request.URL.Path)
+}
+
+func isCSRFExemptUnsafePath(path string) bool {
+	if strings.HasPrefix(path, "/auth/test/") || strings.HasPrefix(path, "/webhooks/") {
+		return true
+	}
+	switch path {
+	case "/auth/login",
+		"/auth/register",
+		"/auth/register/verify-code",
+		"/auth/register/complete",
+		"/auth/forgot-password",
+		"/auth/reset-password",
+		"/oauth/token":
+		return true
 	default:
 		return false
 	}
