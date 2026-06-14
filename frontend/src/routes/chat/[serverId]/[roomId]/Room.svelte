@@ -35,7 +35,8 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
   import RoomEventsPane from './RoomEventsPane.svelte';
-  import RoomSidebar from './RoomSidebar.svelte';
+  import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
+  import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import ThreadPane from './ThreadPane.svelte';
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
@@ -276,6 +277,11 @@
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   // Channel rooms can always be left. DMs are permanent (no leave action).
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
+  let activeRoomSidebarPanel = $state<RoomSidebarPanel | null>('members');
+
+  function toggleRoomSidebarPanel(panel: RoomSidebarPanel) {
+    activeRoomSidebarPanel = activeRoomSidebarPanel === panel ? null : panel;
+  }
 
   let leavingRoom = $state(false);
 
@@ -352,12 +358,18 @@
             {/if}
           {/snippet}
           {#snippet actions()}
+            {#if !room.isDM}
+              <RoomSidebarToggle
+                activePanel={activeRoomSidebarPanel}
+                onToggle={toggleRoomSidebarPanel}
+              />
+            {/if}
             {#if showVoiceCall}
               <VoiceCallButton {roomId} livekitUrl={serverInfo.livekitUrl!} />
             {/if}
             {#if showLeaveRoom}
               <button
-                class="iconify cursor-pointer text-muted uil--sign-out-alt hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+                class="group/pane-header-icon-button pane-header-icon-button"
                 onclick={() =>
                   pushState('', {
                     modal: {
@@ -369,6 +381,7 @@
                 disabled={leavingRoom}
                 title="Leave room"
               >
+                <span class="pane-header-icon-glyph text-xl uil--sign-out-alt" aria-hidden="true"></span>
               </button>
             {/if}
           {/snippet}
@@ -417,14 +430,16 @@
       {/if}
     </div>
 
-    {#if !room.isDM}
+    {#if !room.isDM && activeRoomSidebarPanel}
       <div class="hidden lg:flex">
         <RoomSidebar
           {roomId}
+          activePanel={activeRoomSidebarPanel}
           loading={room.isRoomLoading}
           canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
           currentUserId={currentUser.user?.id ?? null}
           onLoadMoreMembers={roomMembers.loadMoreMembers}
+          onClose={() => (activeRoomSidebarPanel = null)}
         />
       </div>
     {/if}

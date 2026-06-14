@@ -2,9 +2,14 @@
 @component
 
 The **Room Sidebar** — right-hand pane scoped to the current room. Currently
-shows the member list; will grow to host other room-scoped surfaces (pinned
-messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
+hosts room-scoped extras. The members panel is the first full surface; files,
+calls, and similar room-specific panels can plug into the same shell. See the
+"UI" section of `docs/GLOSSARY.md`.
 -->
+<script module lang="ts">
+  export type RoomSidebarPanel = 'members' | 'files';
+</script>
+
 <script lang="ts">
   import { graphql } from '$lib/gql';
   import { startDMWith } from '$lib/dm/startDM';
@@ -27,6 +32,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { toast } from '$lib/ui/toast';
+  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
 
   const BanRoomMemberMutation = graphql(`
@@ -38,15 +44,19 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   let {
     loading = false,
     roomId,
+    activePanel = 'members',
     canBanRoomMembers = false,
     currentUserId = null,
-    onLoadMoreMembers
+    onLoadMoreMembers,
+    onClose
   }: {
     loading?: boolean;
     roomId: string;
+    activePanel?: RoomSidebarPanel;
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
     onLoadMoreMembers?: () => void | Promise<void>;
+    onClose?: () => void;
   } = $props();
 
   const connection = useConnection();
@@ -56,6 +66,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   const membersState = $derived(getRoomMembersState());
   const members = $derived(membersState.members);
   const memberCount = $derived(membersState.totalCount);
+  const title = $derived(activePanel === 'members' ? `Members (${memberCount})` : 'Files');
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
@@ -154,12 +165,28 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
     toast.success(`Banned ${displayName} from room`);
     banDialogMember = null;
   }
+
+  function loadMoreMembersWhenVisible(node: HTMLElement) {
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        if (!membersState.hasMore || membersState.loadingMore) return;
+        void onLoadMoreMembers?.();
+      },
+      { rootMargin: '160px 0px' }
+    );
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }
 </script>
 
 <aside
   class="relative flex flex-col border-l border-border"
   style:width="{roomSidebarWidth.value}px"
-  aria-label="Room members"
+  aria-label="Room extras"
 >
   <ResizeHandle
     width={roomSidebarWidth.value}
@@ -168,70 +195,76 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
     onResize={(w) => roomSidebarWidth.set(w)}
     onReset={() => roomSidebarWidth.reset()}
     edge="left"
-    label="Resize members pane"
+    label="Resize room extras pane"
   />
-  <PaneHeader title="Members ({memberCount})" {loading} skeletonButtons={0} />
+  <PaneHeader {title} {loading} skeletonButtons={0}>
+    {#snippet actions()}
+      <HeaderIconButton icon="uil--times" label="Hide room extras" onclick={() => onClose?.()} />
+    {/snippet}
+  </PaneHeader>
 
-  <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Member list">
-    {#if loading}
-      <ul role="list">
-        {#each Array(8) as _, i (i)}
-          <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
-            <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-            <div class="min-w-0 flex-1 space-y-1">
-              <div class="skeleton h-3.5 w-24 rounded"></div>
-              <div class="skeleton h-3 w-16 rounded"></div>
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {:else}
-      {#if onlineMembers.length > 0}
-        <CollapsibleGroup
-          label="Online ({onlineMembers.length})"
-          items={onlineMembers}
-          item={memberRow}
-          persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:online')}
+  {#if activePanel === 'members'}
+    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Member list">
+      {#if loading}
+        <ul role="list">
+          {#each Array(8) as _, i (i)}
+            <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
+              <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
+              <div class="min-w-0 flex-1 space-y-1">
+                <div class="skeleton h-3.5 w-24 rounded"></div>
+                <div class="skeleton h-3 w-16 rounded"></div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        {#if onlineMembers.length > 0}
+          <CollapsibleGroup
+            label="Online ({onlineMembers.length})"
+            items={onlineMembers}
+            item={memberRow}
+            persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:online')}
+          />
+        {/if}
+
+        {#if offlineMembers.length > 0}
+          <CollapsibleGroup
+            label="Offline ({offlineMembers.length})"
+            items={offlineMembers}
+            item={memberRow}
+            persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:offline')}
+            defaultCollapsed
+            class="mt-4"
+          />
+        {/if}
+
+        {#if membersState.hasMore}
+          <div
+            class="flex justify-center px-3 py-4 text-sm text-muted"
+            data-testid="room-members-load-more-sentinel"
+            {@attach loadMoreMembersWhenVisible}
+          >
+            {membersState.loadingMore ? 'Loading members...' : ''}
+          </div>
+        {/if}
+      {/if}
+
+      {#if popoverMember && popoverAnchorRect}
+        <UserContextMenu
+          user={popoverMember}
+          anchorRect={popoverAnchorRect}
+          canSendMessage={canStartDMs}
+          canBanFromRoom={canRemovePopoverMember}
+          banningFromRoom={banningMemberId === popoverMember.id}
+          onSendMessage={() => startDMWith(getActiveServer(), popoverMember!.id)}
+          onBanFromRoom={() => openBanDialog(popoverMember!)}
+          onClose={closePopover}
         />
       {/if}
-
-      {#if offlineMembers.length > 0}
-        <CollapsibleGroup
-          label="Offline ({offlineMembers.length})"
-          items={offlineMembers}
-          item={memberRow}
-          persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:offline')}
-          defaultCollapsed
-          class="mt-4"
-        />
-      {/if}
-
-      {#if membersState.hasMore}
-        <button
-          type="button"
-          class="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted transition-colors hover:border-text/30 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={membersState.loadingMore}
-          onclick={() => onLoadMoreMembers?.()}
-        >
-          <span class="iconify text-base uil--angle-down"></span>
-          {membersState.loadingMore ? 'Loading members...' : 'Load more members'}
-        </button>
-      {/if}
-    {/if}
-
-    {#if popoverMember && popoverAnchorRect}
-      <UserContextMenu
-        user={popoverMember}
-        anchorRect={popoverAnchorRect}
-        canSendMessage={canStartDMs}
-        canBanFromRoom={canRemovePopoverMember}
-        banningFromRoom={banningMemberId === popoverMember.id}
-        onSendMessage={() => startDMWith(getActiveServer(), popoverMember!.id)}
-        onBanFromRoom={() => openBanDialog(popoverMember!)}
-        onClose={closePopover}
-      />
-    {/if}
-  </nav>
+    </nav>
+  {:else if activePanel === 'files'}
+    <div class="flex min-h-0 flex-1 flex-col"></div>
+  {/if}
 
   {#if banDialogMember}
     <BanRoomMemberModal

@@ -28,6 +28,7 @@
 :root {
   --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-600);
+  --color-text-top: var(--color-black);
   --color-muted: var(--color-gray-500);
 
   --color-border: var(--color-gray-200);
@@ -77,6 +78,7 @@
 
   --color-background: var(--color-neutral-900);
   --color-text: var(--color-neutral-300);
+  --color-text-top: var(--color-white);
   --color-muted: var(--color-neutral-400);
 
   --color-border: var(--color-neutral-800);
@@ -110,6 +112,7 @@
 
   --color-background: var(--color-background);
   --color-text: var(--color-text);
+  --color-text-top: var(--color-text-top);
   --color-muted: var(--color-muted);
 
   --color-border: var(--color-border);
@@ -317,6 +320,22 @@
 @utility meta-badge {
   @apply inline-flex items-center rounded-sm border leading-none;
   @apply bg-surface group-hover/badges:bg-surface-200 hover:bg-surface-300;
+}
+
+/* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.
+   Resting inactive state is intentionally transparent; pair with
+   `pane-header-icon-button-active` for selected/toggled backgrounds. */
+@utility pane-header-icon-button {
+  @apply inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-colors;
+  @apply hover:!text-text-top disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:!opacity-100;
+}
+
+@utility pane-header-icon-glyph {
+  @apply iconify shrink-0 transition-colors;
+}
+
+@utility pane-header-icon-button-active {
+  @apply bg-surface-200 !text-text-top;
 }
 
 /* Sidebar navigation utilities */

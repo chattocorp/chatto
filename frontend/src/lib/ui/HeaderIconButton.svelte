@@ -3,8 +3,8 @@
 
 The standard icon-only button used inside `PaneHeader` (and any other
 header-style toolbar). Wraps a single iconify glyph in a button or
-anchor with consistent sizing (`text-xl`, ~24×24), color tones, and
-hover behaviour, so every pane header keeps the same visual rhythm.
+anchor with a fixed padded hit area, color tones, and hover behaviour,
+so every pane header keeps the same visual rhythm.
 
 Pass either `onclick` for a regular button or `href` for navigation —
 the component renders the matching element and gets accessible name
@@ -12,7 +12,7 @@ from the required `label` prop.
 
 ```svelte
 <HeaderIconButton icon="uil--bell" label="Follow thread" onclick={toggle} />
-<HeaderIconButton icon="uil--bell" label="Unfollow thread" active onclick={toggle} />
+<HeaderIconButton icon="uil--bell" label="Unfollow thread" tone="active" onclick={toggle} />
 <HeaderIconButton icon="uil--cog" label="Settings" href="/settings" />
 <HeaderIconButton icon="uil--trash" label="Delete" tone="danger" onclick={destroy} />
 ```
@@ -44,7 +44,7 @@ arrow aligned with the sidebar nav items below.
     /**
      * Visual tone:
      * - `default` (muted text → text on hover)
-     * - `active` (full text color — for toggled-on states like "following")
+     * - `active` (selected background — for toggled-on states like "following")
      * - `danger` (red tint with red hover)
      */
     tone?: Tone;
@@ -55,28 +55,32 @@ arrow aligned with the sidebar nav items below.
   } = $props();
 
   const toneClasses: Record<Tone, string> = {
-    default: 'text-muted hover:text-text',
-    active: 'text-text hover:text-text',
-    danger: 'text-danger hover:text-danger/80'
+    default: 'text-muted',
+    active: 'pane-header-icon-button-active',
+    danger: 'text-danger'
   };
 
-  const baseClass = $derived([
-    'iconify shrink-0 cursor-pointer text-xl disabled:cursor-not-allowed disabled:opacity-50',
-    icon,
+  const buttonClass = $derived([
+    'group/pane-header-icon-button pane-header-icon-button',
     toneClasses[tone]
   ]);
+  const glyphClass = $derived(['pane-header-icon-glyph text-xl', icon]);
 </script>
 
 {#if href}
   <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths -->
-  <a {href} class={baseClass} title={title ?? label} aria-label={label}></a>
+  <a {href} class={buttonClass} title={title ?? label} aria-label={label}>
+    <span class={glyphClass} aria-hidden="true"></span>
+  </a>
 {:else}
   <button
     type="button"
-    class={baseClass}
+    class={buttonClass}
     {disabled}
     {onclick}
     title={title ?? label}
     aria-label={label}
-  ></button>
+  >
+    <span class={glyphClass} aria-hidden="true"></span>
+  </button>
 {/if}

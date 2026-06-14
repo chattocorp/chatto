@@ -46,16 +46,19 @@ States:
 
 {#if isConnecting}
   <span
-    class="iconify animate-spin text-muted uil--spinner"
+    class="group/pane-header-icon-button pane-header-icon-button"
     title="Connecting..."
-  ></span>
+  >
+    <span class="pane-header-icon-glyph animate-spin text-xl uil--spinner" aria-hidden="true"></span>
+  </span>
 {:else if !isInThisCall}
   <button
     type="button"
-    class="iconify cursor-pointer text-muted uil--phone hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+    class="group/pane-header-icon-button pane-header-icon-button"
     onclick={handleJoin}
     disabled={isInAnotherCall}
     title={isInAnotherCall ? 'Already in another call' : 'Join voice call'}
   >
+    <span class="pane-header-icon-glyph text-xl uil--phone" aria-hidden="true"></span>
   </button>
 {/if}

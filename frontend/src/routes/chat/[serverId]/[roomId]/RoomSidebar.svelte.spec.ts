@@ -10,6 +10,38 @@ import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
 
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  readonly callback: IntersectionObserverCallback;
+  readonly elements = new Set<Element>();
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  observe(element: Element) {
+    this.elements.add(element);
+  }
+
+  unobserve(element: Element) {
+    this.elements.delete(element);
+  }
+
+  disconnect() {
+    this.elements.clear();
+  }
+
+  trigger(isIntersecting = true) {
+    const entries = Array.from(this.elements).map((target) => ({
+      isIntersecting,
+      target
+    }));
+    this.callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver);
+  }
+}
+
 vi.mock('$lib/hooks/useEvent.svelte', () => ({
   useEvent: vi.fn(),
   usePresenceChange: vi.fn()
@@ -92,9 +124,11 @@ describe('RoomSidebar', () => {
   beforeEach(() => {
     queryMock.mockReset();
     localStorage.clear();
+    MockIntersectionObserver.instances = [];
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
   });
 
-  it('shows the exact total count and loads additional member pages', async () => {
+  it('shows the exact total count and automatically loads additional member pages', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
     const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
 
@@ -120,11 +154,11 @@ describe('RoomSidebar', () => {
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
     expect(renderedMemberTitles(container)).toHaveLength(100);
     await vi.waitFor(() => {
-      expect(buttonByText(container, 'Load more members')).toBeTruthy();
+      expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeTruthy();
+      expect(MockIntersectionObserver.instances).toHaveLength(1);
     });
 
-    const loadMore = buttonByText(container, 'Load more members')!;
-    loadMore.click();
+    MockIntersectionObserver.instances[0].trigger();
     await tick();
 
     await vi.waitFor(() => {
@@ -136,7 +170,7 @@ describe('RoomSidebar', () => {
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
     await vi.waitFor(() => {
-      expect(buttonByText(container, 'Load more members')).toBeUndefined();
+      expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
     });
 
     const renderedTitles = renderedMemberTitles(container);
@@ -146,16 +180,30 @@ describe('RoomSidebar', () => {
     }
   });
 
-  it('keeps existing pagination state when loading another page fails', async () => {
+  it('keeps existing pagination state when automatic pagination fails and allows retry', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
+    const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    queryMock.mockResolvedValue({
-      data: {
-        room: null
-      },
-      error: new Error('network failed')
-    });
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: null
+        },
+        error: new Error('network failed')
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: secondPage,
+              totalCount: 142,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
 
     try {
       const { container } = render(RoomSidebarTestHarness, {
@@ -167,8 +215,11 @@ describe('RoomSidebar', () => {
       await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
       expect(renderedMemberTitles(container)).toHaveLength(100);
 
-      const loadMore = buttonByText(container, 'Load more members')!;
-      loadMore.click();
+      await vi.waitFor(() => {
+        expect(MockIntersectionObserver.instances).toHaveLength(1);
+      });
+
+      MockIntersectionObserver.instances[0].trigger();
       await tick();
 
       await vi.waitFor(() => {
@@ -181,7 +232,19 @@ describe('RoomSidebar', () => {
       await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
       expect(renderedMemberTitles(container)).toHaveLength(100);
       await vi.waitFor(() => {
-        expect(buttonByText(container, 'Load more members')).toBeTruthy();
+        expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeTruthy();
+      });
+
+      MockIntersectionObserver.instances[0].trigger();
+      await tick();
+
+      await vi.waitFor(() => {
+        expect(queryMock).toHaveBeenCalledTimes(2);
+      });
+
+      await vi.waitFor(() => {
+        expect(renderedMemberTitles(container)).toHaveLength(142);
+        expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
       });
     } finally {
       consoleErrorSpy.mockRestore();
@@ -221,5 +284,37 @@ describe('RoomSidebar', () => {
 
     expect(presenceBadge(container, 'Online')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+  });
+
+  it('calls onClose when the room extras close button is clicked', async () => {
+    const onClose = vi.fn();
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([member(1)], 1, false),
+        onClose
+      }
+    });
+
+    const closeButton = container.querySelector(
+      '[aria-label="Hide room extras"]'
+    ) as HTMLButtonElement | null;
+    expect(closeButton).toBeTruthy();
+
+    closeButton!.click();
+    await tick();
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('renders the blank files panel', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Files');
+    expect(container.querySelector('[aria-label="Member list"]')).toBeFalsy();
   });
 });
