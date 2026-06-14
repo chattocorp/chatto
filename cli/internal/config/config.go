@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -74,6 +75,26 @@ type WebserverConfig struct {
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
 	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+}
+
+// CookieEncryptionKey decodes the optional cookie encryption secret into an
+// AES key suitable for securecookie. Empty means cookies are signed only.
+func (c *WebserverConfig) CookieEncryptionKey() ([]byte, error) {
+	if c.CookieEncryptionSecret == "" {
+		return nil, nil
+	}
+
+	key, err := hex.DecodeString(c.CookieEncryptionSecret)
+	if err != nil {
+		return nil, fmt.Errorf("webserver.cookie_encryption_secret must be hex-encoded: %w", err)
+	}
+
+	switch len(key) {
+	case 16, 24, 32:
+		return key, nil
+	default:
+		return nil, fmt.Errorf("webserver.cookie_encryption_secret must decode to 16, 24, or 32 bytes (got %d)", len(key))
+	}
 }
 
 // WebSocketCompressionEnabled returns whether WebSocket compression is enabled (default: true)
@@ -516,6 +537,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if c.Core.SecretKey == "" {
 		errs = append(errs, "core.secret_key is required")
+	}
+	if _, err := c.Webserver.CookieEncryptionKey(); err != nil {
+		errs = append(errs, err.Error())
 	}
 
 	// Port ranges (port 0 is allowed when TLS is enabled, as it defaults to 443)

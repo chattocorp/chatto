@@ -31,6 +31,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   256-bit hex secret for signing session cookies. Generate with `openssl rand -hex 32`.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" toml="webserver.cookie_encryption_secret">
+  Optional hex secret for encrypting session cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
+</EnvVar>
+
 <EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
   Enable WebSocket compression.
 </EnvVar>

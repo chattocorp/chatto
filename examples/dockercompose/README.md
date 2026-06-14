@@ -32,6 +32,7 @@ This example deploys a clustered Chatto setup with:
    - `PUBLIC_URL` - Your domain (e.g., `chat.example.com`)
    - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` - Must match (shared auth token)
    - `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` - Session cookie signing
+   - `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` - Session cookie encryption
    - `CHATTO_CORE_SECRET_KEY` - Bearer-token and account-flow verifier key
    - `CHATTO_CORE_ASSETS_SIGNING_SECRET` - Asset URL signing
    - `CHATTO_LIVEKIT_API_KEY` / `CHATTO_LIVEKIT_API_SECRET` - Must match the keys in `livekit.yaml`

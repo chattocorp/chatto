@@ -3,7 +3,6 @@ package http_server
 import (
 	"context"
 	"crypto/tls"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
@@ -144,16 +143,11 @@ func (s *HTTPServer) setupRoutes() error {
 	// Configure session middleware
 	authKey := []byte(s.config.Webserver.CookieSigningSecret)
 	var sessionStore cookie.Store
-	if encHex := s.config.Webserver.CookieEncryptionSecret; encHex != "" {
-		encKey, err := hex.DecodeString(encHex)
-		if err != nil {
-			return fmt.Errorf("webserver.cookie_encryption_secret: must be hex-encoded: %w", err)
-		}
-		switch len(encKey) {
-		case 16, 24, 32:
-		default:
-			return fmt.Errorf("webserver.cookie_encryption_secret must decode to 16, 24, or 32 bytes (got %d)", len(encKey))
-		}
+	encKey, err := s.config.Webserver.CookieEncryptionKey()
+	if err != nil {
+		return err
+	}
+	if len(encKey) > 0 {
 		sessionStore = cookie.NewStore(authKey, encKey)
 	} else {
 		s.logger.Warn("webserver.cookie_encryption_secret is not set; session cookies are signed but NOT encrypted. Run `chatto init` on a fresh server to generate one, or add a hex-encoded 32-byte value to chatto.toml.")
