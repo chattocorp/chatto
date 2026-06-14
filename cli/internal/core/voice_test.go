@@ -8,8 +8,42 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+type fakeLiveKitParticipantLister struct {
+	snapshots []liveKitParticipantSnapshot
+	err       error
+}
+
+func (f fakeLiveKitParticipantLister) ListCallParticipants(ctx context.Context) ([]liveKitParticipantSnapshot, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return append([]liveKitParticipantSnapshot(nil), f.snapshots...), nil
+}
+
+type failingShredCallKeyStore struct {
+	delegate kms.CallKeyStore
+	err      error
+}
+
+func (f failingShredCallKeyStore) CreateCallKey(ctx context.Context, callID string) (string, string, error) {
+	return f.delegate.CreateCallKey(ctx, callID)
+}
+
+func (f failingShredCallKeyStore) GetCallKey(ctx context.Context, keyRef string) (string, error) {
+	return f.delegate.GetCallKey(ctx, keyRef)
+}
+
+func (f failingShredCallKeyStore) CallKeyExists(ctx context.Context, keyRef string) (bool, error) {
+	return f.delegate.CallKeyExists(ctx, keyRef)
+}
+
+func (f failingShredCallKeyStore) ShredCallKey(context.Context, string) error {
+	return f.err
+}
 
 func TestLiveKitRoomName(t *testing.T) {
 	tests := []struct {
@@ -711,6 +745,167 @@ func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
 	participants, _ = core.GetCallParticipants(ctx, "channel", roomID)
 	if len(participants) != 0 {
 		t.Fatalf("Expected 0 participants after reconcile leave, got %d", len(participants))
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitClosesRoomMissingFromLiveKit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	started := callEvents[0].GetVoiceCallStarted()
+	if started == nil || started.GetE2EeKeyRef() == "" {
+		t.Fatalf("Expected started event with key ref")
+	}
+
+	core.callService.livekit = fakeLiveKitParticipantLister{}
+	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected missing LiveKit room to clear participants, got %d", len(participants))
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected missing LiveKit room to end active call")
+	}
+	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() after reconcile error = %v", err)
+	}
+	if len(callEvents) != 4 ||
+		callEvents[2].GetVoiceCallParticipantLeft() == nil ||
+		callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected start/join/left/end after missing-room reconcile, got %d events", len(callEvents))
+	}
+	if got := callEvents[3].GetVoiceCallEnded().GetSource(); got != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION {
+		t.Fatalf("Ended source = %v, want RECONCILIATION", got)
+	}
+	exists, err := core.encryption.callKeys.CallKeyExists(ctx, started.GetE2EeKeyRef())
+	if err != nil {
+		t.Fatalf("CallKeyExists() error = %v", err)
+	}
+	if exists {
+		t.Fatal("Expected missing-room reconcile to shred ended call key")
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	core.callService.livekit = fakeLiveKitParticipantLister{
+		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID}},
+	}
+	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected observed empty LiveKit room to clear participants, got %d", len(participants))
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected observed empty LiveKit room to end active call")
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected observed empty room to append CallEndedEvent, got %d events", len(callEvents))
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitErrorDoesNotClearProjection(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	liveKitErr := errors.New("livekit unavailable")
+	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	err := core.callService.ReconcileWithLiveKit(ctx)
+	if !errors.Is(err, liveKitErr) {
+		t.Fatalf("ReconcileWithLiveKit() error = %v, want %v", err, liveKitErr)
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 1 {
+		t.Fatalf("Expected failed reconciliation to leave projection intact, got %d participants", len(participants))
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); !ok {
+		t.Fatal("Expected failed reconciliation to keep active call")
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 2 {
+		t.Fatalf("Expected failed reconciliation to append no events, got %d", len(callEvents))
+	}
+}
+
+func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	started := callEvents[0].GetVoiceCallStarted()
+	if started == nil || started.GetE2EeKeyRef() == "" {
+		t.Fatalf("Expected started event with key ref")
+	}
+
+	shredErr := errors.New("kms shred unavailable")
+	core.callService.callKeys = failingShredCallKeyStore{
+		delegate: core.encryption.callKeys,
+		err:      shredErr,
+	}
+	err = core.RecordCallParticipantLeft(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER)
+	if !errors.Is(err, shredErr) {
+		t.Fatalf("RecordCallParticipantLeft() error = %v, want shred error", err)
+	}
+
+	callEvents, seq, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() after leave error = %v", err)
+	}
+	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected committed CallEndedEvent despite shred failure, got %d events", len(callEvents))
+	}
+	if err := core.CallStateProjector.WaitFor(ctx, events.SubjectPosition(events.RoomAggregate(roomID).AllEventsFilter(), seq)); err != nil {
+		t.Fatalf("CallStateProjector.WaitFor() error = %v", err)
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected committed CallEndedEvent to clear active call")
+	}
+	exists, err := core.encryption.callKeys.CallKeyExists(ctx, started.GetE2EeKeyRef())
+	if err != nil {
+		t.Fatalf("CallKeyExists() error = %v", err)
+	}
+	if !exists {
+		t.Fatal("Expected call key to remain when shredding fails")
 	}
 }
 
