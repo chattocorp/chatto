@@ -82,7 +82,7 @@ test.describe('Admin Access Control', () => {
 
     // Should see access denied message
     await adminPage.expectAccessDenied();
-    await adminPage.expectAdministrationGroupNotVisible();
+    await adminPage.expectAdminGearNotVisible();
     await expect(
       page.getByText('You do not have permission to access this page.')
     ).toBeVisible();
@@ -114,12 +114,8 @@ test.describe('Admin General Page', () => {
     // Should see the General settings page
     await adminPage.expectGeneralPageVisible();
 
-    // Admin pages keep the normal server sidebar; the inline admin group
-    // starts expanded on admin routes and highlights the current page.
+    // Admin pages use their own sidebar and highlight the current page.
     await adminPage.expectBackToChatVisible();
-    await adminPage.expectAdministrationGroupVisible();
-    await adminPage.expectAdministrationExpanded();
-    await adminPage.expectAdministrationGroupNotActive();
     await adminPage.expectSidebarLinkActive('General');
 
     // Should see the sidebar navigation
@@ -182,34 +178,25 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('administration group toggles inline admin links', async ({ page, adminPage }) => {
+  test('server header gear opens the first permitted admin page', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
-    await adminPage.goto();
+    await page.goto(routes.space());
 
-    await adminPage.expectAdministrationGroupVisible();
-    await adminPage.expectAdministrationExpanded();
-    await adminPage.expectSidebarLinkVisible('General');
-    await adminPage.expectSidebarLinkVisible('Users');
-
-    await adminPage.collapseAdministration();
-    await adminPage.expectAdministrationCollapsed();
-    await adminPage.expectSidebarLinkNotVisible('General');
-
-    await adminPage.expandAdministration();
-    await adminPage.expectAdministrationExpanded();
-    await adminPage.expectSidebarLinkVisible('General');
+    await adminPage.expectAdminGearVisible();
+    await adminPage.navigateToAdminViaGear();
+    await adminPage.expectGeneralPageVisible();
+    await adminPage.expectBackToChatVisible();
+    await adminPage.expectSidebarLinkActive('General');
   });
 
-  test('admin pages keep the normal server sidebar shell', async ({ page, adminPage }) => {
+  test('admin pages use the dedicated server-admin sidebar shell', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.gotoUsers();
 
     await adminPage.expectUsersPageVisible();
     await adminPage.expectBackToChatVisible();
-    await adminPage.expectAdministrationGroupVisible();
-    await adminPage.expectAdministrationExpanded();
     await adminPage.expectSidebarLinkActive('Users');
   });
 
@@ -284,15 +271,11 @@ test.describe('Admin Granular Permissions', () => {
 
     await regularAdminPage.gotoUsers();
 
-    // Should see the permitted section (not access denied) and an inline admin group
-    // whose permitted links start hidden until expanded.
+    // Should see the permitted section (not access denied) and the dedicated
+    // admin sidebar should only expose their allowed links.
     await regularAdminPage.expectUsersPageVisible();
-    await regularAdminPage.expectAdministrationGroupVisible();
-    await regularAdminPage.expectAdministrationExpanded();
     await regularAdminPage.expectSidebarLinkVisible('Users');
     await regularAdminPage.expectSidebarLinkActive('Users');
-    await regularAdminPage.collapseAdministration();
-    await regularAdminPage.expectSidebarLinkNotVisible('Users');
 
     // Clean up: revoke the permission
     await revokePermission(page, 'everyone', 'admin.view-users');

@@ -26,12 +26,12 @@ export class AdminPage {
     return this.page.locator('div.flex-1.flex-col').first();
   }
 
-  /** Inline Administration group toggle in the main server sidebar. */
-  get administrationButton(): Locator {
-    return this.sidebar.getByRole('button', { name: 'Administration' });
+  /** Gear entry point in the server header. */
+  get adminGearLink(): Locator {
+    return this.page.getByRole('link', { name: 'Server administration' });
   }
 
-  /** General settings link inside the expanded Administration group. */
+  /** General settings link inside the dedicated admin sidebar. */
   get generalLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'General' });
   }
@@ -41,7 +41,7 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Overview' });
   }
 
-  /** Members link inside the expanded Administration group. */
+  /** Members link inside the dedicated admin sidebar. */
   get usersLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Members' });
   }
@@ -51,24 +51,24 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Members' });
   }
 
-  /** Rooms link inside the expanded Administration group. */
+  /** Rooms link inside the dedicated admin sidebar. */
   get roomsLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Rooms' });
   }
 
-  /** System link inside the expanded Administration group. */
+  /** System link inside the dedicated admin sidebar. */
   get systemLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'System' });
   }
 
-  /** Permissions link inside the expanded Administration group. */
+  /** Permissions link inside the dedicated admin sidebar. */
   get rolesLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Permissions' });
   }
 
-  /** Back-to-chat affordance. Admin pages now keep the normal server sidebar. */
+  /** Back-to-chat affordance in the admin sidebar header. */
   get backToChatLink(): Locator {
-    return this.overviewLink;
+    return this.page.getByRole('link', { name: 'Back to Server' });
   }
 
   /** Access denied message */
@@ -154,45 +154,29 @@ export class AdminPage {
     await this.page.goto(routes.adminRole(roleName));
   }
 
-  /**
-   * Navigate using sidebar links.
-   */
-  async expandAdministration(): Promise<void> {
-    await expect(this.administrationButton).toBeVisible();
-    if ((await this.administrationButton.getAttribute('aria-expanded')) !== 'true') {
-      await this.administrationButton.click();
-    }
-  }
-
-  async collapseAdministration(): Promise<void> {
-    await expect(this.administrationButton).toBeVisible();
-    if ((await this.administrationButton.getAttribute('aria-expanded')) === 'true') {
-      await this.administrationButton.click();
-    }
-  }
-
   async navigateToGeneral(): Promise<void> {
-    await this.expandAdministration();
     await this.generalLink.click();
     await this.page.waitForURL(routes.admin);
   }
 
   async navigateToUsers(): Promise<void> {
-    await this.expandAdministration();
     await this.usersLink.click();
     await this.page.waitForURL(routes.adminUsers);
   }
 
   async navigateToSpaces(): Promise<void> {
-    await this.expandAdministration();
     await this.spacesLink.click();
     await this.page.waitForURL(routes.adminSpaces);
   }
 
   async navigateToSystem(): Promise<void> {
-    await this.expandAdministration();
     await this.systemLink.click();
     await this.page.waitForURL(routes.adminSystem);
+  }
+
+  async navigateToAdminViaGear(): Promise<void> {
+    await this.adminGearLink.click();
+    await this.page.waitForURL(routes.admin);
   }
 
   async navigateBackToChat(): Promise<void> {
@@ -392,32 +376,19 @@ export class AdminPage {
     await expect(this.accessDeniedMessage).toBeVisible();
   }
 
-  /** Assert that the inline Administration group exposes admin navigation. */
+  /** Assert that the dedicated server-admin sidebar exposes admin navigation. */
   async expectSidebarNavVisible(): Promise<void> {
-    await this.expandAdministration();
     await expect(this.generalLink).toBeVisible();
     await expect(this.usersLink).toBeVisible();
     await expect(this.systemLink).toBeVisible();
   }
 
-  async expectAdministrationGroupVisible(): Promise<void> {
-    await expect(this.administrationButton).toBeVisible();
+  async expectAdminGearVisible(): Promise<void> {
+    await expect(this.adminGearLink).toBeVisible();
   }
 
-  async expectAdministrationGroupNotVisible(): Promise<void> {
-    await expect(this.administrationButton).not.toBeVisible();
-  }
-
-  async expectAdministrationCollapsed(): Promise<void> {
-    await expect(this.administrationButton).toHaveAttribute('aria-expanded', 'false');
-  }
-
-  async expectAdministrationExpanded(): Promise<void> {
-    await expect(this.administrationButton).toHaveAttribute('aria-expanded', 'true');
-  }
-
-  async expectAdministrationGroupNotActive(): Promise<void> {
-    await expect(this.administrationButton).not.toHaveClass(/bg-surface-100/);
+  async expectAdminGearNotVisible(): Promise<void> {
+    await expect(this.adminGearLink).not.toBeVisible();
   }
 
   /**
@@ -444,7 +415,6 @@ export class AdminPage {
   async expectSidebarLinkVisible(
     linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
-    await this.expandAdministration();
     const linkMap = {
       General: this.generalLink,
       Users: this.usersLink,
@@ -460,7 +430,6 @@ export class AdminPage {
   async expectSidebarLinkActive(
     linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
-    await this.expandAdministration();
     const linkMap = {
       General: this.generalLink,
       Users: this.usersLink,

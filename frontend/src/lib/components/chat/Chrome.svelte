@@ -19,7 +19,6 @@
   import ServerEventProvider from './ServerEventProvider.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import AdminSidebarGroup from './AdminSidebarGroup.svelte';
   import { getAdminNavItems } from './adminNav';
 
   let { children } = $props();
@@ -244,6 +243,11 @@
       server: serverPerms.current
     })
   );
+  const adminHref = $derived(adminNavItems[0]?.href);
+
+  function isAdminNavActive(href: string, _items: unknown): boolean {
+    return page.url.pathname.startsWith(href);
+  }
 </script>
 
 <ServerEventProvider>
@@ -279,9 +283,17 @@
                 </div>
               {/each}
             </ScrollFader>
+          {:else if isAdminMode}
+            <SidebarNav
+              title={serverName ?? 'Server'}
+              items={adminNavItems}
+              backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
+              backLabel="Back to Server"
+              isActive={isAdminNavActive}
+            />
           {:else}
             <!-- Server header - fixed at top -->
-            <ServerHeader serverName={serverName ?? ''} />
+            <ServerHeader serverName={serverName ?? ''} {adminHref} />
 
             <!-- Scrollable area for room list sidebar -->
             <ScrollFader top bottom>
@@ -298,13 +310,6 @@
                   Overview
                 </a>
                 <MyThreadsNavItem active={isMyThreadsActive} />
-                {#key isAdminMode}
-                  <AdminSidebarGroup
-                    currentPath={page.url.pathname}
-                    expandedByDefault={isAdminMode}
-                    items={adminNavItems}
-                  />
-                {/key}
               </nav>
 
               <hr class="border-border" />

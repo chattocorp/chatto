@@ -10,14 +10,14 @@ export class SpaceAdminPage {
 
   // --- Locators ---
 
-  /** The Administration group toggle in the space sidebar. */
+  /** The server-admin gear link in the server header. */
   get adminLink(): Locator {
-    return this.page.locator('nav').first().getByRole('button', { name: 'Administration' });
+    return this.page.getByRole('link', { name: 'Server administration' });
   }
 
-  /** Expanded Administration child link container. */
+  /** Dedicated server-admin sidebar link container. */
   get adminLinks(): Locator {
-    return this.page.locator('#server-admin-sidebar-links');
+    return this.page.locator('nav').first();
   }
 
   /** Back-compat default admin nav item. */
@@ -145,10 +145,9 @@ export class SpaceAdminPage {
   /**
    * Navigate to a space and then to its admin page via the sidebar link.
    */
-  async goto(spaceId: string): Promise<void> {
+  async goto(_spaceId: string): Promise<void> {
     await this.page.goto(routes.space());
-    await this.expandAdminGroup();
-    await this.homeNavItem.click();
+    await this.adminLink.click();
     await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
@@ -164,9 +163,8 @@ export class SpaceAdminPage {
   /**
    * Click the Admin link in the sidebar (from a space page).
    */
-  async clickAdminLink(spaceId: string): Promise<void> {
-    await this.expandAdminGroup();
-    await this.homeNavItem.click();
+  async clickAdminLink(_spaceId: string): Promise<void> {
+    await this.adminLink.click();
     await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
@@ -196,10 +194,7 @@ export class SpaceAdminPage {
   }
 
   async expandAdminGroup(): Promise<void> {
-    await expect(this.adminLink).toBeVisible();
-    if ((await this.adminLink.getAttribute('aria-expanded')) !== 'true') {
-      await this.adminLink.click();
-    }
+    // Compatibility no-op: admin links now live in their own sidebar.
   }
 
   // --- Logo Interactions ---
@@ -434,60 +429,56 @@ export class SpaceAdminPage {
   // --- Nav Item Visibility Assertions ---
 
   /**
-   * Assert that the default admin nav item is visible in the Administration group.
+   * Assert that the default admin nav item is visible in the admin sidebar.
    */
   async expectHomeNavVisible(): Promise<void> {
-    await this.expandAdminGroup();
     await expect(this.homeNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the default admin nav item is NOT visible in the Administration group.
+   * Assert that the default admin nav item is NOT visible in the admin sidebar.
    */
   async expectHomeNavNotVisible(): Promise<void> {
     await expect(this.homeNavItem).not.toBeVisible();
   }
 
   /**
-   * Assert that the General nav item is visible in the Administration group.
+   * Assert that the General nav item is visible in the admin sidebar.
    */
   async expectGeneralNavVisible(): Promise<void> {
-    await this.expandAdminGroup();
     await expect(this.generalNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the General nav item is NOT visible in the Administration group.
+   * Assert that the General nav item is NOT visible in the admin sidebar.
    */
   async expectGeneralNavNotVisible(): Promise<void> {
     await expect(this.generalNavItem).not.toBeVisible();
   }
 
   /**
-   * Assert that the Members nav item is visible in the Administration group.
+   * Assert that the Members nav item is visible in the admin sidebar.
    */
   async expectMembersNavVisible(): Promise<void> {
-    await this.expandAdminGroup();
     await expect(this.membersNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the Members nav item is NOT visible in the Administration group.
+   * Assert that the Members nav item is NOT visible in the admin sidebar.
    */
   async expectMembersNavNotVisible(): Promise<void> {
     await expect(this.membersNavItem).not.toBeVisible();
   }
 
   /**
-   * Assert that the Roles nav item is visible in the Administration group.
+   * Assert that the Roles nav item is visible in the admin sidebar.
    */
   async expectRolesNavVisible(): Promise<void> {
-    await this.expandAdminGroup();
     await expect(this.rolesNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the Roles nav item is NOT visible in the Administration group.
+   * Assert that the Roles nav item is NOT visible in the admin sidebar.
    */
   async expectRolesNavNotVisible(): Promise<void> {
     await expect(this.rolesNavItem).not.toBeVisible();
