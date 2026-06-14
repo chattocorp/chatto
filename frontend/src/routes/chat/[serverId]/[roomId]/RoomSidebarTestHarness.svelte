@@ -8,17 +8,28 @@ mounting the full chat room shell.
 <script lang="ts">
   import { useRoomMembersSync } from '$lib/hooks/useRoomMembersSync.svelte';
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
+  import {
+    createPresenceCache,
+    type PresenceCache
+  } from '$lib/state/presenceCache.svelte';
   import RoomSidebar from './RoomSidebar.svelte';
 
   let {
     roomId = 'room-1',
     roomData,
-    currentUserId = 'viewer'
+    currentUserId = 'viewer',
+    onPresenceCacheReady
   }: {
     roomId?: string;
     roomData: RoomData;
     currentUserId?: string | null;
+    onPresenceCacheReady?: (cache: PresenceCache) => void;
   } = $props();
+
+  const presenceCache = createPresenceCache();
+  queueMicrotask(() => {
+    onPresenceCacheReady?.(presenceCache);
+  });
 
   const roomMembers = useRoomMembersSync(() => ({
     roomId,

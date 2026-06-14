@@ -10,6 +10,7 @@ const UpdateMyPresenceDoc = graphql(`
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes of inactivity → AWAY
 const HIDDEN_DELAY_MS = 10_000; // 10 seconds after tab hidden → AWAY
+const NOISY_ACTIVITY_THROTTLE_MS = 1_000;
 
 type ActivityState = 'active' | 'idle' | 'hidden';
 
@@ -46,6 +47,7 @@ export function initPresenceTracking(
   let currentState: ActivityState = 'active';
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastTimerResetAt = 0;
 
   function setPresenceStatus(status: PresenceStatusInput) {
     onStatusChange?.(presenceInputToStatus(status));
@@ -59,6 +61,7 @@ export function initPresenceTracking(
 
   function resetIdleTimer() {
     if (idleTimer) clearTimeout(idleTimer);
+    lastTimerResetAt = Date.now();
     idleTimer = setTimeout(() => transition('idle'), IDLE_TIMEOUT_MS);
   }
 
@@ -75,19 +78,33 @@ export function initPresenceTracking(
     }
   }
 
-  // Activity events reset idle timer and transition back to active
-  const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll'] as const;
-
-  function onActivity() {
+  function onActivity(noisy = false) {
     if (currentState !== 'active') {
       transition('active');
-    } else {
+      return;
+    }
+
+    if (!noisy || Date.now() - lastTimerResetAt >= NOISY_ACTIVITY_THROTTLE_MS) {
       resetIdleTimer();
     }
   }
 
-  for (const event of activityEvents) {
-    document.addEventListener(event, onActivity, { passive: true });
+  function onQuietActivity() {
+    onActivity(false);
+  }
+
+  function onNoisyActivity() {
+    onActivity(true);
+  }
+
+  const quietActivityEvents = ['pointerdown', 'keydown', 'touchstart'] as const;
+  const noisyActivityEvents = ['pointermove', 'wheel', 'scroll'] as const;
+
+  for (const event of quietActivityEvents) {
+    document.addEventListener(event, onQuietActivity, { passive: true });
+  }
+  for (const event of noisyActivityEvents) {
+    document.addEventListener(event, onNoisyActivity, { passive: true });
   }
 
   // Page visibility change
@@ -105,15 +122,20 @@ export function initPresenceTracking(
   }
 
   document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('focus', onQuietActivity);
 
   // Start idle timer
   resetIdleTimer();
 
   return () => {
-    for (const event of activityEvents) {
-      document.removeEventListener(event, onActivity);
+    for (const event of quietActivityEvents) {
+      document.removeEventListener(event, onQuietActivity);
+    }
+    for (const event of noisyActivityEvents) {
+      document.removeEventListener(event, onNoisyActivity);
     }
     document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('focus', onQuietActivity);
     if (idleTimer) clearTimeout(idleTimer);
     if (hiddenTimer) clearTimeout(hiddenTimer);
     initialized = false;

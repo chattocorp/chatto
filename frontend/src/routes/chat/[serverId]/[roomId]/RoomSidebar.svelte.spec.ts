@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/state/room';
+import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
 import { PresenceStatus } from '$lib/gql/graphql';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
@@ -44,12 +45,6 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveLogin: (_userId: string, fallback: string) => fallback
 }));
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  getPresenceCache: () => ({
-    get: (_userId: string, fallback: string) => fallback
-  })
-}));
-
 function member(index: number): RoomMember {
   return {
     id: `user-${index}`,
@@ -70,6 +65,10 @@ function renderedMemberTitles(container: Element): string[] {
   return Array.from(container.querySelectorAll('[title^="View profile of User "]')).map(
     (element) => element.getAttribute('title') ?? ''
   );
+}
+
+function presenceBadge(container: Element, label: string): Element | null {
+  return container.querySelector(`[aria-label="${label}"]`);
 }
 
 function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
@@ -187,5 +186,40 @@ describe('RoomSidebar', () => {
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+
+  it('keeps away members present while showing the global away badge', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const [user] = [member(1)];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([user], 1, false),
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Members (1)');
+    expect(presenceBadge(container, 'Online')).toBeTruthy();
+    await vi.waitFor(() => {
+      expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+    });
+    presenceCache!.update(user.id, PresenceStatus.Away);
+    await tick();
+
+    expect(presenceBadge(container, 'Away')).toBeTruthy();
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+
+    presenceCache!.update(user.id, PresenceStatus.Online);
+    await tick();
+
+    expect(presenceBadge(container, 'Online')).toBeTruthy();
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
   });
 });

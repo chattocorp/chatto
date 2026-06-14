@@ -13,9 +13,9 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   import type { PresenceStatus } from '$lib/gql/graphql';
   import {
     getRoomMembersState,
-    getMemberPresence,
     type RoomMember
   } from '$lib/state/room';
+  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -50,6 +50,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   } = $props();
 
   const connection = useConnection();
+  const presenceCache = getPresenceCache();
 
   // Get members from shared store (populated by Room.svelte)
   const membersState = $derived(getRoomMembersState());
@@ -85,7 +86,7 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
 
   // Get effective presence for a member (live update or fall back to initial value)
   function getPresence(member: RoomMember): PresenceStatus {
-    return getMemberPresence(member);
+    return presenceCache.get(member.id, member.presenceStatus);
   }
 
   // Check if a presence status counts as "online" (connected to the system)
@@ -106,11 +107,13 @@ messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
   }
 
   const onlineMembers = $derived(
-    (membersState.presenceVersion,
+    (presenceCache.version,
+    membersState.presenceVersion,
     sortByName(members.filter((m) => isOnlineStatus(getPresence(m)))))
   );
   const offlineMembers = $derived(
-    (membersState.presenceVersion,
+    (presenceCache.version,
+    membersState.presenceVersion,
     sortByName(members.filter((m) => !isOnlineStatus(getPresence(m)))))
   );
 
