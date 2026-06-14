@@ -80,11 +80,11 @@ func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment
 }
 
 func (c *ChattoCore) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, kind RoomKind, attachmentID string) {
-	c.media().DeleteVideoDerivativesForAttachment(ctx, actorID, kind, attachmentID)
+	c.assetLifecycle().DeleteVideoDerivativesForAttachment(ctx, actorID, attachmentID)
 }
 
 func (c *ChattoCore) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorID, userID string) int {
-	return c.media().DeleteMessageOwnedAssetsForUser(ctx, actorID, userID)
+	return c.assetLifecycle().DeleteMessageOwnedAssetsForUser(ctx, actorID, userID)
 }
 
 func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
@@ -144,31 +144,31 @@ func (c *ChattoCore) DeleteCachedResizesForKey(ctx context.Context, prefix, asse
 }
 
 func (c *ChattoCore) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
-	return c.media().ScheduleVideoProcessingForMessageAttachment(ctx, actorID, kind, roomID, messageEventID, attachment)
+	return c.assetLifecycle().ScheduleVideoProcessingForMessageAttachment(ctx, actorID, roomID, messageEventID, attachment)
 }
 
 func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, assetID string) error {
-	return c.media().RecordAssetProcessingStarted(ctx, actorID, kind, roomID, messageEventID, assetID)
+	return c.assetLifecycle().RecordAssetProcessingStarted(ctx, actorID, roomID, messageEventID, assetID)
 }
 
 func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
-	c.media().RecoverUnmanifestedVideoAttachments(ctx)
+	c.assetLifecycle().RecoverUnmanifestedVideoAttachments(ctx)
 }
 
 func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
-	return c.media().PublishAssetProcessing(ctx, kind, roomID, event)
+	return c.assetLifecycle().PublishAssetProcessing(ctx, roomID, event)
 }
 
 func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
-	return c.media().RecordAssetProcessed(ctx, actorID, kind, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants)
+	return c.assetLifecycle().RecordAssetProcessed(ctx, actorID, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants)
 }
 
 func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
-	return c.media().RecordAssetDeleted(ctx, actorID, kind, roomID, assetID)
+	return c.assetLifecycle().RecordAssetDeleted(ctx, actorID, roomID, assetID)
 }
 
 func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
-	return c.media().RecordAssetProcessingFailed(ctx, actorID, kind, roomID, messageEventID, attachmentID, failureCode)
+	return c.assetLifecycle().RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
 }
 
 func (c *ChattoCore) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {

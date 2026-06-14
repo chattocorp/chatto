@@ -47,6 +47,7 @@ type ChattoCore struct {
 	mentionables       *MentionablesService
 	presenceService    *PresenceService
 	mediaService       *MediaService
+	assetService       *AssetService
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -836,6 +837,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	core.mediaService = NewMediaService(core)
+	core.assetService = NewAssetService(core)
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)

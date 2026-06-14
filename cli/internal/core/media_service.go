@@ -1,7 +1,7 @@
 package core
 
-// MediaService owns attachment/media storage, media URL generation, resize
-// cache operations, and asset-processing event writes.
+// MediaService owns attachment/media storage, media URL generation, and resize
+// cache operations.
 //
 // It currently embeds ChattoCore so the service boundary can be introduced
 // without copying the full core dependency graph. As more services settle, this

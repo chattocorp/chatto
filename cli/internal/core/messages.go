@@ -711,14 +711,15 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if body != nil {
 		for _, att := range c.MessageBodyAttachments(body) {
 			c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, att.GetId())
-			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
-				c.logger.Warn("Failed to delete attachment during message deletion",
+			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, att.GetId()); err != nil {
+				c.logger.Warn("Failed to publish asset deletion event",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
 					"error", err)
+				continue
 			}
-			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, att.GetId()); err != nil {
-				c.logger.Warn("Failed to publish asset deletion event",
+			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
+				c.logger.Warn("Failed to delete attachment during message deletion",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
 					"error", err)
@@ -1062,17 +1063,16 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 
 	if removed != nil {
 		c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, removed.GetId())
-		if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
-			c.logger.Warn("Failed to delete attachment file after removing from message",
-				"attachment_id", attachmentID,
-				"message_body_key", messageBodyKey,
-				"error", delErr)
-		}
 		if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, removed.GetId()); err != nil {
 			c.logger.Warn("Failed to publish asset deletion event",
 				"attachment_id", attachmentID,
 				"message_body_key", messageBodyKey,
 				"error", err)
+		} else if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
+			c.logger.Warn("Failed to delete attachment file after removing from message",
+				"attachment_id", attachmentID,
+				"message_body_key", messageBodyKey,
+				"error", delErr)
 		}
 	}
 
