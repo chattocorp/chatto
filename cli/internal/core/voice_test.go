@@ -447,80 +447,43 @@ func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
 	}
 }
 
-func TestCallState_SnapshotTracksAssetLifecycleRoomSeq(t *testing.T) {
-	cases := []struct {
-		name  string
-		event func(assetID string) *corev1.Event
-	}{
-		{
-			name: "processing_started",
-			event: func(assetID string) *corev1.Event {
-				return &corev1.Event{Event: &corev1.Event_AssetProcessingStarted{
-					AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: assetID, MessageEventId: "message1"},
-				}}
-			},
+func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+	assetID := "asset1"
+
+	roomEvent := newEvent("admin1", &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
-		{
-			name: "processing_succeeded",
-			event: func(assetID string) *corev1.Event {
-				return &corev1.Event{Event: &corev1.Event_AssetProcessingSucceeded{
-					AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{AssetId: assetID, MessageEventId: "message1"},
-				}}
-			},
-		},
-		{
-			name: "processing_failed",
-			event: func(assetID string) *corev1.Event {
-				return &corev1.Event{Event: &corev1.Event_AssetProcessingFailed{
-					AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-						AssetId:        assetID,
-						MessageEventId: "message1",
-						FailureCode:    corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING,
-					},
-				}}
-			},
-		},
-		{
-			name: "deleted",
-			event: func(assetID string) *corev1.Event {
-				return &corev1.Event{Event: &corev1.Event_AssetDeleted{
-					AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
-				}}
-			},
-		},
+	})
+	roomSeq, err := core.CallStateProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
+	if err != nil {
+		t.Fatalf("append room event() error = %v", err)
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			core, _ := setupTestCore(t)
-			ctx := testContext(t)
-			roomID := "room-" + tc.name
-			assetID := "asset-" + tc.name
+	assetEvent := newEvent("user1", &corev1.Event{Event: &corev1.Event_AssetCreated{
+		AssetCreated: &corev1.AssetCreatedEvent{
+			RoomId: roomID,
+			Asset:  &corev1.AssetRecord{Id: assetID},
+		},
+	}})
+	assetSubject := events.AssetAggregate(assetID).SubjectFor(assetEvent)
+	assetSeq, err := core.EventPublisher.AppendEventually(ctx, assetSubject, assetEvent)
+	if err != nil {
+		t.Fatalf("append asset event error = %v", err)
+	}
+	if err := core.AssetsProjector.WaitFor(ctx, events.SubjectPosition(assetSubject, assetSeq)); err != nil {
+		t.Fatalf("wait for asset event error = %v", err)
+	}
 
-			created := newEvent("user1", &corev1.Event{Event: &corev1.Event_AssetCreated{
-				AssetCreated: &corev1.AssetCreatedEvent{
-					RoomId: roomID,
-					Asset:  &corev1.AssetRecord{Id: assetID},
-				},
-			}})
-			if _, err := core.CallStateProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), created); err != nil {
-				t.Fatalf("append asset created event error = %v", err)
-			}
-
-			lifecycle := newEvent("user1", tc.event(assetID))
-			seq, err := core.CallStateProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), lifecycle)
-			if err != nil {
-				t.Fatalf("append asset lifecycle event error = %v", err)
-			}
-
-			snapshot := core.CallState.RoomSnapshot(roomID)
-			if snapshot.Seq != seq {
-				t.Fatalf("RoomSnapshot().Seq = %d, want lifecycle seq %d", snapshot.Seq, seq)
-			}
-			if err := core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", ""); err != nil {
-				t.Fatalf("HandleCallParticipantJoined() after asset lifecycle event error = %v", err)
-			}
-		})
+	snapshot := core.CallState.RoomSnapshot(roomID)
+	if snapshot.Seq != roomSeq {
+		t.Fatalf("RoomSnapshot().Seq = %d, want room seq %d", snapshot.Seq, roomSeq)
+	}
+	if err := core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", ""); err != nil {
+		t.Fatalf("HandleCallParticipantJoined() after asset aggregate event error = %v", err)
 	}
 }
 

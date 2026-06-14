@@ -19,9 +19,8 @@ type CallParticipant struct {
 // reconciliation appends more facts instead of mutating the projection directly.
 type CallStateProjection struct {
 	events.MemoryProjection
-	rooms      map[string]map[string]CallParticipant
-	roomSeq    map[string]uint64
-	assetRooms map[string]string
+	rooms   map[string]map[string]CallParticipant
+	roomSeq map[string]uint64
 }
 
 type CallRoomSnapshot struct {
@@ -31,9 +30,8 @@ type CallRoomSnapshot struct {
 
 func NewCallStateProjection() *CallStateProjection {
 	return &CallStateProjection{
-		rooms:      make(map[string]map[string]CallParticipant),
-		roomSeq:    make(map[string]uint64),
-		assetRooms: make(map[string]string),
+		rooms:   make(map[string]map[string]CallParticipant),
+		roomSeq: make(map[string]uint64),
 	}
 }
 
@@ -49,7 +47,7 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	roomID := p.roomIDOfEventLocked(event)
+	roomID := roomIDOfEvent(event)
 	if roomID == "" {
 		return nil
 	}
@@ -57,7 +55,6 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 	if seq > p.roomSeq[roomID] {
 		p.roomSeq[roomID] = seq
 	}
-	p.applyAssetIndexLocked(event, roomID)
 	if event.GetActorId() == "" {
 		return nil
 	}
@@ -96,54 +93,8 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, roomID)
-		p.deleteAssetRoomsForRoomLocked(roomID)
 	}
 	return nil
-}
-
-func (p *CallStateProjection) roomIDOfEventLocked(event *corev1.Event) string {
-	if created := event.GetAssetCreated(); created != nil {
-		return created.GetRoomId()
-	}
-	if assetID := assetLifecycleEventID(event); assetID != "" {
-		return p.assetRooms[assetID]
-	}
-	return roomIDOfEvent(event)
-}
-
-func (p *CallStateProjection) applyAssetIndexLocked(event *corev1.Event, roomID string) {
-	if created := event.GetAssetCreated(); created != nil {
-		if assetID := created.GetAsset().GetId(); assetID != "" {
-			p.assetRooms[assetID] = roomID
-		}
-		return
-	}
-	if deleted := event.GetAssetDeleted(); deleted != nil {
-		delete(p.assetRooms, deleted.GetAssetId())
-	}
-}
-
-func (p *CallStateProjection) deleteAssetRoomsForRoomLocked(roomID string) {
-	for assetID, assetRoomID := range p.assetRooms {
-		if assetRoomID == roomID {
-			delete(p.assetRooms, assetID)
-		}
-	}
-}
-
-func assetLifecycleEventID(event *corev1.Event) string {
-	switch e := event.GetEvent().(type) {
-	case *corev1.Event_AssetProcessingStarted:
-		return e.AssetProcessingStarted.GetAssetId()
-	case *corev1.Event_AssetProcessingSucceeded:
-		return e.AssetProcessingSucceeded.GetAssetId()
-	case *corev1.Event_AssetProcessingFailed:
-		return e.AssetProcessingFailed.GetAssetId()
-	case *corev1.Event_AssetDeleted:
-		return e.AssetDeleted.GetAssetId()
-	default:
-		return ""
-	}
 }
 
 func callParticipantSourcePriority(source corev1.CallParticipantEventSource) int {
@@ -218,9 +169,6 @@ func (p *CallStateProjection) adminProjectionEstimate() (int64, int64, []Project
 			participants++
 			bytes += projectionMapEntryOverhead + int64(len(userID)) + 16
 		}
-	}
-	for assetID, roomID := range p.assetRooms {
-		bytes += projectionMapEntryOverhead + int64(len(assetID)) + int64(len(roomID))
 	}
 	return participants, bytes, []ProjectionAdminMetric{
 		{Name: "active_rooms", Value: int64(len(p.rooms)), Bytes: 0},
