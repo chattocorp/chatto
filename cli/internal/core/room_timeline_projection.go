@@ -52,9 +52,11 @@ type RoomTimelineProjection struct {
 	// retracted. A direct echo retract removes the room-timeline copy
 	// without deleting the original thread reply's content.
 	hiddenEchoes map[string]struct{}
-	// videoManifests stores the latest durable processing outcome for each
-	// original video attachment. A processed event supersedes a failed event
-	// and vice versa; generated asset metadata lives in the event payload.
+	// These asset indexes are a compatibility bridge for 0.1.0 beta histories
+	// that wrote asset lifecycle events under evt.room.* before assets moved to
+	// evt.asset.*. New runtime reads should use AssetProjection; RoomTimeline
+	// keeps just enough legacy asset state to route old room-scoped asset events
+	// during replay.
 	assetCreations map[string]*corev1.AssetCreatedEvent
 	assetChildren  map[string][]string
 	videoManifests map[string]*VideoAttachmentManifest

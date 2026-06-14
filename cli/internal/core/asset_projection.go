@@ -17,6 +17,7 @@ type AssetProjection struct {
 	assetCreations   map[string]*corev1.AssetCreatedEvent
 	assetChildren    map[string][]string
 	videoManifests   map[string]*VideoAttachmentManifest
+	deletedAssets    map[string]struct{}
 	deletedAssetRoom map[string]string
 	entries          []*AssetTimelineEntry
 }
@@ -32,6 +33,7 @@ func NewAssetProjection() *AssetProjection {
 		assetCreations:   make(map[string]*corev1.AssetCreatedEvent),
 		assetChildren:    make(map[string][]string),
 		videoManifests:   make(map[string]*VideoAttachmentManifest),
+		deletedAssets:    make(map[string]struct{}),
 		deletedAssetRoom: make(map[string]string),
 	}
 }
@@ -68,6 +70,7 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 		assetID := ev.AssetCreated.GetAsset().GetId()
 		if assetID != "" {
 			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*corev1.AssetCreatedEvent)
+			delete(p.deletedAssets, assetID)
 			delete(p.deletedAssetRoom, assetID)
 			if parentID := ev.AssetCreated.GetParentAssetId(); parentID != "" {
 				p.assetChildren[parentID] = appendIfMissing(p.assetChildren[parentID], assetID)
@@ -76,6 +79,9 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
+			if _, deleted := p.deletedAssets[assetID]; deleted {
+				return nil
+			}
 			if manifest := p.videoManifests[assetID]; manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil) {
 				return nil
 			}
@@ -86,6 +92,9 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetProcessingSucceeded:
 		assetID := ev.AssetProcessingSucceeded.GetAssetId()
 		if assetID != "" {
+			if _, deleted := p.deletedAssets[assetID]; deleted {
+				return nil
+			}
 			manifest := p.videoManifests[assetID]
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
@@ -100,6 +109,9 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetProcessingFailed:
 		assetID := ev.AssetProcessingFailed.GetAssetId()
 		if assetID != "" {
+			if _, deleted := p.deletedAssets[assetID]; deleted {
+				return nil
+			}
 			manifest := p.videoManifests[assetID]
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
@@ -114,6 +126,7 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetDeleted:
 		assetID := ev.AssetDeleted.GetAssetId()
 		if assetID != "" {
+			p.deletedAssets[assetID] = struct{}{}
 			if roomID := p.assetRoomIDLocked(assetID); roomID != "" {
 				p.deletedAssetRoom[assetID] = roomID
 			}
@@ -174,6 +187,16 @@ func (p *AssetProjection) VideoAttachmentManifest(assetID string) (*VideoAttachm
 		out.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
 	}
 	return out, true
+}
+
+func (p *AssetProjection) AssetDeleted(assetID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return false
+	}
+	_, deleted := p.deletedAssets[assetID]
+	return deleted
 }
 
 func (p *AssetProjection) AssetSubtreeIDs(assetID string) []string {
@@ -297,13 +320,13 @@ func (p *AssetProjection) adminProjectionEstimate() (int64, int64, []ProjectionA
 	}
 	manifestBytes := int64(len(p.videoManifests)) * (projectionMapEntryOverhead + 128)
 	bytes += manifestBytes
-	deletedBytes := int64(len(p.deletedAssetRoom)) * (projectionMapEntryOverhead + 32)
+	deletedBytes := int64(len(p.deletedAssets)) * (projectionMapEntryOverhead + 32)
 	bytes += deletedBytes
-	return int64(len(p.assetCreations) + len(p.videoManifests) + len(p.deletedAssetRoom)), bytes, []ProjectionAdminMetric{
+	return int64(len(p.assetCreations) + len(p.videoManifests) + len(p.deletedAssets)), bytes, []ProjectionAdminMetric{
 		{Name: "assets", Value: int64(len(p.assetCreations)), Bytes: bytes - manifestBytes - deletedBytes},
 		{Name: "derivatives", Value: derivatives, Bytes: 0},
 		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: manifestBytes},
-		{Name: "deleted_assets", Value: int64(len(p.deletedAssetRoom)), Bytes: deletedBytes},
+		{Name: "deleted_assets", Value: int64(len(p.deletedAssets)), Bytes: deletedBytes},
 	}
 }
 

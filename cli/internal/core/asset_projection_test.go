@@ -62,6 +62,38 @@ func TestAssetProjectionTerminalProcessingStateDoesNotRegress(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionDeletedAssetIgnoresLaterProcessing(t *testing.T) {
+	projection := NewAssetProjection()
+	if err := projection.Apply(testCoreAssetCreatedEvent("R-assets", "A-video", "video/mp4"), 1); err != nil {
+		t.Fatalf("Apply asset created: %v", err)
+	}
+	if err := projection.Apply(&corev1.Event{
+		Id: "E-deleted",
+		Event: &corev1.Event_AssetDeleted{
+			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A-video"},
+		},
+	}, 2); err != nil {
+		t.Fatalf("Apply deleted: %v", err)
+	}
+	if !projection.AssetDeleted("A-video") {
+		t.Fatal("AssetDeleted returned false after deletion event")
+	}
+	if err := projection.Apply(&corev1.Event{
+		Id: "E-stale-succeeded",
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"},
+		},
+	}, 3); err != nil {
+		t.Fatalf("Apply stale succeeded: %v", err)
+	}
+	if manifest, ok := projection.VideoAttachmentManifest("A-video"); ok || manifest != nil {
+		t.Fatalf("VideoAttachmentManifest after stale processing = %#v, %v; want none", manifest, ok)
+	}
+	if _, ok := projection.AssetCreation("A-video"); ok {
+		t.Fatal("AssetCreation still present after deletion")
+	}
+}
+
 func TestAssetAggregateSubjectHelpers(t *testing.T) {
 	subject := events.AssetAggregate("A-123").Subject(events.EventAssetCreated)
 	assetID, ok := events.ParseAssetSubject(subject)

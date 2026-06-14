@@ -1414,6 +1414,9 @@ func (c *MediaService) RecordAssetDeleted(ctx context.Context, actorID string, k
 	if roomID == "" || assetID == "" {
 		return fmt.Errorf("asset deletion missing room or asset id")
 	}
+	if actorID == "" {
+		return fmt.Errorf("asset deletion missing actor id (use SystemActorID for non-user paths)")
+	}
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetDeleted{
 			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
@@ -1470,6 +1473,9 @@ func (c *MediaService) appendAssetProcessingEvent(ctx context.Context, assetID s
 }
 
 func (c *MediaService) shouldAppendAssetProcessingEvent(assetID string, event *corev1.Event) bool {
+	if c.Assets.AssetDeleted(assetID) {
+		return false
+	}
 	manifest, hasManifest := c.Assets.VideoAttachmentManifest(assetID)
 	switch event.GetEvent().(type) {
 	case *corev1.Event_AssetProcessingStarted:

@@ -395,6 +395,52 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 	}
 }
 
+func TestMediaServiceRecordAssetDeletedRequiresActor(t *testing.T) {
+	core, _ := setupTestCore(t)
+	service := core.mediaService
+	ctx := testContext(t)
+
+	err := service.RecordAssetDeleted(ctx, "", KindChannel, "R-missing-actor", "A-missing-actor")
+	if err == nil {
+		t.Fatal("RecordAssetDeleted with missing actor returned nil error")
+	}
+	if !strings.Contains(err.Error(), "asset deletion missing actor id") {
+		t.Fatalf("RecordAssetDeleted error = %q, want missing actor message", err.Error())
+	}
+}
+
+func TestMediaServiceProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
+	core, _ := setupTestCore(t)
+	service := core.mediaService
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-video-deleted", "Media video deleted")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := service.UploadAttachment(ctx, SystemActorID, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment returned error: %v", err)
+	}
+	if err := service.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, original.GetId()); err != nil {
+		t.Fatalf("RecordAssetDeleted returned error: %v", err)
+	}
+
+	if err := service.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, "E-message", original.GetId(), 1200, 640, 360, nil, nil); err != nil {
+		t.Fatalf("RecordAssetProcessed after deletion returned error: %v", err)
+	}
+	processedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingSucceeded))
+	if err != nil {
+		t.Fatalf("SubjectEvents(asset_processing_succeeded): %v", err)
+	}
+	if len(processedEvents) != 0 {
+		t.Fatalf("asset_processing_succeeded events after deletion = %d, want 0", len(processedEvents))
+	}
+	if manifest, ok := core.Assets.VideoAttachmentManifest(original.GetId()); ok || manifest != nil {
+		t.Fatalf("VideoAttachmentManifest after deleted processing = %#v, %v; want none", manifest, ok)
+	}
+}
+
 func TestMediaServiceDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	service := core.mediaService
