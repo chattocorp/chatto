@@ -14,17 +14,22 @@ For *why* a particular design decision was made:
   - [Core Concepts](#core-concepts)
 - [NATS Authentication](#nats-authentication)
 - [Architecture & APIs](#architecture--apis)
+- [Core Services](#core-services)
+- [Projection Inventory](#projection-inventory)
 - [GraphQL API Overview](#graphql-api-overview)
   - [Queries](#queries)
   - [Mutations](#mutations)
   - [Subscriptions](#subscriptions)
   - [Admin sub-API](#admin-sub-api)
-- [Architecture Pattern: CRUD + Audit Log](#architecture-pattern-crud--audit-log)
+- [Architecture Pattern: Event-Sourced Writes](#architecture-pattern-event-sourced-writes)
   - [Write Path](#write-path)
   - [Consistency Model](#consistency-model)
 - [NATS Resource Inventory](#nats-resource-inventory)
-  - [Event Types](#event-types)
-  - [Event Streams](#event-streams)
+  - [Current Resources](#current-resources)
+  - [Event Envelopes](#event-envelopes)
+  - [EVT Subject Patterns](#evt-subject-patterns)
+  - [Durable EVT Event Inventory](#durable-evt-event-inventory)
+  - [Transient Live Subjects](#transient-live-subjects)
   - [KV Buckets (backed by streams)](#kv-buckets-backed-by-streams)
   - [Object Store Buckets](#object-store-buckets)
   - [Dynamic Image Transformation](#dynamic-image-transformation)
@@ -33,13 +38,11 @@ For *why* a particular design decision was made:
 
 ## Overview
 
-Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens. The pre-0.1.0 boot importers have been removed after the event-sourcing rollout completed.
+Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens.
 
 ### Core Concepts
 
-- **Server**: A deployment of Chatto, consisting of 1-n application processes connected to the same NATS system and account. ("Instance" is the older name for this concept and persists in a handful of vestigial places — the `INSTANCE*` KV bucket names and the internal `RegisteredInstance`/`isInstanceAdmin` identifiers. Treat them as a rename-in-progress.)
-- **Rooms**: Communication channels on the server. Can be named (`general`) or direct messages between users; differentiated by a `kind` field (`channel` / `dm`).
-- **Users**: Global to the deployment, with account/profile state and per-room membership projected from `EVT`.
+This document uses the canonical terms from the [glossary](GLOSSARY.md), especially **Server**, **Room**, **DM**, **Event**, **Projection**, **Subject**, and **Live Event**. The rest of this document focuses on where those concepts live in the current runtime architecture.
 
 ## NATS Authentication
 
@@ -69,17 +72,58 @@ For connecting to an external NATS cluster with JWT authentication:
 
 ## Architecture & APIs
 
-Key files: [`cli/internal/core/core.go`](cli/internal/core/core.go)
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/)
 
 - **NATS**: At the core, Chatto uses a series of NATS JetStream streams, KV buckets and object storage. Data stored in these is defined as Protocol Buffers (see `proto/`).
-- **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets and streams. It provides a ChattoCore struct with methods for all operations (spaces, users, rooms, messages, memberships).
+- **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets, object stores, and the `EVT` stream. `ChattoCore` remains the compatibility facade, while smaller services own projection readiness and domain-specific write concerns.
 - **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. Fields require authentication by default unless marked public in the schema; resolvers call Core methods directly and enforce operation-specific authorization before each call.
 - **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to GraphQL API over HTTP/WebSocket.
 - **Email**: Optional SMTP integration for transactional emails (verification, password reset). Configured via `[smtp]` in config. The `internal/email` package provides a `Mailer` that returns `ErrSMTPDisabled` when SMTP is not configured, allowing callers to handle gracefully.
 
+## Core Services
+
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/core/*_service.go`](../cli/internal/core/), [`cli/internal/video/service.go`](../cli/internal/video/service.go)
+
+The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
+
+| Service                 | Key files                                                                                 | Responsibility                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `ChattoCore`            | [`core.go`](../cli/internal/core/core.go)                                                  | Application facade, resource initialization, lifecycle, GraphQL-facing operations, event delivery |
+| `events.Publisher`     | [`publisher.go`](../cli/internal/events/publisher.go)                                     | OCC-only writes to `EVT`, including atomic batches and filter-scoped concurrency guards          |
+| `ConfigService`         | [`config_service.go`](../cli/internal/core/config_service.go)                             | Semantic server/user config event writes plus `ConfigProjection` readiness                       |
+| `ConfigManager`         | [`config_manager.go`](../cli/internal/core/config_manager.go)                             | Compatibility facade for server config reads/writes backed by `ConfigService`                    |
+| `RoomService`           | [`room_service.go`](../cli/internal/core/room_service.go)                                 | Room-derived projection readiness for room catalog, membership, layout, timeline, threads, reactions |
+| `UserService`           | [`user_service.go`](../cli/internal/core/user_service.go)                                 | User and content-key projection readiness for account/profile/encryption writes                  |
+| `RBACService`           | [`rbac_service.go`](../cli/internal/core/rbac_service.go)                                 | RBAC projection readiness for role, assignment, and permission writes                            |
+| `MentionablesService`   | [`mentionables_projection.go`](../cli/internal/core/mentionables_projection.go)           | Global mention-handle namespace lookup and readiness                                             |
+| `PresenceService`       | [`presence_service.go`](../cli/internal/core/presence_service.go), [`presence_hub.go`](../cli/internal/core/presence_hub.go) | Per-process watcher/fanout for live presence state in `MEMORY_CACHE`                  |
+| `MediaService`          | [`media_service.go`](../cli/internal/core/media_service.go), [`attachments.go`](../cli/internal/core/attachments.go) | Asset metadata events, object-store writes, signed asset URLs, image cache operations |
+| `video.Service`         | [`service.go`](../cli/internal/video/service.go)                                          | Process-local video/animated-GIF processing; emits asset processing result events                |
+
+## Projection Inventory
+
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../cli/internal/events/projector.go), [`cli/internal/core/projection_subjects_test.go`](../cli/internal/core/projection_subjects_test.go)
+
+Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` registers each top-level projector once; `ChattoCore.Run` starts every projector, waits for them to become current at boot, and writers wait for the relevant projector sequence before returning read-your-writes.
+
+| Runtime area      | Registered projector | Consumes                                                        | Read models / primary readers                                      |
+| ----------------- | -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Room directory    | Room Directory       | `evt.room.>`                                                    | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries and room authorization |
+| Room organization | Room Group Layout    | `evt.group.>`, `evt.layout.>`                                   | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups and room ordering |
+| Room timeline     | Room Timeline        | `evt.room.>`                                                    | Raw room log, visible timeline index, message bodies, assets, hidden echoes, reconnect replay |
+| Threads           | Threads              | `evt.room.>`, `evt.user.*.user_key_shredded`                    | Per-thread reply logs, summaries, participants, reply counts        |
+| Reactions         | Reactions            | `evt.room.*.reaction_added`, `evt.room.*.reaction_removed`      | Current per-message reaction sets and summaries                     |
+| Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts          | Server config, branding refs, user preferences, notification levels, blocked usernames |
+| Users             | Users                | `evt.user.>`                                                    | Account/profile/auth lookup state, verified emails, OAuth subjects, encrypted user PII |
+| Content keys      | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded`      | Active and shredded user DEK epochs for message bodies and user PII |
+| RBAC              | RBAC                 | `evt.rbac.>`                                                    | Roles, role order, assignments, scoped allow/deny decisions         |
+| Mentions          | Mentionables         | `evt.>`                                                         | Global mention-handle ownership across users, roles, `@all`, and `@here` |
+
+Notes: "Registered projector" names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`.
+
 ## GraphQL API Overview
 
-Key files: [`cli/internal/graph/`](cli/internal/graph/) (schemas in `*.graphqls` files, resolvers in `*.resolvers.go`)
+Key files: [`cli/internal/graph/`](../cli/internal/graph/) (schemas in `*.graphqls` files, resolvers in `*.resolvers.go`)
 
 The GraphQL API is the primary client-facing interface for Chatto. It provides queries, mutations, and a single unified subscription over HTTP and WebSocket connections. Fields require authentication by default unless explicitly marked public in the schema. Authentication is cookie-session-based; user registration, login, password reset, email verification, and OAuth flows are REST endpoints (under `/auth/...`) rather than GraphQL mutations.
 
@@ -252,30 +296,24 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
 | `admin.clearUsernameCooldown(userId)`            | Mutation  | Manually clear a user's login change cooldown.                                               |
 
-## Architecture Pattern: CRUD + Audit Log Moving to Event Sourcing
+## Architecture Pattern: Event-Sourced Writes
 
 ### Write Path
 
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
+| Stream  | `EVT`                         | Durable event-sourcing log for domain facts |
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
 | KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state, including presence and active voice calls; excluded from backups |
-| Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
+| KV      | `ENCRYPTION_KEYS`             | KMS key-encryption keys; excluded from backups |
 | Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
-| Historical KV | `INSTANCE`          | Pre-0.1 users, verified emails, branding, display preferences, and push subscriptions |
-| Historical KV | `INSTANCE_CONFIG`   | Pre-0.1 server configuration |
-| Historical KV | `SERVER_CONFIG`     | Pre-0.1 rooms, memberships, room groups/layout, and notification preferences |
-| Historical KV | `SERVER_RBAC`       | Pre-0.1 RBAC seed data |
-| Historical KV | `SERVER_RUNTIME`    | Pre-0.1 read markers, thread follows, migration sentinels, and video processing state |
-| Historical KV | `SERVER_BODIES`     | Pre-0.1 message bodies and attachment metadata; may be opened for account-deletion cleanup |
-| Historical KV | `SERVER_REACTIONS`  | Pre-0.1 emoji reactions |
-| Historical stream | `SERVER_EVENTS`   | Pre-0.1 room/member event log; no new runtime writes |
+| Objects | `ASSET_CACHE`                 | Optional cached image transforms with TTL    |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
 `EVT` publishing is mandatory for event-sourced domain facts because `EVT`
 is the source of truth and reads come from in-memory projections. If event
-publishing fails, the write fails. Current migrated aggregates include room
+publishing fails, the write fails. Current aggregates include room
 membership/metadata, room groups/layout, server config, users,
 messages/threads, reactions, RBAC, and auth workflow audit facts.
 
@@ -288,16 +326,14 @@ messages/threads, reactions, RBAC, and auth workflow audit facts.
 - Per-key TTLs are used for expiring records such as notifications and auth/workflow tokens
 - These records are operational state, not durable domain history
 
-**Migrated event-sourced aggregates:**
+**Event-sourced aggregates:**
 
 - `EVT` is the source of truth.
-- Fresh deployments seed only current invariants such as default RBAC roles and the default room group; pre-0.1 data importers are no longer part of the boot path.
+- Fresh deployments seed current invariants such as default RBAC roles and the default room group.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded facts such as edits, retractions, reactions, assets, and thread replies; visible readers skip or fold those facts before serving the room timeline. `Subscription.myEvents(after:)` uses the raw room log for reconnect replay so folded facts can reach the client as ordinary durable events without appearing as standalone timeline rows in `Room.events`.
-- Writes append to `EVT` only; legacy KV/stream data is not maintained as a mirror.
+- Writes append to `EVT` only for durable domain facts.
 - Read-your-writes is provided by waiting for the local projector to reach the append sequence.
-
-**Future (Clustered NATS - Multi-Process):**
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)
 - `EVT` provides durable audit/history and projection replay; transient live events provide UI sync.
@@ -311,21 +347,35 @@ These sections previously described the RBAC model and DM behavior in detail. Th
 - **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, [`/.claude/rules/authorization.md`](../.claude/rules/authorization.md) for the full resolver semantics (DM boundary, user-level overrides, scope cascade), and [`/.claude/rules/admin.md`](../.claude/rules/admin.md) for the admin-side picture.
 - **Permission constants and `Can*` functions** — see [`cli/internal/core/permission.go`](../cli/internal/core/permission.go) and [`cli/internal/core/can.go`](../cli/internal/core/can.go).
 - **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-037 (DM Access via Membership)](adr/ADR-037-dm-access-via-membership.md).
-- **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below alongside the rest of the KV.
+- **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below.
 
 ## NATS Resource Inventory
 
-### Event Types
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/subjects.go`](../cli/internal/events/subjects.go), [`proto/chatto/core/v1/event.proto`](../proto/chatto/core/v1/event.proto), [`cli/internal/core/subjects/subjects.go`](../cli/internal/core/subjects/subjects.go)
+
+### Current Resources
+
+| Type         | Name                | Storage | Backup | Description                                                                 |
+| ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
+| Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notifications, wrapped app DEKs |
+| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence and active voice-call state                               |
+| KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys; excluded from backups                              |
+| Object store | `SERVER_ASSETS`     | File    | Yes    | Asset binaries for avatars, branding, link previews, attachments, derivatives |
+| Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
+| NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
+| Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
+
+### Event Envelopes
 
 Chatto uses `corev1.Event` as the durable EVT wrapper and `corev1.LiveEvent` as the transient NATS Core wrapper. GraphQL exposes both through one public `Event` envelope, but the protobuf wire envelopes stay separate so live-only sync signals cannot leak into the durable audit/event log shape.
 
 - **Wrapper fields**: `id`, `created_at`, `actor_id`
 - **Concrete event**: `event` oneof on the relevant wire envelope; contextual fields (`roomId`, etc.) live on the concrete payloads.
 
-The oneof's field-number convention makes durability obvious at a glance:
+The active `Event.event` oneof variants are all durable EVT payloads, regardless of numeric tag. Transient-only pubsub signals belong in `corev1.LiveEvent`, not `corev1.Event`.
 
-- **`< 1000`** — persisted variants stored in JetStream. The field number is part of the on-disk wire format; do not change or reuse.
-- **`>= 1000`** — retired legacy live-only `Event` tags, except frozen durable reaction tags `1050` / `1051`. New transient payloads belong in `LiveEvent`; new durable facts should use an intentional low-numbered block.
+Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 
 **Proto File Organization:**
 
@@ -340,7 +390,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, historical replay, projection source of truth |
+| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom | Ordering guarantees, reconnect replay, projection source of truth |
 | Room live-only              | NATS Core  | UserTyping, CallParticipantJoined, CallParticipantLeft | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
@@ -363,59 +413,123 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 
 The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that subscribes to `live.sync.>` and `live.evt.>`. For deliverable raw EVT room messages, it reads the republished `Nats-Sequence` header, waits for the local projections needed by authorization and follow-up resolvers, filters by the subscribing user, and then emits the GraphQL event with an opaque `deliveryCursor`. The cursor is signed with the server-side core secret, bound to the authenticated user, and expires after seven days; clients must treat it as an opaque token. When a client reconnects with `after`, the server subscribes to live feeds first, captures the current room-EVT tail sequence, waits for the replay projections to reach that tail, refreshes the subscriber's current room memberships, plans a bounded replay from `RoomTimelineProjection`, then skips any buffered live EVT messages at or below that tail to avoid duplicates. Current room membership is the replay privacy boundary: rooms the user no longer belongs to are not replayed, even if the cursor predates the leave/ban/delete. If replay would exceed the server budget (currently 1000 durable room facts), GraphQL returns `MY_EVENTS_FULL_REFRESH_REQUIRED` and the web client discards the cursor and reloads from projected state. Transient `LiveEvent` messages are adapted at this API boundary into the public GraphQL event shape. There is no per-connection JetStream consumer.
 
-### Event Streams
+### EVT Subject Patterns
 
-| Stream                       | Wrapper          | Scope      | Description                                      |
-| ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, RBAC, and auth workflow audit facts. |
-| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `myEvents` authorizes and adapts these messages into GraphQL events; they are never projection input. |
+The `EVT` stream stores every durable fact under `evt.{aggregateType}.{aggregateId}.{eventType}` and republishes committed messages to `live.evt.{aggregateType}.{aggregateId}.{eventType}`. The republished subject is an internal server-side feed; GraphQL `myEvents` waits for projections and authorization before delivering anything to clients.
 
-**Historical SERVER\_EVENTS subjects:**
+| Pattern                                          | Description                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `evt.>`                                          | All durable event-sourced facts                                                 |
+| `evt.room.>`                                     | All room aggregate facts                                                        |
+| `evt.room.{roomId}.{eventType}`                  | One room aggregate fact                                                         |
+| `evt.room.*.{eventType}`                         | One room event type across all rooms                                            |
+| `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
+| `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
+| `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned room ordering/membership facts              |
+| `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
+| `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
+| `evt.user.*.{eventType}`                         | One user event type across all users                                            |
+| `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
+| `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
+| `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
-Pre-ES room events included event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. Current runtime reads use `EVT` projections instead; these subjects are documented so restore/debugging tools can interpret historical data. The `{kind}` segment (`channel` or `dm`) let a single subject namespace serve both server-space rooms and DM rooms.
+The aggregate ID is intentionally part of the subject; actor/user and detailed context stay in the protobuf payload. Cross-event-type invariants use wildcard OCC filters such as `evt.room.>` or `evt.rbac.>`.
 
-| Subject                                                                       | Description                                    |
-| ----------------------------------------------------------------------------- | ---------------------------------------------- |
-| `server.member.joined` / `.left` / `.deleted`                                 | Membership lifecycle events                    |
-| `server.room.{kind}.{roomId}.msg.{eventId}`                                   | Root message posted                            |
-| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`             | Thread reply posted                            |
-| `server.room.{kind}.{roomId}.meta`                                            | Room lifecycle + membership                    |
+### Durable EVT Event Inventory
 
-The old event ID in message subjects enabled O(1) lookup (52µs) instead of O(n) scanning. Runtime message lookup now comes from `RoomTimelineProjection` rebuilt from `EVT`.
+| Subject pattern                                              | Protobuf event message                              |
+| ------------------------------------------------------------ | --------------------------------------------------- |
+| `evt.room.{roomId}.room_created`                             | `RoomCreatedEvent`                                  |
+| `evt.room.{roomId}.room_updated`                             | `RoomUpdatedEvent`                                  |
+| `evt.room.{roomId}.room_archived`                            | `RoomArchivedEvent`                                 |
+| `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
+| `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
+| `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
+| `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |
+| `evt.room.{roomId}.room_member_banned`                       | `RoomMemberBannedEvent`                             |
+| `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
+| `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`                                  |
+| `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
+| `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
+| `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
+| `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
+| `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
+| `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
+| `evt.room.{roomId}.asset_created`                            | `AssetCreatedEvent`                                 |
+| `evt.room.{roomId}.asset_processing_started`                 | `AssetProcessingStartedEvent`                       |
+| `evt.room.{roomId}.asset_processing_succeeded`               | `AssetProcessingSucceededEvent`                     |
+| `evt.room.{roomId}.asset_processing_failed`                  | `AssetProcessingFailedEvent`                        |
+| `evt.room.{roomId}.asset_deleted`                            | `AssetDeletedEvent`                                 |
+| `evt.config.{subject}.server_name_changed`                   | `ServerNameChangedEvent`                            |
+| `evt.config.{subject}.server_description_changed`            | `ServerDescriptionChangedEvent`                     |
+| `evt.config.{subject}.server_welcome_message_changed`        | `ServerWelcomeMessageChangedEvent`                  |
+| `evt.config.{subject}.server_motd_changed`                   | `ServerMotdChangedEvent`                            |
+| `evt.config.{subject}.server_blocked_usernames_changed`      | `ServerBlockedUsernamesChangedEvent`                |
+| `evt.config.{subject}.server_logo_set`                       | `ServerLogoSetEvent`                                |
+| `evt.config.{subject}.server_logo_cleared`                   | `ServerLogoClearedEvent`                            |
+| `evt.config.{subject}.server_banner_set`                     | `ServerBannerSetEvent`                              |
+| `evt.config.{subject}.server_banner_cleared`                 | `ServerBannerClearedEvent`                          |
+| `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent`                          |
+| `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent`                          |
+| `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |
+| `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent`                        |
+| `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent`               |
+| `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
+| `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
+| `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent`             |
+| `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
+| `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
+| `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |
+| `evt.group.{groupId}.room_added`                            | `RoomAddedToGroupEvent`                             |
+| `evt.group.{groupId}.room_removed`                          | `RoomRemovedFromGroupEvent`                         |
+| `evt.group.{groupId}.rooms_reordered`                       | `RoomsInGroupReorderedEvent`                        |
+| `evt.layout.default.groups_reordered`                        | `RoomGroupsReorderedEvent`                          |
+| `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
+| `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
+| `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
+| `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
+| `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
+| `evt.user.{userId}.verified_email_added`                    | `UserVerifiedEmailAddedEvent`                       |
+| `evt.user.{userId}.password_hash_changed`                   | `UserPasswordHashChangedEvent`                      |
+| `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent`                        |
+| `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
+| `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
+| `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
+| `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
+| `evt.user.{userId}.user_key_shredded`                       | `UserKeyShreddedEvent`                              |
+| `evt.user.{userId}.dek_generated`                           | `UserDEKGeneratedEvent`                             |
+| `evt.user.{userId}.email_verification_code_issued`          | `EmailVerificationCodeIssuedEvent`                  |
+| `evt.user.{userId}.password_reset_link_issued`              | `PasswordResetLinkIssuedEvent`                      |
+| `evt.user.{userId}.account_deletion_confirmation_issued`    | `AccountDeletionConfirmationIssuedEvent`            |
+| `evt.user.{userId}.password_reset_completed`                | `PasswordResetCompletedEvent`                       |
+| `evt.user.{userId}.login_succeeded`                         | `LoginSucceededEvent`                               |
+| `evt.user.{userId}.logout_succeeded`                        | `LogoutSucceededEvent`                              |
+| `evt.user.{userId}.auth_code_issued`                        | `AuthCodeIssuedEvent`                               |
+| `evt.user.{userId}.auth_code_exchange_succeeded`            | `AuthCodeExchangeSucceededEvent`                    |
+| `evt.user.{userId}.auth_code_exchange_failed`               | `AuthCodeExchangeFailedEvent`                       |
+| `evt.user.{userId}.bearer_token_issued`                     | `BearerTokenIssuedEvent`                            |
+| `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
+| `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`                          |
+| `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`                           |
+| `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |
+| `evt.rbac.{server\|scopeId}.role_display_name_changed`      | `RbacRoleDisplayNameChangedEvent`                  |
+| `evt.rbac.{server\|scopeId}.role_description_changed`       | `RbacRoleDescriptionChangedEvent`                  |
+| `evt.rbac.{server\|scopeId}.role_pingable_changed`          | `RbacRolePingableChangedEvent`                     |
+| `evt.rbac.{server\|scopeId}.role_deleted`                   | `RbacRoleDeletedEvent`                             |
+| `evt.rbac.{server\|scopeId}.roles_reordered`                | `RbacRolesReorderedEvent`                          |
+| `evt.rbac.{server\|scopeId}.role_assigned`                  | `RbacRoleAssignedEvent`                            |
+| `evt.rbac.{server\|scopeId}.role_revoked`                   | `RbacRoleRevokedEvent`                             |
+| `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
+| `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
+| `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
+| `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
-Filtering examples:
+Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files.
 
-| Pattern                                                              | Description                                    |
-| -------------------------------------------------------------------- | ---------------------------------------------- |
-| `server.>`                                                           | All events                                     |
-| `server.room.{kind}.{roomId}.>`                                      | All events in a room (messages + meta + threads) |
-| `server.room.{kind}.{roomId}.msg.>`                                  | All messages (root + threads)                  |
-| `server.room.{kind}.{roomId}.msg.*`                                  | Root messages only                             |
-| `server.room.{kind}.>`                                               | All events of one kind (channels or DMs)       |
-| `server.room.{kind}.{roomId}.msg.*.replies.>`                        | All thread replies in a room                   |
-| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.>`            | All replies in a specific thread               |
-| `server.room.{kind}.{roomId}.msg.*.replies.{eventId}`                | Lookup a thread reply by event ID              |
+### Transient Live Subjects
 
-Note: Event type (created, joined, etc.) is determined by the event payload, not the subject. Actor/user information is also in payloads, not subjects (optimized for low subject cardinality).
-
-**User Personal Streams** (transient):
-
-- Subject: `user.{userId}.event`
-- Published via NATS Core (not JetStream) - transient, not persisted
-- Receives events relevant to the user (space joins/leaves, room joins/leaves)
-- Powers real-time notifications and user-centric subscriptions
-- Events are dual-published: to primary stream (audit trail) and user stream (notifications)
-
-**Live Subject Space**:
-
-Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
-
-- Direct NATS Core publishes (`publishLiveEvent()`): transient `corev1.LiveEvent` messages on `live.sync.>` with no stream storage.
-- `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room events to clients.
-
-`SERVER_EVENTS` no longer has a `RePublish` live path and runtime code no longer writes legacy `server.>` mirrors. Historical `SERVER_EVENTS` streams may still appear in old backups, but current boot and live-delivery paths do not read or import them.
-
-**Transient live sync events** (`live.sync.{user,config,room}.>`):
+Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted and are not projection input.
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
@@ -452,127 +566,14 @@ The unified `myEvents` GraphQL subscription is backed by a single core stream (`
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
 | `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` with per-key TTL, active voice calls keyed `call.{spaceId}.{roomId}` |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
-| `LINK_PREVIEW_CACHE`          | File    | No       | Legacy retired standalone link-preview cache; current entries live in `RUNTIME_STATE` |
-| `USER_PRESENCE`               | Memory  | No       | Legacy retired presence bucket; not provisioned on fresh boot |
-| `CALL_STATE`                  | Memory  | No       | Legacy retired active-call bucket; not provisioned or opened on fresh boot |
-| `INSTANCE`                    | File    | Yes      | Historical pre-0.1 user/config bucket; not provisioned or opened on fresh boot |
-| `INSTANCE_CONFIG`             | File    | Yes      | Historical pre-0.1 server configuration bucket; not provisioned or opened on fresh boot |
-| `SERVER_CONFIG`               | File    | Yes      | Historical pre-0.1 rooms, memberships, room groups/layout, and notification preferences bucket; not provisioned or opened on fresh boot |
-| `SERVER_RBAC`                 | File    | Yes      | Historical pre-0.1 RBAC bucket; not provisioned or opened on fresh boot |
-| `SERVER_RUNTIME`              | File    | Yes      | Historical pre-0.1 read markers, thread follows, migration sentinels, and video processing state bucket; not provisioned or opened on fresh boot |
-| `SERVER_BODIES`               | File    | Yes      | Legacy message body bucket opened only if present for account-deletion cleanup of old body entries |
-| `SERVER_REACTIONS`            | File    | Yes      | Historical pre-0.1 emoji reactions bucket; not provisioned or opened on fresh boot |
-
-Fresh deployments create only current resources (`EVT`, projections' consumers, `RUNTIME_STATE`, live/runtime buckets, and object stores). The application does not create or maintain legacy KV buckets as mirrors.
-
-Pre-ES room data — channels and DMs alike — lived in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the old hidden-DM-space storage model are gone after the Phase 4 migration (#354): rooms were differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`). Current room state is projected from `EVT`.
-
-**INSTANCE keys:**
-
-| Key                                    | Description                                      |
-| -------------------------------------- | ------------------------------------------------ |
-| `user.{userId}`                        | User profile data                                |
-| `user_by_login.{lowercase(login)}`     | Login-to-UserID index (case-insensitive)         |
-| `auth.{userId}.password`               | Password hash (stored separately)                |
-| `user.{userId}.avatar`                 | User avatar asset reference                      |
-| `verified_emails.{userId}.{sha256(email)}` | One verified email per entry (proto `VerifiedEmail`) |
-| `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
-| `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
-| `instance.logo`                        | Legacy server logo asset reference |
-| `instance.banner`                      | Legacy server banner asset reference |
-| `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
-| `user_preferences.{userId}`            | User display preferences (timezone, time format) |
-
-Notes: `INSTANCE` is a historical pre-0.1 bucket. Current user/account/profile state and remembered OAuth client-origin consent are projected from `EVT`. Cookie-session records plus verification, registration, password-reset, account-deletion, bearer-session, and OAuth authorization-code token verifiers live in `RUNTIME_STATE` under HMAC-derived keys. Email verification claim facts use hashed identifiers in `EVT` to preserve uniqueness/auditability without storing raw email values; OAuth consent facts store canonical redirect origins in plaintext so users can recognize approved client addresses.
-
-**RUNTIME_STATE auth/session keys:**
-
-| Key                                           | Description |
-| --------------------------------------------- | ----------- |
-| `cookie_session.{userId}.{sessionHmac}`       | Server-side embedded-SPA cookie session record (proto `CookieSession`) with per-key TTL and auth generation; generation `0` is the legacy no-field value and is upgraded on compatible validation |
-| `session.{hmac}`                              | Opaque bearer-token verifier with per-key TTL and auth generation |
-| `grant.{hmac}`                                | OAuth authorization-code verifier with 5-minute per-key TTL and auth generation |
-| `email_otp.{hmac(subject)}.{hmac(code)}`      | Shared registration and email-verification OTP code records with per-key TTL |
-| `email_otp.{hmac(subject)}.challenge`         | Shared OTP challenge state with failed-attempt and issued-code counters |
-| `registration_completion.{hmac}`              | Post-code registration completion token verifier |
-| `password_reset.{hmac}`                       | Password reset token verifier |
-| `account_deletion_token.{hmac}`               | Account deletion confirmation token verifier |
-
-**EVT auth audit subjects:**
-
-| Subject                                                                  | Description |
-| ------------------------------------------------------------------------ | ----------- |
-| `evt.auth.server.registration_verification_code_issued`                  | Registration verification code issued before a user exists. |
-| `evt.auth.server.login_failed`                                           | Failed password login attempt, with hashed identifier only. |
-| `evt.user.{userId}.email_verification_code_issued`                       | Email verification code issued. |
-| `evt.user.{userId}.password_reset_link_issued`                           | Password reset link issued. |
-| `evt.user.{userId}.account_deletion_confirmation_issued`                 | Account deletion confirmation token issued. |
-| `evt.user.{userId}.password_reset_completed`                             | Password reset completed. |
-| `evt.user.{userId}.login_succeeded` / `.logout_succeeded`                | Cookie-session login/logout completed. |
-| `evt.user.{userId}.oauth_consent_granted` / `.oauth_consent_denied`       | OAuth client-origin consent decision, with canonical redirect origin. |
-| `evt.user.{userId}.auth_code_issued`                                     | OAuth authorization code issued, with hashed redirect URI. |
-| `evt.user.{userId}.auth_code_exchange_succeeded`                         | OAuth authorization code exchange completed. |
-| `evt.user.{userId}.auth_code_exchange_failed`                            | Known OAuth authorization code exchange failed after code lookup. |
-| `evt.user.{userId}.bearer_token_issued` / `.bearer_token_revoked`         | Opaque bearer token issued or explicitly revoked. |
-
-These audit payloads include only safe request metadata: capped user agent and an HMAC-SHA256 IP hash when request metadata is available. Raw tokens, links, passwords, auth codes, raw IP addresses, full OAuth redirect URIs, and raw email/login identifiers are not persisted in EVT audit payloads. OAuth consent facts intentionally keep canonical redirect origins in plaintext for user-visible approval management.
-
-**INSTANCE_CONFIG keys:**
-
-| Key               | Description                                                                  |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `config.instance` | Historical server configuration entry (proto message; key + proto name retained) |
-
-Notes: Server configuration now lives in EVT config events and is served from the in-memory config projection. This bucket is not created on fresh boot. The TOML file remains reserved for operational settings (ports, secrets, NATS config).
 
 **ENCRYPTION_KEYS keys:**
 
 | Key             | Description                       |
 | --------------- | --------------------------------- |
-| `kek.{keyRef}`  | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref; legacy raw 32-byte compatibility is also accepted |
-| `user.{userId}` | Raw 32-byte legacy direct-key message-body compatibility path only |
+| `kek.{keyRef}`  | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref |
 
-Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. New built-in KMS writes store KEKs as protobuf `UserKeyEncryptionKey` records under `kek.*` refs, while raw 32-byte `kek.*` records remain readable for compatibility with older exports. Legacy bodies use the local raw `user.{userId}` KEK directly only for compatibility. Enables GDPR-compliant crypto-shredding: shredding a user's recorded content-key refs or wrapping-key refs renders their encrypted content permanently unreadable.
-
-**SERVER\_CONFIG keys:**
-
-Room and membership keys in this historical bucket carry a `kind` segment (`channel` or `dm`) so listing operations could prefix-filter without loading and deserializing every record. Current room and membership state is projected from `EVT`; `SERVER_CONFIG` is not created on fresh boot.
-
-| Key                                                  | Description                                      |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `group_id` referencing its room group (ADR-031). |
-| `room.dm.{roomId}`                                   | Direct-message room (no `group_id` — DMs aren't part of any room group). |
-| `room_name_index.{lowercaseName}`                    | Atomic name claim → room ID. Channels only; DMs have empty names. Enforces case-insensitive uniqueness without a read-then-write race. |
-| `room_membership.channel.{roomId}.{userId}`          | Channel membership (room-first ordering matches `room.{kind}.{X}`)  |
-| `room_membership.dm.{roomId}.{userId}`               | DM membership                                    |
-| `room_layout`                                        | Single proto holding the ordered list of room groups (and each group's ordered room IDs). Updated atomically with OCC. |
-
-Useful filter patterns:
-
-| Pattern                                              | Matches                                          |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.*`                                     | All channel rooms                                |
-| `room.dm.*`                                          | All DM rooms                                     |
-| `room.*.*`                                           | All rooms regardless of kind                     |
-| `room_membership.{kind}.{roomId}.*`                  | All members of one room (pure prefix)            |
-| `room_membership.{kind}.*.{userId}`                  | A user's memberships of one kind (server-side wildcard) |
-| `room_membership.{kind}.>`                           | All memberships of one kind                      |
-
-**SERVER\_RBAC keys:**
-
-RBAC is event-sourced under `evt.rbac.>`. Role CRUD/reorder, role assignment,
-direct user overrides, and server-scoped permission decisions use
-`evt.rbac.server.*`; room and group scoped decisions use
-`evt.rbac.{roomId}.*` and `evt.rbac.{groupId}.*` with the Chatto entity ID
-directly as the aggregate ID. All RBAC writes share `evt.rbac.>` as their OCC
-domain, so those subject partitions are descriptive labels, not independent
-consistency boundaries. Permission checks, admin role/permission reads,
-permission inspector traces, and hierarchy/outrank checks read from the
-in-memory RBAC projection.
-
-`SERVER_RBAC` is a historical pre-0.1 bucket. New and existing deployments read
-RBAC state from the `EVT` projection. Fresh servers seed default RBAC roles and
-permissions directly into an empty RBAC aggregate using OCC.
+Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content. Chatto core uses the in-process `internal/kms` wrapper boundary for KEK creation, DEK wrap/unwrap, and KEK shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{contentKeyRef}`.
 
 **RUNTIME\_STATE keys:**
 
@@ -582,32 +583,21 @@ survives restart but is not content/domain history. See
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). Historical `SERVER_RUNTIME` `room_read_event.*` and `room_read_status.*` keys are no longer imported. |
-| `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. Historical `thread_last_opened.*` values are no longer imported. |
+| `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event. |
+| `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. |
 | `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`. |
-| `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. The endpoint hash keeps multiple devices per user while deduplicating the same browser subscription; historical `INSTANCE` push subscription keys are no longer imported. |
+| `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. The endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
 | `email_otp.{hmac(subject)}.{hmac(code)}` | Shared registration and email-verification OTP code JSON. Registration values carry normalized email; authenticated email-verification values carry user ID and email. The subject hash scopes registration by email and authenticated verification by user/email, the code hash verifies the submitted six-digit code, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `email_otp.{hmac(subject)}.challenge` | Shared OTP challenge JSON with failed-attempt and issued-code counters. Wrong-code attempts update this record revision-safely, five wrong guesses exhaust the challenge until TTL, and at most ten codes can be issued for one challenge window. Uses per-key 15-minute TTL. |
 | `registration_completion.{hmac}` | Registration completion token JSON created after code verification. Uses per-key 15-minute TTL. |
 | `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
 | `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
-| `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. Generation `0` means a legacy pre-`auth_generation` credential and is upgraded on validation when still compatible with the current password event. |
+| `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. |
 | `grant.{hmac}` | OAuth authorization code JSON with the user auth generation it was issued against. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
 | `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
 | `dek.{contentKeyRef}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). No TTL; shredded on account deletion. |
 
 Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
-
-**SERVER\_RUNTIME keys:**
-
-| Key                                    | Description                                                       |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
-| `video.{attachmentId}`                 | Legacy video processing state |
-| `attachment_records.backfilled`        | Historical boot-migration sentinel |
-| `video_manifest_es.migrated`           | Historical video-manifest import sentinel |
-
-These keys don't carry a kind segment — `roomId` is globally unique, so direct lookup works for DM and channel rooms alike.
 
 **MEMORY_CACHE keys:**
 
@@ -616,29 +606,7 @@ These keys don't carry a kind segment — `roomId` is globally unique, so direct
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status; per-key 60s TTL |
 | `call.{spaceId}.{roomId}`                  | JSON active voice call participant list          |
 
-Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is also volatile and is repopulated by LiveKit webhooks after restart; the retired `CALL_STATE` bucket is no longer imported.
-
-**SERVER\_BODIES keys:**
-
-| Key                    | Description                                              |
-| ---------------------- | -------------------------------------------------------- |
-| `{userId}.{eventId}`   | Message body keyed by user ID and event ID               |
-| `{userId}.{bodyId}`    | Older naming for the same legacy body record shape       |
-
-Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility. No `kind` segment — both IDs are globally unique NanoIDs.
-
-A transitional `attachment.{roomId}.{attachmentId}` key shape existed
-in this bucket between #575 and #581 as a per-attachment authz index;
-it was retired by the signed-locator URL scheme (ADR-032). New code should not
-write to `attachment.*` keys here.
-
-**SERVER\_REACTIONS keys:**
-
-| Key                                     | Description                                    |
-| --------------------------------------- | ---------------------------------------------- |
-| `{messageEventId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted; value stores nanosecond timestamp for "added at" ordering) |
-
-Notes: Current reaction writes append durable `ReactionAdded` / `ReactionRemoved` events to `evt.room.{roomId}.reaction_added` and `evt.room.{roomId}.reaction_removed`; current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. `SERVER_REACTIONS` is a historical pre-0.1 bucket and is no longer opened by the runtime.
+Notes: Memory-based storage is not persisted and not backed up. Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. `Subscription.myEvents` sets the user online, and `updateMyPresence` overwrites the user's live status. On disconnect, clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Voice call state is volatile and is repopulated by LiveKit webhooks after restart.
 
 ### Object Store Buckets
 
@@ -647,8 +615,6 @@ Notes: Current reaction writes append durable `ReactionAdded` / `ReactionRemoved
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
 | `SERVER_ASSETS`             | Asset binaries (avatars, server icon/banner, link previews, message attachments) |
 
-Pre-0.1 servers stored user avatars, server logo/banner, and link-preview images in `INSTANCE_ASSETS`. Current deployments serve assets from `SERVER_ASSETS` and no longer create, copy, import, or delete `INSTANCE_ASSETS` during boot.
-
 **ASSET_CACHE keys:**
 
 | Key                                       | Description                                  |
@@ -656,7 +622,7 @@ Pre-0.1 servers stored user avatars, server logo/banner, and link-preview images
 | `attachment.{attachmentId}.{paramsHash}`  | Cached WebP image at specific dimensions     |
 | `server.{assetId}.{paramsHash}`           | Cached WebP transform of a server asset      |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled. Pre-ADR-030-Phase-4 entries written under a `{server|DM}.…` prefix are no longer looked up after the kind-less URL switchover and age out via TTL.
+Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled.
 
 **SERVER\_ASSETS keys:**
 
@@ -698,7 +664,7 @@ asset and room scope from the `RoomTimelineProjection`'s asset indexes. Every
 request checks that the signed user is still a member of the asset's room
 before serving the binary.
 
-Legacy locator URLs remain supported for compatibility/internal fallback:
+Internal fallback locator URLs use this shape:
 
 ```
 /assets/attachments/{base64payload}.{hexHMAC}
@@ -706,8 +672,8 @@ Legacy locator URLs remain supported for compatibility/internal fallback:
 ```
 
 Those locator payloads carry room/source/attachment/user/expiry claims and use
-the shorter `AttachmentURLTTL`. New GraphQL attachment fields should use the
-stable `/assets/files/...` URL plus `AssetURL.expiresAt` shape.
+the shorter `AttachmentURLTTL`. GraphQL attachment fields use the stable
+`/assets/files/...` URL plus `AssetURL.expiresAt` shape.
 
 **Transform Parameters:**
 
@@ -757,8 +723,8 @@ enum FitMode {
 
 For `Attachment` images, `assetUrl` and `thumbnailAssetUrl` return the URL plus
 the embedded access-ticket expiry so clients can refresh before lazy loads or
-media startup hit an expired ticket. The legacy string fields return the same
-URL without the expiry for backward compatibility. Public `ServerProfile` image
+media startup hit an expired ticket. The string URL fields return the same
+URL without the expiry. Public `ServerProfile` image
 fields intentionally return canonical asset URLs without transform arguments so
 anonymous server discovery cannot mint unbounded resize variants.
 
@@ -779,13 +745,12 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless on new writes; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. New bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `RUNTIME_STATE` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. New durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD. The older `SERVER_EVENTS` + `SERVER_BODIES` store-then-publish shape is historical pre-0.1 storage and is no longer imported during boot.
+Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. Message bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `RUNTIME_STATE` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. Durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD.
 
 **Message Identifiers:**
 
 - **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for GraphQL `Event.id`, reactions, thread metadata, message-body lookup, attachments, and projections.
 - **Payload**: `MessagePostedEvent` is payload-only. It carries room/thread/echo fields, but not an event ID, message-body ID alias, or embedded body.
-- **Historical bodies**: older `SERVER_EVENTS` records may contain an unknown-field `message_body_id` pointing at the legacy `{userId}.{eventId}` `SERVER_BODIES` key. Current message reads use `MessageBodyEvent` facts from `EVT`; `SERVER_BODIES` is retained only as historical storage and for account-deletion cleanup of old body records.
 
 **Write Path:**
 
@@ -832,5 +797,4 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - **Compression**: The `EVT` stream uses S2 compression to reduce storage costs
 - **GDPR Compliance**: Message bodies are encrypted per author; deletion is represented by EVT retraction/shred facts and projections refuse to render shredded or retracted content.
 - **Unified Event-Sourced Rooms**: Channels and DMs share `evt.room.{roomId}.>` subjects and room projections.
-- **Legacy Body Store**: `SERVER_BODIES` may be opened if present for account-deletion cleanup of old body entries; new message bodies are encrypted into private `MessageBodyEvent` payloads and projected from `EVT`.
-- **Current Resource Initialization**: Current resources are created up front at boot. Historical pre-0.1 import resources are no longer provisioned; only `SERVER_BODIES` has a narrow compatibility cleanup path when present.
+- **Current Resource Initialization**: Current resources are created up front at boot by `newStorage`.
