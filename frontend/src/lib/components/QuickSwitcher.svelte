@@ -90,7 +90,7 @@
         }
       }
       server {
-        members(search: $search, limit: 100) {
+        members(search: $search, limit: 20) {
           users {
             ...UserAvatarUser
           }
