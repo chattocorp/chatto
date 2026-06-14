@@ -159,6 +159,7 @@ export class VoiceCallState {
 
     this.connecting = true;
     this.roomId = roomId;
+    let joinIntentRecorded = false;
 
     try {
       const intentResult = await this.#client
@@ -167,6 +168,7 @@ export class VoiceCallState {
       if (intentResult.error) {
         throw intentResult.error;
       }
+      joinIntentRecorded = true;
 
       // Get token from server (pure query, no side effects)
       const result = await this.#client.query(VoiceCallTokenQuery, { roomId }).toPromise();
@@ -181,10 +183,8 @@ export class VoiceCallState {
       }
 
       const keyProvider = new ExternalE2EEKeyProvider();
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Vite worker bundling requires the built-in URL constructor.
-      this.e2eeWorker = new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), {
-        type: 'module'
-      });
+      const { default: E2EEWorker } = await import('livekit-client/e2ee-worker?worker');
+      this.e2eeWorker = new E2EEWorker();
 
       // Create and connect LiveKit room
       this.room = new Room({
@@ -231,6 +231,9 @@ export class VoiceCallState {
       await this.refreshDevices();
     } catch (err) {
       console.error('Failed to join voice call:', err);
+      if (joinIntentRecorded) {
+        await this.recordLeaveIntent(roomId);
+      }
       this.cleanup();
       throw err;
     } finally {
@@ -246,14 +249,19 @@ export class VoiceCallState {
 
     const roomId = this.roomId;
     if (roomId) {
-      await this.#client
-        .mutation(LeaveVoiceCallMutation, { roomId })
-        .toPromise()
-        .catch(() => {});
+      await this.recordLeaveIntent(roomId);
     }
 
     this.room.disconnect();
     this.cleanup();
+  }
+
+  private async recordLeaveIntent(roomId: string): Promise<void> {
+    try {
+      await this.#client.mutation(LeaveVoiceCallMutation, { roomId }).toPromise();
+    } catch {
+      // LiveKit disconnect/cleanup should still proceed if the intent write fails.
+    }
   }
 
   /**

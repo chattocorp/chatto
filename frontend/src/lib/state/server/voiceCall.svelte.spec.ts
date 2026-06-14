@@ -4,6 +4,7 @@ import { VoiceCallState } from './voiceCall.svelte';
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
 let lastKeyProvider: { setKey: ReturnType<typeof vi.fn> } | null = null;
+let connectFailure: Error | null = null;
 
 vi.mock('livekit-client', () => {
   class MockExternalE2EEKeyProvider {
@@ -43,6 +44,9 @@ vi.mock('livekit-client', () => {
     on = vi.fn();
     connect = vi.fn(async () => {
       calls.push('connect');
+      if (connectFailure) {
+        throw connectFailure;
+      }
     });
     setE2EEEnabled = vi.fn(async (enabled: boolean) => {
       calls.push(`setE2EEEnabled:${enabled}`);
@@ -76,17 +80,18 @@ vi.mock('livekit-client', () => {
   };
 });
 
+vi.mock('livekit-client/e2ee-worker?worker', () => ({
+  default: class MockE2EEWorker {
+    terminate = vi.fn();
+  }
+}));
+
 describe('VoiceCallState', () => {
   beforeEach(() => {
     calls.length = 0;
     lastRoomOptions = null;
     lastKeyProvider = null;
-    vi.stubGlobal(
-      'Worker',
-      class MockWorker {
-        terminate = vi.fn();
-      }
-    );
+    connectFailure = null;
   });
 
   afterEach(() => {
@@ -124,5 +129,36 @@ describe('VoiceCallState', () => {
       calls.indexOf('setE2EEEnabled:true')
     );
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
+  });
+
+  it('records a compensating leave when LiveKit connect fails after join intent', async () => {
+    connectFailure = new Error('connect failed');
+    const client = {
+      mutation: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+      })),
+      query: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({
+          data: {
+            room: {
+              voiceCallToken: {
+                token: 'livekit-token',
+                e2eeKey: 'shared-e2ee-key'
+              }
+            }
+          }
+        }))
+      }))
+    };
+
+    const state = new VoiceCallState(client as never);
+
+    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
+      'connect failed'
+    );
+
+    expect(client.mutation).toHaveBeenCalledTimes(2);
+    expect(client.mutation).toHaveBeenNthCalledWith(2, expect.anything(), { roomId: 'R1' });
+    expect(state.isInAnyCall).toBe(false);
   });
 });

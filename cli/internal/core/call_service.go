@@ -240,6 +240,9 @@ func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, u
 		if !errors.Is(err, events.ErrConflict) {
 			return err
 		}
+		if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
+			return err
+		}
 
 		select {
 		case <-ctx.Done():
@@ -248,6 +251,14 @@ func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, u
 		}
 	}
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
+}
+
+func (s *CallService) waitForLatestRoomTransition(ctx context.Context, filter string) error {
+	tail, err := s.publisher.LastSubjectPosition(ctx, filter)
+	if err != nil {
+		return err
+	}
+	return s.projector.WaitFor(ctx, tail)
 }
 
 func callParticipantTransitionAlreadyApplied(active []CallParticipant, userID string, joined bool) bool {
