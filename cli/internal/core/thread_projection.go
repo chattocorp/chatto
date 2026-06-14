@@ -48,7 +48,7 @@ type ThreadProjection struct {
 	messageToThread map[string]string // reply event_id → thread root event_id
 	replySummaries  map[string]*threadReplySummary
 	summaryByThread map[string]*threadSummary
-	appliedEventIDs map[string]struct{}
+	appliedEventIDs eventIDSet
 	shreddedUsers   map[string]struct{}
 }
 
@@ -59,7 +59,7 @@ func NewThreadProjection() *ThreadProjection {
 		messageToThread: make(map[string]string),
 		replySummaries:  make(map[string]*threadReplySummary),
 		summaryByThread: make(map[string]*threadSummary),
-		appliedEventIDs: make(map[string]struct{}),
+		appliedEventIDs: newEventIDSet(),
 		shreddedUsers:   make(map[string]struct{}),
 	}
 }
@@ -91,16 +91,11 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	eid := event.GetId()
-	if eid != "" {
-		if _, exists := p.appliedEventIDs[eid]; exists {
-			return nil
-		}
+	if p.appliedEventIDs.has(event) {
+		return nil
 	}
 	markApplied := func() {
-		if eid != "" {
-			p.appliedEventIDs[eid] = struct{}{}
-		}
+		p.appliedEventIDs.mark(event)
 	}
 
 	switch e := event.GetEvent().(type) {
@@ -139,7 +134,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
 		p.messageToThread[replyID] = threadRoot
 		p.replySummaries[replyID] = &threadReplySummary{
-			actorID:   messageAuthorID(event, m),
+			actorID:   messageAuthorID(event),
 			createdAt: eventCreatedAt(event),
 		}
 		summary := p.summaryByThread[threadRoot]

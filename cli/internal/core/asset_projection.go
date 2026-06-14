@@ -13,7 +13,7 @@ import (
 // evt.room.*.asset_* lanes so beta histories continue to replay.
 type AssetProjection struct {
 	events.MemoryProjection
-	appliedEventIDs  map[string]struct{}
+	appliedEventIDs  eventIDSet
 	assetCreations   map[string]*corev1.AssetCreatedEvent
 	assetChildren    map[string][]string
 	videoManifests   map[string]*VideoAttachmentManifest
@@ -29,7 +29,7 @@ type AssetTimelineEntry struct {
 
 func NewAssetProjection() *AssetProjection {
 	return &AssetProjection{
-		appliedEventIDs:  make(map[string]struct{}),
+		appliedEventIDs:  newEventIDSet(),
 		assetCreations:   make(map[string]*corev1.AssetCreatedEvent),
 		assetChildren:    make(map[string][]string),
 		videoManifests:   make(map[string]*VideoAttachmentManifest),
@@ -56,11 +56,8 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if eid := event.GetId(); eid != "" {
-		if _, exists := p.appliedEventIDs[eid]; exists {
-			return nil
-		}
-		p.appliedEventIDs[eid] = struct{}{}
+	if p.appliedEventIDs.seenOrMark(event) {
+		return nil
 	}
 
 	p.entries = append(p.entries, &AssetTimelineEntry{StreamSeq: seq, Event: event})
@@ -327,19 +324,6 @@ func (p *AssetProjection) adminProjectionEstimate() (int64, int64, []ProjectionA
 		{Name: "derivatives", Value: derivatives, Bytes: 0},
 		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: manifestBytes},
 		{Name: "deleted_assets", Value: int64(len(p.deletedAssets)), Bytes: deletedBytes},
-	}
-}
-
-func isAssetLifecycleEvent(event *corev1.Event) bool {
-	switch event.GetEvent().(type) {
-	case *corev1.Event_AssetCreated,
-		*corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded,
-		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
-		return true
-	default:
-		return false
 	}
 }
 
