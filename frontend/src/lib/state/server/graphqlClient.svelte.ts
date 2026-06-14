@@ -1,6 +1,7 @@
 import { Client, fetchExchange, subscriptionExchange, mapExchange } from '@urql/svelte';
 import { createClient as createWSClient } from 'graphql-ws';
 import { serverRegistry } from './registry.svelte';
+import { csrfHeaders } from '$lib/auth/csrf';
 
 const SESSION_VALIDATION_COOLDOWN_MS = 5000;
 
@@ -269,7 +270,9 @@ export class GraphQLClient {
 		this.client = new Client({
 			url,
 			preferGetMethod: false,
-			...(token ? { fetchOptions: () => ({ headers: { Authorization: `Bearer ${token}` } }) } : {}),
+			fetchOptions: () => ({
+				headers: token ? { Authorization: `Bearer ${token}` } : csrfHeaders()
+			}),
 			exchanges: [
 				mapExchange({
 					onResult: (result) => {

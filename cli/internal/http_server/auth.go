@@ -47,6 +47,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Clear the session cookie
 		session.Clear()
 		session.Save()
+		clearCSRFCookie(c)
 
 		// Publish session terminated event so other tabs/devices disconnect
 		if userID != "" {
@@ -139,10 +140,16 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
+		if err := s.ensureCSRFToken(c, session); err != nil {
+			log.Error("Failed to create CSRF token", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
+		}
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
 			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
 			session.Clear()
 			_ = session.Save()
+			clearCSRFCookie(c)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
@@ -348,6 +355,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		session.Set("user_id", user.Id)
 		if err := session.Save(); err != nil {
 			log.Error("Failed to save session", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
+		}
+		if err := s.ensureCSRFToken(c, session); err != nil {
+			log.Error("Failed to create CSRF token", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}

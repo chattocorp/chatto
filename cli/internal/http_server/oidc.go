@@ -301,10 +301,16 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 			return
 		}
+		if err := s.ensureCSRFToken(c, session); err != nil {
+			log.Error("Failed to create CSRF token", "error", err)
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
+			return
+		}
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, claims.Email); err != nil {
 			log.Error("Failed to append OIDC login audit event", "userId", user.Id, "error", err)
 			session.Clear()
 			_ = session.Save()
+			clearCSRFCookie(c)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 			return
 		}

@@ -12,6 +12,7 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 - **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
 - **OAuth login** — operators can configure OAuth providers (e.g., Google). The login page shows provider buttons; clicking takes the user through the standard authorization-code flow.
 - **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries the user ID; the server resolves the current user from projections per request.
+- **CSRF protection** — cookie-session unsafe requests to `/api/graphql` and `/auth/logout` must include an `X-CSRF-Token` header matching the readable `chatto_csrf` cookie and the token stored in the signed session. Bearer-only requests are exempt because bearer credentials are not ambient browser cookies.
 - **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL.
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
 - **Logout** — for cookie sessions: the server clears the session and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
@@ -27,6 +28,12 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The session stores only the user ID; the current user record is resolved from projections per request.
 **Why:** Cookies are the simplest mechanism for browser SPAs — the browser handles attachment, expiry, and HttpOnly protects against XSS-extracted tokens. WebSocket auth comes for free because the browser sends the cookie with the upgrade request. See ADR-017.
 **Tradeoff:** Non-browser clients can't use cookies. The bearer token path exists for them.
+
+### 1a. CSRF protection for cookie-authenticated writes
+
+**Decision:** Same-origin cookie-session writes to `/api/graphql` and `/auth/logout` require a CSRF header/cookie pair. The server stores the token in the signed session, mirrors it into a readable `chatto_csrf` cookie for the SPA, and requires `X-CSRF-Token` to match both. Bearer-only requests skip this check.
+**Why:** Cookie sessions are ambient browser credentials, so another site can try to submit state-changing requests with the user's cookie attached. Bearer-token clients, including the multi-server frontend path, do not have ambient credentials and must remain cross-origin compatible.
+**Tradeoff:** The frontend must attach the CSRF header for origin GraphQL POSTs and origin logout calls. The token is not HttpOnly by design; it is not an auth secret, only a same-origin request proof paired with the signed session.
 
 ### 2. Bearer tokens for cross-origin
 

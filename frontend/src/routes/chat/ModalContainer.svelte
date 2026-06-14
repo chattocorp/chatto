@@ -20,6 +20,7 @@
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
+  import { csrfFetch } from '$lib/auth/csrf';
 
   /** Get the GraphQL client for the currently active instance (derived from URL). */
   function getActiveClient() {
@@ -230,7 +231,7 @@
     onconfirm={async () => {
       // Revoke the origin session cookie (if authenticated on origin)
       if (serverRegistry.originServer) {
-        await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+        await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
       }
       // Clear all registered instances and their state
       serverRegistry.removeAll();

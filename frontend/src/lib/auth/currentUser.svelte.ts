@@ -2,6 +2,7 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import type { Client } from '@urql/svelte';
 import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';
+import { csrfFetch } from './csrf';
 
 export type { CurrentUser };
 
@@ -103,7 +104,7 @@ export class CurrentUserState {
     // because with cookie-based sessions, the session data lives in the cookie itself.
     // When another tab/device triggers logout, this tab still has the old cookie.
     // Without clearing it, the server would still see a valid session on redirect.
-    await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+    await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
 
     // Redirect to / which handles both authenticated and unauthenticated users.
     // invalidateAll forces SvelteKit to re-run all load functions so the root

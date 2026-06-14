@@ -7,6 +7,7 @@
   import { TextInput, Button, FormError } from '$lib/ui/form';
   import { useQuery } from '$lib/hooks';
   import { notifyLogout } from '$lib/auth/sessionChannel';
+  import { csrfFetch } from '$lib/auth/csrf';
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
@@ -95,7 +96,7 @@
 
       if (result.data?.deleteMyAccount) {
         // Log out and redirect to home
-        await fetch('/auth/logout', { method: 'POST' });
+        await csrfFetch('/auth/logout', { method: 'POST' });
         notifyLogout();
         window.location.href = '/';
       } else {
