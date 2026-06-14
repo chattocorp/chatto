@@ -19,11 +19,11 @@ registry.
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import type { RoomsStore } from '$lib/state/space';
+  import type { RoomsStore } from '$lib/state/server/rooms.svelte';
   import type {
     RoomDirectoryStore,
     DirectoryRoom
-  } from '$lib/state/space/roomDirectory.svelte';
+  } from '$lib/state/server/roomDirectory.svelte';
 
   let {
     directory,

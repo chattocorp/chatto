@@ -19,7 +19,8 @@
     autofocus = false,
     leadingIcon,
     trailingText,
-    onkeydown
+    onkeydown,
+    oninput
   }: {
     label: string;
     id?: string;
@@ -40,6 +41,7 @@
     /** Short trailing label rendered inside the input (e.g. a unit like `"px"`). */
     trailingText?: string;
     onkeydown?: (e: KeyboardEvent) => void;
+    oninput?: (e: Event) => void;
   } = $props();
 </script>
 
@@ -68,6 +70,7 @@
       {maxlength}
       {autofocus}
       {onkeydown}
+      {oninput}
       class={['input', leadingIcon && 'pl-7', trailingText && 'pr-10']}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}

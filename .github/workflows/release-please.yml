@@ -3,7 +3,7 @@ name: release-please
 # Maintains a rolling prerelease PR on main. As conventional-commit PRs
 # land on main, release-please updates the PR with the aggregated changelog
 # and bumped versions (cli/version.go + frontend/package.json). Merging the
-# Release PR creates the `vX.Y.Z-alpha.N` tag + GitHub prerelease. The tag
+# Release PR creates the `vX.Y.Z-beta.N` tag + GitHub prerelease. The tag
 # push then fires ci.yml's `release` job (GoReleaser + frontend image push).
 #
 # Also runs on `release-*` maintenance branches (e.g. `release-0.0.x`) to
@@ -13,7 +13,7 @@ name: release-please
 # tag reachable on that branch without jumping to main's version.
 #
 # The `main` branch is the active prerelease line. Commits there bump the
-# version as `0.1.0-alpha.N` (rather than `0.0.x`), using a separate config
+# version as `0.1.0-beta.N` (rather than `0.0.x`), using a separate config
 # + manifest pair so the prerelease setting doesn't leak into stable
 # maintenance branches. GoReleaser is wired up so prerelease tags get their
 # own floating `:next` Docker tag and do NOT update `:latest` or
@@ -53,7 +53,7 @@ jobs:
       # Captured into env per workflow-injection best practice, even
       # though it's only used as an action input here (never in `run:`).
       TARGET_BRANCH: ${{ github.ref_name }}
-      # Main cuts alpha prereleases. Maintenance branches (release-*) use
+      # Main cuts beta prereleases. Maintenance branches (release-*) use
       # the stable config/manifest so backports cut stable patch releases.
       CONFIG_FILE: ${{ github.ref_name == 'main' && '.release-please-config-prerelease.json' || '.release-please-config.json' }}
       MANIFEST_FILE: ${{ github.ref_name == 'main' && '.release-please-manifest-prerelease.json' || '.release-please-manifest.json' }}

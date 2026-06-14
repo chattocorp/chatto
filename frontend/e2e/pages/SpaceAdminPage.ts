@@ -10,44 +10,44 @@ export class SpaceAdminPage {
 
   // --- Locators ---
 
-  /** The Administration nav entry in the space sidebar. */
+  /** The server-admin gear link in the server header. */
   get adminLink(): Locator {
-    return this.page.locator('nav a', { hasText: 'Administration' });
+    return this.page.getByRole('link', { name: 'Server administration' });
   }
 
-  /** Sidebar navigation item for the admin landing (Dashboard) page. */
+  /** Dedicated server-admin sidebar link container. */
+  get adminLinks(): Locator {
+    return this.page.locator('nav').first();
+  }
+
+  /** Back-compat default admin nav item. */
   get homeNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Dashboard' });
+    return this.generalNavItem;
   }
 
   /** Sidebar navigation item for General settings */
   get generalNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'General' });
+    return this.adminLinks.getByRole('link', { name: 'General', exact: true });
   }
 
   /** Sidebar navigation item for Rooms settings */
   get roomsNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Rooms' });
+    return this.adminLinks.getByRole('link', { name: 'Rooms', exact: true });
   }
 
   /** Sidebar navigation item for Permissions settings */
   get rolesNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Permissions' });
+    return this.adminLinks.getByRole('link', { name: 'Permissions', exact: true });
   }
 
   /** Sidebar navigation item for the Members settings page. */
   get membersNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Members' });
+    return this.adminLinks.getByRole('link', { name: 'Members', exact: true });
   }
 
   /** Access Denied heading */
   get accessDeniedHeading(): Locator {
     return this.page.getByText('Access Denied', { exact: true });
-  }
-
-  /** Admin placeholder message (shown when user has partial permissions) */
-  get adminPlaceholderMessage(): Locator {
-    return this.page.getByText('Server Dashboard coming soon');
   }
 
   /** General settings heading (shown when user has space.manage permission) */
@@ -56,7 +56,7 @@ export class SpaceAdminPage {
     return this.page.locator('h1', { hasText: 'General' });
   }
 
-  /** Back to Space link in sidebar */
+  /** Legacy back-to-space locator from the retired admin-only sidebar. */
   get backToSpaceLink(): Locator {
     return this.page.getByRole('link', { name: 'Back to Space' });
   }
@@ -117,8 +117,7 @@ export class SpaceAdminPage {
 
   /** The banner preview image in settings */
   get bannerPreview(): Locator {
-    // Panel uses div structure with h2 heading, not section
-    return this.page.locator('div:has(h2:has-text("Banner")) img[alt="Server banner"]');
+    return this.page.getByTestId('banner-drop-zone').getByRole('img', { name: 'Server banner' });
   }
 
   /** The banner image in the sidebar */
@@ -131,11 +130,9 @@ export class SpaceAdminPage {
     return this.page.getByRole('heading', { name: 'Banner', exact: true });
   }
 
-  /** The admin home page heading (in main content, not sidebar). Was:
-   * "Space Admin"; post-merge the unified server-admin landing page reads
-   * "Dashboard". */
+  /** The default admin page heading. */
   get pageHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Dashboard', level: 1 }).last();
+    return this.page.getByRole('heading', { name: 'General', level: 1 }).last();
   }
 
   /** The sidebar heading showing the server name in admin mode. */
@@ -148,10 +145,10 @@ export class SpaceAdminPage {
   /**
    * Navigate to a space and then to its admin page via the sidebar link.
    */
-  async goto(spaceId: string): Promise<void> {
+  async goto(_spaceId: string): Promise<void> {
     await this.page.goto(routes.space());
     await this.adminLink.click();
-    await this.page.waitForURL(routes.serverAdmin());
+    await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -159,16 +156,16 @@ export class SpaceAdminPage {
    * Navigate directly to the admin page URL.
    */
   async gotoDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdmin());
+    await this.page.goto(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
   /**
    * Click the Admin link in the sidebar (from a space page).
    */
-  async clickAdminLink(spaceId: string): Promise<void> {
+  async clickAdminLink(_spaceId: string): Promise<void> {
     await this.adminLink.click();
-    await this.page.waitForURL(routes.serverAdmin());
+    await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -194,6 +191,10 @@ export class SpaceAdminPage {
   async updateName(name: string): Promise<void> {
     await this.setName(name);
     await this.save();
+  }
+
+  async expandAdminGroup(): Promise<void> {
+    // Compatibility no-op: admin links now live in their own sidebar.
   }
 
   // --- Logo Interactions ---
@@ -428,14 +429,14 @@ export class SpaceAdminPage {
   // --- Nav Item Visibility Assertions ---
 
   /**
-   * Assert that the Home nav item is visible in the admin sidebar.
+   * Assert that the default admin nav item is visible in the admin sidebar.
    */
   async expectHomeNavVisible(): Promise<void> {
     await expect(this.homeNavItem).toBeVisible();
   }
 
   /**
-   * Assert that the Home nav item is NOT visible in the admin sidebar.
+   * Assert that the default admin nav item is NOT visible in the admin sidebar.
    */
   async expectHomeNavNotVisible(): Promise<void> {
     await expect(this.homeNavItem).not.toBeVisible();
@@ -526,14 +527,6 @@ export class SpaceAdminPage {
    */
   async gotoMemberDetails(spaceId: string, userId: string): Promise<void> {
     await this.page.goto(routes.serverAdminMember(userId));
-  }
-
-  /**
-   * Assert that the admin placeholder message is visible.
-   * This is shown to users who have some admin permissions but not space.manage.
-   */
-  async expectAdminPlaceholderVisible(): Promise<void> {
-    await expect(this.adminPlaceholderMessage).toBeVisible();
   }
 
   /**

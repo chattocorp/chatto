@@ -426,6 +426,38 @@ func (p *trackingProjection) Count() int {
 	return len(p.events)
 }
 
+type blockingProjection struct {
+	*trackingProjection
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func newBlockingProjection(subs ...string) *blockingProjection {
+	return &blockingProjection{
+		trackingProjection: newTrackingProjection(subs...),
+		entered:            make(chan struct{}),
+		release:            make(chan struct{}),
+	}
+}
+
+func (p *blockingProjection) Apply(e *corev1.Event, seq uint64) error {
+	p.once.Do(func() { close(p.entered) })
+	<-p.release
+	return p.trackingProjection.Apply(e, seq)
+}
+
+func waitForProjectorStarted(t *testing.T, projector *Projector) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for !projector.Started() {
+		if time.Now().After(deadline) {
+			t.Fatal("projector did not start")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
@@ -458,12 +490,14 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	}
 }
 
-func TestProjector_WaitForSeq_AlreadyReached(t *testing.T) {
+func TestProjector_WaitFor_AlreadyReached(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 
-	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
@@ -476,15 +510,15 @@ func TestProjector_WaitForSeq_AlreadyReached(t *testing.T) {
 
 	waitFor(t, 2*time.Second, func() bool { return projector.LastSeq() > 0 })
 
-	// WaitForSeq for a seq we've already reached returns immediately.
+	// WaitFor for a seq we've already reached returns immediately.
 	deadline, cancelDeadline := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer cancelDeadline()
-	if err := projector.WaitForSeq(deadline, projector.LastSeq()); err != nil {
-		t.Errorf("WaitForSeq for already-reached seq: %v", err)
+	if err := projector.WaitFor(deadline, SubjectPosition(subject, seq)); err != nil {
+		t.Errorf("WaitFor for already-reached seq: %v", err)
 	}
 }
 
-func TestProjector_WaitForSeq_UnblocksOnApply(t *testing.T) {
+func TestProjector_WaitFor_UnblocksOnApply(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 
@@ -495,51 +529,136 @@ func TestProjector_WaitForSeq_UnblocksOnApply(t *testing.T) {
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
 
-	// Publish, capture seq, then WaitForSeq must return without timing out.
+	// Publish, capture subject + seq, then WaitFor must return without timing out.
 	ctx := testContext(t)
-	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
 	deadline, cancelDeadline := context.WithTimeout(ctx, 2*time.Second)
 	defer cancelDeadline()
-	if err := projector.WaitForSeq(deadline, seq); err != nil {
-		t.Fatalf("WaitForSeq: %v", err)
+	if err := projector.WaitFor(deadline, SubjectPosition(subject, seq)); err != nil {
+		t.Fatalf("WaitFor: %v", err)
 	}
 	if got := projector.LastSeq(); got < seq {
 		t.Errorf("LastSeq=%d, want >= %d", got, seq)
 	}
 }
 
-func TestProjector_WaitForSeq_HonoursContextCancel(t *testing.T) {
+func TestProjector_WaitFor_HonoursContextCancel(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
-	proj := newTrackingProjection(RoomSubjectFilter())
+	proj := newBlockingProjection(RoomSubjectFilter())
+	t.Cleanup(func() { close(proj.release) })
 	projector := NewProjector(js, stream, proj, testLogger())
 
-	// Start the projector and confirm it's processed at least one
-	// event before exercising the ctx-cancel path below. WaitForSeq's
-	// contract assumes Run is active (see its doc) — we make that
-	// concretely true here.
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
 	go func() { _ = projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
 
-	pubCtx := testContext(t)
-	seq, err := pub.Append(pubCtx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	ctx := testContext(t)
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
 	if err != nil {
-		t.Fatalf("seed Append: %v", err)
-	}
-	if err := projector.WaitForSeq(pubCtx, seq); err != nil {
-		t.Fatalf("warm WaitForSeq: %v", err)
+		t.Fatalf("Append: %v", err)
 	}
 
-	// Now ask for a seq we'll never reach with a tight deadline.
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	select {
+	case <-proj.entered:
+	case <-ctx.Done():
+		t.Fatal("projection Apply did not start")
+	}
+
+	waitCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if err := projector.WaitForSeq(ctx, 9999); !errors.Is(err, context.DeadlineExceeded) {
+	if err := projector.WaitFor(waitCtx, SubjectPosition(subject, seq)); !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("want DeadlineExceeded, got %v", err)
+	}
+}
+
+func TestProjector_WaitForRejectsUnconsumedSubject(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	userSubject := UserAggregate("U1").Subject(EventUserAccountCreated)
+	userSeq, err := pub.Append(ctx, userSubject, makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("user Append: %v", err)
+	}
+	roomSubject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	roomSeq, err := pub.Append(ctx, roomSubject, makeEvent("R1", "U2"))
+	if err != nil {
+		t.Fatalf("room Append: %v", err)
+	}
+	if err := projector.WaitFor(ctx, SubjectPosition(roomSubject, roomSeq)); err != nil {
+		t.Fatalf("warm WaitFor: %v", err)
+	}
+	if got := projector.LastSeq(); got <= userSeq {
+		t.Fatalf("test setup expected projector LastSeq beyond user seq; got %d <= %d", got, userSeq)
+	}
+
+	err = projector.WaitFor(ctx, SubjectPosition(userSubject, userSeq))
+	if !errors.Is(err, ErrProjectionSubjectNotConsumed) {
+		t.Fatalf("want ErrProjectionSubjectNotConsumed, got %v", err)
+	}
+}
+
+func TestProjector_WaitForRejectsSequenceSubjectMismatch(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	userSubject := UserAggregate("U1").Subject(EventUserAccountCreated)
+	userSeq, err := pub.Append(ctx, userSubject, makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("user Append: %v", err)
+	}
+	roomSubject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+
+	err = projector.WaitFor(ctx, SubjectPosition(roomSubject, userSeq))
+	if !errors.Is(err, ErrProjectionSequenceSubjectMismatch) {
+		t.Fatalf("want ErrProjectionSequenceSubjectMismatch, got %v", err)
+	}
+}
+
+func TestProjector_WaitForAcceptsSubjectFilter(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	if err := projector.WaitFor(ctx, SubjectPosition(RoomSubjectFilter(), seq)); err != nil {
+		t.Fatalf("WaitFor with wildcard filter: %v", err)
 	}
 }
 
@@ -552,7 +671,7 @@ func (p *failingProjection) Apply(_ *corev1.Event, _ uint64) error {
 	return p.err
 }
 
-func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
+func TestProjector_WaitFor_ReturnsProjectionError(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	applyErr := errors.New("apply failed")
@@ -565,6 +684,7 @@ func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	t.Cleanup(cancelRun)
 	go func() { _ = projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
 
 	ctx := testContext(t)
 	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
@@ -572,7 +692,7 @@ func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
 		t.Fatalf("Append: %v", err)
 	}
 
-	err = projector.WaitForSeq(ctx, seq)
+	err = projector.WaitFor(ctx, SubjectPosition(RoomAggregate("R1").Subject(EventUserJoinedRoom), seq))
 	if !errors.Is(err, ErrProjectionFailed) {
 		t.Fatalf("want ErrProjectionFailed, got %v", err)
 	}
@@ -581,6 +701,102 @@ func TestProjector_WaitForSeq_ReturnsProjectionError(t *testing.T) {
 	}
 	if got := projector.LastSeq(); got >= seq {
 		t.Fatalf("LastSeq=%d, want less than failed seq %d", got, seq)
+	}
+
+	status := projector.Status()
+	if !status.Failed {
+		t.Fatal("Status.Failed = false, want true")
+	}
+	if status.FailedSeq != seq {
+		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, seq)
+	}
+	if !errors.Is(status.Err, applyErr) {
+		t.Fatalf("Status.Err = %v, want wrapped apply error", status.Err)
+	}
+}
+
+func TestProjector_RunReturnsProjectionError(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	applyErr := errors.New("apply failed")
+	proj := &failingProjection{
+		trackingProjection: newTrackingProjection(RoomSubjectFilter()),
+		err:                applyErr,
+	}
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	t.Cleanup(cancelRun)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
+
+	ctx := testContext(t)
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrProjectionFailed) {
+			t.Fatalf("want ErrProjectionFailed, got %v", err)
+		}
+		if !errors.Is(err, applyErr) {
+			t.Fatalf("want wrapped apply error, got %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector Run did not return after projection failure")
+	}
+
+	status := projector.Status()
+	if !status.Failed {
+		t.Fatal("Status.Failed = false, want true")
+	}
+	if status.FailedSeq != seq {
+		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, seq)
+	}
+}
+
+func TestProjector_RunFailsOnUnmarshalableEvent(t *testing.T) {
+	js, stream := setupTestStream(t)
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	t.Cleanup(cancelRun)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+	waitForProjectorStarted(t, projector)
+
+	ctx := testContext(t)
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+	ack, err := js.Publish(ctx, subject, []byte{0xff},
+		jetstream.WithExpectLastSequencePerSubject(0),
+		jetstream.WithMsgID("bad-protobuf"),
+	)
+	if err != nil {
+		t.Fatalf("raw Publish: %v", err)
+	}
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrProjectionFailed) {
+			t.Fatalf("want ErrProjectionFailed, got %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector Run did not return after decode failure")
+	}
+
+	status := projector.Status()
+	if !status.Failed {
+		t.Fatal("Status.Failed = false, want true")
+	}
+	if status.FailedSeq != ack.Sequence {
+		t.Fatalf("Status.FailedSeq = %d, want %d", status.FailedSeq, ack.Sequence)
+	}
+	if got := projector.LastSeq(); got >= ack.Sequence {
+		t.Fatalf("LastSeq=%d, want less than failed seq %d", got, ack.Sequence)
 	}
 }
 
@@ -614,11 +830,27 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("RoomAggregate call subject", func(t *testing.T) {
+		got := RoomAggregate("ROOM123").Subject(EventCallParticipantJoined)
+		want := "evt.room.ROOM123.call_joined"
+		if got != want {
+			t.Errorf("RoomAggregate.Subject(call): got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("RoomSubjectFilter", func(t *testing.T) {
 		got := RoomSubjectFilter()
 		want := "evt.room.>"
 		if got != want {
 			t.Errorf("RoomSubjectFilter: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("EventSubjectFilter", func(t *testing.T) {
+		got := EventSubjectFilter()
+		want := "evt.>"
+		if got != want {
+			t.Errorf("EventSubjectFilter: got %q, want %q", got, want)
 		}
 	})
 
@@ -661,7 +893,9 @@ func TestSubjectHelpers(t *testing.T) {
 			wantOK  bool
 		}{
 			{"evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"evt.room.ROOM123.call_joined", "ROOM123", true},
 			{"live.evt.room.ROOM123.user_joined", "ROOM123", true},
+			{"live.evt.room.ROOM123.call_left", "ROOM123", true},
 			{"evt.user.U1.user_deleted", "", false},
 			{"evt.room.", "", false},
 			{"evt.room.ROOM123", "", false}, // missing event-type segment
@@ -676,6 +910,33 @@ func TestSubjectHelpers(t *testing.T) {
 			}
 		}
 	})
+
+}
+
+func TestSubjectMatchesFilter(t *testing.T) {
+	cases := []struct {
+		filter  string
+		subject string
+		want    bool
+	}{
+		{"evt.room.>", "evt.room.R1.user_joined", true},
+		{"evt.room.*.user_joined", "evt.room.R1.user_joined", true},
+		{"evt.room.*.user_joined", "evt.room.R1.message_posted", false},
+		{"evt.room.*.user_joined", "evt.room.R1.extra.user_joined", false},
+		{"evt.room.R1.user_joined", "evt.room.R1.user_joined", true},
+		{"evt.room.R1.user_joined", "evt.room.R2.user_joined", false},
+		{"evt.room.>", "evt.room", false},
+		{">", "evt.room.R1.user_joined", true},
+		{"", "evt.room.R1.user_joined", false},
+		{"evt.room.>", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.filter+" matches "+tc.subject, func(t *testing.T) {
+			if got := subjectMatchesFilter(tc.filter, tc.subject); got != tc.want {
+				t.Fatalf("subjectMatchesFilter(%q, %q) = %v, want %v", tc.filter, tc.subject, got, tc.want)
+			}
+		})
+	}
 }
 
 // ============================================================================
@@ -727,6 +988,42 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				},
 			},
 			want: EventThreadCreated,
+		},
+		{
+			name: "CallStarted",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallStarted{
+					VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallStarted,
+		},
+		{
+			name: "CallParticipantJoined",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallParticipantJoined{
+					VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallParticipantJoined,
+		},
+		{
+			name: "CallParticipantLeft",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallParticipantLeft{
+					VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallParticipantLeft,
+		},
+		{
+			name: "CallEnded",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallEnded{
+					VoiceCallEnded: &corev1.CallEndedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallEnded,
 		},
 		{
 			name: "UserKeyShredded",
@@ -927,9 +1224,6 @@ func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testi
 	if decoded.GetRoomId() != "R1" {
 		t.Errorf("RoomId = %q, want R1", decoded.GetRoomId())
 	}
-	if decoded.GetBody() != nil {
-		t.Errorf("expected Body to be nil for legacy payload, got %+v", decoded.GetBody())
-	}
 	if got := decoded.ProtoReflect().GetUnknown(); len(got) == 0 {
 		t.Fatal("expected legacy message_body_id to remain in unknown fields")
 	}
@@ -974,14 +1268,34 @@ func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
 	if !postedDesc.ReservedRanges().Has(3) {
 		t.Error("MessagePostedEvent tag 3 must stay reserved for removed message_body_id")
 	}
+	if !postedDesc.ReservedRanges().Has(9) {
+		t.Error("MessagePostedEvent tag 9 must stay reserved for removed body")
+	}
 	if !postedDesc.ReservedNames().Has("message_body_id") {
 		t.Error("MessagePostedEvent name message_body_id must stay reserved")
+	}
+	if !postedDesc.ReservedNames().Has("body") {
+		t.Error("MessagePostedEvent name body must stay reserved")
 	}
 	if postedDesc.Fields().ByName("message_body_id") != nil {
 		t.Error("MessagePostedEvent must not reintroduce message_body_id")
 	}
+	if postedDesc.Fields().ByName("body") != nil {
+		t.Error("MessagePostedEvent must not reintroduce body")
+	}
 	if postedDesc.Fields().ByName("event_id") != nil {
 		t.Error("MessagePostedEvent must not reintroduce event_id")
+	}
+
+	editedDesc := (&corev1.MessageEditedEvent{}).ProtoReflect().Descriptor()
+	if !editedDesc.ReservedRanges().Has(3) {
+		t.Error("MessageEditedEvent tag 3 must stay reserved for removed body")
+	}
+	if !editedDesc.ReservedNames().Has("body") {
+		t.Error("MessageEditedEvent name body must stay reserved")
+	}
+	if editedDesc.Fields().ByName("body") != nil {
+		t.Error("MessageEditedEvent must not reintroduce body")
 	}
 
 	updatedDesc := (&corev1.MessageUpdatedEvent{}).ProtoReflect().Descriptor()

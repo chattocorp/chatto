@@ -1,16 +1,17 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-05-27
+**Last reviewed:** 2026-06-12
 
 ## Overview
 
-Chatto has a persistent notification system surfaced through a bell icon and notification center. Notifications represent things the user should pay attention to: DMs, @mentions, replies to their own messages, new posts in threads they follow, and (optionally) all messages in rooms they've subscribed to. Notification levels are configurable per space and per room.
+Chatto has a persistent notification system surfaced through a bell icon and notification center. Notifications represent things the user should pay attention to: DMs, @mentions of users/roles/virtual groups, replies to their own messages, new posts in threads they follow, and (optionally) all messages in rooms they've subscribed to. Notification levels are configurable per space and per room.
 
 ## Behavior
 
 - A bell icon shows an unread count and opens the notification center listing recent notifications.
-- A notification appears for: a DM message, a mention of the user, a reply to one of the user's messages, a new reply in a thread the user follows, or any root message in a room set to ALL_MESSAGES.
+- A notification appears for: a DM message, a mention that resolves to the user, a reply to one of the user's messages, a new reply in a thread the user follows, or any root message in a room set to ALL_MESSAGES.
+- Mention notifications may come from direct `@username`, role `@role`, `@all`, or `@here` mentions. Sends that would notify more than 10 users require confirmation before notifications are created.
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
 - A notification sound plays and the badge updates in real time as new notifications arrive.
@@ -58,19 +59,25 @@ Per space and per room, the user picks one of four levels:
 **Why:** People who participate in a thread almost always want to see the replies. Auto-follow saves a manual step in the common case. Manual unfollow handles the "I posted once and don't care any more" case.
 **Tradeoff:** A user who posts in many threads accumulates many followed-thread subscriptions over time. The 90-day TTL on notifications limits the blast radius; the thread follow state itself is cheap to store.
 
-### 5. ALL_MESSAGES is a per-room subscription, not a per-message setting
+### 5. Broadcast mentions are sender-controlled but bounded
+
+**Decision:** `@all`, `@here`, and role mentions are allowed, but sends that would notify more than 10 users require confirmation and muted recipients still do not receive notifications.
+**Why:** Chatto needs explicit operational pings for small teams and rooms, but broad pings should be deliberate. Confirmation catches accidental broadcasts without removing the tool.
+**Tradeoff:** Operators can force attention in a room unless recipients have muted it. This is acceptable because the prompt adds friction and mute remains authoritative.
+
+### 6. ALL_MESSAGES is a per-room subscription, not a per-message setting
 
 **Decision:** "Notify me for every message" is configured per room by the user, not per message by the poster.
-**Why:** Poster-controlled "broadcast" mechanics (like `@channel`) are noise generators. Receiver-controlled subscription puts the choice with the person who has to live with the noise.
-**Tradeoff:** Operators can't force-broadcast to a room. They have to rely on users opting in to ALL_MESSAGES (or pinning content visibly).
+**Why:** Receiver-controlled subscription puts the ongoing ambient-notification choice with the person who has to live with the noise. Sender-controlled broadcasts are reserved for explicit mentions with confirmation.
+**Tradeoff:** Users who want every message still need to opt into ALL_MESSAGES; senders should use mentions only for attention events.
 
-### 6. Push notifications piggyback on persistent notifications
+### 7. Push notifications piggyback on persistent notifications
 
 **Decision:** A push notification fires when a persistent notification is created. If no persistent notification is created (because the room is muted, etc.), no push is sent either.
 **Why:** Pushes and in-app notifications are the same logical event presented in two surfaces. Sharing the gating logic ensures they can't diverge. See FDR-013.
 **Tradeoff:** No way to receive a push without also generating a persistent notification. Considered desirable: a push you can't find later in the app would be annoying.
 
-### 7. No parallel mention-status flag
+### 8. No parallel mention-status flag
 
 **Decision:** @mention orange dots are derived from pending mention notifications. Chatto does not maintain a separate `room_mention_status.*` flag.
 **Why:** The separate flag duplicated notification state and had to be cleared in lockstep with notification dismissals and room reads. A single pending-notification model gives one source of truth for mention, reply, DM, and all-message attention indicators.

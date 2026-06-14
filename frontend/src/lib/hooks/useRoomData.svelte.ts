@@ -1,5 +1,5 @@
-import { graphql } from '$lib/gql';
-import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
+import { graphql, useFragment } from '$lib/gql';
+import { RoomType, UserAvatarUserFragmentDoc, type PresenceStatus } from '$lib/gql/graphql';
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
@@ -17,6 +17,8 @@ export type RoomData = {
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
   members: RoomMember[];
+  membersTotalCount: number;
+  membersHasMore: boolean;
 };
 
 export type DMData = {
@@ -100,12 +102,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
               viewerCanBanRoomMembers
               members(limit: 100) {
                 users {
-                  id
-                  login
-                  displayName
-                  avatarUrl(width: 96, height: 96)
-                  presenceStatus
+                  ...UserAvatarUser
                 }
+                totalCount
+                hasMore
               }
             }
             server {
@@ -149,13 +149,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
           canManageRoom: resp.data.room.viewerCanManageRoom,
           canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers,
-          members: resp.data.room.members.users.map((m) => ({
-            id: m.id,
-            login: m.login,
-            displayName: m.displayName,
-            avatarUrl: m.avatarUrl,
-            presenceStatus: m.presenceStatus
-          }))
+          members: resp.data.room.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
+          membersTotalCount: resp.data.room.members.totalCount,
+          membersHasMore: resp.data.room.members.hasMore
         };
       })
       .catch((err) => {
@@ -182,12 +178,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
               id
               members(limit: 100) {
                 users {
-                  id
-                  login
-                  displayName
-                  avatarUrl(width: 96, height: 96)
-                  presenceStatus
+                  ...UserAvatarUser
                 }
+                totalCount
+                hasMore
               }
             }
             viewer {
@@ -206,7 +200,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
           return;
         }
         dmData = {
-          participants: resp.data.room.members.users,
+          participants: resp.data.room.members.users.map((m) =>
+            useFragment(UserAvatarUserFragmentDoc, m)
+          ),
           currentUserId: resp.data.viewer?.user.id ?? null
         };
       });

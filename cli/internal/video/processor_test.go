@@ -1,7 +1,12 @@
 package video
 
 import (
+	"context"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/charmbracelet/log"
 )
 
 func TestSelectVariantHeights(t *testing.T) {
@@ -126,5 +131,38 @@ func TestVariantWidthCalculation(t *testing.T) {
 					tt.sourceWidth, tt.sourceHeight, tt.targetHeight, w, tt.wantWidth)
 			}
 		})
+	}
+}
+
+func TestServiceRunReturnsWhenShutdownWaitTimesOut(t *testing.T) {
+	internalCtx, internalCancel := context.WithCancel(context.Background())
+	svc := &Service{
+		logger: log.WithPrefix("test.video"),
+		ctx:    internalCtx,
+		cancel: internalCancel,
+	}
+
+	var release sync.WaitGroup
+	release.Add(1)
+	svc.wg.Add(1)
+	go func() {
+		release.Wait()
+		svc.wg.Done()
+	}()
+	t.Cleanup(release.Done)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- svc.run(ctx, 25*time.Millisecond) }()
+
+	cancel()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Run did not return after shutdown wait timeout")
 	}
 }

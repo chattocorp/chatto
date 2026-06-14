@@ -15,7 +15,7 @@ Run these in parallel via the Skill tool:
 
 - **`/fdr`** (no args) — audit all FDRs against the codebase. Surface discrepancies, stale design decisions, and any user-facing features that should now have an FDR.
 - **`/adr`** — audit ADRs for staleness. Surface cited file paths or APIs that no longer exist; flag superseded ADRs still referenced as authoritative.
-- **`/chatto-architecture`** — refresh `docs/ARCHITECTURE.md` against the current state of streams, KV buckets, and GraphQL operations. Report drift; propose updates.
+- **`/chatto-architecture`** — refresh `docs/ARCHITECTURE.md` against the current state of core services, projections, EVT event tokens, EVT/live subject patterns, current NATS resources, and GraphQL operations. Report drift; propose updates.
 
 ## How To Run
 
@@ -24,7 +24,7 @@ Run these in parallel via the Skill tool:
 3. Present the consolidated report with three sections:
    - **FDR drift** — FDRs that no longer match the code; candidate features for new FDRs.
    - **ADR drift** — stale references in older ADRs.
-   - **Architecture drift** — anything in `docs/ARCHITECTURE.md` that's stale.
+   - **Architecture drift** — anything in `docs/ARCHITECTURE.md` that's stale, including services, projections, EVT events, subject patterns, or current resource inventories.
 4. End with a **Recommended next step** — usually one action with the biggest payoff (e.g., "land the FDR-016 update first; the rest can wait").
 5. Then a final **Other skills you may want to run** section that lists, as plain pointers (no invocation):
    - `/update-project-dependencies` — bump deps within semver and run tests

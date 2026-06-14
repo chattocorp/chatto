@@ -49,10 +49,6 @@ func postedEvent(o postedOpts) *corev1.Event {
 				InThread:                  o.inThread,
 				EchoOfEventId:             o.echoOfEventID,
 				EchoFromThreadRootEventId: o.echoFromThreadRootEventID,
-				Body: &corev1.MessageBody{
-					AuthorId:      o.actorID,
-					EncryptedBody: []byte(o.body),
-				},
 			},
 		},
 	}
@@ -81,16 +77,16 @@ func editedEvent(envID, targetID, roomID, actorID, newBody string, at int) *core
 			MessageEdited: &corev1.MessageEditedEvent{
 				RoomId:  roomID,
 				EventId: targetID,
-				Body: &corev1.MessageBody{
-					AuthorId:      actorID,
-					EncryptedBody: []byte(newBody),
-				},
 			},
 		},
 	}
 }
 
 func bodyEvent(envID, targetID, roomID, actorID, body string, at int) *corev1.Event {
+	return bodyEventWithAssets(envID, targetID, roomID, actorID, body, nil, at)
+}
+
+func bodyEventWithAssets(envID, targetID, roomID, actorID, body string, assetIDs []string, at int) *corev1.Event {
 	return &corev1.Event{
 		Id:        envID,
 		ActorId:   actorID,
@@ -104,6 +100,7 @@ func bodyEvent(envID, targetID, roomID, actorID, body string, at int) *corev1.Ev
 					BodyEventId:       envID,
 					EncryptionVersion: encryption.EnvelopeVersionV2,
 					EncryptedBody:     []byte(body),
+					AssetIds:          assetIDs,
 				},
 			},
 		},
@@ -172,18 +169,6 @@ func roomCreatedTimelineEvent(envID, roomID, name string, at int) *corev1.Event 
 				Kind:   corev1.RoomKind_ROOM_KIND_CHANNEL,
 			},
 		},
-	}
-}
-
-// applyAll feeds events into a projection in order with seq starting at 1.
-func applyAll(t *testing.T, p interface {
-	Apply(*corev1.Event, uint64) error
-}, events []*corev1.Event) {
-	t.Helper()
-	for i, e := range events {
-		if err := p.Apply(e, uint64(i+1)); err != nil {
-			t.Fatalf("Apply event %d: %v", i+1, err)
-		}
 	}
 }
 
@@ -266,7 +251,7 @@ func TestRoomTimeline_RoomIsolation(t *testing.T) {
 	}
 	r1 := p.RoomEvents("R1", 10, 0)
 	if len(r1) != 2 || r1[0].Event.GetId() != "ENV-C" || r1[1].Event.GetId() != "ENV-A" {
-		t.Errorf("R1 timeline = %+v, want [ENV-C, ENV-A]", eventIDs(r1))
+		t.Errorf("R1 timeline = %+v, want [ENV-C, ENV-A]", timelineEventIDs(r1))
 	}
 }
 
@@ -280,15 +265,15 @@ func TestRoomTimeline_PaginationByStreamSeq(t *testing.T) {
 
 	// limit
 	if got := p.RoomEvents("R1", 1, 0); len(got) != 1 || got[0].Event.GetId() != "ENV-3" {
-		t.Errorf("limit=1 = %v, want [ENV-3]", eventIDs(got))
+		t.Errorf("limit=1 = %v, want [ENV-3]", timelineEventIDs(got))
 	}
 	// beforeStreamSeq excludes seq>=given
 	if got := p.RoomEvents("R1", 10, 3); len(got) != 2 || got[0].Event.GetId() != "ENV-2" || got[1].Event.GetId() != "ENV-1" {
-		t.Errorf("before=3 = %v, want [ENV-2, ENV-1]", eventIDs(got))
+		t.Errorf("before=3 = %v, want [ENV-2, ENV-1]", timelineEventIDs(got))
 	}
 	// beforeStreamSeq=1 means strictly older than seq 1 → empty
 	if got := p.RoomEvents("R1", 10, 1); len(got) != 0 {
-		t.Errorf("before=1 = %v, want []", eventIDs(got))
+		t.Errorf("before=1 = %v, want []", timelineEventIDs(got))
 	}
 }
 
@@ -312,6 +297,53 @@ func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
 	// Unknown.
 	if _, ok := p.Get("nope"); ok {
 		t.Error("Get(nope) should be ok=false")
+	}
+}
+
+func TestRoomTimeline_LatestBodyReturnsProtectiveCopy(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	post := bodylessPostedEvent("ENV-M1", "R1", "U1", 1)
+	bodyEvent := bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "one", []string{"A1"}, 2)
+	applyAll(t, p, []*corev1.Event{post, bodyEvent})
+
+	body, retracted, ok := p.LatestBody("ENV-M1")
+	if !ok || retracted || body == nil {
+		t.Fatalf("LatestBody ok=%v retracted=%v, want active body", ok, retracted)
+	}
+	body.EncryptedBody[0] = 'z'
+	body.AssetIds[0] = "A-return-mutated"
+
+	body, retracted, ok = p.LatestBody("ENV-M1")
+	if !ok || retracted || body == nil {
+		t.Fatalf("LatestBody after returned body mutation = (%+v, %v, %v), want active body", body, retracted, ok)
+	}
+	if got := string(body.GetEncryptedBody()); got != "one" {
+		t.Fatalf("stored body = %q, want one", got)
+	}
+	if got := body.GetAssetIds(); !slices.Equal(got, []string{"A1"}) {
+		t.Fatalf("stored asset ids = %v, want [A1]", got)
+	}
+}
+
+func TestRoomTimeline_ApplyDoesNotMutateMessageBodyEvent(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	bodyEvent := bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "one", []string{"A1"}, 1)
+	bodyEvent.GetMessageBody().Body.BodyEventId = ""
+
+	assertApplyDoesNotMutateEvent(t, p, bodyEvent, 1)
+	if got := bodyEvent.GetMessageBody().Body.GetBodyEventId(); got != "" {
+		t.Fatalf("input body event id = %q, want unchanged empty value", got)
+	}
+
+	if err := p.Apply(bodylessPostedEvent("ENV-M1", "R1", "U1", 2), 2); err != nil {
+		t.Fatalf("Apply post: %v", err)
+	}
+	body, retracted, ok := p.LatestBody("ENV-M1")
+	if !ok || retracted || body == nil {
+		t.Fatalf("LatestBody = (%+v, %v, %v), want active body", body, retracted, ok)
+	}
+	if got := body.GetBodyEventId(); got != "ENV-BODY-M1" {
+		t.Fatalf("projected body event id = %q, want ENV-BODY-M1", got)
 	}
 }
 
@@ -397,7 +429,7 @@ func TestRoomTimeline_RetractingEchoHidesEchoOnly(t *testing.T) {
 		t.Fatal("echo should be marked hidden")
 	}
 	visible := p.VisibleRoomTimeline("R1", 10, 0, isVisibleRoomTimelineEntry)
-	if got := eventIDs(visible); len(got) != 1 || got[0] != "ENV-ROOT" {
+	if got := timelineEventIDs(visible); len(got) != 1 || got[0] != "ENV-ROOT" {
 		t.Fatalf("visible room timeline = %v, want only root", got)
 	}
 	if _, retracted, ok := p.LatestBody("ENV-REPLY"); !ok || retracted {
@@ -423,7 +455,7 @@ func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
 		t.Fatalf("VisibleRoomEventCount = %d, want 2", got)
 	}
 	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
-	if got := eventIDs(visible); !slices.Equal(got, []string{"ENV-JOIN-U2", "ENV-ROOT"}) {
+	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-JOIN-U2", "ENV-ROOT"}) {
 		t.Fatalf("derived visible timeline = %v, want join and root only", got)
 	}
 }
@@ -441,7 +473,7 @@ func TestRoomTimeline_RetractingOriginalTombstonesEchoBody(t *testing.T) {
 		t.Fatal("echo should stay visible when original is retracted")
 	}
 	visible := p.VisibleRoomTimeline("R1", 10, 0, isVisibleRoomTimelineEntry)
-	if got := eventIDs(visible); len(got) != 2 || got[0] != "ENV-ECHO" || got[1] != "ENV-ROOT" {
+	if got := timelineEventIDs(visible); len(got) != 2 || got[0] != "ENV-ECHO" || got[1] != "ENV-ROOT" {
 		t.Fatalf("visible room timeline = %v, want echo and root", got)
 	}
 	if _, retracted, ok := p.LatestBody("ENV-ECHO"); !ok || !retracted {
@@ -464,7 +496,7 @@ func TestRoomTimeline_VisibleRoomTimelineAroundUsesVisibleIndex(t *testing.T) {
 	if !ok {
 		t.Fatal("VisibleRoomTimelineAround ok=false, want true")
 	}
-	if got := eventIDs(entries); !slices.Equal(got, []string{"M1", "M2", "M3"}) {
+	if got := timelineEventIDs(entries); !slices.Equal(got, []string{"M1", "M2", "M3"}) {
 		t.Fatalf("around entries = %v, want M1/M2/M3", got)
 	}
 	if targetIndex != 1 {
@@ -481,10 +513,9 @@ func TestRoomTimeline_VisibleRoomTimelineAroundUsesVisibleIndex(t *testing.T) {
 func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "1", at: 1})
-	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{{Id: "A-video", ContentType: "video/mp4"}}
 	applyAll(t, p, []*corev1.Event{
 		post,
-		bodyEvent("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", 2),
+		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", []string{"A-video"}, 2),
 		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
 		&corev1.Event{
 			Id: "ENV-VIDEO-START",
@@ -547,7 +578,7 @@ func TestRoomTimeline_Idempotency(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
+func TestRoomTimeline_VideoManifestTerminalStateDoesNotRegress(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	processed := &corev1.Event{
 		Id: "ENV-VIDEO-OK",
@@ -576,10 +607,10 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 		},
 	}
 
-	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), failed, processed})
+	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), processed, failed})
 	manifest, ok := p.VideoAttachmentManifest("A-video")
 	if !ok || manifest.Succeeded == nil {
-		t.Fatalf("VideoAttachmentManifest = %#v, want processed manifest", manifest)
+		t.Fatalf("VideoAttachmentManifest = %#v, want original processed manifest", manifest)
 	}
 	video := manifest.Succeeded.GetVideo()
 	if video.GetDurationMs() != 1200 || len(video.GetVariants()) != 1 {
@@ -596,10 +627,6 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
-	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{
-		{Id: "A-video", ContentType: "video/mp4"},
-		{Id: "A-image", ContentType: "image/png"},
-	}
 	processed := &corev1.Event{
 		Id: "ENV-VIDEO-OK",
 		Event: &corev1.Event_AssetProcessingSucceeded{
@@ -612,9 +639,14 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 
 	// New uploads emit AssetCreatedEvent with an empty message_event_id
 	// (the message doesn't exist yet at upload time). Message ownership is
-	// reconstructed from the posting message's attachments, so recovery must
+	// reconstructed from the posting message's body asset_ids, so recovery must
 	// still find A-video without relying on the deprecated field.
-	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "video/mp4"), attachmentDeclaredEvent("R1", "A-image", "image/png")})
+	applyAll(t, p, []*corev1.Event{
+		post,
+		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "", []string{"A-video", "A-image"}, 2),
+		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
+		attachmentDeclaredEvent("R1", "A-image", "image/png"),
+	})
 	got := p.UnmanifestedVideoAttachments()
 	if len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
 		t.Fatalf("UnmanifestedVideoAttachments before manifest = %+v, want A-video", got)
@@ -633,9 +665,12 @@ func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
 func TestRoomTimeline_UnmanifestedVideoAttachments_SkipsRetracted(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
-	post.GetMessagePosted().Body.Attachments = []*corev1.Attachment{{Id: "A-video", ContentType: "video/mp4"}}
 
-	applyAll(t, p, []*corev1.Event{post, attachmentDeclaredEvent("R1", "A-video", "video/mp4")})
+	applyAll(t, p, []*corev1.Event{
+		post,
+		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "", []string{"A-video"}, 2),
+		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
+	})
 	if got := p.UnmanifestedVideoAttachments(); len(got) != 1 {
 		t.Fatalf("UnmanifestedVideoAttachments before retract = %+v, want A-video", got)
 	}
@@ -686,7 +721,7 @@ func TestRoomTimeline_RoomIDOfAssetCreated_CycleGuardDoesNotHang(t *testing.T) {
 }
 
 func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
-	// SpaceMemberDeletedEvent is in the proto's "Room membership" block
+	// ServerMemberDeletedEvent is in the proto's "Room membership" block
 	// (oneof tag 320) but carries no room_id. It's published to
 	// server.member.> in practice, never to evt.room.>, but if one ever
 	// slipped through the filter, roomIDOfEvent would return "" and the
@@ -695,8 +730,8 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	stray := &corev1.Event{
 		Id:        "ENV-STRAY",
 		CreatedAt: timestamppb.New(fixedTime(1)),
-		Event: &corev1.Event_SpaceMemberDeleted{
-			SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{UserId: "U1"},
+		Event: &corev1.Event_ServerMemberDeleted{
+			ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"},
 		},
 	}
 	if err := p.Apply(stray, 1); err != nil {
@@ -729,14 +764,6 @@ func TestRoomTimeline_SubjectFilter(t *testing.T) {
 // =============================================================================
 // Helpers for assertion noise
 // =============================================================================
-
-func eventIDs(entries []*TimelineEntry) []string {
-	out := make([]string, len(entries))
-	for i, e := range entries {
-		out[i] = e.Event.GetId()
-	}
-	return out
-}
 
 func projectionMetricByName(metrics []ProjectionAdminMetric, name string) *ProjectionAdminMetric {
 	for i := range metrics {

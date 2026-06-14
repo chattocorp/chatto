@@ -9,20 +9,21 @@ The admin section gives owners and admins visibility into the server's operation
 
 ## Behavior
 
-- The admin UI lives under `/chat/[serverId]/server-admin/`. Non-admins see an "access denied" panel; the link is hidden from the chat header for them.
+- The admin UI lives under `/chat/[serverId]/server-admin/`. Non-admins see an "access denied" panel; the server-header gear entry point is hidden from them.
+- Admin-capable users enter through the gear icon in the server name pane header. Once inside server-admin, the server sidebar switches from room navigation to the admin section navigation with a Back to Server affordance.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users (subject to outranking the target — see FDR-001).
 - **Moderation page** — shows active server-level user suspensions alongside active room bans. Suspension rows include target, moderator, reason, creation time, and expiry; room-ban rows include the banned user, room, reason, and expiry.
-- **System Info page** — shows backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `admin.systemInfo.stats` (user count, channel room count, DM room count).
+- **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `admin.systemInfo.stats` (user count, channel room count, DM room count).
 - **Audit log page** — chronological diagnostic event-log view for forensic review. The list view uses `admin.eventLog`; the detail view uses `admin.eventLogEntry` to show the raw payload JSON for human inspection.
 - The audit/event-log GraphQL connection returns `totalCount` as `Int64` because it reflects retained stream message counts, which can exceed GraphQL's 32-bit `Int` range on long-running servers.
 
 ## Design Decisions
 
-### 1. Tiered admin permissions
+### 1. Capability-based admin entry
 
-**Decision:** Admin access is gated by four permissions: `admin.access` (enter the admin UI at all), `admin.view-users`, `admin.view-system`, `admin.view-audit`.
+**Decision:** There is no separate `admin.access` permission. The admin UI is visible when the viewer has at least one concrete admin capability, while child routes and GraphQL fields enforce their own narrower gates such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
 **Why:** Some operators want a "read-only admin" role that can investigate without making changes; some want users-but-not-system access for a customer-support persona. Tiered permissions let those roles be expressed without inventing parallel role systems.
-**Tradeoff:** Four permission strings instead of one. The default `admin` role grants all four, so out-of-the-box behavior matches expectations.
+**Tradeoff:** There is no standalone "can see the admin dashboard" bit. The dashboard is a capability index, so the UI derives visibility from the concrete permissions the viewer holds.
 
 ### 2. Operational metadata, not conversation content
 
@@ -50,15 +51,14 @@ The admin section gives owners and admins visibility into the server's operation
 
 ### 6. Nested `admin` resolver with field-specific capability gates
 
-**Decision:** Admin queries are grouped under a nested `Query.admin` type. Broad admin entry is gated by `admin.access`, and suspension tooling may also enter the namespace with `user.suspend`; sensitive fields still check their narrower capabilities (`admin.view-users`, `admin.view-system`, `admin.view-audit`, `user.suspend`) before returning data.
-**Why:** The nested shape gives the UI one obvious admin boundary, and the field-level checks let operators delegate user, system, and audit visibility independently.
+**Decision:** Admin queries are grouped under a nested `Query.admin` type that returns for authenticated viewers, while sensitive fields check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-system`, `admin.view-audit`, `role.manage`, `user.suspend`, owner-only diagnostics) before returning data.
+**Why:** The nested shape gives the API one obvious admin-tooling namespace, and the field-level checks let operators delegate user, system, audit, moderation, and RBAC-editor visibility independently.
 **Tradeoff:** A user may be able to enter the admin area but see permission denials or empty panels for specific sections. The UI has to reflect that capability split clearly.
 
 ## Permissions
 
-- `admin.access` — gates entry to the admin UI and the `Query.admin` resolver.
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
-- `admin.view-system` — gates `admin.systemInfo` and `admin.projections`.
+- `admin.view-system` — gates `admin.projections`; `admin.systemInfo` is owner-only for now.
 - `admin.view-audit` — gates `admin.eventLog` and `admin.eventLogEntry`.
 - `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper (permission + outrank-target check).
 - `user.suspend` — gates server-level user suspension and unsuspension via the `requireUserSuspendTarget` helper (permission + outrank-target check).

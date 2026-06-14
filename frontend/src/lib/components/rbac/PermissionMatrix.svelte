@@ -143,20 +143,24 @@ under it. Column headers are clickable when `onRoleClick` is provided
     const resp = await connection().client.query(
       graphql(`
         query MatrixTierRoles($roomId: ID, $groupId: ID) {
-          tierRoles(roomId: $roomId, groupId: $groupId) {
-            applicablePermissions
-            roles {
-              roleName
-              displayName
-              description
-              isSystem
-              position
-              override {
-                permissions
-                permissionDenials
+          admin {
+            rbac {
+              rolePermissionTierMatrix(roomId: $roomId, groupId: $groupId) {
+                applicablePermissions
+                roles {
+                  roleName
+                  displayName
+                  description
+                  isSystem
+                  position
+                  override {
+                    permissions
+                    permissionDenials
+                  }
+                  inheritedAllows
+                  inheritedDenials
+                }
               }
-              inheritedAllows
-              inheritedDenials
             }
           }
         }
@@ -177,14 +181,15 @@ under it. Column headers are clickable when `onRoleClick` is provided
       error = resp.error.message;
       return;
     }
-    if (!resp.data?.tierRoles) {
+    const matrix = resp.data?.admin?.rbac.rolePermissionTierMatrix;
+    if (!matrix) {
       error = 'No data returned';
       return;
     }
     // Clone so we can safely apply optimistic updates.
     data = {
-      applicablePermissions: [...resp.data.tierRoles.applicablePermissions],
-      roles: resp.data.tierRoles.roles.map((r: TierRole) => ({
+      applicablePermissions: [...matrix.applicablePermissions],
+      roles: matrix.roles.map((r: TierRole) => ({
         ...r,
         override: {
           permissions: [...r.override.permissions],

@@ -8,6 +8,8 @@ Token for joining a LiveKit voice call.
 type VoiceCallToken {
   "The LiveKit JWT token."
   token: String!
+  "Shared LiveKit E2EE key for this active call. Distributed by Chatto, never by LiveKit."
+  e2eeKey: String!
 }
 
 """
@@ -33,9 +35,36 @@ extend type Query {
   activeCallRoomIds: [ID!]!
 }
 
+extend type Mutation {
+  """
+  Join a room's voice call as the current user.
+  """
+  joinVoiceCall(input: VoiceCallIntentInput!): Boolean!
+
+  """
+  Leave a room's voice call as the current user.
+  """
+  leaveVoiceCall(input: VoiceCallIntentInput!): Boolean!
+}
+
+input VoiceCallIntentInput {
+  "The room whose voice call is being joined or left."
+  roomId: ID!
+}
+
 # ==============================================================================
-# VOICE CALL EVENTS (Live-only)
+# VOICE CALL EVENTS (Durable room facts and live delivery)
 # ==============================================================================
+
+"""
+Event: A voice call started in a room.
+"""
+type CallStartedEvent {
+  "The ID of the room where the call started."
+  roomId: ID!
+  "The ID of this call session."
+  callId: ID!
+}
 
 """
 Event: A user joined a voice call in a room.
@@ -44,6 +73,8 @@ The user who joined is identified by the parent Event's actorId/actor.
 type CallParticipantJoinedEvent {
   "The ID of the room where the call is happening."
   roomId: ID!
+  "The ID of this call session."
+  callId: ID!
 }
 
 """
@@ -53,4 +84,16 @@ The user who left is identified by the parent Event's actorId/actor.
 type CallParticipantLeftEvent {
   "The ID of the room where the call was happening."
   roomId: ID!
+  "The ID of this call session."
+  callId: ID!
+}
+
+"""
+Event: A voice call ended in a room.
+"""
+type CallEndedEvent {
+  "The ID of the room where the call ended."
+  roomId: ID!
+  "The ID of this call session."
+  callId: ID!
 }

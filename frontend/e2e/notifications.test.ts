@@ -61,7 +61,7 @@ test.describe('Mention Notifications', () => {
 
       // User A: Verify mention cascades to space icon
       const serverGutter = page.locator('.server-gutter');
-      const spaceButton = serverGutter.locator('[data-testid="space-icon"]').first();
+      const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
       const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
       await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
@@ -106,7 +106,7 @@ test.describe('Mention Notifications', () => {
 
     // Verify space icon now shows the logo image (not text)
     const serverGutter = page.locator('.server-gutter');
-    const spaceButton = serverGutter.locator('[data-testid="space-icon"]').first();
+    const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
     const spaceLogoImage = spaceButton.locator('img');
     await expect(spaceLogoImage).toBeVisible();
 
@@ -240,7 +240,7 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
       // The space icon is a button with aria-label matching the space name
       // We need to find the button inside the server gutter and check its parent for .bg-warning
       const serverGutter = page.locator('.server-gutter');
-      const spaceButton = serverGutter.locator('[data-testid="space-icon"]').first();
+      const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
       const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
       await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
@@ -1594,7 +1594,7 @@ test.describe('Room Reply Notifications', () => {
 
       // Verify orange dot on space icon
       const serverGutter = page.locator('.server-gutter');
-      const spaceButton = serverGutter.locator('[data-testid="space-icon"]').first();
+      const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
       const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
       await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 

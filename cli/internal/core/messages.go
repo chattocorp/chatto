@@ -20,10 +20,18 @@ const (
 
 type postMessageOptions struct {
 	videoProcessingAssetIDs map[string]struct{}
+	largeMentionConfirmed   bool
+}
+
+type editMessageOptions struct {
+	channelEcho *bool
 }
 
 // PostMessageOption customizes side effects owned by the message-post command.
 type PostMessageOption func(*postMessageOptions)
+
+// EditMessageOption customizes side effects owned by the message-edit command.
+type EditMessageOption func(*editMessageOptions)
 
 // WithVideoProcessingAssets schedules video processing for the listed message
 // attachments after their AssetCreatedEvent records have been appended.
@@ -40,8 +48,35 @@ func WithVideoProcessingAssets(assetIDs ...string) PostMessageOption {
 	}
 }
 
+// WithLargeMentionConfirmed confirms that the caller intentionally wants to
+// send a message whose mentions notify more than
+// LargeMentionNotificationThreshold users.
+func WithLargeMentionConfirmed() PostMessageOption {
+	return func(options *postMessageOptions) {
+		options.largeMentionConfirmed = true
+	}
+}
+
+// WithMessageChannelEcho reconciles whether a thread reply should have a
+// visible echo in the channel timeline after the edit is saved.
+func WithMessageChannelEcho(enabled bool) EditMessageOption {
+	return func(options *editMessageOptions) {
+		options.channelEcho = &enabled
+	}
+}
+
 func collectPostMessageOptions(opts []PostMessageOption) postMessageOptions {
 	var options postMessageOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&options)
+		}
+	}
+	return options
+}
+
+func collectEditMessageOptions(opts []EditMessageOption) editMessageOptions {
+	var options editMessageOptions
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&options)
@@ -101,7 +136,7 @@ func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggreg
 		})
 		if err == nil {
 			messageSeq := seqs[len(seqs)-1]
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, messageSeq); err != nil {
+			if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -120,8 +155,160 @@ func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggreg
 	return 0, fmt.Errorf("append message body batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
+func (c *ChattoCore) appendThreadReplyEcho(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	agg events.Aggregate,
+	originalEvent *corev1.Event,
+	originalPost *corev1.MessagePostedEvent,
+	body *corev1.MessageBody,
+	plaintext string,
+) (string, bool, error) {
+	if originalEvent == nil || originalPost == nil || body == nil {
+		return "", false, ErrMessageNotFound
+	}
+	originalID := originalEvent.GetId()
+	roomID := originalPost.GetRoomId()
+	messageSubject := agg.Subject(events.EventMessagePosted)
+	bodySubject := agg.Subject(events.EventMessageBody)
+	var lastErr error
+
+	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, messageSubject)
+		if err != nil {
+			return "", false, fmt.Errorf("read echo OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(messageSubject, expectedSeq)); err != nil {
+				return "", false, err
+			}
+		}
+		if echoID, ok := c.RoomTimeline.ChannelEchoEventID(originalID); ok {
+			return echoID, false, nil
+		}
+
+		echoID := NewEventID()
+		echoBodyEventID := NewEventID()
+		echoBody := proto.Clone(body).(*corev1.MessageBody)
+		if err := c.encryptMessageBody(ctx, echoBody, roomID, echoID, echoBodyEventID, plaintext); err != nil {
+			return "", false, fmt.Errorf("encrypt thread reply echo: %w", err)
+		}
+		echoBodyEvent := newEvent(actorID, &corev1.Event{
+			Id:        echoBodyEventID,
+			CreatedAt: originalEvent.GetCreatedAt(),
+			Event: &corev1.Event_MessageBody{
+				MessageBody: &corev1.MessageBodyEvent{
+					RoomId:  roomID,
+					EventId: echoID,
+					Body:    echoBody,
+				},
+			},
+		})
+		echoEvent := newEvent(actorID, &corev1.Event{
+			Id:        echoID,
+			CreatedAt: originalEvent.GetCreatedAt(),
+			Event: &corev1.Event_MessagePosted{
+				MessagePosted: &corev1.MessagePostedEvent{
+					RoomId:                    roomID,
+					InReplyTo:                 originalPost.GetInReplyTo(),
+					MentionedUserIds:          append([]string(nil), originalPost.GetMentionedUserIds()...),
+					EchoOfEventId:             originalID,
+					EchoFromThreadRootEventId: originalPost.GetInThread(),
+				},
+			},
+		})
+
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+			{
+				Subject:       bodySubject,
+				Event:         echoBodyEvent,
+				ExpectedSeq:   expectedSeq,
+				FilterSubject: messageSubject,
+				HasOCC:        true,
+			},
+			{
+				Subject:       messageSubject,
+				Event:         echoEvent,
+				ExpectedSeq:   expectedSeq,
+				FilterSubject: messageSubject,
+				HasOCC:        true,
+			},
+		})
+		if err == nil {
+			echoSeq := seqs[len(seqs)-1]
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
+				return echoID, true, err
+			}
+			c.logger.Info("Thread reply echo posted",
+				"kind", kind, "room_id", roomID,
+				"echo_event_id", echoID, "original_event_id", originalID,
+				"echo_sequence_id", echoSeq)
+			return echoID, true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return "", false, fmt.Errorf("publish thread reply echo: %w", err)
+		}
+		lastErr = err
+		select {
+		case <-ctx.Done():
+			return "", false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return "", false, fmt.Errorf("publish thread reply echo after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+}
+
+func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, originalEventID string) error {
+	retractSubject := agg.Subject(events.EventMessageRetracted)
+	var lastErr error
+
+	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, retractSubject)
+		if err != nil {
+			return fmt.Errorf("read echo retract OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(retractSubject, expectedSeq)); err != nil {
+				return err
+			}
+		}
+		echoID, ok := c.RoomTimeline.ChannelEchoEventID(originalEventID)
+		if !ok {
+			return nil
+		}
+
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_MessageRetracted{
+				MessageRetracted: &corev1.MessageRetractedEvent{
+					RoomId:  roomID,
+					EventId: echoID,
+				},
+			},
+		})
+		seq, err := c.EventPublisher.AppendAt(ctx, retractSubject, event, expectedSeq)
+		if err == nil {
+			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
+				return err
+			}
+			c.logger.Info("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", echoID, "actor_id", actorID)
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish echo retraction: %w", err)
+		}
+		lastErr = err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return fmt.Errorf("publish echo retraction after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+}
+
 func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context, agg events.Aggregate, bodyEvent, messageEvent, threadCreatedEvent *corev1.Event, threadRootEventID string) (uint64, error) {
-	if threadCreatedEvent == nil || threadRootEventID == "" || c.Threads.ThreadExists(threadRootEventID) {
+	if threadCreatedEvent == nil || threadRootEventID == "" || c.rooms().threadExists(threadRootEventID) {
 		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
 	}
 	if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
@@ -160,7 +347,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 		})
 		if err == nil {
 			messageSeq := seqs[len(seqs)-1]
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, messageSeq); err != nil {
+			if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -175,14 +362,11 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 			return 0, fmt.Errorf("read room OCC tail after conflict: %w", seqErr)
 		}
 		if currentSeq > 0 {
-			if err := waitForSeqAll(ctx, currentSeq,
-				waitForProjection("room timeline", c.RoomTimelineProjector),
-				waitForProjection("threads", c.ThreadsProjector),
-			); err != nil {
+			if err := c.rooms().waitForTimelineAndThreads(ctx, events.SubjectPosition(roomFilter, currentSeq)); err != nil {
 				return 0, err
 			}
 		}
-		if c.Threads.ThreadExists(threadRootEventID) {
+		if c.rooms().threadExists(threadRootEventID) {
 			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
 		}
 		if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
@@ -241,10 +425,16 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if id == "" {
 			continue
 		}
-		declared, ok := c.RoomTimeline.AssetCreation(id)
+		declared, ok := c.assetLifecycle().AssetCreation(id)
 		if !ok || declared == nil || declared.GetAsset() == nil {
 			c.logger.Warn("PostMessage references unknown asset; dropping",
 				"asset_id", id, "room_id", room_id, "actor_id", user_id)
+			continue
+		}
+		assetRoomID, ok := c.assetLifecycle().AssetRoomID(id)
+		if !ok || assetRoomID != room_id {
+			c.logger.Warn("PostMessage references asset outside room; dropping",
+				"asset_id", id, "asset_room_id", assetRoomID, "room_id", room_id, "actor_id", user_id)
 			continue
 		}
 		att := attachmentFromAsset(declared.GetAsset())
@@ -307,13 +497,22 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if hasBody {
 		usernames := ExtractMentionUsernames(body)
 		if len(usernames) > 0 {
-			resolved, err := c.ResolveMentions(ctx, usernames)
+			resolved, err := c.ResolveRoomMentions(ctx, kind, room_id, usernames)
 			if err != nil {
 				c.logger.Warn("Failed to resolve mentions", "error", err)
 				// Continue without mentions - don't fail the message
 			} else {
 				mentionedUserIDs = resolved
 			}
+		}
+	}
+
+	if len(mentionedUserIDs) > 0 && !options.largeMentionConfirmed {
+		recipientCount, err := c.mentionNotificationRecipientCount(ctx, room_id, user_id, mentionedUserIDs)
+		if err != nil {
+			c.logger.Warn("Failed to count mention notification recipients", "error", err, "room_id", room_id)
+		} else if recipientCount > LargeMentionNotificationThreshold {
+			return nil, &MentionConfirmationRequiredError{RecipientCount: recipientCount}
 		}
 	}
 
@@ -353,7 +552,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		},
 	})
 	var threadCreatedEvent *corev1.Event
-	if inThread != "" && !c.Threads.ThreadExists(inThread) {
+	if inThread != "" && !c.rooms().threadExists(inThread) {
 		threadCreatedEvent = newEvent(user_id, &corev1.Event{
 			Id:        NewEventID(),
 			CreatedAt: timestamppb.New(now),
@@ -398,7 +597,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// Also wait for ThreadProjection if this is a thread reply, so a
 	// subsequent thread-pane fetch from the same request sees it.
 	if inThread != "" {
-		if err := c.ThreadsProjector.WaitForSeq(ctx, sequenceID); err != nil {
+		if err := c.rooms().waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), sequenceID)); err != nil {
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
@@ -528,46 +727,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// it back to the underlying body. The body is encrypted again for the
 	// echo event ID because v2 encryption authenticates the event context.
 	if inThread != "" && alsoSendToChannel {
-		echoID := NewEventID()
-		echoBodyEventID := NewEventID()
-		echoBody := proto.Clone(messageBody).(*corev1.MessageBody)
-		if err := c.encryptMessageBody(ctx, echoBody, room_id, echoID, echoBodyEventID, body); err != nil {
-			c.logger.Warn("Failed to encrypt thread reply echo", "error", err, "thread_reply_event_id", event.Id)
-			return event, nil
-		}
-		echoBodyEventEvent := newEvent(user_id, &corev1.Event{
-			Id:        echoBodyEventID,
-			CreatedAt: event.CreatedAt,
-			Event: &corev1.Event_MessageBody{
-				MessageBody: &corev1.MessageBodyEvent{
-					RoomId:  room_id,
-					EventId: echoID,
-					Body:    echoBody,
-				},
-			},
-		})
-		echoEvent := newEvent(user_id, &corev1.Event{
-			Id:        echoID,
-			CreatedAt: event.CreatedAt,
-			Event: &corev1.Event_MessagePosted{
-				MessagePosted: &corev1.MessagePostedEvent{
-					RoomId:                    room_id,
-					InReplyTo:                 inReplyTo,
-					MentionedUserIds:          mentionedUserIDs,
-					EchoOfEventId:             event.Id,
-					EchoFromThreadRootEventId: inThread,
-				},
-			},
-		})
-		echoSequenceID, err := c.appendBodyAndMessage(ctx, agg, echoBodyEventEvent, echoEvent)
+		echoID, created, err := c.appendThreadReplyEcho(ctx, user_id, kind, agg, event, event.GetMessagePosted(), messageBody, body)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
-		} else {
-			c.logger.Info("Thread reply echo posted",
-				"kind", kind, "room_id", room_id,
-				"echo_event_id", echoEvent.Id, "original_event_id", event.Id,
-				"echo_sequence_id", echoSequenceID)
-
+		} else if created {
 			// Notify room members with ALL_MESSAGES notification level (best-effort).
 			// Build already-notified set: author + mentioned users (already notified above for original reply).
 			echoAlreadyNotified := make(map[string]bool)
@@ -575,7 +738,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			for _, uid := range mentionedUserIDs {
 				echoAlreadyNotified[uid] = true
 			}
-			c.notifyAllMessageSubscribers(ctx, kind, room_id, user_id, echoEvent.Id, echoAlreadyNotified)
+			c.notifyAllMessageSubscribers(ctx, kind, room_id, user_id, echoID, echoAlreadyNotified)
 		}
 	}
 
@@ -650,16 +813,16 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// Snapshot the projection state for attachment cleanup before
 	// emitting the retract event. After retract, LatestBody returns
 	// nil (the message is tombstoned), so we need a copy first.
-	originalEntry, ok := c.RoomTimeline.Get(eventID)
+	originalEntry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		c.logger.Debug("Delete on unknown message — no-op", "event_id", eventID)
 		return nil
 	}
-	isEcho := c.RoomTimeline.IsEcho(eventID)
-	if isEcho && c.RoomTimeline.IsHiddenEcho(eventID) {
+	isEcho := c.rooms().isEcho(eventID)
+	if isEcho && c.rooms().isHiddenEcho(eventID) {
 		return nil
 	}
-	body, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	body, retracted, _ := c.rooms().latestBody(eventID)
 	if retracted {
 		// Already tombstoned.
 		return nil
@@ -678,7 +841,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 		c.logger.Info("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
 		return nil
 	}
-	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
+	for _, linkedID := range c.rooms().linkedEventIDs(eventID) {
 		c.secureDeleteAllMessageBodyEvents(ctx, linkedID)
 	}
 
@@ -689,14 +852,15 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if body != nil {
 		for _, att := range c.MessageBodyAttachments(body) {
 			c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, att.GetId())
-			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
-				c.logger.Warn("Failed to delete attachment during message deletion",
+			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, att.GetId()); err != nil {
+				c.logger.Warn("Failed to publish asset deletion event",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
 					"error", err)
+				continue
 			}
-			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, att.GetId()); err != nil {
-				c.logger.Warn("Failed to publish asset deletion event",
+			if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
+				c.logger.Warn("Failed to delete attachment during message deletion",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
 					"error", err)
@@ -716,7 +880,8 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 // Non-authors (moderators with message.manage) can edit at any time.
 //
 // Authorization: Caller must verify the actor is the author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
-func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string) error {
+func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string, opts ...EditMessageOption) error {
+	options := collectEditMessageOptions(opts)
 	if len(newBody) > MaxMessageBodyLength {
 		return ErrMessageTooLong
 	}
@@ -734,7 +899,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
-	originalEntry, ok := c.RoomTimeline.Get(eventID)
+	originalEntry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return ErrMessageNotFound
 	}
@@ -752,11 +917,35 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			return ErrEditWindowExpired
 		}
 	}
+	if options.channelEcho != nil {
+		echoTargetEvent := originalEntry.Event
+		echoTargetPost := origPost
+		if echoOf := origPost.GetEchoOfEventId(); echoOf != "" {
+			origEchoEntry, ok := c.RoomTimeline.Get(echoOf)
+			if !ok || origEchoEntry.Event == nil {
+				return ErrMessageNotFound
+			}
+			echoTargetEvent = origEchoEntry.Event
+			echoTargetPost = echoTargetEvent.GetMessagePosted()
+		}
+		if echoTargetPost == nil || echoTargetPost.GetEchoOfEventId() != "" || echoTargetPost.GetInThread() == "" {
+			return fmt.Errorf("channel echo state can only be changed for thread replies")
+		}
+		if roomIDOfEvent(echoTargetEvent) != roomID {
+			return ErrMessageNotFound
+		}
+		if echoTargetEvent.GetActorId() != actorID {
+			return ErrNotMessageAuthor
+		}
+		if time.Since(echoTargetEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
+			return ErrEditWindowExpired
+		}
+	}
 
 	// Fold in current body so attachments/link preview/timestamps
 	// survive the edit. We then overwrite ciphertext + nonce with the
 	// new content.
-	current, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	current, retracted, _ := c.rooms().latestBody(eventID)
 	if retracted {
 		return ErrMessageNotFound
 	}
@@ -782,7 +971,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
 	// Fan out to echoes (and to the original if this IS an echo) so
 	// the legacy "edit one, both update" semantic is preserved.
-	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
+	for _, linkedID := range c.rooms().linkedEventIDs(eventID) {
 		linkedBody := proto.Clone(updated).(*corev1.MessageBody)
 		linkedBodyEventID := NewEventID()
 		if err := c.encryptMessageBody(ctx, linkedBody, roomID, linkedID, linkedBodyEventID, newBody); err != nil {
@@ -799,6 +988,73 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	}
 
 	c.logger.Info("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
+	if options.channelEcho != nil {
+		if err := c.reconcileEditedMessageChannelEcho(ctx, actorID, kind, roomID, eventID, *options.channelEcho); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string, enabled bool) error {
+	entry, ok := c.RoomTimeline.Get(eventID)
+	if !ok || entry.Event == nil {
+		return ErrMessageNotFound
+	}
+	posted := entry.Event.GetMessagePosted()
+	if posted == nil {
+		return ErrMessageNotFound
+	}
+
+	originalEvent := entry.Event
+	originalPost := posted
+	originalID := eventID
+	if echoOf := posted.GetEchoOfEventId(); echoOf != "" {
+		originalID = echoOf
+		originalEntry, ok := c.RoomTimeline.Get(originalID)
+		if !ok || originalEntry.Event == nil {
+			return ErrMessageNotFound
+		}
+		originalEvent = originalEntry.Event
+		originalPost = originalEvent.GetMessagePosted()
+	}
+	if originalPost == nil || originalPost.GetEchoOfEventId() != "" || originalPost.GetInThread() == "" {
+		return fmt.Errorf("channel echo state can only be changed for thread replies")
+	}
+	if roomIDOfEvent(originalEvent) != roomID {
+		return ErrMessageNotFound
+	}
+	if originalEvent.GetActorId() != actorID {
+		return ErrNotMessageAuthor
+	}
+	if time.Since(originalEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
+		return ErrEditWindowExpired
+	}
+	current, retracted, _ := c.RoomTimeline.LatestBody(originalID)
+	if retracted || current == nil {
+		return ErrMessageNotFound
+	}
+
+	agg := events.RoomAggregate(roomID)
+	if !enabled {
+		return c.hideChannelEchoForReply(ctx, actorID, kind, agg, roomID, originalID)
+	}
+	plaintext, err := c.decryptMessageBody(ctx, originalID, roomID, current)
+	if err != nil {
+		return fmt.Errorf("decrypt message body for echo: %w", err)
+	}
+	echoID, created, err := c.appendThreadReplyEcho(ctx, actorID, kind, agg, originalEvent, originalPost, current, string(plaintext))
+	if err != nil {
+		return err
+	}
+	if created && echoID != "" {
+		alreadyNotified := make(map[string]bool)
+		alreadyNotified[actorID] = true
+		for _, uid := range originalPost.GetMentionedUserIds() {
+			alreadyNotified[uid] = true
+		}
+		c.notifyAllMessageSubscribers(ctx, kind, roomID, actorID, echoID, alreadyNotified)
+	}
 	return nil
 }
 
@@ -814,7 +1070,7 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 			},
 		},
 	})
-	if _, err := c.RoomTimelineProjector.AppendEventuallyAndWait(ctx, c.EventPublisher, agg, event); err != nil {
+	if _, err := c.rooms().appendTimelineEventually(ctx, c.EventPublisher, agg, event); err != nil {
 		return fmt.Errorf("publish MessageRetractedEvent: %w", err)
 	}
 
@@ -872,7 +1128,7 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 			},
 		})
 		if err == nil {
-			if err := c.RoomTimelineProjector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
+			if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(editSubject, seqs[len(seqs)-1])); err != nil {
 				return err
 			}
 			return nil
@@ -940,14 +1196,14 @@ func (c *ChattoCore) editEmbeddedBody(
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return ErrMessageNotFound
 	}
 	if entry.Event.GetMessagePosted() == nil {
 		return ErrMessageNotFound
 	}
-	current, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	current, retracted, _ := c.rooms().latestBody(eventID)
 	if retracted || current == nil {
 		return ErrMessageNotFound
 	}
@@ -973,8 +1229,8 @@ func (c *ChattoCore) editEmbeddedBody(
 		return err
 	}
 	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
-	for _, linkedID := range c.RoomTimeline.LinkedEventIDs(eventID) {
-		linkedCurrent, linkedRetracted, _ := c.RoomTimeline.LatestBody(linkedID)
+	for _, linkedID := range c.rooms().linkedEventIDs(eventID) {
+		linkedCurrent, linkedRetracted, _ := c.rooms().latestBody(linkedID)
 		if linkedRetracted || linkedCurrent == nil {
 			continue
 		}
@@ -1040,17 +1296,16 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 
 	if removed != nil {
 		c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, removed.GetId())
-		if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
-			c.logger.Warn("Failed to delete attachment file after removing from message",
-				"attachment_id", attachmentID,
-				"message_body_key", messageBodyKey,
-				"error", delErr)
-		}
 		if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, removed.GetId()); err != nil {
 			c.logger.Warn("Failed to publish asset deletion event",
 				"attachment_id", attachmentID,
 				"message_body_key", messageBodyKey,
 				"error", err)
+		} else if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
+			c.logger.Warn("Failed to delete attachment file after removing from message",
+				"attachment_id", attachmentID,
+				"message_body_key", messageBodyKey,
+				"error", delErr)
 		}
 	}
 

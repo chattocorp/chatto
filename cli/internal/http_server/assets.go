@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -121,12 +122,15 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 
 	s.logger.Debug("Serving attachment", "attachment_id", loc.AttachmentID)
 
-	// Try S3 presigned redirect first (zero-copy, full Range support).
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-		// Cache the redirect itself — the attachment URL is immutable
-		c.Header("Cache-Control", "public, max-age=3600")
-		c.Redirect(http.StatusFound, presignedURL)
-		return
+	// Try S3 presigned redirect first (zero-copy, full Range support) for
+	// attachment types that do not need Chatto-served security headers.
+	if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
+			// Cache the redirect itself — the attachment URL is immutable
+			c.Header("Cache-Control", "public, max-age=3600")
+			c.Redirect(http.StatusFound, presignedURL)
+			return
+		}
 	}
 
 	// Otherwise stream from the recorded backend.
@@ -144,9 +148,9 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	setOriginalAttachmentSecurityHeaders(c, contentType)
 
-	// Immutable asset - cache forever
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("Cache-Control", legacyAttachmentCacheControl(contentType))
 	c.Header("ETag", fmt.Sprintf("\"%s\"", loc.AttachmentID))
 	c.Header("Vary", "Accept-Encoding")
 
@@ -164,17 +168,27 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	ctx := c.Request.Context()
 	assetID := c.Param("assetID")
 
+	if s.failAssetProxyRequest(c) {
+		return
+	}
+
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, nil)
 	if !ok {
 		return
 	}
 
-	// Try S3 presigned redirect first (zero-copy, full Range support) after
-	// validating the asset ticket/request credentials and room membership.
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-		c.Header("Cache-Control", "private, max-age=3600")
-		c.Redirect(http.StatusFound, presignedURL)
-		return
+	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
+		// Try S3 presigned redirect first (zero-copy, full Range support) after
+		// validating the asset ticket/request credentials and room membership.
+		// Active document formats must stream through Chatto so the sandbox CSP
+		// below cannot be bypassed by S3's response headers.
+		if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+			if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
+				c.Header("Cache-Control", "private, max-age=3600")
+				c.Redirect(http.StatusFound, presignedURL)
+				return
+			}
+		}
 	}
 
 	reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
@@ -191,11 +205,47 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	setOriginalAttachmentSecurityHeaders(c, contentType)
 
 	c.Header("Cache-Control", "private, max-age=3600")
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
-	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
+	c.Header("Vary", "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
+}
+
+const originalAttachmentSandboxCSP = "sandbox"
+
+func setOriginalAttachmentSecurityHeaders(c *gin.Context, contentType string) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	if originalAttachmentNeedsSandbox(contentType) {
+		c.Header("Content-Security-Policy", originalAttachmentSandboxCSP)
+	}
+}
+
+func attachmentCanUsePresignedRedirect(contentType string) bool {
+	return !originalAttachmentNeedsSandbox(contentType)
+}
+
+func originalAttachmentNeedsSandbox(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.Split(contentType, ";")[0])
+	}
+	mediaType = strings.ToLower(mediaType)
+
+	switch mediaType {
+	case "text/html", "application/xhtml+xml", "image/svg+xml", "application/xml", "text/xml":
+		return true
+	default:
+		return strings.HasSuffix(mediaType, "+xml")
+	}
+}
+
+func legacyAttachmentCacheControl(contentType string) string {
+	if originalAttachmentNeedsSandbox(contentType) {
+		return fmt.Sprintf("private, max-age=%d", int(core.AttachmentURLTTL.Seconds()))
+	}
+	return "public, max-age=31536000, immutable"
 }
 
 // serveStableTransformedAttachment serves an authenticated image derivative:
@@ -210,6 +260,10 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	params, err := parseStableTransformParams(c.Param("dimensions"), c.Param("fit"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if s.failAssetProxyRequest(c) {
 		return
 	}
 
@@ -230,6 +284,23 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 		},
 		Authorize: func(c *gin.Context) bool { return true },
 	}, params)
+}
+
+func (s *HTTPServer) failAssetProxyRequest(c *gin.Context) bool {
+	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
+		return false
+	}
+
+	for {
+		remaining := s.failAssetProxyRequests.Load()
+		if remaining <= 0 {
+			return false
+		}
+		if s.failAssetProxyRequests.CompareAndSwap(remaining, remaining-1) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "expired asset access ticket"})
+			return true
+		}
+	}
 }
 
 const AttachmentStableCachePrefix = "attachment-stable"
@@ -271,12 +342,12 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 		return nil, false
 	}
 
-	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
+	declared, ok := s.core.Assets.AssetCreation(assetID)
 	if !ok || declared == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return nil, false
 	}
-	roomID, ok := s.core.RoomTimeline.AssetRoomID(assetID)
+	roomID, ok := s.core.Assets.AssetRoomID(assetID)
 	if !ok {
 		s.logger.Warn("Asset has no room scope", "attachment_id", assetID)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})

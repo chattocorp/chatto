@@ -137,7 +137,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 			}
 
 			if user != nil {
-				s.logger.Debug("WebSocket connection authenticated", "userId", user.Id, "login", user.Login)
+				s.logger.Debug("WebSocket connection authenticated", "userId", user.Id)
 			}
 
 			// Create a fresh context for the WebSocket connection WITHOUT dataloaders.

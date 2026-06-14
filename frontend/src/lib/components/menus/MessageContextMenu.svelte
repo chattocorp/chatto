@@ -30,6 +30,9 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId,
     deleteEventId = eventId,
     messageBody,
+    threadRootEventId = null,
+    channelEchoEventId = null,
+    canAddChannelEcho = false,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -45,6 +48,9 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId: string;
     deleteEventId?: string;
     messageBody: string;
+    threadRootEventId?: string | null;
+    channelEchoEventId?: string | null;
+    canAddChannelEcho?: boolean;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -64,7 +70,10 @@ Rendered inside a ContextMenu when right-clicking a message.
     messageEventId,
     eventId,
     deleteEventId,
-    messageBody
+    messageBody,
+    threadRootEventId,
+    channelEchoEventId,
+    canAddChannelEcho
   });
 
   /** Set of Unicode emojis the current user has already reacted with (API returns shortcodes) */

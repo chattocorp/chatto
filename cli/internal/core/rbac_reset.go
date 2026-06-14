@@ -94,8 +94,12 @@ func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.
 	}
 
 	for _, decision := range c.RBAC.Decisions() {
+		subjectKind := decision.subjectKind
+		if subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
+			subjectKind = rbacPermissionSubjectKindForID(decision.subject)
+		}
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacPermissionCleared{
-			RbacPermissionCleared: rbacPermissionClearedEvent(decision.scope, decision.scopeID, decision.subject, decision.permission),
+			RbacPermissionCleared: rbacPermissionClearedEvent(decision.scope, decision.scopeID, subjectKind, decision.subject, decision.permission),
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}

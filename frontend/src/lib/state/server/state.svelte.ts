@@ -55,9 +55,24 @@ export class ServerInfoState {
     this.loading = true;
     this.error = null;
     try {
-      const resp = await this.#client
-        .query(
-          graphql(`
+      await this.refreshProfile();
+    } catch (err) {
+      // Defensive: anything thrown during the query or above .then body.
+      // Don't re-throw — failure is isolated to this server.
+      this.error = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[server:${this.#label}] failed to load server info`,
+        err
+      );
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async refreshProfile(): Promise<void> {
+    const resp = await this.#client
+      .query(
+        graphql(`
           query GetServerInfo {
             server {
               directRegistrationEnabled
@@ -71,41 +86,28 @@ export class ServerInfoState {
             }
           }
         `),
-          {},
-          { requestPolicy: 'network-only' }
-        )
-        .toPromise();
+        {},
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
 
-      if (resp.error) {
-        // urql surfaces network failures (CORS, DNS, server down) as
-        // result.error.networkError rather than rejecting. Treat as a
-        // soft per-server failure: log, set error state, and bail.
-        this.error = resp.error.message;
-        console.error(
-          `[server:${this.#label}] failed to load server info`,
-          resp.error
-        );
-        return;
-      }
-
-      if (resp.data?.server) {
-        this.name = resp.data.server.profile.name;
-        this.welcomeMessage = resp.data.server.profile.welcomeMessage ?? null;
-        this.description = resp.data.server.profile.description ?? null;
-        this.iconUrl = resp.data.server.profile.logoUrl ?? null;
-        this.bannerUrl = resp.data.server.profile.bannerUrl ?? null;
-        this.directRegistrationEnabled = resp.data.server.directRegistrationEnabled;
-      }
-    } catch (err) {
-      // Defensive: anything thrown during the query or above .then body.
-      // Don't re-throw — failure is isolated to this server.
-      this.error = err instanceof Error ? err.message : String(err);
+    if (resp.error) {
+      this.error = resp.error.message;
       console.error(
         `[server:${this.#label}] failed to load server info`,
-        err
+        resp.error
       );
-    } finally {
-      this.loading = false;
+      return;
+    }
+
+    if (resp.data?.server) {
+      this.error = null;
+      this.name = resp.data.server.profile.name;
+      this.welcomeMessage = resp.data.server.profile.welcomeMessage ?? null;
+      this.description = resp.data.server.profile.description ?? null;
+      this.iconUrl = resp.data.server.profile.logoUrl ?? null;
+      this.bannerUrl = resp.data.server.profile.bannerUrl ?? null;
+      this.directRegistrationEnabled = resp.data.server.directRegistrationEnabled;
     }
   }
 
@@ -153,21 +155,4 @@ export class ServerInfoState {
     }
   }
 
-  /**
-   * Update server config from a live event.
-   * Called when a ServerConfigUpdatedEvent is received.
-   */
-  updateConfig(config: {
-    serverName: string;
-    motd: string | null;
-    welcomeMessage: string | null;
-    description?: string | null;
-  }): void {
-    this.name = config.serverName;
-    this.motd = config.motd;
-    this.welcomeMessage = config.welcomeMessage;
-    if ('description' in config) {
-      this.description = config.description ?? null;
-    }
-  }
 }

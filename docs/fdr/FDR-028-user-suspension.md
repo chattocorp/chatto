@@ -55,7 +55,7 @@ User suspension is a server-level moderation tool that temporarily prevents a us
 
 - `user.suspend` — suspend or unsuspend a lower-ranked user. Granted to owner and admin by default.
 
-The default `@suspended` role explicitly denies current interaction/admin permissions such as room create/list/join/manage/ban, message post/thread/react/echo/manage, server/manage, role/manage, role/assign, admin access/view permissions, and `user.delete-any`.
+The default `@suspended` role explicitly denies current interaction/admin permissions such as room create/list/join/manage/ban, message post/thread/react/echo/manage, server/manage, role/manage, role/assign, admin view permissions, `user.suspend`, and `user.delete-any`.
 
 ## Related
 

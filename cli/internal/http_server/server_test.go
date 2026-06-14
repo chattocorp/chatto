@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -15,12 +16,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -118,6 +121,60 @@ func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 	}
 	if srv.WriteTimeout != 0 {
 		t.Fatalf("WriteTimeout = %s, want 0", srv.WriteTimeout)
+	}
+}
+
+func TestShutdownServerForcesCloseAfterTimeout(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enteredOnce sync.Once
+	srv := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			enteredOnce.Do(func() { close(entered) })
+			<-release
+		}),
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	go func() {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			t.Errorf("Serve returned unexpected error: %v", err)
+		}
+	}()
+
+	clientDone := make(chan struct{})
+	go func() {
+		defer close(clientDone)
+		_, _ = http.Get("http://" + ln.Addr().String())
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not receive request")
+	}
+
+	shutdownDone := make(chan error, 1)
+	testServer := &HTTPServer{logger: log.WithPrefix("test.HTTP")}
+	go func() { shutdownDone <- testServer.shutdownServerWithTimeout(srv, 25*time.Millisecond) }()
+
+	select {
+	case err := <-shutdownDone:
+		if err == nil {
+			t.Fatal("shutdownServer returned nil; wanted graceful shutdown timeout")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("shutdownServer did not return after forced close")
+	}
+
+	close(release)
+	select {
+	case <-clientDone:
+	case <-time.After(time.Second):
+		t.Fatal("client request did not release after forced close")
 	}
 }
 
@@ -260,6 +317,13 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 	}
 
 	return ts, client, chattoCore, mockMailer
+}
+
+func setTestServerName(t *testing.T, ctx context.Context, chattoCore *core.ChattoCore, name string) {
+	t.Helper()
+	if err := chattoCore.ConfigManager().SetServerConfig(ctx, "test", &configv1.ServerConfig{ServerName: name}); err != nil {
+		t.Fatalf("Failed to set test server name: %v", err)
+	}
 }
 
 // ============================================================================
@@ -530,7 +594,9 @@ func TestAuthRoutes_Logout(t *testing.T) {
 }
 
 func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
-	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+	setTestServerName(t, ctx, chattoCore, "Engineering")
 
 	// Step 1: POST /auth/register with email only
 	reqBody := map[string]string{"email": "newuser@example.com"}
@@ -566,8 +632,14 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	if email.To != "newuser@example.com" {
 		t.Errorf("Expected email to newuser@example.com, got %s", email.To)
 	}
-	if email.Subject != "Complete your Chatto registration" {
-		t.Errorf("Expected subject 'Complete your Chatto registration', got %s", email.Subject)
+	if email.Subject != "Complete your registration for Engineering" {
+		t.Errorf("Expected subject 'Complete your registration for Engineering', got %s", email.Subject)
+	}
+	if !strings.Contains(email.Body, "Welcome to Engineering!") {
+		t.Errorf("Expected email body to include server name welcome, got: %s", email.Body)
+	}
+	if !strings.Contains(email.Body, "finish creating your account on Engineering") {
+		t.Errorf("Expected email body to describe account creation on server, got: %s", email.Body)
 	}
 	if regexp.MustCompile(`\b\d{6}\b`).FindString(email.Body) == "" {
 		t.Errorf("Expected email body to contain six-digit registration code, got: %s", email.Body)
@@ -1140,8 +1212,9 @@ func TestAuthRoutes_RegisterComplete_DisabledReturns403(t *testing.T) {
 }
 
 func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
-	ts, client, chattoCore := setupTestHTTPServer(t)
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
+	setTestServerName(t, ctx, chattoCore, "Engineering")
 
 	// Create a user directly
 	user, err := chattoCore.CreateUser(ctx, "system", "verifyuser", "Verify User", "password123")
@@ -1168,9 +1241,32 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
 	}
 
-	code, err := chattoCore.CreateEmailVerificationCode(ctx, user.Id, "verify@example.com")
+	requestBody, _ := json.Marshal(map[string]string{"email": "verify@example.com"})
+	requestResp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(requestBody))
 	if err != nil {
-		t.Fatalf("Failed to create verification code: %v", err)
+		t.Fatalf("Failed to request verification code: %v", err)
+	}
+	requestResp.Body.Close()
+	if requestResp.StatusCode != http.StatusOK {
+		t.Fatalf("Verification code request failed with status %d", requestResp.StatusCode)
+	}
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected verification email to be sent")
+	}
+	if msg.Subject != "Verify your email for Engineering" {
+		t.Errorf("Expected subject 'Verify your email for Engineering', got %s", msg.Subject)
+	}
+	if !strings.Contains(msg.Body, "add this email address to your Engineering account") {
+		t.Errorf("Expected email body to mention Engineering account, got: %s", msg.Body)
+	}
+	if !strings.Contains(msg.Body, "15 minutes") {
+		t.Errorf("Expected email body to mention 15-minute expiration, got: %s", msg.Body)
+	}
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(msg.Body)
+	if code == "" {
+		t.Fatalf("Could not extract verification code from email body: %s", msg.Body)
 	}
 
 	verifyBody, _ := json.Marshal(map[string]string{"email": "verify@example.com", "code": code})
@@ -1671,8 +1767,8 @@ func TestAuthRoutes_TestEmailEndpoint(t *testing.T) {
 	if emailResult["to"] != "testendpoint@example.com" {
 		t.Errorf("Expected to: testendpoint@example.com, got %v", emailResult["to"])
 	}
-	if emailResult["subject"] != "Complete your Chatto registration" {
-		t.Errorf("Expected subject: 'Complete your Chatto registration', got %v", emailResult["subject"])
+	if emailResult["subject"] != "Complete your registration for Chatto" {
+		t.Errorf("Expected subject: 'Complete your registration for Chatto', got %v", emailResult["subject"])
 	}
 
 	// Test DELETE /auth/test/emails
@@ -1699,6 +1795,7 @@ func TestAuthRoutes_TestEmailEndpoint(t *testing.T) {
 func TestAuthRoutes_ForgotPassword_SendsEmail(t *testing.T) {
 	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
+	setTestServerName(t, ctx, chattoCore, "Engineering")
 
 	// Create a user with verified email
 	user, err := chattoCore.CreateUser(ctx, "system", "forgotuser", "Forgot User", "oldpassword")
@@ -1745,14 +1842,20 @@ func TestAuthRoutes_ForgotPassword_SendsEmail(t *testing.T) {
 	if email.To != "forgot@example.com" {
 		t.Errorf("Expected email to forgot@example.com, got %s", email.To)
 	}
-	if email.Subject != "Reset your Chatto password" {
-		t.Errorf("Expected subject 'Reset your Chatto password', got %s", email.Subject)
+	if email.Subject != "Reset your Engineering password" {
+		t.Errorf("Expected subject 'Reset your Engineering password', got %s", email.Subject)
+	}
+	if !strings.Contains(email.Body, "reset the password for your Engineering account") {
+		t.Errorf("Expected email body to mention Engineering account, got: %s", email.Body)
 	}
 	if !strings.Contains(email.Body, "/reset-password?token=PR") {
 		t.Errorf("Expected email body to contain reset link with PR token, got: %s", email.Body)
 	}
 	if !strings.Contains(email.Body, "1 hour") {
 		t.Errorf("Expected email body to mention 1-hour expiration")
+	}
+	if strings.Contains(email.Body, "The Chatto Team") {
+		t.Errorf("Expected password reset email not to use generic Chatto signoff, got: %s", email.Body)
 	}
 }
 

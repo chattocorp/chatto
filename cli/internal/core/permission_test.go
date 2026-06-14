@@ -11,12 +11,12 @@ import (
 
 func TestGetPermissionMetadata(t *testing.T) {
 	t.Run("returns correct metadata for known permission", func(t *testing.T) {
-		meta, ok := GetPermissionMetadata(PermAdminAccess)
+		meta, ok := GetPermissionMetadata(PermAdminUsersView)
 		if !ok {
-			t.Fatal("Expected to find metadata for admin.access")
+			t.Fatal("Expected to find metadata for admin.view-users")
 		}
-		if meta.Permission != PermAdminAccess {
-			t.Errorf("Permission = %v, want %v", meta.Permission, PermAdminAccess)
+		if meta.Permission != PermAdminUsersView {
+			t.Errorf("Permission = %v, want %v", meta.Permission, PermAdminUsersView)
 		}
 		if meta.Category != CategoryAdmin {
 			t.Errorf("Category = %v, want %v", meta.Category, CategoryAdmin)
@@ -55,7 +55,7 @@ func TestValidatePermission(t *testing.T) {
 	t.Run("accepts valid permissions", func(t *testing.T) {
 		validPerms := []Permission{
 			PermMessagePost,
-			PermAdminAccess,
+			PermAdminUsersView,
 			PermUserDeleteSelf,
 		}
 
@@ -108,8 +108,8 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		expected   bool
 	}{
 		// Server-only permissions
-		{"admin.access at server", PermAdminAccess, ScopeServer, true},
-		{"admin.access at room", PermAdminAccess, ScopeRoom, false},
+		{"admin.view-users at server", PermAdminUsersView, ScopeServer, true},
+		{"admin.view-users at room", PermAdminUsersView, ScopeRoom, false},
 		{"server.manage at server", PermServerManage, ScopeServer, true},
 		{"server.manage at room", PermServerManage, ScopeRoom, false},
 		{"role.manage at server", PermRoleManage, ScopeServer, true},
@@ -177,8 +177,8 @@ func TestPermissionsForScope(t *testing.T) {
 		if !found(PermRoomMemberBan) {
 			t.Error("Expected room.ban-member in room permissions")
 		}
-		if found(PermAdminAccess) {
-			t.Error("admin.access should NOT be in room permissions")
+		if found(PermAdminUsersView) {
+			t.Error("admin.view-users should NOT be in room permissions")
 		}
 		if found(PermServerManage) {
 			t.Error("server.manage should NOT be in room permissions")
@@ -224,18 +224,11 @@ func TestPermissionsForCategory(t *testing.T) {
 			}
 		}
 
-		foundAdminAccess := false
 		foundAdminUsersView := false
 		for _, p := range perms {
-			if p.Permission == PermAdminAccess {
-				foundAdminAccess = true
-			}
 			if p.Permission == PermAdminUsersView {
 				foundAdminUsersView = true
 			}
-		}
-		if !foundAdminAccess {
-			t.Error("Expected admin.access in admin category")
 		}
 		if !foundAdminUsersView {
 			t.Error("Expected admin.view-users in admin category")
@@ -270,7 +263,7 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 	}
 
 	// Admin-level and opt-in permissions must not leak in.
-	for _, mustNotInclude := range []Permission{PermServerManage, PermRoleManage, PermRoomCreate, PermAdminAccess} {
+	for _, mustNotInclude := range []Permission{PermServerManage, PermRoleManage, PermRoomCreate, PermAdminUsersView} {
 		if slices.Contains(perms, mustNotInclude) {
 			t.Errorf("everyone defaults must not include %v", mustNotInclude)
 		}
@@ -282,7 +275,6 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 
 	mustInclude := []Permission{
 		PermMessageManage,
-		PermAdminAccess,
 		PermAdminUsersView,
 	}
 	for _, want := range mustInclude {

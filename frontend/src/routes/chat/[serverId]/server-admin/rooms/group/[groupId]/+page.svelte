@@ -17,7 +17,7 @@
   );
 
   // Lightweight lookup for the group's display name (the matrix itself
-  // fetches its own data via tierRoles).
+  // fetches its own data via admin.rbac.rolePermissionTierMatrix).
   const GroupNameQuery = graphql(`
     query AdminGroupPermissionsName {
       server {

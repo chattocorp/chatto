@@ -97,15 +97,11 @@ export const PermRoleManage: Permission = "role.manage";
  */
 export const PermRoleAssign: Permission = "role.assign";
 /**
- * PermAdminAccess allows access to the admin panel.
- */
-export const PermAdminAccess: Permission = "admin.access";
-/**
  * PermAdminUsersView allows viewing the users page in admin.
  */
 export const PermAdminUsersView: Permission = "admin.view-users";
 /**
- * PermAdminSystemView allows viewing system and data pages in admin.
+ * PermAdminSystemView allows viewing projection diagnostics in admin.
  */
 export const PermAdminSystemView: Permission = "admin.view-system";
 /**

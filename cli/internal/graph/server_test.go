@@ -167,7 +167,7 @@ func TestServerResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, privateRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, privateRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 
@@ -205,11 +205,11 @@ func TestServerResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 	t.Run("explicit role grant restores visibility", func(t *testing.T) {
 		// Create an "engineering" role, grant it room.list on the private
 		// room. A user with this role should see it in the directory.
-		_, err := env.core.CreateServerRole(env.ctx, "engineering", "Engineering", "Eng team")
+		_, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, "engineering", "Engineering", "Eng team")
 		if err != nil {
 			t.Fatalf("CreateServerRole: %v", err)
 		}
-		if err := env.core.GrantRoomPermission(env.ctx, privateRoom.Id, "engineering", core.PermRoomList); err != nil {
+		if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, privateRoom.Id, "engineering", core.PermRoomList); err != nil {
 			t.Fatalf("GrantRoomPermission: %v", err)
 		}
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, regular.Id, "engineering"); err != nil {

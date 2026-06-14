@@ -226,7 +226,7 @@ func TestRequireServerPermission(t *testing.T) {
 		}
 
 		// Deny message.post for everyone role
-		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
@@ -243,10 +243,10 @@ func TestRequireServerPermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Members don't have admin by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
+		// Members don't have admin view permissions by default
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminUsersView)
 		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("Expected ErrPermissionDenied for admin, got %v", err)
+			t.Errorf("Expected ErrPermissionDenied for admin view permission, got %v", err)
 		}
 
 		// Assign admin role
@@ -255,7 +255,7 @@ func TestRequireServerPermission(t *testing.T) {
 		}
 
 		// Should now have access
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminUsersView)
 		if err != nil {
 			t.Errorf("Expected admin to work after role assignment, got error: %v", err)
 		}
@@ -461,7 +461,7 @@ func TestRequireUserAdminTarget(t *testing.T) {
 	env := setupTestResolver(t)
 
 	regular := env.createVerifiedUser(t, "regular", "Regular", "password123")
-	moderator := env.createVerifiedUser(t, "moderator", "Moderator", "password123")
+	moderator := env.createVerifiedUser(t, "moderator-user", "Moderator", "password123")
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole moderator: %v", err)
 	}

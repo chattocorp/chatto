@@ -1,11 +1,11 @@
-"Admin-only query namespace for operator tooling. Returns null if the user is not a server admin."
+"Admin-console query namespace. Returns null unless the viewer is authenticated."
 type AdminQueries {
-  "Get point-in-time operator diagnostics for connection, storage, and deployment counts."
-  systemInfo: SystemInfo!
+  "Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role."
+  systemInfo: SystemInfo! @goField(forceResolver: true)
 }
 
 extend type Query {
-  "Admin-only queries. Returns null if user lacks admin permission."
+  "Admin-console queries. Returns null unless the viewer is authenticated. Child fields enforce their own capabilities."
   admin: AdminQueries
 }
 
@@ -176,7 +176,7 @@ input UpdateServerConfigInput {
 }
 
 extend type AdminQueries {
-  "Get server configuration."
+  "Get server configuration. Requires `server.manage`."
   serverConfig: AdminServerConfig! @goField(forceResolver: true)
 }
 
@@ -255,6 +255,12 @@ type ProjectionState {
   streamLastSequence: String!
   "Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence."
   lag: Int64!
+  "Whether this projection has stopped after a fatal decode or apply error."
+  failed: Boolean!
+  "Failed event-log sequence, serialized as String. Zero when the projection has not failed."
+  failedSequence: String!
+  "Operator-facing failure summary. Empty when the projection has not failed."
+  failure: String!
   "Primary projected entry count for this projection."
   entryCount: Int64!
   "Estimated bytes held in memory by this projection."
@@ -341,7 +347,7 @@ extend type Viewer {
 
 "Admin mutations for security and user management."
 type AdminMutations {
-  "Update the newline-separated blocked-username list and return the effective saved value. Requires `admin.access`."
+  "Update the newline-separated blocked-username list and return the effective saved value. Requires `server.manage`."
   updateBlockedUsernames(input: UpdateBlockedUsernamesInput!): String! @goField(forceResolver: true)
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
@@ -397,6 +403,6 @@ extend type Mutation {
   "Update runtime-editable server configuration. Requires `server.manage`."
   updateServerConfig(input: UpdateServerConfigInput!): ServerProfile! @goField(forceResolver: true)
 
-  "Admin mutations. Returns null if user lacks admin permission."
+  "Admin mutations. Returns null unless the viewer is authenticated. Child fields enforce their own capabilities."
   admin: AdminMutations @goField(forceResolver: true)
 }

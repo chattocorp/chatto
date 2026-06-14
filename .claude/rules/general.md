@@ -11,9 +11,11 @@
 - Single executable with everything out of the box (exceptions for pluggable advanced features like full-text search)
 - Reliable message sending and delivery is OF THE HIGHEST PRIORITY - must be ROCK-SOLID
 
-## Early Stage
+## Project Maturity
 
-No data migration needed; breaking changes to APIs and storage schemas are acceptable.
+Chatto has public servers running with real user data. Breaking changes to
+storage schemas or APIs need an explicit compatibility, migration, or rollout
+plan; do not assume data can be discarded.
 
 ## Public API Surface
 
@@ -22,6 +24,7 @@ No data migration needed; breaking changes to APIs and storage schemas are accep
 ## Code Style & Approach
 
 - **Prefer the simplest possible approach first.** Do not over-engineer solutions. If a fix can be done in 2-3 lines, do not create abstractions, wrappers, or complex architectures. Wait for user feedback before adding complexity.
+- **Never log PII.** Runtime logs, request logs, debug logs, and test-only helper logs must not include raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subject identifiers, tokens, passwords, auth codes, reset links, raw IP addresses, or full query strings. Prefer opaque Chatto IDs, counts, booleans, event names, and already-safe hashes from audit-specific code.
 - **When fixing bugs involving caches or state, prefer minimal, targeted invalidation** over clearing entire caches. Avoid full-page reload flashes or broad cache wipes. Only invalidate the specific stale data.
 - **Functions that depend on "which server" should require an explicit server ID parameter.** Don't default to a global "current server" — it creates coupling and timing bugs. Navigation helpers, storage functions, and state lookups all take `serverId` as the first parameter.
 
@@ -30,7 +33,7 @@ No data migration needed; breaking changes to APIs and storage schemas are accep
 - **Run *relevant* tests before claiming a change works.** "Tests pass" only counts as verification if the tests you ran would actually fail when the change you made is wrong. A green pure-state unit test does not verify a component refactor; a green type-check does not verify runtime behavior; a green build does not verify a feature.
 - **Pick the test layer that exercises what you changed.** If you touched a component's `$effect`, mount the component. If you touched cross-server subscription wiring, drive a real subscription. If a layer that would catch your class of bug doesn't exist yet, write it — that's the test you owe the change. See `testing-frontend.md` "Match the test to the change."
 - **`effect_update_depth_exceeded`, missing-context errors, hydration mismatches, and other Svelte-runtime failures only fire when a component is mounted.** Pure unit tests cannot reach them. After any refactor that changes how a component reads or writes store/context state, render the component in a test or in the browser before declaring done.
-- **E2E tests run locally without any external stack.** Each Playwright test spawns its own `chatto` binary with embedded NATS on a random port (see `e2e/fixtures/server.ts`); they do NOT need `mise dev`, Docker, OrbStack, or a separate test database. Use `mise test-e2e` for the full suite, or `mise x -- pnpm exec playwright test <path>` for a subset. The Playwright `globalSetup` invokes `mise build-e2e-server` on every run, and mise's source/output tracking makes that a no-op when nothing has changed — so backend edits + e2e re-runs Just Work without a manual rebuild step.
+- **E2E tests run locally without any external stack.** Each Playwright test spawns its own `chatto` binary with embedded NATS on a random port (see `e2e/fixtures/server.ts`); they do NOT need the Tilt dev stack, Docker, OrbStack, or a separate test database. Use `mise test-e2e` for the full suite, or `mise x -- pnpm exec playwright test <path>` for a subset. The Playwright `globalSetup` invokes `mise build-e2e-server` on every run, and mise's source/output tracking makes that a no-op when nothing has changed — so backend edits + e2e re-runs Just Work without a manual rebuild step.
 - **When you can't run a particular test layer locally**, say so explicitly and ask the user to verify, rather than implying full coverage. Never write "verified" or "all tests pass" in a way that overstates what was actually exercised.
 - **One green signal is not green.** `mise test-frontend` skipping e2e, type-check passing while runtime explodes, lint passing while semantics break — each is a partial signal. Acknowledge what's still uncovered.
 

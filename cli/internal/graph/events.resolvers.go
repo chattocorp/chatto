@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
@@ -19,11 +20,7 @@ import (
 
 // RoomID is the resolver for the roomId field.
 func (r *assetDeletedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetDeletedEvent) (*string, error) {
-	declared, ok := r.core.RoomTimeline.AssetCreation(obj.GetAssetId())
-	if !ok || declared == nil {
-		return nil, nil
-	}
-	roomID := assetCreatedRoomID(declared)
+	roomID, _ := r.core.Assets.AssetRoomID(obj.GetAssetId())
 	if roomID == "" {
 		return nil, nil
 	}
@@ -120,7 +117,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		return nil, nil
 	}
 
-	if manifest, ok := r.core.RoomTimeline.VideoAttachmentManifest(obj.Id); ok && manifest != nil {
+	if manifest, ok := r.core.Assets.VideoAttachmentManifest(obj.Id); ok && manifest != nil {
 		if succeeded := manifest.Succeeded; succeeded != nil {
 			video := succeeded.GetVideo()
 			if video == nil {
@@ -152,7 +149,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 				variantID := v.GetAssetId()
 				var width, height int32
 				var size int64
-				if variantAsset, ok := r.core.RoomTimeline.AssetCreation(variantID); ok {
+				if variantAsset, ok := r.core.Assets.AssetCreation(variantID); ok {
 					asset := variantAsset.GetAsset()
 					width, height = assetDimensions(asset)
 					size = asset.GetSize()
@@ -220,6 +217,23 @@ func (r *eventResolver) ActorID(ctx context.Context, obj core.EventEnvelope) (*s
 // Actor is the resolver for the actor field.
 func (r *eventResolver) Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error) {
 	return r.resolveEventActor(ctx, obj)
+}
+
+// DeliveryCursor is the resolver for the deliveryCursor field.
+func (r *eventResolver) DeliveryCursor(ctx context.Context, obj core.EventEnvelope) (*string, error) {
+	if obj == nil {
+		return nil, nil
+	}
+	seq := obj.DeliverySeq()
+	if seq == 0 {
+		return nil, nil
+	}
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cursor := r.core.FormatEventDeliveryCursor(user.Id, seq, time.Now())
+	return nilIfEmpty(cursor), nil
 }
 
 // Event is the resolver for the event field.
@@ -428,6 +442,18 @@ func (r *messagePostedEventResolver) EchoFromThreadRootEventID(ctx context.Conte
 		return nil, nil
 	}
 	return &payload.EchoFromThreadRootEventId, nil
+}
+
+// ChannelEchoEventID is the resolver for the channelEchoEventId field.
+func (r *messagePostedEventResolver) ChannelEchoEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error) {
+	payload := messagePostedPayload(obj)
+	if payload == nil || payload.InThread == "" || payload.EchoOfEventId != "" {
+		return nil, nil
+	}
+	if echoID, ok := r.core.RoomTimeline.ChannelEchoEventID(messagePostedEventID(obj)); ok {
+		return &echoID, nil
+	}
+	return nil, nil
 }
 
 // ReplyCount is the resolver for the replyCount field.
@@ -817,21 +843,6 @@ func (r *videoProcessingResolver) ThumbnailAssetURL(ctx context.Context, obj *mo
 	return stableAssetURLModel(r.core.GetStableAttachmentAssetURL(obj.ThumbnailAttachmentID, callerID(ctx))), nil
 }
 
-// RoomID is the resolver for the roomId field.
-func (r *videoProcessingCompletedEventResolver) RoomID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error) {
-	return nilIfEmpty(obj.GetRoomId()), nil
-}
-
-// MessageEventID is the resolver for the messageEventId field.
-func (r *videoProcessingCompletedEventResolver) MessageEventID(ctx context.Context, obj *corev1.VideoProcessingCompletedEvent) (*string, error) {
-	if obj.MessageEventId == "" {
-		r.logger.Warn("VideoProcessingCompletedEvent has empty messageEventId",
-			"room_id", obj.RoomId,
-			"message_body_id", obj.MessageBodyId)
-	}
-	return nilIfEmpty(obj.MessageEventId), nil
-}
-
 // URL is the resolver for the url field.
 func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant) (string, error) {
 	assetURL, err := r.AssetURL(ctx, obj)
@@ -942,11 +953,6 @@ func (r *Resolver) UserProfileUpdatedEvent() UserProfileUpdatedEventResolver {
 // VideoProcessing returns VideoProcessingResolver implementation.
 func (r *Resolver) VideoProcessing() VideoProcessingResolver { return &videoProcessingResolver{r} }
 
-// VideoProcessingCompletedEvent returns VideoProcessingCompletedEventResolver implementation.
-func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEventResolver {
-	return &videoProcessingCompletedEventResolver{r}
-}
-
 // VideoVariant returns VideoVariantResolver implementation.
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
@@ -972,5 +978,4 @@ type serverUpdatedEventResolver struct{ *Resolver }
 type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type userProfileUpdatedEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
-type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }

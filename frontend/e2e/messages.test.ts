@@ -116,7 +116,6 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
   await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
-  let failedFirstAssetRequest = false;
   let refreshQueryCount = 0;
 
   await page.route('**/api/graphql', async (route) => {
@@ -126,18 +125,10 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
     await route.continue();
   });
 
-  await page.route('**/assets/files/**', async (route) => {
-    if (!failedFirstAssetRequest && route.request().resourceType() === 'image') {
-      failedFirstAssetRequest = true;
-      await route.fulfill({
-        status: 403,
-        contentType: 'text/plain',
-        body: 'expired asset access ticket'
-      });
-      return;
-    }
-    await route.continue();
+  const failNextAssetResponse = await page.request.post('/auth/test/fail-next-asset-proxy-request', {
+    data: { count: 1 }
   });
+  expect(failNextAssetResponse.ok()).toBe(true);
 
   await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Expired lazy image');
 

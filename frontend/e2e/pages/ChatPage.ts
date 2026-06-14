@@ -102,7 +102,7 @@ export class ChatPage {
 
   /** Get the unread dot locator for a specific space */
   getSpaceUnreadDot(spaceName: string): Locator {
-    return this.getSpaceIconContainer(spaceName).getByTestId('space-unread-dot');
+    return this.getSpaceIconContainer(spaceName).getByTestId('server-unread-dot');
   }
 
   /** Click the unread dot on a specific space icon */
@@ -153,7 +153,11 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
-    await this.page.request.post('/auth/logout');
+    const logoutResponse = await this.page.request.post('/auth/logout');
+    expect(logoutResponse.ok()).toBeTruthy();
+    // Unload the currently mounted app before re-authenticating as admin; the
+    // previous session can otherwise issue a late redirect during navigation.
+    await this.page.goto('about:blank');
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/server-admin\/rooms/);

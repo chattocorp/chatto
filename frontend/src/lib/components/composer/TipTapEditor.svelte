@@ -157,6 +157,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
     // Notify parent that editor is ready with API
     tick().then(() => {
+      if (e.isDestroyed || editor !== e) return;
       onReady?.(buildApi(e));
     });
 

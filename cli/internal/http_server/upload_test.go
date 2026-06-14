@@ -254,7 +254,7 @@ func TestUpload_ServerLogo_Success(t *testing.T) {
 func TestUpload_ServerLogo_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	_, _ = env.core.CreateUser(env.ctx, "system", "upload-owner-logo-unauth", "Owner", "password123")
 
 	imageData := createTestPNG(t, 256, 256)
 
@@ -273,7 +273,7 @@ func TestUpload_ServerLogo_Unauthenticated(t *testing.T) {
 func TestUpload_ServerLogo_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	_, _ = env.core.CreateUser(env.ctx, "system", "upload-owner-logo-notadmin", "Owner", "password123")
 
 	env.core.CreateUser(env.ctx, "system", "other", "Other", "password123")
 	env.login(t, "other", "password123")
@@ -456,7 +456,7 @@ func TestUpload_ServerBanner_Success(t *testing.T) {
 func TestUpload_ServerBanner_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	_, _ = env.core.CreateUser(env.ctx, "system", "upload-owner-banner-unauth", "Owner", "password123")
 
 	imageData := createTestPNG(t, 1200, 400)
 
@@ -475,7 +475,7 @@ func TestUpload_ServerBanner_Unauthenticated(t *testing.T) {
 func TestUpload_ServerBanner_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	_, _ = env.core.CreateUser(env.ctx, "system", "upload-owner-banner-notadmin", "Owner", "password123")
 
 	env.core.CreateUser(env.ctx, "system", "other", "Other", "password123")
 	env.login(t, "other", "password123")

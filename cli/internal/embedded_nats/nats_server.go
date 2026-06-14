@@ -1,21 +1,20 @@
 package embedded_nats
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
-	"golang.org/x/sync/errgroup"
 	"hmans.de/chatto/internal/config"
 )
 
-// Start creates, starts, and registers the embedded NATS server with the errgroup.
+// StartServer creates and starts the embedded NATS server.
 // It blocks until the server is ready for connections, then returns.
-// Shutdown is handled by the errgroup goroutine when ctx is cancelled.
-func Start(ctx context.Context, g *errgroup.Group, cfg *config.EmbeddedNATSConfig) (*server.Server, error) {
+// The caller owns shutdown ordering and should stop the embedded server after
+// application services have exited and NATS client connections are closed.
+func StartServer(cfg *config.EmbeddedNATSConfig) (*server.Server, error) {
 	logger := log.WithPrefix("server.NATS")
 
 	ns, err := createServer(cfg)
@@ -27,6 +26,8 @@ func Start(ctx context.Context, g *errgroup.Group, cfg *config.EmbeddedNATSConfi
 
 	// Wait for server to be ready for connections
 	if !ns.ReadyForConnections(4 * time.Second) {
+		ns.Shutdown()
+		ns.WaitForShutdown()
 		return nil, fmt.Errorf("server failed to start within timeout")
 	}
 
@@ -38,17 +39,19 @@ func Start(ctx context.Context, g *errgroup.Group, cfg *config.EmbeddedNATSConfi
 			"auth", cfg.AuthToken != "")
 	}
 
-	// Register shutdown handler with errgroup
-	g.Go(func() error {
-		<-ctx.Done()
-		logger.Info("Shutting down embedded NATS server")
-		ns.Shutdown()
-		ns.WaitForShutdown()
-		logger.Info("Embedded NATS server shutdown complete")
-		return nil
-	})
-
 	return ns, nil
+}
+
+// ShutdownServer stops an embedded NATS server and waits until it has exited.
+func ShutdownServer(ns *server.Server) {
+	if ns == nil {
+		return
+	}
+	logger := log.WithPrefix("server.NATS")
+	logger.Info("Shutting down embedded NATS server")
+	ns.Shutdown()
+	ns.WaitForShutdown()
+	logger.Info("Embedded NATS server shutdown complete")
 }
 
 // createServer creates an embedded NATS server configured from chatto.toml.

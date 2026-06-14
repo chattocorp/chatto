@@ -349,72 +349,26 @@ export async function createAndLoginTestUser(
     password: 'testpassword123'
   };
 
-  // Create user via the test-only endpoint. Bypasses the full registration
-  // flow (email delivery, token verification, session creation) — these are
-  // covered by dedicated registration-flow tests, not every test that needs
-  // *some* user. The endpoint is gated behind the `test_endpoints` build
-  // tag and is never compiled into production binaries.
-  const createUserResponse = await page.request.post('/auth/test/create-user', {
+  // Create, verify, log in, and optionally join the default rooms via one
+  // test-only endpoint. The production registration/login flow is covered by
+  // dedicated tests; most E2E tests just need a ready authenticated user.
+  const createUserResponse = await page.request.post('/auth/test/create-user-session', {
     headers: { 'Content-Type': 'application/json' },
     data: {
       login: testUser.login,
       displayName: testUser.displayName,
-      password: testUser.password
+      password: testUser.password,
+      email: `${testUser.login}@example.com`,
+      joinDefaultRooms: !options?.skipDefaultRooms
     }
   });
   expect(createUserResponse.ok()).toBeTruthy();
-  const createUserData = (await createUserResponse.json()) as { id: string };
-  testUser.id = createUserData.id;
-
-  // Verify user's email so admin checks, password reset, etc. behave as if
-  // the user completed real registration.
-  const verifyResponse = await page.request.post('/auth/test/verify-email', {
-    headers: { 'Content-Type': 'application/json' },
-    data: { userId: testUser.id, email: `${testUser.login}@example.com` }
-  });
-  expect(verifyResponse.ok()).toBeTruthy();
-
-  // Login via HTTP endpoint to get the session cookie on the page.
-  const loginResponse = await page.request.post('/auth/login', {
-    data: { login: testUser.login, password: testUser.password }
-  });
-  expect(loginResponse.ok()).toBeTruthy();
-  const loginData = await loginResponse.json();
-  expect(loginData.success).toBe(true);
-
-  // Auto-join the bootstrap default rooms (announcements + general). Server
-  // membership is implicit but room membership is now strictly explicit
-  // after the auto-join feature was retired, so a freshly-minted user lands
-  // in an empty sidebar. Most tests assume `# general` is reachable from
-  // the sidebar; do that join here so every test doesn't have to repeat
-  // the dance. Idempotent — joining an already-joined room is a no-op.
-  if (!options?.skipDefaultRooms) {
-    await autoJoinDefaultRooms(page);
-  }
+  const createUserData = (await createUserResponse.json()) as {
+    user: { id: string };
+  };
+  testUser.id = createUserData.user.id;
 
   return testUser;
-}
-
-async function autoJoinDefaultRooms(page: Page): Promise<void> {
-  const roomsResp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: { query: `query { server { rooms(type: CHANNEL) { id name } } }` }
-  });
-  if (!roomsResp.ok()) return;
-  const roomsData = (await roomsResp.json()) as {
-    data?: { server?: { rooms?: Array<{ id: string; name: string }> } };
-  };
-  const defaults = new Set(['general', 'announcements']);
-  const targets = (roomsData.data?.server?.rooms ?? []).filter((r) => defaults.has(r.name));
-  for (const room of targets) {
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-        variables: { input: { roomId: room.id } }
-      }
-    });
-  }
 }
 
 /**

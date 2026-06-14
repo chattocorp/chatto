@@ -16,11 +16,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             room {
@@ -31,11 +27,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             mentionRoom: room {
@@ -49,11 +41,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             replyRoom: room {
@@ -68,11 +56,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             roomMsgRoom: room {

@@ -93,7 +93,7 @@
   let canPost = $derived(canPostInThread);
 
   // Reload thread events when the thread prop changes. Silent reconnect +
-  // tab-resume catch-ups are owned by the store itself.
+  // tab-resume catch-ups are owned by the server event bus.
   $effect(() => {
     store.setThread(roomId, threadRootEventId);
   });
@@ -293,12 +293,14 @@
 
   <EventList
     {roomId}
+    messageStore={store}
     events={threadEvents}
     alwaysScrollToBottom={false}
     showNewMessagesIndicator={true}
     enablePagination={true}
     isLoadingMore={store.isLoadingMore}
     hasReachedStart={store.hasReachedStart}
+    showStartMarker={false}
     onLoadMore={() => store.loadMore()}
     filterThreadReplies={false}
     {updateCounter}

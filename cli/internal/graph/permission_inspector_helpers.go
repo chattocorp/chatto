@@ -13,24 +13,21 @@ import (
 	"hmans.de/chatto/internal/graph/model"
 )
 
-// authorizePermissionExplanation enforces admin-only access for the
-// inspector. Instance scope requires server admin; room scope requires
-// role.manage or server admin. There is no self-inspection path — the
-// inspector is an admin tool.
+// authorizePermissionExplanation enforces role.manage access for the
+// inspector. There is no self-inspection path — the inspector is an admin
+// tool for explaining someone else's permissions.
 //
 // At room scope, roomID must exist in the corresponding CONFIG bucket.
 func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, targetID string, kind core.RoomKind, roomID string) error {
-	if kind == "" {
-		return r.requireServerAdminOrErr(ctx, viewerID)
+	if viewerID == targetID {
+		return core.ErrPermissionDenied
 	}
-	if err := r.requireServerAdminOrErr(ctx, viewerID); err != nil {
-		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
-		if hpErr != nil {
-			return fmt.Errorf("failed to check role.manage: %w", hpErr)
-		}
-		if !hasRolesManage {
-			return core.ErrPermissionDenied
-		}
+	hasRolesManage, err := r.core.CanManageRoles(ctx, viewerID)
+	if err != nil {
+		return fmt.Errorf("failed to check role.manage: %w", err)
+	}
+	if !hasRolesManage {
+		return core.ErrPermissionDenied
 	}
 	return r.requireRoomExists(ctx, kind, roomID)
 }

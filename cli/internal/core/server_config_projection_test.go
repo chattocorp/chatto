@@ -115,7 +115,12 @@ func TestServerConfigProjection_UnknownEventTypesIgnored(t *testing.T) {
 func TestServerConfigProjection_BrandingDoesNotCreateServerConfig(t *testing.T) {
 	p := NewServerConfigProjection()
 
-	logo := &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}}}
+	logo := &corev1.AssetRecord{
+		Id:          "logo-asset",
+		Filename:    "logo.webp",
+		ContentType: "image/webp",
+		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+	}
 	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_ServerLogoSet{
 		ServerLogoSet: &corev1.ServerLogoSetEvent{Asset: logo},
 	}}, 1))

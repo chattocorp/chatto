@@ -1,6 +1,5 @@
 import { tick } from 'svelte';
-import { on } from 'svelte/events';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { useFragment } from '$lib/gql';
 import {
@@ -30,13 +29,9 @@ import {
 
 type MessageScope = 'room' | 'thread';
 
-/**
- * Minimum hidden duration before a visibility->visible transition counts as
- * a "tab resume" worth catching up for. Mirrors the eventBus visibility-
- * resubscribe threshold and the GraphQL client's suspend-detector window
- * so all three layers react on the same horizon.
- */
-const TAB_RESUME_GAP_MS = 30_000;
+function eventCacheKey(roomId: string, eventId: string): string {
+  return `${roomId}\u0000${eventId}`;
+}
 
 /**
  * Message store for both the main room timeline and a single thread pane.
@@ -54,6 +49,8 @@ export class MessagesStore {
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
+  private previewEvents = new SvelteMap<string, RoomEventViewFragment | null>();
+  private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
   private roomId = '';
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
@@ -62,52 +59,17 @@ export class MessagesStore {
    *  it via {@link isStale} to discard results from superseded loads. */
   #loadId = 0;
 
-  #disposeLifecycle: (() => void) | null = null;
-
   constructor(
-    private readonly gqlClient: GraphQLClient,
+    gqlClient: GraphQLClient,
     private readonly getCurrentUserId: () => string | null
   ) {
     this.client = gqlClient.client;
-    this.#disposeLifecycle = $effect.root(() => {
-      // Reactive: re-run when reconnectCount changes, fire catchUp on
-      // genuine increments.
-      let lastSeen = this.gqlClient.reconnectCount;
-      $effect(() => {
-        const n = this.gqlClient.reconnectCount;
-        if (n <= lastSeen) return;
-        const prev = lastSeen;
-        lastSeen = n;
-        console.debug('[MessagesStore] reconnectCount %d -> %d, catching up', prev, n);
-        this.catchUp();
-      });
-
-      // Non-reactive: register a document visibilitychange listener and
-      // let $effect.root tear it down via the returned cleanup.
-      if (typeof document === 'undefined') return;
-      let lastVisibleAt = Date.now();
-      return on(document, 'visibilitychange', () => {
-        if (document.visibilityState !== 'visible') {
-          lastVisibleAt = Date.now();
-          return;
-        }
-        const gap = Date.now() - lastVisibleAt;
-        lastVisibleAt = Date.now();
-        if (gap > TAB_RESUME_GAP_MS) {
-          console.debug(
-            '[MessagesStore] visible after %ds hidden -> catching up',
-            Math.round(gap / 1000)
-          );
-          this.catchUp();
-        }
-      });
-    });
   }
 
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    this.#disposeLifecycle?.();
-    this.#disposeLifecycle = null;
+    // The message store has no owned subscriptions. Server-event replay is
+    // managed by the singleton event bus.
   }
 
   /** Root-level events only (excludes thread replies). */
@@ -120,6 +82,49 @@ export class MessagesStore {
     return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
   }
 
+  /** Look up an event already known to this room, including off-window preview targets. */
+  getEventById(eventId: string): RoomEventViewFragment | null | undefined {
+    return (
+      this.events.find((e) => e.id === eventId) ?? this.previewEvents.get(this.previewKey(eventId))
+    );
+  }
+
+  /** Fetch an off-window event for previews. Transient errors are not cached. */
+  ensureEvent(eventId: string): Promise<void> | undefined {
+    if (!this.roomId) return undefined;
+    if (this.events.some((e) => e.id === eventId)) return undefined;
+
+    const key = this.previewKey(eventId);
+    if (this.previewEvents.has(key)) return undefined;
+
+    const existing = this.pendingPreviewFetches.get(key);
+    if (existing) return existing;
+
+    const roomId = this.roomId;
+    const promise = this.client
+      .query(RefetchOneQuery, { roomId, eventId })
+      .toPromise()
+      .then((result) => {
+        if (result.error) {
+          console.error('MessagesStore: ensureEvent error:', result.error);
+          return;
+        }
+
+        const fetched = result.data?.room?.event;
+        const event = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
+        this.previewEvents.set(key, event ?? null);
+      })
+      .catch((error: unknown) => {
+        console.error('MessagesStore: ensureEvent failed:', error);
+      })
+      .finally(() => {
+        this.pendingPreviewFetches.delete(key);
+      });
+
+    this.pendingPreviewFetches.set(key, promise);
+    return promise;
+  }
+
   /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
   private startLoad(): number {
     return ++this.#loadId;
@@ -128,6 +133,10 @@ export class MessagesStore {
   /** True if a newer load has started; caller should discard its result. */
   private isStale(thisLoad: number): boolean {
     return this.#loadId !== thisLoad;
+  }
+
+  private previewKey(eventId: string): string {
+    return eventCacheKey(this.roomId, eventId);
   }
 
   setRoom(roomId: string): void {
@@ -199,7 +208,6 @@ export class MessagesStore {
     }
 
     if (
-      eventData.__typename === 'VideoProcessingCompletedEvent' ||
       eventData.__typename === 'AssetProcessingStartedEvent' ||
       eventData.__typename === 'AssetProcessingSucceededEvent' ||
       eventData.__typename === 'AssetProcessingFailedEvent'
@@ -255,18 +263,6 @@ export class MessagesStore {
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
       this.isLoadingMore = false;
-    }
-  }
-
-  private catchUp(): void {
-    if (!this.scope || !this.roomId) return;
-    if (this.scope === 'thread' && !this.threadRootEventId) return;
-
-    const thisLoad = this.startLoad();
-    if (this.events.length === 0) {
-      this.fetchInitial(thisLoad);
-    } else {
-      this.catchUpForward(thisLoad);
     }
   }
 
@@ -400,6 +396,14 @@ export class MessagesStore {
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void {
     if (this.scope === 'thread') {
+      if (
+        eventData.echoOfEventId &&
+        eventData.echoFromThreadRootEventId === this.threadRootEventId
+      ) {
+        this.applyChannelEchoLink(eventData.echoOfEventId, spaceEvent.id);
+        return;
+      }
+
       if (eventData.threadRootEventId === this.threadRootEventId) {
         this.addEvent(spaceEvent);
         this.sortThreadEvents();
@@ -461,6 +465,8 @@ export class MessagesStore {
    * its existing engagement visible alongside the placeholder.
    */
   private applyDeletion(messageEventId: string): void {
+    this.clearChannelEchoLink(messageEventId);
+
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
@@ -482,6 +488,58 @@ export class MessagesStore {
         ...e,
         event: { ...evt, body: null, attachments: [] }
       };
+    }
+
+    const previewKey = this.previewKey(messageEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, {
+        ...preview,
+        event: { ...preview.event, body: null, attachments: [] }
+      });
+    }
+  }
+
+  private applyChannelEchoLink(originalEventId: string, echoEventId: string): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (e.id !== originalEventId || evt?.__typename !== 'MessagePostedEvent') continue;
+      this.events[i] = {
+        ...e,
+        event: { ...evt, channelEchoEventId: echoEventId }
+      };
+    }
+
+    const previewKey = this.previewKey(originalEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, {
+        ...preview,
+        event: { ...preview.event, channelEchoEventId: echoEventId }
+      });
+    }
+  }
+
+  private clearChannelEchoLink(echoEventId: string): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (evt.channelEchoEventId !== echoEventId) continue;
+      this.events[i] = {
+        ...e,
+        event: { ...evt, channelEchoEventId: null }
+      };
+    }
+
+    for (const [key, preview] of this.previewEvents) {
+      if (preview?.event?.__typename !== 'MessagePostedEvent') continue;
+      if (preview.event.channelEchoEventId !== echoEventId) continue;
+      this.previewEvents.set(key, {
+        ...preview,
+        event: { ...preview.event, channelEchoEventId: null }
+      });
     }
   }
 
@@ -510,6 +568,21 @@ export class MessagesStore {
           updatedAt: edit.updatedAt
         }
       };
+    }
+
+    const previewKey = this.previewKey(messageEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, {
+        ...preview,
+        event: {
+          ...preview.event,
+          body: edit.body,
+          attachments: edit.attachments,
+          linkPreview: edit.linkPreview,
+          updatedAt: edit.updatedAt
+        }
+      });
     }
   }
 
@@ -561,6 +634,8 @@ export class MessagesStore {
   private resetState(): void {
     this.events = [];
     this.seenIds = new SvelteSet();
+    this.previewEvents.clear();
+    this.pendingPreviewFetches.clear();
     this.oldestCursor = undefined;
     this.newestCursor = undefined;
     this.hasReachedStart = false;
@@ -583,14 +658,6 @@ export class MessagesStore {
     this.resetState();
     this.isInitialLoading = true;
     this.fetchLatest(thisLoad);
-  }
-
-  private fetchInitial(thisLoad: number): void {
-    if (this.scope === 'thread') {
-      this.fetchThread(thisLoad);
-    } else {
-      this.fetchLatest(thisLoad);
-    }
   }
 
   private fetchLatest(thisLoad: number): void {
@@ -647,98 +714,6 @@ export class MessagesStore {
         if (this.isStale(thisLoad)) return;
         console.error('MessagesStore: fetchThread failed:', error);
         this.isInitialLoading = false;
-      });
-  }
-
-  private catchUpForward(thisLoad: number): void {
-    if (!this.newestCursor) {
-      this.fetchInitial(thisLoad);
-      return;
-    }
-
-    if (this.scope === 'thread') {
-      this.catchUpThreadForward(thisLoad, this.newestCursor);
-    } else {
-      this.catchUpRoomForward(thisLoad, this.newestCursor);
-    }
-  }
-
-  private catchUpRoomForward(thisLoad: number, after: string): void {
-    this.client
-      .query(RoomAfterQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE,
-        after
-      })
-      .toPromise()
-      .then((result) => {
-        if (this.isStale(thisLoad)) return;
-        if (result.error) {
-          console.error('MessagesStore: room catchUp error:', result.error);
-          return;
-        }
-        const page = result.data?.room?.events;
-        if (!page) return;
-
-        const fetched = unmask(page.events);
-        const strategy = page.hasNewer ? 'replace' : 'append';
-        console.debug(
-          '[MessagesStore] catchUpForward: roomId=%s after=%s fetched=%d hasNewer=%s strategy=%s',
-          this.roomId,
-          after,
-          fetched.length,
-          page.hasNewer,
-          strategy
-        );
-        if (page.hasNewer) {
-          this.replaceWithFetchedAndUpdateCursors(page);
-        } else {
-          if (page.endCursor) {
-            this.newestCursor = page.endCursor;
-          }
-          this.appendMany(fetched);
-        }
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: room catchUp failed:', error);
-      });
-  }
-
-  private catchUpThreadForward(thisLoad: number, after: string): void {
-    this.client
-      .query(ThreadEventsQuery, {
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE,
-        after
-      })
-      .toPromise()
-      .then((result) => {
-        if (this.isStale(thisLoad)) return;
-        if (result.error) {
-          console.error('MessagesStore: thread catchUp error:', result.error);
-          return;
-        }
-
-        const page = threadRepliesConnection(result.data?.room?.event);
-        if (!page) return;
-
-        const newerReplies = unmask(page.events);
-        if (page.endCursor) {
-          this.newestCursor = page.endCursor;
-        }
-
-        this.appendMany(newerReplies);
-        this.sortThreadEvents();
-
-        if (page.hasNewer) {
-          this.fetchThread(thisLoad);
-        }
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: thread catchUp failed:', error);
       });
   }
 

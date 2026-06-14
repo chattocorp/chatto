@@ -26,6 +26,7 @@ const (
 	AggregateGroup  = "group"
 	AggregateLayout = "layout"
 	AggregateUser   = "user"
+	AggregateAsset  = "asset"
 	AggregateRBAC   = "rbac"
 	AggregateAuth   = "auth"
 )
@@ -89,6 +90,12 @@ const (
 	EventReactionAdded   = "reaction_added"
 	EventReactionRemoved = "reaction_removed"
 
+	// Voice call participant state (also under the room aggregate).
+	EventCallStarted           = "call_started"
+	EventCallParticipantJoined = "call_joined"
+	EventCallParticipantLeft   = "call_left"
+	EventCallEnded             = "call_ended"
+
 	// Group aggregate
 	EventRoomGroupCreated      = "group_created"
 	EventRoomGroupUpdated      = "group_updated"
@@ -101,7 +108,6 @@ const (
 	EventRoomGroupsReordered = "groups_reordered"
 
 	// Config aggregate (singleton)
-	EventServerConfigChanged                = "config_changed"
 	EventServerNameChanged                  = "server_name_changed"
 	EventServerDescriptionChanged           = "server_description_changed"
 	EventServerWelcomeMessageChanged        = "server_welcome_message_changed"
@@ -142,6 +148,7 @@ const (
 	EventRBACRoleCreated            = "role_created"
 	EventRBACRoleDisplayNameChanged = "role_display_name_changed"
 	EventRBACRoleDescriptionChanged = "role_description_changed"
+	EventRBACRolePingableChanged    = "role_pingable_changed"
 	EventRBACRoleDeleted            = "role_deleted"
 	EventRBACRolesReordered         = "roles_reordered"
 	EventRBACRoleAssigned           = "role_assigned"
@@ -164,6 +171,8 @@ const (
 	EventAuthCodeExchangeFailed             = "auth_code_exchange_failed"
 	EventBearerTokenIssued                  = "bearer_token_issued"
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
+	EventOAuthConsentGranted                = "oauth_consent_granted"
+	EventOAuthConsentDenied                 = "oauth_consent_denied"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -195,6 +204,14 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomMemberBanned
 	case *corev1.Event_RoomMemberUnbanned:
 		return EventRoomMemberUnbanned
+	case *corev1.Event_VoiceCallParticipantJoined:
+		return EventCallParticipantJoined
+	case *corev1.Event_VoiceCallParticipantLeft:
+		return EventCallParticipantLeft
+	case *corev1.Event_VoiceCallStarted:
+		return EventCallStarted
+	case *corev1.Event_VoiceCallEnded:
+		return EventCallEnded
 
 	case *corev1.Event_MessagePosted:
 		return EventMessagePosted
@@ -238,8 +255,6 @@ func EventTypeOf(e *corev1.Event) string {
 	case *corev1.Event_RoomGroupsReordered:
 		return EventRoomGroupsReordered
 
-	case *corev1.Event_ServerConfigChanged:
-		return EventServerConfigChanged
 	case *corev1.Event_ServerNameChanged:
 		return EventServerNameChanged
 	case *corev1.Event_ServerDescriptionChanged:
@@ -314,6 +329,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACRoleDisplayNameChanged
 	case *corev1.Event_RbacRoleDescriptionChanged:
 		return EventRBACRoleDescriptionChanged
+	case *corev1.Event_RbacRolePingableChanged:
+		return EventRBACRolePingableChanged
 	case *corev1.Event_RbacRoleDeleted:
 		return EventRBACRoleDeleted
 	case *corev1.Event_RbacRolesReordered:
@@ -355,6 +372,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBearerTokenIssued
 	case *corev1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
+	case *corev1.Event_OauthConsentGranted:
+		return EventOAuthConsentGranted
+	case *corev1.Event_OauthConsentDenied:
+		return EventOAuthConsentDenied
 	}
 	return ""
 }
@@ -438,6 +459,13 @@ func UserAggregate(userID string) Aggregate {
 	return Aggregate{Type: AggregateUser, ID: userID}
 }
 
+// AssetAggregate is the typed constructor for an asset aggregate. It owns
+// binary lifecycle and processing facts; room visibility is carried by the
+// asset payload/projections, not by the subject namespace.
+func AssetAggregate(assetID string) Aggregate {
+	return Aggregate{Type: AggregateAsset, ID: assetID}
+}
+
 // RBACAggregate is the typed constructor for server-level RBAC events:
 // role definitions/order and server-scoped permission decisions.
 func RBACAggregate() Aggregate {
@@ -464,6 +492,13 @@ func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
 
+// EventSubjectFilter returns the wildcard filter matching every event in the
+// EVT stream. Use sparingly: most invariants should OCC against a narrower
+// aggregate namespace, but cross-aggregate invariants may need the stream-wide
+// boundary.
+// Pattern: evt.>
+func EventSubjectFilter() string { return SubjectRoot + ">" }
+
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.
 // Pattern: evt.room.>
@@ -488,6 +523,11 @@ func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" 
 // aggregate event.
 // Pattern: evt.user.>
 func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
+
+// AssetSubjectFilter returns the wildcard filter matching every asset
+// aggregate event.
+// Pattern: evt.asset.>
+func AssetSubjectFilter() string { return SubjectRoot + AggregateAsset + ".>" }
 
 // RBACSubjectFilter returns the wildcard filter matching every RBAC aggregate
 // event.
@@ -533,6 +573,12 @@ func UserEventTypeFilter(eventType string) string {
 	return AggregateEventTypeFilter(AggregateUser, eventType)
 }
 
+// AssetEventTypeFilter is the asset analogue of RoomEventTypeFilter.
+// Pattern: evt.asset.*.{eventType}
+func AssetEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateAsset, eventType)
+}
+
 // RBACEventTypeFilter is the RBAC analogue of RoomEventTypeFilter.
 // Pattern: evt.rbac.*.{eventType}
 func RBACEventTypeFilter(eventType string) string {
@@ -557,6 +603,12 @@ func ParseGroupSubject(subject string) (groupID string, ok bool) {
 // subject. Accepts durable and republished live forms.
 func ParseUserSubject(subject string) (userID string, ok bool) {
 	return parseAggregateSubject(subject, AggregateUser)
+}
+
+// ParseAssetSubject extracts the assetID from an asset-aggregate event
+// subject. Accepts durable and republished live forms.
+func ParseAssetSubject(subject string) (assetID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateAsset)
 }
 
 // parseAggregateSubject extracts the aggregate ID from a subject of the

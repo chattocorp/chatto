@@ -73,23 +73,16 @@ The export file format is version 2: an age-encrypted JSON payload containing a 
 - `--conflict=skip`: Skip existing streams. Useful for partial restore.
 - `--conflict=overwrite`: Delete and recreate. Destructive but complete.
 
-## Local ES Rollout Dry Run
+## Local Restore Smoke Test
 
-To test the event-sourcing upgrade against a production/community backup:
+To test a production/community backup locally:
 
 1. Stop the local `chatto run` process for the target data directory.
 2. Restore the backup into that local data directory with `chatto restore --conflict=overwrite --config <local-chatto.toml> <backup>`.
 3. If the backup came from a clustered server, restore recreates streams with the target config's `nats.replicas` value. Embedded/local restores should use the default `1`.
 4. Restore/import encryption keys separately if the backup did not include `KV_ENCRYPTION_KEYS` and you need to read message bodies during smoke testing.
-5. Start the upgraded build normally with ES boot verification enabled:
-   `CHATTO_CORE_ES_BOOT_VERIFY=true chatto run --config <local-chatto.toml>`.
-6. Watch the boot logs for:
-   - `... ES migration: seeded ...` lines from each importer.
-   - `ES boot verification summary`.
-   - `ES boot verification event counts`.
-   - `ES boot verification warning` / `ES boot verification problem`.
-   - `ES boot verification passed` when no count mismatch was found.
+5. Start the current build normally: `chatto run --config <local-chatto.toml>`.
+6. Smoke-test login, room lists, message history, attachments, notifications, and admin config against the restored data.
 
-Do not run a separate verifier process against the same embedded NATS data
-directory while `chatto run` is active. Embedded NATS is owned by one
-process at a time; verification belongs in the normal boot logs.
+Do not run separate tools against the same embedded NATS data directory while
+`chatto run` is active. Embedded NATS is owned by one process at a time.

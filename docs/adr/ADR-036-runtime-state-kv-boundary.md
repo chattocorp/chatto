@@ -92,7 +92,8 @@ target. Uploaded assets are content and are declared with `AssetCreatedEvent`;
 generated video thumbnails and variants are content metadata, so completed/failed
 outcomes live in durable room EVT events that reference the created asset ID.
 The current video processor does not write new runtime progress or claim state;
-legacy `SERVER_RUNTIME video.*` records are only a migration source.
+legacy `SERVER_RUNTIME video.*` records are historical pre-0.1 state and are
+not written by current code.
 
 Mention flags are not a target runtime-state model. Orange-dot behavior derives
 from pending notifications instead of preserving `room_mention_status.*` as
@@ -103,8 +104,8 @@ canonical state.
 - `EVT` remains focused on reconstructable content and domain history.
 - Runtime state has one persisted operational home with uniform backup, TTL,
   and history semantics.
-- The old `SERVER_RUNTIME` bucket becomes a legacy migration source, not a
-  place for new state.
+- The old `SERVER_RUNTIME` bucket is historical pre-0.1 storage, not a place
+  for new state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and
   restore procedures must include this bucket when preserving user/runtime
   continuity matters.
@@ -120,9 +121,12 @@ canonical state.
   replica count, no global TTL, and a limit-marker TTL for expiring presence
   sessions. It is excluded from backups and is expected to clear on a full
   JetStream restart. Current occupants are user presence records
-  `presence.{userId}` with per-key TTL and active voice calls
-  `call.{spaceId}.{roomId}`. The retired `USER_PRESENCE` and `CALL_STATE`
-  buckets are legacy import sources only; fresh boots do not provision them.
+  `presence.{userId}` with per-key TTL. Active voice call participants are
+  projection-backed durable room facts, not `MEMORY_CACHE` state. LiveKit E2EE
+  call keys are stored behind the KMS boundary in `ENCRYPTION_KEYS` under
+  `call.e2ee.{callId}` refs and shredded when the corresponding call ends. The
+  retired `USER_PRESENCE` and `CALL_STATE` buckets are historical pre-0.1
+  shapes; fresh boots do not provision or import them.
 
 ## Related
 

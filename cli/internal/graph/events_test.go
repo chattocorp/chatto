@@ -3,6 +3,7 @@ package graph
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
@@ -309,13 +310,13 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
+	if err := env.core.Assets.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
+	if err := env.core.Assets.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
 		t.Fatalf("Apply derivative asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
+	if err := env.core.Assets.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video manifest: %v", err)
 	}
 
@@ -355,10 +356,10 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
+	if err := env.core.Assets.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
+	if err := env.core.Assets.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video failure: %v", err)
 	}
 
@@ -421,6 +422,38 @@ func TestEventResolver_ActorIDNullForSystemEvents(t *testing.T) {
 	}
 	if got == nil || *got != "U123" {
 		t.Fatalf("ActorID = %v, want U123", got)
+	}
+}
+
+func TestEventResolver_DeliveryCursorIsSignedForViewer(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.Event()
+
+	cursor, err := resolver.DeliveryCursor(env.authContext(), core.NewEVTEventEnvelopeWithDeliverySeq(&corev1.Event{Id: "E1"}, 123))
+	if err != nil {
+		t.Fatalf("DeliveryCursor returned error: %v", err)
+	}
+	if cursor == nil || *cursor == "" {
+		t.Fatal("DeliveryCursor returned nil/empty cursor")
+	}
+	if bytes.Contains([]byte(*cursor), []byte("123")) {
+		t.Fatalf("DeliveryCursor should be opaque, got %q", *cursor)
+	}
+
+	seq, err := env.core.ParseEventDeliveryCursor(env.testUser.Id, *cursor, time.Now())
+	if err != nil {
+		t.Fatalf("ParseEventDeliveryCursor: %v", err)
+	}
+	if seq != 123 {
+		t.Fatalf("parsed seq = %d, want 123", seq)
+	}
+
+	empty, err := resolver.DeliveryCursor(env.authContext(), core.NewEVTEventEnvelope(&corev1.Event{Id: "E2"}))
+	if err != nil {
+		t.Fatalf("DeliveryCursor for seq=0 returned error: %v", err)
+	}
+	if empty != nil {
+		t.Fatalf("DeliveryCursor for seq=0 = %v, want nil", *empty)
 	}
 }
 

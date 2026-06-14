@@ -15,6 +15,8 @@ type Event {
   actorId: ID @goField(forceResolver: true)
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
+  "Server-signed opaque cursor for resuming durable subscription delivery. Null for transient and synthetic events."
+  deliveryCursor: String @goField(forceResolver: true)
   "The concrete event data."
   event: EventType! @goField(forceResolver: true)
 }
@@ -47,7 +49,6 @@ union EventType =
   # Typing indicators
   | UserTypingEvent
   # Video processing
-  | VideoProcessingCompletedEvent
   | AssetProcessingStartedEvent
   | AssetProcessingSucceededEvent
   | AssetProcessingFailedEvent
@@ -55,10 +56,10 @@ union EventType =
   # Presence
   | PresenceChangedEvent
   # Voice calls
+  | CallStartedEvent
   | CallParticipantJoinedEvent
   | CallParticipantLeftEvent
-  # Server config
-  | ServerConfigUpdatedEvent
+  | CallEndedEvent
   # User lifecycle
   | UserCreatedEvent
   | UserDeletedEvent
@@ -94,23 +95,6 @@ type ThreadCreatedEvent {
   roomId: ID!
   "The root message event ID that identifies the thread."
   threadRootEventId: ID!
-}
-
-# ==============================================================================
-# SERVER CONFIG EVENTS
-# ==============================================================================
-
-"""
-Event: Server configuration was updated.
-Clients should refetch server info to get the new values.
-"""
-type ServerConfigUpdatedEvent {
-  "The updated server name."
-  serverName: String!
-  "The updated MOTD (null if cleared)."
-  motd: String
-  "The updated welcome message (null if cleared)."
-  welcomeMessage: String
 }
 
 # ==============================================================================
@@ -182,7 +166,8 @@ type NotificationLevelChangedEvent {
 # ==============================================================================
 
 """
-Event: The server was updated.
+Event: Public server profile/configuration changed.
+Clients should refetch `Server.profile` and any authenticated server settings they display.
 """
 type ServerUpdatedEvent {
   "The server's updated name."
@@ -327,6 +312,8 @@ type MessagePostedEvent {
   echoOfEventId: ID @goField(forceResolver: true)
   "The thread this echo originates from (null for non-echo messages)."
   echoFromThreadRootEventId: ID @goField(forceResolver: true)
+  "Event ID of the visible channel echo for this thread reply, if one exists."
+  channelEchoEventId: ID @goField(forceResolver: true)
   "Number of replies in this thread (0 for non-root messages or messages without replies)."
   replyCount: Int! @goField(forceResolver: true)
   "Timestamp of the most recent reply (null if no replies or not a root message)."
@@ -425,20 +412,6 @@ type UserTypingEvent {
 # ==============================================================================
 # VIDEO PROCESSING EVENTS
 # ==============================================================================
-
-"""
-Event: Video processing completed (or failed).
-Published when a video attachment finishes transcoding. The frontend uses this
-to refetch the message and display the video player.
-"""
-type VideoProcessingCompletedEvent {
-  "The room ID, when available."
-  roomId: ID @goField(forceResolver: true)
-  "The original attachment ID that was processed."
-  attachmentId: ID!
-  "The event ID of the message containing the processed attachment, when available."
-  messageEventId: ID @goField(forceResolver: true)
-}
 
 """
 Event: asset processing has been enqueued. Emitted before SucceededEvent or

@@ -1,6 +1,6 @@
 package graph
 
-// Helper methods for the rolePermissions and tierRoles resolvers. Lives
+// Helper methods for the RBAC role-permission matrix resolvers. Lives
 // outside the resolvers file so gqlgen's regenerator doesn't move it into a
 // "code that was going to be deleted" comment block.
 
@@ -13,88 +13,38 @@ import (
 	"hmans.de/chatto/internal/graph/model"
 )
 
-// authorizeRolePermissions enforces access for both the rolePermissions and
-// tierRoles queries.
+// authorizeRolePermissions enforces access for the tier matrix query.
 //
-//   - Server scope (no spaceID): requires server admin.
-//   - Room scope (spaceID + roomID): passes for server admins, holders of
-//     role.manage at server scope, OR holders of room.manage on the
-//     specific room being inspected. The room.manage path is what lets a
-//     room moderator open their own room's permission editor without
-//     needing global role.manage.
+//   - Server / group scope: requires role.manage at server scope.
+//   - Room scope: passes for holders of role.manage at server scope, OR
+//     holders of room.manage on the specific room being inspected. The
+//     room.manage path is what lets a room moderator open their own room's
+//     permission editor without needing global role.manage.
 func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, spaceID, roomID string) error {
+	hasRolesManage, err := r.core.CanManageRoles(ctx, viewerID)
+	if err != nil {
+		return fmt.Errorf("failed to check role.manage: %w", err)
+	}
 	if spaceID == "" {
-		return r.requireServerAdminOrErr(ctx, viewerID)
+		if !hasRolesManage {
+			return core.ErrPermissionDenied
+		}
+		return nil
 	}
 	kind := core.RoomKindFromLegacySpaceID(spaceID)
-	if err := r.requireServerAdminOrErr(ctx, viewerID); err != nil {
-		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
-		if hpErr != nil {
-			return fmt.Errorf("failed to check role.manage: %w", hpErr)
+	if !hasRolesManage {
+		if roomID == "" {
+			return core.ErrPermissionDenied
 		}
-		if !hasRolesManage {
-			if roomID == "" {
-				return core.ErrPermissionDenied
-			}
-			hasRoomManage, hpErr := r.core.PermResolver().HasRoomPermission(ctx, viewerID, kind, roomID, core.PermRoomManage)
-			if hpErr != nil {
-				return fmt.Errorf("failed to check room.manage: %w", hpErr)
-			}
-			if !hasRoomManage {
-				return core.ErrPermissionDenied
-			}
+		hasRoomManage, hpErr := r.core.PermResolver().HasRoomPermission(ctx, viewerID, kind, roomID, core.PermRoomManage)
+		if hpErr != nil {
+			return fmt.Errorf("failed to check room.manage: %w", hpErr)
+		}
+		if !hasRoomManage {
+			return core.ErrPermissionDenied
 		}
 	}
 	return r.requireRoomExists(ctx, kind, roomID)
-}
-
-// buildRoleAcrossTiers gathers metadata + per-tier grants/denials for the role.
-// Server tier is always populated; room tier is populated when roomID is
-// non-empty.
-func (r *Resolver) buildRoleAcrossTiers(
-	ctx context.Context,
-	roleName string,
-	spaceID, roomID string,
-) (*model.RoleAcrossTiers, error) {
-	role, err := r.core.GetServerRole(ctx, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load role: %w", err)
-	}
-	if role == nil {
-		return nil, nil
-	}
-
-	out := &model.RoleAcrossTiers{
-		RoleName:    roleName,
-		DisplayName: role.DisplayName,
-		Description: role.Description,
-		IsSystem:    role.IsSystem,
-		Position:    role.Position,
-	}
-
-	for _, meta := range core.PermissionsForScope(tierScope(spaceID, roomID)) {
-		out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
-	}
-
-	grants, err := r.core.GetServerRolePermissions(ctx, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load grants: %w", err)
-	}
-	denials, err := r.core.GetServerRolePermissionDenials(ctx, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load denials: %w", err)
-	}
-	out.Server = newTierPermissions(grants, denials)
-
-	if roomID != "" {
-		grants, denials, err := r.core.GetRoomRolePermissions(ctx, roomID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load room overrides: %w", err)
-		}
-		out.Room = newTierPermissions(grants, denials)
-	}
-
-	return out, nil
 }
 
 // buildTierRoles assembles the per-tier permission matrix: every role at the

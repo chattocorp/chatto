@@ -10,7 +10,7 @@
       "package-name": "chatto",
       "changelog-path": "CHANGELOG.md",
       "prerelease": true,
-      "prerelease-type": "alpha",
+      "prerelease-type": "beta",
       "extra-files": [
         {
           "type": "generic",

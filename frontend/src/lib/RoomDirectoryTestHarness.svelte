@@ -9,11 +9,15 @@ chat-event tree or registering a server in the global registry.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { RoomsListItem, RoomsListGroup, RoomsStore } from '$lib/state/space';
+  import type {
+    RoomsListItem,
+    RoomsListGroup,
+    RoomsStore
+  } from '$lib/state/server/rooms.svelte';
   import {
     RoomDirectoryStore,
     type DirectoryRoom
-  } from '$lib/state/space/roomDirectory.svelte';
+  } from '$lib/state/server/roomDirectory.svelte';
   import RoomDirectory from './RoomDirectory.svelte';
 
   let {

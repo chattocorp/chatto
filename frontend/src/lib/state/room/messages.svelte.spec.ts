@@ -4,27 +4,24 @@ import type { Client } from '@urql/svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import { MessagesStore } from './messages.svelte';
 
-/**
- * Minimal GraphQLClient stand-in. `reconnectCount` is a Svelte `$state` so
- * the store's internal `$effect.root` reacts to `bumpReconnect()` just like
- * it would with a real client.
- */
 class FakeGqlClient {
-	reconnectCount = $state(0);
+	reconnectCount = 0;
 	client: Client;
 	queryMock: ReturnType<typeof vi.fn>;
 
 	constructor(queryData: unknown = null) {
 		const queryDataQueue = Array.isArray(queryData) ? [...queryData] : null;
 		this.queryMock = vi.fn(() => ({
-			toPromise: () => {
+			toPromise: async () => {
 				const data =
 					queryDataQueue === null
 						? queryData
 						: queryDataQueue.length > 1
 							? queryDataQueue.shift()
 							: queryDataQueue[0];
-				return Promise.resolve({ data, error: null });
+				const resolvedData = await Promise.resolve(data);
+				if (isOperationResult(resolvedData)) return resolvedData;
+				return { data: resolvedData, error: null };
 			}
 		}));
 		this.client = {
@@ -34,10 +31,10 @@ class FakeGqlClient {
 		} as unknown as Client;
 	}
 
-	bumpReconnect() {
-		this.reconnectCount++;
-		flushSync();
-	}
+}
+
+function isOperationResult(value: unknown): value is { data: unknown; error: unknown } {
+	return typeof value === 'object' && value !== null && ('data' in value || 'error' in value);
 }
 
 async function settle() {
@@ -64,10 +61,31 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
 			threadRootEventId,
 			echoOfEventId: null,
 			echoFromThreadRootEventId: null,
+			channelEchoEventId: null,
 			replyCount: 0,
 			lastReplyAt: null,
 			threadParticipants: [],
-			viewerIsFollowingThread: null
+			viewerIsFollowingThread: null,
+			reactions: []
+		}
+	};
+}
+
+function messageWithReaction(id: string, emoji: string) {
+	const event = threadMessageEvent(id);
+	return {
+		...event,
+		event: {
+			...event.event,
+			reactions: [
+				{
+					__typename: 'ReactionSummary',
+					emoji,
+					count: 1,
+					hasReacted: false,
+					users: []
+				}
+			]
 		}
 	};
 }
@@ -104,7 +122,113 @@ function threadQueryResult({
 	};
 }
 
+function roomEventsResult({
+	events,
+	startCursor,
+	endCursor,
+	hasOlder,
+	hasNewer
+}: {
+	events: unknown[];
+	startCursor: string | null;
+	endCursor: string | null;
+	hasOlder: boolean;
+	hasNewer: boolean;
+}) {
+	return {
+		room: {
+			events: {
+				events,
+				startCursor,
+				endCursor,
+				hasOlder,
+				hasNewer
+			}
+		}
+	};
+}
+
 describe('MessagesStore — room lifecycle ownership', () => {
+	it('serves already-loaded events by id without querying GraphQL', async () => {
+		const loaded = threadMessageEvent('m1');
+		const fake = new FakeGqlClient(
+			roomEventsResult({
+				events: [loaded],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		expect(store.getEventById('m1')?.id).toBe(loaded.id);
+		await store.ensureEvent('m1');
+
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('deduplicates concurrent off-window event fetches', async () => {
+		const target = threadMessageEvent('target');
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{ room: { event: target } }
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await Promise.all([store.ensureEvent('target'), store.ensureEvent('target')]);
+
+		expect(store.getEventById('target')?.id).toBe('target');
+		expect(fake.queryMock).toHaveBeenCalledOnce();
+		store.dispose();
+	});
+
+	it('does not cache transient off-window event fetch errors as missing', async () => {
+		const target = threadMessageEvent('target');
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{ data: null, error: new Error('temporary failure') },
+			{ room: { event: target } }
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.ensureEvent('target');
+		expect(store.getEventById('target')).toBeUndefined();
+
+		await store.ensureEvent('target');
+
+		expect(store.getEventById('target')?.id).toBe('target');
+		expect(fake.queryMock).toHaveBeenCalledTimes(2);
+		errorSpy.mockRestore();
+		store.dispose();
+	});
+
 	it('applies MessageEditedEvent payloads inline without refetching', async () => {
 		const fake = new FakeGqlClient({
 			room: {
@@ -227,6 +351,48 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			attachments: []
 		});
 		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('refetches a loaded message when a replayed reaction event arrives', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{ room: { event: messageWithReaction('m1', 'heart') } }
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent({
+			id: 'reaction-1',
+			createdAt: '2026-05-27T00:00:01Z',
+			actorId: 'u2',
+			actor: null,
+			deliveryCursor: 'seq:2',
+			event: {
+				__typename: 'ReactionAddedEvent',
+				roomId: 'room-1',
+				messageEventId: 'm1',
+				emoji: 'heart'
+			}
+		} as never);
+		await settle();
+
+		expect(fake.queryMock).toHaveBeenCalledOnce();
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', eventId: 'm1' });
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'heart', count: 1 }]
+		});
 		store.dispose();
 	});
 
@@ -381,48 +547,6 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
-	it('triggers a catch-up query when reconnectCount increments', async () => {
-		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setRoom('room-1');
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-
-		fake.bumpReconnect();
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(2);
-
-		store.dispose();
-	});
-
-	it('stops reacting to reconnects after dispose()', async () => {
-		const fake = new FakeGqlClient({ room: { events: { events: [], hasOlder: false, hasNewer: false } } });
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setRoom('room-1');
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-
-		store.dispose();
-		fake.bumpReconnect();
-		await settle();
-
-		// Still just the initial fetchLatest — the reconnect listener is gone.
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-	});
-
-	it('does not catch up if setRoom has not been called', async () => {
-		const fake = new FakeGqlClient();
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		fake.bumpReconnect();
-		await settle();
-
-		expect(fake.queryMock).not.toHaveBeenCalled();
-		store.dispose();
-	});
-
 	it('dispose() is idempotent', () => {
 		const fake = new FakeGqlClient();
 		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
@@ -432,6 +556,60 @@ describe('MessagesStore — room lifecycle ownership', () => {
 });
 
 describe('MessagesStore — thread lifecycle ownership', () => {
+	it('links and unlinks visible echoes for thread replies from live events', async () => {
+		const fake = new FakeGqlClient(
+			threadQueryResult({
+				replies: [threadMessageEvent('reply1', 't1')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent({
+			id: 'echo1',
+			createdAt: '2026-05-27T00:00:02Z',
+			actorId: 'u1',
+			actor: null,
+			event: {
+				...threadMessageEvent('echo1').event,
+				echoOfEventId: 'reply1',
+				echoFromThreadRootEventId: 't1'
+			}
+		} as never);
+
+		expect(store.threadEvents.find((event) => event.id === 'reply1')?.event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			channelEchoEventId: 'echo1'
+		});
+
+		store.ingestServerEvent({
+			id: 'retract-echo1',
+			createdAt: '2026-05-27T00:00:03Z',
+			actorId: 'u1',
+			actor: null,
+			event: {
+				__typename: 'MessageRetractedEvent',
+				roomId: 'room-1',
+				messageEventId: 'echo1',
+				retractedReason: null
+			}
+		} as never);
+
+		expect(store.threadEvents.find((event) => event.id === 'reply1')?.event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			channelEchoEventId: null
+		});
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
 	it('loads older reply pages when the first thread page is not complete', async () => {
 		const fake = new FakeGqlClient([
 			threadQueryResult({
@@ -479,45 +657,4 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 		store.dispose();
 	});
 
-	it('triggers a catch-up query when reconnectCount increments', async () => {
-		const fake = new FakeGqlClient({
-			room: {
-				event: {
-					id: 't1',
-					event: {
-						__typename: 'MessagePostedEvent',
-						threadReplies: {
-							events: [],
-							startCursor: null,
-							endCursor: null,
-							hasOlder: false,
-							hasNewer: false
-						}
-					}
-				}
-			}
-		});
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setThread('room-1', 't1');
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(1);
-
-		fake.bumpReconnect();
-		await settle();
-		expect(fake.queryMock).toHaveBeenCalledTimes(2);
-
-		store.dispose();
-	});
-
-	it('does not catch up if setThread has not been called', async () => {
-		const fake = new FakeGqlClient();
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		fake.bumpReconnect();
-		await settle();
-
-		expect(fake.queryMock).not.toHaveBeenCalled();
-		store.dispose();
-	});
 });

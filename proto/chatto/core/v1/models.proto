@@ -151,15 +151,17 @@ message Role {
   string display_name = 2; // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
   string description = 3;
   int32 position = 4; // Hierarchy position: lower = higher rank. Owner=0, Everyone=MAX_INT32
+  bool pingable = 5; // Whether messages can ping users assigned to this role.
 }
 
 // UserPresenceStatus indicates a user's online presence status.
 // Named to avoid conflict with the GraphQL PresenceStatus enum.
 // Note: OFFLINE is not stored - absence of a key means offline.
 enum UserPresenceStatus {
-  USER_PRESENCE_STATUS_ONLINE = 0;
-  USER_PRESENCE_STATUS_AWAY = 1;
-  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 2;
+  USER_PRESENCE_STATUS_UNSPECIFIED = 0;
+  USER_PRESENCE_STATUS_ONLINE = 1;
+  USER_PRESENCE_STATUS_AWAY = 2;
+  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 3;
 }
 
 // UserPresence represents a user's current live presence status.
@@ -340,10 +342,8 @@ message CachedLinkPreview {
 //     appended (orphan recovery). The layout is a hint, not a source
 //     of truth for "which groups exist".
 //
-// Migration: the boot-time migrator picks up legacy state from older
-// shapes (`legacy_sections`, `legacy_unsorted_room_ids`) and writes
-// per-key group docs + a fresh `group_ids` list, then leaves the
-// legacy fields empty. New writes only ever set `group_ids`.
+// Current writes only ever set `group_ids`. The legacy fields are retained for
+// wire compatibility with older backups/clients.
 message RoomLayout {
   // legacy_sections is the on-the-wire compatible read for the
   // pre-split shape (main's `repeated RoomLayoutSection sections`).
@@ -382,7 +382,7 @@ message RoomGroup {
 // VideoProcessingState tracks the async processing state of a video attachment.
 // Legacy entries were stored in SERVER_RUNTIME at key "video.{attachmentId}".
 // New durable completed/failed manifests live in AssetProcessing* EVT events;
-// this shape remains for transient worker progress and legacy import.
+// this shape remains for transient worker progress.
 message VideoProcessingState {
   // Current processing status
   VideoStatus status = 1;
@@ -411,6 +411,7 @@ message VideoProcessingState {
 }
 
 enum VideoStatus {
+  // buf:lint:ignore ENUM_ZERO_VALUE_SUFFIX
   VIDEO_STATUS_PENDING = 0;
   VIDEO_STATUS_PROCESSING = 1;
   VIDEO_STATUS_COMPLETED = 2;

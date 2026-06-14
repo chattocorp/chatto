@@ -63,7 +63,12 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
     isConnected: true,
     showConnectionLostBanner: false,
     client: {
-      query: vi.fn(() => thenable({ data: { tierRoles: nextTierRoles }, error: null })),
+      query: vi.fn(() =>
+        thenable({
+          data: { admin: { rbac: { rolePermissionTierMatrix: nextTierRoles } } },
+          error: null
+        })
+      ),
       mutation: vi.fn(() => thenable({ data: {}, error: null })),
       subscription: vi.fn()
     }

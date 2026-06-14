@@ -23,11 +23,12 @@ import {
 import { eventBusManager } from './state/server/eventBus.svelte';
 
 export const MyServerEventsSubscriptionDoc = graphql(`
-  subscription MyServerEvents {
-    myEvents {
+  subscription MyServerEvents($after: String) {
+    myEvents(after: $after) {
       id
       createdAt
       actorId
+      deliveryCursor
       actor {
         ...UserAvatarUser
       }
@@ -57,6 +58,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           threadRootEventId
           echoOfEventId
           echoFromThreadRootEventId
+          channelEchoEventId
           replyCount
           lastReplyAt
           threadParticipants(first: 5) {
@@ -119,11 +121,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
           typingThreadRootEventId: threadRootEventId
         }
-        ... on VideoProcessingCompletedEvent {
-          processingRoomId: roomId
-          attachmentId
-          processingMessageEventId: messageEventId
-        }
         ... on AssetProcessingStartedEvent {
           processingRoomId: roomId
           assetId
@@ -153,11 +150,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
         }
         # Deployment-wide events.
-        ... on ServerConfigUpdatedEvent {
-          serverName
-          motd
-          welcomeMessage
-        }
         ... on ServerUpdatedEvent {
           name
           description

@@ -334,7 +334,7 @@ func TestWebSocket_Subscription_Unauthenticated(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 
 	// Create a space (need one for the subscription)
-	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
+	_, _ = env.core.CreateUser(env.ctx, "system", "ws-owner", "Owner", "password123")
 
 	// Connect without logging in
 	conn := env.connectWebSocket(t)

@@ -137,7 +137,6 @@ func TestSavePushSubscription(t *testing.T) {
 		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
 			t.Fatalf("expected push subscription in RUNTIME_STATE: %v", err)
 		}
-		assertLegacyKeyAbsent(t, core.storage.serverKV, key, "legacy INSTANCE push subscription")
 	})
 
 	t.Run("updates existing subscription with same endpoint", func(t *testing.T) {

@@ -1,15 +1,33 @@
 package core
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func countTestKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) (int, error) {
+	lister, err := kv.ListKeysFiltered(ctx, filters...)
+	if errors.Is(err, jetstream.ErrNoKeysFound) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for range lister.Keys() {
+		count++
+	}
+	return count, nil
+}
 
 func TestChattoCore_RegistrationCodeAuditEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -435,7 +453,7 @@ func TestChattoCore_AuditAppendFailureCleansNewRegistrationCode(t *testing.T) {
 	if code != "" {
 		t.Fatalf("expected no code on failure, got %q", code)
 	}
-	count, err := countKVKeys(ctx, core.storage.runtimeStateKV, "email_otp.*")
+	count, err := countTestKVKeys(ctx, core.storage.runtimeStateKV, "email_otp.*")
 	if err != nil {
 		t.Fatalf("count registration keys: %v", err)
 	}
@@ -458,7 +476,7 @@ func TestChattoCore_AuditAppendFailureCleansNewAuthRuntimeTokens(t *testing.T) {
 	} else if token != "" {
 		t.Fatalf("expected no bearer token on failure, got %q", token)
 	}
-	sessionCount, err := countKVKeys(ctx, core.storage.runtimeStateKV, "session.*")
+	sessionCount, err := countTestKVKeys(ctx, core.storage.runtimeStateKV, "session.*")
 	if err != nil {
 		t.Fatalf("count session keys: %v", err)
 	}
@@ -473,7 +491,7 @@ func TestChattoCore_AuditAppendFailureCleansNewAuthRuntimeTokens(t *testing.T) {
 	} else if code != "" {
 		t.Fatalf("expected no auth code on failure, got %q", code)
 	}
-	grantCount, err := countKVKeys(ctx, core.storage.runtimeStateKV, "grant.*")
+	grantCount, err := countTestKVKeys(ctx, core.storage.runtimeStateKV, "grant.*")
 	if err != nil {
 		t.Fatalf("count grant keys: %v", err)
 	}

@@ -11,12 +11,19 @@
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
+  import {
+    installAssetProxyResyncHandler,
+    syncAssetProxyServers
+  } from '$lib/pwa/assetProxy';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+  import {
+    FULL_REFRESH_REQUIRED_EVENT,
+    eventBusManager
+  } from '$lib/state/server/eventBus.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -82,6 +89,21 @@
     }
   });
 
+  $effect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
+    }
+
+    const sync = () => syncAssetProxyServers(serverRegistry.servers);
+    sync();
+    const stopResync = installAssetProxyResyncHandler(() => serverRegistry.servers);
+    navigator.serviceWorker.addEventListener('controllerchange', sync);
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', sync);
+      stopResync();
+    };
+  });
+
   // Route push-notification clicks via SvelteKit's client-side navigation
   // instead of letting the SW do a full document navigation. Same-URL
   // clicks become a no-op; cross-URL clicks just update the route.
@@ -102,6 +124,17 @@
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(() => {
     if (sidebarNav.isMobile) sidebarNav.close();
+  });
+
+  function handleFullRefreshRequired(event: Event) {
+    const detail = (event as CustomEvent<{ serverId?: string }>).detail;
+    console.warn('[eventBus:%s] full refresh required', detail?.serverId ?? 'unknown');
+    window.location.reload();
+  }
+
+  $effect(() => {
+    window.addEventListener(FULL_REFRESH_REQUIRED_EVENT, handleFullRefreshRequired);
+    return () => window.removeEventListener(FULL_REFRESH_REQUIRED_EVENT, handleFullRefreshRequired);
   });
 
   // Page title

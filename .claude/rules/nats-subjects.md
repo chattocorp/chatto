@@ -45,9 +45,9 @@ thread.{rootId}.{eventId}
 
 ### 4. Live Delivery Uses Raw EVT Republish Plus an Authorized API Gate
 
-The legacy `SERVER_EVENTS` stream is storage/import infrastructure during the
-event-sourcing migration. It does not republish to a live subject, and new live
-delivery must not use `live.server.>`.
+The legacy `SERVER_EVENTS` stream is historical pre-0.1 storage. Runtime code
+does not open it, write it, import from it, or republish it to a live subject.
+New live delivery must not use `live.server.>`.
 
 Transient signals publish as `corev1.LiveEvent` on `live.sync.>` through
 `publishLiveEvent`. This root is for live UI sync where runtime/KV state is
@@ -66,9 +66,8 @@ Do not publish live events from ordinary projection `Apply` methods. Every
 Chatto replica maintains its own local projectors, so projector-side publish
 effects multiply one committed EVT event by the replica count.
 
-During the remaining ES migration window, some EVT-backed mutations still
-may have legacy Event-envelope adapter shapes in protobuf/GraphQL, but live
-delivery should come from either `live.evt.>` or `live.sync.>`.
+The event-sourcing migration window is closed. New live delivery should come
+from either `live.evt.>` or `live.sync.>`.
 
 **Anti-pattern: do not double-publish.** Calling both `EventPublisher.Append(...)` *and* `publishLiveEvent(...)` for the same conceptual UI event can deliver it twice if that EVT fact is deliverable from `live.evt.>`. Choose one based on whether the event is durable history or transient sync.
 

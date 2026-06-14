@@ -396,8 +396,8 @@
   @apply ring-2 ring-text;
 }
 
-/* Make SpaceLogo slightly smaller inside space-icon to leave room for the ring */
-.space-icon > div {
+/* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */
+.server-icon > div {
   @apply h-11 w-11;
 }
 

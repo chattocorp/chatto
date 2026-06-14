@@ -65,14 +65,11 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Admin panel
-  'admin.access': {
-    description: 'Access the admin panel'
-  },
   'admin.view-users': {
     description: 'View the users page in admin'
   },
   'admin.view-system': {
-    description: 'View the system and data pages in admin'
+    description: 'View projection diagnostics in admin'
   },
   'admin.view-audit': {
     description: 'View the audit log in admin'

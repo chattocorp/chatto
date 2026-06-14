@@ -25,7 +25,7 @@ type UserProjection struct {
 	loginIndex  map[string]string
 	emailIndex  map[string]string
 	oidcIndex   map[string]string
-	eventIDSeen map[string]struct{}
+	eventIDSeen eventIDSet
 	keyWrapper  kms.KeyWrapper
 	dekStore    dekstore.Reader
 	contentKeys map[string]map[corev1.UserDEKPurpose]map[int32][]byte
@@ -39,6 +39,7 @@ type projectedUser struct {
 	passwordSetAt  time.Time
 	authGeneration uint64
 	verifiedEmail  map[string]VerifiedEmail
+	oauthConsent   map[string]struct{}
 	preferences    *corev1.ServerUserPreferences
 	loginChanged   time.Time
 }
@@ -49,7 +50,7 @@ func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *Use
 		loginIndex:  make(map[string]string),
 		emailIndex:  make(map[string]string),
 		oidcIndex:   make(map[string]string),
-		eventIDSeen: make(map[string]struct{}),
+		eventIDSeen: newEventIDSet(),
 		keyWrapper:  keyWrapper,
 		dekStore:    dekStore,
 		contentKeys: make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
@@ -64,18 +65,11 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
-	if id := event.GetId(); id != "" {
-		p.Lock()
-		if _, ok := p.eventIDSeen[id]; ok {
-			p.Unlock()
-			return nil
-		}
-		p.eventIDSeen[id] = struct{}{}
-		p.Unlock()
-	}
-
 	p.Lock()
 	defer p.Unlock()
+	if p.eventIDSeen.seenOrMark(event) {
+		return nil
+	}
 
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserDekGenerated:
@@ -110,6 +104,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
 	case *corev1.Event_UserKeyShredded:
 		p.applyKeyShredded(e.UserKeyShredded)
+	case *corev1.Event_OauthConsentGranted:
+		p.applyOAuthConsentGranted(e.OauthConsentGranted)
 	}
 	return nil
 }
@@ -122,6 +118,9 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 	}
 	if u.verifiedEmail == nil {
 		u.verifiedEmail = make(map[string]VerifiedEmail)
+	}
+	if u.oauthConsent == nil {
+		u.oauthConsent = make(map[string]struct{})
 	}
 	return u
 }
@@ -304,6 +303,14 @@ func (p *UserProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLinkedE
 	p.oidcIndex[hash] = e.GetUserId()
 }
 
+func (p *UserProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetRedirectOrigin() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	u.oauthConsent[e.GetRedirectOrigin()] = struct{}{}
+}
+
 func (p *UserProjection) applyServerPreferencesChanged(e *corev1.UserServerPreferencesChangedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
@@ -357,6 +364,7 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 	u.passwordSetAt = time.Time{}
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]VerifiedEmail)
+	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
 	delete(p.contentKeys, e.GetUserId())
 }
@@ -385,6 +393,7 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	u.passwordSetAt = time.Time{}
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]VerifiedEmail)
+	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
 }
 
@@ -534,6 +543,17 @@ func (p *UserProjection) VerifiedEmails(userID string) []VerifiedEmail {
 
 func (p *UserProjection) HasVerifiedEmail(userID string) bool {
 	return len(p.VerifiedEmails(userID)) > 0
+}
+
+func (p *UserProjection) HasOAuthConsent(userID, redirectOrigin string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || redirectOrigin == "" {
+		return false
+	}
+	_, ok := u.oauthConsent[redirectOrigin]
+	return ok
 }
 
 func (p *UserProjection) LoginChangedAt(userID string) time.Time {

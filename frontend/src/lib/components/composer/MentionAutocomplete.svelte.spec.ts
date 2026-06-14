@@ -18,6 +18,7 @@ function member(login: string, displayName?: string): RoomMember {
 function renderAutocomplete(props: {
   query: string;
   members: RoomMember[];
+  roles?: { name: string; isSystem?: boolean; position?: number; pingable?: boolean }[];
   onSelect?: (login: string, viaTab: boolean) => void;
   onClose?: () => void;
 }) {
@@ -25,6 +26,7 @@ function renderAutocomplete(props: {
     props: {
       query: props.query,
       members: props.members,
+      roles: props.roles ?? [],
       onSelect: props.onSelect ?? (() => {}),
       onClose: props.onClose ?? (() => {})
     }
@@ -88,6 +90,23 @@ describe('MentionAutocomplete', () => {
       });
       const order = visibleLogins(container);
       expect(order[0]).toBe('al'); // exact match wins
+    });
+
+    it('includes virtual mention handles and pingable role names', () => {
+      const { container } = renderAutocomplete({
+        query: 'he',
+        members: [],
+        roles: [
+          { name: 'helpdesk', pingable: true },
+          { name: 'helpdesk-quiet', pingable: false },
+          { name: 'everyone', pingable: true }
+        ]
+      });
+      const order = visibleLogins(container);
+      expect(order).toContain('here');
+      expect(order).toContain('helpdesk');
+      expect(order).not.toContain('helpdesk-quiet');
+      expect(order).not.toContain('everyone');
     });
 
     it('ranks by max(loginScore, displayScore): a strong displayName match beats a weak login match', () => {

@@ -50,7 +50,7 @@ test.describe('Leave Server', () => {
 
 		// The remote should have been added to the sidebar.
 		const remoteSidebarIcon = page
-			.locator(`[data-testid="space-icon"][href*="${remoteHostname}"]`)
+			.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
 			.first();
 		await expect(remoteSidebarIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
@@ -91,7 +91,7 @@ test.describe('Leave Server', () => {
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
 		const remoteSidebarIcon = page
-			.locator(`[data-testid="space-icon"][href*="${remoteHostname}"]`)
+			.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
 			.first();
 		await expect(remoteSidebarIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 		await remoteSidebarIcon.click();

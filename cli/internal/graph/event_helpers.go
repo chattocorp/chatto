@@ -55,8 +55,8 @@ func unwrapEVTEvent(event *corev1.Event) any {
 		return e.RoomMemberBanned
 	case *corev1.Event_RoomMemberUnbanned:
 		return e.RoomMemberUnbanned
-	case *corev1.Event_SpaceMemberDeleted:
-		return e.SpaceMemberDeleted
+	case *corev1.Event_ServerMemberDeleted:
+		return e.ServerMemberDeleted
 
 	// ---- Messages ----
 	case *corev1.Event_MessagePosted:
@@ -82,6 +82,16 @@ func unwrapEVTEvent(event *corev1.Event) any {
 	case *corev1.Event_ReactionRemoved:
 		return e.ReactionRemoved
 
+	// ---- Voice calls ----
+	case *corev1.Event_VoiceCallStarted:
+		return e.VoiceCallStarted
+	case *corev1.Event_VoiceCallParticipantJoined:
+		return e.VoiceCallParticipantJoined
+	case *corev1.Event_VoiceCallParticipantLeft:
+		return e.VoiceCallParticipantLeft
+	case *corev1.Event_VoiceCallEnded:
+		return e.VoiceCallEnded
+
 	case *corev1.Event_AssetProcessingStarted:
 		return e.AssetProcessingStarted
 	case *corev1.Event_AssetProcessingSucceeded:
@@ -100,8 +110,6 @@ func unwrapLiveEvent(event *corev1.LiveEvent) any {
 	}
 
 	switch e := event.Event.(type) {
-	case *corev1.LiveEvent_ConfigUpdated:
-		return e.ConfigUpdated
 	case *corev1.LiveEvent_UserCreated:
 		return e.UserCreated
 	case *corev1.LiveEvent_UserDeleted:
@@ -114,14 +122,12 @@ func unwrapLiveEvent(event *corev1.LiveEvent) any {
 		return e.NotificationLevelChanged
 	case *corev1.LiveEvent_ThreadFollowChanged:
 		return e.ThreadFollowChanged
-	case *corev1.LiveEvent_SpaceMemberDeleted:
-		return e.SpaceMemberDeleted
+	case *corev1.LiveEvent_ServerMemberDeleted:
+		return e.ServerMemberDeleted
 	case *corev1.LiveEvent_ServerUpdated:
 		return e.ServerUpdated
 	case *corev1.LiveEvent_UserTyping:
 		return e.UserTyping
-	case *corev1.LiveEvent_VideoProcessingCompleted:
-		return e.VideoProcessingCompleted
 	case *corev1.LiveEvent_PresenceChanged:
 		return e.PresenceChanged
 	case *corev1.LiveEvent_MentionNotification:
@@ -182,7 +188,7 @@ func (r *Resolver) assetCreationForProcessing(assetID string) *corev1.AssetCreat
 	if assetID == "" {
 		return nil
 	}
-	declared, ok := r.core.RoomTimeline.AssetCreation(assetID)
+	declared, ok := r.core.Assets.AssetCreation(assetID)
 	if !ok {
 		return nil
 	}
@@ -190,7 +196,7 @@ func (r *Resolver) assetCreationForProcessing(assetID string) *corev1.AssetCreat
 }
 
 func (r *attachmentResolver) assetSourceAvailable(assetID string, fallback bool) bool {
-	created, ok := r.core.RoomTimeline.AssetCreation(assetID)
+	created, ok := r.core.Assets.AssetCreation(assetID)
 	if !ok || created == nil {
 		return fallback
 	}

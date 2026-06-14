@@ -82,7 +82,7 @@
   let error = $derived(
     eventsQuery.error ??
       (!eventsQuery.loading && !eventsQuery.data?.admin
-        ? 'Event log unavailable (admin access required)'
+        ? 'Event log unavailable (audit permission required)'
         : null)
   );
 

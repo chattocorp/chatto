@@ -100,6 +100,12 @@ describe('buildVirtualItems', () => {
     expect(items[0]).toMatchObject({ type: 'start-marker' });
   });
 
+  it('omits start-marker when showStartMarker is false', () => {
+    const events = [makeMessageEvent({ id: 'e1' })];
+    const items = buildVirtualItems(meta(events), null, true, false);
+    expect(items.find((i) => i.type === 'start-marker')).toBeUndefined();
+  });
+
   it('does not emit start-marker for an empty event list even if hasReachedStart', () => {
     expect(buildVirtualItems([], null, true)).toEqual([]);
   });
@@ -180,6 +186,22 @@ describe('buildVirtualItems', () => {
     const items = buildVirtualItems(meta(events), null, false);
     const e2 = items.find((i) => i.type === 'event' && i.key === 'e2');
     expect(e2).toMatchObject({ type: 'event', isFirstInGroup: false });
+  });
+
+  it('preserves input event order even when createdAt moves backwards', () => {
+    const events = [
+      makeSystemEvent('UserJoinedRoomEvent', { id: 'join', createdAt: '2025-05-08T12:00:00Z' }),
+      makeMessageEvent({ id: 'first-message', createdAt: '2025-03-17T12:00:00Z' }),
+      makeMessageEvent({ id: 'second-message', createdAt: '2025-03-18T12:00:00Z' })
+    ];
+
+    const items = buildVirtualItems(meta(events), null, false);
+    const eventKeys = items.flatMap((i) => {
+      if (i.type === 'event') return i.key;
+      if (i.type === 'system-group') return i.events.map((event) => event.id);
+      return [];
+    });
+    expect(eventKeys).toEqual(['join', 'first-message', 'second-message']);
   });
 
   it('produces stable, unique keys per item', () => {

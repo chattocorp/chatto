@@ -5,7 +5,7 @@ description: How to set up and configure voice and video call capabilities in Ch
 
 import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto supports real-time voice calls inside rooms using [LiveKit](https://livekit.io/), an open-source WebRTC media server. When enabled, any room member can start or join a voice call directly from the room header.
+Chatto supports real-time voice and video calls inside rooms using [LiveKit](https://livekit.io/), an open-source WebRTC media server. When enabled, any room member can start or join a call directly from the room header.
 
 ## How It Works
 
@@ -13,10 +13,12 @@ LiveKit runs as a **separate service** alongside Chatto. Chatto handles authenti
 
 1. A user clicks the phone icon in a room header to join a call.
 2. Chatto verifies the user's room membership and generates a short-lived LiveKit JWT token.
-3. The user's browser connects directly to the LiveKit server using the token.
+3. The user's browser connects directly to the LiveKit server using the token and a per-call E2EE key from Chatto.
 4. Other room members see a real-time notification that someone joined a call.
 
-Calls are **implicit** — there's no "start call" action. The first person to join creates the call; when the last person leaves, it ends.
+Calls are **implicit** — there's no "start call" action. The first person to join creates the call and a fresh E2EE key; when the last person leaves, the call ends and Chatto shreds that key.
+
+Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
 ## Requirements
 
@@ -94,7 +96,7 @@ Calls are **implicit** — there's no "start call" action. The first person to j
 
 4. **Restart Chatto**
 
-   Voice calls will be available immediately. A phone icon appears in every room header when LiveKit is configured.
+   Calls will be available immediately. A phone icon appears in every room header when LiveKit is configured.
 
 </Steps>
 
@@ -107,6 +109,7 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 - **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments).
 - **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. For restrictive networks, you may need to configure it to listen on port 443.
 - **Scaling**: A single LiveKit server handles hundreds of concurrent audio-only participants. For larger deployments, LiveKit supports multi-node clustering with Redis.
+- **End-to-end encryption**: Chatto enables LiveKit E2EE automatically for clients. No additional LiveKit server configuration is required.
 - **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.
 
 ## Features
@@ -117,13 +120,13 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 - **Audio level visualization** — Participant avatars pulse with accent-colored rings based on speaking volume
 - **Real-time join/leave notifications** — Room members see when others join or leave a call
 
-## Disabling Voice Calls
+## Disabling Voice & Video Calls
 
-To disable voice calls, either remove the `[livekit]` section from `chatto.toml` or set:
+To disable voice and video calls, either remove the `[livekit]` section from `chatto.toml` or set:
 
 ```toml
 [livekit]
 enabled = false
 ```
 
-When disabled, the phone icon is hidden and all voice call API endpoints return `null`.
+When disabled, the phone icon is hidden and all call API endpoints return `null`.

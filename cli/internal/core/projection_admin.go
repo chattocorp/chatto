@@ -23,6 +23,9 @@ type ProjectionAdminState struct {
 	MatchingStreamSeq uint64
 	StreamLastSeq     uint64
 	Lag               uint64
+	Failed            bool
+	FailedSeq         uint64
+	Failure           string
 	EntryCount        int64
 	EstimatedBytes    int64
 	AverageEntryBytes int64
@@ -51,7 +54,8 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 		if err != nil {
 			return err
 		}
-		lastApplied := projector.LastSeq()
+		status := projector.Status()
+		lastApplied := status.LastSeq
 		var lag uint64
 		if targetSeq > lastApplied {
 			lag = targetSeq - lastApplied
@@ -63,11 +67,14 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 		states = append(states, ProjectionAdminState{
 			Name:              name,
 			Subjects:          projector.Subjects(),
-			Started:           projector.Started(),
+			Started:           status.Started,
 			LastAppliedSeq:    lastApplied,
 			MatchingStreamSeq: targetSeq,
 			StreamLastSeq:     streamLastSeq,
 			Lag:               lag,
+			Failed:            status.Failed,
+			FailedSeq:         status.FailedSeq,
+			Failure:           status.Failure,
 			EntryCount:        entries,
 			EstimatedBytes:    estimatedBytes,
 			AverageEntryBytes: avg,
@@ -358,14 +365,14 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		}
 	}
 	var assetCreationBytes int64
-	for assetID, event := range p.assetCreations {
+	for assetID, event := range p.assets.assetCreations {
 		assetCreationBytes += projectionMapEntryOverhead + int64(len(assetID))
 		if event != nil {
 			assetCreationBytes += int64(proto.Size(event))
 		}
 	}
 	var assetChildrenBytes, assetChildLinks int64
-	for assetID, children := range p.assetChildren {
+	for assetID, children := range p.assets.assetChildren {
 		assetChildrenBytes += projectionMapEntryOverhead + int64(len(assetID))
 		for _, childID := range children {
 			assetChildLinks++
@@ -373,7 +380,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		}
 	}
 	var videoManifestBytes int64
-	for assetID, manifest := range p.videoManifests {
+	for assetID, manifest := range p.assets.videoManifests {
 		videoManifestBytes += projectionMapEntryOverhead + int64(len(assetID))
 		if manifest == nil {
 			continue
@@ -389,7 +396,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		}
 	}
 	var assetOwnerBytes int64
-	for assetID, owner := range p.assetMessageOwner {
+	for assetID, owner := range p.assets.messageOwners {
 		assetOwnerBytes += projectionMapEntryOverhead + int64(len(assetID)+len(owner.roomID)+len(owner.messageEventID))
 	}
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
@@ -411,10 +418,10 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
 		{Name: "hidden_echoes", Value: int64(len(p.hiddenEchoes)), Bytes: hiddenEchoBytes},
 		{Name: "echo_links", Value: echoLinks, Bytes: echoBytes},
-		{Name: "asset_creations", Value: int64(len(p.assetCreations)), Bytes: assetCreationBytes},
+		{Name: "asset_creations", Value: int64(len(p.assets.assetCreations)), Bytes: assetCreationBytes},
 		{Name: "asset_child_links", Value: assetChildLinks, Bytes: assetChildrenBytes},
-		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: videoManifestBytes},
-		{Name: "asset_message_owner_index", Value: int64(len(p.assetMessageOwner)), Bytes: assetOwnerBytes},
+		{Name: "video_manifests", Value: int64(len(p.assets.videoManifests)), Bytes: videoManifestBytes},
+		{Name: "asset_message_owner_index", Value: int64(len(p.assets.messageOwners)), Bytes: assetOwnerBytes},
 		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},
 	}
 }

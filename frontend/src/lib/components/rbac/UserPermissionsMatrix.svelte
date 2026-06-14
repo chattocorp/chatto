@@ -52,20 +52,24 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     const resp = await connection().client.query(
       graphql(`
         query UserPermissionsMatrixQuery($userId: ID!) {
-          userPermissionMatrix(userId: $userId) {
-            userId
-            applicablePermissions
-            scopes {
-              id
-              label
-              kind
-              parentGroupId
-            }
-            cells {
-              permission
-              scopeId
-              override
-              effective
+          admin {
+            rbac {
+              userPermissionMatrix(userId: $userId) {
+                userId
+                applicablePermissions
+                scopes {
+                  id
+                  label
+                  kind
+                  parentGroupId
+                }
+                cells {
+                  permission
+                  scopeId
+                  override
+                  effective
+                }
+              }
             }
           }
         }
@@ -81,11 +85,12 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
       error = resp.error.message;
       return;
     }
-    if (!resp.data?.userPermissionMatrix) {
+    const matrix = resp.data?.admin?.rbac.userPermissionMatrix;
+    if (!matrix) {
       error = 'No data returned';
       return;
     }
-    const m = resp.data.userPermissionMatrix;
+    const m = matrix;
     data = {
       userId: m.userId,
       applicablePermissions: [...m.applicablePermissions],

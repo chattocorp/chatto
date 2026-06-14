@@ -56,7 +56,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Reaction** — Emoji attached to a message by a user. See [FDR-005](fdr/FDR-005-reactions.md).
 
-**Mention** — `@user` syntax in a message that notifies the referenced user. See [FDR-006](fdr/FDR-006-mentions.md).
+**Mention** — `@handle` syntax in a message that notifies referenced users, pingable roles, or virtual room groups such as `@all` and `@here`. See [FDR-006](fdr/FDR-006-mentions.md).
 
 **Attachment** — File (image, document, video) uploaded alongside a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
 
@@ -78,7 +78,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **RBAC (Role-Based Access Control)** — The model: roles bundle permissions, users hold roles. See [ADR-005](adr/ADR-005-hierarchy-wins-rbac.md).
 
-**Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created.
+**Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created. Role names share the message-mention namespace with user logins, and each role can be marked pingable to allow `@role` pings.
 
 **Permission** — Named capability gate, e.g. `message.post`, `role.assign`. Strings use hyphens, never underscores. The full list lives in `cli/internal/core/permissions.go`.
 
@@ -116,11 +116,11 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **JetStream** — NATS's persistence layer (streams + KV buckets). Chatto's primary data store. See [ADR-001](adr/ADR-001-nats-jetstream-as-primary-data-store.md).
 
-**Stream** — JetStream append-only log. Chatto's event-sourcing stream is `EVT`; the older `SERVER_EVENTS` stream remains as pre-ES import evidence and for legacy restore/debugging tools, but runtime mutations no longer write it.
+**Stream** — JetStream append-only log. Chatto's event-sourcing stream is `EVT`, which stores durable domain facts. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ARCHITECTURE.md](ARCHITECTURE.md#nats-resource-inventory).
 
-**KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several (`RUNTIME_STATE`, `SERVER_CONFIG`, `SERVER_RBAC`, `INSTANCE`, …). Some buckets still hold latest-value runtime or legacy import state; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
+**KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several current buckets, especially `RUNTIME_STATE`, `MEMORY_CACHE`, and `ENCRYPTION_KEYS`; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
 
-**Subject** — NATS message topic. Chatto's subject conventions (`server.room.{kind}.{r}.msg.{id}`, `evt.room.{r}.{type}`, `live.sync.…`) are documented in `.claude/rules/nats-subjects.md`.
+**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See `.claude/rules/nats-subjects.md` and [ARCHITECTURE.md](ARCHITECTURE.md#evt-subject-patterns).
 
 **Event** — Durable domain fact stored on `EVT` using the `corev1.Event` wrapper. Contrast with *Live Event*.
 

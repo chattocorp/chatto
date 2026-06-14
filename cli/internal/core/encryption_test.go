@@ -357,7 +357,7 @@ func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
 	}})
 	seq, err := core.appendUserEvent(ctx, user.Id, event, "", nil)
 	require.NoError(t, err)
-	require.NoError(t, core.ContentKeysProjector.WaitForSeq(ctx, seq))
+	require.NoError(t, core.ContentKeysProjector.WaitFor(ctx, events.SubjectPosition(events.UserAggregate(user.Id).SubjectFor(event), seq)))
 
 	err = core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id)
 	require.ErrorIs(t, err, dekstore.ErrInvalidRef)
@@ -411,11 +411,12 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message body should be tombstoned by UserKeyShreddedEvent before decrypt")
 
-	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventAssetDeleted))
-	require.NoError(t, err)
-	require.Len(t, deletedEvents, 3)
 	deletedIDs := map[string]bool{}
-	for _, e := range deletedEvents {
+	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(att.Id).Subject(events.EventAssetDeleted))
+		require.NoError(t, err)
+		require.Len(t, deletedEvents, 1)
+		e := deletedEvents[0]
 		deletedIDs[e.GetAssetDeleted().GetAssetId()] = true
 	}
 	require.True(t, deletedIDs[original.Id], "source asset should get AssetDeletedEvent")

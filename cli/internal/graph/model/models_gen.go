@@ -57,7 +57,7 @@ type AddReactionInput struct {
 
 // Admin mutations for security and user management.
 type AdminMutations struct {
-	// Update the newline-separated blocked-username list and return the effective saved value. Requires `admin.access`.
+	// Update the newline-separated blocked-username list and return the effective saved value. Requires `server.manage`.
 	UpdateBlockedUsernames string `json:"updateBlockedUsernames"`
 	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
@@ -69,11 +69,11 @@ type AdminMutations struct {
 	UnsuspendUser bool `json:"unsuspendUser"`
 }
 
-// Admin-only query namespace for operator tooling. Returns null if the user is not a server admin.
+// Admin-console query namespace. Returns null unless the viewer is authenticated.
 type AdminQueries struct {
-	// Get point-in-time operator diagnostics for connection, storage, and deployment counts.
+	// Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role.
 	SystemInfo *SystemInfo `json:"systemInfo"`
-	// Get server configuration.
+	// Get server configuration. Requires `server.manage`.
 	ServerConfig *AdminServerConfig `json:"serverConfig"`
 	// Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before.
 	EventLog *EventLogConnection `json:"eventLog"`
@@ -85,14 +85,14 @@ type AdminQueries struct {
 	RoomBans []*RoomBan `json:"roomBans"`
 	// List active user suspensions. Requires `user.suspend`.
 	UserSuspensions []*UserSuspension `json:"userSuspensions"`
+	// RBAC editor and inspection queries.
+	Rbac *RbacQueries `json:"rbac"`
 	// Resolve the explicit grants and denials configured for a role on a
 	// specific room group. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
 	// Resolve the explicit grants and denials configured for a user on a
 	// specific room group (user-level overrides at room-group scope).
 	GroupUserPermissions *RoomGroupUserPermissions `json:"groupUserPermissions"`
-	// List all available server permission identifiers.
-	ServerPermissions []string `json:"serverPermissions"`
 }
 
 // Server configuration section.
@@ -222,6 +222,8 @@ type CreateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Defaults to false.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for creating a new room group.
@@ -621,6 +623,49 @@ type PermissionExplanation struct {
 	Trace []*PermissionTraceEntry `json:"trace"`
 }
 
+// One cell of the user-permission matrix: the per-permission, per-scope
+// intersection.
+type PermissionMatrixCell struct {
+	// Permission identifier (e.g. `message.post`).
+	Permission string `json:"permission"`
+	// Scope id (matches `PermissionMatrixScope.id`).
+	ScopeID string `json:"scopeId"`
+	// The **explicit user-level override** at this scope, or NONE if the user
+	// has no override here. NONE cells display only the inherited effective
+	// state; ALLOW / DENY cells display as a solid override.
+	Override PermissionMatrixDecision `json:"override"`
+	// The **effective** decision the resolver would emit at this scope for
+	// this user-permission pair, after walking room → group → server with
+	// user-level overrides applied first. Drives the cell's tint.
+	Effective PermissionMatrixDecision `json:"effective"`
+}
+
+// A user's permission state across every scope where it can be configured —
+// the data the User Permissions page renders as a matrix.
+//
+// Each cell answers two questions:
+//  1. What's the **effective** decision after the full resolver walk (this
+//     is what governs runtime behavior)?
+//  2. Does the user have an **explicit user-level override** at this scope
+//     (and which way)? Cells with an override render solid; cells driven
+//     only by inheritance render faded.
+type PermissionMatrixScope struct {
+	// Stable identifier for this scope:
+	//   - `server` for the server tier (no group/room context),
+	//   - `group:{groupID}` for a room-group scope,
+	//   - `room:{roomID}` for a per-room scope.
+	// Clients use it as a column key.
+	ID string `json:"id"`
+	// Human-readable label for the scope (group name, room name, or 'Server').
+	Label string `json:"label"`
+	// Scope kind. The frontend uses this to lay out columns (server tier first,
+	// groups expandable, rooms nested under their group).
+	Kind PermissionMatrixScopeKind `json:"kind"`
+	// For room scopes, the parent group's ID — so the UI can nest rooms under
+	// their group column. Empty string for server / group scopes.
+	ParentGroupID string `json:"parentGroupId"`
+}
+
 // A single step in the permission resolution trace.
 // Only explicit allow or deny entries are emitted; roles with no decision at the
 // level being checked are silent.
@@ -649,6 +694,8 @@ type PostMessageInput struct {
 	InReplyTo *string `json:"inReplyTo,omitempty"`
 	// Also echo this thread reply to the main channel for visibility (requires message.echo permission).
 	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
+	// Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts.
+	MentionConfirmationToken *string `json:"mentionConfirmationToken,omitempty"`
 	// Link preview data from the composer. Server stores this directly without fetching.
 	LinkPreview *LinkPreviewInput `json:"linkPreview,omitempty"`
 }
@@ -679,6 +726,12 @@ type ProjectionState struct {
 	StreamLastSequence string `json:"streamLastSequence"`
 	// Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence.
 	Lag int `json:"lag"`
+	// Whether this projection has stopped after a fatal decode or apply error.
+	Failed bool `json:"failed"`
+	// Failed event-log sequence, serialized as String. Zero when the projection has not failed.
+	FailedSequence string `json:"failedSequence"`
+	// Operator-facing failure summary. Empty when the projection has not failed.
+	Failure string `json:"failure"`
 	// Primary projected entry count for this projection.
 	EntryCount int `json:"entryCount"`
 	// Estimated bytes held in memory by this projection.
@@ -704,6 +757,28 @@ type PushSubscriptionInput struct {
 
 // Root query type for fetching data.
 type Query struct {
+}
+
+// RBAC tooling namespace for role, permission, and permission inspection screens.
+// Individual fields enforce their own finer-grained authorization gates, such as
+// `role.manage` or `room.manage`.
+type RbacQueries struct {
+	// Return the full role-permission matrix at a tier: every applicable role
+	// with its override and inherited baseline.
+	//
+	// Pass `roomId` for per-room override editing, `groupId` for room-group-scope
+	// editing, or neither for server-scope editing. Passing both is rejected.
+	RolePermissionTierMatrix *TierRoles `json:"rolePermissionTierMatrix,omitempty"`
+	// Permission matrix for a specific role. Authorization: viewer must hold
+	// `role.manage` at server scope.
+	RolePermissionMatrix *RolePermissionMatrix `json:"rolePermissionMatrix,omitempty"`
+	// Permission matrix for a specific user. Authorization mirrors user-level
+	// permission mutations: viewer must hold `role.manage` and strictly outrank
+	// the target. Self-introspection is not allowed.
+	UserPermissionMatrix *UserPermissionMatrix `json:"userPermissionMatrix,omitempty"`
+	// Explain every applicable permission for a user at the given scope.
+	// Authorization: admin/tooling-only, with no self-inspection path.
+	PermissionExplanation []*PermissionExplanation `json:"permissionExplanation"`
 }
 
 // Input for removing an emoji reaction from a message.
@@ -755,30 +830,6 @@ type RevokeRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
-// A single role's permission state at every applicable tier.
-//
-// - rolePermissions(roleName) → server only.
-// - rolePermissions(roleName, roomId) → server + room.
-type RoleAcrossTiers struct {
-	// Internal role name (e.g. 'admin', 'moderator').
-	RoleName string `json:"roleName"`
-	// Human-readable display name.
-	DisplayName string `json:"displayName"`
-	// Role description.
-	Description string `json:"description"`
-	// Whether this is a system role and cannot be deleted.
-	IsSystem bool `json:"isSystem"`
-	// Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0.
-	Position int32 `json:"position"`
-	// Permissions configurable at the deepest requested scope. Use this as the
-	// set of permissions to render in a permission editor for this scope.
-	ApplicablePermissions []string `json:"applicablePermissions"`
-	// Permission state at server scope (the role's defaults everywhere).
-	Server *TierPermissions `json:"server"`
-	// Permission state at room scope (null when roomId not provided).
-	Room *TierPermissions `json:"room,omitempty"`
-}
-
 // A role's permission state across every scope where it can be configured —
 // the data the Role Permissions page renders as a matrix.
 //
@@ -797,12 +848,11 @@ type RolePermissionMatrix struct {
 	// metadata.
 	ApplicablePermissions []string `json:"applicablePermissions"`
 	// Scopes to render as columns. Server scope first, then groups, then
-	// rooms grouped under their parent group via `parentGroupId`. Same
-	// shape as `UserPermissionMatrix.scopes`.
-	Scopes []*UserPermissionScope `json:"scopes"`
+	// rooms grouped under their parent group via `parentGroupId`.
+	Scopes []*PermissionMatrixScope `json:"scopes"`
 	// One cell per (permission, scope) intersection. Sparse: a cell is
 	// included iff the permission applies at that scope's tier.
-	Cells []*UserPermissionCell `json:"cells"`
+	Cells []*PermissionMatrixCell `json:"cells"`
 }
 
 // Room-level permission configuration for a single role.
@@ -1113,8 +1163,8 @@ type SystemInfo struct {
 }
 
 // A role's permission state at a single tier (server or room).
-// Returned as part of RoleAcrossTiers so callers can display inheritance
-// without making separate per-tier queries.
+// Returned as part of RBAC matrix results so callers can display explicit
+// allow/deny state for a tier.
 type TierPermissions struct {
 	// Permissions explicitly granted by this role at this tier.
 	Permissions []string `json:"permissions"`
@@ -1210,6 +1260,8 @@ type UpdateMessageInput struct {
 	EventID string `json:"eventId"`
 	// The new message content.
 	Body string `json:"body"`
+	// For thread replies, whether the reply should have a visible channel echo after saving. Omit to preserve current echo state.
+	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
 }
 
 // Input for updating the current user's presence status.
@@ -1236,6 +1288,8 @@ type UpdateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Omit to leave unchanged.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for updating an existing room group.
@@ -1301,23 +1355,6 @@ type UploadServerLogoInput struct {
 	File graphql.Upload `json:"file"`
 }
 
-// One cell of the user-permission matrix: the per-permission, per-scope
-// intersection.
-type UserPermissionCell struct {
-	// Permission identifier (e.g. `message.post`).
-	Permission string `json:"permission"`
-	// Scope id (matches `UserPermissionScope.id`).
-	ScopeID string `json:"scopeId"`
-	// The **explicit user-level override** at this scope, or NONE if the user
-	// has no override here. NONE cells display only the inherited effective
-	// state; ALLOW / DENY cells display as a solid override.
-	Override UserPermissionDecision `json:"override"`
-	// The **effective** decision the resolver would emit at this scope for
-	// this user-permission pair, after walking room → group → server with
-	// user-level overrides applied first. Drives the cell's tint.
-	Effective UserPermissionDecision `json:"effective"`
-}
-
 // Full snapshot of a user's permission matrix: the permissions that can
 // be configured anywhere, the scopes they can be configured at, and the
 // state of every cell.
@@ -1330,36 +1367,10 @@ type UserPermissionMatrix struct {
 	ApplicablePermissions []string `json:"applicablePermissions"`
 	// Scopes to render as columns. Server scope first, then groups, then
 	// rooms grouped under their parent group via `parentGroupId`.
-	Scopes []*UserPermissionScope `json:"scopes"`
+	Scopes []*PermissionMatrixScope `json:"scopes"`
 	// One cell per (permission, scope) intersection. Sparse: a cell is
 	// included iff the permission applies at that scope's tier.
-	Cells []*UserPermissionCell `json:"cells"`
-}
-
-// A user's permission state across every scope where it can be configured —
-// the data the User Permissions page renders as a matrix.
-//
-// Each cell answers two questions:
-//  1. What's the **effective** decision after the full resolver walk (this
-//     is what governs runtime behavior)?
-//  2. Does the user have an **explicit user-level override** at this scope
-//     (and which way)? Cells with an override render solid; cells driven
-//     only by inheritance render faded.
-type UserPermissionScope struct {
-	// Stable identifier for this scope:
-	//   - `server` for the server tier (no group/room context),
-	//   - `group:{groupID}` for a room-group scope,
-	//   - `room:{roomID}` for a per-room scope.
-	// Clients use it as a column key.
-	ID string `json:"id"`
-	// Human-readable label for the scope (group name, room name, or 'Server').
-	Label string `json:"label"`
-	// Scope kind. The frontend uses this to lay out columns (server tier first,
-	// groups expandable, rooms nested under their group).
-	Kind UserPermissionScopeKind `json:"kind"`
-	// For room scopes, the parent group's ID — so the UI can nest rooms under
-	// their group column. Empty string for server / group scopes.
-	ParentGroupID string `json:"parentGroupId"`
+	Cells []*PermissionMatrixCell `json:"cells"`
 }
 
 // An active server-level user suspension shown in admin moderation tools.
@@ -1397,6 +1408,11 @@ type ViewerSuspension struct {
 	IsSuspended bool `json:"isSuspended"`
 	// When the suspension expires. Null means indefinite or not suspended.
 	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
+}
+
+type VoiceCallIntentInput struct {
+	// The room whose voice call is being joined or left.
+	RoomID string `json:"roomId"`
 }
 
 // Fit mode for image transformations.
@@ -1582,6 +1598,128 @@ func (e PermissionLevel) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Trinary decision used in the user-permission matrix.
+type PermissionMatrixDecision string
+
+const (
+	// The permission is explicitly granted.
+	PermissionMatrixDecisionAllow PermissionMatrixDecision = "ALLOW"
+	// The permission is explicitly denied.
+	PermissionMatrixDecisionDeny PermissionMatrixDecision = "DENY"
+	// No explicit grant or denial applies at this scope.
+	PermissionMatrixDecisionNone PermissionMatrixDecision = "NONE"
+)
+
+var AllPermissionMatrixDecision = []PermissionMatrixDecision{
+	PermissionMatrixDecisionAllow,
+	PermissionMatrixDecisionDeny,
+	PermissionMatrixDecisionNone,
+}
+
+func (e PermissionMatrixDecision) IsValid() bool {
+	switch e {
+	case PermissionMatrixDecisionAllow, PermissionMatrixDecisionDeny, PermissionMatrixDecisionNone:
+		return true
+	}
+	return false
+}
+
+func (e PermissionMatrixDecision) String() string {
+	return string(e)
+}
+
+func (e *PermissionMatrixDecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PermissionMatrixDecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PermissionMatrixDecision", str)
+	}
+	return nil
+}
+
+func (e PermissionMatrixDecision) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PermissionMatrixDecision) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PermissionMatrixDecision) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Where a PermissionMatrixScope sits in the resolution hierarchy.
+type PermissionMatrixScopeKind string
+
+const (
+	// Server tier — no room/group context.
+	PermissionMatrixScopeKindServer PermissionMatrixScopeKind = "SERVER"
+	// A room group's scope (channel-room permissions).
+	PermissionMatrixScopeKindGroup PermissionMatrixScopeKind = "GROUP"
+	// A specific room's scope.
+	PermissionMatrixScopeKindRoom PermissionMatrixScopeKind = "ROOM"
+)
+
+var AllPermissionMatrixScopeKind = []PermissionMatrixScopeKind{
+	PermissionMatrixScopeKindServer,
+	PermissionMatrixScopeKindGroup,
+	PermissionMatrixScopeKindRoom,
+}
+
+func (e PermissionMatrixScopeKind) IsValid() bool {
+	switch e {
+	case PermissionMatrixScopeKindServer, PermissionMatrixScopeKindGroup, PermissionMatrixScopeKindRoom:
+		return true
+	}
+	return false
+}
+
+func (e PermissionMatrixScopeKind) String() string {
+	return string(e)
+}
+
+func (e *PermissionMatrixScopeKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PermissionMatrixScopeKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PermissionMatrixScopeKind", str)
+	}
+	return nil
+}
+
+func (e PermissionMatrixScopeKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PermissionMatrixScopeKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PermissionMatrixScopeKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // User presence status on the server.
 type PresenceStatus string
 
@@ -1762,128 +1900,6 @@ func (e *RoomType) UnmarshalJSON(b []byte) error {
 }
 
 func (e RoomType) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-// Trinary decision used in the user-permission matrix.
-type UserPermissionDecision string
-
-const (
-	// The permission is explicitly granted.
-	UserPermissionDecisionAllow UserPermissionDecision = "ALLOW"
-	// The permission is explicitly denied.
-	UserPermissionDecisionDeny UserPermissionDecision = "DENY"
-	// No explicit grant or denial applies at this scope.
-	UserPermissionDecisionNone UserPermissionDecision = "NONE"
-)
-
-var AllUserPermissionDecision = []UserPermissionDecision{
-	UserPermissionDecisionAllow,
-	UserPermissionDecisionDeny,
-	UserPermissionDecisionNone,
-}
-
-func (e UserPermissionDecision) IsValid() bool {
-	switch e {
-	case UserPermissionDecisionAllow, UserPermissionDecisionDeny, UserPermissionDecisionNone:
-		return true
-	}
-	return false
-}
-
-func (e UserPermissionDecision) String() string {
-	return string(e)
-}
-
-func (e *UserPermissionDecision) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = UserPermissionDecision(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid UserPermissionDecision", str)
-	}
-	return nil
-}
-
-func (e UserPermissionDecision) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *UserPermissionDecision) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e UserPermissionDecision) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-// Where a UserPermissionScope sits in the resolution hierarchy.
-type UserPermissionScopeKind string
-
-const (
-	// Server tier — no room/group context.
-	UserPermissionScopeKindServer UserPermissionScopeKind = "SERVER"
-	// A room group's scope (channel-room permissions).
-	UserPermissionScopeKindGroup UserPermissionScopeKind = "GROUP"
-	// A specific room's scope.
-	UserPermissionScopeKindRoom UserPermissionScopeKind = "ROOM"
-)
-
-var AllUserPermissionScopeKind = []UserPermissionScopeKind{
-	UserPermissionScopeKindServer,
-	UserPermissionScopeKindGroup,
-	UserPermissionScopeKindRoom,
-}
-
-func (e UserPermissionScopeKind) IsValid() bool {
-	switch e {
-	case UserPermissionScopeKindServer, UserPermissionScopeKindGroup, UserPermissionScopeKindRoom:
-		return true
-	}
-	return false
-}
-
-func (e UserPermissionScopeKind) String() string {
-	return string(e)
-}
-
-func (e *UserPermissionScopeKind) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = UserPermissionScopeKind(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid UserPermissionScopeKind", str)
-	}
-	return nil
-}
-
-func (e UserPermissionScopeKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *UserPermissionScopeKind) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e UserPermissionScopeKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
+  import { PresenceStatus } from '$lib/gql/graphql';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -8,7 +9,6 @@
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
-    useEvent,
     useUserProfileUpdate,
     useUserSettingsUpdate,
     useSessionTerminated
@@ -47,8 +47,10 @@
   }
   const currentUserState = serverRegistry.getStore(originServer.id).currentUser;
   // svelte-ignore state_referenced_locally
-  currentUserState.user = user;
+  currentUserState.user = { ...user, presenceStatus: PresenceStatus.Online };
   currentUserState.loading = false;
+  // svelte-ignore state_referenced_locally
+  presenceCache.update(user.id, PresenceStatus.Online);
 
   // Initialize user settings from the user's settings data
   // svelte-ignore state_referenced_locally
@@ -87,18 +89,6 @@
     // Handle logout from another tab in the same browser (instant, no server round-trip)
     $effect(() => initSessionChannel(() => currentUserState.handleAuthFailure()));
 
-    // Listen for server config updates (for page title, MOTD, welcome message, etc.)
-    useEvent((event) => {
-      if (!event.event) return;
-      if (event.event.__typename === 'ServerConfigUpdatedEvent') {
-        const config = event.event;
-        serverRegistry.getStore(originServerId).serverInfo.updateConfig({
-          serverName: config.serverName,
-          motd: config.motd ?? null,
-          welcomeMessage: config.welcomeMessage ?? null
-        });
-      }
-    });
   }
 
   // Initialize presence tracking (idle detection → AWAY, active → ONLINE).

@@ -43,6 +43,15 @@ Frontend TypeScript types for permission constants and other shared Go types are
   import type { SomeType } from "$lib/gql/graphql"; // For generated types
   ```
 
+## Fragment-First GraphQL
+
+- Keep operation documents colocated with the store, hook, route, or component that owns the data lifecycle. Do not move queries into distant global files just to reduce inline strings.
+- Prefer fragments for repeated render shapes and nested selections that have a clear UI owner. Components define fragments for the fields they render; stores and hooks compose those fragments in their queries.
+- Reuse established shared UI fragments such as `UserAvatarUser` when the consumer needs that exact shape. Avoid broad schema-level fragments or tiny one-field fragments unless they encode a real shared UI contract.
+- When a query uses a fragment spread, read the result through `useFragment(FragmentDoc, value)` before accessing fragment fields or passing it to a component. Do not cast around fragment masking.
+- Keep large feature fragments, such as the room event view shape, colocated with their rendering surface and let pagination/subscription queries spread them.
+- Keep using inline `graphql(...)` documents in source. Vite rewrites those calls to direct imports from `$lib/gql/graphql` during app builds so the runtime bundle does not need the generated `gql.ts` string registry.
+
 ## Event Bus
 
 A single `myEvents` GraphQL subscription per connected server delivers

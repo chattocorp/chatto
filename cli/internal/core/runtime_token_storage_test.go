@@ -57,9 +57,7 @@ func assertRuntimeTokenOnly(t *testing.T, core *ChattoCore, key, rawKey string) 
 		t.Fatalf("expected %s in RUNTIME_STATE: %v", key, err)
 	}
 	assertRuntimeKVHasTTL(t, core, key)
-	assertLegacyKeyAbsent(t, core.storage.serverKV, key, "legacy INSTANCE token key")
 	assertRawRuntimeTokenKeyAbsent(t, core, rawKey)
-	assertLegacyKeyAbsent(t, core.storage.serverKV, rawKey, "raw legacy INSTANCE token key")
 }
 
 func assertRuntimeKVHasTTL(t *testing.T, core *ChattoCore, key string) {

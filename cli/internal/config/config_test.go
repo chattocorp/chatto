@@ -23,6 +23,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	// Set required env vars
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "000102030405060708090a0b0c0d0e0f")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
 
@@ -38,6 +39,9 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 	if cfg.Webserver.CookieSigningSecret != "test-cookie-secret" {
 		t.Errorf("expected cookie secret to be set from env var")
+	}
+	if cfg.Webserver.CookieEncryptionSecret != "000102030405060708090a0b0c0d0e0f" {
+		t.Errorf("expected cookie encryption secret to be set from env var")
 	}
 	if cfg.Core.SecretKey != "test-core-secret" {
 		t.Errorf("expected core secret to be set from env var")
@@ -123,6 +127,173 @@ signing_secret = "file-assets-secret"
 	// Env var should override file
 	if cfg.Webserver.Port != 6000 {
 		t.Errorf("expected port 6000 from env override, got %d", cfg.Webserver.Port)
+	}
+}
+
+func TestReadConfig_InvalidCookieEncryptionSecretFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "not-hex")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
+
+	_, err = ReadConfig("")
+	if err == nil || !strings.Contains(err.Error(), "webserver.cookie_encryption_secret must be hex-encoded") {
+		t.Fatalf("ReadConfig() error = %v, want cookie encryption validation error", err)
+	}
+}
+
+func TestReadConfig_GeneralLogFormatFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[general]
+log_format = "text"
+
+[webserver]
+port = 5000
+cookie_signing_secret = "file-cookie-secret"
+
+[core]
+secret_key = "file-core-secret"
+
+[core.assets]
+signing_secret = "file-assets-secret"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.General.LogFormat != "text" {
+		t.Fatalf("expected TOML log_format %q, got %q", "text", cfg.General.LogFormat)
+	}
+
+	t.Setenv("CHATTO_LOG_FORMAT", "json")
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if cfg.General.LogFormat != "json" {
+		t.Fatalf("expected env log_format %q, got %q", "json", cfg.General.LogFormat)
+	}
+}
+
+func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "file-cookie-secret"
+oauth_redirect_origins = ["https://client.example"]
+
+[core]
+secret_key = "file-core-secret"
+
+[core.assets]
+signing_secret = "file-assets-secret"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "https://client.example"; got != want {
+		t.Fatalf("expected TOML oauth_redirect_origins %q, got %q", want, got)
+	}
+
+	t.Setenv("CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS", "*")
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "*"; got != want {
+		t.Fatalf("expected env oauth_redirect_origins %q, got %q", want, got)
+	}
+}
+
+func TestReadConfig_S3PathPrefixFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "file-cookie-secret"
+
+[core]
+secret_key = "file-core-secret"
+
+[core.assets]
+signing_secret = "file-assets-secret"
+storage_backend = "s3"
+
+[core.assets.s3]
+endpoint = "s3.amazonaws.com"
+bucket = "test-bucket"
+path_prefix = "/tenant-a/chatto/"
+access_key_id = "test-key"
+secret_access_key = "test-secret"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.Core.Assets.S3.PathPrefix != "tenant-a/chatto" {
+		t.Fatalf("expected normalized TOML prefix, got %q", cfg.Core.Assets.S3.PathPrefix)
+	}
+
+	t.Setenv("CHATTO_CORE_ASSETS_S3_PATH_PREFIX", "/tenant-b/chatto/")
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if cfg.Core.Assets.S3.PathPrefix != "tenant-b/chatto" {
+		t.Fatalf("expected normalized env prefix, got %q", cfg.Core.Assets.S3.PathPrefix)
 	}
 }
 
@@ -342,6 +513,92 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.errorMsg)
 			}
 		})
+	}
+}
+
+func TestChattoConfig_Validate_CookieEncryptionSecret(t *testing.T) {
+	base := ChattoConfig{
+		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
+		Core: CoreConfig{
+			SecretKey: "core-secret",
+			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
+		},
+	}
+
+	tests := []struct {
+		name      string
+		secret    string
+		wantError string
+	}{
+		{
+			name: "empty is allowed",
+		},
+		{
+			name:   "16 byte key",
+			secret: "000102030405060708090a0b0c0d0e0f",
+		},
+		{
+			name:   "24 byte key",
+			secret: "000102030405060708090a0b0c0d0e0f1011121314151617",
+		},
+		{
+			name:   "32 byte key",
+			secret: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		},
+		{
+			name:      "not hex",
+			secret:    "not-hex",
+			wantError: "webserver.cookie_encryption_secret must be hex-encoded",
+		},
+		{
+			name:      "wrong decoded length",
+			secret:    "000102030405060708090a0b0c0d0e",
+			wantError: "webserver.cookie_encryption_secret must decode to 16, 24, or 32 bytes (got 15)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := base
+			cfg.Webserver.CookieEncryptionSecret = tt.secret
+			err := cfg.Validate()
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("Validate() unexpected error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestChattoConfig_Validate_LogFormat(t *testing.T) {
+	base := ChattoConfig{
+		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
+		Core: CoreConfig{
+			SecretKey: "core-secret",
+			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
+		},
+	}
+
+	for _, format := range []string{"", "auto", "text", "json", "logfmt", "JSON"} {
+		t.Run("valid_"+format, func(t *testing.T) {
+			cfg := base
+			cfg.General.LogFormat = format
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("Validate() unexpected error = %v", err)
+			}
+		})
+	}
+
+	cfg := base
+	cfg.General.LogFormat = "pretty"
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "general.log_format must be one of: auto, text, json, logfmt") {
+		t.Fatalf("Validate() error = %v, want invalid log_format error", err)
 	}
 }
 
@@ -870,6 +1127,64 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 				}
 			},
 			wantError: false,
+		},
+		{
+			name: "valid S3 backend with empty path prefix",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "/",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: false,
+		},
+		{
+			name: "valid S3 backend normalizes path prefix",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "/tenant-a/chatto/",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: false,
+		},
+		{
+			name: "S3 backend with empty path segment fails",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "tenant//chatto",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: true,
+			errorMsg:  "core.assets.s3.path_prefix must not contain empty path segments",
+		},
+		{
+			name: "S3 backend with control character path prefix fails",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.StorageBackend = StorageBackendS3
+				c.Core.Assets.S3 = S3Config{
+					Endpoint:        "s3.amazonaws.com",
+					Bucket:          "test-bucket",
+					PathPrefix:      "tenant\nchatto",
+					AccessKeyID:     "test-key",
+					SecretAccessKey: "test-secret",
+				}
+			},
+			wantError: true,
+			errorMsg:  "core.assets.s3.path_prefix must not contain control characters",
 		},
 		{
 			name: "S3 backend without endpoint fails",

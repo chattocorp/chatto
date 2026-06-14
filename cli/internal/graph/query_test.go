@@ -914,10 +914,8 @@ func TestQueryResolver_Admin(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin returns nil", func(t *testing.T) {
+	t.Run("authenticated non-admin returns AdminQueries namespace", func(t *testing.T) {
 		env := setupTestResolver(t)
-		// Create a second user who is NOT an admin (the first user from setupTestResolver
-		// is auto-promoted to server owner, so we need a fresh user)
 		regularUser, err := env.core.CreateUser(env.ctx, "system", "regularuser", "Regular User", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create regular user: %v", err)
@@ -927,8 +925,8 @@ func TestQueryResolver_Admin(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-		if admin != nil {
-			t.Error("Expected nil for non-admin user")
+		if admin == nil {
+			t.Error("Expected AdminQueries for authenticated user")
 		}
 	})
 
@@ -942,8 +940,12 @@ func TestQueryResolver_Admin(t *testing.T) {
 		if admin == nil {
 			t.Fatal("Expected AdminQueries for admin user, got nil")
 		}
-		// Verify it contains system info
-		if admin.SystemInfo == nil {
+		// System info is resolved lazily on the owner-only child field.
+		systemInfo, err := env.resolver.AdminQueries().SystemInfo(env.authContext(), admin)
+		if err != nil {
+			t.Fatalf("Expected SystemInfo resolver success, got error: %v", err)
+		}
+		if systemInfo == nil {
 			t.Error("Expected SystemInfo to be populated")
 		}
 	})

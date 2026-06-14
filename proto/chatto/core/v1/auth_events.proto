@@ -86,3 +86,15 @@ message BearerTokenRevokedEvent {
   string reason = 2;
   AuditRequestMetadata request = 3;
 }
+
+message OAuthConsentGrantedEvent {
+  string user_id = 1;
+  string redirect_origin = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message OAuthConsentDeniedEvent {
+  string user_id = 1;
+  string redirect_origin = 2;
+  AuditRequestMetadata request = 3;
+}

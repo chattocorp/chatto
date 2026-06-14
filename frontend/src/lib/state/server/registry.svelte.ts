@@ -3,6 +3,7 @@ import { ServerStateStore } from './store.svelte';
 import { graphqlClientManager } from './graphqlClient.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
+import { clearAssetProxyCache } from '$lib/pwa/assetProxy';
 
 /**
  * A registered Chatto server in the multi-server client.
@@ -212,7 +213,7 @@ class ServerRegistry {
 		const store = this.#createStore(server);
 
 		// Start the event bus eagerly for already-authenticated servers so
-		// child components (ServerSpaceSection) can register handlers during
+		// child components (ServerSidebarEntry) can register handlers during
 		// their mount lifecycle. For cookie-auth servers the user is loaded
 		// asynchronously by AuthenticatedChatProvider, so the layout's $effect
 		// starts the bus once `isAuthenticated` flips true.
@@ -238,6 +239,7 @@ class ServerRegistry {
 
 		// Dispose GraphQL client
 		graphqlClientManager.destroyClient(id);
+		clearAssetProxyCache(id);
 
 		this.servers = this.servers.filter((s) => s.id !== id);
 		serversSlot.set(this.servers);
@@ -253,6 +255,7 @@ class ServerRegistry {
 			this.#stores.delete(server.id);
 			graphqlClientManager.destroyClient(server.id);
 		}
+		clearAssetProxyCache();
 		this.servers = [];
 		serversSlot.set(this.servers);
 	}

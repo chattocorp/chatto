@@ -3,7 +3,7 @@ buf = "latest"
 go = "1.26.2"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.11"
 node = "22"
-watchexec = "latest"
+tilt = "latest"
 
 [env]
 _.file = '.env'
@@ -23,7 +23,7 @@ run = { task = "deps" }
 [tasks.deps-cli]
 description = "Install Go dependencies"
 dir = "cli"
-run = "go get ./..."
+run = "go mod download"
 sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
@@ -118,36 +118,9 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../frontend/e2e/fixtures/bin/chatto ."
 sources = ["**/*.go", "internal/http_server/.client/**/*"]
 outputs = ["../frontend/e2e/fixtures/bin/chatto"]
-
-# =============================================================================
-# Development
-# =============================================================================
-
-[tasks._app-server]
-description = "Compile and run the app server in dev mode"
-dir = "cli"
-# `bootstrap` compiles in the [bootstrap] applier so chatto.toml seed
-# data is honored on every restart.
-run = "go run -tags bootstrap . start"
-sources = ["**/*.go", "go.mod", "go.sum"]
-hide = true
-
-[tasks.dev-app]
-description = "Run the application in development mode (with file watching)"
-# No `build-frontend` dependency: dev traffic goes through Vite at
-# $CONDUCTOR_PORT, which proxies /api/* to this backend. The .gitkeep
-# in cli/internal/http_server/.client/ is enough for `//go:embed` to
-# compile.
-run = "mise watch _app-server --restart"
-
-[tasks.dev-frontend]
-description = "Run the frontend application in development mode"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm dev"
 
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
@@ -155,15 +128,31 @@ depends = ["deps-frontend"]
 dir = "frontend"
 run = "pnpm storybook"
 
-[tasks.dev-frontend-codegen]
-description = "Run graphql-codegen in watch mode"
-depends = ["deps-frontend"]
+[tasks.dev-backend]
+description = "Build and run the local development backend"
+dir = "cli"
+run = "go build -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+
+[tasks.dev-frontend]
+description = "Run the local development frontend"
 dir = "frontend"
-run = "pnpm codegen --watch"
+run = "exec ./node_modules/.bin/vite dev"
+
+[tasks.dev-frontend-codegen]
+description = "Run frontend GraphQL codegen in watch mode"
+dir = "frontend"
+run = "exec ./node_modules/.bin/graphql-codegen --watch"
 
 [tasks.dev]
-description = "Run a complete development environment (backend + frontend)"
-run = { task = "dev-*" }
+description = "Run the local Tilt development stack"
+raw = true
+run = """
+if [ -n "${TILT_PORT:-}" ]; then
+  exec tilt up --stream --port "$TILT_PORT"
+fi
+
+exec tilt up --stream
+"""
 
 [tasks.chatto]
 description = "Runs the CLI app with the given arguments"
@@ -180,6 +169,13 @@ description = "Run CLI tests"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
 run = "go test -tags test_endpoints ./..."
+sources = ["**/*.go"]
+
+[tasks.test-cli-shutdown]
+description = "Run backend process shutdown integration tests"
+depends = ["deps-cli"]
+dir = "cli"
+run = "go test -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
 sources = ["**/*.go"]
 
 [tasks.lint-frontend]

@@ -38,6 +38,11 @@ func NewRoomID() string {
 	return newID("R")
 }
 
+// NewCallID generates a new voice call session ID with "C" prefix.
+func NewCallID() string {
+	return newID("C")
+}
+
 // NewRoomGroupID generates a new room-group ID with "G" prefix.
 func NewRoomGroupID() string {
 	return newID("G")

@@ -28,7 +28,7 @@ type DecryptedMessageBody struct {
 // GetFullMessageBody returns the decrypted message body for a message.
 //
 // `messageBodyKey` is the legacy compound key `{userId}.{eventId}`
-// retained for API compatibility with the pre-ES resolver layer. We
+// retained for API compatibility with older resolver call sites. We
 // extract the eventId from the second segment, look the message up in
 // the RoomTimelineProjection, and fold any subsequent edit / retract
 // events to produce the current body. The userId prefix on the key is
@@ -53,7 +53,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 		return nil, nil
 	}
 
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return nil, nil
 	}
@@ -62,7 +62,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 		return nil, nil
 	}
 
-	body, retracted, _ := c.RoomTimeline.LatestBody(eventID)
+	body, retracted, _ := c.rooms().latestBody(eventID)
 	if retracted || body == nil {
 		// Retracted message: same shape as a legacy GDPR delete —
 		// resolver renders "[Message unavailable]".
@@ -117,7 +117,7 @@ func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, mess
 	if eventID == "" {
 		return "", nil
 	}
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return "", nil
 	}

@@ -455,6 +455,152 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 
+  test('editing an un-echoed thread reply can add an echo to the main room', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await test.step('Setup: User creates space and posts root message', async () => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.createSpace();
+      await chatPage.enterRoom('general');
+    });
+
+    const rootMessage = `Root for edit-add-echo test ${Date.now()}`;
+    const replyMessage = `Reply edited to add echo ${Date.now()}`;
+    const editedMessage = `Edited reply with added echo ${Date.now()}`;
+
+    const rootMessageComponent = await roomPage.sendMessage(rootMessage);
+
+    await test.step('Post reply without echo', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReply(replyMessage);
+    });
+
+    await test.step('Edit the reply, check the echo checkbox, and save', async () => {
+      const threadReply = roomPage.getThreadMessage(replyMessage);
+      await threadReply.startEdit();
+      await roomPage.expectThreadEditModeActive();
+
+      const checkbox = page.getByLabel('Also send to channel');
+      await expect(checkbox).toBeVisible();
+      await expect(checkbox).not.toBeChecked();
+      await checkbox.check();
+
+      await roomPage.completeThreadEdit(editedMessage);
+    });
+
+    await test.step('Verify the edited reply remains in the thread and appears in the room', async () => {
+      await roomPage.expectTextInThreadPane(editedMessage);
+
+      await roomPage.closeThread();
+      await roomPage.expectThreadRouteClosed();
+      await roomPage.expectMessageVisible(editedMessage, { timeout: TIMEOUTS.REALTIME_EVENT });
+    });
+  });
+
+  test('editing an echoed thread reply can remove the main room echo', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await test.step('Setup: User creates space and posts root message', async () => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.createSpace();
+      await chatPage.enterRoom('general');
+    });
+
+    const rootMessage = `Root for edit-remove-echo test ${Date.now()}`;
+    const replyMessage = `Reply edited to remove echo ${Date.now()}`;
+    const editedMessage = `Edited reply with removed echo ${Date.now()}`;
+
+    const rootMessageComponent = await roomPage.sendMessage(rootMessage);
+
+    await test.step('Post reply with echo', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReplyWithEcho(replyMessage);
+    });
+
+    await test.step('Edit the reply, uncheck the echo checkbox, and save', async () => {
+      const threadReply = roomPage.getThreadMessage(replyMessage);
+      await threadReply.startEdit();
+      await roomPage.expectThreadEditModeActive();
+
+      const checkbox = page.getByLabel('Also send to channel');
+      await expect(checkbox).toBeVisible();
+      await expect(checkbox).toBeChecked();
+      await checkbox.uncheck();
+
+      await roomPage.completeThreadEdit(editedMessage);
+    });
+
+    await test.step('Verify the thread reply remains readable and the room echo is hidden', async () => {
+      await roomPage.expectTextInThreadPane(editedMessage);
+
+      await roomPage.closeThread();
+      await roomPage.expectThreadRouteClosed();
+      await roomPage.expectMessageNotVisible(editedMessage);
+    });
+  });
+
+  test('editing an echo in the main room can remove that room echo', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await test.step('Setup: User creates space and posts root message', async () => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.createSpace();
+      await chatPage.enterRoom('general');
+    });
+
+    const rootMessage = `Root for edit-echo-remove test ${Date.now()}`;
+    const replyMessage = `Reply echo edited away ${Date.now()}`;
+    const editedMessage = `Edited echo removed from room ${Date.now()}`;
+
+    const rootMessageComponent = await roomPage.sendMessage(rootMessage);
+
+    let echoEventId: string | null;
+
+    await test.step('Post reply with echo and close thread', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReplyWithEcho(replyMessage);
+      await roomPage.closeThread();
+
+      const echo = roomPage.getMessage(replyMessage);
+      await expect(echo.locator).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      echoEventId = await echo.getEventId();
+    });
+
+    await test.step('Edit the echo, uncheck the echo checkbox, and save', async () => {
+      const echo = roomPage.getMessage(replyMessage);
+      await echo.startEdit();
+      await roomPage.expectEditModeActive();
+
+      const checkbox = page.getByLabel('Also send to channel');
+      await expect(checkbox).toBeVisible();
+      await expect(checkbox).toBeChecked();
+      await checkbox.uncheck();
+
+      await roomPage.completeEdit(editedMessage);
+    });
+
+    await test.step('Verify the echo is hidden from the room and the thread reply remains', async () => {
+      const echo = roomPage.getMessageByEventId(echoEventId!);
+      await echo.expectNotVisible();
+
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.expectTextInThreadPane(editedMessage);
+    });
+  });
+
   test('deleting echo hides only the echo and keeps thread original readable', async ({
     page,
     chatPage,

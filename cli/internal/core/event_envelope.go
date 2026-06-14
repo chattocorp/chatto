@@ -14,6 +14,7 @@ type EventEnvelope interface {
 	CreatedAt() *timestamppb.Timestamp
 	ActorID() string
 	Payload() any
+	DeliverySeq() uint64
 
 	EVTEvent() *corev1.Event
 	LiveEvent() *corev1.LiveEvent
@@ -21,7 +22,8 @@ type EventEnvelope interface {
 }
 
 type evtEventEnvelope struct {
-	event *corev1.Event
+	event       *corev1.Event
+	deliverySeq uint64
 }
 
 func NewEVTEventEnvelope(event *corev1.Event) EventEnvelope {
@@ -31,10 +33,18 @@ func NewEVTEventEnvelope(event *corev1.Event) EventEnvelope {
 	return &evtEventEnvelope{event: event}
 }
 
+func NewEVTEventEnvelopeWithDeliverySeq(event *corev1.Event, seq uint64) EventEnvelope {
+	if event == nil {
+		return nil
+	}
+	return &evtEventEnvelope{event: event, deliverySeq: seq}
+}
+
 func (e *evtEventEnvelope) ID() string                             { return e.event.GetId() }
 func (e *evtEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.event.GetCreatedAt() }
 func (e *evtEventEnvelope) ActorID() string                        { return e.event.GetActorId() }
 func (e *evtEventEnvelope) Payload() any                           { return e.event.GetEvent() }
+func (e *evtEventEnvelope) DeliverySeq() uint64                    { return e.deliverySeq }
 func (e *evtEventEnvelope) EVTEvent() *corev1.Event                { return e.event }
 func (e *evtEventEnvelope) LiveEvent() *corev1.LiveEvent           { return nil }
 func (e *evtEventEnvelope) HeartbeatEvent() *corev1.HeartbeatEvent { return nil }
@@ -54,6 +64,7 @@ func (e *liveEventEnvelope) ID() string                             { return e.e
 func (e *liveEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.event.GetCreatedAt() }
 func (e *liveEventEnvelope) ActorID() string                        { return e.event.GetActorId() }
 func (e *liveEventEnvelope) Payload() any                           { return e.event.GetEvent() }
+func (e *liveEventEnvelope) DeliverySeq() uint64                    { return 0 }
 func (e *liveEventEnvelope) EVTEvent() *corev1.Event                { return nil }
 func (e *liveEventEnvelope) LiveEvent() *corev1.LiveEvent           { return e.event }
 func (e *liveEventEnvelope) HeartbeatEvent() *corev1.HeartbeatEvent { return nil }
@@ -76,6 +87,7 @@ func (e *heartbeatEventEnvelope) ID() string                             { retur
 func (e *heartbeatEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.createdAt }
 func (e *heartbeatEventEnvelope) ActorID() string                        { return "" }
 func (e *heartbeatEventEnvelope) Payload() any                           { return e.event }
+func (e *heartbeatEventEnvelope) DeliverySeq() uint64                    { return 0 }
 func (e *heartbeatEventEnvelope) EVTEvent() *corev1.Event                { return nil }
 func (e *heartbeatEventEnvelope) LiveEvent() *corev1.LiveEvent           { return nil }
 func (e *heartbeatEventEnvelope) HeartbeatEvent() *corev1.HeartbeatEvent { return e.event }

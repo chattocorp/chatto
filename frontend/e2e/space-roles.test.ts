@@ -75,7 +75,11 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  * Logs out the current user.
  */
 async function logoutUser(page: Page): Promise<void> {
-  await page.request.post('/auth/logout');
+  const response = await page.request.post('/auth/logout');
+  expect(response.ok()).toBeTruthy();
+  // Unload the SPA before switching identities. Otherwise the old authenticated
+  // app can react to logout and race a later page.goto() with its own redirect.
+  await page.goto('about:blank');
 }
 
 /**
@@ -1102,7 +1106,7 @@ test.describe('Space Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('administration link hidden when user lacks room.manage permission', async ({ page }) => {
+    test('administration gear hidden when user lacks room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1120,11 +1124,11 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration link should NOT be visible
-      await expect(page.getByRole('link', { name: 'Administration' })).not.toBeVisible();
+      // Administration gear should NOT be visible
+      await expect(page.getByRole('link', { name: 'Server administration' })).not.toBeVisible();
     });
 
-    test('administration link visible when user has room.manage permission', async ({ page }) => {
+    test('administration gear visible when user has room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1145,8 +1149,8 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration link should be visible
-      await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible();
+      // Administration gear should be visible
+      await expect(page.getByRole('link', { name: 'Server administration' })).toBeVisible();
     });
   });
 });

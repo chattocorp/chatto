@@ -2,10 +2,12 @@
 package push
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -16,9 +18,16 @@ import (
 
 // Sender sends Web Push notifications.
 type Sender struct {
-	config config.PushConfig
-	logger *log.Logger
+	config     config.PushConfig
+	logger     *log.Logger
+	httpClient webpush.HTTPClient
 }
+
+const (
+	pushRecordSize                       uint32 = 2048
+	maxPushProviderResponseBodyBytes            = 2048
+	truncatedPushProviderResponseBodyMsg        = "…"
+)
 
 // NewSender creates a new push notification sender.
 // Returns nil if push is not configured.
@@ -105,34 +114,72 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 
 	// Send the push notification
 	resp, err := webpush.SendNotification(payloadJSON, subscription, &webpush.Options{
-		Subscriber:      s.config.VAPIDSubject,
+		Subscriber:      normalizeVAPIDSubject(s.config.VAPIDSubject),
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
 		TTL:             86400, // 24 hours
+		RecordSize:      pushRecordSize,
+		HTTPClient:      s.httpClient,
 	})
 	if err != nil {
 		result.Error = err
 		return result
 	}
-	defer func() {
-		// Drain body to allow connection reuse
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
+	defer resp.Body.Close()
 
 	// Check response status
 	switch resp.StatusCode {
 	case 200, 201, 202:
+		// Drain body to allow connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
 		result.Success = true
 	case 404, 410:
 		// 404 Not Found or 410 Gone - subscription is no longer valid
+		body, readErr := readPushProviderResponseBody(resp.Body)
 		result.Gone = true
-		result.Error = fmt.Errorf("subscription expired or invalid (status %d)", resp.StatusCode)
+		result.Error = pushServiceStatusError("subscription expired or invalid", resp.StatusCode, body, readErr)
 	default:
-		result.Error = fmt.Errorf("push service returned status %d", resp.StatusCode)
+		body, readErr := readPushProviderResponseBody(resp.Body)
+		result.Error = pushServiceStatusError("push service returned status", resp.StatusCode, body, readErr)
 	}
 
 	return result
+}
+
+func normalizeVAPIDSubject(subject string) string {
+	return strings.TrimPrefix(subject, "mailto:")
+}
+
+func readPushProviderResponseBody(body io.Reader) (string, error) {
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, io.LimitReader(body, maxPushProviderResponseBodyBytes+1))
+	_, _ = io.Copy(io.Discard, body)
+	if err != nil {
+		return "", err
+	}
+
+	responseBody := buf.Bytes()
+	truncated := false
+	if len(responseBody) > maxPushProviderResponseBodyBytes {
+		responseBody = responseBody[:maxPushProviderResponseBodyBytes]
+		truncated = true
+	}
+
+	text := strings.TrimSpace(strings.ToValidUTF8(string(responseBody), ""))
+	if truncated {
+		text += truncatedPushProviderResponseBodyMsg
+	}
+	return text, nil
+}
+
+func pushServiceStatusError(prefix string, statusCode int, body string, readErr error) error {
+	if readErr != nil {
+		return fmt.Errorf("%s %d (failed to read response body: %w)", prefix, statusCode, readErr)
+	}
+	if body == "" {
+		return fmt.Errorf("%s %d", prefix, statusCode)
+	}
+	return fmt.Errorf("%s %d: %s", prefix, statusCode, body)
 }
 
 // SendToMany sends a push notification to multiple subscriptions.

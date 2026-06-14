@@ -28,7 +28,8 @@ import (
 // ============================================================================
 
 // CreateUser creates a new user.
-// Uses atomic login claim via kv.Create to prevent race conditions.
+// Uses the mentionables projection plus stream-wide OCC to prevent user/role
+// handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 // Note: actorID parameter is retained for future use (e.g., admin-created users) but is not currently used.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
@@ -60,6 +61,9 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
 	}
 	if isBlocked {
+		return nil, ErrUsernameBlocked
+	}
+	if c.loginConflictsWithMentionHandle(login) {
 		return nil, ErrUsernameBlocked
 	}
 
@@ -153,7 +157,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		Event:   accountCreated,
 	}}
 	if password != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
@@ -170,17 +174,14 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		})
 	}
 
-	_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-		if c.Users.LoginExists(login) {
-			return ErrLoginAlreadyTaken
-		}
-		return nil
+	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+		return c.requireLoginMentionHandleAvailable(login)
 	})
 	if err != nil {
 		return nil, err
 	}
 	cleanupEncryptionKey = false
-	if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+	if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return nil, err
 	}
 
@@ -201,7 +202,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
 
-	c.logger.Info("Created user", "id", userID, "login", login)
+	c.logger.Info("Created user", "id", userID)
 
 	return user, nil
 }
@@ -237,7 +238,7 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 // rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —
 // failures are logged but not returned, since the caller is already in an error path.
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
-	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
+	c.logger.Warn("rolling back user creation", "user_id", user.Id)
 	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
 }
 
@@ -306,7 +307,7 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 	}
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -685,7 +686,7 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 	}
 	user.DisplayName = displayName
 
-	c.logger.Info("Updated user display name", "id", userID, "displayName", displayName)
+	c.logger.Info("Updated user display name", "id", userID)
 
 	// Publish profile update event
 	c.publishUserProfileUpdate(ctx, userID)
@@ -702,7 +703,7 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Info("Admin updated user display name", "id", userID, "display_name", displayName)
+	c.logger.Info("Admin updated user display name", "id", userID)
 	return user, nil
 }
 
@@ -730,7 +731,7 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Info("Admin updated user login", "id", userID, "new_login", newLogin)
+	c.logger.Info("Admin updated user login", "id", userID)
 	return user, nil
 }
 
@@ -762,6 +763,9 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 			return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
 		}
 		if isBlocked {
+			return nil, ErrUsernameBlocked
+		}
+		if c.loginConflictsWithMentionHandle(newLogin) {
 			return nil, ErrUsernameBlocked
 		}
 	}
@@ -802,12 +806,14 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 			Event:   cooldownStarted,
 		})
 	}
-	if _, err := c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-		if !caseOnly && c.Users.LoginExists(newLogin) {
-			return ErrLoginAlreadyTaken
-		}
-		return nil
-	}); err != nil {
+	if !caseOnly {
+		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			return c.requireLoginMentionHandleAvailable(newLogin)
+		})
+	} else {
+		_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), nil)
+	}
+	if err != nil {
 		if errors.Is(err, ErrLoginAlreadyTaken) {
 			return nil, ErrLoginAlreadyTaken
 		}
@@ -815,7 +821,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 	}
 	user.Login = newLogin
 
-	c.logger.Info("Updated user login", "id", userID, "new_login", newLogin)
+	c.logger.Info("Updated user login", "id", userID)
 
 	// Publish profile update event
 	c.publishUserProfileUpdate(ctx, userID)
@@ -938,9 +944,7 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 // This performs GDPR-compliant deletion including removal of message bodies.
 // Authorization: Caller must verify CanDeleteUser(actorID, userID) before calling.
 func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) error {
-	// Get the user first to get their login for index cleanup
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
+	if _, err := c.GetUser(ctx, userID); err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
 
@@ -999,7 +1003,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Clean per-kind user artifacts AFTER the user projection marks the
-	// account deleted, so SpaceMemberDeletedEvent refetches already see
+	// account deleted, so ServerMemberDeletedEvent refetches already see
 	// "Deleted User".
 	for _, kind := range allKinds {
 		if err := c.CleanupUserState(ctx, userID, kind, true); err != nil {
@@ -1008,7 +1012,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Revoke all role assignments (server-wide, no per-space loop needed).
-	if err := c.RevokeAllUserRoles(ctx, userID); err != nil {
+	if err := c.RevokeAllUserRoles(ctx, actorID, userID); err != nil {
 		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
 	}
 
@@ -1028,7 +1032,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "error", err)
 	}
 
-	c.logger.Info("Deleted user account", "id", userID, "login", user.Login)
+	c.logger.Info("Deleted user account", "id", userID)
 
 	return nil
 }

@@ -121,7 +121,6 @@ Permission constants follow the pattern `InstPerm{Category}{Action}` (singular n
 | `InstPermAdmin{Area}{Action}` | `InstPermAdminUsersView` | Admin permissions |
 **Common mistakes** (avoid these):
 - `InstPermSpacesCreate` → Use `InstPermSpaceCreate` (singular)
-- `InstPermAdminAccessUsersView` → Use `InstPermAdminUsersView`
 
 The Go constants in `cli/internal/core/permissions.go` are the source of truth. Frontend TypeScript types are generated via `mise codegen-types`.
 
@@ -199,7 +198,7 @@ the ability to create rooms only in specific groups.
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
 | `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
-| `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel access tiers |
+| `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel sub-view access tiers |
 
 ## GraphQL Authorization Reference
 
@@ -357,6 +356,29 @@ walk (owner is position 1000, the highest rank). They have access to:
 
 See `admin.md` for the role / config-owner narrative.
 
+## OAuth Client Authorization
+
+Chatto's `/oauth/authorize` endpoint is for compatible Chatto clients that need
+opaque bearer tokens for cross-origin server connections.
+
+- Redirect URIs must match the server's configured `webserver.url`, an explicit
+  `webserver.oauth_redirect_origins` entry, an exact `webserver.allowed_origins`
+  entry, or a loopback development origin. Wildcard CORS
+  (`allowed_origins = ["*"]`) is not OAuth redirect trust.
+- `oauth_redirect_origins = ["*"]` is an OAuth-specific temporary escape hatch
+  for controlled alpha deployments. It allows any otherwise valid HTTPS
+  redirect origin, so prefer exact origins for production.
+- The first authorization for a trusted redirect origin must show a consent
+  screen. Approval is remembered per user + canonical origin through durable
+  `EVT` facts; denial is recorded for audit but does not grant consent.
+- Do not add an operator-managed OAuth client registry or require `client_id`
+  for this flow. Any version-compatible Chatto client should be able to connect
+  to any compatible Chatto server once the origin is trusted and the user
+  consents.
+- Do not persist full redirect URIs in `EVT`. OAuth consent facts may store
+  the canonical redirect origin in plaintext so users can later recognize and
+  manage approved client addresses.
+
 ## Attachment URL Authorization
 
 Attachment binaries are primarily served by the HTTP handler at `/assets/files/{assetId}` (and `/assets/files/{assetId}/image/{width}x{height}/{fit}` for image transforms). Browser-facing GraphQL fields append a per-user `access` ticket query parameter and expose its expiry through `AssetURL { url, expiresAt }`. The stable path identifies the binary; the ticket authorizes direct browser/standalone-client loads.
@@ -379,7 +401,8 @@ See [ADR-032](../../docs/adr/ADR-032-signed-attachment-locator-urls.md) for the 
 
 **Properties worth knowing:**
 
-- **The access ticket grants access standalone.** A leaked URL is usable by anyone who has it until the deadline passes *or* the signed user loses room membership, whichever comes first. `AssetAccessTicketTTL` is currently **1 hour**; browser clients refresh `AssetURL` fields before expiry and after load failures. A cleaner solution (service worker proxying remote-server requests with the bearer token, most likely) is a follow-up.
+- **The access ticket grants access standalone.** A leaked URL is usable by anyone who has it until the deadline passes *or* the signed user loses room membership, whichever comes first. `AssetAccessTicketTTL` is currently **1 hour**; browser clients refresh `AssetURL` fields before expiry and after load failures.
+- **The browser app hides tickets behind virtual URLs when possible.** Once the Service Worker controls the page, frontend render helpers turn stable `/assets/files/...` URLs into same-origin `/__chatto/assets/{serverId}/...` URLs and register the real ticketed target with the worker. The copied DOM URL is not a bearer credential; it only resolves inside a Chatto client with the matching server registration and credentials. The worker may keep full successful responses in its private asset cache, which is acceptable because the user has already received those bytes.
 - **Auto-revocation still works.** Kicking a user invalidates their outstanding URLs at the next fetch (membership check fails). Deleting an attachment 404s its URLs (lookup returns nil).
 - **Secret rotation invalidates every URL at once.** No key versioning today. Currently-loaded pages would 403 their attachment requests after rotation until the user re-renders; URLs are emitted on every GraphQL response, so the impact is bounded to "until next page transition." Mention in the runbook for any future rotation event.
 - **Asset access bypasses the GraphQL audit layer.** No per-fetch audit log today. Pre-existing gap, not introduced by this design.

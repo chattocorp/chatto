@@ -119,7 +119,7 @@ All Chatto storage — KV buckets, event streams, and object stores — uses the
 
 All critical data is durably stored and replicated:
 
-- **Server data** — users, memberships, configuration, roles, permissions, rooms, message bodies, reactions, threads, read status
+- **Server data** — users, memberships, configuration, roles, permissions, rooms, message bodies, reactions, threads, read status, call start/join/leave/end facts
 - **Assets** — avatars, attachments (unless offloaded to S3)
 - **Auth tokens** — bearer tokens for cross-origin authentication
 - **Notifications** — user notifications (90-day TTL)
@@ -129,7 +129,7 @@ All critical data is durably stored and replicated:
 Some data is kept in memory for speed and has short TTLs:
 
 - **Presence** — online/offline status (60-second TTL, auto-expires)
-- **Call state** — active call participants (repopulated by LiveKit webhooks)
+- **LiveKit E2EE call keys** — stored behind the KMS boundary and shredded when calls end; if key storage is lost, active calls must reconnect into a fresh call
 
 These are still replicated across the cluster for consistency, but they're reconstructed automatically if lost.
 

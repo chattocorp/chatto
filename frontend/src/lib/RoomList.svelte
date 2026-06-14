@@ -1,11 +1,8 @@
 <!--
 @component
 
-Renders the room list in the space sidebar. When a room layout is configured,
+Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
-
-**Props:**
-- `spaceId` - The ID of the space to show rooms for
 -->
 <script lang="ts">
   import { goto } from '$app/navigation';
@@ -30,7 +27,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { type RoomsListItem, type RoomsListGroup } from '$lib/state/space';
+  import { type RoomsListItem, type RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -138,25 +135,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (activeRoomId && appState.isPresent) roomsStore.markRead(activeRoomId);
   });
 
-  // Handle space events that this component cares about beyond the store
+  // Handle server events that this component cares about beyond the store
   // refresh (which happens in ServerEventProvider): navigate away on leave,
   // and update voice-call indicators.
-  useEvent((spaceEvent) => {
-    const event = spaceEvent.event;
+  useEvent((serverEvent) => {
+    const event = serverEvent.event;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
       // Only navigate away when *the viewer* leaves the active room.
       // Without the actor check, any other member's leave (including the
       // cascade of UserLeftRoomEvents fired when a peer deletes their
       // account) would yank the viewer out of the room they're in.
-      if (spaceEvent.actorId === roomsStore.currentUserId) {
+      if (serverEvent.actorId === roomsStore.currentUserId) {
         goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
       }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
-      const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
+      const actor = serverEvent.actor ? useFragment(UserAvatarFragment, serverEvent.actor) : null;
       activeCallRooms.handleJoin(event.roomId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
-      activeCallRooms.handleLeave(event.roomId, spaceEvent.actorId ?? null);
+      activeCallRooms.handleLeave(event.roomId, serverEvent.actorId ?? null);
     }
   });
 

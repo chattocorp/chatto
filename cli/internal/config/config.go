@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -34,7 +35,8 @@ func (d Duration) Duration() time.Duration {
 }
 
 type GeneralConfig struct {
-	LogLevel string `toml:"log_level" env:"CHATTO_LOG_LEVEL" comment:"Log level. Possible values: debug, info, warn, error."`
+	LogLevel  string `toml:"log_level" env:"CHATTO_LOG_LEVEL" comment:"Log level. Possible values: debug, info, warn, error."`
+	LogFormat string `toml:"log_format,commented" env:"CHATTO_LOG_FORMAT" comment:"Log output format. Possible values: auto, text, json, logfmt. Default: auto (text on terminals, JSON otherwise)."`
 }
 
 // TLSConfig contains settings for automatic TLS via Let's Encrypt.
@@ -66,12 +68,33 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 type WebserverConfig struct {
 	URL                    string    `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
 	Port                   int       `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional origins allowed for CORS and WebSocket connections. Defaults to wildcard (*) for multi-server support. Set explicitly to restrict cross-origin access."`
+	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional origins allowed for CORS and WebSocket connections. Exact non-wildcard entries also trust OAuth redirect callbacks for backward compatibility, but allowed_origins = [\"*\"] is CORS-only."`
+	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted for OAuth redirect callbacks. Use exact HTTPS origins in production. Temporarily, [\"*\"] allows any valid HTTPS origin; loopback development origins may use HTTP."`
 	WebSocketCompression   *bool     `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression for GraphQL connections. Reduces bandwidth but uses more CPU. Default: true."`
 	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Useful for debugging but can be noisy in production. Default: false."`
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
 	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+}
+
+// CookieEncryptionKey decodes the optional cookie encryption secret into an
+// AES key suitable for securecookie. Empty means cookies are signed only.
+func (c *WebserverConfig) CookieEncryptionKey() ([]byte, error) {
+	if c.CookieEncryptionSecret == "" {
+		return nil, nil
+	}
+
+	key, err := hex.DecodeString(c.CookieEncryptionSecret)
+	if err != nil {
+		return nil, fmt.Errorf("webserver.cookie_encryption_secret must be hex-encoded: %w", err)
+	}
+
+	switch len(key) {
+	case 16, 24, 32:
+		return key, nil
+	default:
+		return nil, fmt.Errorf("webserver.cookie_encryption_secret must decode to 16, 24, or 32 bytes (got %d)", len(key))
+	}
 }
 
 // WebSocketCompressionEnabled returns whether WebSocket compression is enabled (default: true)
@@ -117,6 +140,7 @@ const (
 type S3Config struct {
 	Endpoint        string `toml:"endpoint" env:"CHATTO_CORE_ASSETS_S3_ENDPOINT" comment:"S3 endpoint URL. Use 's3.amazonaws.com' for AWS, or custom endpoint for MinIO, Wasabi, etc."`
 	Bucket          string `toml:"bucket" env:"CHATTO_CORE_ASSETS_S3_BUCKET" comment:"S3 bucket name for storing assets."`
+	PathPrefix      string `toml:"path_prefix" env:"CHATTO_CORE_ASSETS_S3_PATH_PREFIX" comment:"Optional object key prefix for all S3 assets. Stored asset references remain prefix-free so this can be changed after moving objects in S3."`
 	Region          string `toml:"region" env:"CHATTO_CORE_ASSETS_S3_REGION" comment:"AWS region. Optional for non-AWS S3-compatible services."`
 	AccessKeyID     string `toml:"access_key_id" env:"CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID" comment:"S3 access key ID."`
 	SecretAccessKey string `toml:"secret_access_key" env:"CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY" comment:"S3 secret access key. NEVER SHARE THIS!"`
@@ -140,6 +164,26 @@ func (c *S3Config) PathStyleOrDefault() bool {
 	return *c.PathStyle
 }
 
+// NormalizePathPrefix trims harmless leading/trailing slashes from the S3
+// object prefix. Empty and "/" both preserve the historical bucket-root layout.
+func (c *S3Config) NormalizePathPrefix() {
+	c.PathPrefix = strings.Trim(c.PathPrefix, "/")
+}
+
+// ValidatePathPrefix rejects ambiguous prefixes before they become physical
+// object keys. Call NormalizePathPrefix first so "/" is accepted as empty.
+func (c *S3Config) ValidatePathPrefix() error {
+	if strings.Contains(c.PathPrefix, "//") {
+		return fmt.Errorf("core.assets.s3.path_prefix must not contain empty path segments")
+	}
+	for _, r := range c.PathPrefix {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("core.assets.s3.path_prefix must not contain control characters")
+		}
+	}
+	return nil
+}
+
 // TTLOrDefault returns the configured TTL, or 7 days if not set.
 func (c *AssetsCacheConfig) TTLOrDefault() time.Duration {
 	if c.TTL == 0 {
@@ -159,14 +203,12 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey          string        `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets             AssetsConfig  `toml:"assets"`
-	ESBootVerify       bool          `toml:"es_boot_verify,commented" env:"CHATTO_CORE_ES_BOOT_VERIFY" comment:"Log event-sourcing import/projection verification during boot. Intended for local rollout dry-runs; scans EVT and legacy stores."`
-	ESBootVerifyStrict bool          `toml:"es_boot_verify_strict,commented" env:"CHATTO_CORE_ES_BOOT_VERIFY_STRICT" comment:"Fail boot when event-sourcing import/projection verification reports problems. Intended for live cutover and rollout gates."`
-	AuthTokenTTL       time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	Replicas           int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits             LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners             OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey    string        `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
+	Assets       AssetsConfig  `toml:"assets"`
+	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	Replicas     int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits       LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
 // OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
@@ -372,7 +414,7 @@ type PushConfig struct {
 	Enabled         bool   `toml:"enabled" env:"CHATTO_PUSH_ENABLED" comment:"Enable Web Push notifications. Default: false (opt-in to avoid third-party server contact)."`
 	VAPIDPublicKey  string `toml:"vapid_public_key" env:"CHATTO_PUSH_VAPID_PUBLIC_KEY" comment:"VAPID public key (base64-encoded). Generate with: openssl ecparam -genkey -name prime256v1 | openssl ec -pubout"`
 	VAPIDPrivateKey string `toml:"vapid_private_key" env:"CHATTO_PUSH_VAPID_PRIVATE_KEY" comment:"VAPID private key (base64-encoded). NEVER SHARE THIS!"`
-	VAPIDSubject    string `toml:"vapid_subject" env:"CHATTO_PUSH_VAPID_SUBJECT" comment:"VAPID subject (mailto: or https: URL). Used by push services to contact the operator."`
+	VAPIDSubject    string `toml:"vapid_subject" env:"CHATTO_PUSH_VAPID_SUBJECT" comment:"VAPID subject (operator email, optional mailto: prefix, or https: URL). Used by push services to contact the operator."`
 }
 
 // IsConfigured returns true if push notifications are enabled and all required VAPID fields are set.
@@ -496,6 +538,9 @@ func (c *ChattoConfig) Validate() error {
 	if c.Core.SecretKey == "" {
 		errs = append(errs, "core.secret_key is required")
 	}
+	if _, err := c.Webserver.CookieEncryptionKey(); err != nil {
+		errs = append(errs, err.Error())
+	}
 
 	// Port ranges (port 0 is allowed when TLS is enabled, as it defaults to 443)
 	if c.Webserver.Port < 0 || c.Webserver.Port > 65535 {
@@ -539,6 +584,12 @@ func (c *ChattoConfig) Validate() error {
 		validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 		if !validLevels[strings.ToLower(c.General.LogLevel)] {
 			errs = append(errs, "general.log_level must be one of: debug, info, warn, error")
+		}
+	}
+	if c.General.LogFormat != "" {
+		validFormats := map[string]bool{"auto": true, "text": true, "json": true, "logfmt": true}
+		if !validFormats[strings.ToLower(c.General.LogFormat)] {
+			errs = append(errs, "general.log_format must be one of: auto, text, json, logfmt")
 		}
 	}
 
@@ -619,6 +670,7 @@ func (c *ChattoConfig) Validate() error {
 
 	// S3 configuration (required when storage_backend = "s3")
 	if c.Core.Assets.StorageBackend == StorageBackendS3 {
+		c.Core.Assets.S3.NormalizePathPrefix()
 		if c.Core.Assets.S3.Endpoint == "" {
 			errs = append(errs, "core.assets.s3.endpoint is required when storage_backend = 's3'")
 		}
@@ -630,6 +682,9 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.Core.Assets.S3.SecretAccessKey == "" {
 			errs = append(errs, "core.assets.s3.secret_access_key is required when storage_backend = 's3'")
+		}
+		if err := c.Core.Assets.S3.ValidatePathPrefix(); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 

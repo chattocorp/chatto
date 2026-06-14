@@ -62,7 +62,7 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 
 	// Bounded newest-first walk via the derived visible-room timeline. Fetch
 	// limit+1 to detect HasOlder without a second call.
-	raw := c.RoomTimeline.VisibleRoomTimeline(room_id, limit+1, before, nil)
+	raw := c.rooms().visibleRoomTimeline(room_id, limit+1, before, nil)
 	hasOlder := len(raw) > limit
 	if hasOlder {
 		raw = raw[:limit]
@@ -97,14 +97,14 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return nil, nil
 	}
 	if entry.Event.GetEvent() == nil {
 		return nil, nil
 	}
-	if c.RoomTimeline.IsHiddenEcho(eventID) {
+	if c.rooms().isHiddenEcho(eventID) {
 		return nil, nil
 	}
 	// Honour the roomID scope — looking up an event in the wrong
@@ -123,11 +123,11 @@ func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, r
 func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int) (*RoomEventsAroundResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	target, ok := c.RoomTimeline.Get(eventID)
+	target, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
-	if c.RoomTimeline.IsHiddenEcho(eventID) {
+	if c.rooms().isHiddenEcho(eventID) {
 		return nil, ErrMessageNotFound
 	}
 	if !isVisibleRoomTimelineEntry(target.Event) {
@@ -138,7 +138,7 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 		return nil, ErrMessageNotFound
 	}
 
-	raw, targetIdx, hasOlder, hasNewer, ok := c.RoomTimeline.VisibleRoomTimelineAround(roomID, eventID, limit)
+	raw, targetIdx, hasOlder, hasNewer, ok := c.rooms().visibleRoomTimelineAround(roomID, eventID, limit)
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
@@ -165,7 +165,7 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 	// Walk visible entries oldest-first from the cursor so forward
 	// pagination returns the nearest newer events first. Fetch limit+1
 	// to detect whether another forward page exists.
-	raw := c.RoomTimeline.VisibleRoomTimelineAfter(roomID, limit+1, afterSeq, nil)
+	raw := c.rooms().visibleRoomTimelineAfter(roomID, limit+1, afterSeq, nil)
 	hasNewer := len(raw) > limit
 	if hasNewer {
 		raw = raw[:limit]
@@ -200,48 +200,9 @@ func clampHistoricalMessageLimit(limit int) int {
 // GetEventSequence returns the stream sequence number for an event by
 // its envelope id, or 0 if not found.
 func (c *ChattoCore) GetEventSequence(ctx context.Context, kind RoomKind, roomID, eventID string) (uint64, error) {
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return 0, nil
 	}
 	return entry.StreamSeq, nil
-}
-
-// isVisibleRoomTimelineEntry reports whether a timeline entry should
-// surface in the room-level view (GetRoomEvents and friends).
-//
-// Hidden:
-//
-//   - Thread replies (MessagePostedEvent with in_thread != "") —
-//     served via GetThreadEvents.
-//
-//   - MessageEditedEvent / MessageRetractedEvent — folded onto the
-//     original post via projection.LatestBody; not surfaced as
-//     separate timeline entries.
-//
-//   - ReactionAddedEvent / ReactionRemovedEvent — folded into the
-//     reaction projection.
-//
-//   - RoomMemberBannedEvent / RoomMemberUnbannedEvent — moderation audit facts,
-//     projected for admin surfaces but not displayed as chat timeline items.
-//
-// Visible: root messages, room lifecycle (created/updated/archived/
-// unarchived/deleted), memberships (user_joined / user_left).
-func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
-	if event == nil {
-		return false
-	}
-	switch e := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
-		return e.MessagePosted.GetInThread() == ""
-	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
-		*corev1.Event_ThreadCreated,
-		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
-		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
-		*corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
-		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
-		return false
-	}
-	return true
 }

@@ -9,7 +9,7 @@ Each cell answers two questions:
    (and which way)? Cells with an override render solid; cells driven
    only by inheritance render faded.
 """
-type UserPermissionScope {
+type PermissionMatrixScope {
   """
   Stable identifier for this scope:
     - `server` for the server tier (no group/room context),
@@ -24,7 +24,7 @@ type UserPermissionScope {
   Scope kind. The frontend uses this to lay out columns (server tier first,
   groups expandable, rooms nested under their group).
   """
-  kind: UserPermissionScopeKind!
+  kind: PermissionMatrixScopeKind!
   """
   For room scopes, the parent group's ID — so the UI can nest rooms under
   their group column. Empty string for server / group scopes.
@@ -33,9 +33,9 @@ type UserPermissionScope {
 }
 
 """
-Where a UserPermissionScope sits in the resolution hierarchy.
+Where a PermissionMatrixScope sits in the resolution hierarchy.
 """
-enum UserPermissionScopeKind {
+enum PermissionMatrixScopeKind {
   "Server tier — no room/group context."
   SERVER
   "A room group's scope (channel-room permissions)."
@@ -48,29 +48,29 @@ enum UserPermissionScopeKind {
 One cell of the user-permission matrix: the per-permission, per-scope
 intersection.
 """
-type UserPermissionCell {
+type PermissionMatrixCell {
   "Permission identifier (e.g. `message.post`)."
   permission: String!
-  "Scope id (matches `UserPermissionScope.id`)."
+  "Scope id (matches `PermissionMatrixScope.id`)."
   scopeId: String!
   """
   The **explicit user-level override** at this scope, or NONE if the user
   has no override here. NONE cells display only the inherited effective
   state; ALLOW / DENY cells display as a solid override.
   """
-  override: UserPermissionDecision!
+  override: PermissionMatrixDecision!
   """
   The **effective** decision the resolver would emit at this scope for
   this user-permission pair, after walking room → group → server with
   user-level overrides applied first. Drives the cell's tint.
   """
-  effective: UserPermissionDecision!
+  effective: PermissionMatrixDecision!
 }
 
 """
 Trinary decision used in the user-permission matrix.
 """
-enum UserPermissionDecision {
+enum PermissionMatrixDecision {
   "The permission is explicitly granted."
   ALLOW
   "The permission is explicitly denied."
@@ -97,21 +97,10 @@ type UserPermissionMatrix {
   Scopes to render as columns. Server scope first, then groups, then
   rooms grouped under their parent group via `parentGroupId`.
   """
-  scopes: [UserPermissionScope!]!
+  scopes: [PermissionMatrixScope!]!
   """
   One cell per (permission, scope) intersection. Sparse: a cell is
   included iff the permission applies at that scope's tier.
   """
-  cells: [UserPermissionCell!]!
-}
-
-extend type Query {
-  """
-  Permission matrix for a specific user. Authorization: viewer must
-  pass `requireUserPermissionTarget` (role.manage + strictly outrank
-  the target) — the same gate used by grantUserPermission and friends.
-
-  Self-introspection is not allowed; the matrix is an admin surface.
-  """
-  userPermissionMatrix(userId: ID!): UserPermissionMatrix @goField(forceResolver: true)
+  cells: [PermissionMatrixCell!]!
 }

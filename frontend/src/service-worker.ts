@@ -15,6 +15,11 @@ import {
   classifyServiceWorkerRequest,
   normalizeSameOriginUrl
 } from '$lib/pwa/serviceWorkerPolicy';
+import {
+  handleAssetProxyFetch,
+  handleAssetProxyMessage,
+  parseAssetProxyRequest
+} from '$lib/pwa/assetProxy.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -47,12 +52,18 @@ self.addEventListener('activate', (event) => {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
-          .filter((cacheName) => cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME)
+          .filter(
+            (cacheName) => cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME
+          )
           .map((cacheName) => caches.delete(cacheName))
       );
       await self.clients.claim();
     })()
   );
+});
+
+self.addEventListener('message', (event) => {
+  handleAssetProxyMessage(event);
 });
 
 /**
@@ -63,6 +74,12 @@ self.addEventListener('activate', (event) => {
  * requests stay network-only so stale data never masquerades as live state.
  */
 self.addEventListener('fetch', (event) => {
+  const assetProxyRequest = parseAssetProxyRequest(event.request.url, self.location.origin);
+  if (assetProxyRequest) {
+    event.respondWith(handleAssetProxyFetch(event.request, assetProxyRequest));
+    return;
+  }
+
   const policy = classifyServiceWorkerRequest(
     event.request,
     event.request.url,

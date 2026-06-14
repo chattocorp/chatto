@@ -36,8 +36,22 @@ NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS 
   2. Use `kv.Update(ctx, key, value, revision)` for atomic update (fails if revision changed)
   3. For new keys, use `kv.Create()` instead (fails if key exists)
   4. Retry on `jetstream.ErrKeyExists` up to a max attempts (e.g., 5 retries)
+- **Projection-backed OCC decisions**: If a mutation decision comes from a projection, the OCC token must describe the same event-log prefix as the projected state. Prefer an owning service/projection snapshot that returns both derived state and its applied sequence for the relevant subject/filter, then publish with that expected sequence. Do not read the stream tail and decide from a potentially stale projection; that can append duplicate or invalid facts.
 - **Subject structure changes are high-risk**: Changes to NATS subject patterns cascade into stream configs, consumer filters, and query logic (e.g., `GetLastMsgForSubject`, `WithSubjectFilter`). They need careful end-to-end verification including e2e tests.
-- **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. Legacy `SERVER_EVENTS` is opened only when present for pre-ES imports and inspection; new runtime writes must not mirror to it.
+- **Single durable EVT stream**: Event-sourced domain facts live in `EVT`. `SERVER_EVENTS` is historical pre-0.1 storage and is no longer opened by the runtime; new writes must never mirror to it.
+
+## RUNTIME_STATE Boundary
+
+`RUNTIME_STATE` is not a dumping ground for domain state. Use it for persisted
+latest-value runtime records such as sessions, auth/workflow tokens, pending
+notifications, push subscriptions, cached previews, and wrapped DEK records.
+
+If the state represents a durable domain fact, an invariant, or data that can
+reasonably be derived from durable events, prefer an `EVT` fact plus a
+properly synchronized projection/service. For uniqueness and cross-aggregate
+invariants, close races with JetStream OCC or atomic EVT batches over the
+relevant subject/filter; do not sidestep the domain model by adding another
+`RUNTIME_STATE` key unless the record is truly runtime/latest-value state.
 
 ## Room Event Query Behavior
 
@@ -62,7 +76,7 @@ Event subscriptions are unified in `StreamMyEvents`, which consumes NATS Core su
 
 `live.evt.>` is not UI-safe by itself. `StreamMyEvents` reads the republished JetStream sequence, waits for the relevant local projections, applies per-user authorization, and only then emits the GraphQL event.
 
-- **Durable legacy events**: Do not add new `server.>` publishers. `SERVER_EVENTS` is legacy storage/import infrastructure only and does not participate in live delivery.
+- **No durable legacy events**: Do not add new `server.>` publishers. `SERVER_EVENTS` is historical storage only and does not participate in runtime reads, writes, imports, or live delivery.
 - **Durable EVT events**: For event-sourced aggregates, publish to `evt.>` via `EventPublisher`. JetStream republish automatically wires them into `live.evt.>`; `StreamMyEvents` is responsible for projection catch-up and authorization before GraphQL delivery.
 - **Transient events**: For real-time UI updates where latest-value runtime state is authoritative (typing, notification sync, preference sync, user/config notifications). Publish a `corev1.LiveEvent` directly via NATS Core through `publishLiveEvent()` on `live.sync.>`. No stream storage.
 - **Event-sourced room edits/retracts**: Message edits and retractions use the canonical durable `MessageEditedEvent` / `MessageRetractedEvent` shapes. `myEvents` receives them from `live.evt.>` after projection catch-up; do not synthesize legacy `MessageUpdatedEvent` / `MessageDeletedEvent` for new delivery.
@@ -70,7 +84,7 @@ Event subscriptions are unified in `StreamMyEvents`, which consumes NATS Core su
 - **Do not double-publish.** Publishing the same conceptual event via BOTH `EventPublisher` and `publishLiveEvent` will deliver it twice to subscribers if the event is deliverable from `live.evt.>`. Durable facts belong in EVT; transient sync signals belong in LiveEvent.
 - **Projection subjects default broad.** A projection should generally subscribe to the aggregate namespace it owns (for example `evt.user.>` for `UserProjection`, `evt.rbac.>` for `RBACProjection`, or `evt.room.>` for room-derived projections), plus any extra subjects from other aggregates that it also needs. This preserves the projection contract that `Apply` ignores unknown events and avoids subtle maintenance bugs where a new event is added to `Apply` but forgotten in `Subjects`. Limit subscriptions to individual event-type subjects only for very focused projections where the subscribed subjects are intentionally sufficient, such as a tiny derived index over a stable event set.
 - **Adding new event types** requires:
-  1. Core: choose durable legacy, durable EVT, or transient and publish to the appropriate subject family.
+  1. Core: choose durable EVT or transient and publish to the appropriate subject family.
   2. Authorization: room events are gated by membership in `filterLiveEvent`; user/config/member events go through `isAuthorizedForLiveEvent`. New EVT room event variants must be added to the live-EVT deliverability/readiness switch if they should reach `myEvents`.
   3. GraphQL: add a case to `unwrapEvent` in `event_helpers.go` so the typed variant flows through `myEvents`. Missing this case causes the event to silently fail at the GraphQL layer.
 - **Avoid fan-out on publish**: When broadcasting to many users, do NOT iterate and publish per-recipient. Publish once to a scoped subject (e.g., `live.sync.config.server_updated`) and let `isAuthorizedForLiveEvent` filter on the subscriber side.

@@ -87,8 +87,8 @@ func parsePresenceKey(key string) (userID string, ok bool) {
 
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
-func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string, error) {
-	entry, err := c.storage.memoryCacheKV.Get(ctx, presenceKey(userID))
+func (s *PresenceService) GetUserPresence(ctx context.Context, userID string) (string, error) {
+	entry, err := s.memoryCacheKV.Get(ctx, presenceKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return PresenceStatusOffline, nil
@@ -101,7 +101,7 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 	}
 	presence := &corev1.UserPresence{}
 	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
-		c.logger.Warn("Failed to unmarshal presence, treating user as offline",
+		s.logger.Warn("Failed to unmarshal presence, treating user as offline",
 			"error", err, "user_id", userID)
 		return PresenceStatusOffline, nil
 	}
@@ -111,7 +111,7 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
-func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
+func (s *PresenceService) SetPresence(ctx context.Context, userID string, status string) error {
 	presence := &corev1.UserPresence{
 		Status: presenceStatusFromString(status),
 	}
@@ -121,7 +121,7 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 		return fmt.Errorf("failed to marshal presence: %w", err)
 	}
 
-	return c.writePresence(ctx, presenceKey(userID), data)
+	return s.writePresence(ctx, presenceKey(userID), data)
 }
 
 // refreshPresence reads the current presence value from KV and re-puts it
@@ -131,13 +131,13 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 // Uses optimistic locking (kv.Update with revision) to avoid overwriting a concurrent
 // SetPresence call from updateMyPresence. If the revision has changed between Get and
 // Update, the newer value is preserved and we silently skip the refresh.
-func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
+func (s *PresenceService) refreshPresence(ctx context.Context, userID string) error {
 	key := presenceKey(userID)
-	entry, err := c.storage.memoryCacheKV.Get(ctx, key)
+	entry, err := s.memoryCacheKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			// Entry expired between ticks — re-set to ONLINE as safe default
-			return c.SetPresence(ctx, userID, PresenceStatusOnline)
+			return s.SetPresence(ctx, userID, PresenceStatusOnline)
 		}
 		return fmt.Errorf("failed to read presence for refresh: %w", err)
 	}
@@ -145,7 +145,7 @@ func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	// Re-put the same value to refresh TTL using optimistic locking.
 	// If a concurrent SetPresence modified the entry, Update fails and
 	// the newer status is preserved — which is the correct behavior.
-	_, err = c.putPresenceWithTTL(ctx, key, entry.Value(), entry.Revision())
+	_, err = s.putPresenceWithTTL(ctx, key, entry.Value(), entry.Revision())
 	if err != nil {
 		// ErrKeyExists means the revision changed (concurrent write) — that's fine,
 		// the newer value already has a fresh TTL from the concurrent Put.
@@ -157,12 +157,12 @@ func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (c *ChattoCore) writePresence(ctx context.Context, key string, data []byte) error {
+func (s *PresenceService) writePresence(ctx context.Context, key string, data []byte) error {
 	for attempt := 0; attempt < maxPresenceWriteRetries; attempt++ {
-		entry, err := c.storage.memoryCacheKV.Get(ctx, key)
+		entry, err := s.memoryCacheKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				_, err = c.storage.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
+				_, err = s.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
 				if errors.Is(err, jetstream.ErrKeyExists) {
 					continue
 				}
@@ -171,7 +171,7 @@ func (c *ChattoCore) writePresence(ctx context.Context, key string, data []byte)
 			return fmt.Errorf("failed to read presence: %w", err)
 		}
 
-		_, err = c.putPresenceWithTTL(ctx, key, data, entry.Revision())
+		_, err = s.putPresenceWithTTL(ctx, key, data, entry.Revision())
 		if err == nil {
 			return nil
 		}
@@ -184,8 +184,8 @@ func (c *ChattoCore) writePresence(ctx context.Context, key string, data []byte)
 	return fmt.Errorf("presence update failed after %d retries", maxPresenceWriteRetries)
 }
 
-func (c *ChattoCore) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
-	ack, err := c.js.Publish(
+func (s *PresenceService) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
+	ack, err := s.js.Publish(
 		ctx,
 		"$KV.MEMORY_CACHE."+key,
 		data,
@@ -196,4 +196,20 @@ func (c *ChattoCore) putPresenceWithTTL(ctx context.Context, key string, data []
 		return 0, err
 	}
 	return ack.Sequence, nil
+}
+
+// GetUserPresence retrieves a user's current presence status.
+// Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
+func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string, error) {
+	return c.presenceService.GetUserPresence(ctx, userID)
+}
+
+// SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
+// Authorization: Caller must verify the user is authenticated before calling.
+func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
+	return c.presenceService.SetPresence(ctx, userID, status)
+}
+
+func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
+	return c.presenceService.refreshPresence(ctx, userID)
 }

@@ -21,11 +21,11 @@ func TestAuthorAlwaysCanEditOrDeleteOwnMessage(t *testing.T) {
 
 	// Deny message.manage on everyone at every tier so no role grant could
 	// possibly allow author moderation. Authors must still pass.
-	if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessageManage); err != nil {
+	if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermMessageManage); err != nil {
 		t.Fatalf("DenyServerPermission: %v", err)
 	}
 	groupID := env.testRoom.GroupId
-	if err := env.core.DenyGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessageManage); err != nil {
+	if err := env.core.DenyGroupPermission(env.ctx, core.SystemActorID, groupID, core.RoleEveryone, core.PermMessageManage); err != nil {
 		t.Fatalf("DenyGroupPermission: %v", err)
 	}
 
@@ -136,11 +136,11 @@ func TestRoomManageOpensPerRoomPermissionEditor(t *testing.T) {
 
 	t.Run("member with room.manage on target room can edit that room's permissions", func(t *testing.T) {
 		// Grant room.manage to this user directly on the target room.
-		if err := env.core.GrantUserRoomPermission(env.ctx, targetRoom.Id, member.Id, core.PermRoomManage); err != nil {
+		if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, targetRoom.Id, member.Id, core.PermRoomManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = env.core.ClearUserRoomPermissionState(env.ctx, targetRoom.Id, member.Id, core.PermRoomManage)
+			_ = env.core.ClearUserRoomPermissionState(env.ctx, core.SystemActorID, targetRoom.Id, member.Id, core.PermRoomManage)
 		})
 
 		_, err := mutation.GrantRoomPermission(env.authContextForUser(member), input(targetRoom.Id))
@@ -152,11 +152,11 @@ func TestRoomManageOpensPerRoomPermissionEditor(t *testing.T) {
 	t.Run("same member denied on a different room", func(t *testing.T) {
 		// Re-grant room.manage on targetRoom so the user has it somewhere
 		// (and shouldn't be confused with "no room.manage anywhere").
-		if err := env.core.GrantUserRoomPermission(env.ctx, targetRoom.Id, member.Id, core.PermRoomManage); err != nil {
+		if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, targetRoom.Id, member.Id, core.PermRoomManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = env.core.ClearUserRoomPermissionState(env.ctx, targetRoom.Id, member.Id, core.PermRoomManage)
+			_ = env.core.ClearUserRoomPermissionState(env.ctx, core.SystemActorID, targetRoom.Id, member.Id, core.PermRoomManage)
 		})
 
 		_, err := mutation.GrantRoomPermission(env.authContextForUser(member), input(otherRoom.Id))

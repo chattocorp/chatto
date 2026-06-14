@@ -17,8 +17,8 @@ enum TimeFormat {
 // NotificationLevel controls how a user receives notifications for a space or room.
 // Stored per-user per-space (and optionally per-room) in the space's CONFIG KV bucket.
 enum NotificationLevel {
-  // Use inherited default (space default for rooms, NORMAL for spaces).
-  NOTIFICATION_LEVEL_DEFAULT = 0;
+  // Use inherited default (server default for rooms, NORMAL for server).
+  NOTIFICATION_LEVEL_UNSPECIFIED = 0;
   // Suppress all notifications and unread markers.
   NOTIFICATION_LEVEL_MUTED = 1;
   // Standard behavior: unread markers + notifications for mentions/DMs/threads.
@@ -44,13 +44,13 @@ message ServerUserPreferences {
 // UserPreferences stores per-user preferences scoped to the server.
 // Stored in the server's CONFIG KV bucket with key "user_preferences.{userId}".
 message UserPreferences {
-  // Notification level for the server (DEFAULT = inherit system default of NORMAL).
+  // Notification level for the server (UNSPECIFIED = inherit system default of NORMAL).
   NotificationLevel notification_level = 1;
 }
 
 // RoomUserPreferences stores per-user preferences for a room within a space.
 // Stored in SPACE_{spaceId}_CONFIG KV bucket with key "room_user_preferences.{userId}.{roomId}".
 message RoomUserPreferences {
-  // Notification level for the room (DEFAULT = inherit from space preference).
+  // Notification level for the room (UNSPECIFIED = inherit from server preference).
   NotificationLevel notification_level = 1;
 }

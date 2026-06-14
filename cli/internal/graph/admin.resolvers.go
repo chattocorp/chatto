@@ -28,16 +28,16 @@ func (r *adminMutationsResolver) UpdateBlockedUsernames(ctx context.Context, obj
 		return "", core.ErrNotAuthenticated
 	}
 
-	canView, err := r.core.CanAdminAccess(ctx, user.Id)
+	canManage, err := r.core.CanManageServer(ctx, user.Id)
 	if err != nil {
-		return "", fmt.Errorf("failed to check admin.access permission: %w", err)
+		return "", fmt.Errorf("failed to check server.manage permission: %w", err)
 	}
-	if !canView {
+	if !canManage {
 		return "", core.ErrPermissionDenied
 	}
 
 	configMgr := r.core.ConfigManager()
-	cfg, err := configMgr.UpdateServerConfigFunc(ctx, user.Id, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	_, err = configMgr.UpdateServerConfigFunc(ctx, user.Id, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
@@ -47,14 +47,6 @@ func (r *adminMutationsResolver) UpdateBlockedUsernames(ctx context.Context, obj
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to update blocked usernames: %w", err)
-	}
-
-	effectiveName := cfg.ServerName
-	if effectiveName == "" {
-		effectiveName = "Chatto"
-	}
-	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
-		r.logger.Warn("Failed to publish server config update event", "error", err)
 	}
 
 	blockedUsernames, err := configMgr.GetEffectiveBlockedUsernames(ctx)
@@ -151,8 +143,83 @@ func (r *adminMutationsResolver) UnsuspendUser(ctx context.Context, obj *model.A
 	return true, nil
 }
 
+// SystemInfo is the resolver for the systemInfo field. Broker/account
+// diagnostics are owner-only for now.
+func (r *adminQueriesResolver) SystemInfo(ctx context.Context, obj *model.AdminQueries) (*model.SystemInfo, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	isOwner, err := r.core.IsServerOwner(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("check owner role: %w", err)
+	}
+	if !isOwner {
+		return nil, core.ErrPermissionDenied
+	}
+
+	connInfo := r.core.GetConnectionInfo()
+	connection := &model.ConnectionInfo{
+		Connected:  connInfo.Connected,
+		ServerID:   connInfo.ServerID,
+		ServerName: connInfo.ServerName,
+		Version:    connInfo.Version,
+		MaxPayload: int(connInfo.MaxPayload),
+		Rtt:        connInfo.RTT,
+	}
+
+	accInfo, err := r.core.GetAccountInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get account info: %w", err)
+	}
+	account := &model.AccountInfo{
+		Memory:        int(accInfo.Memory),
+		MemoryUsed:    int(accInfo.MemoryUsed),
+		Storage:       int(accInfo.Storage),
+		StorageUsed:   int(accInfo.StorageUsed),
+		Streams:       int32(accInfo.Streams),
+		StreamsUsed:   int32(accInfo.StreamsUsed),
+		Consumers:     int32(accInfo.Consumers),
+		ConsumersUsed: int32(accInfo.ConsumersUsed),
+	}
+
+	coreStats, err := r.core.GetStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server stats: %w", err)
+	}
+	stats := &model.ServerStats{
+		UserCount:        int32(coreStats.UserCount),
+		ChannelRoomCount: int32(coreStats.ChannelRoomCount),
+		DmRoomCount:      int32(coreStats.DMRoomCount),
+	}
+
+	natsStats, err := r.core.GetJetStreamStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NATS stats: %w", err)
+	}
+
+	return &model.SystemInfo{
+		Connection: connection,
+		Account:    account,
+		Nats:       natsStatsToModel(natsStats),
+		Stats:      stats,
+	}, nil
+}
+
 // ServerConfig is the resolver for the serverConfig field.
 func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canManage, err := r.core.CanManageServer(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check server.manage permission: %w", err)
+	}
+	if !canManage {
+		return nil, core.ErrPermissionDenied
+	}
+
 	configMgr := r.core.ConfigManager()
 
 	cfg, err := configMgr.GetServerConfig(ctx)
@@ -167,11 +234,9 @@ func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.Admi
 	return serverConfigToModel(cfg, blockedUsernames), nil
 }
 
-// EventLog is the resolver for the eventLog field. The parent
-// `admin.*` resolver gates on admin.access; this resolver additionally
-// requires admin.view-audit so the event-log inspection view is
-// available to auditors specifically rather than every admin-panel
-// viewer.
+// EventLog is the resolver for the eventLog field. It requires
+// admin.view-audit so the event-log inspection view is available to auditors
+// specifically rather than every admin-panel viewer.
 func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQueries, limit *int32, before *string) (*model.EventLogConnection, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
@@ -393,31 +458,9 @@ func (r *mutationResolver) UpdateServerConfig(ctx context.Context, input model.U
 		return nil, fmt.Errorf("failed to update server config: %w", err)
 	}
 
-	effectiveName := cfg.ServerName
-	if effectiveName == "" {
-		effectiveName = "Chatto"
-	}
-	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
-		r.logger.Warn("Failed to publish server config update event", "error", err)
-	}
-	r.core.PublishServerBrandingUpdate(ctx, user.Id)
+	r.core.PublishServerUpdated(ctx, user.Id)
 
 	return publicServerConfigToModel(cfg), nil
-}
-
-func (r *Resolver) canAccessAdminNamespace(ctx context.Context, userID string) (bool, error) {
-	canView, err := r.core.CanAdminAccess(ctx, userID)
-	if err != nil {
-		return false, fmt.Errorf("failed to check admin permission: %w", err)
-	}
-	if canView {
-		return true, nil
-	}
-	canSuspend, err := r.core.HasServerPermission(ctx, userID, core.PermUserSuspend)
-	if err != nil {
-		return false, fmt.Errorf("failed to check user.suspend permission: %w", err)
-	}
-	return canSuspend, nil
 }
 
 // Admin is the resolver for the admin field.
@@ -425,16 +468,6 @@ func (r *mutationResolver) Admin(ctx context.Context) (*model.AdminMutations, er
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, nil // Not authenticated, return null
-	}
-
-	// Namespace-level gate for admin-shaped tools. Per-field resolvers still
-	// enforce their own exact capability.
-	canView, err := r.Resolver.canAccessAdminNamespace(ctx, user.Id)
-	if err != nil {
-		return nil, err
-	}
-	if !canView {
-		return nil, nil
 	}
 	return &model.AdminMutations{}, nil
 }
@@ -445,75 +478,7 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	if user == nil {
 		return nil, nil // Not authenticated, return null
 	}
-
-	canView, err := r.Resolver.canAccessAdminNamespace(ctx, user.Id)
-	if err != nil {
-		return nil, err
-	}
-	if !canView {
-		return nil, nil
-	}
-
-	// Fetch system info
-	connInfo := r.core.GetConnectionInfo()
-	connection := &model.ConnectionInfo{
-		Connected:  connInfo.Connected,
-		ServerID:   connInfo.ServerID,
-		ServerName: connInfo.ServerName,
-		Version:    connInfo.Version,
-		MaxPayload: int(connInfo.MaxPayload),
-		Rtt:        connInfo.RTT,
-	}
-
-	accInfo, err := r.core.GetAccountInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get account info: %w", err)
-	}
-	account := &model.AccountInfo{
-		Memory:        int(accInfo.Memory),
-		MemoryUsed:    int(accInfo.MemoryUsed),
-		Storage:       int(accInfo.Storage),
-		StorageUsed:   int(accInfo.StorageUsed),
-		Streams:       int32(accInfo.Streams),
-		StreamsUsed:   int32(accInfo.StreamsUsed),
-		Consumers:     int32(accInfo.Consumers),
-		ConsumersUsed: int32(accInfo.ConsumersUsed),
-	}
-
-	coreStats, err := r.core.GetStats(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server stats: %w", err)
-	}
-	stats := &model.ServerStats{
-		UserCount:        int32(coreStats.UserCount),
-		ChannelRoomCount: int32(coreStats.ChannelRoomCount),
-		DmRoomCount:      int32(coreStats.DMRoomCount),
-	}
-
-	natsStats, err := r.core.GetJetStreamStats(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get NATS stats: %w", err)
-	}
-
-	systemInfo := &model.SystemInfo{
-		Connection: connection,
-		Account:    account,
-		Nats:       natsStatsToModel(natsStats),
-		Stats:      stats,
-	}
-
-	// Fetch all permissions applicable at server scope
-	// This includes permissions like room.create, message.post that can have server-wide defaults
-	allPerms := core.PermissionsForScope(core.ScopeServer)
-	serverPermissionsList := make([]string, len(allPerms))
-	for i, p := range allPerms {
-		serverPermissionsList[i] = string(p.Permission)
-	}
-
-	return &model.AdminQueries{
-		SystemInfo:        systemInfo,
-		ServerPermissions: serverPermissionsList,
-	}, nil
+	return &model.AdminQueries{}, nil
 }
 
 // Room is the resolver for the room field.

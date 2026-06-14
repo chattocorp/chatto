@@ -1,27 +1,21 @@
-# Proto Compatibility During ES Rollout
+# Proto Compatibility
 
-Until the community-server event-sourcing rollout is complete, protobuf
-wire compatibility is locked down more tightly than usual.
-
-Boot importers read pre-ES KV records and legacy `SERVER_EVENTS` payloads
-by unmarshalling them into the current generated protobuf types. The same
-event protos are then written to `EVT`. A wire-incompatible proto change
-between the currently deployed pre-ES binaries and the ES rollout build can
-silently corrupt or drop imported data.
+The event-sourcing rollout is complete and the pre-0.1 boot importers are gone,
+but protobuf wire compatibility still matters because `EVT`, `RUNTIME_STATE`,
+`ENCRYPTION_KEYS`, and other JetStream-backed resources persist protobuf
+payloads across deploys, backups, and restores.
 
 Rules:
 
-- Do not renumber fields on any proto message that appears in legacy KV,
-  `SERVER_EVENTS`, or `EVT`.
+- Do not renumber fields on any proto message that is persisted in JetStream
+  streams, KV buckets, or object metadata.
 - Do not change a field's type at an existing tag. Add a new tag instead.
 - Removing a field requires both `reserved <tag>` and `reserved "<name>"`
-  unless the field was never persisted. Before reserving it, verify no boot
-  importer needs to read it.
+  unless the field was never persisted.
 - Renames are wire-safe but code-breaking; keep them scoped and update all
   generated consumers in the same change.
-- If an importer used to derive state from a removed field, reconstruct that
-  state from the KV key, stream subject, or another still-present field.
-- Treat importer unmarshal warnings as rollout blockers until investigated.
-
-Lift this rule only after every live instance has booted successfully on the
-ES build and the imported projections have been smoke-tested.
+- For persisted records, prefer additive schema evolution and explicit repair
+  or migration code when existing data must change shape.
+- Transient-only live event protos are less stable than persisted records, but
+  still consider GraphQL/API behavior and mixed-version clients before changing
+  their wire shape.

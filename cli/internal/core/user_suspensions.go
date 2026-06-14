@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -44,11 +45,12 @@ func (c *ChattoCore) SuspendUser(ctx context.Context, actorID, targetUserID, rea
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserSuspended{
 		UserSuspended: payload,
 	}})
+	subject := events.UserAggregate(targetUserID).SubjectFor(event)
 	seq, err := c.appendUserEvent(ctx, targetUserID, event, "", nil)
 	if err != nil {
 		return nil, fmt.Errorf("publish UserSuspendedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, seq, waitForProjection("user suspensions", c.UserSuspensionsProjector)); err != nil {
+	if err := waitForPositionAll(ctx, events.SubjectPosition(subject, seq), waitForProjection("user suspensions", c.UserSuspensionsProjector)); err != nil {
 		return nil, err
 	}
 	suspension, ok := c.UserSuspensions.ActiveSuspension(targetUserID, time.Now())
@@ -84,11 +86,12 @@ func (c *ChattoCore) UnsuspendUser(ctx context.Context, actorID, targetUserID, r
 			Reason: reason,
 		},
 	}})
+	subject := events.UserAggregate(targetUserID).SubjectFor(event)
 	seq, err := c.appendUserEvent(ctx, targetUserID, event, "", nil)
 	if err != nil {
 		return fmt.Errorf("publish UserUnsuspendedEvent: %w", err)
 	}
-	if err := waitForSeqAll(ctx, seq, waitForProjection("user suspensions", c.UserSuspensionsProjector)); err != nil {
+	if err := waitForPositionAll(ctx, events.SubjectPosition(subject, seq), waitForProjection("user suspensions", c.UserSuspensionsProjector)); err != nil {
 		return err
 	}
 	if err := c.PublishUserSuspensionChanged(ctx, targetUserID, nil); err != nil {

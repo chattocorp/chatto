@@ -563,7 +563,6 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
 			t.Fatalf("Expected thread follow in RUNTIME_STATE: %v", err)
 		}
-		assertLegacyKeyAbsent(t, core.storage.serverRuntimeKV, key, "legacy SERVER_RUNTIME follow")
 
 		isFollowing, err := core.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
 		if err != nil {
@@ -720,6 +719,39 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 		if threads[1].ThreadRootEventID != rootMsg1.Id {
 			t.Errorf("Expected thread 1 second (older), got %s", threads[1].ThreadRootEventID)
+		}
+	})
+
+	t.Run("returns a paged followed thread list", func(t *testing.T) {
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 0)
+		if err != nil {
+			t.Fatalf("Failed to list followed thread page: %v", err)
+		}
+		if page.TotalCount != 2 {
+			t.Fatalf("TotalCount = %d, want 2", page.TotalCount)
+		}
+		if !page.HasMore {
+			t.Fatal("HasMore = false, want true for first page")
+		}
+		if len(page.Threads) != 1 {
+			t.Fatalf("page len = %d, want 1", len(page.Threads))
+		}
+		if page.Threads[0].ThreadRootEventID != rootMsg2.Id {
+			t.Errorf("first page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg2.Id)
+		}
+
+		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 1)
+		if err != nil {
+			t.Fatalf("Failed to list followed thread second page: %v", err)
+		}
+		if page.HasMore {
+			t.Fatal("HasMore = true, want false for final page")
+		}
+		if len(page.Threads) != 1 {
+			t.Fatalf("second page len = %d, want 1", len(page.Threads))
+		}
+		if page.Threads[0].ThreadRootEventID != rootMsg1.Id {
+			t.Errorf("second page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg1.Id)
 		}
 	})
 
@@ -1349,7 +1381,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 		// Alice mutes the room
 		core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
-		defer core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+		defer core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Muted test", nil, "", "", nil, false)
