@@ -121,6 +121,23 @@ func (m *RoomService) waitForMyEventsReplayCurrent(ctx context.Context) error {
 	)
 }
 
+func (m *RoomService) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *corev1.Event) error {
+	if err := m.waitForTimelineAndThreads(ctx, pos); err != nil {
+		return err
+	}
+	if eventNeedsReactionProjection(event) {
+		if err := m.waitForReactions(ctx, pos); err != nil {
+			return err
+		}
+	}
+	if eventNeedsRoomDirectoryProjection(event) {
+		if err := m.waitForDirectory(ctx, pos); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m *RoomService) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)

@@ -437,7 +437,7 @@ func (s *AssetService) appendAssetEventEventually(ctx context.Context, assetID s
 		return err
 	}
 	pos := events.SubjectPosition(subject, seq)
-	return waitForPositionAll(ctx, pos, waitForProjection("assets", s.AssetsProjector))
+	return s.waitForAssets(ctx, pos)
 }
 
 func (s *AssetService) appendAssetProcessingEvent(ctx context.Context, assetID string, event *corev1.Event) error {
@@ -452,7 +452,7 @@ func (s *AssetService) appendAssetProcessingEvent(ctx context.Context, assetID s
 			return err
 		}
 		if !tail.IsZero() {
-			if err := waitForPositionAll(ctx, tail, waitForProjection("assets", s.AssetsProjector)); err != nil {
+			if err := s.waitForAssets(ctx, tail); err != nil {
 				return err
 			}
 		}
@@ -462,13 +462,17 @@ func (s *AssetService) appendAssetProcessingEvent(ctx context.Context, assetID s
 		subject := agg.SubjectFor(event)
 		seq, err := s.EventPublisher.AppendAtFilter(ctx, subject, event, filter, tail.Seq)
 		if err == nil {
-			return waitForPositionAll(ctx, events.SubjectPosition(subject, seq), waitForProjection("assets", s.AssetsProjector))
+			return s.waitForAssets(ctx, events.SubjectPosition(subject, seq))
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return err
 		}
 	}
 	return fmt.Errorf("append asset processing event after retries: %w", events.ErrConflict)
+}
+
+func (s *AssetService) waitForAssets(ctx context.Context, pos events.StreamPosition) error {
+	return waitForPositionAll(ctx, pos, waitForProjection("assets", s.AssetsProjector))
 }
 
 func (s *AssetService) shouldAppendAssetProcessingEvent(assetID string, event *corev1.Event) bool {
@@ -483,29 +487,6 @@ func (s *AssetService) shouldAppendAssetProcessingEvent(assetID string, event *c
 		return !hasManifest || manifest == nil || (manifest.Succeeded == nil && manifest.Failed == nil)
 	default:
 		return true
-	}
-}
-
-func assetIDOfLifecycleEvent(event *corev1.Event) string {
-	if event == nil {
-		return ""
-	}
-	switch ev := event.GetEvent().(type) {
-	case *corev1.Event_AssetCreated:
-		if ev.AssetCreated.GetAsset() == nil {
-			return ""
-		}
-		return ev.AssetCreated.GetAsset().GetId()
-	case *corev1.Event_AssetProcessingStarted:
-		return ev.AssetProcessingStarted.GetAssetId()
-	case *corev1.Event_AssetProcessingSucceeded:
-		return ev.AssetProcessingSucceeded.GetAssetId()
-	case *corev1.Event_AssetProcessingFailed:
-		return ev.AssetProcessingFailed.GetAssetId()
-	case *corev1.Event_AssetDeleted:
-		return ev.AssetDeleted.GetAssetId()
-	default:
-		return ""
 	}
 }
 

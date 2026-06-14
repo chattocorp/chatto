@@ -25,7 +25,7 @@ type UserProjection struct {
 	loginIndex  map[string]string
 	emailIndex  map[string]string
 	oidcIndex   map[string]string
-	eventIDSeen map[string]struct{}
+	eventIDSeen eventIDSet
 	keyWrapper  kms.KeyWrapper
 	dekStore    dekstore.Reader
 	contentKeys map[string]map[corev1.UserDEKPurpose]map[int32][]byte
@@ -50,7 +50,7 @@ func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *Use
 		loginIndex:  make(map[string]string),
 		emailIndex:  make(map[string]string),
 		oidcIndex:   make(map[string]string),
-		eventIDSeen: make(map[string]struct{}),
+		eventIDSeen: newEventIDSet(),
 		keyWrapper:  keyWrapper,
 		dekStore:    dekStore,
 		contentKeys: make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
@@ -65,18 +65,11 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
-	if id := event.GetId(); id != "" {
-		p.Lock()
-		if _, ok := p.eventIDSeen[id]; ok {
-			p.Unlock()
-			return nil
-		}
-		p.eventIDSeen[id] = struct{}{}
-		p.Unlock()
-	}
-
 	p.Lock()
 	defer p.Unlock()
+	if p.eventIDSeen.seenOrMark(event) {
+		return nil
+	}
 
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserDekGenerated:

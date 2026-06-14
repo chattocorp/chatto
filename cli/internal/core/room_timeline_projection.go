@@ -29,7 +29,7 @@ type RoomTimelineProjection struct {
 	byRoom          map[string][]*TimelineEntry
 	visibleByRoom   map[string][]*TimelineEntry
 	byEventID       map[string]*TimelineEntry
-	appliedEventIDs map[string]struct{}
+	appliedEventIDs eventIDSet
 	// latestBody is the derived current-body index. Updated as
 	// MessageEdited / MessageRetracted entries are applied so that
 	// LatestBody resolves in O(1) instead of an O(room size) walk
@@ -103,7 +103,7 @@ type VideoProcessingRequest struct {
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
-// the full event proto verbatim — payload, envelope, actor,
+// the full immutable event proto verbatim — payload, envelope, actor,
 // created_at, oneof variant — so resolvers don't need to consult
 // the projection's internal state to render.
 type TimelineEntry struct {
@@ -117,7 +117,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byRoom:            make(map[string][]*TimelineEntry),
 		visibleByRoom:     make(map[string][]*TimelineEntry),
 		byEventID:         make(map[string]*TimelineEntry),
-		appliedEventIDs:   make(map[string]struct{}),
+		appliedEventIDs:   newEventIDSet(),
 		latestBody:        make(map[string]*corev1.MessageBody),
 		bodyEventSeqs:     make(map[string][]uint64),
 		currentBodySeq:    make(map[string]uint64),
@@ -164,16 +164,13 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	// Idempotency: a re-applied event with the same envelope id is a
 	// no-op. The Projection.Apply contract is "Apply(e,n) twice ==
 	// Apply(e,n) once"; this is how we honour it.
-	if eid := event.GetId(); eid != "" {
-		if _, exists := p.appliedEventIDs[eid]; exists {
-			return nil
-		}
-		p.appliedEventIDs[eid] = struct{}{}
+	if p.appliedEventIDs.seenOrMark(event) {
+		return nil
 	}
 
 	if ev := event.GetMessageBody(); ev != nil {
 		targetID := ev.GetEventId()
-		body := ev.GetBody()
+		body := cloneMessageBody(ev.GetBody())
 		if targetID != "" && body != nil {
 			if body.GetBodyEventId() == "" {
 				body.BodyEventId = event.GetId()
@@ -219,7 +216,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_MessagePosted:
 		targetID := event.GetId()
 		if targetID != "" {
-			authorID := messageAuthorID(event, ev.MessagePosted)
+			authorID := messageAuthorID(event)
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
 				delete(p.latestBody, targetID)
 				p.retractedFlags[targetID] = struct{}{}
@@ -323,19 +320,12 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
 		if posted == nil {
 			continue
 		}
-		if messageAuthorID(entry.Event, posted) != userID {
+		if messageAuthorID(entry.Event) != userID {
 			continue
 		}
 		delete(p.latestBody, eventID)
 		p.retractedFlags[eventID] = struct{}{}
 	}
-}
-
-func messageAuthorID(event *corev1.Event, posted *corev1.MessagePostedEvent) string {
-	if event != nil {
-		return event.GetActorId()
-	}
-	return ""
 }
 
 func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string {
@@ -372,7 +362,8 @@ func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string
 // RoomEvents returns up to `limit` entries from a room's timeline in
 // newest-first order, optionally bounded by an exclusive
 // stream-sequence cursor (beforeStreamSeq == 0 means "from the
-// newest"). Returns a fresh slice; callers may mutate freely.
+// newest"). Returns a fresh slice; entries and event payloads are immutable
+// and must be treated as read-only by callers.
 //
 // Entries are the raw timeline — no filtering of meta vs message vs
 // thread reply, no fold of edits, no tombstone hiding. Resolvers
@@ -477,7 +468,7 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 		}
 	}
 	if b, has := p.latestBody[eventID]; has {
-		return b, false, true
+		return cloneMessageBody(b), false, true
 	}
 	return nil, false, true
 }
@@ -668,7 +659,7 @@ func (p *RoomTimelineProjection) MessageAssetsByAuthor(userID string) []MessageA
 	out := make([]MessageAssetRef, 0)
 	for assetID, owner := range p.assetMessageOwner {
 		entry := p.byEventID[owner.messageEventID]
-		if entry == nil || entry.Event == nil || messageAuthorID(entry.Event, entry.Event.GetMessagePosted()) != userID {
+		if entry == nil || entry.Event == nil || messageAuthorID(entry.Event) != userID {
 			continue
 		}
 		out = append(out, MessageAssetRef{
@@ -788,6 +779,13 @@ func ownedAssetIDsFromBody(body *corev1.MessageBody) []string {
 		}
 	}
 	return out
+}
+
+func cloneMessageBody(body *corev1.MessageBody) *corev1.MessageBody {
+	if body == nil {
+		return nil
+	}
+	return proto.Clone(body).(*corev1.MessageBody)
 }
 
 func appendIfMissing(values []string, value string) []string {
@@ -1061,13 +1059,6 @@ func (p *RoomTimelineProjection) isHiddenEchoEntryLocked(entry *TimelineEntry) b
 	return hidden
 }
 
-func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
-	if event == nil {
-		return ""
-	}
-	return event.GetRoomId()
-}
-
 // roomIDOfAssetCreatedLocked resolves an asset's room, walking up the
 // derivative chain to a parent when the event carries no room of its own.
 // The walk is bounded and cycle-guarded: legitimate chains are one level
@@ -1088,56 +1079,6 @@ func (p *RoomTimelineProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetC
 		}
 		seen[parentID] = struct{}{}
 		event = p.assetCreations[parentID]
-	}
-	return ""
-}
-
-// roomIDOfEvent extracts the room_id from any room-scoped event
-// variant. Returns "" for non-room events.
-//
-// Kept as a free function rather than a method on Event so the
-// switch lives next to its sole consumer — easier to spot when a
-// new room-scoped event type is added and this list needs an
-// extension.
-func roomIDOfEvent(event *corev1.Event) string {
-	if event == nil {
-		return ""
-	}
-	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RoomCreated:
-		return e.RoomCreated.GetRoomId()
-	case *corev1.Event_RoomUpdated:
-		return e.RoomUpdated.GetRoomId()
-	case *corev1.Event_RoomDeleted:
-		return e.RoomDeleted.GetRoomId()
-	case *corev1.Event_RoomArchived:
-		return e.RoomArchived.GetRoomId()
-	case *corev1.Event_RoomUnarchived:
-		return e.RoomUnarchived.GetRoomId()
-	case *corev1.Event_UserJoinedRoom:
-		return e.UserJoinedRoom.GetRoomId()
-	case *corev1.Event_UserLeftRoom:
-		return e.UserLeftRoom.GetRoomId()
-	case *corev1.Event_RoomMemberBanned:
-		return e.RoomMemberBanned.GetRoomId()
-	case *corev1.Event_RoomMemberUnbanned:
-		return e.RoomMemberUnbanned.GetRoomId()
-	case *corev1.Event_MessagePosted:
-		return e.MessagePosted.GetRoomId()
-	case *corev1.Event_MessageEdited:
-		return e.MessageEdited.GetRoomId()
-	case *corev1.Event_MessageRetracted:
-		return e.MessageRetracted.GetRoomId()
-	case *corev1.Event_MessageBody:
-		return e.MessageBody.GetRoomId()
-	case *corev1.Event_ThreadCreated:
-		return e.ThreadCreated.GetRoomId()
-	case *corev1.Event_AssetCreated:
-		return ""
-	case *corev1.Event_ReactionAdded:
-		return e.ReactionAdded.GetRoomId()
-	case *corev1.Event_ReactionRemoved:
-		return e.ReactionRemoved.GetRoomId()
 	}
 	return ""
 }

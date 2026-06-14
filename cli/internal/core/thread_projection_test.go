@@ -72,7 +72,7 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 		t.Fatalf("ThreadEvents(ROOT) len = %d, want 2", len(entries))
 	}
 	if entries[0].Event.GetId() != "ENV-R1" || entries[1].Event.GetId() != "ENV-R2" {
-		t.Errorf("ThreadEvents order = %v, want [ENV-R1, ENV-R2]", eventIDs(entries))
+		t.Errorf("ThreadEvents order = %v, want [ENV-R1, ENV-R2]", timelineEventIDs(entries))
 	}
 	if got := p.ReplyCount("ROOT"); got != 2 {
 		t.Errorf("ReplyCount = %d, want 2", got)
@@ -89,6 +89,26 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	}
 	if !slices.Equal(metadata.ParticipantIDs, []string{"U2", "U3"}) {
 		t.Errorf("ThreadMetadata ParticipantIDs = %v, want [U2 U3]", metadata.ParticipantIDs)
+	}
+}
+
+func TestThreadProjection_ApplyDoesNotMutateInputEvent(t *testing.T) {
+	p := NewThreadProjection()
+	reply := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 1})
+	assertApplyDoesNotMutateEvent(t, p, reply, 1)
+
+	entries := p.ThreadEvents("ROOT")
+	if len(entries) != 1 {
+		t.Fatalf("ThreadEvents(ROOT) len = %d, want 1", len(entries))
+	}
+	if got := entries[0].Event.GetId(); got != "ENV-R1" {
+		t.Fatalf("reply id = %q, want ENV-R1", got)
+	}
+	if got := entries[0].Event.GetMessagePosted().GetRoomId(); got != "R1" {
+		t.Fatalf("reply room id = %q, want R1", got)
+	}
+	if got := entries[0].Event.GetMessagePosted().GetInThread(); got != "ROOT" {
+		t.Fatalf("reply thread root = %q, want ROOT", got)
 	}
 }
 

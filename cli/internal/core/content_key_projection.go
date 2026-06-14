@@ -13,14 +13,14 @@ type ContentKeyProjection struct {
 	events.MemoryProjection
 	byUserPurposeEpoch map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 	activeEpoch        map[string]map[corev1.UserDEKPurpose]int32
-	eventIDSeen        map[string]struct{}
+	eventIDSeen        eventIDSet
 }
 
 func NewContentKeyProjection() *ContentKeyProjection {
 	return &ContentKeyProjection{
 		byUserPurposeEpoch: make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 		activeEpoch:        make(map[string]map[corev1.UserDEKPurpose]int32),
-		eventIDSeen:        make(map[string]struct{}),
+		eventIDSeen:        newEventIDSet(),
 	}
 }
 
@@ -38,11 +38,8 @@ func (p *ContentKeyProjection) Apply(event *corev1.Event, _ uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if id := event.GetId(); id != "" {
-		if _, ok := p.eventIDSeen[id]; ok {
-			return nil
-		}
-		p.eventIDSeen[id] = struct{}{}
+	if p.eventIDSeen.seenOrMark(event) {
+		return nil
 	}
 
 	switch e := event.GetEvent().(type) {
