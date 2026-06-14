@@ -90,6 +90,114 @@ func TestChattoCore_PostMessageRejectsAssetFromDifferentRoom(t *testing.T) {
 	}
 }
 
+func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "system", KindChannel, "", "edit-echo", "Edit echo")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	user, err := core.CreateUser(ctx, "system", "edit-echo-user", "Edit Echo User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+		t.Fatal("reply unexpectedly starts with a channel echo")
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited with echo", WithMessageChannelEcho(true)); err != nil {
+		t.Fatalf("EditMessage add echo: %v", err)
+	}
+	echoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("expected edit to create a channel echo")
+	}
+	echoText, err := core.GetMessageBody(ctx, KindChannel, echoID)
+	if err != nil {
+		t.Fatalf("Get echo body: %v", err)
+	}
+	if echoText != "reply edited with echo" {
+		t.Fatalf("echo body = %q, want edited body", echoText)
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited again"); err != nil {
+		t.Fatalf("EditMessage preserve echo: %v", err)
+	}
+	if gotEchoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
+		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply without echo", WithMessageChannelEcho(false)); err != nil {
+		t.Fatalf("EditMessage remove echo: %v", err)
+	}
+	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+		t.Fatal("expected echo to be hidden after unchecking")
+	}
+	replyText, err := core.GetMessageBody(ctx, KindChannel, reply.Id)
+	if err != nil {
+		t.Fatalf("Get reply body: %v", err)
+	}
+	if replyText != "reply without echo" {
+		t.Fatalf("reply body = %q, want latest edit", replyText)
+	}
+}
+
+func TestChattoCore_EditMessageRejectsInvalidEchoStateTargets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "system", KindChannel, "", "invalid-edit-echo", "Invalid edit echo")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	author, err := core.CreateUser(ctx, "system", "invalid-edit-echo-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "system", "invalid-edit-echo-other", "Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, other.Id, KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	if err := core.EditMessage(ctx, author.Id, KindChannel, room.Id, root.Id, "root edited", WithMessageChannelEcho(true)); err == nil {
+		t.Fatal("expected root message echo-state edit to fail")
+	}
+
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+	if err := core.EditMessage(ctx, other.Id, KindChannel, room.Id, reply.Id, "other edit", WithMessageChannelEcho(true)); !errors.Is(err, ErrNotMessageAuthor) {
+		t.Fatalf("expected ErrNotMessageAuthor, got %v", err)
+	}
+	if body, err := core.GetMessageBody(ctx, KindChannel, reply.Id); err != nil || body != "reply" {
+		t.Fatalf("invalid echo-state edit should not change body; body=%q err=%v", body, err)
+	}
+}
+
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

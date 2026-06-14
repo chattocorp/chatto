@@ -296,6 +296,8 @@ input UpdateMessageInput {
   eventId: ID!
   "The new message content."
   body: String! @length(max: 10000)
+  "For thread replies, whether the reply should have a visible channel echo after saving. Omit to preserve current echo state."
+  alsoSendToChannel: Boolean
 }
 
 """

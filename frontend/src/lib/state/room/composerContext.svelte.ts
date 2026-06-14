@@ -7,15 +7,24 @@ import { createContext } from 'svelte';
 export class EditState {
   eventId = $state<string | null>(null);
   originalBody = $state('');
+  threadRootEventId = $state<string | null>(null);
+  channelEchoEventId = $state<string | null>(null);
+  canAddChannelEcho = $state(false);
 
-  startEdit(eventId: string, body: string) {
+  startEdit(eventId: string, body: string, options: EditMessageOptions = {}) {
     this.eventId = eventId;
     this.originalBody = body;
+    this.threadRootEventId = options.threadRootEventId ?? null;
+    this.channelEchoEventId = options.channelEchoEventId ?? null;
+    this.canAddChannelEcho = options.canAddChannelEcho ?? false;
   }
 
   cancelEdit() {
     this.eventId = null;
     this.originalBody = '';
+    this.threadRootEventId = null;
+    this.channelEchoEventId = null;
+    this.canAddChannelEcho = false;
   }
 }
 
@@ -45,7 +54,12 @@ export class ReplyState {
 // LastEditableMessageContext — finder for up-arrow-to-edit
 // ---------------------------------------------------------------------------
 
-export type EditableMessage = { eventId: string; body: string };
+export type EditMessageOptions = {
+  threadRootEventId?: string | null;
+  channelEchoEventId?: string | null;
+  canAddChannelEcho?: boolean;
+};
+export type EditableMessage = { eventId: string; body: string } & EditMessageOptions;
 export type FindLastEditableMessage = () => EditableMessage | null;
 
 export class LastEditableMessageContext {

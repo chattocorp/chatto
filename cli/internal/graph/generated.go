@@ -296,6 +296,7 @@ type ComplexityRoot struct {
 	MessagePostedEvent struct {
 		Attachments               func(childComplexity int) int
 		Body                      func(childComplexity int) int
+		ChannelEchoEventID        func(childComplexity int) int
 		EchoFromThreadRootEventID func(childComplexity int) int
 		EchoOfEventID             func(childComplexity int) int
 		InReplyTo                 func(childComplexity int) int
@@ -1052,6 +1053,7 @@ type MessagePostedEventResolver interface {
 	UpdatedAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	EchoOfEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
 	EchoFromThreadRootEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
+	ChannelEchoEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error)
 	ReplyCount(ctx context.Context, obj *model.MessagePostedEvent) (int32, error)
 	LastReplyAt(ctx context.Context, obj *model.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	ThreadParticipants(ctx context.Context, obj *model.MessagePostedEvent, first *int32) ([]*corev1.User, error)
@@ -2192,6 +2194,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MessagePostedEvent.Body(childComplexity), true
+	case "MessagePostedEvent.channelEchoEventId":
+		if e.ComplexityRoot.MessagePostedEvent.ChannelEchoEventID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MessagePostedEvent.ChannelEchoEventID(childComplexity), true
 	case "MessagePostedEvent.echoFromThreadRootEventId":
 		if e.ComplexityRoot.MessagePostedEvent.EchoFromThreadRootEventID == nil {
 			break
@@ -12078,6 +12086,29 @@ func (ec *executionContext) _MessagePostedEvent_echoFromThreadRootEventId(ctx co
 	)
 }
 func (ec *executionContext) fieldContext_MessagePostedEvent_echoFromThreadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MessagePostedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _MessagePostedEvent_channelEchoEventId(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MessagePostedEvent_channelEchoEventId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.MessagePostedEvent().ChannelEchoEventID(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MessagePostedEvent_channelEchoEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("MessagePostedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
 }
 
@@ -27983,7 +28014,7 @@ func (ec *executionContext) unmarshalInputUpdateMessageInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "eventId", "body"}
+	fieldsInOrder := [...]string{"roomId", "eventId", "body", "alsoSendToChannel"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -28031,6 +28062,13 @@ func (ec *executionContext) unmarshalInputUpdateMessageInput(ctx context.Context
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "alsoSendToChannel":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("alsoSendToChannel"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AlsoSendToChannel = data
 		}
 	}
 	return it, nil
@@ -32149,6 +32187,39 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 					}
 				}()
 				res = ec._MessagePostedEvent_echoFromThreadRootEventId(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "channelEchoEventId":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessagePostedEvent_channelEchoEventId(ctx, field, obj)
 				return res
 			}
 

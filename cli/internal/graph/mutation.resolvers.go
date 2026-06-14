@@ -1013,7 +1013,31 @@ func (r *mutationResolver) UpdateMessage(ctx context.Context, input model.Update
 		}
 	}
 
-	if err := r.core.EditMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.Body); err != nil {
+	var editOptions []core.EditMessageOption
+	if input.AlsoSendToChannel != nil {
+		if messageBody.AuthorId != user.Id {
+			return false, core.ErrNotMessageAuthor
+		}
+		if *input.AlsoSendToChannel {
+			can, err := r.core.CanEchoMessage(ctx, user.Id, kind, input.RoomID)
+			if err != nil {
+				return false, err
+			}
+			if !can {
+				return false, core.ErrPermissionDenied
+			}
+			can, err = r.core.CanPostMessage(ctx, user.Id, kind, input.RoomID)
+			if err != nil {
+				return false, err
+			}
+			if !can {
+				return false, core.ErrPermissionDenied
+			}
+		}
+		editOptions = append(editOptions, core.WithMessageChannelEcho(*input.AlsoSendToChannel))
+	}
+
+	if err := r.core.EditMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.Body, editOptions...); err != nil {
 		return false, err
 	}
 

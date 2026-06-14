@@ -19,6 +19,10 @@ func ptr(s string) *string {
 	return &s
 }
 
+func boolPtr(v bool) *bool {
+	return &v
+}
+
 // ============================================================================
 // CreateRoom Authorization Tests
 // ============================================================================
@@ -1919,6 +1923,111 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 		if event == nil {
 			t.Fatal("expected event, got nil")
+		}
+	})
+}
+
+func TestUpdateMessage_EchoState(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	rootEvent, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Body:   ptr("Thread root for update echo"),
+	})
+	if err != nil {
+		t.Fatalf("post root: %v", err)
+	}
+	rootEventID := rootEvent.ID()
+	replyEvent, err := mutation.PostMessage(env.authContext(), model.PostMessageInput{
+		RoomID:            env.testRoom.Id,
+		Body:              ptr("Thread reply for update echo"),
+		ThreadRootEventID: &rootEventID,
+	})
+	if err != nil {
+		t.Fatalf("post reply: %v", err)
+	}
+	replyEventID := replyEvent.ID()
+
+	t.Run("author can add preserve and remove echo while editing", func(t *testing.T) {
+		ok, err := mutation.UpdateMessage(env.authContext(), model.UpdateMessageInput{
+			RoomID:            env.testRoom.Id,
+			EventID:           replyEventID,
+			Body:              "edited with echo",
+			AlsoSendToChannel: boolPtr(true),
+		})
+		if err != nil || !ok {
+			t.Fatalf("update add echo = %v, %v", ok, err)
+		}
+		echoID, exists := env.core.RoomTimeline.ChannelEchoEventID(replyEventID)
+		if !exists {
+			t.Fatal("expected edit to create channel echo")
+		}
+
+		ok, err = mutation.UpdateMessage(env.authContext(), model.UpdateMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: replyEventID,
+			Body:    "edited preserving echo",
+		})
+		if err != nil || !ok {
+			t.Fatalf("update preserve echo = %v, %v", ok, err)
+		}
+		if got, exists := env.core.RoomTimeline.ChannelEchoEventID(replyEventID); !exists || got != echoID {
+			t.Fatalf("expected nil echo option to preserve echo %q, got %q exists=%v", echoID, got, exists)
+		}
+
+		ok, err = mutation.UpdateMessage(env.authContext(), model.UpdateMessageInput{
+			RoomID:            env.testRoom.Id,
+			EventID:           replyEventID,
+			Body:              "edited without echo",
+			AlsoSendToChannel: boolPtr(false),
+		})
+		if err != nil || !ok {
+			t.Fatalf("update remove echo = %v, %v", ok, err)
+		}
+		if _, exists := env.core.RoomTimeline.ChannelEchoEventID(replyEventID); exists {
+			t.Fatal("expected echo to be hidden")
+		}
+	})
+
+	t.Run("moderator cannot change another author's echo state", func(t *testing.T) {
+		regular := env.createVerifiedUser(t, "update-echo-regular", "Update Echo Regular", "password123")
+		if _, err := env.core.JoinRoom(env.ctx, regular.Id, core.KindChannel, regular.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom regular: %v", err)
+		}
+		regularRoot, err := mutation.PostMessage(env.authContextForUser(regular), model.PostMessageInput{
+			RoomID: env.testRoom.Id,
+			Body:   ptr("regular root for moderator echo test"),
+		})
+		if err != nil {
+			t.Fatalf("regular post root: %v", err)
+		}
+		regularRootID := regularRoot.ID()
+		regularReply, err := mutation.PostMessage(env.authContextForUser(regular), model.PostMessageInput{
+			RoomID:            env.testRoom.Id,
+			Body:              ptr("regular reply for moderator echo test"),
+			ThreadRootEventID: &regularRootID,
+		})
+		if err != nil {
+			t.Fatalf("regular post reply: %v", err)
+		}
+		regularReplyID := regularReply.ID()
+
+		moderator := env.createVerifiedUser(t, "update-echo-mod", "Update Echo Mod", "password123")
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
+			t.Fatalf("AssignServerRole: %v", err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, moderator.Id, core.KindChannel, moderator.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+		_, err = mutation.UpdateMessage(env.authContextForUser(moderator), model.UpdateMessageInput{
+			RoomID:            env.testRoom.Id,
+			EventID:           regularReplyID,
+			Body:              "moderated body",
+			AlsoSendToChannel: boolPtr(true),
+		})
+		if !errors.Is(err, core.ErrNotMessageAuthor) {
+			t.Fatalf("expected ErrNotMessageAuthor, got %v", err)
 		}
 	})
 }

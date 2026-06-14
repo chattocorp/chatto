@@ -206,7 +206,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | Mutation                  | Description                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------- |
 | `postMessage`             | Post a message (root or thread reply; optional attachments / link previews / echo-to-channel).|
-| `updateMessage`           | Update own message body (3-hour window).                                                     |
+| `updateMessage`           | Update own message body (3-hour window); optional thread-reply echo reconciliation.           |
 | `deleteMessage`           | Delete message body (GDPR crypto-shred); event stays in stream as audit trail.               |
 | `deleteAttachment`        | Delete an attachment from own message.                                                       |
 | `deleteLinkPreview`       | Delete a link preview from own message.                                                      |
@@ -783,11 +783,13 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
+- Thread replies can be echoed to the room timeline at post time or during the author's edit window. Echoes are separate `MessagePostedEvent` facts with `echo_of_event_id`; removing an edit-time echo appends a normal `MessageRetractedEvent` for the echo artifact.
 - Thread reply lists are cursor-paginated; reply counts, participants, followed-thread pages, and last-reply timestamps are derived from the `ThreadProjection`.
 
 **Read Path:**
 
 - Room-level message history is served from `RoomTimelineProjection`, which keeps the raw room event log plus derived indexes for latest body state, hidden echoes, message asset references, and room-visible timeline entries. Asset metadata, processing manifests, and derivative graphs are served from `AssetProjection`.
+- `MessagePostedEvent.channelEchoEventId` is a GraphQL-only derived field backed by `RoomTimelineProjection`'s echo-link index; it is not stored in the protobuf payload.
 - Initial loads and cursor pagination walk the derived visible-room index so thread replies, edits, retractions, reactions, asset-processing facts, and directly hidden echoes do not count as separate room timeline rows.
 - Reconnect catch-up uses `Subscription.myEvents(after:)`, keyed by the signed subscription `deliveryCursor`. The web client keeps the most recent durable cursor in its event bus and passes it on resubscribe; replayed reactions/edits/retractions/asset lifecycle facts arrive through the same event handlers as live events. If the server rejects the cursor as invalid, expired, or too expensive to replay, the client performs a full refresh from projected query state.
 - `eventsAround` uses the same visible-room index to center jump-to-message windows on the target's visible position.

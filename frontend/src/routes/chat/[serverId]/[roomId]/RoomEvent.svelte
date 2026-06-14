@@ -38,6 +38,7 @@
           threadRootEventId
           echoOfEventId
           echoFromThreadRootEventId
+          channelEchoEventId
           replyCount
           lastReplyAt
           threadParticipants(first: 5) {

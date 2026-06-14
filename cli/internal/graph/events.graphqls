@@ -308,6 +308,8 @@ type MessagePostedEvent {
   echoOfEventId: ID @goField(forceResolver: true)
   "The thread this echo originates from (null for non-echo messages)."
   echoFromThreadRootEventId: ID @goField(forceResolver: true)
+  "Event ID of the visible channel echo for this thread reply, if one exists."
+  channelEchoEventId: ID @goField(forceResolver: true)
   "Number of replies in this thread (0 for non-root messages or messages without replies)."
   replyCount: Int! @goField(forceResolver: true)
   "Timestamp of the most recent reply (null if no replies or not a root message)."

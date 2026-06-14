@@ -11,6 +11,9 @@ export type MessageActionParams = {
 	eventId: string;
 	deleteEventId?: string;
 	messageBody: string;
+	threadRootEventId?: string | null;
+	channelEchoEventId?: string | null;
+	canAddChannelEcho?: boolean;
 };
 
 const addReactionMutation = graphql(`
@@ -74,7 +77,11 @@ export function useMessageActions() {
 	}
 
 	function startEdit(params: MessageActionParams) {
-		editState.startEdit(params.eventId, params.messageBody);
+		editState.startEdit(params.eventId, params.messageBody, {
+			threadRootEventId: params.threadRootEventId,
+			channelEchoEventId: params.channelEchoEventId,
+			canAddChannelEcho: params.canAddChannelEcho
+		});
 	}
 
 	function openDeleteConfirmation(params: MessageActionParams) {

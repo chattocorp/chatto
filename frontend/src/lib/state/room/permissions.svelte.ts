@@ -5,6 +5,7 @@ export type RoomPermissions = {
   canPostInThread: boolean;
   canReact: boolean;
   canManageOthersMessage: boolean;
+  canEchoMessage: boolean;
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
 };
@@ -14,6 +15,7 @@ export const DEFAULT_ROOM_PERMISSIONS: RoomPermissions = {
   canPostInThread: false,
   canReact: false,
   canManageOthersMessage: false,
+  canEchoMessage: false,
   canManageRoom: false,
   canBanRoomMembers: false
 };

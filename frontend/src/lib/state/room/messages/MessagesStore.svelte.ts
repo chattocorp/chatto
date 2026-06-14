@@ -396,6 +396,14 @@ export class MessagesStore {
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void {
     if (this.scope === 'thread') {
+      if (
+        eventData.echoOfEventId &&
+        eventData.echoFromThreadRootEventId === this.threadRootEventId
+      ) {
+        this.applyChannelEchoLink(eventData.echoOfEventId, spaceEvent.id);
+        return;
+      }
+
       if (eventData.threadRootEventId === this.threadRootEventId) {
         this.addEvent(spaceEvent);
         this.sortThreadEvents();
@@ -457,6 +465,8 @@ export class MessagesStore {
    * its existing engagement visible alongside the placeholder.
    */
   private applyDeletion(messageEventId: string): void {
+    this.clearChannelEchoLink(messageEventId);
+
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
@@ -486,6 +496,49 @@ export class MessagesStore {
       this.previewEvents.set(previewKey, {
         ...preview,
         event: { ...preview.event, body: null, attachments: [] }
+      });
+    }
+  }
+
+  private applyChannelEchoLink(originalEventId: string, echoEventId: string): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (e.id !== originalEventId || evt?.__typename !== 'MessagePostedEvent') continue;
+      this.events[i] = {
+        ...e,
+        event: { ...evt, channelEchoEventId: echoEventId }
+      };
+    }
+
+    const previewKey = this.previewKey(originalEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, {
+        ...preview,
+        event: { ...preview.event, channelEchoEventId: echoEventId }
+      });
+    }
+  }
+
+  private clearChannelEchoLink(echoEventId: string): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (evt.channelEchoEventId !== echoEventId) continue;
+      this.events[i] = {
+        ...e,
+        event: { ...evt, channelEchoEventId: null }
+      };
+    }
+
+    for (const [key, preview] of this.previewEvents) {
+      if (preview?.event?.__typename !== 'MessagePostedEvent') continue;
+      if (preview.event.channelEchoEventId !== echoEventId) continue;
+      this.previewEvents.set(key, {
+        ...preview,
+        event: { ...preview.event, channelEchoEventId: null }
       });
     }
   }

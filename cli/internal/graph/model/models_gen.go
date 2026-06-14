@@ -1236,6 +1236,8 @@ type UpdateMessageInput struct {
 	EventID string `json:"eventId"`
 	// The new message content.
 	Body string `json:"body"`
+	// For thread replies, whether the reply should have a visible channel echo after saving. Omit to preserve current echo state.
+	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
 }
 
 // Input for updating the current user's presence status.

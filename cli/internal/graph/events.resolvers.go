@@ -444,6 +444,18 @@ func (r *messagePostedEventResolver) EchoFromThreadRootEventID(ctx context.Conte
 	return &payload.EchoFromThreadRootEventId, nil
 }
 
+// ChannelEchoEventID is the resolver for the channelEchoEventId field.
+func (r *messagePostedEventResolver) ChannelEchoEventID(ctx context.Context, obj *model.MessagePostedEvent) (*string, error) {
+	payload := messagePostedPayload(obj)
+	if payload == nil || payload.InThread == "" || payload.EchoOfEventId != "" {
+		return nil, nil
+	}
+	if echoID, ok := r.core.RoomTimeline.ChannelEchoEventID(messagePostedEventID(obj)); ok {
+		return &echoID, nil
+	}
+	return nil, nil
+}
+
 // ReplyCount is the resolver for the replyCount field.
 // Returns 0 for thread replies (non-root). For root messages, computes count on-demand.
 func (r *messagePostedEventResolver) ReplyCount(ctx context.Context, obj *model.MessagePostedEvent) (int32, error) {

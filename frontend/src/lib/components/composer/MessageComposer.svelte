@@ -74,6 +74,11 @@
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const scrollState = composerContext.scrollState;
   const isEditing = $derived(editState.eventId !== null);
+  const showEditEchoCheckbox = $derived(
+    isEditing &&
+      editState.threadRootEventId !== null &&
+      (editState.channelEchoEventId !== null || editState.canAddChannelEcho)
+  );
 
   // Element ref for ResizeObserver
   let composerEl = $state<HTMLDivElement>();
@@ -129,6 +134,7 @@
       editSeededForEvent = eventId;
       draftState.clearText();
       message = originalBody;
+      alsoSendToChannel = editState.channelEchoEventId !== null;
       api?.setContent(originalBody);
       tick().then(() => api?.focus('end'));
       attachments.clear();
@@ -136,6 +142,7 @@
     } else if (editSeededForEvent && !eventId) {
       // Exiting edit mode - clear the input
       message = '';
+      alsoSendToChannel = false;
       editSeededForEvent = '';
       api?.setContent('');
     }
@@ -475,8 +482,18 @@
 
     loading = true;
 
+    const input: {
+      roomId: string;
+      eventId: string;
+      body: string;
+      alsoSendToChannel?: boolean;
+    } = { roomId, eventId, body: trimmedBody };
+    if (showEditEchoCheckbox) {
+      input.alsoSendToChannel = alsoSendToChannel;
+    }
+
     const response = await connection().client.mutation(UpdateMessageMutation, {
-      input: { roomId, eventId, body: trimmedBody }
+      input
     });
 
     if (response.error) {
@@ -556,7 +573,11 @@
     if (event.key === 'ArrowUp' && !isEditing && (editorApi?.getText() ?? '').trim() === '') {
       const lastMsg = lastEditableMessageCtx?.getLastEditableMessage();
       if (lastMsg) {
-        editState.startEdit(lastMsg.eventId, lastMsg.body);
+        editState.startEdit(lastMsg.eventId, lastMsg.body, {
+          threadRootEventId: lastMsg.threadRootEventId,
+          channelEchoEventId: lastMsg.channelEchoEventId,
+          canAddChannelEcho: lastMsg.canAddChannelEcho
+        });
         return true;
       }
     }
@@ -739,7 +760,7 @@
   </div>
 
   <!-- Also send to channel checkbox (thread replies only, when permitted) -->
-  {#if showAlsoSendToChannel && !isEditing}
+  {#if (showAlsoSendToChannel && !isEditing) || showEditEchoCheckbox}
     <label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
       <input
         type="checkbox"
