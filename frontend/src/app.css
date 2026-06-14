@@ -331,7 +331,7 @@
 }
 
 @utility pane-header-icon-glyph {
-  @apply iconify shrink-0 transition-colors;
+  @apply iconify shrink-0 text-base transition-colors;
 }
 
 @utility pane-header-icon-button-active {

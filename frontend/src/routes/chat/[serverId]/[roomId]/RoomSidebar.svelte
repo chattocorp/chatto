@@ -16,10 +16,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
-  import {
-    getRoomMembersState,
-    type RoomMember
-  } from '$lib/state/room';
+  import { getRoomMembersState, type RoomMember } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -45,6 +42,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     loading = false,
     roomId,
     activePanel = 'members',
+    presentation = 'desktop',
     canBanRoomMembers = false,
     currentUserId = null,
     onLoadMoreMembers,
@@ -53,6 +51,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     loading?: boolean;
     roomId: string;
     activePanel?: RoomSidebarPanel;
+    presentation?: 'desktop' | 'overlay';
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
     onLoadMoreMembers?: () => void | Promise<void>;
@@ -111,9 +110,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   // values change, so it would miss updates like OFFLINE→ONLINE.
   function sortByName(list: RoomMember[]): RoomMember[] {
     return [...list].sort((a, b) =>
-      getLiveDisplayName(a.id, a.displayName).localeCompare(
-        getLiveDisplayName(b.id, b.displayName)
-      )
+      getLiveDisplayName(a.id, a.displayName).localeCompare(getLiveDisplayName(b.id, b.displayName))
     );
   }
 
@@ -184,19 +181,24 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <aside
-  class="relative flex flex-col border-l border-border"
-  style:width="{roomSidebarWidth.value}px"
+  class={[
+    'relative flex min-h-0 flex-col bg-background',
+    presentation === 'desktop' ? 'border-l border-border' : 'w-full min-w-0 flex-1 overflow-hidden'
+  ]}
+  style:width={presentation === 'desktop' ? `${roomSidebarWidth.value}px` : undefined}
   aria-label="Room extras"
 >
-  <ResizeHandle
-    width={roomSidebarWidth.value}
-    min={ROOM_SIDEBAR_MIN_WIDTH}
-    max={ROOM_SIDEBAR_MAX_WIDTH}
-    onResize={(w) => roomSidebarWidth.set(w)}
-    onReset={() => roomSidebarWidth.reset()}
-    edge="left"
-    label="Resize room extras pane"
-  />
+  {#if presentation === 'desktop'}
+    <ResizeHandle
+      width={roomSidebarWidth.value}
+      min={ROOM_SIDEBAR_MIN_WIDTH}
+      max={ROOM_SIDEBAR_MAX_WIDTH}
+      onResize={(w) => roomSidebarWidth.set(w)}
+      onReset={() => roomSidebarWidth.reset()}
+      edge="left"
+      label="Resize room extras pane"
+    />
+  {/if}
   <PaneHeader {title} {loading} skeletonButtons={0}>
     {#snippet actions()}
       <HeaderIconButton icon="uil--times" label="Hide room extras" onclick={() => onClose?.()} />
@@ -263,7 +265,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {/if}
     </nav>
   {:else if activePanel === 'files'}
-    <div class="flex min-h-0 flex-1 flex-col"></div>
+    <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
+      Files coming soon.
+    </div>
   {/if}
 
   {#if banDialogMember}

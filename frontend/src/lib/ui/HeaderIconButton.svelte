@@ -64,7 +64,7 @@ arrow aligned with the sidebar nav items below.
     'group/pane-header-icon-button pane-header-icon-button',
     toneClasses[tone]
   ]);
-  const glyphClass = $derived(['pane-header-icon-glyph text-xl', icon]);
+  const glyphClass = $derived(['pane-header-icon-glyph', icon]);
 </script>
 
 {#if href}

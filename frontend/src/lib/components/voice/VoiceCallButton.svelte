@@ -31,9 +31,7 @@ States:
 
   let isInThisCall = $derived(voiceCallState.isInCall(roomId));
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
-  let isConnecting = $derived(
-    voiceCallState.connecting && voiceCallState.roomId === roomId
-  );
+  let isConnecting = $derived(voiceCallState.connecting && voiceCallState.roomId === roomId);
 
   async function handleJoin() {
     try {
@@ -45,11 +43,8 @@ States:
 </script>
 
 {#if isConnecting}
-  <span
-    class="group/pane-header-icon-button pane-header-icon-button"
-    title="Connecting..."
-  >
-    <span class="pane-header-icon-glyph animate-spin text-xl uil--spinner" aria-hidden="true"></span>
+  <span class="group/pane-header-icon-button pane-header-icon-button" title="Connecting...">
+    <span class="pane-header-icon-glyph animate-spin uil--spinner" aria-hidden="true"></span>
   </span>
 {:else if !isInThisCall}
   <button
@@ -59,6 +54,6 @@ States:
     disabled={isInAnotherCall}
     title={isInAnotherCall ? 'Already in another call' : 'Join voice call'}
   >
-    <span class="pane-header-icon-glyph text-xl uil--phone" aria-hidden="true"></span>
+    <span class="pane-header-icon-glyph uil--phone" aria-hidden="true"></span>
   </button>
 {/if}

@@ -30,10 +30,12 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { getRoomSidebarPanel, setRoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
+  import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
@@ -277,10 +279,51 @@
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   // Channel rooms can always be left. DMs are permanent (no leave action).
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
-  let activeRoomSidebarPanel = $state<RoomSidebarPanel | null>('members');
+  let selectedRoomSidebarPanel = $state<RoomSidebarPanel>('members');
+  let selectedRoomSidebarScope = $state<string | null>(null);
+  let roomSidebarHidden = $state(false);
+  let mobileRoomSidebarOpen = $state(false);
+
+  const currentRoomSidebarScope = $derived(`${getActiveServer()}:${roomId}`);
+  const selectedRoomSidebarPanelForRoom = $derived.by(() => {
+    if (selectedRoomSidebarScope === currentRoomSidebarScope) {
+      return selectedRoomSidebarPanel;
+    }
+
+    return getRoomSidebarPanel(getActiveServer(), roomId);
+  });
+  const activeRoomSidebarPanel = $derived(
+    roomSidebarHidden ? null : selectedRoomSidebarPanelForRoom
+  );
+  const mobileRoomSidebarPanel = $derived(
+    mobileRoomSidebarOpen ? selectedRoomSidebarPanelForRoom : null
+  );
+
+  function selectRoomSidebarPanel(panel: RoomSidebarPanel) {
+    const serverId = getActiveServer();
+    setRoomSidebarPanel(serverId, roomId, panel);
+    selectedRoomSidebarScope = `${serverId}:${roomId}`;
+    selectedRoomSidebarPanel = panel;
+  }
 
   function toggleRoomSidebarPanel(panel: RoomSidebarPanel) {
-    activeRoomSidebarPanel = activeRoomSidebarPanel === panel ? null : panel;
+    if (activeRoomSidebarPanel === panel) {
+      roomSidebarHidden = true;
+      return;
+    }
+
+    selectRoomSidebarPanel(panel);
+    roomSidebarHidden = false;
+  }
+
+  function toggleMobileRoomSidebarPanel(panel: RoomSidebarPanel) {
+    if (mobileRoomSidebarPanel === panel) {
+      mobileRoomSidebarOpen = false;
+      return;
+    }
+
+    selectRoomSidebarPanel(panel);
+    mobileRoomSidebarOpen = true;
   }
 
   let leavingRoom = $state(false);
@@ -310,12 +353,31 @@
 
 <svelte:window
   onkeydown={(e) => {
+    if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
+      e.preventDefault();
+      mobileRoomSidebarOpen = false;
+      return;
+    }
+
     if (e.key === 'Escape' && threadId && !e.defaultPrevented) {
       e.preventDefault();
       closeThread();
     }
   }}
   onpointerdown={(e) => {
+    if (mobileRoomSidebarPanel && e.button === 0) {
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(
+          '[data-testid="room-sidebar-mobile-pane"], [data-testid="room-sidebar-toggle"], dialog'
+        )
+      ) {
+        return;
+      }
+      mobileRoomSidebarOpen = false;
+      return;
+    }
+
     if (!threadId || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
@@ -344,7 +406,8 @@
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId ? 'opacity-30' : ''
+          threadId ? 'opacity-30' : '',
+          mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
         inert={threadId ? true : undefined}
         {@attach roomDropZone}
@@ -360,6 +423,12 @@
           {#snippet actions()}
             {#if !room.isDM}
               <RoomSidebarToggle
+                mode="mobile"
+                activePanel={mobileRoomSidebarPanel}
+                onToggle={toggleMobileRoomSidebarPanel}
+              />
+              <RoomSidebarToggle
+                mode="desktop"
                 activePanel={activeRoomSidebarPanel}
                 onToggle={toggleRoomSidebarPanel}
               />
@@ -381,7 +450,7 @@
                 disabled={leavingRoom}
                 title="Leave room"
               >
-                <span class="pane-header-icon-glyph text-xl uil--sign-out-alt" aria-hidden="true"></span>
+                <span class="pane-header-icon-glyph uil--sign-out-alt" aria-hidden="true"></span>
               </button>
             {/if}
           {/snippet}
@@ -428,6 +497,25 @@
           }}
         />
       {/if}
+
+      {#if !room.isDM && mobileRoomSidebarPanel}
+        <div
+          class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
+          data-testid="room-sidebar-mobile-pane"
+          transition:fly={{ x: 300, duration: 200 }}
+        >
+          <RoomSidebar
+            {roomId}
+            activePanel={mobileRoomSidebarPanel}
+            presentation="overlay"
+            loading={room.isRoomLoading}
+            canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
+            currentUserId={currentUser.user?.id ?? null}
+            onLoadMoreMembers={roomMembers.loadMoreMembers}
+            onClose={() => (mobileRoomSidebarOpen = false)}
+          />
+        </div>
+      {/if}
     </div>
 
     {#if !room.isDM && activeRoomSidebarPanel}
@@ -439,7 +527,7 @@
           canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
           currentUserId={currentUser.user?.id ?? null}
           onLoadMoreMembers={roomMembers.loadMoreMembers}
-          onClose={() => (activeRoomSidebarPanel = null)}
+          onClose={() => (roomSidebarHidden = true)}
         />
       </div>
     {/if}

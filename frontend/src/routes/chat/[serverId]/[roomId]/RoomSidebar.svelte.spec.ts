@@ -154,7 +154,9 @@ describe('RoomSidebar', () => {
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
     expect(renderedMemberTitles(container)).toHaveLength(100);
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeTruthy();
+      expect(
+        container.querySelector('[data-testid="room-members-load-more-sentinel"]')
+      ).toBeTruthy();
       expect(MockIntersectionObserver.instances).toHaveLength(1);
     });
 
@@ -170,7 +172,9 @@ describe('RoomSidebar', () => {
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
+      expect(
+        container.querySelector('[data-testid="room-members-load-more-sentinel"]')
+      ).toBeFalsy();
     });
 
     const renderedTitles = renderedMemberTitles(container);
@@ -232,7 +236,9 @@ describe('RoomSidebar', () => {
       await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
       expect(renderedMemberTitles(container)).toHaveLength(100);
       await vi.waitFor(() => {
-        expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeTruthy();
+        expect(
+          container.querySelector('[data-testid="room-members-load-more-sentinel"]')
+        ).toBeTruthy();
       });
 
       MockIntersectionObserver.instances[0].trigger();
@@ -244,7 +250,9 @@ describe('RoomSidebar', () => {
 
       await vi.waitFor(() => {
         expect(renderedMemberTitles(container)).toHaveLength(142);
-        expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
+        expect(
+          container.querySelector('[data-testid="room-members-load-more-sentinel"]')
+        ).toBeFalsy();
       });
     } finally {
       consoleErrorSpy.mockRestore();
@@ -306,7 +314,21 @@ describe('RoomSidebar', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('renders the blank files panel', async () => {
+  it('renders overlay presentation without desktop resizing chrome', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        presentation: 'overlay',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    const sidebar = container.querySelector('[aria-label="Room extras"]') as HTMLElement | null;
+    expect(sidebar).toBeTruthy();
+    expect(sidebar!.style.width).toBe('');
+    expect(container.querySelector('[aria-label="Resize room extras pane"]')).toBeFalsy();
+  });
+
+  it('renders the files coming soon panel', async () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'files',
@@ -315,6 +337,7 @@ describe('RoomSidebar', () => {
     });
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Files');
+    expect(container.textContent).toContain('Files coming soon.');
     expect(container.querySelector('[aria-label="Member list"]')).toBeFalsy();
   });
 });
