@@ -5,6 +5,7 @@ import {
   loginAsAdminAndUsePrimarySpace,
   type TestUser
 } from './fixtures/testUser';
+import { csrfHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -58,7 +59,7 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
 }
 
 async function logoutUser(page: Page): Promise<void> {
-  await page.request.post('/auth/logout');
+  await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
 }
 
 async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {

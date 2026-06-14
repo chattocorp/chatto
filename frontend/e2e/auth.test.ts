@@ -1,4 +1,5 @@
 import { test, expect } from './setup';
+import { csrfHeaders } from './fixtures/csrf';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import * as routes from './routes';
 
@@ -497,7 +498,7 @@ test.describe('Authentication', () => {
       const userId = firstData.user.id;
 
       // Clear session by logging out
-      await page.request.post('/auth/logout');
+      await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
 
       // Second OAuth login - should find existing user by verified email
       const secondData = await authPage.simulateOAuthCallback(oauthEmail, 'Existing OAuth User');

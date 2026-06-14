@@ -143,6 +143,29 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts cookie GraphQL POST with request type header", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		csrfCookieValue(t, client, server.URL)
+
+		req, err := http.NewRequest(http.MethodPost, server.URL+"/api/graphql", strings.NewReader("{}"))
+		if err != nil {
+			t.Fatalf("create GraphQL request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(csrfGraphQLRequestHeader, csrfGraphQLRequestHeaderVal)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("GraphQL request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+	})
+
 	t.Run("exempts bearer GraphQL POST", func(t *testing.T) {
 		server, _ := setupCSRFTestServer(t)
 

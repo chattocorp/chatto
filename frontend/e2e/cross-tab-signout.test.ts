@@ -28,6 +28,23 @@ async function expectLoggedOutRedirect(page: Page): Promise<void> {
   );
 }
 
+async function logoutViaFetch(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const token = document.cookie
+      .split(';')
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith('chatto_csrf='))
+      ?.split('=')
+      .slice(1)
+      .join('=');
+
+    return fetch('/auth/logout', {
+      method: 'POST',
+      headers: token ? { 'X-CSRF-Token': decodeURIComponent(token) } : undefined
+    });
+  });
+}
+
 test.describe('Cross-Tab Sign-Out', () => {
   test('server-side: logout in one tab disconnects another tab via SessionTerminatedEvent', async ({
     browser,
@@ -70,7 +87,7 @@ test.describe('Cross-Tab Sign-Out', () => {
       });
 
       // Log out in tab 1 — this publishes SessionTerminatedEvent
-      await authPage.page.evaluate(() => fetch('/auth/logout', { method: 'POST' }));
+      await logoutViaFetch(authPage.page);
 
       // Wait for the session terminated event to be received
       await sessionTerminatedLog;
@@ -104,7 +121,7 @@ test.describe('Cross-Tab Sign-Out', () => {
       await expect(page2).toHaveURL(routes.patterns.chatRedirect);
 
       // Log out in tab 1 via the logout endpoint + BroadcastChannel notification
-      await page.evaluate(() => fetch('/auth/logout', { method: 'POST' }));
+      await logoutViaFetch(page);
       await page.evaluate(() => {
         const ch = new BroadcastChannel('chatto-session');
         ch.postMessage({ type: 'logout' });

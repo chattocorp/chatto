@@ -12,15 +12,17 @@ import (
 )
 
 const (
-	csrfCookieName = "chatto_csrf"
-	csrfHeaderName = "X-CSRF-Token"
-	csrfSessionKey = "csrf_token"
-	csrfTokenBytes = 32
+	csrfCookieName              = "chatto_csrf"
+	csrfHeaderName              = "X-CSRF-Token"
+	csrfGraphQLRequestHeader    = "X-REQUEST-TYPE"
+	csrfGraphQLRequestHeaderVal = "GraphQL"
+	csrfSessionKey              = "csrf_token"
+	csrfTokenBytes              = 32
 )
 
 func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if s.requiresCSRF(c) && !s.validCSRFToken(c) {
+		if s.requiresCSRF(c) && !s.validCSRFToken(c) && !validGraphQLRequestHeader(c) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CSRF token missing or invalid"})
 			return
 		}
@@ -80,6 +82,11 @@ func (s *HTTPServer) validCSRFToken(c *gin.Context) bool {
 
 	return subtle.ConstantTimeCompare([]byte(headerToken), []byte(sessionToken)) == 1 &&
 		subtle.ConstantTimeCompare([]byte(cookieToken), []byte(sessionToken)) == 1
+}
+
+func validGraphQLRequestHeader(c *gin.Context) bool {
+	return c.Request.URL.Path == "/api/graphql" &&
+		strings.EqualFold(c.GetHeader(csrfGraphQLRequestHeader), csrfGraphQLRequestHeaderVal)
 }
 
 func isSafeHTTPMethod(method string) bool {

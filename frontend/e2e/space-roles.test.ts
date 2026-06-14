@@ -6,6 +6,7 @@ import {
   loginAsAdminAndUsePrimarySpace,
   type TestUser
 } from './fixtures/testUser';
+import { csrfHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -75,7 +76,7 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  * Logs out the current user.
  */
 async function logoutUser(page: Page): Promise<void> {
-  const response = await page.request.post('/auth/logout');
+  const response = await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
   expect(response.ok()).toBeTruthy();
   // Unload the SPA before switching identities. Otherwise the old authenticated
   // app can react to logout and race a later page.goto() with its own redirect.

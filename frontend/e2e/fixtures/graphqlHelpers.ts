@@ -16,7 +16,7 @@ export async function graphqlQuery<T>(
     async ({ query, variables }) => {
       const response = await fetch('/api/graphql', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         credentials: 'include',
         body: JSON.stringify({ query, variables })
       });
@@ -92,7 +92,7 @@ export async function waitForUserDeleted(
       async ({ query, variables }) => {
         const response = await fetch('/api/graphql', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           credentials: 'include',
           body: JSON.stringify({ query, variables })
         });

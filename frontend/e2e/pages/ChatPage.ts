@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
+import { csrfHeaders } from '../fixtures/csrf';
 import { loginAsAdmin } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
 
@@ -153,7 +154,9 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
-    const logoutResponse = await this.page.request.post('/auth/logout');
+    const logoutResponse = await this.page.request.post('/auth/logout', {
+      headers: await csrfHeaders(this.page)
+    });
     expect(logoutResponse.ok()).toBeTruthy();
     // Unload the currently mounted app before re-authenticating as admin; the
     // previous session can otherwise issue a late redirect during navigation.
