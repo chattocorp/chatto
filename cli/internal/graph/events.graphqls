@@ -56,8 +56,10 @@ union EventType =
   # Presence
   | PresenceChangedEvent
   # Voice calls
+  | CallStartedEvent
   | CallParticipantJoinedEvent
   | CallParticipantLeftEvent
+  | CallEndedEvent
   # User lifecycle
   | UserCreatedEvent
   | UserDeletedEvent

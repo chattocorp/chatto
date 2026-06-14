@@ -165,16 +165,28 @@ type ComplexityRoot struct {
 		Width             func(childComplexity int) int
 	}
 
+	CallEndedEvent struct {
+		CallId func(childComplexity int) int
+		RoomId func(childComplexity int) int
+	}
+
 	CallParticipant struct {
 		JoinedAt func(childComplexity int) int
 		User     func(childComplexity int) int
 	}
 
 	CallParticipantJoinedEvent struct {
+		CallId func(childComplexity int) int
 		RoomId func(childComplexity int) int
 	}
 
 	CallParticipantLeftEvent struct {
+		CallId func(childComplexity int) int
+		RoomId func(childComplexity int) int
+	}
+
+	CallStartedEvent struct {
+		CallId func(childComplexity int) int
 		RoomId func(childComplexity int) int
 	}
 
@@ -1713,6 +1725,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Attachment.Width(childComplexity), true
 
+	case "CallEndedEvent.callId":
+		if e.ComplexityRoot.CallEndedEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallEndedEvent.CallId(childComplexity), true
+	case "CallEndedEvent.roomId":
+		if e.ComplexityRoot.CallEndedEvent.RoomId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallEndedEvent.RoomId(childComplexity), true
+
 	case "CallParticipant.joinedAt":
 		if e.ComplexityRoot.CallParticipant.JoinedAt == nil {
 			break
@@ -1726,6 +1751,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CallParticipant.User(childComplexity), true
 
+	case "CallParticipantJoinedEvent.callId":
+		if e.ComplexityRoot.CallParticipantJoinedEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallParticipantJoinedEvent.CallId(childComplexity), true
 	case "CallParticipantJoinedEvent.roomId":
 		if e.ComplexityRoot.CallParticipantJoinedEvent.RoomId == nil {
 			break
@@ -1733,12 +1764,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CallParticipantJoinedEvent.RoomId(childComplexity), true
 
+	case "CallParticipantLeftEvent.callId":
+		if e.ComplexityRoot.CallParticipantLeftEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallParticipantLeftEvent.CallId(childComplexity), true
 	case "CallParticipantLeftEvent.roomId":
 		if e.ComplexityRoot.CallParticipantLeftEvent.RoomId == nil {
 			break
 		}
 
 		return e.ComplexityRoot.CallParticipantLeftEvent.RoomId(childComplexity), true
+
+	case "CallStartedEvent.callId":
+		if e.ComplexityRoot.CallStartedEvent.CallId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallStartedEvent.CallId(childComplexity), true
+	case "CallStartedEvent.roomId":
+		if e.ComplexityRoot.CallStartedEvent.RoomId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallStartedEvent.RoomId(childComplexity), true
 
 	case "ConnectionInfo.connected":
 		if e.ComplexityRoot.ConnectionInfo.Connected == nil {
@@ -10050,6 +10100,52 @@ func (ec *executionContext) fieldContext_Attachment_videoProcessing(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _CallEndedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallEndedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallEndedEvent_roomId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallEndedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallEndedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallEndedEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallEndedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallEndedEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallEndedEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallEndedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) _CallParticipant_user(ctx context.Context, field graphql.CollectedField, obj *model.CallParticipant) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10128,6 +10224,29 @@ func (ec *executionContext) fieldContext_CallParticipantJoinedEvent_roomId(_ con
 	return graphql.NewScalarFieldContext("CallParticipantJoinedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
+func (ec *executionContext) _CallParticipantJoinedEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantJoinedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallParticipantJoinedEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallParticipantJoinedEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallParticipantJoinedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) _CallParticipantLeftEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantLeftEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10149,6 +10268,75 @@ func (ec *executionContext) _CallParticipantLeftEvent_roomId(ctx context.Context
 }
 func (ec *executionContext) fieldContext_CallParticipantLeftEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CallParticipantLeftEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallParticipantLeftEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantLeftEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallParticipantLeftEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallParticipantLeftEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallParticipantLeftEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallStartedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallStartedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallStartedEvent_roomId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallStartedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallStartedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CallStartedEvent_callId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallStartedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallStartedEvent_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallStartedEvent_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallStartedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _ConnectionInfo_connected(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionInfo) (ret graphql.Marshaler) {
@@ -28994,6 +29182,11 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._HeartbeatEvent(ctx, sel, obj)
+	case *corev1.CallStartedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CallStartedEvent(ctx, sel, obj)
 	case *corev1.CallParticipantLeftEvent:
 		if obj == nil {
 			return graphql.Null
@@ -29004,6 +29197,11 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._CallParticipantJoinedEvent(ctx, sel, obj)
+	case *corev1.CallEndedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CallEndedEvent(ctx, sel, obj)
 	case *corev1.AssetProcessingSucceededEvent:
 		if obj == nil {
 			return graphql.Null
@@ -30434,6 +30632,50 @@ func (ec *executionContext) _Attachment(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var callEndedEventImplementors = []string{"CallEndedEvent", "EventType"}
+
+func (ec *executionContext) _CallEndedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallEndedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, callEndedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CallEndedEvent")
+		case "roomId":
+			out.Values[i] = ec._CallEndedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallEndedEvent_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var callParticipantImplementors = []string{"CallParticipant"}
 
 func (ec *executionContext) _CallParticipant(ctx context.Context, sel ast.SelectionSet, obj *model.CallParticipant) graphql.Marshaler {
@@ -30494,6 +30736,11 @@ func (ec *executionContext) _CallParticipantJoinedEvent(ctx context.Context, sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "callId":
+			out.Values[i] = ec._CallParticipantJoinedEvent_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -30530,6 +30777,55 @@ func (ec *executionContext) _CallParticipantLeftEvent(ctx context.Context, sel a
 			out.Values[i] = graphql.MarshalString("CallParticipantLeftEvent")
 		case "roomId":
 			out.Values[i] = ec._CallParticipantLeftEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallParticipantLeftEvent_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var callStartedEventImplementors = []string{"CallStartedEvent", "EventType"}
+
+func (ec *executionContext) _CallStartedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallStartedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, callStartedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CallStartedEvent")
+		case "roomId":
+			out.Values[i] = ec._CallStartedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallStartedEvent_callId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

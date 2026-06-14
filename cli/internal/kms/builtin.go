@@ -3,6 +3,7 @@ package kms
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -20,6 +21,9 @@ const (
 	// AlgorithmBuiltinXChaCha20Poly1305V1 identifies the built-in in-process
 	// wrapper used for protobuf UserKeyEncryptionKey records in ENCRYPTION_KEYS.
 	AlgorithmBuiltinXChaCha20Poly1305V1 = "builtin-xchacha20-poly1305-v1"
+	// AlgorithmLiveKitCallE2EEV1 identifies raw per-call LiveKit E2EE keys
+	// stored behind the KMS boundary.
+	AlgorithmLiveKitCallE2EEV1 = "livekit-call-e2ee-v1"
 )
 
 var (
@@ -49,6 +53,14 @@ type KeyWrapper interface {
 	ShredKey(ctx context.Context, keyRef string) error
 }
 
+// CallKeyStore owns short-lived per-call media encryption keys.
+type CallKeyStore interface {
+	CreateCallKey(ctx context.Context, callID string) (keyRef string, encodedKey string, err error)
+	GetCallKey(ctx context.Context, keyRef string) (encodedKey string, err error)
+	CallKeyExists(ctx context.Context, keyRef string) (bool, error)
+	ShredCallKey(ctx context.Context, keyRef string) error
+}
+
 // LegacyKeyProvider exposes raw local KEKs only for decrypting pre-envelope
 // message bodies. New code should use KeyWrapper instead.
 type LegacyKeyProvider interface {
@@ -63,6 +75,7 @@ type Builtin struct {
 
 var _ KeyWrapper = (*Builtin)(nil)
 var _ LegacyKeyProvider = (*Builtin)(nil)
+var _ CallKeyStore = (*Builtin)(nil)
 
 // NewBuiltin creates a KV-backed KMS. The KV bucket should be ENCRYPTION_KEYS.
 func NewBuiltin(kv jetstream.KeyValue, logger *log.Logger) *Builtin {
@@ -76,8 +89,16 @@ func LegacyUserKeyRef(userID string) string {
 	return "user." + userID
 }
 
+func CallKeyRef(callID string) string {
+	return "call.e2ee." + callID
+}
+
 func IsKeyRef(keyRef string) bool {
 	return strings.HasPrefix(keyRef, "kek.") || strings.HasPrefix(keyRef, "user.")
+}
+
+func IsCallKeyRef(keyRef string) bool {
+	return strings.HasPrefix(keyRef, "call.e2ee.")
 }
 
 func ValidateKeyRef(keyRef string) error {
@@ -85,6 +106,13 @@ func ValidateKeyRef(keyRef string) error {
 		return nil
 	}
 	return fmt.Errorf("%w for KMS operation: %s", ErrInvalidKeyRef, keyRef)
+}
+
+func ValidateCallKeyRef(keyRef string) error {
+	if IsCallKeyRef(keyRef) {
+		return nil
+	}
+	return fmt.Errorf("%w for call key operation: %s", ErrInvalidKeyRef, keyRef)
 }
 
 func keyPath(keyRef string) string {
@@ -136,6 +164,26 @@ func DecodeUserKeyEncryptionKeyRecord(keyRef string, data []byte) ([]byte, error
 func ValidateUserKeyEncryptionKeyRecord(keyRef string, data []byte) error {
 	_, err := DecodeUserKeyEncryptionKeyRecord(keyRef, data)
 	return err
+}
+
+func decodeCallKeyRecord(keyRef string, data []byte) ([]byte, error) {
+	if err := ValidateCallKeyRef(keyRef); err != nil {
+		return nil, err
+	}
+	var stored corev1.UserKeyEncryptionKey
+	if err := proto.Unmarshal(data, &stored); err != nil {
+		return nil, fmt.Errorf("failed to decode call key: %w", err)
+	}
+	if stored.GetAlgorithm() != AlgorithmLiveKitCallE2EEV1 {
+		if stored.GetAlgorithm() == "" {
+			return nil, fmt.Errorf("invalid call key: algorithm is empty")
+		}
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedWrappingAlgorithm, stored.GetAlgorithm())
+	}
+	if len(stored.GetKey()) != encryption.KeySize {
+		return nil, fmt.Errorf("invalid call key length: got %d, want %d", len(stored.GetKey()), encryption.KeySize)
+	}
+	return append([]byte(nil), stored.GetKey()...), nil
 }
 
 func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {
@@ -211,6 +259,66 @@ func (b *Builtin) KeyExists(ctx context.Context, keyRef string) (bool, error) {
 	return true, nil
 }
 
+// CreateCallKey generates and stores a per-call LiveKit E2EE key.
+func (b *Builtin) CreateCallKey(ctx context.Context, callID string) (string, string, error) {
+	if callID == "" {
+		return "", "", fmt.Errorf("%w for call key operation: empty call id", ErrInvalidKeyRef)
+	}
+	key, err := encryption.GenerateKey()
+	if err != nil {
+		return "", "", err
+	}
+	keyRef := CallKeyRef(callID)
+	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+		Key:       key,
+		Algorithm: AlgorithmLiveKitCallE2EEV1,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to encode call key: %w", err)
+	}
+	if _, err := b.kv.Create(ctx, keyPath(keyRef), data); err != nil {
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			return "", "", fmt.Errorf("call key already exists: %w", err)
+		}
+		return "", "", fmt.Errorf("failed to store call key: %w", err)
+	}
+	b.logger.Info("created call encryption key", "key_ref", keyRef)
+	return keyRef, base64.RawStdEncoding.EncodeToString(key), nil
+}
+
+// GetCallKey returns the base64url-encoded per-call LiveKit E2EE key.
+func (b *Builtin) GetCallKey(ctx context.Context, keyRef string) (string, error) {
+	if err := ValidateCallKeyRef(keyRef); err != nil {
+		return "", err
+	}
+	entry, err := b.kv.Get(ctx, keyPath(keyRef))
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return "", encryption.ErrKeyNotFound
+		}
+		return "", fmt.Errorf("failed to get call key: %w", err)
+	}
+	key, err := decodeCallKeyRecord(keyRef, entry.Value())
+	if err != nil {
+		return "", err
+	}
+	return base64.RawStdEncoding.EncodeToString(key), nil
+}
+
+func (b *Builtin) CallKeyExists(ctx context.Context, keyRef string) (bool, error) {
+	if err := ValidateCallKeyRef(keyRef); err != nil {
+		return false, err
+	}
+	_, err := b.kv.Get(ctx, keyPath(keyRef))
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 // WrapContentKey wraps a content key with the referenced built-in KEK.
 func (b *Builtin) WrapContentKey(ctx context.Context, keyRef string, contentKey, aad []byte) (*WrappedContentKey, error) {
 	kek, err := b.getKey(ctx, keyRef)
@@ -259,5 +367,20 @@ func (b *Builtin) ShredKey(ctx context.Context, keyRef string) error {
 		return fmt.Errorf("failed to delete encryption key: %w", err)
 	}
 	b.logger.Info("shredded encryption key", "key_ref", keyRef)
+	return nil
+}
+
+func (b *Builtin) ShredCallKey(ctx context.Context, keyRef string) error {
+	if err := ValidateCallKeyRef(keyRef); err != nil {
+		return err
+	}
+	err := b.kv.Purge(ctx, keyPath(keyRef))
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete call key: %w", err)
+	}
+	b.logger.Info("shredded call encryption key", "key_ref", keyRef)
 	return nil
 }

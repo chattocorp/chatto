@@ -83,10 +83,14 @@ func unwrapEVTEvent(event *corev1.Event) any {
 		return e.ReactionRemoved
 
 	// ---- Voice calls ----
+	case *corev1.Event_VoiceCallStarted:
+		return e.VoiceCallStarted
 	case *corev1.Event_VoiceCallParticipantJoined:
 		return e.VoiceCallParticipantJoined
 	case *corev1.Event_VoiceCallParticipantLeft:
 		return e.VoiceCallParticipantLeft
+	case *corev1.Event_VoiceCallEnded:
+		return e.VoiceCallEnded
 
 	case *corev1.Event_AssetProcessingStarted:
 		return e.AssetProcessingStarted

@@ -990,10 +990,19 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventThreadCreated,
 		},
 		{
+			name: "CallStarted",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallStarted{
+					VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallStarted,
+		},
+		{
 			name: "CallParticipantJoined",
 			event: &corev1.Event{
 				Event: &corev1.Event_VoiceCallParticipantJoined{
-					VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1"},
+					VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1", CallId: "C1"},
 				},
 			},
 			want: EventCallParticipantJoined,
@@ -1002,10 +1011,19 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			name: "CallParticipantLeft",
 			event: &corev1.Event{
 				Event: &corev1.Event_VoiceCallParticipantLeft{
-					VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: "R1"},
+					VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: "R1", CallId: "C1"},
 				},
 			},
 			want: EventCallParticipantLeft,
+		},
+		{
+			name: "CallEnded",
+			event: &corev1.Event{
+				Event: &corev1.Event_VoiceCallEnded{
+					VoiceCallEnded: &corev1.CallEndedEvent{RoomId: "R1", CallId: "C1"},
+				},
+			},
+			want: EventCallEnded,
 		},
 		{
 			name: "UserKeyShredded",

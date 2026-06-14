@@ -312,6 +312,15 @@ export type BanRoomMemberInput = {
   userId: Scalars['ID']['input'];
 };
 
+/** Event: A voice call ended in a room. */
+export type CallEndedEvent = {
+  __typename?: 'CallEndedEvent';
+  /** The ID of this call session. */
+  callId: Scalars['ID']['output'];
+  /** The ID of the room where the call ended. */
+  roomId: Scalars['ID']['output'];
+};
+
 /** A participant currently in a voice call. */
 export type CallParticipant = {
   __typename?: 'CallParticipant';
@@ -327,6 +336,8 @@ export type CallParticipant = {
  */
 export type CallParticipantJoinedEvent = {
   __typename?: 'CallParticipantJoinedEvent';
+  /** The ID of this call session. */
+  callId: Scalars['ID']['output'];
   /** The ID of the room where the call is happening. */
   roomId: Scalars['ID']['output'];
 };
@@ -337,7 +348,18 @@ export type CallParticipantJoinedEvent = {
  */
 export type CallParticipantLeftEvent = {
   __typename?: 'CallParticipantLeftEvent';
+  /** The ID of this call session. */
+  callId: Scalars['ID']['output'];
   /** The ID of the room where the call was happening. */
+  roomId: Scalars['ID']['output'];
+};
+
+/** Event: A voice call started in a room. */
+export type CallStartedEvent = {
+  __typename?: 'CallStartedEvent';
+  /** The ID of this call session. */
+  callId: Scalars['ID']['output'];
+  /** The ID of the room where the call started. */
   roomId: Scalars['ID']['output'];
 };
 
@@ -601,7 +623,7 @@ export type EventLogEntry = {
 };
 
 /** Union of every typed event payload exposed by GraphQL. */
-export type EventType = AssetDeletedEvent | AssetProcessingFailedEvent | AssetProcessingStartedEvent | AssetProcessingSucceededEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MentionStatusClearedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomMemberBannedEvent | RoomMemberUnbannedEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadCreatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent;
+export type EventType = AssetDeletedEvent | AssetProcessingFailedEvent | AssetProcessingStartedEvent | AssetProcessingSucceededEvent | CallEndedEvent | CallParticipantJoinedEvent | CallParticipantLeftEvent | CallStartedEvent | HeartbeatEvent | MentionNotificationEvent | MentionStatusClearedEvent | MessageEditedEvent | MessagePostedEvent | MessageRetractedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomMemberBannedEvent | RoomMemberUnbannedEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadCreatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent;
 
 /** Fit mode for image transformations. */
 export enum FitMode {
@@ -3740,7 +3762,7 @@ export type VoiceCallIntentInput = {
 /** Token for joining a LiveKit voice call. */
 export type VoiceCallToken = {
   __typename?: 'VoiceCallToken';
-  /** Shared LiveKit E2EE key for this room. Distributed by Chatto, never by LiveKit. */
+  /** Shared LiveKit E2EE key for this active call. Distributed by Chatto, never by LiveKit. */
   e2eeKey: Scalars['String']['output'];
   /** The LiveKit JWT token. */
   token: Scalars['String']['output'];
@@ -3825,8 +3847,10 @@ export type RefreshMessageAttachmentUrlsQuery = { __typename?: 'Query', room?: {
         | { __typename: 'AssetProcessingFailedEvent' }
         | { __typename: 'AssetProcessingStartedEvent' }
         | { __typename: 'AssetProcessingSucceededEvent' }
+        | { __typename: 'CallEndedEvent' }
         | { __typename: 'CallParticipantJoinedEvent' }
         | { __typename: 'CallParticipantLeftEvent' }
+        | { __typename: 'CallStartedEvent' }
         | { __typename: 'HeartbeatEvent' }
         | { __typename: 'MentionNotificationEvent' }
         | { __typename: 'MentionStatusClearedEvent' }
@@ -3884,8 +3908,10 @@ export type MessagePreviewQuery = { __typename?: 'Query', server: { __typename?:
         | { __typename: 'AssetProcessingFailedEvent' }
         | { __typename: 'AssetProcessingStartedEvent' }
         | { __typename: 'AssetProcessingSucceededEvent' }
+        | { __typename: 'CallEndedEvent' }
         | { __typename: 'CallParticipantJoinedEvent' }
         | { __typename: 'CallParticipantLeftEvent' }
+        | { __typename: 'CallStartedEvent' }
         | { __typename: 'HeartbeatEvent' }
         | { __typename: 'MentionNotificationEvent' }
         | { __typename: 'MentionStatusClearedEvent' }
@@ -4116,8 +4142,10 @@ export type MyServerEventsSubscription = { __typename?: 'Subscription', myEvents
       | { __typename: 'AssetProcessingFailedEvent', assetId: string, processingRoomId?: string | null, processingMessageEventId?: string | null }
       | { __typename: 'AssetProcessingStartedEvent', assetId: string, processingRoomId?: string | null, processingMessageEventId?: string | null }
       | { __typename: 'AssetProcessingSucceededEvent', assetId: string, processingRoomId?: string | null, processingMessageEventId?: string | null }
+      | { __typename: 'CallEndedEvent' }
       | { __typename: 'CallParticipantJoinedEvent', roomId: string }
       | { __typename: 'CallParticipantLeftEvent', roomId: string }
+      | { __typename: 'CallStartedEvent' }
       | { __typename: 'HeartbeatEvent', alive: boolean }
       | { __typename: 'MentionNotificationEvent', roomId: string, room: { __typename?: 'Room', name: string }, actor?: { __typename?: 'User', id: string, displayName: string } | null }
       | { __typename: 'MentionStatusClearedEvent' }
@@ -4322,8 +4350,10 @@ export type ThreadMessagesPageQuery = { __typename?: 'Query', room?: { __typenam
         | { __typename?: 'AssetProcessingFailedEvent' }
         | { __typename?: 'AssetProcessingStartedEvent' }
         | { __typename?: 'AssetProcessingSucceededEvent' }
+        | { __typename?: 'CallEndedEvent' }
         | { __typename?: 'CallParticipantJoinedEvent' }
         | { __typename?: 'CallParticipantLeftEvent' }
+        | { __typename?: 'CallStartedEvent' }
         | { __typename?: 'HeartbeatEvent' }
         | { __typename?: 'MentionNotificationEvent' }
         | { __typename?: 'MentionStatusClearedEvent' }
@@ -4645,8 +4675,10 @@ export type RoomEventViewFragment = { __typename?: 'Event', id: string, createdA
     | { __typename: 'AssetProcessingFailedEvent', assetId: string, processingRoomId?: string | null, processingMessageEventId?: string | null }
     | { __typename: 'AssetProcessingStartedEvent', assetId: string, processingRoomId?: string | null, processingMessageEventId?: string | null }
     | { __typename: 'AssetProcessingSucceededEvent', assetId: string, processingRoomId?: string | null, processingMessageEventId?: string | null }
+    | { __typename: 'CallEndedEvent' }
     | { __typename: 'CallParticipantJoinedEvent', roomId: string }
     | { __typename: 'CallParticipantLeftEvent', roomId: string }
+    | { __typename: 'CallStartedEvent' }
     | { __typename: 'HeartbeatEvent' }
     | { __typename: 'MentionNotificationEvent' }
     | { __typename: 'MentionStatusClearedEvent' }
@@ -4737,8 +4769,10 @@ export type ResolveMessageLinkQuery = { __typename?: 'Query', room?: { __typenam
         | { __typename: 'AssetProcessingFailedEvent' }
         | { __typename: 'AssetProcessingStartedEvent' }
         | { __typename: 'AssetProcessingSucceededEvent' }
+        | { __typename: 'CallEndedEvent' }
         | { __typename: 'CallParticipantJoinedEvent' }
         | { __typename: 'CallParticipantLeftEvent' }
+        | { __typename: 'CallStartedEvent' }
         | { __typename: 'HeartbeatEvent' }
         | { __typename: 'MentionNotificationEvent' }
         | { __typename: 'MentionStatusClearedEvent' }

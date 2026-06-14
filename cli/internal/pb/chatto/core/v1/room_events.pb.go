@@ -489,6 +489,7 @@ type CallParticipantJoinedEvent struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	Source        CallParticipantEventSource `protobuf:"varint,2,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	CallId        string                     `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -537,6 +538,13 @@ func (x *CallParticipantJoinedEvent) GetSource() CallParticipantEventSource {
 	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
 }
 
+func (x *CallParticipantJoinedEvent) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
 // Event: a user left or attempted to leave a voice call in a room.
 //
 // The participant is identified by the parent Event.actor_id. USER-sourced
@@ -546,6 +554,7 @@ type CallParticipantLeftEvent struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	Source        CallParticipantEventSource `protobuf:"varint,2,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	CallId        string                     `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -594,6 +603,148 @@ func (x *CallParticipantLeftEvent) GetSource() CallParticipantEventSource {
 	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
 }
 
+func (x *CallParticipantLeftEvent) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+// Event: a voice call session started in a room.
+//
+// The e2ee_key_ref points to a per-call LiveKit E2EE key stored behind the KMS
+// boundary. The raw key is deliberately not stored in EVT.
+type CallStartedEvent struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	CallId        string                     `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	E2EeKeyRef    string                     `protobuf:"bytes,3,opt,name=e2ee_key_ref,json=e2eeKeyRef,proto3" json:"e2ee_key_ref,omitempty"`
+	Source        CallParticipantEventSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallStartedEvent) Reset() {
+	*x = CallStartedEvent{}
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallStartedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallStartedEvent) ProtoMessage() {}
+
+func (x *CallStartedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallStartedEvent.ProtoReflect.Descriptor instead.
+func (*CallStartedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CallStartedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CallStartedEvent) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *CallStartedEvent) GetE2EeKeyRef() string {
+	if x != nil {
+		return x.E2EeKeyRef
+	}
+	return ""
+}
+
+func (x *CallStartedEvent) GetSource() CallParticipantEventSource {
+	if x != nil {
+		return x.Source
+	}
+	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
+}
+
+// Event: a voice call session ended in a room.
+//
+// The associated KMS call key is shredded when this fact is committed.
+type CallEndedEvent struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	CallId        string                     `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	Source        CallParticipantEventSource `protobuf:"varint,3,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallEndedEvent) Reset() {
+	*x = CallEndedEvent{}
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallEndedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallEndedEvent) ProtoMessage() {}
+
+func (x *CallEndedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallEndedEvent.ProtoReflect.Descriptor instead.
+func (*CallEndedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CallEndedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CallEndedEvent) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *CallEndedEvent) GetSource() CallParticipantEventSource {
+	if x != nil {
+		return x.Source
+	}
+	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
+}
+
 var File_chatto_core_v1_room_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_room_events_proto_rawDesc = "" +
@@ -619,13 +770,25 @@ const file_chatto_core_v1_room_events_proto_rawDesc = "" +
 	"\x11UserLeftRoomEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"C\n" +
 	"\x18ServerMemberDeletedEvent\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"y\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\x92\x01\n" +
 	"\x1aCallParticipantJoinedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12B\n" +
-	"\x06source\x18\x02 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"w\n" +
+	"\x06source\x18\x02 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\x90\x01\n" +
 	"\x18CallParticipantLeftEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12B\n" +
-	"\x06source\x18\x02 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source*\xd0\x01\n" +
+	"\x06source\x18\x02 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\xaa\x01\n" +
+	"\x10CallStartedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\x12 \n" +
+	"\fe2ee_key_ref\x18\x03 \x01(\tR\n" +
+	"e2eeKeyRef\x12B\n" +
+	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\x86\x01\n" +
+	"\x0eCallEndedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\x12B\n" +
+	"\x06source\x18\x03 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source*\xd0\x01\n" +
 	"\x1aCallParticipantEventSource\x12-\n" +
 	")CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CALL_PARTICIPANT_EVENT_SOURCE_USER\x10\x01\x12)\n" +
@@ -646,7 +809,7 @@ func file_chatto_core_v1_room_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_room_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chatto_core_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_chatto_core_v1_room_events_proto_goTypes = []any{
 	(CallParticipantEventSource)(0),    // 0: chatto.core.v1.CallParticipantEventSource
 	(*RoomCreatedEvent)(nil),           // 1: chatto.core.v1.RoomCreatedEvent
@@ -659,17 +822,21 @@ var file_chatto_core_v1_room_events_proto_goTypes = []any{
 	(*ServerMemberDeletedEvent)(nil),   // 8: chatto.core.v1.ServerMemberDeletedEvent
 	(*CallParticipantJoinedEvent)(nil), // 9: chatto.core.v1.CallParticipantJoinedEvent
 	(*CallParticipantLeftEvent)(nil),   // 10: chatto.core.v1.CallParticipantLeftEvent
-	(RoomKind)(0),                      // 11: chatto.core.v1.RoomKind
+	(*CallStartedEvent)(nil),           // 11: chatto.core.v1.CallStartedEvent
+	(*CallEndedEvent)(nil),             // 12: chatto.core.v1.CallEndedEvent
+	(RoomKind)(0),                      // 13: chatto.core.v1.RoomKind
 }
 var file_chatto_core_v1_room_events_proto_depIdxs = []int32{
-	11, // 0: chatto.core.v1.RoomCreatedEvent.kind:type_name -> chatto.core.v1.RoomKind
+	13, // 0: chatto.core.v1.RoomCreatedEvent.kind:type_name -> chatto.core.v1.RoomKind
 	0,  // 1: chatto.core.v1.CallParticipantJoinedEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
 	0,  // 2: chatto.core.v1.CallParticipantLeftEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
-	3,  // [3:3] is the sub-list for method output_type
-	3,  // [3:3] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	0,  // 3: chatto.core.v1.CallStartedEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
+	0,  // 4: chatto.core.v1.CallEndedEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
+	5,  // [5:5] is the sub-list for method output_type
+	5,  // [5:5] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_room_events_proto_init() }
@@ -684,7 +851,7 @@ func file_chatto_core_v1_room_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_room_events_proto_rawDesc), len(file_chatto_core_v1_room_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

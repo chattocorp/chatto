@@ -13,12 +13,12 @@ LiveKit runs as a **separate service** alongside Chatto. Chatto handles authenti
 
 1. A user clicks the phone icon in a room header to join a call.
 2. Chatto verifies the user's room membership and generates a short-lived LiveKit JWT token.
-3. The user's browser connects directly to the LiveKit server using the token and a per-room E2EE key from Chatto.
+3. The user's browser connects directly to the LiveKit server using the token and a per-call E2EE key from Chatto.
 4. Other room members see a real-time notification that someone joined a call.
 
-Calls are **implicit** — there's no "start call" action. The first person to join creates the call; when the last person leaves, it ends.
+Calls are **implicit** — there's no "start call" action. The first person to join creates the call and a fresh E2EE key; when the last person leaves, the call ends and Chatto shreds that key.
 
-Chatto records call join/leave facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
+Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
 ## Requirements
 

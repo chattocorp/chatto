@@ -1142,6 +1142,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.VoiceCallParticipantJoined.GetRoomId()
 	case *corev1.Event_VoiceCallParticipantLeft:
 		return e.VoiceCallParticipantLeft.GetRoomId()
+	case *corev1.Event_VoiceCallStarted:
+		return e.VoiceCallStarted.GetRoomId()
+	case *corev1.Event_VoiceCallEnded:
+		return e.VoiceCallEnded.GetRoomId()
 	}
 	return ""
 }

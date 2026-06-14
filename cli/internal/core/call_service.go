@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,16 +12,15 @@ import (
 
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
-	"github.com/nats-io/nats.go/jetstream"
 	"github.com/twitchtv/twirp"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
-	callE2EEKeyPrefix       = "voice.e2ee."
 	callReconcileInterval   = 30 * time.Second
 	callReconcileAPITimeout = 10 * time.Second
 	callReconcileMaxRetries = 5
@@ -39,29 +36,29 @@ type liveKitParticipantLister interface {
 }
 
 type CallService struct {
-	publisher     *events.Publisher
-	projection    *CallStateProjection
-	projector     *events.Projector
-	memoryCacheKV jetstream.KeyValue
-	livekit       liveKitParticipantLister
-	logger        events.Logger
+	publisher  *events.Publisher
+	projection *CallStateProjection
+	projector  *events.Projector
+	callKeys   kms.CallKeyStore
+	livekit    liveKitParticipantLister
+	logger     events.Logger
 }
 
 func NewCallService(
 	publisher *events.Publisher,
 	projection *CallStateProjection,
 	projector *events.Projector,
-	memoryCacheKV jetstream.KeyValue,
+	callKeys kms.CallKeyStore,
 	livekit liveKitParticipantLister,
 	logger events.Logger,
 ) *CallService {
 	return &CallService{
-		publisher:     publisher,
-		projection:    projection,
-		projector:     projector,
-		memoryCacheKV: memoryCacheKV,
-		livekit:       livekit,
-		logger:        logger,
+		publisher:  publisher,
+		projection: projection,
+		projector:  projector,
+		callKeys:   callKeys,
+		livekit:    livekit,
+		logger:     logger,
 	}
 }
 
@@ -180,38 +177,18 @@ func liveKitRoomBelongsToInstance(roomName, serverID string) bool {
 }
 
 func (s *CallService) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
-	key := callE2EEKeyPrefix + roomID
-	entry, err := s.memoryCacheKV.Get(ctx, key)
-	if err == nil {
-		return string(entry.Value()), nil
+	if s.callKeys == nil {
+		return "", fmt.Errorf("call key store is not initialized")
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+	call, ok := s.projection.ActiveCall(roomID)
+	if !ok || call.CallID == "" || call.E2EEKeyRef == "" {
+		return "", fmt.Errorf("no active voice call for room %s", roomID)
+	}
+	key, err := s.callKeys.GetCallKey(ctx, call.E2EEKeyRef)
+	if err != nil {
 		return "", fmt.Errorf("read call E2EE key: %w", err)
 	}
-
-	generated, err := generateVoiceCallE2EEKey()
-	if err != nil {
-		return "", err
-	}
-	if _, err := s.memoryCacheKV.Create(ctx, key, []byte(generated)); err == nil {
-		return generated, nil
-	} else if !errors.Is(err, jetstream.ErrKeyExists) {
-		return "", fmt.Errorf("write call E2EE key: %w", err)
-	}
-
-	entry, err = s.memoryCacheKV.Get(ctx, key)
-	if err != nil {
-		return "", fmt.Errorf("read raced call E2EE key: %w", err)
-	}
-	return string(entry.Value()), nil
-}
-
-func generateVoiceCallE2EEKey() (string, error) {
-	var raw [32]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("generate call E2EE key: %w", err)
-	}
-	return base64.RawStdEncoding.EncodeToString(raw[:]), nil
+	return key, nil
 }
 
 func (s *CallService) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
@@ -231,11 +208,27 @@ func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, u
 			return nil
 		}
 
-		event := newCallParticipantEvent(roomID, userID, joined, source)
-		subject := aggregate.SubjectFor(event)
-		seq, err := s.publisher.AppendAtFilter(ctx, subject, event, filter, snapshot.Seq)
+		entries, endedKeyRef, cleanupKeyRef, err := s.callTransitionBatch(ctx, aggregate, snapshot, roomID, userID, joined, source)
+		if err != nil {
+			return err
+		}
+		seqs, err := s.publisher.AppendBatch(ctx, entries)
 		if err == nil {
-			return s.projector.WaitFor(ctx, events.SubjectPosition(filter, seq))
+			seq := seqs[len(seqs)-1]
+			if endedKeyRef != "" {
+				if err := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), endedKeyRef); err != nil {
+					return fmt.Errorf("shred ended call key: %w", err)
+				}
+			}
+			if err := s.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
+				return err
+			}
+			return nil
+		}
+		if cleanupKeyRef != "" {
+			if cleanupErr := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), cleanupKeyRef); cleanupErr != nil {
+				s.logger.Warn("failed to clean up unused call key after append conflict", "error", cleanupErr, "key_ref", cleanupKeyRef)
+			}
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return err
@@ -253,6 +246,73 @@ func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, u
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
 }
 
+func (s *CallService) callTransitionBatch(ctx context.Context, aggregate events.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]events.BatchEntry, string, string, error) {
+	if joined {
+		callID := snapshot.Call.CallID
+		if callID == "" {
+			if s.callKeys == nil {
+				return nil, "", "", fmt.Errorf("call key store is not initialized")
+			}
+			callID = NewCallID()
+			keyRef, _, err := s.callKeys.CreateCallKey(ctx, callID)
+			if err != nil {
+				return nil, "", "", fmt.Errorf("create call key: %w", err)
+			}
+			started := newCallStartedEvent(roomID, userID, callID, keyRef, source)
+			joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
+			return []events.BatchEntry{
+				{
+					Subject:       aggregate.SubjectFor(started),
+					Event:         started,
+					ExpectedSeq:   snapshot.Seq,
+					FilterSubject: aggregate.AllEventsFilter(),
+					HasOCC:        true,
+				},
+				{
+					Subject: aggregate.SubjectFor(joinedEvent),
+					Event:   joinedEvent,
+				},
+			}, "", keyRef, nil
+		}
+
+		joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
+		return []events.BatchEntry{{
+			Subject:       aggregate.SubjectFor(joinedEvent),
+			Event:         joinedEvent,
+			ExpectedSeq:   snapshot.Seq,
+			FilterSubject: aggregate.AllEventsFilter(),
+			HasOCC:        true,
+		}}, "", "", nil
+	}
+
+	participant, ok := callParticipantByUser(snapshot.Participants, userID)
+	if !ok {
+		return nil, "", "", nil
+	}
+	callID := participant.CallID
+	if callID == "" {
+		callID = snapshot.Call.CallID
+	}
+	leftEvent := newCallParticipantEvent(roomID, userID, callID, false, source)
+	entries := []events.BatchEntry{{
+		Subject:       aggregate.SubjectFor(leftEvent),
+		Event:         leftEvent,
+		ExpectedSeq:   snapshot.Seq,
+		FilterSubject: aggregate.AllEventsFilter(),
+		HasOCC:        true,
+	}}
+	var endedKeyRef string
+	if len(snapshot.Participants) == 1 && snapshot.Call.CallID == callID {
+		ended := newCallEndedEvent(roomID, userID, callID, source)
+		entries = append(entries, events.BatchEntry{
+			Subject: aggregate.SubjectFor(ended),
+			Event:   ended,
+		})
+		endedKeyRef = snapshot.Call.E2EEKeyRef
+	}
+	return entries, endedKeyRef, "", nil
+}
+
 func (s *CallService) waitForLatestRoomTransition(ctx context.Context, filter string) error {
 	tail, err := s.publisher.LastSubjectPosition(ctx, filter)
 	if err != nil {
@@ -268,6 +328,15 @@ func callParticipantTransitionAlreadyApplied(active []CallParticipant, userID st
 		}
 	}
 	return !joined
+}
+
+func callParticipantByUser(active []CallParticipant, userID string) (CallParticipant, bool) {
+	for _, participant := range active {
+		if participant.UserID == userID {
+			return participant, true
+		}
+	}
+	return CallParticipant{}, false
 }
 
 func (s *CallService) ReconcileRoomParticipants(ctx context.Context, roomID string, observedUserIDs []string) error {
@@ -312,13 +381,39 @@ func (s *CallService) appendReconciliationEvent(ctx context.Context, roomID, use
 	return s.appendParticipantTransition(ctx, roomID, userID, joined, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
 }
 
-func newCallParticipantEvent(roomID, userID string, joined bool, source corev1.CallParticipantEventSource) *corev1.Event {
+func newCallStartedEvent(roomID, userID, callID, keyRef string, source corev1.CallParticipantEventSource) *corev1.Event {
+	return newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_VoiceCallStarted{
+			VoiceCallStarted: &corev1.CallStartedEvent{
+				RoomId:     roomID,
+				CallId:     callID,
+				E2EeKeyRef: keyRef,
+				Source:     source,
+			},
+		},
+	})
+}
+
+func newCallEndedEvent(roomID, userID, callID string, source corev1.CallParticipantEventSource) *corev1.Event {
+	return newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_VoiceCallEnded{
+			VoiceCallEnded: &corev1.CallEndedEvent{
+				RoomId: roomID,
+				CallId: callID,
+				Source: source,
+			},
+		},
+	})
+}
+
+func newCallParticipantEvent(roomID, userID, callID string, joined bool, source corev1.CallParticipantEventSource) *corev1.Event {
 	if joined {
 		return newEvent(userID, &corev1.Event{
 			Event: &corev1.Event_VoiceCallParticipantJoined{
 				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
 					RoomId: roomID,
 					Source: source,
+					CallId: callID,
 				},
 			},
 		})
@@ -328,6 +423,7 @@ func newCallParticipantEvent(roomID, userID string, joined bool, source corev1.C
 			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{
 				RoomId: roomID,
 				Source: source,
+				CallId: callID,
 			},
 		},
 	})

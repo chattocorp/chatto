@@ -14,7 +14,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //   - 300-304: room lifecycle on evt.room.{roomId}.*
 //   - 310-311: room membership on evt.room.{roomId}.*
 //   - 320: server-wide account deletion fan-out
-//   - 330-331: voice call participant lifecycle on evt.room.{roomId}.*
+//   - 330-333: voice call lifecycle and participant lifecycle on evt.room.{roomId}.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -115,6 +115,7 @@ enum CallParticipantEventSource {
 message CallParticipantJoinedEvent {
   string room_id = 1;
   CallParticipantEventSource source = 2;
+  string call_id = 3;
 }
 
 // Event: a user left or attempted to leave a voice call in a room.
@@ -125,4 +126,25 @@ message CallParticipantJoinedEvent {
 message CallParticipantLeftEvent {
   string room_id = 1;
   CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// Event: a voice call session started in a room.
+//
+// The e2ee_key_ref points to a per-call LiveKit E2EE key stored behind the KMS
+// boundary. The raw key is deliberately not stored in EVT.
+message CallStartedEvent {
+  string room_id = 1;
+  string call_id = 2;
+  string e2ee_key_ref = 3;
+  CallParticipantEventSource source = 4;
+}
+
+// Event: a voice call session ended in a room.
+//
+// The associated KMS call key is shredded when this fact is committed.
+message CallEndedEvent {
+  string room_id = 1;
+  string call_id = 2;
+  CallParticipantEventSource source = 3;
 }

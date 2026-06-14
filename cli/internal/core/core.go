@@ -144,7 +144,7 @@ type ChattoCore struct {
 	RoomTimelineProjector *events.Projector
 
 	// CallState holds active voice-call participants derived from durable
-	// room-call join/leave facts.
+	// room-call lifecycle and participant facts.
 	CallState *CallStateProjection
 
 	// CallStateProjector runs the consumer for CallState.
@@ -390,6 +390,7 @@ func (c *ChattoCore) assetURL(path string) string {
 type encryptionManager struct {
 	keyWrapper  kms.KeyWrapper
 	legacyKeys  kms.LegacyKeyProvider
+	callKeys    kms.CallKeyStore
 	contentKeys *dekstore.Store
 }
 
@@ -698,6 +699,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	encMgr := &encryptionManager{
 		keyWrapper:  builtinKMS,
 		legacyKeys:  builtinKMS,
+		callKeys:    builtinKMS,
 		contentKeys: dekstore.New(storage.runtimeStateKV, logger.WithPrefix("core.dekstore")),
 	}
 
@@ -851,7 +853,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	core.mediaService = NewMediaService(core)
-	core.callService = NewCallService(eventPublisher, callState, callStateProjector, storage.memoryCacheKV, nil, logger.WithPrefix("core.CallService"))
+	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, logger.WithPrefix("core.CallService"))
 	core.assetService = NewAssetService(core)
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
@@ -1751,8 +1753,10 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingSucceeded,
 		*corev1.Event_AssetProcessingFailed,
 		*corev1.Event_AssetDeleted,
+		*corev1.Event_VoiceCallStarted,
 		*corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft:
+		*corev1.Event_VoiceCallParticipantLeft,
+		*corev1.Event_VoiceCallEnded:
 		return true
 	default:
 		return false
@@ -1774,7 +1778,7 @@ func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
 func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
 	switch event.GetEvent().(type) {
-	case *corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft:
+	case *corev1.Event_VoiceCallStarted, *corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft, *corev1.Event_VoiceCallEnded:
 		return c.CallStateProjector.WaitFor(ctx, pos)
 	}
 

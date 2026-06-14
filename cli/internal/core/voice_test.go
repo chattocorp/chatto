@@ -358,6 +358,9 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if joined.GetSource() != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT {
 		t.Fatalf("Source = %v, want LIVEKIT", joined.GetSource())
 	}
+	if joined.GetCallId() == "" {
+		t.Fatal("CallId should be set")
+	}
 
 	participants, err = core.GetCallParticipants(ctx, "channel", roomID)
 	if err != nil {
@@ -368,6 +371,9 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	}
 	if participants[0].UserID != "user1" {
 		t.Errorf("UserID = %q, want %q", participants[0].UserID, "user1")
+	}
+	if participants[0].CallID != joined.GetCallId() {
+		t.Errorf("CallID = %q, want %q", participants[0].CallID, joined.GetCallId())
 	}
 	if participants[0].Source != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT {
 		t.Errorf("Source = %v, want LIVEKIT", participants[0].Source)
@@ -385,10 +391,16 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
-	if len(callEvents) != 2 {
-		t.Fatalf("Expected 2 durable call participant facts, got %d", len(callEvents))
+	if len(callEvents) != 4 {
+		t.Fatalf("Expected 4 durable call lifecycle facts, got %d", len(callEvents))
 	}
-	if callEvents[1].GetVoiceCallParticipantLeft() == nil {
+	if callEvents[0].GetVoiceCallStarted() == nil ||
+		callEvents[1].GetVoiceCallParticipantJoined() == nil ||
+		callEvents[2].GetVoiceCallParticipantLeft() == nil ||
+		callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected start/join/leave/end call events")
+	}
+	if callEvents[2].GetVoiceCallParticipantLeft() == nil {
 		t.Fatal("Expected voice call left event")
 	}
 
@@ -558,14 +570,23 @@ func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
-	if len(callEvents) != 4 {
-		t.Fatalf("Expected join/leave/join/leave to produce 4 durable transition facts, got %d", len(callEvents))
+	if len(callEvents) != 8 {
+		t.Fatalf("Expected two calls to produce 8 durable lifecycle facts, got %d", len(callEvents))
 	}
-	if callEvents[0].GetVoiceCallParticipantJoined() == nil ||
-		callEvents[1].GetVoiceCallParticipantLeft() == nil ||
-		callEvents[2].GetVoiceCallParticipantJoined() == nil ||
-		callEvents[3].GetVoiceCallParticipantLeft() == nil {
-		t.Fatalf("Expected alternating joined/left call events")
+	if callEvents[0].GetVoiceCallStarted() == nil ||
+		callEvents[1].GetVoiceCallParticipantJoined() == nil ||
+		callEvents[2].GetVoiceCallParticipantLeft() == nil ||
+		callEvents[3].GetVoiceCallEnded() == nil ||
+		callEvents[4].GetVoiceCallStarted() == nil ||
+		callEvents[5].GetVoiceCallParticipantJoined() == nil ||
+		callEvents[6].GetVoiceCallParticipantLeft() == nil ||
+		callEvents[7].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected start/join/leave/end for each call")
+	}
+	firstCallID := callEvents[0].GetVoiceCallStarted().GetCallId()
+	secondCallID := callEvents[4].GetVoiceCallStarted().GetCallId()
+	if firstCallID == "" || secondCallID == "" || firstCallID == secondCallID {
+		t.Fatalf("Call IDs should be non-empty and different, got %q and %q", firstCallID, secondCallID)
 	}
 }
 
@@ -727,11 +748,18 @@ func TestCallState_ReconciliationRechecksAfterConflict(t *testing.T) {
 	}
 }
 
-func TestVoiceCallE2EEKey_VolatileReuse(t *testing.T) {
+func TestVoiceCallE2EEKey_PerCallAndShreddedOnEnd(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
 
+	if _, err := core.GetVoiceCallE2EEKey(ctx, roomID); err == nil {
+		t.Fatal("GetVoiceCallE2EEKey() before call should error")
+	}
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
 	key1, err := core.GetVoiceCallE2EEKey(ctx, roomID)
 	if err != nil {
 		t.Fatalf("GetVoiceCallE2EEKey() error = %v", err)
@@ -744,13 +772,47 @@ func TestVoiceCallE2EEKey_VolatileReuse(t *testing.T) {
 		t.Fatal("E2EE key should not be empty")
 	}
 	if key1 != key2 {
-		t.Fatalf("E2EE key should be reused for the room")
+		t.Fatalf("E2EE key should be reused within the active call")
 	}
+
 	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
-	if len(callEvents) != 0 {
-		t.Fatalf("E2EE key generation should not append call EVT facts, got %d", len(callEvents))
+	if len(callEvents) != 2 {
+		t.Fatalf("Expected start+join facts after starting call, got %d", len(callEvents))
+	}
+	started := callEvents[0].GetVoiceCallStarted()
+	if started == nil || started.GetE2EeKeyRef() == "" {
+		t.Fatalf("Expected call started event with E2EE key ref")
+	}
+	exists, err := core.encryption.callKeys.CallKeyExists(ctx, started.GetE2EeKeyRef())
+	if err != nil {
+		t.Fatalf("CallKeyExists() error = %v", err)
+	}
+	if !exists {
+		t.Fatal("Call key should exist while call is active")
+	}
+
+	if err := core.RecordCallParticipantLeft(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantLeft() error = %v", err)
+	}
+	exists, err = core.encryption.callKeys.CallKeyExists(ctx, started.GetE2EeKeyRef())
+	if err != nil {
+		t.Fatalf("CallKeyExists() after leave error = %v", err)
+	}
+	if exists {
+		t.Fatal("Call key should be shredded when the call ends")
+	}
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() second call error = %v", err)
+	}
+	key3, err := core.GetVoiceCallE2EEKey(ctx, roomID)
+	if err != nil {
+		t.Fatalf("GetVoiceCallE2EEKey() second call error = %v", err)
+	}
+	if key3 == "" || key3 == key1 {
+		t.Fatalf("New call should get a fresh E2EE key")
 	}
 }
