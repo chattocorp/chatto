@@ -1,7 +1,7 @@
 # ADR-009: Durable LiveKit Call State
 
 **Date:** 2026-03-01
-**Updated:** 2026-06-13
+**Updated:** 2026-06-14
 
 ## Context
 
@@ -20,6 +20,7 @@ Persist voice call lifecycle and participant transitions as durable room-call EV
 
 - `CallStartedEvent`, `CallParticipantJoinedEvent`, `CallParticipantLeftEvent`, and `CallEndedEvent` live on the room aggregate keyed by room ID.
 - The durable subjects are `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. Calls are room-scoped facts because rooms are Chatto's core primitive for places where members can communicate.
+- Chatto allows at most one active call per room. This is a product and architecture constraint, not just a storage shortcut: rooms are cheap abstractions, and future private, temporary, or otherwise non-public calls should be modeled as rooms so they inherit room membership, authorization, visibility, and live delivery instead of growing a parallel call-membership domain.
 - `CallStartedEvent` records a per-call ID and KMS key ref for the LiveKit E2EE key; the raw key lives in `ENCRYPTION_KEYS`, not EVT.
 - Explicit client intent writes `USER`-sourced call facts through `joinVoiceCall` / `leaveVoiceCall`.
 - `POST /webhooks/livekit` receives HMAC-validated LiveKit events and writes matching `LIVEKIT`-sourced facts.
@@ -35,6 +36,7 @@ Persist voice call lifecycle and participant transitions as durable room-call EV
 - **Auditability**: State-changing user intent and LiveKit-observed transitions are durable EVT facts. This makes call lifecycle delivery replayable and inspectable without exposing the internal source enum or raw media keys publicly, while avoiding duplicate facts for the same active-state transition.
 - **Projection source of truth**: Active call reads come from a projection/service. The projection may show optimistic `USER` state briefly, then LiveKit or reconciliation facts confirm or remove it.
 - **Reconciliation**: A process restart no longer loses the local active participant snapshot permanently; the service queries LiveKit and appends correction facts for rooms/participants that differ from the projection. The room aggregate OCC boundary lets multiple replicas reconcile without a leader lease while avoiding duplicate transition facts after OCC conflicts.
+- **Aggregate boundary**: Keeping call facts in the room aggregate makes the "one active call per room" invariant straightforward to protect with room-scoped OCC and avoids a second membership model. A future call aggregate should only be introduced if calls gain durable behavior that clearly outlives or crosses room boundaries, and would need a compatibility path for existing room-scoped facts.
 - **Latency**: Remote observers can see user intent before LiveKit webhook confirmation. Incorrect optimistic state is corrected by LiveKit leave events or reconciliation.
 - **Webhook URL must be reachable**: LiveKit must be able to POST to Chatto's webhook endpoint. In development, this typically requires a tunnel or local LiveKit server.
 - **Graceful degradation**: When LiveKit is not configured, all voice APIs return null/empty and the frontend hides call UI entirely.
