@@ -2,7 +2,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { scoreItem } from './quickSwitcherSearch';
-  import { mergeQuickSwitcherUserResults } from './quickSwitcherItems';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
@@ -289,7 +288,7 @@
     const raw = query.trim();
     const recentUrls = recentQuickSwitcher.urls;
     const recentSet = new Set(recentUrls);
-    const searchableItems = mergeQuickSwitcherUserResults(allItems, userItems);
+    const searchableItems = [...allItems.filter((item) => item.kind !== 'dm'), ...userItems];
 
     if (!raw) {
       // Split into recent and non-recent groups

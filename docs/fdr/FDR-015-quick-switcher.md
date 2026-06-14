@@ -15,7 +15,7 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
 - When the search field is empty, results group as: a "Recent" section first (if any), then by kind — "Go to" (well-known destinations), "Space", "Room", "DM" — each section alphabetical.
 - Server member results are search-only; they do not appear in the empty palette. Selecting a member starts or reuses a 1:1 DM with that user and navigates to the resulting DM room. Selecting the current user starts or reuses their self-DM.
-- When a member result represents the same target as an existing 1:1 or self-DM result on the same server, the member result replaces that duplicate DM result while searching. Group DM results remain visible.
+- Existing DM rooms appear in the empty palette but are not included in typed search results; typed user lookup is handled through the server member results instead.
 - "Go to" destinations are: **Browse Spaces** (shown only if any connected server grants `room.create` or equivalent listing access), **Direct Messages** (shown if any connected server has visible DM conversations or allows starting DMs), **Notifications** (always shown).
 - DMs show participants' avatars (up to two for the "other" participants, or the self-avatar for self-DMs) and display names; spaces and rooms show the space logo.
 - Multi-server setups show the server name as a detail label so destinations with similar names disambiguate.
