@@ -54,7 +54,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	if room.Archived {
 		return nil, fmt.Errorf("cannot join archived room")
 	}
-	if kind == KindChannel && c.RoomBans.IsActive(room_id, user_id, time.Now()) {
+	if kind == KindChannel && c.rooms().isRoomBanActive(room_id, user_id, time.Now()) {
 		return nil, ErrPermissionDenied
 	}
 
@@ -83,7 +83,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 			return nil, fmt.Errorf("read UserJoinedRoomEvent OCC seq: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.roomService.waitForDirectory(ctx, events.SubjectPosition(joinSubject, expectedSeq)); err != nil {
+			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(joinSubject, expectedSeq)); err != nil {
 				return nil, fmt.Errorf("wait for room directory projection before join: %w", err)
 			}
 			if c.RoomMembership.IsMember(room_id, user_id) {
@@ -93,7 +93,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 
 		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
 		if err == nil {
-			if err := c.roomService.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(joinSubject, seq)); err != nil {
+			if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(joinSubject, seq)); err != nil {
 				return nil, err
 			}
 			break
@@ -160,11 +160,11 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	pos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
 	if err != nil {
 		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
 	}
-	if err := c.roomService.waitForTimeline(ctx, pos); err != nil {
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
 		return err
 	}
 
@@ -272,10 +272,10 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 	}
 
 	if lastSeq > 0 {
-		if err := c.roomService.waitForDirectory(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+		if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 			return fmt.Errorf("wait for room directory projection after membership cleanup: %w", err)
 		}
-		if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+		if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 			return fmt.Errorf("wait for room timeline projection after membership cleanup: %w", err)
 		}
 	}

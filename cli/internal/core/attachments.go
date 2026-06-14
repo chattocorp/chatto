@@ -459,7 +459,7 @@ func (c *MediaService) FindBodyAttachment(ctx context.Context, bodyKey, attachme
 	// the message's event_id (or the legacy {userId}.{eventId} compound
 	// key — eventIDFromBodyKey normalizes both).
 	eventID := eventIDFromBodyKey(bodyKey)
-	body, retracted, ok := c.RoomTimeline.LatestBody(eventID)
+	body, retracted, ok := c.rooms().latestBody(eventID)
 	if !ok || retracted || body == nil {
 		return nil, nil
 	}
@@ -492,7 +492,7 @@ func (c *MediaService) MessageBodyAttachments(body *corev1.MessageBody) []*corev
 		if id == "" {
 			continue
 		}
-		declared, ok := c.Assets.AssetCreation(id)
+		declared, ok := c.assetLifecycle().AssetCreation(id)
 		if !ok {
 			continue
 		}
@@ -511,7 +511,7 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
-	manifest, ok := c.Assets.VideoAttachmentManifest(videoOriginID)
+	manifest, ok := c.assetLifecycle().VideoAttachmentManifest(videoOriginID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return nil, nil
 	}
@@ -520,13 +520,13 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 		return nil, nil
 	}
 	if video.GetThumbnailAssetId() == attachmentID {
-		if declared, ok := c.Assets.AssetCreation(attachmentID); ok {
+		if declared, ok := c.assetLifecycle().AssetCreation(attachmentID); ok {
 			return attachmentFromAsset(declared.GetAsset()), nil
 		}
 	}
 	for _, v := range video.Variants {
 		if v.GetAssetId() == attachmentID {
-			if declared, ok := c.Assets.AssetCreation(attachmentID); ok {
+			if declared, ok := c.assetLifecycle().AssetCreation(attachmentID); ok {
 				return attachmentFromAsset(declared.GetAsset()), nil
 			}
 		}
@@ -552,7 +552,7 @@ func (c *MediaService) LookupAttachment(ctx context.Context, loc signedurl.Attac
 	if loc.VideoOrigin != "" {
 		return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
 	}
-	declared, ok := c.Assets.AssetCreation(loc.AttachmentID)
+	declared, ok := c.assetLifecycle().AssetCreation(loc.AttachmentID)
 	if !ok || declared == nil {
 		return nil, nil
 	}

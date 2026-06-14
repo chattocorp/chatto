@@ -82,7 +82,7 @@ func (s *AssetService) recordAssetCreated(ctx context.Context, actorID, roomID s
 // each derivative. The durable processing manifest remains in EVT for
 // audit/replay; deletion makes future signed URLs resolve to 404.
 func (s *AssetService) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, attachmentID string) {
-	manifest, ok := s.Assets.VideoAttachmentManifest(attachmentID)
+	manifest, ok := s.VideoAttachmentManifest(attachmentID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return
 	}
@@ -94,7 +94,7 @@ func (s *AssetService) DeleteVideoDerivativesForAttachment(ctx context.Context, 
 		if id == "" {
 			return
 		}
-		declared, ok := s.Assets.AssetCreation(id)
+		declared, ok := s.AssetCreation(id)
 		if !ok {
 			return
 		}
@@ -125,7 +125,7 @@ func (s *AssetService) DeleteVideoDerivativesForAttachment(ctx context.Context, 
 // bytes are removed so serving paths stop resolving the asset even if storage
 // cleanup is slow or partially fails.
 func (s *AssetService) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorID, userID string) int {
-	owned := s.RoomTimeline.MessageAssetsByAuthor(userID)
+	owned := s.MessageAssetsByAuthor(userID)
 	deleted := 0
 	seen := make(map[string]struct{})
 	type deletionTarget struct {
@@ -136,7 +136,7 @@ func (s *AssetService) DeleteMessageOwnedAssetsForUser(ctx context.Context, acto
 	var targets []deletionTarget
 
 	for _, ref := range owned {
-		subtree := s.Assets.AssetSubtreeIDs(ref.AssetID)
+		subtree := s.AssetSubtreeIDs(ref.AssetID)
 		for i := len(subtree) - 1; i >= 0; i-- {
 			assetID := subtree[i]
 			if assetID == "" {
@@ -147,7 +147,7 @@ func (s *AssetService) DeleteMessageOwnedAssetsForUser(ctx context.Context, acto
 			}
 			seen[assetID] = struct{}{}
 
-			declared, ok := s.Assets.AssetCreation(assetID)
+			declared, ok := s.AssetCreation(assetID)
 			if !ok || declared == nil {
 				continue
 			}
@@ -196,7 +196,7 @@ func (s *AssetService) ScheduleVideoProcessingForMessageAttachment(ctx context.C
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("video processing missing room, message, or attachment")
 	}
-	if manifest, ok := s.Assets.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil {
+	if manifest, ok := s.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil {
 		if manifest.Succeeded != nil || manifest.Failed != nil {
 			return nil
 		}
@@ -255,14 +255,14 @@ func (s *AssetService) RecoverUnmanifestedVideoAttachments(ctx context.Context) 
 
 func (s *AssetService) UnmanifestedVideoAttachments() []VideoProcessingRequest {
 	var out []VideoProcessingRequest
-	for _, owner := range s.RoomTimeline.MessageAssetOwners() {
+	for _, owner := range s.MessageAssetOwners() {
 		if owner.RoomID == "" || owner.MessageEventID == "" || owner.AssetID == "" {
 			continue
 		}
-		if s.RoomTimeline.MessageTombstoned(owner.MessageEventID) {
+		if s.MessageTombstoned(owner.MessageEventID) {
 			continue
 		}
-		declared, ok := s.Assets.AssetCreation(owner.AssetID)
+		declared, ok := s.AssetCreation(owner.AssetID)
 		if !ok || declared == nil {
 			continue
 		}
@@ -270,7 +270,7 @@ func (s *AssetService) UnmanifestedVideoAttachments() []VideoProcessingRequest {
 		if asset == nil {
 			continue
 		}
-		if _, hasManifest := s.Assets.VideoAttachmentManifest(owner.AssetID); hasManifest {
+		if _, hasManifest := s.VideoAttachmentManifest(owner.AssetID); hasManifest {
 			continue
 		}
 		contentType := asset.GetContentType()
@@ -310,7 +310,7 @@ func (s *AssetService) publishAssetProcessing(ctx context.Context, roomID string
 	if assetID == "" {
 		return fmt.Errorf("asset processing event missing asset id")
 	}
-	if assetRoomID, ok := s.Assets.AssetRoomID(assetID); ok && assetRoomID != roomID {
+	if assetRoomID, ok := s.AssetRoomID(assetID); ok && assetRoomID != roomID {
 		return fmt.Errorf("asset processing event room mismatch: asset room %s, event room %s", assetRoomID, roomID)
 	}
 	if err := s.appendAssetProcessingEvent(ctx, assetID, event); err != nil {
@@ -379,7 +379,7 @@ func (s *AssetService) cleanupVideoDerivativeOutput(ctx context.Context, actorID
 	}
 	assetID := attachment.GetId()
 	roomID := fallbackRoomID
-	if projectedRoomID, ok := s.Assets.AssetRoomID(assetID); ok && projectedRoomID != "" {
+	if projectedRoomID, ok := s.AssetRoomID(assetID); ok && projectedRoomID != "" {
 		roomID = projectedRoomID
 	}
 	if roomID != "" {
@@ -401,7 +401,7 @@ func (s *AssetService) cleanupVideoDerivativeOutput(ctx context.Context, actorID
 
 // DeleteAsset appends an AssetDeletedEvent for a projected asset.
 func (s *AssetService) DeleteAsset(ctx context.Context, actorID, assetID string) error {
-	roomID, ok := s.Assets.AssetRoomID(assetID)
+	roomID, ok := s.AssetRoomID(assetID)
 	if !ok {
 		return fmt.Errorf("asset deletion missing room scope")
 	}
@@ -475,11 +475,51 @@ func (s *AssetService) waitForAssets(ctx context.Context, pos events.StreamPosit
 	return waitForPositionAll(ctx, pos, waitForProjection("assets", s.AssetsProjector))
 }
 
+func (s *AssetService) waitForAssetsCurrent(ctx context.Context) error {
+	return waitForCurrentAll(ctx, waitForProjection("assets", s.AssetsProjector))
+}
+
+func (s *AssetService) AssetCreation(assetID string) (*corev1.AssetCreatedEvent, bool) {
+	return s.Assets.AssetCreation(assetID)
+}
+
+func (s *AssetService) AssetRoomID(assetID string) (string, bool) {
+	return s.Assets.AssetRoomID(assetID)
+}
+
+func (s *AssetService) VideoAttachmentManifest(assetID string) (*VideoAttachmentManifest, bool) {
+	return s.Assets.VideoAttachmentManifest(assetID)
+}
+
+func (s *AssetService) AssetDeleted(assetID string) bool {
+	return s.Assets.AssetDeleted(assetID)
+}
+
+func (s *AssetService) AssetSubtreeIDs(assetID string) []string {
+	return s.Assets.AssetSubtreeIDs(assetID)
+}
+
+func (s *AssetService) AssetEventsBetweenForRooms(afterSeq, throughSeq uint64, memberRooms map[string]struct{}, predicate func(*corev1.Event) bool, limit int) []*AssetTimelineEntry {
+	return s.Assets.AssetEventsBetweenForRooms(afterSeq, throughSeq, memberRooms, predicate, limit)
+}
+
+func (s *AssetService) MessageAssetsByAuthor(userID string) []MessageAssetRef {
+	return s.RoomTimeline.MessageAssetsByAuthor(userID)
+}
+
+func (s *AssetService) MessageAssetOwners() []MessageAssetRef {
+	return s.RoomTimeline.MessageAssetOwners()
+}
+
+func (s *AssetService) MessageTombstoned(eventID string) bool {
+	return s.RoomTimeline.MessageTombstoned(eventID)
+}
+
 func (s *AssetService) shouldAppendAssetProcessingEvent(assetID string, event *corev1.Event) bool {
-	if s.Assets.AssetDeleted(assetID) {
+	if s.AssetDeleted(assetID) {
 		return false
 	}
-	manifest, hasManifest := s.Assets.VideoAttachmentManifest(assetID)
+	manifest, hasManifest := s.VideoAttachmentManifest(assetID)
 	switch event.GetEvent().(type) {
 	case *corev1.Event_AssetProcessingStarted:
 		return !hasManifest || manifest == nil || (manifest.Succeeded == nil && manifest.Failed == nil)
