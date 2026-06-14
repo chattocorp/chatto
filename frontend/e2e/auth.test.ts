@@ -477,6 +477,7 @@ test.describe('Authentication', () => {
 
       // Check that user has verified email via GraphQL
       const meResponse = await page.request.post('/api/graphql', {
+        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {
           query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
         }
