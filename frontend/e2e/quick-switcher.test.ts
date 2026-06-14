@@ -217,12 +217,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     });
   });
 
-  test('does not surface users without an existing DM', async ({
-    page,
-    chatPage,
-    browser,
-    serverURL
-  }) => {
+  test('surfaces users without an existing DM', async ({ page, chatPage, browser, serverURL }) => {
     // Two users on the same deployment. createAndLoginTestUser auto-joins
     // the bootstrap primary space, so A and B share a space — pre-fix,
     // this is exactly what made B show up in QuickSwitcherSpaceMembersSearch.
@@ -243,12 +238,12 @@ test.describe('Quick Switcher (Cmd-K)', () => {
       });
 
       // userB.login is unique enough not to fuzzy-match any space, room, or
-      // destination label. With no DM open with userB, the only thing that
-      // could surface them is the (now-removed) user-search code path.
+      // destination label. With no DM open with userB, this proves Cmd-K is
+      // searching the server member directory rather than just existing DMs.
       await input.fill(userB.login);
 
-      await expect(dialog.getByText('No results')).toBeVisible({
-        timeout: TIMEOUTS.UI_FAST
+      await expect(switcherResults(dialog).filter({ hasText: userB.login })).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
       });
     } finally {
       await context2.close();
@@ -268,9 +263,9 @@ test.describe('Quick Switcher (Cmd-K)', () => {
 
     // The bootstrap server's name (from e2e/fixtures/chatto.toml) should
     // appear as a Server entry in the switcher.
-    await expect(
-      dialog.getByRole('button', { name: /E2E Test Server.*Server/ })
-    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(dialog.getByRole('button', { name: /E2E Test Server.*Server/ })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
   });
 
   test('fuzzy search surfaces the server overview by name', async ({ page, chatPage }) => {
@@ -289,16 +284,11 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     // whose accessible name is "# {room} · {server}".
     await input.fill('e2e test');
     await expect(
-      switcherResults(dialog)
-        .filter({ hasText: 'E2E Test Server' })
-        .filter({ hasNotText: '·' })
+      switcherResults(dialog).filter({ hasText: 'E2E Test Server' }).filter({ hasNotText: '·' })
     ).toBeVisible();
   });
 
-  test('selecting the server entry navigates to its overview page', async ({
-    page,
-    chatPage
-  }) => {
+  test('selecting the server entry navigates to its overview page', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     // Navigate into a room first so we're somewhere other than the overview.

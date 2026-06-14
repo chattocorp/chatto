@@ -416,10 +416,7 @@
     const roomId = result.data?.startDM.id;
     if (!roomId) throw result.error ?? new Error('Failed to start DM');
 
-    return resolve('/chat/[serverId]/[roomId]', {
-      serverId: serverIdToSegment(item.serverId),
-      roomId
-    });
+    return roomId;
   }
 
   async function select(item: ResultItem) {
@@ -427,9 +424,18 @@
 
     if (item.kind === 'user') {
       try {
-        const url = await startDMFromUser(item);
+        const roomId = await startDMFromUser(item);
+        const url = resolve('/chat/[serverId]/[roomId]', {
+          serverId: serverIdToSegment(item.serverId),
+          roomId
+        });
         recentQuickSwitcher.record(url);
-        goto(url);
+        goto(
+          resolve('/chat/[serverId]/[roomId]', {
+            serverId: serverIdToSegment(item.serverId),
+            roomId
+          })
+        );
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to start DM');
       }
@@ -545,7 +551,7 @@
             oninput={handleQueryInput}
             onkeydown={handleKeydown}
             type="text"
-            placeholder="Go to server, room, user, or conversation..."
+            placeholder="Go to server, room, or conversation..."
             class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
           {#if loading || userSearchLoading}
