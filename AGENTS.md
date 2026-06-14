@@ -7,11 +7,11 @@ Please refer to this repository's README.md for general information.
 This codebase keeps agent-relevant context in six places. Read the one that fits your task:
 
 - **`.claude/rules/**`** — always-on coding, testing, and review conventions, mostly path-scoped (`frontend.md` and `frontend-conventions.md` for SvelteKit work, `backend.md` for Go, `testing-frontend.md` / `testing-backend.md` for tests, `authorization.md` for permission changes, etc.). Start here for "how do we do things in this repo?"
-- **`.agents/skills/**`** — opt-in agent skills for repeated workflows. Use `svelte-core-bestpractices` together with the Svelte MCP tools when writing, editing, or reviewing Svelte components and modules.
+- **`.agents/skills/**`** — opt-in agent skills for repeated workflows. Use the matching skill when a task names one or clearly fits its workflow: `chatto-architecture` for `docs/ARCHITECTURE.md`, `glossary` for `docs/GLOSSARY.md`, and `svelte-core-bestpractices` together with the Svelte MCP tools when writing, editing, or reviewing Svelte components and modules.
 - **`docs/fdr/INDEX.md`** — **Feature** Decision Records, one per feature. They describe what a feature does *and* why it's designed that way. Read the relevant FDR before changing user-facing behavior.
 - **`docs/adr/INDEX.md`** — **Architecture** Decision Records. Cross-cutting choices like "NATS as primary data store" or "per-user encryption keys with crypto-shredding". Read when touching architectural seams.
-- **`docs/ARCHITECTURE.md`** — inventory of what currently exists (streams, KV buckets, subject patterns, GraphQL operations). Use when you need to know *what's where*, not *why*.
-- **`docs/GLOSSARY.md`** — one-line definitions of Chatto-specific terms (Server, Space, Echo, OCC, etc.). Skim when you encounter a word you don't recognize.
+- **`docs/ARCHITECTURE.md`** — current-version inventory of what exists: core services, projections, EVT events and subject patterns, streams, KV buckets, object stores, key shapes, and GraphQL operations. Use when you need to know *what's where*, not *why*, and keep it current rather than reintroducing historical storage inventories.
+- **`docs/GLOSSARY.md`** — canonical one-line definitions of Chatto-specific terms (Server, Space, Event, Subject, Projection, OCC, etc.). Skim when you encounter a word you don't recognize, and update it when introducing or renaming shared concepts.
 
 ### Project Status
 
@@ -54,6 +54,8 @@ Please update this section as the project evolves, and refer to it when making d
 ### When making changes...
 
 - Please keep ADRs, FDRs, and other documentation (glossary, docs-website, architecture inventory) up to date.
+- When changing core services, projections, EVT events or subjects, NATS resources, or GraphQL operations, use the `chatto-architecture` skill and update `docs/ARCHITECTURE.md`.
+- When introducing, renaming, or clarifying canonical vocabulary, use the `glossary` skill and update `docs/GLOSSARY.md`.
 - Before pushing a branch for a PR, make sure it is named something descriptive of the change.
 
 ### Issues, Commits, and PRs

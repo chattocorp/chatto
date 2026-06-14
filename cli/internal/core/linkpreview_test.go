@@ -3,19 +3,46 @@ package core
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"hmans.de/chatto/internal/core/linkpreview"
 )
 
 func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	ctx := context.Background()
 	core, _ := setupTestCore(t)
 
-	// Test URL with known OG image
-	url := "https://www.hmans.dev/blog/chatto-dev-instance"
+	restoreLocalhost := linkpreview.AllowLocalhostForTesting()
+	defer restoreLocalhost()
 
-	// Fetch the preview (this will download and store the image)
+	var serverURL string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/article":
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(`<!doctype html>
+<html>
+<head>
+<meta property="og:title" content="Local Link Preview">
+<meta property="og:description" content="A hermetic preview fixture">
+<meta property="og:image" content="` + serverURL + `/preview.png">
+</head>
+<body>hello</body>
+</html>`))
+		case "/preview.png":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(createTestPNG(64, 64))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	serverURL = server.URL
+	url := server.URL + "/article"
+
 	preview, err := core.GetLinkPreview(ctx, url)
 	require.NoError(t, err, "GetLinkPreview should succeed")
 	require.NotNil(t, preview, "Preview should not be nil")
@@ -24,7 +51,7 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	t.Logf("Description: %s", preview.Description)
 	t.Logf("ImageAssetId: %s", preview.GetImageAssetId())
 
-	require.NotEmpty(t, preview.Title, "Title should not be empty")
+	require.Equal(t, "Local Link Preview", preview.Title)
 	require.NotEmpty(t, preview.GetImageAssetId(), "ImageAssetId should not be empty")
 
 	// Now try to retrieve the stored image

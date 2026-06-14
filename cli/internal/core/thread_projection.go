@@ -1,9 +1,24 @@
 package core
 
 import (
+	"time"
+
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+type threadReplySummary struct {
+	actorID   string
+	createdAt time.Time
+	retracted bool
+}
+
+type threadSummary struct {
+	replyIDs       []string
+	replyCount     int
+	lastReplyAt    *time.Time
+	participantIDs []string
+}
 
 // ThreadProjection holds an append-only event log per thread,
 // derived from the same evt.room.> firehose RoomTimelineProjection
@@ -31,6 +46,8 @@ type ThreadProjection struct {
 	events.MemoryProjection
 	byThread        map[string][]*TimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
+	replySummaries  map[string]*threadReplySummary
+	summaryByThread map[string]*threadSummary
 	appliedEventIDs map[string]struct{}
 	shreddedUsers   map[string]struct{}
 }
@@ -40,6 +57,8 @@ func NewThreadProjection() *ThreadProjection {
 	return &ThreadProjection{
 		byThread:        make(map[string][]*TimelineEntry),
 		messageToThread: make(map[string]string),
+		replySummaries:  make(map[string]*threadReplySummary),
+		summaryByThread: make(map[string]*threadSummary),
 		appliedEventIDs: make(map[string]struct{}),
 		shreddedUsers:   make(map[string]struct{}),
 	}
@@ -88,6 +107,9 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserKeyShredded:
 		if userID := e.UserKeyShredded.GetUserId(); userID != "" {
 			p.shreddedUsers[userID] = struct{}{}
+			for threadRoot := range p.summaryByThread {
+				p.recomputeSummaryLocked(threadRoot)
+			}
 			markApplied()
 		}
 
@@ -98,6 +120,9 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		if _, exists := p.byThread[threadRoot]; !exists {
 			p.byThread[threadRoot] = nil
+		}
+		if _, exists := p.summaryByThread[threadRoot]; !exists {
+			p.summaryByThread[threadRoot] = &threadSummary{}
 		}
 		markApplied()
 
@@ -113,6 +138,17 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
 		p.messageToThread[replyID] = threadRoot
+		p.replySummaries[replyID] = &threadReplySummary{
+			actorID:   messageAuthorID(event, m),
+			createdAt: eventCreatedAt(event),
+		}
+		summary := p.summaryByThread[threadRoot]
+		if summary == nil {
+			summary = &threadSummary{}
+			p.summaryByThread[threadRoot] = summary
+		}
+		summary.replyIDs = append(summary.replyIDs, replyID)
+		p.recomputeSummaryLocked(threadRoot)
 		markApplied()
 
 	case *corev1.Event_MessageEdited:
@@ -129,9 +165,55 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 			return nil
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
+		if reply := p.replySummaries[e.MessageRetracted.GetEventId()]; reply != nil {
+			reply.retracted = true
+			p.recomputeSummaryLocked(threadRoot)
+		}
 		markApplied()
 	}
 	return nil
+}
+
+func eventCreatedAt(event *corev1.Event) time.Time {
+	if event == nil || event.GetCreatedAt() == nil {
+		return time.Time{}
+	}
+	return event.GetCreatedAt().AsTime()
+}
+
+func (p *ThreadProjection) recomputeSummaryLocked(threadRoot string) {
+	summary := p.summaryByThread[threadRoot]
+	if summary == nil {
+		summary = &threadSummary{}
+		p.summaryByThread[threadRoot] = summary
+	}
+
+	summary.replyCount = 0
+	summary.lastReplyAt = nil
+	summary.participantIDs = nil
+	participants := make(map[string]struct{})
+
+	for _, replyID := range summary.replyIDs {
+		reply := p.replySummaries[replyID]
+		if reply == nil || reply.retracted {
+			continue
+		}
+		if _, shredded := p.shreddedUsers[reply.actorID]; shredded {
+			continue
+		}
+
+		summary.replyCount++
+		if !reply.createdAt.IsZero() && (summary.lastReplyAt == nil || reply.createdAt.After(*summary.lastReplyAt)) {
+			at := reply.createdAt
+			summary.lastReplyAt = &at
+		}
+		if reply.actorID != "" {
+			if _, seen := participants[reply.actorID]; !seen && len(summary.participantIDs) < maxThreadParticipants {
+				participants[reply.actorID] = struct{}{}
+				summary.participantIDs = append(summary.participantIDs, reply.actorID)
+			}
+		}
+	}
 }
 
 // ThreadEvents returns the full timeline of a thread (replies +
@@ -152,22 +234,38 @@ func (p *ThreadProjection) ThreadEvents(rootEventID string) []*TimelineEntry {
 	return out
 }
 
-// ReplyCount returns how many MessagePostedEvent replies the
-// thread has accumulated. Edits and retracts don't bump the
-// count.
+// ReplyCount returns how many visible MessagePostedEvent replies the thread
+// has accumulated. Edits don't bump the count; retractions and key-shredded
+// authors remove replies from the visible summary.
 func (p *ThreadProjection) ReplyCount(rootEventID string) int {
 	p.RLock()
 	defer p.RUnlock()
-	n := 0
-	for _, e := range p.byThread[rootEventID] {
-		if posted := e.Event.GetMessagePosted(); posted != nil {
-			if _, shredded := p.shreddedUsers[messageAuthorID(e.Event, posted)]; shredded {
-				continue
-			}
-			n++
-		}
+	summary := p.summaryByThread[rootEventID]
+	if summary == nil {
+		return 0
 	}
-	return n
+	return summary.replyCount
+}
+
+// ThreadMetadata returns cached display metadata for a thread. The projection
+// keeps this summary updated as thread events arrive, so callers do not need to
+// scan the full reply timeline for every followed-thread list item.
+func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
+	p.RLock()
+	defer p.RUnlock()
+	summary := p.summaryByThread[rootEventID]
+	if summary == nil {
+		return &ThreadMetadata{}
+	}
+	metadata := &ThreadMetadata{
+		ReplyCount:     summary.replyCount,
+		ParticipantIDs: append([]string(nil), summary.participantIDs...),
+	}
+	if summary.lastReplyAt != nil {
+		at := *summary.lastReplyAt
+		metadata.LastReplyAt = &at
+	}
+	return metadata
 }
 
 // ThreadCount returns how many threads are currently in the

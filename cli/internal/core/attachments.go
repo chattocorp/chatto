@@ -14,7 +14,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
-	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -35,7 +34,7 @@ func (c *MediaService) GetAttachmentsStore(ctx context.Context) (jetstream.Objec
 // S3) is determined by configuration.
 //
 // UploadAttachment stores a binary in the configured backend, emits a
-// durable AssetCreatedEvent into the room aggregate (so the asset becomes
+// durable AssetCreatedEvent into the asset aggregate (so the asset becomes
 // a first-class entity from the moment its bytes hit storage), and returns
 // the rendered Attachment view for the caller.
 //
@@ -58,7 +57,7 @@ func (c *MediaService) UploadAttachment(
 	if err != nil {
 		return nil, err
 	}
-	if err := c.appendAssetCreatedForUpload(ctx, actorID, roomID, attachment, nil); err != nil {
+	if err := c.assetLifecycle().RecordUploadedAsset(ctx, actorID, roomID, attachment); err != nil {
 		return nil, err
 	}
 
@@ -168,15 +167,6 @@ func (c *MediaService) uploadAttachmentBinary(
 	}, nil
 }
 
-// derivativeContext records that an upload is a derivative of another
-// asset (thumbnail, video variant). Worker code uses this to ensure each
-// derivative has a single AssetCreatedEvent that already carries its
-// parentage — no separate "claim as derivative" event afterwards.
-type derivativeContext struct {
-	parentAssetID  string
-	derivativeRole corev1.AssetDerivativeRole
-}
-
 // UploadDerivativeAttachment is the worker-side variant of UploadAttachment.
 // It writes bytes through the same storage path and emits AssetCreatedEvent
 // with parent_asset_id + derivative_role already set, so the projection
@@ -196,36 +186,10 @@ func (c *MediaService) UploadDerivativeAttachment(
 	if err != nil {
 		return nil, err
 	}
-	derivCtx := &derivativeContext{parentAssetID: parentAssetID, derivativeRole: derivativeRole}
-	if err := c.appendAssetCreatedForUpload(ctx, SystemActorID, roomID, attachment, derivCtx); err != nil {
+	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
 		return nil, err
 	}
 	return attachment, nil
-}
-
-// appendAssetCreatedForUpload writes the AssetCreatedEvent for a freshly-
-// uploaded binary. Pulled out so UploadAttachment and UploadDerivative-
-// Attachment share the projection-append path; the only difference is the
-// flat owner fields (user vs derivative).
-func (c *MediaService) appendAssetCreatedForUpload(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext) error {
-	created := &corev1.AssetCreatedEvent{
-		Asset:                   assetFromAttachment(attachment),
-		OriginalBinaryAvailable: true,
-		RoomId:                  roomID,
-	}
-	if deriv != nil {
-		created.ParentAssetId = deriv.parentAssetID
-		created.DerivativeRole = deriv.derivativeRole
-	} else {
-		created.UserId = actorID
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetCreated{AssetCreated: created},
-	})
-	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event); err != nil {
-		return fmt.Errorf("publish asset creation event: %w", err)
-	}
-	return nil
 }
 
 // AttachmentInfo contains metadata about an attachment.
@@ -528,7 +492,7 @@ func (c *MediaService) MessageBodyAttachments(body *corev1.MessageBody) []*corev
 		if id == "" {
 			continue
 		}
-		declared, ok := c.RoomTimeline.AssetCreation(id)
+		declared, ok := c.Assets.AssetCreation(id)
 		if !ok {
 			continue
 		}
@@ -547,7 +511,7 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
-	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(videoOriginID)
+	manifest, ok := c.Assets.VideoAttachmentManifest(videoOriginID)
 	if !ok || manifest == nil || manifest.Succeeded == nil {
 		return nil, nil
 	}
@@ -556,13 +520,13 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 		return nil, nil
 	}
 	if video.GetThumbnailAssetId() == attachmentID {
-		if declared, ok := c.RoomTimeline.AssetCreation(attachmentID); ok {
+		if declared, ok := c.Assets.AssetCreation(attachmentID); ok {
 			return attachmentFromAsset(declared.GetAsset()), nil
 		}
 	}
 	for _, v := range video.Variants {
 		if v.GetAssetId() == attachmentID {
-			if declared, ok := c.RoomTimeline.AssetCreation(attachmentID); ok {
+			if declared, ok := c.Assets.AssetCreation(attachmentID); ok {
 				return attachmentFromAsset(declared.GetAsset()), nil
 			}
 		}
@@ -588,7 +552,7 @@ func (c *MediaService) LookupAttachment(ctx context.Context, loc signedurl.Attac
 	if loc.VideoOrigin != "" {
 		return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
 	}
-	declared, ok := c.RoomTimeline.AssetCreation(loc.AttachmentID)
+	declared, ok := c.Assets.AssetCreation(loc.AttachmentID)
 	if !ok || declared == nil {
 		return nil, nil
 	}
@@ -685,115 +649,6 @@ func (c *MediaService) deleteCachedResizesForAttachment(ctx context.Context, att
 			"attachment_id", attachmentID,
 			"deleted_count", deletedCount)
 	}
-}
-
-// DeleteVideoDerivativesForAttachment deletes generated thumbnail/variant
-// binaries for a processed video attachment and emits AssetDeletedEvent for
-// each derivative. The durable processing manifest remains in EVT for
-// audit/replay; deletion makes future signed URLs resolve to 404.
-//
-// actorID is attributed to the AssetDeletedEvents — typically the user who
-// triggered the parent deletion.
-func (c *MediaService) DeleteVideoDerivativesForAttachment(ctx context.Context, actorID string, kind RoomKind, attachmentID string) {
-	manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachmentID)
-	if !ok || manifest == nil || manifest.Succeeded == nil {
-		return
-	}
-	video := manifest.Succeeded.GetVideo()
-	if video == nil {
-		return
-	}
-	deleteDerivative := func(id string) {
-		if id == "" {
-			return
-		}
-		declared, ok := c.RoomTimeline.AssetCreation(id)
-		if !ok {
-			return
-		}
-		att := attachmentFromAsset(declared.GetAsset())
-		if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
-			c.logger.Warn("Failed to delete video derivative binary",
-				"attachment_id", att.GetId(),
-				"origin_attachment_id", attachmentID,
-				"error", err)
-		}
-		if roomID := assetCreatedRoomID(declared); roomID != "" {
-			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, id); err != nil {
-				c.logger.Warn("Failed to publish derivative asset deletion event",
-					"attachment_id", id,
-					"origin_attachment_id", attachmentID,
-					"error", err)
-			}
-		}
-	}
-	deleteDerivative(video.GetThumbnailAssetId())
-	for _, variant := range video.Variants {
-		deleteDerivative(variant.GetAssetId())
-	}
-}
-
-// DeleteMessageOwnedAssetsForUser removes every currently projected
-// message-owned asset for userID, including derivative children such as video
-// thumbnails and variants. AssetDeletedEvent is appended before the backing
-// bytes are removed so serving paths stop resolving the asset even if storage
-// cleanup is slow or partially fails.
-func (c *MediaService) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorID, userID string) int {
-	owned := c.RoomTimeline.MessageAssetsByAuthor(userID)
-	deleted := 0
-	seen := make(map[string]struct{})
-
-	for _, ref := range owned {
-		for _, assetID := range c.RoomTimeline.AssetSubtreeIDs(ref.AssetID) {
-			if assetID == "" {
-				continue
-			}
-			if _, ok := seen[assetID]; ok {
-				continue
-			}
-			seen[assetID] = struct{}{}
-
-			declared, ok := c.RoomTimeline.AssetCreation(assetID)
-			if !ok || declared == nil {
-				continue
-			}
-			roomID := assetCreatedRoomID(declared)
-			if roomID == "" {
-				roomID = ref.RoomID
-			}
-			if roomID == "" {
-				continue
-			}
-			kind, err := c.FindRoomKind(ctx, roomID)
-			if err != nil {
-				c.logger.Warn("Failed to resolve room kind during user asset cleanup",
-					"asset_id", assetID,
-					"room_id", roomID,
-					"user_id", userID,
-					"error", err)
-				continue
-			}
-			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, assetID); err != nil {
-				c.logger.Warn("Failed to publish asset deletion event during user asset cleanup",
-					"asset_id", assetID,
-					"room_id", roomID,
-					"user_id", userID,
-					"error", err)
-				continue
-			}
-			if att := attachmentFromAsset(declared.GetAsset()); att != nil {
-				if err := c.DeleteAttachmentFromStorage(ctx, att); err != nil {
-					c.logger.Warn("Failed to delete attachment during user asset cleanup",
-						"asset_id", assetID,
-						"room_id", roomID,
-						"user_id", userID,
-						"error", err)
-				}
-			}
-			deleted++
-		}
-	}
-	return deleted
 }
 
 // TryPresignedAttachmentURL generates a presigned S3 URL for an
@@ -1205,183 +1060,4 @@ func (c *ChattoCore) attachmentBinaryStatus(ctx context.Context, attachment *cor
 		return AttachmentBinaryMissing
 	}
 	return AttachmentBinaryUnknown
-}
-
-// ScheduleVideoProcessingForMessageAttachment enqueues async processing for a
-// message-owned video asset. It appends a durable AssetProcessingStartedEvent
-// (the PENDING signal the frontend renders as "Processing…"), then calls the
-// process-local video processing hook. If the source binary is already missing,
-// emits an AssetProcessingFailedEvent with SOURCE_MISSING instead.
-//
-// actorID is the user who triggered processing (the message poster, or
-// SystemActorID for boot-recovery paths).
-func (c *MediaService) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID string, attachment *corev1.Attachment) error {
-	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
-		return fmt.Errorf("video processing missing room, message, or attachment")
-	}
-	if manifest, ok := c.RoomTimeline.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil {
-		if manifest.Succeeded != nil || manifest.Failed != nil {
-			return nil
-		}
-	}
-	// Only emit a durable SOURCE_MISSING on a definitive "not found" probe.
-	// Unknown status (S3 unreachable, transient error) falls through and lets
-	// the worker try — it'll emit PROCESSING_FAILED if the download actually
-	// can't complete. Burning SOURCE_MISSING on a transient failure would
-	// permanently tombstone the asset.
-	if c.attachmentBinaryStatus(ctx, attachment) == AttachmentBinaryMissing {
-		return c.RecordAssetProcessingFailed(ctx, actorID, kind, roomID, messageEventID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
-	}
-	if err := c.RecordAssetProcessingStarted(ctx, actorID, kind, roomID, messageEventID, attachment.GetId()); err != nil {
-		return err
-	}
-	if c.OnVideoProcessingRequested == nil {
-		c.logger.Warn("Video processing requested but no local processor is registered",
-			"asset_id", attachment.GetId(),
-			"message_event_id", messageEventID)
-		return nil
-	}
-	if err := c.OnVideoProcessingRequested(context.Background(), attachment.GetId(), messageEventID); err != nil {
-		c.logger.Warn("Failed to start local video processing",
-			"asset_id", attachment.GetId(),
-			"message_event_id", messageEventID,
-			"error", err)
-	}
-	return nil
-}
-
-// RecordAssetProcessingStarted appends a durable AssetProcessingStartedEvent
-// for an asset. Subscribers use the projected manifest to render the
-// "Processing…" placeholder until succeeded/failed lands.
-//
-// actorID is the user who triggered processing (typically the message
-// poster). Use SystemActorID when the action is driven by boot recovery or
-// other background work with no user actor.
-func (c *MediaService) RecordAssetProcessingStarted(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, assetID string) error {
-	if roomID == "" || assetID == "" {
-		return fmt.Errorf("asset processing started missing room or asset id")
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
-				AssetId:        assetID,
-				MessageEventId: messageEventID,
-			},
-		},
-	})
-	return c.PublishAssetProcessing(ctx, kind, roomID, event)
-}
-
-// RecoverUnmanifestedVideoAttachments replays durable message attachments into
-// the in-process video processor when they have no completed/failed manifest
-// yet. If the original binary is already gone, it records a durable unavailable
-// state.
-func (c *MediaService) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
-	for _, req := range c.RoomTimeline.UnmanifestedVideoAttachments() {
-		if req.Attachment == nil {
-			continue
-		}
-		kind, err := c.FindRoomKind(ctx, req.RoomID)
-		if err != nil {
-			c.logger.Warn("Failed to resolve room kind for video recovery", "room_id", req.RoomID, "error", err)
-			continue
-		}
-		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, kind, req.RoomID, req.MessageEventID, req.Attachment); err != nil {
-			c.logger.Warn("Failed to recover video processing", "attachment_id", req.Attachment.GetId(), "error", err)
-		}
-	}
-}
-
-// PublishAssetProcessing appends a durable asset-processing event to EVT.
-// Refuses events with an empty ActorId — every asset lifecycle event must be
-// attributable to a user (or SystemActorID for worker/migration paths).
-func (c *MediaService) PublishAssetProcessing(ctx context.Context, kind RoomKind, roomID string, event *corev1.Event) error {
-	if roomID == "" {
-		return fmt.Errorf("asset processing event missing room id")
-	}
-	if event.GetActorId() == "" {
-		return fmt.Errorf("asset processing event missing actor id (use SystemActorID for non-user paths)")
-	}
-	agg := events.RoomAggregate(roomID)
-	if _, err := c.roomService.appendTimelineEventually(ctx, c.EventPublisher, agg, event); err != nil {
-		return fmt.Errorf("publish asset processing event: %w", err)
-	}
-	return nil
-}
-
-// RecordAssetProcessed builds and publishes a durable processed-video
-// manifest for an original video attachment. The thumbnail and variants
-// were already emitted as AssetCreatedEvents by UploadDerivativeAttachment
-// when the worker stored their bytes — this manifest just records the
-// processing outcome and points at those existing assets by id.
-//
-// actorID is typically SystemActorID — processing outcomes are produced by
-// the video worker, not by a user action.
-func (c *MediaService) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
-	thumbnailAssetID := ""
-	if thumbnail != nil {
-		thumbnailAssetID = thumbnail.GetId()
-	}
-	assetVariants := make([]*corev1.AssetVideoVariant, 0, len(variants))
-	for _, variant := range variants {
-		if variant == nil || variant.GetAttachment() == nil {
-			continue
-		}
-		assetVariants = append(assetVariants, &corev1.AssetVideoVariant{
-			Quality: variant.GetQuality(),
-			AssetId: variant.GetAttachment().GetId(),
-		})
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetProcessingSucceeded{
-			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId:        attachmentID,
-				MessageEventId: messageEventID,
-				Video: &corev1.AssetProcessedVideo{
-					DurationMs:       durationMs,
-					Width:            width,
-					Height:           height,
-					ThumbnailAssetId: thumbnailAssetID,
-					Variants:         assetVariants,
-				},
-			},
-		},
-	})
-	return c.PublishAssetProcessing(ctx, kind, roomID, event)
-}
-
-// RecordAssetDeleted appends a durable AssetDeletedEvent so subscribers and
-// projections drop any cached state for the asset. The binary cleanup is a
-// separate concern (DeleteAttachmentFromStorage); this event records intent.
-//
-// actorID is the user who triggered the deletion (or SystemActorID for
-// background cleanup).
-func (c *MediaService) RecordAssetDeleted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {
-	if roomID == "" || assetID == "" {
-		return fmt.Errorf("asset deletion missing room or asset id")
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
-		},
-	})
-	return c.PublishAssetProcessing(ctx, kind, roomID, event)
-}
-
-// RecordAssetProcessingFailed builds and publishes a durable failed
-// video-processing outcome.
-//
-// actorID is typically SystemActorID for worker-emitted failures, or the
-// posting user for "source missing" emitted at schedule time.
-func (c *MediaService) RecordAssetProcessingFailed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetProcessingFailed{
-			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:        attachmentID,
-				MessageEventId: messageEventID,
-				FailureCode:    failureCode,
-			},
-		},
-	})
-	return c.PublishAssetProcessing(ctx, kind, roomID, event)
 }

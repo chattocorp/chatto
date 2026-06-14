@@ -129,8 +129,8 @@
     error = '';
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation UpdateSettings($input: UpdateSettingsInput!) {
               updateSettings(input: $input) {
@@ -161,9 +161,9 @@
         userSettings.updateFromData(data);
       }
 
-      toast.success('Preferences saved');
+      toast.success('Display settings saved');
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save preferences';
+      error = err instanceof Error ? err.message : 'Failed to save display settings';
     } finally {
       isSaving = false;
     }
@@ -188,7 +188,7 @@
   ];
 </script>
 
-<PaneHeader title="Preferences" subtitle="Customize your display settings" showMobileNav />
+<PaneHeader title="Display" subtitle="Choose how dates and times appear" showMobileNav />
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <!-- Timezone -->
@@ -322,7 +322,7 @@
       disabled={!isModified || isSaving || !!timezoneError}
       loading={isSaving}
     >
-      Save Preferences
+      Save Display Settings
     </Button>
   </div>
 </div>

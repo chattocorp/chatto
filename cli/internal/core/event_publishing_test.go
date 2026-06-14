@@ -508,6 +508,90 @@ func TestStreamMyEvents_ReplaysMissedReactionAfterCursor(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_ReplayDeduplicatesLegacyAssetEvents(t *testing.T) {
+	core := &ChattoCore{
+		RoomTimeline: NewRoomTimelineProjection(),
+		Assets:       NewAssetProjection(),
+	}
+	roomID := "R-legacy-assets"
+	assetID := "A-legacy-video"
+	created := testCoreAssetCreatedEvent(roomID, assetID, "video/mp4")
+	started := testCoreAssetProcessingStartedEvent("E-legacy-started", assetID)
+
+	for _, projection := range []interface {
+		Apply(*corev1.Event, uint64) error
+	}{core.RoomTimeline, core.Assets} {
+		if err := projection.Apply(created, 10); err != nil {
+			t.Fatalf("Apply created: %v", err)
+		}
+		if err := projection.Apply(started, 11); err != nil {
+			t.Fatalf("Apply started: %v", err)
+		}
+	}
+
+	candidates, err := core.collectMissedEventsReplay(
+		map[string]struct{}{roomID: {}},
+		10,
+		11,
+		10,
+	)
+	if err != nil {
+		t.Fatalf("collectMissedEventsReplay: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("replay candidates = %d, want 1", len(candidates))
+	}
+	if candidates[0].event.GetId() != started.GetId() {
+		t.Fatalf("replayed event id = %q, want %q", candidates[0].event.GetId(), started.GetId())
+	}
+}
+
+func TestStreamMyEvents_ReplayUsesSingleGlobalCutoffOrder(t *testing.T) {
+	core := &ChattoCore{
+		RoomTimeline: NewRoomTimelineProjection(),
+		Assets:       NewAssetProjection(),
+	}
+	roomID := "R-global-replay"
+	assetID := "A-global-replay"
+
+	created := testCoreAssetCreatedEvent(roomID, assetID, "video/mp4")
+	if err := core.Assets.Apply(created, 10); err != nil {
+		t.Fatalf("Apply asset created: %v", err)
+	}
+	roomEvent := &corev1.Event{
+		Id: "E-room-between-tails",
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID},
+		},
+	}
+	if err := core.RoomTimeline.Apply(roomEvent, 15); err != nil {
+		t.Fatalf("Apply room event: %v", err)
+	}
+	assetEvent := testCoreAssetProcessingStartedEvent("E-asset-high-tail", assetID)
+	if err := core.Assets.Apply(assetEvent, 20); err != nil {
+		t.Fatalf("Apply asset event: %v", err)
+	}
+
+	candidates, err := core.collectMissedEventsReplay(
+		map[string]struct{}{roomID: {}},
+		10,
+		20,
+		10,
+	)
+	if err != nil {
+		t.Fatalf("collectMissedEventsReplay: %v", err)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("replay candidates = %d, want 2", len(candidates))
+	}
+	if candidates[0].seq != 15 || candidates[0].event.GetId() != roomEvent.GetId() {
+		t.Fatalf("first candidate = seq %d id %q, want seq 15 id %q", candidates[0].seq, candidates[0].event.GetId(), roomEvent.GetId())
+	}
+	if candidates[1].seq != 20 || candidates[1].event.GetId() != assetEvent.GetId() {
+		t.Fatalf("second candidate = seq %d id %q, want seq 20 id %q", candidates[1].seq, candidates[1].event.GetId(), assetEvent.GetId())
+	}
+}
+
 func TestStreamMyEvents_DoesNotReplayRoomEventsAfterViewerLeft(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

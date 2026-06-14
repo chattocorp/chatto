@@ -300,6 +300,7 @@
     enablePagination={true}
     isLoadingMore={store.isLoadingMore}
     hasReachedStart={store.hasReachedStart}
+    showStartMarker={false}
     onLoadMore={() => store.loadMore()}
     filterThreadReplies={false}
     {updateCounter}

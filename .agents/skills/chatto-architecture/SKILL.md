@@ -12,53 +12,53 @@ Update `docs/ARCHITECTURE.md` to reflect the current state of the codebase. Exam
 ARCHITECTURE.md follows this exact structure. Preserve all sections and their ordering:
 
 1. **Table of Contents** - Auto-generated list of all sections with links (see below)
-2. **Overview** - Brief description, Core Concepts (Instance, Spaces, Rooms, Users)
+2. **Overview** - Brief description, Core Concepts cross-reference to `docs/GLOSSARY.md`
 3. **NATS Authentication** - Auth methods table, Embedded/External setup
-4. **Architecture & APIs** - Layer descriptions (NATS, Core, NATS API, GraphQL, Web Client, Email)
-5. **NATS API Layer** - Package Structure table, Subject Pattern, Services table, Request/Response Format, GraphQL Integration
-6. **GraphQL API Overview** - High-level overview of the GraphQL API:
+4. **Architecture & APIs** - Layer descriptions (NATS, Core, GraphQL, Web Client, Email)
+5. **Core Services** - Current runtime services and their responsibilities
+6. **Projection Inventory** - Registered projections, subject filters, nested read models, and primary readers
+7. **GraphQL API Overview** - High-level overview of the GraphQL API:
    - General description of the API's purpose and design
    - Key queries (spaces, rooms, messages, users, admin)
    - Key mutations (space/room/message CRUD, membership operations)
    - Key subscriptions (real-time events, presence updates)
    - No detailed field documentation - just the most important operations
-7. **Architecture Pattern: CRUD + Event Publishing** - Write Path table, Consistency Model
-8. **Roles and Permissions (RBAC)** - Comprehensive RBAC documentation:
-   - **Instance-Level Roles**: Owner configuration via `owners.emails`, what instance owners can access
-   - **Space-Level Roles**: Role definitions, how roles are assigned to space members
-   - **Available Permissions**: Table of all permissions with descriptions
-   - **Permission Checks**: How `Can*` functions work in the codebase
-9. **NATS JetStream Inventory** - Complete inventory of all JetStream resources:
-   - **Streams**: Table listing all streams with their purpose
-     - For each stream: all subjects it captures and what events flow through them
-   - **KV Buckets**: Table listing all KV buckets with their purpose
-     - For each bucket: all key patterns used and what data they store
-   - **Object Store Buckets**: Table listing all object stores with their purpose
-   - Include subject/key pattern syntax (e.g., `space.{spaceId}.room.{roomId}.message.created`)
+8. **Architecture Pattern: Event-Sourced Writes** - Write Path table, Consistency Model
+9. **Roles, Permissions, and Direct Messages** - Pointers to the authoritative FDRs/rules/source files
+10. **NATS Resource Inventory** - Current runtime resources only:
+   - **Current Resources**: Stream, KV, object-store, live-subject roots
+   - **Event Envelopes**: Durable `corev1.Event` vs transient `corev1.LiveEvent`
+   - **EVT Subject Patterns**: Current `evt.{aggregateType}.{aggregateId}.{eventType}` families and wildcard filters
+   - **Durable EVT Event Inventory**: Explicit map of current EVT subject patterns to concrete protobuf event message types
+   - **Transient Live Subjects**: Current `live.sync.>` subjects
+   - **KV Buckets**: Current bucket key patterns only
+   - **Object Store Buckets**: Current object-store key patterns only
+
+Do not add detailed inventories for removed or historical pre-0.1 storage. `docs/ARCHITECTURE.md` describes the current version of the runtime architecture, not migration archaeology.
 
 ## Parallelization Strategy
 
-**Use subagents extensively to speed up research.** Launch multiple Task tool calls in parallel to gather information from different parts of the codebase simultaneously.
+Use parallel research where the active agent environment allows it. If subagents are available and the user has authorized delegation, launch multiple focused explorers. Otherwise, run the same searches locally and parallelize read-only shell commands where possible.
 
 ### Recommended Parallel Research Tasks
 
-Launch these subagents **in parallel** at the start:
+Recommended independent research slices:
 
-1. **GraphQL Schema Agent** (Explore): "Find all GraphQL queries, mutations, and subscriptions in `cli/internal/graph/schema/*.graphqls`. List each operation with a one-line description."
+1. **GraphQL Schema**: "Find all GraphQL queries, mutations, and subscriptions in `cli/internal/graph/*.graphqls`. List each operation with a one-line description."
 
-2. **RBAC Agent** (Explore): "Find all permission constants in `cli/internal/core/permissions.go` and all `Can*` functions in `cli/internal/core/can.go`. Document each permission and what it controls."
+2. **RBAC**: "Find all permission constants in `cli/internal/core/permissions.go` and all `Can*` functions in `cli/internal/core/can.go`. Document each permission and what it controls."
 
-3. **JetStream Streams Agent** (Explore): "Find all `CreateOrUpdateStream` calls in `cli/internal/core/`. For each stream, find all `Publish` calls that write to it. List streams with their subjects."
+3. **Core Services**: "Read `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, and `cli/internal/video/service.go`. List current services with their responsibilities and lifecycle/readiness role."
 
-4. **JetStream KV Agent** (Explore): "Find all `CreateOrUpdateKeyValue` calls in `cli/internal/core/`. For each KV bucket, find all key patterns used with `Get`, `Put`, `Create`, `Update`. List buckets with their key patterns."
+4. **Projections**: "Read `NewChattoCore`, all `New*Projection` constructors, `Subjects()` methods, and `projection_subjects_test.go`. List registered projections, nested read models, and subject filters."
 
-5. **Object Stores Agent** (Explore): "Find all `CreateOrUpdateObjectStore` calls in `cli/internal/core/`. Document each object store and its purpose."
+5. **Current Storage**: "Find all current `CreateOrUpdateStream`, `CreateOrUpdateKeyValue`, and `CreateOrUpdateObjectStore` calls in `cli/internal/core/`. List current resources and key/object patterns used by runtime code."
 
-6. **NATS API Services Agent** (Explore): "Find all NATS micro services in `cli/internal/core_api/`. List each service with its subject pattern and operations."
+6. **EVT Subjects**: "Read `cli/internal/events/subjects.go`, `proto/chatto/core/v1/event.proto`, and `cli/internal/core/subjects/subjects.go`. List durable EVT subject patterns mapped to concrete protobuf event message types, plus transient `live.sync.>` subjects."
 
 ### After Parallel Research
 
-Once all subagents return:
+Once research completes:
 1. Read current `docs/ARCHITECTURE.md`
 2. Merge subagent findings into the appropriate sections
 3. Write the updated documentation
@@ -68,44 +68,62 @@ Once all subagents return:
 1. **Examine the codebase** to understand current state:
 
    - Read `proto/chatto/` for protobuf definitions (event types, messages)
-   - Read `cli/internal/core/` for Core implementation (KV keys, stream subjects)
-   - Read `cli/internal/core_api/` for NATS services
-   - Read `cli/internal/graph/schema/` for GraphQL schema (queries, mutations, subscriptions)
+   - Read `cli/internal/core/core.go` for service/projection/storage wiring
+   - Read `cli/internal/core/*_service.go` for current core services
+   - Read `cli/internal/events/subjects.go` for durable EVT subject and event-token definitions
+   - Read `cli/internal/core/subjects/subjects.go` for transient live subject helpers
+   - Read `cli/internal/core/projection_subjects_test.go` for projection subject policy
+   - Read `cli/internal/graph/*.graphqls` for GraphQL schema (queries, mutations, subscriptions)
+   - Read `docs/GLOSSARY.md` when changing or relying on canonical vocabulary in the Overview/Core Concepts section
    - Read `cli/internal/core/permissions.go` for permission definitions
    - Read `cli/internal/core/can.go` for permission check functions
    - Search for `CreateOrUpdateKeyValue`, `CreateOrUpdateStream`, `CreateOrUpdateObjectStore` calls
-   - Search for `Publish` calls to find all NATS subjects used
+   - Search for `EventPublisher`, `publishLiveEvent`, and `LiveSync*` helpers to find current publish paths
 
 2. **For GraphQL API Overview**:
 
-   - Read all `.graphqls` files in `cli/internal/graph/schema/`
+   - Read all `.graphqls` files in `cli/internal/graph/`
    - Identify the most important queries, mutations, and subscriptions
    - Focus on user-facing operations, not internal details
    - Group by domain (spaces, rooms, messages, users, admin)
 
-3. **For RBAC Overview**:
+3. **For RBAC Pointers**:
 
    - Read `cli/internal/core/permissions.go` for all permission constants
    - Read `cli/internal/core/can.go` for all `Can*` functions
    - Read `cli/internal/graph/authz.go` for GraphQL authorization helpers
    - Check `owners.emails` configuration in server setup
-   - Document both instance-level and space-level authorization
+   - Keep `docs/ARCHITECTURE.md` as an inventory: link to the authoritative FDRs/rules/source files instead of duplicating the full RBAC model there
 
-4. **For NATS JetStream Inventory**:
+4. **For Overview and Glossary Cross-Reference**:
+
+   - Keep `Core Concepts` as a pointer to `docs/GLOSSARY.md`; do not duplicate term definitions there
+   - If architecture changes affect canonical terms such as Server, Room, Event, Projection, Subject, or Live Event, update `docs/GLOSSARY.md` in the same change
+   - Keep glossary entries concise; link back to `docs/ARCHITECTURE.md` for detailed architecture
+
+5. **For Core Services and Projections**:
+
+   - Use `NewChattoCore` as the authoritative wiring point for current services and registered projections
+   - Use `projection_subjects_test.go` to verify subject filters
+   - Document nested read models under their registered parent projection
+
+6. **For NATS Resource Inventory**:
 
    - Find all `CreateOrUpdateStream` calls to list streams
    - Find all `CreateOrUpdateKeyValue` calls to list KV buckets
    - Find all `CreateOrUpdateObjectStore` calls to list object stores
-   - For each stream: grep for `Publish` calls to find all subjects
+   - For `EVT`: use `cli/internal/events/subjects.go` and `proto/chatto/core/v1/event.proto` as the source of truth for subject patterns and concrete protobuf event message types
+   - For transient live subjects: use `cli/internal/core/subjects/subjects.go` and `publishLiveEvent` callers
    - For each KV bucket: grep for `Get`, `Put`, `Create`, `Update` calls to find all key patterns
    - Document the naming conventions and variable placeholders
+   - Remove detailed entries for resources that are not part of the current runtime architecture
 
-5. **Compare with existing documentation**:
+7. **Compare with existing documentation**:
 
    - Read current `docs/ARCHITECTURE.md`
    - Identify discrepancies between code and documentation
 
-6. **Update documentation**:
+8. **Update documentation**:
 
    - Add new entries to appropriate tables
    - Update existing entries if they've changed
@@ -114,15 +132,20 @@ Once all subagents return:
    - Keep notes/explanations accurate and concise
    - Add relative links to source files (see below)
 
-7. **Validation checklist**:
+9. **Validation checklist**:
    - All streams in code appear in Streams table
    - All KV buckets in code appear in KV Buckets table
    - All object stores in code appear in Object Store Buckets table
-   - All NATS API services appear in Services table
-   - All permissions appear in Available Permissions table
-   - All `Can*` functions are documented
+   - All core services in `NewChattoCore` appear in Core Services
+   - All registered projections appear in Projection Inventory
+   - Core Concepts points to `docs/GLOSSARY.md`
+   - `docs/GLOSSARY.md` is updated if architecture vocabulary changed
+   - Durable EVT event tokens in `events/subjects.go` appear in Durable EVT Event Inventory with their concrete protobuf event message type
+   - Current `live.sync.>` subjects appear in Transient Live Subjects
+   - RBAC section points to the authoritative FDRs/rules/source files
    - Key GraphQL operations are listed
    - Subject/key patterns match actual code usage
+   - Detailed legacy/pre-0.1 storage inventories are not reintroduced
 
 ## Table of Contents
 
@@ -189,11 +212,11 @@ Each major section should include relative links to the most important related s
 **Format:**
 
 ```markdown
-## NATS API Layer
+## Core Services
 
-Key files: [`cli/internal/core_api/`](cli/internal/core_api/), [`cli/internal/core_api_client/`](cli/internal/core_api_client/)
+Key files: [`cli/internal/core/core.go`](cli/internal/core/core.go), [`cli/internal/core/*_service.go`](cli/internal/core/), [`cli/internal/video/service.go`](cli/internal/video/service.go)
 
-The NATS API layer provides...
+The Core Services section provides...
 ```
 
 **Example sections and their key files:**
@@ -201,9 +224,10 @@ The NATS API layer provides...
 | Section | Key Files |
 | ------- | --------- |
 | Core / Architecture | `cli/internal/core/core.go` |
-| NATS API Layer | `cli/internal/core_api/`, `cli/internal/core_api_client/` |
-| GraphQL API | `cli/internal/graph/schema/`, `cli/internal/graph/resolver.go` |
+| Core Services | `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, `cli/internal/video/service.go` |
+| Projection Inventory | `cli/internal/core/core.go`, `cli/internal/core/projection_subjects_test.go`, `cli/internal/events/projector.go` |
+| GraphQL API | `cli/internal/graph/*.graphqls`, `cli/internal/graph/resolver.go` |
 | Roles and Permissions | `cli/internal/core/permissions.go`, `cli/internal/core/can.go`, `cli/internal/rbac/` |
-| KV Buckets / Streams | `cli/internal/core/core.go` (initialization), specific domain files |
+| KV Buckets / Streams | `cli/internal/core/core.go`, `cli/internal/events/subjects.go`, `proto/chatto/core/v1/event.proto` |
 | Messages | `cli/internal/core/rooms.go` |
 | Encryption | `cli/internal/encryption/` |

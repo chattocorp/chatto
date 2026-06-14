@@ -1,5 +1,6 @@
 <script lang="ts">
   import { PaneHeader, Hint } from '$lib/ui';
+  import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
     notificationSounds,
@@ -96,6 +97,8 @@
 />
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
+  <NotificationLevelSettings />
+
   <!-- Push Notifications Section (only show if enabled on server) -->
   {#if pushEnabled}
     <div class="max-w-lg">

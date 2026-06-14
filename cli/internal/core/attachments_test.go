@@ -1240,6 +1240,24 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	if err != nil {
 		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
 	}
+	inheritedRoomDerivativeID := "A-inherited-room-derivative"
+	if err := core.Assets.Apply(&corev1.Event{
+		Id: "E-inherited-room-derivative-created",
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				OriginalBinaryAvailable: true,
+				Asset: &corev1.AssetRecord{
+					Id:          inheritedRoomDerivativeID,
+					Filename:    "inherited-thumb.png",
+					ContentType: "image/png",
+				},
+				ParentAssetId:  original.Id,
+				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
+			},
+		},
+	}, 999); err != nil {
+		t.Fatalf("Failed to project inherited-room derivative: %v", err)
+	}
 
 	thumbnailCacheKey := ImageCacheKey(AttachmentSignResource, thumbnail.Id, 128, 128, "cover")
 	if err := core.StoreCachedResize(ctx, thumbnailCacheKey, []byte("fake webp data")); err != nil {
@@ -1250,8 +1268,12 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 2 {
-		t.Fatalf("Expected original and thumbnail assets to be deleted, got %d", deleted)
+	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 3 {
+		t.Fatalf("Expected original and derivative assets to be deleted, got %d", deleted)
+	}
+
+	if roomID, ok := core.Assets.AssetRoomID(inheritedRoomDerivativeID); !ok || roomID != room.Id {
+		t.Fatalf("deleted inherited-room derivative room = %q, %v; want %q, true", roomID, ok, room.Id)
 	}
 
 	data, err := core.GetCachedResize(ctx, thumbnailCacheKey)

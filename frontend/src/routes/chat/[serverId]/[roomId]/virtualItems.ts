@@ -45,7 +45,8 @@ function getSystemGroupKind(event: RoomEventViewFragment): SystemGroupKind | nul
 export function buildVirtualItems(
   eventsWithMeta: EventWithMeta[],
   firstUnreadEventId: string | null,
-  hasReachedStart: boolean
+  hasReachedStart: boolean,
+  showStartMarker = true
 ): VirtualItem[] {
   const items: VirtualItem[] = [];
 
@@ -70,7 +71,7 @@ export function buildVirtualItems(
     openGroup = null;
   };
 
-  if (hasReachedStart && eventsWithMeta.length > 0) {
+  if (showStartMarker && hasReachedStart && eventsWithMeta.length > 0) {
     items.push({ type: 'start-marker', key: 'start-marker' });
   }
 

@@ -543,7 +543,7 @@ func TestRoomTimeline_Idempotency(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
+func TestRoomTimeline_VideoManifestTerminalStateDoesNotRegress(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	processed := &corev1.Event{
 		Id: "ENV-VIDEO-OK",
@@ -572,10 +572,10 @@ func TestRoomTimeline_VideoManifestLatestState(t *testing.T) {
 		},
 	}
 
-	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), failed, processed})
+	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), processed, failed})
 	manifest, ok := p.VideoAttachmentManifest("A-video")
 	if !ok || manifest.Succeeded == nil {
-		t.Fatalf("VideoAttachmentManifest = %#v, want processed manifest", manifest)
+		t.Fatalf("VideoAttachmentManifest = %#v, want original processed manifest", manifest)
 	}
 	video := manifest.Succeeded.GetVideo()
 	if video.GetDurationMs() != 1200 || len(video.GetVariants()) != 1 {
@@ -695,9 +695,9 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	stray := &corev1.Event{
 		Id:        "ENV-STRAY",
 		CreatedAt: timestamppb.New(fixedTime(1)),
-			Event: &corev1.Event_ServerMemberDeleted{
-				ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"},
-			},
+		Event: &corev1.Event_ServerMemberDeleted{
+			ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"},
+		},
 	}
 	if err := p.Apply(stray, 1); err != nil {
 		t.Fatalf("Apply: %v", err)

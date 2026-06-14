@@ -112,6 +112,15 @@ func (m *RoomService) waitForMyEventsReplayTail(ctx context.Context, pub *events
 	)
 }
 
+func (m *RoomService) waitForMyEventsReplayCurrent(ctx context.Context) error {
+	return waitForCurrentAll(ctx,
+		waitForProjection("room timeline", m.timelineProjector),
+		waitForProjection("threads", m.threadsProjector),
+		waitForProjection("room directory", m.directoryProjector),
+		waitForProjection("reactions", m.reactionsProjector),
+	)
+}
+
 func (m *RoomService) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)

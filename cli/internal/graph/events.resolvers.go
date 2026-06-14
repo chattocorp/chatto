@@ -20,11 +20,7 @@ import (
 
 // RoomID is the resolver for the roomId field.
 func (r *assetDeletedEventResolver) RoomID(ctx context.Context, obj *corev1.AssetDeletedEvent) (*string, error) {
-	declared, ok := r.core.RoomTimeline.AssetCreation(obj.GetAssetId())
-	if !ok || declared == nil {
-		return nil, nil
-	}
-	roomID := assetCreatedRoomID(declared)
+	roomID, _ := r.core.Assets.AssetRoomID(obj.GetAssetId())
 	if roomID == "" {
 		return nil, nil
 	}
@@ -121,7 +117,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		return nil, nil
 	}
 
-	if manifest, ok := r.core.RoomTimeline.VideoAttachmentManifest(obj.Id); ok && manifest != nil {
+	if manifest, ok := r.core.Assets.VideoAttachmentManifest(obj.Id); ok && manifest != nil {
 		if succeeded := manifest.Succeeded; succeeded != nil {
 			video := succeeded.GetVideo()
 			if video == nil {
@@ -153,7 +149,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 				variantID := v.GetAssetId()
 				var width, height int32
 				var size int64
-				if variantAsset, ok := r.core.RoomTimeline.AssetCreation(variantID); ok {
+				if variantAsset, ok := r.core.Assets.AssetCreation(variantID); ok {
 					asset := variantAsset.GetAsset()
 					width, height = assetDimensions(asset)
 					size = asset.GetSize()

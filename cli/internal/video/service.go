@@ -181,7 +181,7 @@ func (s *Service) resolveTools() error {
 // the scheduler) and stamped onto the terminal event so subscribers resolve
 // it off the event rather than via a projection lookup that would race.
 func (s *Service) processAsset(ctx context.Context, assetID, messageEventID string) error {
-	declared, ok := s.core.RoomTimeline.AssetCreation(assetID)
+	declared, ok := s.core.Assets.AssetCreation(assetID)
 	if !ok || declared.GetAsset() == nil {
 		return fmt.Errorf("asset %s is not declared", assetID)
 	}

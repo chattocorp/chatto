@@ -52,9 +52,11 @@ type RoomTimelineProjection struct {
 	// retracted. A direct echo retract removes the room-timeline copy
 	// without deleting the original thread reply's content.
 	hiddenEchoes map[string]struct{}
-	// videoManifests stores the latest durable processing outcome for each
-	// original video attachment. A processed event supersedes a failed event
-	// and vice versa; generated asset metadata lives in the event payload.
+	// These asset indexes are a compatibility bridge for 0.1.0 beta histories
+	// that wrote asset lifecycle events under evt.room.* before assets moved to
+	// evt.asset.*. New runtime reads should use AssetProjection; RoomTimeline
+	// keeps just enough legacy asset state to route old room-scoped asset events
+	// during replay.
 	assetCreations map[string]*corev1.AssetCreatedEvent
 	assetChildren  map[string][]string
 	videoManifests map[string]*VideoAttachmentManifest
@@ -253,7 +255,12 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
-			// Started clears any prior terminal state — treat as a retry.
+			if manifest := p.videoManifests[assetID]; manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil) {
+				return nil
+			}
+			// Started is ignored once a terminal outcome exists. A future
+			// explicit retry flow should carry attempt identity instead of
+			// letting duplicate workers regress completed state.
 			p.videoManifests[assetID] = &VideoAttachmentManifest{
 				Started: proto.Clone(ev.AssetProcessingStarted).(*corev1.AssetProcessingStartedEvent),
 			}
@@ -265,6 +272,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
 			}
+			if manifest.Succeeded != nil || manifest.Failed != nil {
+				return nil
+			}
 			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent)
 			manifest.Failed = nil
 			p.videoManifests[assetID] = manifest
@@ -275,6 +285,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			manifest := p.videoManifests[assetID]
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
+			}
+			if manifest.Succeeded != nil || manifest.Failed != nil {
+				return nil
 			}
 			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent)
 			manifest.Succeeded = nil
@@ -658,6 +671,20 @@ func (p *RoomTimelineProjection) MessageAssetsByAuthor(userID string) []MessageA
 		if entry == nil || entry.Event == nil || messageAuthorID(entry.Event, entry.Event.GetMessagePosted()) != userID {
 			continue
 		}
+		out = append(out, MessageAssetRef{
+			RoomID:         owner.roomID,
+			MessageEventID: owner.messageEventID,
+			AssetID:        assetID,
+		})
+	}
+	return out
+}
+
+func (p *RoomTimelineProjection) MessageAssetOwners() []MessageAssetRef {
+	p.RLock()
+	defer p.RUnlock()
+	out := make([]MessageAssetRef, 0, len(p.assetMessageOwner))
+	for assetID, owner := range p.assetMessageOwner {
 		out = append(out, MessageAssetRef{
 			RoomID:         owner.roomID,
 			MessageEventID: owner.messageEventID,
