@@ -383,8 +383,8 @@ func TestMediaServiceVideoProcessingLifecycle(t *testing.T) {
 		t.Fatalf("RecordAssetProcessingFailed returned error: %v", err)
 	}
 	manifest, ok = core.Assets.VideoAttachmentManifest(original.GetId())
-	if !ok || manifest.Failed == nil || manifest.Succeeded != nil {
-		t.Fatalf("manifest after failed = %#v, %v; want failed only", manifest, ok)
+	if !ok || manifest.Succeeded == nil || manifest.Failed != nil {
+		t.Fatalf("manifest after terminal failure race = %#v, %v; want original success preserved", manifest, ok)
 	}
 
 	if err := service.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, original.GetId()); err != nil {

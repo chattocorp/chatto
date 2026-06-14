@@ -1425,9 +1425,10 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string, afterSeq
 }
 
 type myEventsReplayCandidate struct {
-	roomID string
-	seq    uint64
-	event  *corev1.Event
+	roomID       string
+	seq          uint64
+	event        *corev1.Event
+	assetSubject bool
 }
 
 func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, afterSeq, throughSeq uint64, limit int) ([]myEventsReplayCandidate, error) {
@@ -1467,7 +1468,7 @@ func (c *ChattoCore) collectMissedEventsReplay(memberRooms map[string]struct{}, 
 		if !ok {
 			continue
 		}
-		if err := appendCandidate(myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event}); err != nil {
+		if err := appendCandidate(myEventsReplayCandidate{roomID: roomID, seq: entry.StreamSeq, event: entry.Event, assetSubject: true}); err != nil {
 			return nil, err
 		}
 	}
@@ -1493,7 +1494,13 @@ func (c *ChattoCore) sendMissedRoomEventsReplay(ctx context.Context, userID stri
 			return false
 		default:
 		}
-		event, ok := c.filterReadyEVTEvent(userID, memberRooms, candidate.roomID, candidate.event, candidate.seq)
+		var event EventEnvelope
+		var ok bool
+		if candidate.assetSubject {
+			event, ok = c.filterReadyEVTAssetSubjectEvent(userID, memberRooms, candidate.roomID, candidate.event, candidate.seq)
+		} else {
+			event, ok = c.filterReadyEVTRoomSubjectEvent(userID, memberRooms, candidate.roomID, candidate.event, candidate.seq)
+		}
 		if !ok {
 			continue
 		}
@@ -1630,7 +1637,7 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 			return nil, false
 		}
 
-		return c.filterReadyEVTEvent(userID, memberRooms, roomID, event, seq)
+		return c.filterReadyEVTRoomSubjectEvent(userID, memberRooms, roomID, event, seq)
 	}
 
 	if _, ok := events.ParseAssetSubject(msg.Subject); ok {
@@ -1649,7 +1656,7 @@ func (c *ChattoCore) filterLiveEVTEvent(ctx context.Context, userID string, memb
 		if !ok {
 			return nil, false
 		}
-		return c.filterReadyEVTEvent(userID, memberRooms, roomID, event, seq)
+		return c.filterReadyEVTAssetSubjectEvent(userID, memberRooms, roomID, event, seq)
 	}
 
 	return nil, false
@@ -1666,7 +1673,7 @@ func liveEVTMsgSeq(msg *nats.Msg) uint64 {
 	return seq
 }
 
-func (c *ChattoCore) filterReadyEVTEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
+func (c *ChattoCore) filterReadyEVTRoomSubjectEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
 	if roomID == "" || event == nil || !isDeliverableLiveEVTRoomEvent(event) || seq == 0 {
 		return nil, false
 	}
@@ -1692,6 +1699,16 @@ func (c *ChattoCore) filterReadyEVTEvent(userID string, memberRooms map[string]s
 		delete(memberRooms, roomID)
 	}
 	if !isMember {
+		return nil, false
+	}
+	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+}
+
+func (c *ChattoCore) filterReadyEVTAssetSubjectEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
+	if roomID == "" || event == nil || !isDeliverableLiveEVTAssetEvent(event) || seq == 0 {
+		return nil, false
+	}
+	if _, isMember := memberRooms[roomID]; !isMember {
 		return nil, false
 	}
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true

@@ -254,6 +254,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				"asset_id", id, "room_id", room_id, "actor_id", user_id)
 			continue
 		}
+		assetRoomID, ok := c.Assets.AssetRoomID(id)
+		if !ok || assetRoomID != room_id {
+			c.logger.Warn("PostMessage references asset outside room; dropping",
+				"asset_id", id, "asset_room_id", assetRoomID, "room_id", room_id, "actor_id", user_id)
+			continue
+		}
 		att := attachmentFromAsset(declared.GetAsset())
 		if att == nil {
 			continue

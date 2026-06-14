@@ -76,6 +76,9 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
+			if manifest := p.videoManifests[assetID]; manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil) {
+				return nil
+			}
 			p.videoManifests[assetID] = &VideoAttachmentManifest{
 				Started: proto.Clone(ev.AssetProcessingStarted).(*corev1.AssetProcessingStartedEvent),
 			}
@@ -87,6 +90,9 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
 			}
+			if manifest.Succeeded != nil || manifest.Failed != nil {
+				return nil
+			}
 			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent)
 			manifest.Failed = nil
 			p.videoManifests[assetID] = manifest
@@ -97,6 +103,9 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 			manifest := p.videoManifests[assetID]
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
+			}
+			if manifest.Succeeded != nil || manifest.Failed != nil {
+				return nil
 			}
 			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent)
 			manifest.Succeeded = nil

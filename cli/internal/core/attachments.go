@@ -1357,7 +1357,7 @@ func (c *MediaService) PublishAssetProcessing(ctx context.Context, kind RoomKind
 	if assetID == "" {
 		return fmt.Errorf("asset processing event missing asset id")
 	}
-	if err := c.appendAssetEventEventually(ctx, assetID, event); err != nil {
+	if err := c.appendAssetProcessingEvent(ctx, assetID, event); err != nil {
 		return fmt.Errorf("publish asset processing event: %w", err)
 	}
 	return nil
@@ -1436,6 +1436,49 @@ func (c *MediaService) appendAssetEventEventually(ctx context.Context, assetID s
 	}
 	pos := events.SubjectPosition(subject, seq)
 	return waitForPositionAll(ctx, pos, waitForProjection("assets", c.AssetsProjector))
+}
+
+func (c *MediaService) appendAssetProcessingEvent(ctx context.Context, assetID string, event *corev1.Event) error {
+	if assetID == "" {
+		return fmt.Errorf("asset event missing asset id")
+	}
+	for attempt := 0; attempt < 5; attempt++ {
+		agg := events.AssetAggregate(assetID)
+		filter := agg.AllEventsFilter()
+		tail, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return err
+		}
+		if !tail.IsZero() {
+			if err := waitForPositionAll(ctx, tail, waitForProjection("assets", c.AssetsProjector)); err != nil {
+				return err
+			}
+		}
+		if !c.shouldAppendAssetProcessingEvent(assetID, event) {
+			return nil
+		}
+		subject := agg.SubjectFor(event)
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, tail.Seq)
+		if err == nil {
+			return waitForPositionAll(ctx, events.SubjectPosition(subject, seq), waitForProjection("assets", c.AssetsProjector))
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+	}
+	return fmt.Errorf("append asset processing event after retries: %w", events.ErrConflict)
+}
+
+func (c *MediaService) shouldAppendAssetProcessingEvent(assetID string, event *corev1.Event) bool {
+	manifest, hasManifest := c.Assets.VideoAttachmentManifest(assetID)
+	switch event.GetEvent().(type) {
+	case *corev1.Event_AssetProcessingStarted:
+		return !hasManifest || manifest == nil || (manifest.Succeeded == nil && manifest.Failed == nil)
+	case *corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed:
+		return !hasManifest || manifest == nil || (manifest.Succeeded == nil && manifest.Failed == nil)
+	default:
+		return true
+	}
 }
 
 func assetIDOfLifecycleEvent(event *corev1.Event) string {

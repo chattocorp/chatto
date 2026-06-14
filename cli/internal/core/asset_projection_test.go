@@ -35,6 +35,33 @@ func TestAssetProjectionReadsCanonicalAndLegacyLifecycleEvents(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionTerminalProcessingStateDoesNotRegress(t *testing.T) {
+	projection := NewAssetProjection()
+	if err := projection.Apply(testCoreAssetCreatedEvent("R-assets", "A-video", "video/mp4"), 1); err != nil {
+		t.Fatalf("Apply asset created: %v", err)
+	}
+	if err := projection.Apply(&corev1.Event{
+		Id: "E-succeeded",
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"},
+		},
+	}, 2); err != nil {
+		t.Fatalf("Apply succeeded: %v", err)
+	}
+	if err := projection.Apply(&corev1.Event{
+		Id: "E-failed",
+		Event: &corev1.Event_AssetProcessingFailed{
+			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{AssetId: "A-video"},
+		},
+	}, 3); err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
+	manifest, ok := projection.VideoAttachmentManifest("A-video")
+	if !ok || manifest.Succeeded == nil || manifest.Failed != nil {
+		t.Fatalf("manifest = %#v, %v; want succeeded only", manifest, ok)
+	}
+}
+
 func TestAssetAggregateSubjectHelpers(t *testing.T) {
 	subject := events.AssetAggregate("A-123").Subject(events.EventAssetCreated)
 	assetID, ok := events.ParseAssetSubject(subject)

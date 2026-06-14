@@ -58,6 +58,38 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	}
 }
 
+func TestChattoCore_PostMessageRejectsAssetFromDifferentRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "crossasset-user", "Cross Asset User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sourceRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "source-assets", "Source")
+	if err != nil {
+		t.Fatalf("CreateRoom source: %v", err)
+	}
+	targetRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "target-assets", "Target")
+	if err != nil {
+		t.Fatalf("CreateRoom target: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, sourceRoom.Id); err != nil {
+		t.Fatalf("JoinRoom source: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, targetRoom.Id); err != nil {
+		t.Fatalf("JoinRoom target: %v", err)
+	}
+	attachment, err := core.UploadAttachment(ctx, user.Id, sourceRoom.Id, "cross-room.txt", "text/plain", bytes.NewReader([]byte("cross-room")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, targetRoom.Id, user.Id, "", []string{attachment.Id}, "", "", nil, false); err == nil {
+		t.Fatal("PostMessage with only a cross-room asset succeeded; want visible-content error")
+	}
+}
+
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -253,7 +253,12 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
-			// Started clears any prior terminal state — treat as a retry.
+			if manifest := p.videoManifests[assetID]; manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil) {
+				return nil
+			}
+			// Started is ignored once a terminal outcome exists. A future
+			// explicit retry flow should carry attempt identity instead of
+			// letting duplicate workers regress completed state.
 			p.videoManifests[assetID] = &VideoAttachmentManifest{
 				Started: proto.Clone(ev.AssetProcessingStarted).(*corev1.AssetProcessingStartedEvent),
 			}
@@ -265,6 +270,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
 			}
+			if manifest.Succeeded != nil || manifest.Failed != nil {
+				return nil
+			}
 			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent)
 			manifest.Failed = nil
 			p.videoManifests[assetID] = manifest
@@ -275,6 +283,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			manifest := p.videoManifests[assetID]
 			if manifest == nil {
 				manifest = &VideoAttachmentManifest{}
+			}
+			if manifest.Succeeded != nil || manifest.Failed != nil {
+				return nil
 			}
 			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent)
 			manifest.Succeeded = nil
