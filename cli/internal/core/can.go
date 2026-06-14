@@ -183,7 +183,7 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // members are exactly the users for whom this returns true. Active room bans
 // deny joins even when RBAC would otherwise allow them.
 func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	if kind == KindChannel && c.RoomBans.IsActive(roomID, userID, time.Now()) {
+	if kind == KindChannel && c.rooms().isRoomBanActive(roomID, userID, time.Now()) {
 		return false, nil
 	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomJoin)

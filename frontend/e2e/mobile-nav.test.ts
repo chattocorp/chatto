@@ -189,22 +189,22 @@ test.describe('Mobile Navigation', () => {
     await expect(hamburger).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Sidebar should be closed after resizing to mobile
-    const adminToggle = page.locator('nav').getByRole('button', { name: 'Administration' });
     const generalLink = page.locator('nav').getByRole('link', { name: 'General', exact: true });
-    await expect(adminToggle).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(generalLink).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Click hamburger to open sidebar
     await hamburger.click();
 
-    // Main server sidebar should now be visible, with the current admin
-    // section expanded because the browser session is on an admin page.
-    await expect(adminToggle).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // Dedicated admin sidebar should now be visible.
+    await expect(page.getByRole('link', { name: 'Back to Server' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
     await expect(generalLink).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Click hamburger to close sidebar again
     await hamburger.click();
 
     // Sidebar should be hidden
-    await expect(adminToggle).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(generalLink).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 });

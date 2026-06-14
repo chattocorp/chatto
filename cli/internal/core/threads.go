@@ -56,7 +56,7 @@ const maxThreadParticipants = 50
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
-	rootEntry, ok := c.RoomTimeline.Get(threadRootEventId)
+	rootEntry, ok := c.rooms().timelineEntry(threadRootEventId)
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventId)
 	}
@@ -64,7 +64,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventId)
 	}
 
-	replies := c.Threads.ThreadEvents(threadRootEventId)
+	replies := c.rooms().threadEvents(threadRootEventId)
 	events := make([]*corev1.Event, 0, 1+len(replies))
 	events = append(events, rootEntry.Event)
 	for _, r := range replies {
@@ -86,7 +86,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, roomID, threadRootEventID string, limit int, beforeSeq *uint64, afterSeq *uint64) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	rootEntry, ok := c.RoomTimeline.Get(threadRootEventID)
+	rootEntry, ok := c.rooms().timelineEntry(threadRootEventID)
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
@@ -97,7 +97,7 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
-	entries := c.Threads.ThreadEvents(threadRootEventID)
+	entries := c.rooms().threadEvents(threadRootEventID)
 	if afterSeq != nil && *afterSeq > 0 {
 		return threadReplyEventsAfter(entries, *afterSeq, limit), nil
 	}
@@ -329,7 +329,7 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 // participants for a thread root message. Returns zero values if the
 // thread has no replies. Derived from the ThreadProjection's cached summary.
 func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string) (*ThreadMetadata, error) {
-	return c.Threads.ThreadMetadata(rootEventId), nil
+	return c.rooms().threadMetadata(rootEventId), nil
 }
 
 // threadLastOpenedKey returns the RUNTIME_STATE key for tracking the latest
@@ -450,7 +450,7 @@ func (c *ChattoCore) threadReadMarkerTime(ctx context.Context, kind RoomKind, ro
 }
 
 func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string {
-	entries := c.Threads.ThreadEvents(threadRootEventID)
+	entries := c.rooms().threadEvents(threadRootEventID)
 	for i := len(entries) - 1; i >= 0; i-- {
 		event := entries[i].Event
 		if event == nil || event.GetMessagePosted() == nil {

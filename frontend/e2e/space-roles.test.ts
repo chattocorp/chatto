@@ -1106,7 +1106,7 @@ test.describe('Space Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('administration link hidden when user lacks room.manage permission', async ({ page }) => {
+    test('administration gear hidden when user lacks room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1124,11 +1124,11 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration group should NOT be visible
-      await expect(page.getByRole('button', { name: 'Administration' })).not.toBeVisible();
+      // Administration gear should NOT be visible
+      await expect(page.getByRole('link', { name: 'Server administration' })).not.toBeVisible();
     });
 
-    test('administration link visible when user has room.manage permission', async ({ page }) => {
+    test('administration gear visible when user has room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1149,8 +1149,8 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration group should be visible
-      await expect(page.getByRole('button', { name: 'Administration' })).toBeVisible();
+      // Administration gear should be visible
+      await expect(page.getByRole('link', { name: 'Server administration' })).toBeVisible();
     });
   });
 });

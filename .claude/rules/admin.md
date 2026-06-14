@@ -81,13 +81,13 @@ considered, never pending / unverified ones.
 
 ## Admin Frontend Patterns
 
-Admin routes live under `/chat/admin/` (integrated into the chat layout, similar to `/chat/settings/`). The admin layout (`routes/chat/admin/+layout.svelte`) handles permission checks and access-denied states. A sidebar navigates the admin sections with a "Back to Chat" link at the bottom; the link to admin in the chat header is only visible to admins.
+Admin routes live under `/chat/[serverId]/server-admin/` (integrated into the chat layout, similar to `/chat/[serverId]/settings/`). The admin layout (`routes/chat/[serverId]/server-admin/+layout.svelte`) handles permission checks and access-denied states. Admin-capable users enter through the gear icon in the server name pane header; once inside server-admin, the server sidebar switches to dedicated admin navigation with a `Back to Server` affordance.
 
 ### Panel Component Scope
 
 The `Panel` component from `$lib/components/admin` is used in **both** instance admin pages AND space settings pages. This keeps visual consistency across all administrative interfaces:
 
-- **Instance admin** (`/chat/admin/*`) — system-wide configuration
+- **Server admin** (`/chat/[serverId]/server-admin/*`) — system-wide configuration
 - **Space settings** (`/chat/[spaceId]/settings/*`) — per-space configuration
 
 When updating `Panel`, remember changes affect both areas.

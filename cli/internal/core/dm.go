@@ -213,10 +213,10 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// Reaching the last UserJoinedRoom means the earlier RoomCreated has also
 	// landed in the room directory.
 	lastSubject := entries[len(entries)-1].Subject
-	if err := c.roomService.waitForDirectory(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+	if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 		c.logger.Warn("DM room directory projection wait failed", "error", err, "room_id", roomID)
 	}
-	if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+	if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 		c.logger.Warn("DM room timeline projection wait failed", "error", err, "room_id", roomID)
 	}
 

@@ -63,11 +63,11 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 		},
 	})
 
-	banPos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), banEvent)
+	banPos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), banEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish RoomMemberBannedEvent: %w", err)
 	}
-	if err := c.roomService.waitForTimeline(ctx, banPos); err != nil {
+	if err := c.rooms().waitForTimeline(ctx, banPos); err != nil {
 		return nil, err
 	}
 
@@ -78,15 +78,15 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 			},
 		},
 	})
-	leavePos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), leaveEvent)
+	leavePos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), leaveEvent)
 	if err != nil {
 		return nil, fmt.Errorf("publish UserLeftRoomEvent for room ban: %w", err)
 	}
-	if err := c.roomService.waitForTimeline(ctx, leavePos); err != nil {
+	if err := c.rooms().waitForTimeline(ctx, leavePos); err != nil {
 		return nil, err
 	}
 
-	ban, ok := c.RoomBans.ActiveBan(roomID, targetUserID, time.Now())
+	ban, ok := c.rooms().activeRoomBan(roomID, targetUserID, time.Now())
 	if !ok {
 		return nil, fmt.Errorf("room ban projection did not contain newly published ban")
 	}
@@ -109,7 +109,7 @@ func (c *ChattoCore) UnbanRoomMember(ctx context.Context, actorID string, kind R
 	if len([]rune(reason)) > MaxRoomBanReasonLength {
 		return fmt.Errorf("unban reason exceeds %d characters", MaxRoomBanReasonLength)
 	}
-	if _, ok := c.RoomBans.ActiveBan(roomID, targetUserID, time.Now()); !ok {
+	if _, ok := c.rooms().activeRoomBan(roomID, targetUserID, time.Now()); !ok {
 		return nil
 	}
 
@@ -122,11 +122,11 @@ func (c *ChattoCore) UnbanRoomMember(ctx context.Context, actorID string, kind R
 			},
 		},
 	})
-	pos, err := c.roomService.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
 	if err != nil {
 		return fmt.Errorf("publish RoomMemberUnbannedEvent: %w", err)
 	}
-	if err := c.roomService.waitForTimeline(ctx, pos); err != nil {
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
 		return err
 	}
 	return nil
@@ -135,7 +135,7 @@ func (c *ChattoCore) UnbanRoomMember(ctx context.Context, actorID string, kind R
 func (c *ChattoCore) ListActiveRoomBans(_ context.Context, roomID *string) ([]RoomBan, error) {
 	now := time.Now()
 	if roomID != nil && *roomID != "" {
-		return c.RoomBans.ActiveRoomBans(*roomID, now), nil
+		return c.rooms().activeRoomBans(*roomID, now), nil
 	}
-	return c.RoomBans.ActiveBans(now), nil
+	return c.rooms().activeBans(now), nil
 }

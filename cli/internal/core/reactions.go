@@ -122,7 +122,7 @@ type ReactionSummary struct {
 // Returns a slice of ReactionSummary, each containing the shortcode name and list of user IDs.
 // Results are ordered by the time each emoji was first added (earliest first).
 func (c *ChattoCore) GetReactions(ctx context.Context, messageEventID string) ([]ReactionSummary, error) {
-	return c.Reactions.Reactions(messageEventID), nil
+	return c.rooms().reactionsForMessage(messageEventID), nil
 }
 
 // GetReactionsBatch returns reactions for multiple messages in a single pass.
@@ -131,7 +131,7 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, eventIDs []string) (
 	if len(eventIDs) == 0 {
 		return make(map[string][]ReactionSummary), nil
 	}
-	return c.Reactions.ReactionsBatch(eventIDs), nil
+	return c.rooms().reactionsBatch(eventIDs), nil
 }
 
 // ============================================================================
@@ -180,11 +180,11 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 		if err != nil {
 			return false, fmt.Errorf("read OCC filter seq: %w", err)
 		}
-		if err := c.roomService.waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+		if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
 			return false, err
 		}
 
-		exists := c.Reactions.HasReaction(messageEventID, emoji, userID)
+		exists := c.rooms().hasReaction(messageEventID, emoji, userID)
 		if add && exists {
 			return false, nil
 		}
@@ -194,7 +194,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, filterSeq)
 		if err == nil {
-			if err := c.roomService.waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
+			if err := c.rooms().waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
 				return false, fmt.Errorf("wait for reactions projection: %w", err)
 			}
 			return true, nil
