@@ -312,6 +312,12 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		}
 		if err := s.ensureCSRFToken(c, session); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
+			session = sessions.Default(c)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 			return
 		}
