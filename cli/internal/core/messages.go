@@ -228,8 +228,11 @@ func (c *ChattoCore) appendThreadReplyEcho(
 				HasOCC:        true,
 			},
 			{
-				Subject: messageSubject,
-				Event:   echoEvent,
+				Subject:       messageSubject,
+				Event:         echoEvent,
+				ExpectedSeq:   expectedSeq,
+				FilterSubject: messageSubject,
+				HasOCC:        true,
 			},
 		})
 		if err == nil {
