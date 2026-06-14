@@ -53,7 +53,7 @@ input VoiceCallIntentInput {
 }
 
 # ==============================================================================
-# VOICE CALL EVENTS (Live-only)
+# VOICE CALL EVENTS (Durable room facts and live delivery)
 # ==============================================================================
 
 """

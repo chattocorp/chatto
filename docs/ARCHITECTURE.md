@@ -97,6 +97,7 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 | `RBACService`           | [`rbac_service.go`](../cli/internal/core/rbac_service.go)                                                                    | RBAC projection readiness for role, assignment, and permission writes                                                       |
 | `MentionablesService`   | [`mentionables_projection.go`](../cli/internal/core/mentionables_projection.go)                                              | Global mention-handle namespace lookup and readiness                                                                        |
 | `PresenceService`       | [`presence_service.go`](../cli/internal/core/presence_service.go), [`presence_hub.go`](../cli/internal/core/presence_hub.go) | Per-process watcher/fanout for live presence state in `MEMORY_CACHE`                                                       |
+| `CallService`           | [`call_service.go`](../cli/internal/core/call_service.go), [`voice.go`](../cli/internal/core/voice.go)                       | Durable LiveKit call join/leave facts, call-state projection readiness, E2EE room key allocation, and LiveKit reconciliation |
 | `MediaService`          | [`media_service.go`](../cli/internal/core/media_service.go), [`attachments.go`](../cli/internal/core/attachments.go)          | Attachment/media binary storage, signed asset URLs, transformed image cache operations                                      |
 | `AssetService`          | [`asset_service.go`](../cli/internal/core/asset_service.go), [`asset_projection.go`](../cli/internal/core/asset_projection.go)  | Durable asset lifecycle facts, processing transitions, tombstones, derivative cleanup ordering, asset projection readiness |
 | `video.Service`         | [`service.go`](../cli/internal/video/service.go)                                                                             | Process-local video/animated-GIF processing; emits asset processing result events                                           |
@@ -115,6 +116,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, asset reconnect replay |
 | Threads            | Threads              | `evt.room.>`, `evt.user.*.user_key_shredded`               | Per-thread reply logs, summaries, participants, reply counts                               |
 | Reactions          | Reactions            | `evt.room.*.reaction_added`, `evt.room.*.reaction_removed` | Current per-message reaction sets and summaries                                            |
+| Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call participants and active room IDs                                      |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
 | Users              | Users                | `evt.user.>`                                               | Account/profile/auth lookup state, verified emails, OAuth subjects, encrypted user PII     |
 | Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded` | Active and shredded user DEK epochs for message bodies and user PII                        |
@@ -238,6 +240,13 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `subscribeToPush`                 | Register a Web Push subscription for this device.                                            |
 | `unsubscribeFromPush`             | Remove a previously-registered Web Push subscription.                                        |
 
+**Voice calls** ([`voice.graphqls`](../cli/internal/graph/voice.graphqls))
+
+| Mutation                          | Description                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| `joinVoiceCall`                   | Record the caller's intent to join a LiveKit room call as a durable room fact.               |
+| `leaveVoiceCall`                  | Record the caller's intent to leave a LiveKit room call as a durable room fact.              |
+
 **Room groups** ([`room_groups.graphqls`](../cli/internal/graph/room_groups.graphqls))
 
 | Mutation                          | Description                                                                                  |
@@ -317,7 +326,8 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 is the source of truth and reads come from in-memory projections. If event
 publishing fails, the write fails. Current aggregates include room
 membership/metadata, room groups/layout, server config, users,
-messages/threads, reactions, assets, RBAC, and auth workflow audit facts.
+messages/threads, reactions, voice call participation, assets, RBAC, and
+auth workflow audit facts.
 
 ### Consistency Model
 
@@ -361,7 +371,7 @@ Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/in
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notifications, wrapped app DEKs |
-| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence and active voice-call state                               |
+| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence and LiveKit E2EE room keys                                |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys; excluded from backups                              |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Asset binaries for avatars, branding, link previews, attachments, derivatives |
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
@@ -456,6 +466,8 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
 | `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
 | `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |
+| `evt.room.{roomId}.call_joined`                              | `CallParticipantJoinedEvent`                        |
+| `evt.room.{roomId}.call_left`                                | `CallParticipantLeftEvent`                          |
 | `evt.room.{roomId}.room_member_banned`                       | `RoomMemberBannedEvent`                             |
 | `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
 | `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`                                  |
