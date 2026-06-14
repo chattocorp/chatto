@@ -1,5 +1,6 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
 
   let {
     items,
@@ -9,7 +10,13 @@
     emptyMessage = 'No data',
     onRowClick,
     getKey,
-    hoverable = true
+    hoverable = true,
+    hasMore = false,
+    loadingMore = false,
+    onLoadMore,
+    loadMoreRoot,
+    loadMoreRootMargin = '0px 0px 160px 0px',
+    loadingMoreMessage = 'Loading more...'
   }: {
     items: T[];
     columns: number;
@@ -25,7 +32,21 @@
      * would be visual noise.
      */
     hoverable?: boolean;
+    /** Whether another page can be loaded when the table end is reached. */
+    hasMore?: boolean;
+    /** Whether the next page is currently loading. */
+    loadingMore?: boolean;
+    /** Called when the trailing sentinel reaches the configured scroll root. */
+    onLoadMore?: () => void | Promise<void>;
+    /** Scroll container used as the IntersectionObserver root. */
+    loadMoreRoot?: HTMLElement;
+    /** IntersectionObserver root margin for the trailing sentinel. */
+    loadMoreRootMargin?: string;
+    /** Compact status text shown in the trailing loading row. */
+    loadingMoreMessage?: string;
   } = $props();
+
+  let loadMoreInFlight = false;
 
   // Default key function: use id if present, otherwise use index
   function defaultGetKey(item: T, index: number): string | number {
@@ -36,6 +57,41 @@
   }
 
   const keyFn = $derived(getKey ?? defaultGetKey);
+
+  function triggerLoadMore(callback = onLoadMore) {
+    if (!hasMore || loadingMore || loadMoreInFlight || !callback) return;
+
+    loadMoreInFlight = true;
+    try {
+      void Promise.resolve(callback()).finally(() => {
+        loadMoreInFlight = false;
+      });
+    } catch (e) {
+      loadMoreInFlight = false;
+      throw e;
+    }
+  }
+
+  const loadMoreSentinel: Attachment<HTMLTableRowElement> = (element) => {
+    const root = loadMoreRoot;
+    if (!root || !onLoadMore || !hasMore || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          triggerLoadMore(onLoadMore);
+        }
+      },
+      {
+        root,
+        rootMargin: loadMoreRootMargin
+      }
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  };
 </script>
 
 <table class="w-full [&_thead_th]:whitespace-nowrap">
@@ -61,5 +117,25 @@
         <td colspan={columns} class="px-4 py-8 text-center text-muted">{emptyMessage}</td>
       </tr>
     {/each}
+
+    {#if hasMore || loadingMore}
+      <tr
+        class="border-b border-border last:border-0"
+        aria-hidden={!loadingMore}
+        {@attach hasMore ? loadMoreSentinel : undefined}
+      >
+        <td
+          colspan={columns}
+          class={loadingMore ? 'px-4 py-3 text-center text-sm text-muted' : 'h-px p-0'}
+        >
+          {#if loadingMore}
+            <span class="inline-flex items-center gap-2" aria-live="polite">
+              <span class="iconify animate-spin text-base uil--spinner" aria-hidden="true"></span>
+              {loadingMoreMessage}
+            </span>
+          {/if}
+        </td>
+      </tr>
+    {/if}
   </tbody>
 </table>

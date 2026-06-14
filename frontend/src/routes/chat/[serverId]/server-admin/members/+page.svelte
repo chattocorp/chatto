@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -18,7 +18,6 @@
   const userSettings = getUserSettings();
   const connection = useConnection();
   const PAGE_SIZE = 20;
-  const AUTO_LOAD_THRESHOLD_PX = 160;
 
   const ServerAdminMembersDocument = graphql(`
     query ServerAdminMembers($search: String, $limit: Int!, $offset: Int!) {
@@ -57,7 +56,7 @@
   let error = $state<string | null>(null);
   let requestId = 0;
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
-  let scrollContainer: HTMLDivElement | undefined;
+  let scrollContainer = $state<HTMLDivElement>();
 
   onMount(() => {
     void loadFirstPage('');
@@ -126,8 +125,6 @@
     } finally {
       if (currentRequest === requestId) {
         loading = false;
-        await tick();
-        maybeLoadMore();
       }
     }
   }
@@ -140,7 +137,6 @@
     const offset = users.length;
     loadingMore = true;
     error = null;
-    let loadedPage = false;
 
     try {
       const result = await queryMembers(search, offset);
@@ -162,31 +158,13 @@
       users = [...users, ...members.users.filter((user) => !seen.has(user.id))];
       totalCount = members.totalCount;
       hasMore = members.hasMore;
-      loadedPage = true;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : 'Failed to load more members';
     } finally {
       if (currentRequest === requestId) {
         loadingMore = false;
-        if (loadedPage) {
-          await tick();
-          maybeLoadMore();
-        }
       }
-    }
-  }
-
-  function isNearScrollEnd(): boolean {
-    if (!scrollContainer) return false;
-    const scrollableDistance = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-    if (scrollableDistance <= 0) return false;
-    return scrollableDistance - scrollContainer.scrollTop <= AUTO_LOAD_THRESHOLD_PX;
-  }
-
-  function maybeLoadMore() {
-    if (isNearScrollEnd()) {
-      void loadMore();
     }
   }
 
@@ -211,13 +189,13 @@
 <PageTitle title="Members | Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Members" subtitle="View and manage server members and their roles" showMobileNav />
+  <PaneHeader
+    title="Members"
+    subtitle="View and manage server members and their roles"
+    showMobileNav
+  />
 
-  <div
-    class="min-h-0 flex-1 overflow-y-auto"
-    bind:this={scrollContainer}
-    onscroll={maybeLoadMore}
-  >
+  <div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollContainer}>
     <div class="flex flex-col gap-6 p-6">
       <!-- Search input -->
       <div class="max-w-md">
@@ -241,6 +219,11 @@
             items={users}
             columns={4}
             emptyMessage="No members found"
+            hasMore={hasMore && !error}
+            {loadingMore}
+            onLoadMore={loadMore}
+            loadMoreRoot={scrollContainer}
+            loadingMoreMessage="Loading more members..."
             onRowClick={(user) =>
               goto(
                 resolve('/chat/[serverId]/server-admin/members/[userId]', {
@@ -287,13 +270,6 @@
           <div class="text-sm text-muted">
             Showing {users.length} of {totalCount} member(s)
           </div>
-
-          {#if loadingMore}
-            <div class="flex items-center gap-2 text-sm text-muted" aria-live="polite">
-              <span class="iconify text-base uil--spinner animate-spin" aria-hidden="true"></span>
-              Loading more members...
-            </div>
-          {/if}
         </div>
       {/if}
     </div>

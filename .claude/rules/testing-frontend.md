@@ -39,6 +39,10 @@ Co-locate next to the source. The Vitest project split is purely by filename suf
 
 `.test.ts` and `.spec.ts` are both accepted; existing files use both. Match the surrounding directory.
 
+In SvelteKit route directories, don't name specs with a leading `+` (for example, avoid
+`+page.svelte.spec.ts`). SvelteKit reserves `+*` filenames for route modules and `svelte-kit sync`
+will reject them. Use a nearby descriptive name such as `members.page.svelte.spec.ts` instead.
+
 ## Use the shared helpers
 
 `frontend/src/lib/test-utils/` exists to keep boilerplate out of specs. Don't re-roll any of these per file:
