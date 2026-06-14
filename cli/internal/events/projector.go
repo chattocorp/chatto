@@ -62,6 +62,12 @@ func (*MemoryProjection) Restore(_ []byte) error { return nil }
 // Idempotency: Apply(e, n) followed by Apply(e, n) must produce the same
 // state as a single Apply(e, n). Snapshots aren't implemented yet, but the
 // contract holds now so we don't have to revisit it later.
+//
+// Event immutability: core event protobufs are durable facts. Apply
+// implementations must treat the input event as read-only, and projection
+// read APIs that expose event pointers rely on callers treating those events
+// as read-only as well. Projections that derive mutable current-state values
+// from events should copy those values before mutating or returning them.
 type Projection interface {
 	// Subjects returns the subject filter(s) this projection consumes.
 	// Wildcards are supported (e.g. "server.evt.room.>").

@@ -1734,81 +1734,20 @@ func (c *ChattoCore) filterReadyEVTAssetSubjectEvent(userID string, memberRooms 
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
 
-func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
-	switch event.GetEvent().(type) {
-	case *corev1.Event_RoomCreated,
-		*corev1.Event_RoomUpdated,
-		*corev1.Event_RoomDeleted,
-		*corev1.Event_RoomArchived,
-		*corev1.Event_RoomUnarchived,
-		*corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom,
-		*corev1.Event_ThreadCreated,
-		*corev1.Event_MessagePosted,
-		*corev1.Event_MessageEdited,
-		*corev1.Event_MessageRetracted,
-		*corev1.Event_ReactionAdded,
-		*corev1.Event_ReactionRemoved,
-		*corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded,
-		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted,
-		*corev1.Event_VoiceCallStarted,
-		*corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft,
-		*corev1.Event_VoiceCallEnded:
-		return true
-	default:
-		return false
-	}
-}
-
-func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
-	switch event.GetEvent().(type) {
-	case *corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded,
-		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
-		return true
-	default:
-		return false
-	}
-}
-
 func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
-	switch event.GetEvent().(type) {
-	case *corev1.Event_VoiceCallStarted, *corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft, *corev1.Event_VoiceCallEnded:
-		return c.CallStateProjector.WaitFor(ctx, pos)
-	}
-
-	if err := c.roomService.waitForTimelineAndThreads(ctx, pos); err != nil {
+	if err := c.roomService.waitForLiveEVTEvent(ctx, pos, event); err != nil {
 		return err
 	}
 
-	if isAssetLifecycleEvent(event) {
-		if err := waitForPositionAll(ctx, pos, waitForProjection("assets", c.AssetsProjector)); err != nil {
+	if eventNeedsCallStateProjection(event) {
+		if err := c.CallStateProjector.WaitFor(ctx, pos); err != nil {
 			return err
 		}
 	}
 
-	switch event.GetEvent().(type) {
-	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
-		if err := c.roomService.waitForReactions(ctx, pos); err != nil {
-			return err
-		}
-	}
-	switch event.GetEvent().(type) {
-	case *corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom,
-		*corev1.Event_RoomMemberBanned,
-		*corev1.Event_RoomMemberUnbanned,
-		*corev1.Event_RoomCreated,
-		*corev1.Event_RoomUpdated,
-		*corev1.Event_RoomArchived,
-		*corev1.Event_RoomUnarchived,
-		*corev1.Event_RoomDeleted:
-		if err := c.roomService.waitForDirectory(ctx, pos); err != nil {
+	if isAssetLifecycleEvent(event) {
+		if err := c.assetLifecycle().waitForAssets(ctx, pos); err != nil {
 			return err
 		}
 	}
@@ -1816,7 +1755,7 @@ func (c *ChattoCore) waitForLiveEVTRoomEvent(ctx context.Context, subject string
 }
 
 func (c *ChattoCore) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
-	return waitForPositionAll(ctx, events.SubjectPosition(subject, seq), waitForProjection("assets", c.AssetsProjector))
+	return c.assetLifecycle().waitForAssets(ctx, events.SubjectPosition(subject, seq))
 }
 
 // isAuthorizedForLiveEvent checks if a user is authorized to receive a

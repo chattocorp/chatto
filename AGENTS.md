@@ -18,7 +18,7 @@ This codebase keeps agent-relevant context in six places. Read the one that fits
 Please use the following facts when making decisions about features or implementation:
 
 - This project is currently in early development.
-- The 0.1.x event-sourcing architecture has been rolled out to all existing Chatto servers/instances.
+- The 0.1.x event-sourcing architecture has been rolled out to all existing Chatto servers/instances, which are now running in the 0.1.0-beta.x stream.
 - Pre-0.1.0 boot importers and their verification settings have been removed. Do not add new code that depends on importing a 0.0.x server into the 0.1.x event-sourced shape.
 - We're preparing a release of 0.1.0, the first public version that users can self-host or provision through Chatto Cloud. A milestone of the same name is available on GitHub to track work related to this release.
 - The focus of 0.1.x is on stabilizing the core data model and APIs, improving documentation, and building out a solid foundation for future features. We want to avoid adding new features that aren't necessary for this stabilization effort.
@@ -34,6 +34,7 @@ Please update this section as the project evolves, and refer to it when making d
 ### Specific Rules for Frontend Code
 
 - Checkboxes and similar in the Server Admin UI should save their change immediately on click, confirmed through a toast notification.
+- Implement pagination as automatic "load more" (ie. when the edge of the container is reached), not manual/page-based pagination.
 - Use "Save" buttons only for forms with multiple fields that need to be submitted together, and make sure they are disabled until a change is made.
 - Never silence linter warnings.
 - Avoid Svelte's $effect like the plague. In almost all cases, there are better Svelte tools to do the same thing (eg. $derived, attachments, ...)

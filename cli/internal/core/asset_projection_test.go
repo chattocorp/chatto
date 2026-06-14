@@ -137,6 +137,25 @@ func TestAssetProjectionReplayLimitCountsOnlyMemberRoomEvents(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionApplyDoesNotMutateInputEvents(t *testing.T) {
+	projection := NewAssetProjection()
+	created := testCoreAssetCreatedEvent("R-assets", "A-source", "video/mp4")
+	started := testCoreAssetProcessingStartedEvent("E-start-source", "A-source")
+	assertApplyDoesNotMutateEvent(t, projection, created, 1)
+	assertApplyDoesNotMutateEvent(t, projection, started, 2)
+
+	entries := projection.AssetEventsBetween(0, 2, isDeliverableLiveEVTAssetEvent, 1)
+	if len(entries) != 1 {
+		t.Fatalf("AssetEventsBetween entries = %d, want 1", len(entries))
+	}
+	if got := entries[0].Event.GetId(); got != "E-start-source" {
+		t.Fatalf("replay event id = %q, want E-start-source", got)
+	}
+	if got := assetIDOfLifecycleEvent(entries[0].Event); got != "A-source" {
+		t.Fatalf("replay asset id = %q, want A-source", got)
+	}
+}
+
 func testCoreAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1.Event {
 	return &corev1.Event{
 		Id: "E-created-" + attachmentID,

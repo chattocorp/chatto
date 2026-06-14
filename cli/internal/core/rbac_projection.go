@@ -18,7 +18,7 @@ type RBACProjection struct {
 	roles       map[string]*corev1.Role
 	assignments map[string]map[string]struct{} // userID -> roleName set
 	decisions   map[rbacDecisionKey]DecisionKind
-	eventIDSeen map[string]struct{}
+	eventIDSeen eventIDSet
 }
 
 type rbacDecisionKey struct {
@@ -34,7 +34,7 @@ func NewRBACProjection() *RBACProjection {
 		roles:       make(map[string]*corev1.Role),
 		assignments: make(map[string]map[string]struct{}),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
-		eventIDSeen: make(map[string]struct{}),
+		eventIDSeen: newEventIDSet(),
 	}
 }
 
@@ -46,18 +46,11 @@ func (p *RBACProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
-	if id := event.GetId(); id != "" {
-		p.Lock()
-		if _, ok := p.eventIDSeen[id]; ok {
-			p.Unlock()
-			return nil
-		}
-		p.eventIDSeen[id] = struct{}{}
-		p.Unlock()
-	}
-
 	p.Lock()
 	defer p.Unlock()
+	if p.eventIDSeen.seenOrMark(event) {
+		return nil
+	}
 
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RbacRoleCreated:

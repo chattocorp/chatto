@@ -16,13 +16,13 @@ import (
 type ReactionProjection struct {
 	events.MemoryProjection
 	byMessage map[string]map[string]map[string]int64 // message event ID -> emoji -> user ID -> added timestamp
-	seen      map[string]struct{}
+	seen      eventIDSet
 }
 
 func NewReactionProjection() *ReactionProjection {
 	return &ReactionProjection{
 		byMessage: make(map[string]map[string]map[string]int64),
-		seen:      make(map[string]struct{}),
+		seen:      newEventIDSet(),
 	}
 }
 
@@ -47,11 +47,8 @@ func (p *ReactionProjection) Apply(event *corev1.Event, _ uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if id := event.GetId(); id != "" {
-		if _, ok := p.seen[id]; ok {
-			return nil
-		}
-		p.seen[id] = struct{}{}
+	if p.seen.seenOrMark(event) {
+		return nil
 	}
 
 	switch e := payload.(type) {
