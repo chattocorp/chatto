@@ -6,6 +6,7 @@ import {
 } from './fixtures/graphqlHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
+import * as routes from './routes';
 
 /**
  * Helper to set a server notification level via GraphQL mutation.
@@ -50,8 +51,8 @@ async function setRoomNotificationLevel(
   expect(response.ok()).toBeTruthy();
 }
 
-test.describe('Notification Level - Preferences Page', () => {
-  test('preferences page renders with space-level and room sections', async ({
+test.describe('Notification Level - Notifications Settings', () => {
+  test('notifications settings page renders with server-level and room sections', async ({
     page,
     chatPage
   }) => {
@@ -59,12 +60,11 @@ test.describe('Notification Level - Preferences Page', () => {
     await chatPage.goto();
     await chatPage.createSpace('Test Space');
 
-    // Navigate to preferences page
-    await page.getByRole('link', { name: 'Preferences' }).click();
-    await page.waitForURL(/\/preferences/);
+    // Navigate to notification settings page
+    await page.goto(routes.settingsNotifications);
 
     // Verify page heading
-    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
 
     // Verify server notification level section
     await expect(page.getByText('Server Notification Level')).toBeVisible();
@@ -88,9 +88,8 @@ test.describe('Notification Level - Preferences Page', () => {
     await chatPage.goto();
     await chatPage.createSpace('Test Space');
 
-    // Navigate to preferences
-    await page.getByRole('link', { name: 'Preferences' }).click();
-    await page.waitForURL(/\/preferences/);
+    // Navigate to notification settings
+    await page.goto(routes.settingsNotifications);
 
     // Normal should be selected by default (check for accent border on button)
     const normalButton = page.locator('button', { hasText: 'Normal' }).filter({
@@ -114,7 +113,7 @@ test.describe('Notification Level - Preferences Page', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
     const mutedButtonReloaded = page.locator('button', { hasText: 'Muted' }).filter({
       hasText: 'No notifications'
     });
@@ -126,9 +125,8 @@ test.describe('Notification Level - Preferences Page', () => {
     await chatPage.goto();
     await chatPage.createSpace('Test Space');
 
-    // Navigate to preferences
-    await page.getByRole('link', { name: 'Preferences' }).click();
-    await page.waitForURL(/\/preferences/);
+    // Navigate to notification settings
+    await page.goto(routes.settingsNotifications);
 
     // Find the room override row for "general" and change its select
     const generalRow = page.getByTestId('room-notification-general');
@@ -147,19 +145,26 @@ test.describe('Notification Level - Preferences Page', () => {
 
     // Verify it persists after reload
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
     const generalRowAfterReload = page.getByTestId('room-notification-general');
     await expect(generalRowAfterReload.locator('select')).toHaveValue('MUTED');
   });
 
-  test('preferences link is visible in space sidebar', async ({ page, chatPage }) => {
+  test('notification levels are available from settings sidebar', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Test Space');
 
-    // Verify Preferences link is visible in sidebar
-    const preferencesLink = page.getByRole('link', { name: 'Preferences' });
-    await expect(preferencesLink).toBeVisible();
+    await page.goto(routes.settings);
+
+    const notificationsLink = page
+      .locator('nav')
+      .getByRole('link', { name: 'Notifications', exact: true });
+    await expect(notificationsLink).toBeVisible();
+    await notificationsLink.click();
+
+    await page.waitForURL(routes.settingsNotifications);
+    await expect(page.getByText('Server Notification Level')).toBeVisible();
   });
 });
 
