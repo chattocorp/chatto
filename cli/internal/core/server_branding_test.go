@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -12,7 +13,12 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	logo := &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}}}
+	logo := &corev1.AssetRecord{
+		Id:          "logo-asset",
+		Filename:    "logo.webp",
+		ContentType: "image/webp",
+		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+	}
 	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
 		t.Fatalf("SetServerLogo failed: %v", err)
 	}
@@ -24,7 +30,6 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	if !proto.Equal(logo, got) {
 		t.Fatalf("GetServerLogo = %+v, want %+v", got, logo)
 	}
-	assertLegacyKeyAbsent(t, core.storage.serverKV, serverLogoKey, "legacy logo KV key")
 	cfg, err := core.ConfigManager().GetServerConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetServerConfig after logo failed: %v", err)
@@ -57,5 +62,35 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	}
 	if got != nil {
 		t.Fatalf("expected logo to be cleared, got %+v", got)
+	}
+}
+
+func TestChattoCore_DeleteServerBranding_CleansUpCache(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	logo, err := core.UploadServerLogo(ctx, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("UploadServerLogo failed: %v", err)
+	}
+	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
+		t.Fatalf("SetServerLogo failed: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(ServerAssetSignResource, logo.GetId(), 64, 64, "cover")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("StoreCachedResize failed: %v", err)
+	}
+
+	if err := core.DeleteServerLogo(ctx, "admin"); err != nil {
+		t.Fatalf("DeleteServerLogo failed: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("GetCachedResize failed: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Server branding cache entry should be deleted")
 	}
 }

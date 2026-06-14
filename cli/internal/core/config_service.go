@@ -36,7 +36,7 @@ func (s *ConfigService) prepareSubject(ctx context.Context, subject string) (eve
 		return events.Aggregate{}, "", 0, fmt.Errorf("read config OCC seq: %w", err)
 	}
 	if expectedSeq > 0 {
-		if err := s.projector.WaitForSeq(ctx, expectedSeq); err != nil {
+		if err := s.waitFor(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
 			return events.Aggregate{}, "", 0, fmt.Errorf("wait for config projection: %w", err)
 		}
 	}
@@ -65,7 +65,8 @@ func (s *ConfigService) appendEventsAt(ctx context.Context, agg events.Aggregate
 		return err
 	}
 	if len(seqs) > 0 {
-		if err := s.projector.WaitForSeq(ctx, seqs[len(seqs)-1]); err != nil {
+		lastSubject := entries[len(entries)-1].Subject
+		if err := s.waitFor(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 			return fmt.Errorf("wait for config projection: %w", err)
 		}
 	}
@@ -101,6 +102,10 @@ func (s *ConfigService) updateSubject(
 		}
 	}
 	return ErrConfigConflict
+}
+
+func (s *ConfigService) waitFor(ctx context.Context, pos events.StreamPosition) error {
+	return waitForPositionAll(ctx, pos, waitForProjection("config", s.projector))
 }
 
 func validateConfigSubject(subject string) error {

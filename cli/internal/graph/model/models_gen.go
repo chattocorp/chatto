@@ -25,7 +25,7 @@ type NotificationItem interface {
 	IsNotificationItem()
 }
 
-// JetStream account limits and usage.
+// Point-in-time storage-account limits and usage. Intended for operator diagnostics.
 type AccountInfo struct {
 	// Memory limit in bytes (-1 for unlimited)
 	Memory int `json:"memory"`
@@ -55,36 +55,38 @@ type AddReactionInput struct {
 	Emoji string `json:"emoji"`
 }
 
-// Admin mutations for configuration management.
+// Admin mutations for security and user management.
 type AdminMutations struct {
-	// Update server configuration. Returns the updated config section.
-	UpdateServerConfig *AdminServerConfig `json:"updateServerConfig"`
+	// Update the newline-separated blocked-username list and return the effective saved value. Requires `server.manage`.
+	UpdateBlockedUsernames string `json:"updateBlockedUsernames"`
 	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
 	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.
 	ClearUsernameCooldown bool `json:"clearUsernameCooldown"`
 }
 
-// Admin-only queries. Returns null if the user is not an server admin.
+// Admin-console query namespace. Returns null unless the viewer is authenticated.
 type AdminQueries struct {
-	// Get aggregate operational metrics (NATS/JetStream connection + account-level usage).
+	// Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role.
 	SystemInfo *SystemInfo `json:"systemInfo"`
-	// Get server configuration.
+	// Get server configuration. Requires `server.manage`.
 	ServerConfig *AdminServerConfig `json:"serverConfig"`
-	// Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before.
+	// Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before.
 	EventLog *EventLogConnection `json:"eventLog"`
-	// Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist.
+	// Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist.
 	EventLogEntry *EventLogEntry `json:"eventLogEntry,omitempty"`
-	// Inspect runtime state and rough memory estimates for event-sourced projections.
+	// Inspect point-in-time runtime state and rough memory estimates for event-sourced projections.
 	Projections []*ProjectionState `json:"projections"`
+	// List active room bans. Requires server-scope `room.ban-member`.
+	RoomBans []*RoomBan `json:"roomBans"`
+	// RBAC editor and inspection queries.
+	Rbac *RbacQueries `json:"rbac"`
 	// Resolve the explicit grants and denials configured for a role on a
-	// specific set. Returns empty arrays if neither side has any keys.
+	// specific room group. Returns empty arrays if neither side has any keys.
 	GroupRolePermissions *RoomGroupRolePermissions `json:"groupRolePermissions"`
 	// Resolve the explicit grants and denials configured for a user on a
-	// specific set (user-level overrides at set scope).
+	// specific room group (user-level overrides at room-group scope).
 	GroupUserPermissions *RoomGroupUserPermissions `json:"groupUserPermissions"`
-	// List all available server permission identifiers.
-	ServerPermissions []string `json:"serverPermissions"`
 }
 
 // Server configuration section.
@@ -133,18 +135,24 @@ type AssignRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
+// Input for banning another member from a channel room.
+type BanRoomMemberInput struct {
+	// The ID of the channel room to ban the member from.
+	RoomID string `json:"roomId"`
+	// The ID of the user to ban from the room.
+	UserID string `json:"userId"`
+	// Moderator-entered reason stored for audit.
+	Reason string `json:"reason"`
+	// Optional expiry for a temporary ban. Null means indefinite.
+	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
+}
+
 // A participant currently in a voice call.
 type CallParticipant struct {
-	// The user's ID.
-	UserID string `json:"userId"`
-	// The user's display name.
-	DisplayName string `json:"displayName"`
-	// The user's login handle.
-	Login string `json:"login"`
-	// The user's avatar URL (may be null if no avatar is set).
-	AvatarURL *string `json:"avatarUrl,omitempty"`
-	// Unix timestamp (seconds) when the user joined the call.
-	JoinedAt int32 `json:"joinedAt"`
+	// The user currently participating in the call.
+	User *corev1.User `json:"user"`
+	// When the user joined the call.
+	JoinedAt *timestamppb.Timestamp `json:"joinedAt"`
 }
 
 // Input for clearing permission state on a role.
@@ -184,7 +192,7 @@ type ClearUsernameCooldownInput struct {
 	UserID string `json:"userId"`
 }
 
-// Information about the NATS connection.
+// Point-in-time diagnostic information about the backing message broker connection.
 type ConnectionInfo struct {
 	// Whether the connection to NATS is currently active.
 	Connected bool `json:"connected"`
@@ -208,11 +216,13 @@ type CreateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Defaults to false.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for creating a new room group.
 type CreateRoomGroupInput struct {
-	// Display name for the new set (e.g., 'Engineering', 'Public').
+	// Display name for the new room group (e.g., 'Engineering', 'Public').
 	Name string `json:"name"`
 	// Optional operator-facing description.
 	Description *string `json:"description,omitempty"`
@@ -224,10 +234,10 @@ type CreateRoomInput struct {
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
 	Description *string `json:"description,omitempty"`
-	// Optional room-set ID to place the new room in. Required once the
-	// room-sets feature is fully wired (see ADR-031); during the transition
-	// it may be omitted, in which case the room is created without a set.
-	GroupID *string `json:"groupId,omitempty"`
+	// Room group ID to place the new channel room in. Channel room creation
+	// requires an explicit group; DM rooms are created through the DM APIs and
+	// do not use this input.
+	GroupID string `json:"groupId"`
 }
 
 // Input for deleting an attachment from a message.
@@ -276,9 +286,9 @@ type DeleteRoleInput struct {
 	Name string `json:"name"`
 }
 
-// Input for deleting a room group. Fails if the set still contains any rooms.
+// Input for deleting a room group. Fails if the room group still contains any rooms.
 type DeleteRoomGroupInput struct {
-	// The set's ID.
+	// The room group's ID.
 	ID string `json:"id"`
 }
 
@@ -319,7 +329,7 @@ type DismissNotificationInput struct {
 	NotificationID string `json:"notificationId"`
 }
 
-// A page of EventLogEntries, newest first.
+// A page of diagnostic event-log entries, newest first.
 type EventLogConnection struct {
 	// Entries on this page, ordered newest → oldest.
 	Entries []*EventLogEntry `json:"entries"`
@@ -327,21 +337,21 @@ type EventLogConnection struct {
 	HasOlder bool `json:"hasOlder"`
 	// Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries.
 	EndCursor *string `json:"endCursor,omitempty"`
-	// Total messages currently in EVT — an operational metric, not bounded by `limit`.
-	TotalCount int32 `json:"totalCount"`
+	// Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int.
+	TotalCount int64 `json:"totalCount"`
 }
 
-// One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033.
+// One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed.
 type EventLogEntry struct {
-	// Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int.
+	// Monotonic event-log sequence, serialized as a String so large values do not overflow GraphQL Int.
 	Sequence string `json:"sequence"`
-	// NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server').
+	// Diagnostic storage subject. Useful for operators, but clients should not parse it as a stable product contract.
 	Subject string `json:"subject"`
-	// Aggregate type parsed from the subject (e.g. 'room', 'config').
+	// Diagnostic aggregate category derived from storage metadata.
 	AggregateType string `json:"aggregateType"`
-	// Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons).
+	// Diagnostic aggregate identifier derived from storage metadata.
 	AggregateID string `json:"aggregateId"`
-	// Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant.
+	// Diagnostic event variant label. Empty if the payload cannot be classified.
 	EventType string `json:"eventType"`
 	// Per-event unique identifier from event.id.
 	EventID string `json:"eventId"`
@@ -349,7 +359,7 @@ type EventLogEntry struct {
 	ActorID string `json:"actorId"`
 	// When the event was created (per the event payload, not the stream).
 	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
-	// Protobuf payload encoded as JSON for human inspection.
+	// Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape.
 	PayloadJSON string `json:"payloadJson"`
 }
 
@@ -408,7 +418,7 @@ type GrantUserPermissionInput struct {
 // Input for granting a permission on a room group. The subject is either a role
 // (by name) or a user (by ID).
 type GroupPermissionInput struct {
-	// The set to scope the grant to.
+	// The room group to scope the grant to.
 	GroupID string `json:"groupId"`
 	// Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.)
 	Subject string `json:"subject"`
@@ -490,12 +500,12 @@ type MarkThreadAsReadResult struct {
 	PreviousReadAt *timestamppb.Timestamp `json:"previousReadAt,omitempty"`
 }
 
-// Input for moving a room into a different set. Requires room.manage in
-// both the source and target set (ADR-031).
-type MoveRoomToSetInput struct {
+// Input for moving a room into a different room group. Requires room.manage in
+// both the source and target room group.
+type MoveRoomToGroupInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
-	// The destination set.
+	// The destination room group.
 	GroupID string `json:"groupId"`
 }
 
@@ -503,7 +513,7 @@ type MoveRoomToSetInput struct {
 type Mutation struct {
 }
 
-// Basic state for one JetStream consumer.
+// Diagnostic state for one storage consumer. Raw consumer names and subjects are operator-facing diagnostics, not product concepts.
 type NatsConsumerInfo struct {
 	// Stream this consumer belongs to.
 	Stream string `json:"stream"`
@@ -539,7 +549,7 @@ type NatsConsumerInfo struct {
 	AckFloorStreamSequence string `json:"ackFloorStreamSequence"`
 }
 
-// Current JetStream stream and consumer diagnostics.
+// Current stream and consumer diagnostics. Values are point-in-time and may change between refreshes.
 type NatsStats struct {
 	// Streams in the JetStream account.
 	Streams []*NatsStreamInfo `json:"streams"`
@@ -555,7 +565,7 @@ type NatsStats struct {
 	TotalAckPending int32 `json:"totalAckPending"`
 }
 
-// Basic state for one JetStream stream.
+// Diagnostic state for one retained storage stream. Raw names and subjects are operator-facing diagnostics, not product concepts.
 type NatsStreamInfo struct {
 	// Stream name.
 	Name string `json:"name"`
@@ -607,6 +617,49 @@ type PermissionExplanation struct {
 	Trace []*PermissionTraceEntry `json:"trace"`
 }
 
+// One cell of the user-permission matrix: the per-permission, per-scope
+// intersection.
+type PermissionMatrixCell struct {
+	// Permission identifier (e.g. `message.post`).
+	Permission string `json:"permission"`
+	// Scope id (matches `PermissionMatrixScope.id`).
+	ScopeID string `json:"scopeId"`
+	// The **explicit user-level override** at this scope, or NONE if the user
+	// has no override here. NONE cells display only the inherited effective
+	// state; ALLOW / DENY cells display as a solid override.
+	Override PermissionMatrixDecision `json:"override"`
+	// The **effective** decision the resolver would emit at this scope for
+	// this user-permission pair, after walking room → group → server with
+	// user-level overrides applied first. Drives the cell's tint.
+	Effective PermissionMatrixDecision `json:"effective"`
+}
+
+// A user's permission state across every scope where it can be configured —
+// the data the User Permissions page renders as a matrix.
+//
+// Each cell answers two questions:
+//  1. What's the **effective** decision after the full resolver walk (this
+//     is what governs runtime behavior)?
+//  2. Does the user have an **explicit user-level override** at this scope
+//     (and which way)? Cells with an override render solid; cells driven
+//     only by inheritance render faded.
+type PermissionMatrixScope struct {
+	// Stable identifier for this scope:
+	//   - `server` for the server tier (no group/room context),
+	//   - `group:{groupID}` for a room-group scope,
+	//   - `room:{roomID}` for a per-room scope.
+	// Clients use it as a column key.
+	ID string `json:"id"`
+	// Human-readable label for the scope (group name, room name, or 'Server').
+	Label string `json:"label"`
+	// Scope kind. The frontend uses this to lay out columns (server tier first,
+	// groups expandable, rooms nested under their group).
+	Kind PermissionMatrixScopeKind `json:"kind"`
+	// For room scopes, the parent group's ID — so the UI can nest rooms under
+	// their group column. Empty string for server / group scopes.
+	ParentGroupID string `json:"parentGroupId"`
+}
+
 // A single step in the permission resolution trace.
 // Only explicit allow or deny entries are emitted; roles with no decision at the
 // level being checked are silent.
@@ -635,13 +688,15 @@ type PostMessageInput struct {
 	InReplyTo *string `json:"inReplyTo,omitempty"`
 	// Also echo this thread reply to the main channel for visibility (requires message.echo permission).
 	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
+	// Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts.
+	MentionConfirmationToken *string `json:"mentionConfirmationToken,omitempty"`
 	// Link preview data from the composer. Server stores this directly without fetching.
 	LinkPreview *LinkPreviewInput `json:"linkPreview,omitempty"`
 }
 
 // One named diagnostic count/byte bucket for a projection.
 type ProjectionMetric struct {
-	// Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'.
+	// Diagnostic metric identifier, e.g. 'timeline_entries' or 'event_id_index'. Names may evolve with projection implementation.
 	Name string `json:"name"`
 	// Count associated with this metric.
 	Value int `json:"value"`
@@ -649,22 +704,28 @@ type ProjectionMetric struct {
 	Bytes int `json:"bytes"`
 }
 
-// Runtime state for one event-sourced projection.
+// Point-in-time runtime state for one event-sourced projection.
 type ProjectionState struct {
 	// Human-readable projection name.
 	Name string `json:"name"`
-	// NATS subject filters consumed by this projection.
+	// Diagnostic storage subject filters consumed by this projection.
 	Subjects []string `json:"subjects"`
 	// Whether the projector run loop has started.
 	Started bool `json:"started"`
-	// Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow.
+	// Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow.
 	LastAppliedSequence string `json:"lastAppliedSequence"`
-	// Highest EVT stream sequence currently matching this projection's subject filters.
+	// Highest event-log sequence currently matching this projection's subject filters.
 	MatchingStreamSequence string `json:"matchingStreamSequence"`
-	// Highest sequence in the EVT stream, regardless of whether this projection consumes it.
+	// Highest sequence in the event log, regardless of whether this projection consumes it.
 	StreamLastSequence string `json:"streamLastSequence"`
 	// Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence.
 	Lag int `json:"lag"`
+	// Whether this projection has stopped after a fatal decode or apply error.
+	Failed bool `json:"failed"`
+	// Failed event-log sequence, serialized as String. Zero when the projection has not failed.
+	FailedSequence string `json:"failedSequence"`
+	// Operator-facing failure summary. Empty when the projection has not failed.
+	Failure string `json:"failure"`
 	// Primary projected entry count for this projection.
 	EntryCount int `json:"entryCount"`
 	// Estimated bytes held in memory by this projection.
@@ -692,17 +753,26 @@ type PushSubscriptionInput struct {
 type Query struct {
 }
 
-// A reaction represents emoji responses to a message, aggregated by emoji type.
-// Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
-type Reaction struct {
-	// The emoji shortcode name (e.g., "thumbsup", "heart").
-	Emoji string `json:"emoji"`
-	// Total number of users who reacted with this emoji.
-	Count int32 `json:"count"`
-	// List of users who reacted with this emoji.
-	Users []*corev1.User `json:"users"`
-	// Whether the current user has reacted with this emoji.
-	HasReacted bool `json:"hasReacted"`
+// RBAC tooling namespace for role, permission, and permission inspection screens.
+// Individual fields enforce their own finer-grained authorization gates, such as
+// `role.manage` or `room.manage`.
+type RbacQueries struct {
+	// Return the full role-permission matrix at a tier: every applicable role
+	// with its override and inherited baseline.
+	//
+	// Pass `roomId` for per-room override editing, `groupId` for room-group-scope
+	// editing, or neither for server-scope editing. Passing both is rejected.
+	RolePermissionTierMatrix *TierRoles `json:"rolePermissionTierMatrix,omitempty"`
+	// Permission matrix for a specific role. Authorization: viewer must hold
+	// `role.manage` at server scope.
+	RolePermissionMatrix *RolePermissionMatrix `json:"rolePermissionMatrix,omitempty"`
+	// Permission matrix for a specific user. Authorization mirrors user-level
+	// permission mutations: viewer must hold `role.manage` and strictly outrank
+	// the target. Self-introspection is not allowed.
+	UserPermissionMatrix *UserPermissionMatrix `json:"userPermissionMatrix,omitempty"`
+	// Explain every applicable permission for a user at the given scope.
+	// Authorization: admin/tooling-only, with no self-inspection path.
+	PermissionExplanation []*PermissionExplanation `json:"permissionExplanation"`
 }
 
 // Input for removing an emoji reaction from a message.
@@ -722,9 +792,9 @@ type ReorderRolesInput struct {
 }
 
 // Input for reordering all room groups. The order must include every existing
-// set ID exactly once; partial or unknown lists are rejected.
+// room group ID exactly once; partial or unknown lists are rejected.
 type ReorderRoomGroupsInput struct {
-	// Set IDs in the desired display order, first to last.
+	// Room group IDs in the desired display order, first to last.
 	OrderedIds []string `json:"orderedIds"`
 }
 
@@ -754,30 +824,6 @@ type RevokeRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
-// A single role's permission state at every applicable tier.
-//
-// - rolePermissions(roleName) → server only.
-// - rolePermissions(roleName, roomId) → server + room.
-type RoleAcrossTiers struct {
-	// Internal role name (e.g. 'admin', 'moderator').
-	RoleName string `json:"roleName"`
-	// Human-readable display name.
-	DisplayName string `json:"displayName"`
-	// Role description.
-	Description string `json:"description"`
-	// Whether this is a system role and cannot be deleted.
-	IsSystem bool `json:"isSystem"`
-	// Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0.
-	Position int32 `json:"position"`
-	// Permissions configurable at the deepest requested scope. Use this as the
-	// set of permissions to render in a permission editor for this scope.
-	ApplicablePermissions []string `json:"applicablePermissions"`
-	// Permission state at server scope (the role's defaults everywhere).
-	Server *TierPermissions `json:"server"`
-	// Permission state at room scope (null when roomId not provided).
-	Room *TierPermissions `json:"room,omitempty"`
-}
-
 // A role's permission state across every scope where it can be configured —
 // the data the Role Permissions page renders as a matrix.
 //
@@ -796,12 +842,11 @@ type RolePermissionMatrix struct {
 	// metadata.
 	ApplicablePermissions []string `json:"applicablePermissions"`
 	// Scopes to render as columns. Server scope first, then groups, then
-	// rooms grouped under their parent group via `parentGroupId`. Same
-	// shape as `UserPermissionMatrix.scopes`.
-	Scopes []*UserPermissionScope `json:"scopes"`
+	// rooms grouped under their parent group via `parentGroupId`.
+	Scopes []*PermissionMatrixScope `json:"scopes"`
 	// One cell per (permission, scope) intersection. Sparse: a cell is
 	// included iff the permission applies at that scope's tier.
-	Cells []*UserPermissionCell `json:"cells"`
+	Cells []*PermissionMatrixCell `json:"cells"`
 }
 
 // Room-level permission configuration for a single role.
@@ -822,6 +867,30 @@ type RoleRoomPermissions struct {
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
+// An active room ban shown in server-admin moderation tools.
+type RoomBan struct {
+	// The event ID that created the active ban.
+	ID string `json:"id"`
+	// The channel room this ban applies to.
+	RoomID string `json:"roomId"`
+	// The room this ban applies to, if it still exists.
+	Room *corev1.Room `json:"room,omitempty"`
+	// The banned user.
+	UserID string `json:"userId"`
+	// The banned user, if the account still exists.
+	User *corev1.User `json:"user,omitempty"`
+	// The moderator who created the ban.
+	ModeratorID string `json:"moderatorId"`
+	// The moderator who created the ban, if the account still exists.
+	Moderator *corev1.User `json:"moderator,omitempty"`
+	// Moderator-entered reason retained for audit.
+	Reason string `json:"reason"`
+	// When the ban was created.
+	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
+	// When this ban expires. Null means indefinite.
+	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
+}
+
 // Result of fetching events around a specific target event. `startCursor`
 // and `endCursor` are opaque pagination cursors usable on `Room.events`.
 type RoomEventsAroundResult struct {
@@ -839,10 +908,10 @@ type RoomEventsAroundResult struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Paginated room events with metadata indicating whether more events exist
-// in either direction. `startCursor` and `endCursor` are opaque pagination
-// cursors — pass them as `before` / `after` on a subsequent `Room.events`
-// call. Both are null when `events` is empty.
+// Paginated chronological events with metadata indicating whether more events
+// exist in either direction. `startCursor` and `endCursor` are opaque pagination
+// cursors — pass them as `before` / `after` on the same field that returned them.
+// Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
 	Events []core.EventEnvelope `json:"events"`
@@ -856,30 +925,31 @@ type RoomEventsConnection struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Per-set role permission inspector. Returns the explicit grants and denials
-// configured on a set for a given role (no inheritance — to see the effective
-// permissions resolve per-room or per-user via the resolver instead).
+// Per-room-group role permission inspector. Returns the explicit grants and
+// denials configured on a room group for a given role (no inheritance — to
+// see the effective permissions resolve per-room or per-user via the resolver
+// instead).
 type RoomGroupRolePermissions struct {
-	// The set these permissions belong to.
+	// The room group these permissions belong to.
 	GroupID string `json:"groupId"`
 	// The role these permissions apply to.
 	RoleName string `json:"roleName"`
-	// Permissions explicitly granted to this role on this set.
+	// Permissions explicitly granted to this role on this room group.
 	Permissions []string `json:"permissions"`
-	// Permissions explicitly denied to this role on this set.
+	// Permissions explicitly denied to this role on this room group.
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
-// Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
-// direct user-level grants/denials.
+// Per-room-group user permission inspector. Mirrors RoomGroupRolePermissions
+// for direct user-level grants/denials.
 type RoomGroupUserPermissions struct {
-	// The set these permissions belong to.
+	// The room group these permissions belong to.
 	GroupID string `json:"groupId"`
 	// The user these permissions apply to.
 	UserID string `json:"userId"`
-	// Permissions explicitly granted to this user on this set.
+	// Permissions explicitly granted to this user on this room group.
 	Permissions []string `json:"permissions"`
-	// Permissions explicitly denied to this user on this set.
+	// Permissions explicitly denied to this user on this room group.
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
@@ -919,8 +989,8 @@ type Server struct {
 	Version string `json:"version"`
 	// List of enabled SSO provider names (e.g., 'google', 'github').
 	EnabledAuthProviders []string `json:"enabledAuthProviders"`
-	// Runtime-editable configuration settings.
-	Config *ServerConfig `json:"config"`
+	// Public-facing identity and branding for this server.
+	Profile *ServerProfile `json:"profile"`
 	// True if Web Push notifications are enabled on this server.
 	PushNotificationsEnabled bool `json:"pushNotificationsEnabled"`
 	// VAPID public key for Web Push subscriptions. Null if push is disabled.
@@ -932,9 +1002,9 @@ type Server struct {
 	// True if video processing is enabled, allowing video attachments to be uploaded.
 	VideoProcessingEnabled bool `json:"videoProcessingEnabled"`
 	// Maximum upload size for regular attachments (images, files) in bytes.
-	MaxUploadSize int32 `json:"maxUploadSize"`
+	MaxUploadSize int64 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
-	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
+	MaxVideoUploadSize int64 `json:"maxVideoUploadSize"`
 	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window.
 	MessageEditWindowSeconds int32 `json:"messageEditWindowSeconds"`
 	// List of rooms on this server.
@@ -945,9 +1015,8 @@ type Server struct {
 	// channels and DMs together. Pass `type: CHANNEL` for channels-only consumers
 	// (e.g. the admin room-management UI); pass `type: DM` for DMs-only consumers.
 	Rooms []*corev1.Room `json:"rooms"`
-	// Ordered list of channel-room groups (ADR-031). Every server boots with at
-	// least the seed "Lobby" group; the list is never empty for a configured
-	// server.
+	// Ordered list of channel-room groups. Every server boots with at least the
+	// seed "Lobby" group; the list is never empty for a configured server.
 	RoomGroups []*RoomGroupModel `json:"roomGroups"`
 	// Number of members on this server.
 	MemberCount int32 `json:"memberCount"`
@@ -959,13 +1028,13 @@ type Server struct {
 	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
 	// Whether the current user can manage this server (has server.manage permission).
 	ViewerCanManageServer bool `json:"viewerCanManageServer"`
-	// Whether the current user can create rooms (has rooms.create permission).
+	// Whether the current user can create rooms (has room.create permission).
 	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
 	// Whether the current user can manage rooms (has room.manage permission).
 	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
 	// Whether the current user has any unread messages in rooms they've joined.
 	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
-	// The current user's server-level notification preference. Null if not authenticated.
+	// The current user's server-level notification preference.
 	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
 	// Get a single member of this server by user ID.
 	// Returns null if the user is not a member.
@@ -981,9 +1050,9 @@ type Server struct {
 	AvailablePermissions []string `json:"availablePermissions"`
 	// Get the current user's permissions on this server.
 	ViewerPermissions []string `json:"viewerPermissions"`
-	// Whether the current user can manage roles (has admin.roles.manage permission).
+	// Whether the current user can manage roles (has role.manage permission).
 	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
-	// Whether the current user can assign roles to users (has admin.roles.assign permission).
+	// Whether the current user can assign roles to users (has role.assign permission).
 	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
 	// UI hint reporting whether the viewer outranks the target user by role
 	// hierarchy. **This is a rank check only**, not an authorization gate —
@@ -1005,23 +1074,6 @@ type Server struct {
 	UserEffectiveDenials []string `json:"userEffectiveDenials"`
 }
 
-// Runtime-editable server configuration.
-// These are settings that can be changed by admins at runtime.
-type ServerConfig struct {
-	// Server name, displayed in page titles. Defaults to 'Chatto'.
-	ServerName string `json:"serverName"`
-	// URL to the server logo, if set. Pass width, height, and fit for a resized thumbnail.
-	LogoURL *string `json:"logoUrl,omitempty"`
-	// URL to the server banner image, if set. Pass width, height, and fit for a resized thumbnail.
-	BannerURL *string `json:"bannerUrl,omitempty"`
-	// Welcome message to display on the login screen (Markdown). Null if not configured.
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
-	// Message of the Day, displayed in the header bar. Null if not configured.
-	Motd *string `json:"motd,omitempty"`
-	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
-	Description *string `json:"description,omitempty"`
-}
-
 // Paginated list of server members with metadata.
 type ServerMembersConnection struct {
 	// The users who are members of this server.
@@ -1030,6 +1082,22 @@ type ServerMembersConnection struct {
 	TotalCount int32 `json:"totalCount"`
 	// Whether there are more members beyond this page.
 	HasMore bool `json:"hasMore"`
+}
+
+// How this server presents itself in logged-out and multi-server UI.
+type ServerProfile struct {
+	// Display name for this server. Defaults to 'Chatto'.
+	Name string `json:"name"`
+	// URL to the server logo, if set.
+	LogoURL *string `json:"logoUrl,omitempty"`
+	// URL to the server banner image, if set.
+	BannerURL *string `json:"bannerUrl,omitempty"`
+	// Welcome message to display on the login screen (Markdown). Null if not configured.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+	// Message of the Day, displayed in the header bar. Null if not configured.
+	Motd *string `json:"motd,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
+	Description *string `json:"description,omitempty"`
 }
 
 // Aggregate counts for the deployment. Operator-facing only.
@@ -1066,7 +1134,7 @@ type StartDMInput struct {
 type Subscription struct {
 }
 
-// Aggregate operational metrics.
+// Point-in-time operator diagnostics for this deployment.
 type SystemInfo struct {
 	// NATS connection status and server info.
 	Connection *ConnectionInfo `json:"connection"`
@@ -1079,8 +1147,8 @@ type SystemInfo struct {
 }
 
 // A role's permission state at a single tier (server or room).
-// Returned as part of RoleAcrossTiers so callers can display inheritance
-// without making separate per-tier queries.
+// Returned as part of RBAC matrix results so callers can display explicit
+// allow/deny state for a tier.
 type TierPermissions struct {
 	// Permissions explicitly granted by this role at this tier.
 	Permissions []string `json:"permissions"`
@@ -1130,6 +1198,16 @@ type UnarchiveRoomInput struct {
 	RoomID string `json:"roomId"`
 }
 
+// Input for removing a room ban.
+type UnbanRoomMemberInput struct {
+	// The ID of the channel room to unban the user from.
+	RoomID string `json:"roomId"`
+	// The ID of the user to unban.
+	UserID string `json:"userId"`
+	// Moderator-entered reason stored for audit.
+	Reason string `json:"reason"`
+}
+
 // Input for unfollowing a thread.
 type UnfollowThreadInput struct {
 	// The ID of the room containing the thread.
@@ -1144,6 +1222,12 @@ type UnsubscribeFromPushInput struct {
 	Endpoint string `json:"endpoint"`
 }
 
+// Input for AdminMutations.updateBlockedUsernames.
+type UpdateBlockedUsernamesInput struct {
+	// Blocked usernames (newline-separated). Set to empty string to clear.
+	BlockedUsernames string `json:"blockedUsernames"`
+}
+
 // Input for updating a message.
 type UpdateMessageInput struct {
 	// The ID of the room containing the message.
@@ -1152,6 +1236,8 @@ type UpdateMessageInput struct {
 	EventID string `json:"eventId"`
 	// The new message content.
 	Body string `json:"body"`
+	// For thread replies, whether the reply should have a visible channel echo after saving. Omit to preserve current echo state.
+	AlsoSendToChannel *bool `json:"alsoSendToChannel,omitempty"`
 }
 
 // Input for updating the current user's presence status.
@@ -1178,11 +1264,13 @@ type UpdateRoleInput struct {
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
+	// Whether @role pings notify users assigned to this role. Omit to leave unchanged.
+	Pingable *bool `json:"pingable,omitempty"`
 }
 
 // Input for updating an existing room group.
 type UpdateRoomGroupInput struct {
-	// The set's ID.
+	// The room group's ID.
 	ID string `json:"id"`
 	// Display name.
 	Name string `json:"name"`
@@ -1208,22 +1296,8 @@ type UpdateServerConfigInput struct {
 	ServerName *string `json:"serverName,omitempty"`
 	// Message of the Day for the header. Set to empty string to clear.
 	Motd *string `json:"motd,omitempty"`
-	// Blocked usernames (newline-separated). Set to empty string to clear.
-	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
 	// Short server description for OG link-preview metadata. Set to empty string to clear.
 	Description *string `json:"description,omitempty"`
-}
-
-// Input for updating the server.
-type UpdateServerInput struct {
-	// The new name for the server.
-	Name string `json:"name"`
-	// The new description for the server. Set to empty string to clear.
-	Description *string `json:"description,omitempty"`
-	// Message of the Day, displayed in the chat header. Set to empty string to clear.
-	Motd *string `json:"motd,omitempty"`
-	// Welcome message shown on the login page (markdown supported). Set to empty string to clear.
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 }
 
 // Input for updating a user's settings. All preference fields are optional.
@@ -1257,23 +1331,6 @@ type UploadServerLogoInput struct {
 	File graphql.Upload `json:"file"`
 }
 
-// One cell of the user-permission matrix: the per-permission, per-scope
-// intersection.
-type UserPermissionCell struct {
-	// Permission identifier (e.g. `message.post`).
-	Permission string `json:"permission"`
-	// Scope id (matches `UserPermissionScope.id`).
-	ScopeID string `json:"scopeId"`
-	// The **explicit user-level override** at this scope, or NONE if the user
-	// has no override here. NONE cells display only the inherited effective
-	// state; ALLOW / DENY cells display as a solid override.
-	Override UserPermissionDecision `json:"override"`
-	// The **effective** decision the resolver would emit at this scope for
-	// this user-permission pair, after walking room → group → server with
-	// user-level overrides applied first. Drives the cell's tint.
-	Effective UserPermissionDecision `json:"effective"`
-}
-
 // Full snapshot of a user's permission matrix: the permissions that can
 // be configured anywhere, the scopes they can be configured at, and the
 // state of every cell.
@@ -1286,46 +1343,10 @@ type UserPermissionMatrix struct {
 	ApplicablePermissions []string `json:"applicablePermissions"`
 	// Scopes to render as columns. Server scope first, then groups, then
 	// rooms grouped under their parent group via `parentGroupId`.
-	Scopes []*UserPermissionScope `json:"scopes"`
+	Scopes []*PermissionMatrixScope `json:"scopes"`
 	// One cell per (permission, scope) intersection. Sparse: a cell is
 	// included iff the permission applies at that scope's tier.
-	Cells []*UserPermissionCell `json:"cells"`
-}
-
-// A user's permission state across every scope where it can be configured —
-// the data the User Permissions page renders as a matrix.
-//
-// Each cell answers two questions:
-//  1. What's the **effective** decision after the full resolver walk (this
-//     is what governs runtime behavior)?
-//  2. Does the user have an **explicit user-level override** at this scope
-//     (and which way)? Cells with an override render solid; cells driven
-//     only by inheritance render faded.
-type UserPermissionScope struct {
-	// Stable identifier for this scope:
-	//   - `server` for the server tier (no group/room context),
-	//   - `group:{groupID}` for a room-group scope,
-	//   - `room:{roomID}` for a per-room scope.
-	// Clients use it as a column key.
-	ID string `json:"id"`
-	// Human-readable label for the scope (group name, room name, or 'Server').
-	Label string `json:"label"`
-	// Scope kind. The frontend uses this to lay out columns (server tier first,
-	// groups expandable, rooms nested under their group).
-	Kind UserPermissionScopeKind `json:"kind"`
-	// For room scopes, the parent group's ID — so the UI can nest rooms under
-	// their group column. Empty string for server / group scopes.
-	ParentGroupID string `json:"parentGroupId"`
-}
-
-// Paginated list of users with metadata.
-type UsersConnection struct {
-	// The users in this page.
-	Users []*corev1.User `json:"users"`
-	// Total count of users matching the search (before pagination).
-	TotalCount int32 `json:"totalCount"`
-	// Whether there are more users beyond this page.
-	HasMore bool `json:"hasMore"`
+	Cells []*PermissionMatrixCell `json:"cells"`
 }
 
 // The viewer's notification preference for the server or a room.
@@ -1335,6 +1356,11 @@ type ViewerNotificationPreference struct {
 	Level NotificationLevel `json:"level"`
 	// The effective level after inheritance resolution (never DEFAULT).
 	EffectiveLevel NotificationLevel `json:"effectiveLevel"`
+}
+
+type VoiceCallIntentInput struct {
+	// The room whose voice call is being joined or left.
+	RoomID string `json:"roomId"`
 }
 
 // Fit mode for image transformations.
@@ -1520,6 +1546,128 @@ func (e PermissionLevel) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Trinary decision used in the user-permission matrix.
+type PermissionMatrixDecision string
+
+const (
+	// The permission is explicitly granted.
+	PermissionMatrixDecisionAllow PermissionMatrixDecision = "ALLOW"
+	// The permission is explicitly denied.
+	PermissionMatrixDecisionDeny PermissionMatrixDecision = "DENY"
+	// No explicit grant or denial applies at this scope.
+	PermissionMatrixDecisionNone PermissionMatrixDecision = "NONE"
+)
+
+var AllPermissionMatrixDecision = []PermissionMatrixDecision{
+	PermissionMatrixDecisionAllow,
+	PermissionMatrixDecisionDeny,
+	PermissionMatrixDecisionNone,
+}
+
+func (e PermissionMatrixDecision) IsValid() bool {
+	switch e {
+	case PermissionMatrixDecisionAllow, PermissionMatrixDecisionDeny, PermissionMatrixDecisionNone:
+		return true
+	}
+	return false
+}
+
+func (e PermissionMatrixDecision) String() string {
+	return string(e)
+}
+
+func (e *PermissionMatrixDecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PermissionMatrixDecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PermissionMatrixDecision", str)
+	}
+	return nil
+}
+
+func (e PermissionMatrixDecision) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PermissionMatrixDecision) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PermissionMatrixDecision) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Where a PermissionMatrixScope sits in the resolution hierarchy.
+type PermissionMatrixScopeKind string
+
+const (
+	// Server tier — no room/group context.
+	PermissionMatrixScopeKindServer PermissionMatrixScopeKind = "SERVER"
+	// A room group's scope (channel-room permissions).
+	PermissionMatrixScopeKindGroup PermissionMatrixScopeKind = "GROUP"
+	// A specific room's scope.
+	PermissionMatrixScopeKindRoom PermissionMatrixScopeKind = "ROOM"
+)
+
+var AllPermissionMatrixScopeKind = []PermissionMatrixScopeKind{
+	PermissionMatrixScopeKindServer,
+	PermissionMatrixScopeKindGroup,
+	PermissionMatrixScopeKindRoom,
+}
+
+func (e PermissionMatrixScopeKind) IsValid() bool {
+	switch e {
+	case PermissionMatrixScopeKindServer, PermissionMatrixScopeKindGroup, PermissionMatrixScopeKindRoom:
+		return true
+	}
+	return false
+}
+
+func (e PermissionMatrixScopeKind) String() string {
+	return string(e)
+}
+
+func (e *PermissionMatrixScopeKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PermissionMatrixScopeKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PermissionMatrixScopeKind", str)
+	}
+	return nil
+}
+
+func (e PermissionMatrixScopeKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PermissionMatrixScopeKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PermissionMatrixScopeKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // User presence status on the server.
 type PresenceStatus string
 
@@ -1700,125 +1848,6 @@ func (e *RoomType) UnmarshalJSON(b []byte) error {
 }
 
 func (e RoomType) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-// Trinary decision used in the user-permission matrix.
-type UserPermissionDecision string
-
-const (
-	UserPermissionDecisionAllow UserPermissionDecision = "ALLOW"
-	UserPermissionDecisionDeny  UserPermissionDecision = "DENY"
-	UserPermissionDecisionNone  UserPermissionDecision = "NONE"
-)
-
-var AllUserPermissionDecision = []UserPermissionDecision{
-	UserPermissionDecisionAllow,
-	UserPermissionDecisionDeny,
-	UserPermissionDecisionNone,
-}
-
-func (e UserPermissionDecision) IsValid() bool {
-	switch e {
-	case UserPermissionDecisionAllow, UserPermissionDecisionDeny, UserPermissionDecisionNone:
-		return true
-	}
-	return false
-}
-
-func (e UserPermissionDecision) String() string {
-	return string(e)
-}
-
-func (e *UserPermissionDecision) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = UserPermissionDecision(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid UserPermissionDecision", str)
-	}
-	return nil
-}
-
-func (e UserPermissionDecision) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *UserPermissionDecision) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e UserPermissionDecision) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-// Where a UserPermissionScope sits in the resolution hierarchy.
-type UserPermissionScopeKind string
-
-const (
-	// Server tier — no room/group context.
-	UserPermissionScopeKindServer UserPermissionScopeKind = "SERVER"
-	// A room group's scope (channel-room permissions).
-	UserPermissionScopeKindGroup UserPermissionScopeKind = "GROUP"
-	// A specific room's scope.
-	UserPermissionScopeKindRoom UserPermissionScopeKind = "ROOM"
-)
-
-var AllUserPermissionScopeKind = []UserPermissionScopeKind{
-	UserPermissionScopeKindServer,
-	UserPermissionScopeKindGroup,
-	UserPermissionScopeKindRoom,
-}
-
-func (e UserPermissionScopeKind) IsValid() bool {
-	switch e {
-	case UserPermissionScopeKindServer, UserPermissionScopeKindGroup, UserPermissionScopeKindRoom:
-		return true
-	}
-	return false
-}
-
-func (e UserPermissionScopeKind) String() string {
-	return string(e)
-}
-
-func (e *UserPermissionScopeKind) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = UserPermissionScopeKind(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid UserPermissionScopeKind", str)
-	}
-	return nil
-}
-
-func (e UserPermissionScopeKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *UserPermissionScopeKind) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e UserPermissionScopeKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

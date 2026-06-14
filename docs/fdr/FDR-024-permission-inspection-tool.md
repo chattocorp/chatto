@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-05-19 (scope label rename to SERVER/GROUP/ROOM)
+**Last reviewed:** 2026-06-08
 
 ## Overview
 
@@ -10,6 +10,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 ## Behavior
 
 - The admin UI exposes a "Permission Explainer" tool: pick a user, optionally pick a room, pick a permission, and see the full resolution trace.
+- The GraphQL field is `admin.rbac.permissionExplanation`, keeping the inspector in the RBAC tooling namespace while preserving its admin/tooling-only authorization gate.
 - The trace lists every (subject, scope) entry the resolver evaluated. The first entry that produced an allow or deny is marked as the winning decision; subsequent entries show what the resolver *would* have looked at next if the winning entry hadn't fired.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
@@ -24,7 +25,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 2. Admin-only, no self-inspection
 
-**Decision:** The query requires `admin.access` (and `role.manage` at the room/group scope when inspecting per-room permissions). Regular users can't run the inspector even against themselves.
+**Decision:** The query requires RBAC-editor authority (`role.manage`, plus the existing target outrank rules for user-level inspection). Regular users can't run the inspector even against themselves.
 **Why:** The trace would leak which roles a user holds and the structure of the permission tree. Useful information to a malicious actor probing what they're up against. Restricting to admins keeps that surface inside the trust boundary.
 **Tradeoff:** Users who legitimately wonder "why can't I post here?" have to ask an admin. Acceptable; the failure mode is rare and the leak is real.
 
@@ -48,8 +49,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ## Permissions
 
-- `admin.access` — server-scope inspection.
-- `admin.access` or `role.manage` — room-scope inspection.
+- `role.manage` — server-scope and room-scope inspection.
 
 ## Related
 

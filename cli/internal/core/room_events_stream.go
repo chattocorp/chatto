@@ -113,6 +113,9 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, ro
 					c.logger.Warn("Failed to unmarshal live event", "error", err)
 					continue
 				}
+				if event.GetMessageBody() != nil {
+					continue
+				}
 
 				select {
 				case <-ctx.Done():

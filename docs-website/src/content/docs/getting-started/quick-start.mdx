@@ -72,7 +72,7 @@ To keep your configuration and data across container restarts, use a bind mount:
    chatto init
    ```
 
-   This creates a `chatto.toml` with random secrets for cookie signing, runtime-token verifiers, asset signing, and NATS authentication.
+   This creates a `chatto.toml` with random secrets for cookie signing, cookie encryption, runtime-token verifiers, asset signing, and NATS authentication.
 
 3. **Start the server:**
 
@@ -95,6 +95,7 @@ log_level = "debug"
 port = 4000
 url = "http://localhost:4000"
 cookie_signing_secret = "<generated>"
+cookie_encryption_secret = "<generated>"
 
 [core]
 secret_key = "<generated>"

@@ -147,6 +147,34 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 		}
 	})
 
+	t.Run("revokes bearer tokens for reset user only", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "reset-revoke-user", "Reset Revoke User", "oldpassword")
+		core.AddVerifiedEmailDirect(ctx, user.Id, "resetrevoke@example.com")
+		otherUser, _ := core.CreateUser(ctx, "system", "reset-revoke-other", "Reset Revoke Other", "password123")
+
+		token1, _ := core.CreateAuthToken(ctx, user.Id)
+		token2, _ := core.CreateAuthToken(ctx, user.Id)
+		otherToken, _ := core.CreateAuthToken(ctx, otherUser.Id)
+		resetToken, _ := core.CreatePasswordResetToken(ctx, "resetrevoke@example.com")
+		newHash, _ := bcrypt.GenerateFromPassword([]byte("newpassword123"), bcrypt.DefaultCost)
+
+		if err := core.ResetPassword(ctx, resetToken, string(newHash)); err != nil {
+			t.Fatalf("ResetPassword: %v", err)
+		}
+
+		if _, err := core.ValidateAuthToken(ctx, token1); err != ErrAuthTokenNotFound {
+			t.Fatalf("token1 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+		}
+		if _, err := core.ValidateAuthToken(ctx, token2); err != ErrAuthTokenNotFound {
+			t.Fatalf("token2 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+		}
+		if gotUserID, err := core.ValidateAuthToken(ctx, otherToken); err != nil {
+			t.Fatalf("other token should remain valid: %v", err)
+		} else if gotUserID != otherUser.Id {
+			t.Fatalf("other token user ID = %q, want %q", gotUserID, otherUser.Id)
+		}
+	})
+
 	t.Run("token can only be used once", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "single-use-user", "Test User", "password123")
 		core.AddVerifiedEmailDirect(ctx, user.Id, "singleuse@example.com")

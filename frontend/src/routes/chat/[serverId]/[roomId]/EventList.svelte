@@ -3,8 +3,8 @@
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import type { RoomMember } from '$lib/state/room';
-  import { getComposerContext } from '$lib/state/room';
+  import type { MessagesStore, RoomMember } from '$lib/state/room';
+  import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
   import MessageEventSkeleton from './MessageEventSkeleton.svelte';
@@ -22,6 +22,7 @@
 
   let {
     roomId,
+    messageStore,
     events,
     // Scroll behavior
     alwaysScrollToBottom = false,
@@ -30,6 +31,7 @@
     enablePagination = false,
     isLoadingMore = false,
     hasReachedStart = false,
+    showStartMarker = true,
     onLoadMore,
     // Event updates
     updateCounter = 0,
@@ -58,6 +60,7 @@
     pendingHighlightId = null
   }: {
     roomId: string;
+    messageStore: MessagesStore;
     events: RoomEventViewFragment[];
     // Scroll behavior
     alwaysScrollToBottom?: boolean;
@@ -66,6 +69,7 @@
     enablePagination?: boolean;
     isLoadingMore?: boolean;
     hasReachedStart?: boolean;
+    showStartMarker?: boolean;
     onLoadMore?: () => Promise<void>;
     // Event updates
     updateCounter?: number;
@@ -113,21 +117,9 @@
   const scrollState = composerContext.scrollState;
   const userSettings = getUserSettings();
 
-  // Sort events chronologically. Uses createdAt with event ID tiebreaker for
-  // the rare case of sub-millisecond concurrent posts. Events from JetStream
-  // are already ordered; this is a safety net for merged live + historical data.
-  let sortedEvents = $derived(
-    [...events].sort((a, b) => {
-      const timeA = new Date(a.createdAt).getTime();
-      const timeB = new Date(b.createdAt).getTime();
-      if (timeA !== timeB) return timeA - timeB;
-      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-    })
-  );
-
   // Filter events based on configuration
   let filteredEvents = $derived(
-    sortedEvents.filter((e) => {
+    events.filter((e) => {
       if (e.event?.__typename !== 'MessagePostedEvent') return true;
 
       const msg = e.event;
@@ -150,12 +142,18 @@
 
   // Build flat array for the virtualizer (events + interleaved separators)
   let virtualItems = $derived(
-    buildVirtualItems(eventsWithMeta, unreadAfterEventId ?? null, hasReachedStart)
+    buildVirtualItems(
+      eventsWithMeta,
+      unreadAfterEventId ?? null,
+      hasReachedStart,
+      showStartMarker
+    )
   );
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
     if (!enableLastEditableFinder) return;
@@ -169,7 +167,23 @@
         if (e.actorId !== userId) continue;
         if (e.event?.__typename !== 'MessagePostedEvent') continue;
         if (e.event?.body == null) continue;
-        return { eventId: e.id, body: e.event.body };
+        const isEcho = !!e.event.echoOfEventId;
+        const eventId = isEcho ? e.event.echoOfEventId! : e.id;
+        const threadRootEventId = isEcho
+          ? (e.event.echoFromThreadRootEventId ?? null)
+          : (e.event.threadRootEventId ?? null);
+        const channelEchoEventId = isEcho ? e.id : (e.event.channelEchoEventId ?? null);
+        const canAddChannelEcho =
+          !!threadRootEventId &&
+          (!!channelEchoEventId ||
+            (roomPermissions.canEchoMessage && roomPermissions.canPostMessage));
+        return {
+          eventId,
+          body: e.event.body,
+          threadRootEventId,
+          channelEchoEventId,
+          canAddChannelEcho
+        };
       }
       return null;
     });
@@ -627,7 +641,7 @@
               <!-- Stale virtualizer index during data transition, skip -->
             {:else if item.type === 'start-marker'}
               <div class="pt-10 pb-2 text-center text-sm text-muted/40">
-                You've reached the very beginning of this conversation.
+                This is the beginning of this conversation.
               </div>
             {:else if item.type === 'day-separator'}
               <DaySeparator label={item.label} />
@@ -655,6 +669,7 @@
                   event={eventData}
                   compact={!item.isFirstInGroup}
                   {roomId}
+                  {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
                 />
               {/if}

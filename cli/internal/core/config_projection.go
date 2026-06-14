@@ -27,8 +27,8 @@ type serverConfigState struct {
 	welcomeMessage   string
 	motd             string
 	blockedUsernames *string
-	logo             *corev1.DeprecatedAsset
-	banner           *corev1.DeprecatedAsset
+	logo             *corev1.AssetRecord
+	banner           *corev1.AssetRecord
 }
 
 type userConfigState struct {
@@ -66,8 +66,6 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	defer p.Unlock()
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_ServerConfigChanged:
-		p.applyLegacyServerConfigLocked(e.ServerConfigChanged.GetConfig())
 	case *corev1.Event_ServerNameChanged:
 		p.server.serverName = e.ServerNameChanged.GetName()
 	case *corev1.Event_ServerDescriptionChanged:
@@ -80,11 +78,11 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		blocked := e.ServerBlockedUsernamesChanged.GetBlockedUsernames()
 		p.server.blockedUsernames = &blocked
 	case *corev1.Event_ServerLogoSet:
-		p.server.logo = cloneDeprecatedAsset(e.ServerLogoSet.GetAsset())
+		p.server.logo = cloneAssetRecord(e.ServerLogoSet.GetAsset())
 	case *corev1.Event_ServerLogoCleared:
 		p.server.logo = nil
 	case *corev1.Event_ServerBannerSet:
-		p.server.banner = cloneDeprecatedAsset(e.ServerBannerSet.GetAsset())
+		p.server.banner = cloneAssetRecord(e.ServerBannerSet.GetAsset())
 	case *corev1.Event_ServerBannerCleared:
 		p.server.banner = nil
 	case *corev1.Event_UserTimezoneChanged:
@@ -135,24 +133,6 @@ func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {
 	return u
 }
 
-func (p *ConfigProjection) applyLegacyServerConfigLocked(cfg *configv1.ServerConfig) {
-	if cfg == nil {
-		p.server.serverName = ""
-		p.server.description = ""
-		p.server.welcomeMessage = ""
-		p.server.motd = ""
-		blocked := ""
-		p.server.blockedUsernames = &blocked
-		return
-	}
-	blocked := cfg.GetBlockedUsernames()
-	p.server.serverName = cfg.GetServerName()
-	p.server.description = cfg.GetDescription()
-	p.server.welcomeMessage = cfg.GetWelcomeMessage()
-	p.server.motd = cfg.GetMotd()
-	p.server.blockedUsernames = &blocked
-}
-
 func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServerPreferencesChangedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
@@ -196,22 +176,22 @@ func (p *ConfigProjection) Get() *configv1.ServerConfig {
 	return cfg
 }
 
-func (p *ConfigProjection) ServerLogo() (*corev1.DeprecatedAsset, bool, error) {
+func (p *ConfigProjection) ServerLogo() (*corev1.AssetRecord, bool, error) {
 	p.RLock()
 	defer p.RUnlock()
 	if p.server.logo == nil {
 		return nil, false, nil
 	}
-	return cloneDeprecatedAsset(p.server.logo), true, nil
+	return cloneAssetRecord(p.server.logo), true, nil
 }
 
-func (p *ConfigProjection) ServerBanner() (*corev1.DeprecatedAsset, bool, error) {
+func (p *ConfigProjection) ServerBanner() (*corev1.AssetRecord, bool, error) {
 	p.RLock()
 	defer p.RUnlock()
 	if p.server.banner == nil {
 		return nil, false, nil
 	}
-	return cloneDeprecatedAsset(p.server.banner), true, nil
+	return cloneAssetRecord(p.server.banner), true, nil
 }
 
 func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPreferences, bool, error) {
@@ -290,7 +270,7 @@ func (p *ConfigProjection) NotificationServerLevel(userID string) corev1.Notific
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.serverLevel == nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
 	return *u.serverLevel
 }
@@ -300,12 +280,12 @@ func (p *ConfigProjection) NotificationRoomLevel(userID, roomID string) corev1.N
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.roomLevelByRoom == nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
 	if level, ok := u.roomLevelByRoom[roomID]; ok {
 		return level
 	}
-	return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+	return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
 func (p *ConfigProjection) NotificationRoomIDs(userID string) []string {

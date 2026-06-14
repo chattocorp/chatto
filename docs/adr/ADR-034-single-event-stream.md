@@ -11,7 +11,7 @@ NATS JetStream supports either shape. The tradeoffs:
 - **One stream**: a single position to track, one backup target, one replication policy, one stream config to tune. Cross-aggregate retention is uniform. All operational tooling sees one resource.
 - **Many streams**: per-type retention and replication factors, bounded blast radius for corruption, independent throughput scaling. Multiplies the operational surface: backup orchestration, consumer fanout, subject-namespace coordination.
 
-A common worry with the single-stream shape is *ordering*: that "per-aggregate ordering" — events for room X are linearly ordered — would somehow require a dedicated stream. It does not. NATS provides per-subject sequence numbers within a single stream. The subject `evt.room.{roomId}.message_posted` has its own monotonic sequence inside the larger stream, and OCC against `Nats-Expected-Last-Subject-Sequence` operates at that granularity. When an invariant spans multiple event-type lanes for the same aggregate, callers use wildcard-filter OCC against `evt.room.{roomId}.>`. Per-subject and per-filter ordering are stream-level guarantees, not stream-per-aggregate guarantees.
+A common worry with the single-stream shape is *ordering*: that "per-aggregate ordering" — events for room X are linearly ordered — would somehow require a dedicated stream. It does not. NATS provides per-subject sequence numbers within a single stream. The subject `evt.room.{roomId}.message_posted` has its own monotonic sequence inside the larger stream, and OCC against `Nats-Expected-Last-Subject-Sequence` operates at that granularity. When an invariant spans multiple event types for the same aggregate, callers use wildcard-filter OCC against `evt.room.{roomId}.>`. Per-subject and per-filter ordering are stream-level guarantees, not stream-per-aggregate guarantees.
 
 Cross-aggregate ordering — "did the user join the room before or after sending this message?" — is intentionally not provided. Two events on different subjects have no guaranteed order relative to each other. Projections that need to relate state across aggregates do so through their own bookkeeping (e.g. a `RoomMemberJoined` event carrying a `joined_at` timestamp).
 
@@ -25,7 +25,7 @@ Use a single JetStream stream named `EVT` for all event-sourced domain state.
 
 - **Aggregate types** are stable identifiers like `room`, `user`, `rbac`, `config`, and `auth`. The list grows as ADR-035 migrates aggregates over.
 - **Aggregate IDs** are the existing NanoIDs from [ADR-022](ADR-022-nanoid-with-entity-prefixes.md). No renaming required.
-- **Event types** are snake_case tokens derived from the protobuf oneof variant on `corev1.Event` (`user_joined`, `room_created`, `config_changed`). The canonical mapping lives in `events.EventTypeOf(*corev1.Event)` — the payload is the single source of truth, the subject token is computed from it, never authored independently.
+- **Event types** are snake_case tokens derived from the protobuf oneof variant on `corev1.Event` (`user_joined`, `room_created`, `server_name_changed`). The canonical mapping lives in `events.EventTypeOf(*corev1.Event)` — the payload is the single source of truth, the subject token is computed from it, never authored independently.
 - **Singleton aggregates** (server-wide config and similar) use a stable sentinel id like `server` rather than introducing a different subject shape. Keeps the parser, the OCC formula, and the framework code uniform. Anonymous auth audit facts use `evt.auth.server` for the same reason.
 
 We deliberately do **not** nest the new event log under `server.>`. The legacy `SERVER_EVENTS` stream already claims `server.>` as its subject root, and NATS won't allow two streams to share an overlapping subject space. The new stream is named simply `EVT`: the word "server" already has a specific product meaning in Chatto (the user-facing concept), and reusing it as a NATS-level prefix on the event log conflated infrastructure naming with domain naming. `EVT` is short, unambiguous, and parallels the `evt.>` subject root.
@@ -86,7 +86,7 @@ Transient UI sync signals that are not durable facts use a separate `corev1.Live
 
 ### Coexistence with the legacy stream
 
-During the migration window (ADR-035), the existing `SERVER_EVENTS` stream continues to serve aggregates that have not yet been migrated. The two streams operate side by side until the last aggregate moves off `SERVER_EVENTS`, after which the legacy stream is decommissioned.
+During the migration window (ADR-035), the existing `SERVER_EVENTS` stream served aggregates that had not yet moved to `EVT`. That window is now closed: current runtime code no longer opens, writes, imports, or republishes `SERVER_EVENTS`.
 
 ## Consequences
 
@@ -96,7 +96,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream conti
 - **Single point of contention for hot streams.** Writes across all aggregates serialize through one stream leader. For Chatto's scale (one server per deployment, not a multi-tenant SaaS) this is acceptable. If we ever need to scale past a single stream's write throughput, [ADR-013](ADR-013-per-space-stream-sharding.md) shows the codebase can carry a sharding abstraction — that's a future option, not a current need.
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}.>`. The framework wraps consumer creation around the projection's declared subjects.
 - **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
-- **Two streams during migration.** `EVT` and `SERVER_EVENTS` coexist. The names are visually similar; ops tooling, log searches, and code review need a bit of care for the duration. Acceptable but not free.
+- **Legacy stream is decommissioned.** Historical backups may still contain `SERVER_EVENTS`, but current runtime behavior is centered on `EVT`.
 - **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.
 
 ## Out of scope for this ADR

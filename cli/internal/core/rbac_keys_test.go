@@ -53,7 +53,7 @@ func TestAllowKey(t *testing.T) {
 		objectId   string
 		want       string
 	}{
-		{"instance role grant", "instance-admin", "access", "admin", "any", "allow.instance-admin.access.admin.any"},
+		{"instance role grant", "instance-admin", "view-users", "admin", "any", "allow.instance-admin.view-users.admin.any"},
 		{"space role grant", "admin", "create", "room", "any", "allow.admin.create.room.any"},
 		{"user space grant", "U9mP2qR5tYz3wK", "create", "room", "any", "allow.U9mP2qR5tYz3wK.create.room.any"},
 		{"room permission", "everyone", "post", "message", "Rabc456", "allow.everyone.post.message.Rabc456"},

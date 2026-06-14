@@ -1,39 +1,25 @@
-<script module lang="ts">
-  // Module-level Map to stash file attachments across room switches.
-  // Files can't go in sessionStorage (not serializable), but this Map
-  // survives component re-mounts within the same SPA session.
-  type FileWithUrl = { file: File; url: string };
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- module-level stash, never read reactively
-  const draftFilesMap = new Map<string, FileWithUrl[]>();
-</script>
-
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { graphql } from '$lib/gql';
-  import type { LinkPreviewForComposerQuery } from '$lib/gql/graphql';
-
-  type ComposerLinkPreview = NonNullable<LinkPreviewForComposerQuery['linkPreview']>;
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { extractURLs } from '$lib/linkPreview';
   import { parseMessageLink } from '$lib/messageLinks';
-  import LinkPreviewCard, { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
+  import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
-  import { fuzzyMatch } from '$lib/fuzzyMatch';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { searchEmojis } from '$lib/emoji';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
   import TipTapEditor, { type TipTapEditorApi } from './TipTapEditor.svelte';
-  import { prepareFiles } from '$lib/attachments/prepareFiles';
+  import { DraftState, draftKey } from './draft.svelte';
+  import { AttachmentsState } from './attachments.svelte';
+  import { LinkPreviewState } from './linkPreviews.svelte';
+  import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -88,6 +74,11 @@
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const scrollState = composerContext.scrollState;
   const isEditing = $derived(editState.eventId !== null);
+  const showEditEchoCheckbox = $derived(
+    isEditing &&
+      editState.threadRootEventId !== null &&
+      (editState.channelEchoEventId !== null || editState.canAddChannelEcho)
+  );
 
   // Element ref for ResizeObserver
   let composerEl = $state<HTMLDivElement>();
@@ -105,13 +96,20 @@
     return () => observer.disconnect();
   });
 
-  const DRAFT_KEY = $derived(
-    inThread ? `chatto:draft:${roomId}:thread:${inThread}` : `chatto:draft:${roomId}`
-  );
+  const DRAFT_KEY = $derived(draftKey(roomId, inThread));
   let message = $state('');
 
   // TipTap editor API (received via onReady callback)
   let editorApi = $state<TipTapEditorApi | null>(null);
+  const draftState = new DraftState();
+  const attachments = new AttachmentsState(() => serverInfo);
+  const linkPreviews = new LinkPreviewState(() => connection().client);
+  const autocomplete = new AutocompleteState(
+    () => editorApi,
+    () => members,
+    () => mentionRoles
+  );
+  let mentionRoles = $state<MentionRole[]>([]);
 
   // Dynamic placeholder changes between normal and edit mode
   let currentPlaceholder = $derived(
@@ -121,50 +119,59 @@
   // Testid for E2E tests - distinguishes main input from thread reply input
   let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
 
-  // Track previous editing state to detect transitions
-  let wasEditing = $state(false);
+  // Track editing transitions by event identity so editor setContent() doesn't
+  // run repeatedly while TipTap echoes updates back through onUpdate.
+  let editSeededForEvent = '';
 
   // When entering edit mode, pre-fill with original message body and clear any pending attachments.
   // When exiting edit mode (cancelled or message deleted), clear the input.
   $effect(() => {
-    if (editState.eventId && editState.originalBody) {
-      message = editState.originalBody;
-      wasEditing = true;
-      editorApi?.setContent(editState.originalBody);
-      tick().then(() => editorApi?.focus('end'));
+    const eventId = editState.eventId;
+    const originalBody = editState.originalBody;
+    const api = editorApi;
 
-      // Clear pending file attachments — editMessage only supports text.
-      // Use untrack() to avoid making filesWithUrls a dependency of this effect,
-      // which would cause re-runs that overwrite the message with originalBody.
-      untrack(() => {
-        for (const { url } of filesWithUrls) {
-          URL.revokeObjectURL(url);
-        }
-        filesWithUrls = [];
-      });
-    } else if (wasEditing && !editState.eventId) {
+    if (eventId && originalBody && editSeededForEvent !== eventId) {
+      editSeededForEvent = eventId;
+      draftState.clearText();
+      message = originalBody;
+      alsoSendToChannel = editState.channelEchoEventId !== null;
+      api?.setContent(originalBody);
+      tick().then(() => api?.focus('end'));
+      attachments.clear();
+      linkPreviews.clear();
+    } else if (editSeededForEvent && !eventId) {
       // Exiting edit mode - clear the input
       message = '';
-      wasEditing = false;
-      editorApi?.setContent('');
+      alsoSendToChannel = false;
+      editSeededForEvent = '';
+      api?.setContent('');
     }
   });
 
   // Load draft from sessionStorage when room changes
   // Using sessionStorage (not localStorage) so drafts are tab-specific
   $effect(() => {
-    const draft = sessionStorage.getItem(DRAFT_KEY) ?? '';
+    if (isEditing) {
+      draftState.switchKey(DRAFT_KEY);
+      attachments.restore([]);
+      return;
+    }
+
+    const draft = draftState.switchKey(DRAFT_KEY);
     message = draft;
     editorApi?.setContent(draft);
+    attachments.restore(untrack(() => draftState.takeFiles()));
+
+    return () => {
+      draftState.stashFiles(untrack(() => attachments.filesWithUrls));
+    };
   });
 
   // Persist draft to sessionStorage
   $effect(() => {
-    if (message) {
-      sessionStorage.setItem(DRAFT_KEY, message);
-    } else {
-      sessionStorage.removeItem(DRAFT_KEY);
-    }
+    void DRAFT_KEY;
+    if (isEditing) return;
+    draftState.persistText(message);
   });
 
   const PostMessageMutation = graphql(`
@@ -175,122 +182,59 @@
     }
   `);
 
+  const ComposerMentionRolesQuery = graphql(`
+    query ComposerMentionRoles {
+      server {
+        roles {
+          name
+          isSystem
+          position
+          pingable
+        }
+      }
+    }
+  `);
+
   const UpdateMessageMutation = graphql(`
     mutation UpdateMessageFromInput($input: UpdateMessageInput!) {
       updateMessage(input: $input)
     }
   `);
 
-  const LinkPreviewQuery = graphql(`
-    query LinkPreviewForComposer($url: String!) {
-      linkPreview(url: $url) {
-        ...LinkPreviewView
-        imageAssetId
-      }
-    }
-  `);
-
-  // Link preview state
-  let detectedURLs = $state<string[]>([]);
-  const previews = new SvelteMap<string, ComposerLinkPreview | null>();
-  const dismissedURLs = new SvelteSet<string>();
-  const fetchingURLs = new SvelteSet<string>();
-
-  // Debounced URL detection (500ms)
-  let urlDetectionTimeout: ReturnType<typeof setTimeout>;
-
   $effect(() => {
-    // Track message for reactivity
-    const currentMessage = message;
-
-    // Clear previous timeout
-    clearTimeout(urlDetectionTimeout);
-
-    // Don't detect URLs in edit mode
-    if (isEditing) {
-      detectedURLs = [];
-      return;
-    }
-
-    urlDetectionTimeout = setTimeout(() => {
-      const urls = extractURLs(currentMessage).filter((u) => !dismissedURLs.has(u));
-      detectedURLs = urls;
-
-      // Fetch OG previews for new URLs (skip message links — those are rendered from a separate GraphQL query)
-      for (const url of urls) {
-        if (parseMessageLink(url)) continue;
-        if (!previews.has(url) && !fetchingURLs.has(url)) {
-          fetchPreview(url);
-        }
-      }
-    }, 500);
-
-    return () => clearTimeout(urlDetectionTimeout);
+    return linkPreviews.scheduleDetection(message, isEditing);
   });
 
-  async function fetchPreview(url: string) {
-    fetchingURLs.add(url);
+  $effect(() => {
+    const client = connection().client;
+    let cancelled = false;
 
-    const result = await connection().client.query(LinkPreviewQuery, { url });
-
-    fetchingURLs.delete(url);
-
-    if (result.data?.linkPreview) {
-      previews.set(url, result.data.linkPreview);
-    } else {
-      // Mark as fetched but no preview available
-      previews.set(url, null);
+    async function loadMentionRoles() {
+      const response = await client.query(ComposerMentionRolesQuery, {});
+      if (cancelled) return;
+      if (response.error) {
+        mentionRoles = [];
+        return;
+      }
+      mentionRoles =
+        response.data?.server?.roles
+          .filter((role) => role.name !== 'everyone')
+          .map((role) => ({
+            name: role.name,
+            isSystem: role.isSystem,
+            position: role.position,
+            pingable: role.pingable
+          })) ?? [];
     }
-  }
 
-  function dismissPreview(url: string) {
-    dismissedURLs.add(url);
-    detectedURLs = detectedURLs.filter((u) => u !== url);
-  }
-
-  // Clear link preview state when message is sent
-  function clearLinkPreviews() {
-    detectedURLs = [];
-    previews.clear();
-    dismissedURLs.clear();
-    fetchingURLs.clear();
-  }
+    void loadMentionRoles();
+    return () => {
+      cancelled = true;
+    };
+  });
 
   let loading = $state(false);
   let fileInputElement = $state<HTMLInputElement>();
-
-  let filesWithUrls = $state<FileWithUrl[]>([]);
-  let pendingAttachmentCount = $state(0);
-
-  // Derive just the files for posting
-  let selectedFiles = $derived(filesWithUrls.map((f) => f.file));
-
-  const attachmentAccept = $derived(
-    serverInfo.videoProcessingEnabled ? 'image/*,video/*,audio/*' : 'image/*,audio/*'
-  );
-
-  // Save/restore draft file attachments across room switches.
-  // When leaving a room (DRAFT_KEY changes or unmount), stash files in the
-  // module-level Map. When entering a room, restore any stashed files.
-  $effect(() => {
-    const key = DRAFT_KEY;
-
-    const saved = draftFilesMap.get(key);
-    if (saved) {
-      filesWithUrls = saved;
-      draftFilesMap.delete(key);
-    } else {
-      filesWithUrls = [];
-    }
-
-    return () => {
-      if (filesWithUrls.length > 0) {
-        draftFilesMap.set(key, filesWithUrls);
-      } else {
-        draftFilesMap.delete(key);
-      }
-    };
-  });
 
   // Input is disabled when user can't post or websocket is disconnected.
   // Note: loading is intentionally excluded — the editor stays editable during sends
@@ -302,8 +246,8 @@
   let canSubmit = $derived(
     !loading &&
       !inputDisabled &&
-      pendingAttachmentCount === 0 &&
-      (hasVisibleContent(message) || selectedFiles.length > 0 || isEditing)
+      attachments.pendingCount === 0 &&
+      (hasVisibleContent(message) || attachments.selectedFiles.length > 0 || isEditing)
   );
 
   // Auto-focus the input when the component mounts, room changes, a reply
@@ -323,295 +267,41 @@
     }
   });
 
-  // Tab-completion state for @mentions
-  type TabCompletionState = {
-    candidates: string[]; // Matching usernames
-    index: number; // Current position in cycle
-    triggerStart: number; // Position of @ in text (relative to full text before cursor)
-    originalPartial: string; // Original typed partial
-  };
-  let tabCompletionState = $state<TabCompletionState | null>(null);
-
-  // Emoji autocomplete state
-  type EmojiAutocompleteState = {
-    query: string; // Search query (without leading colon)
-    triggerStart: number; // Position of : in text (relative to full text before cursor)
-  };
-  let emojiAutocomplete = $state<EmojiAutocompleteState | null>(null);
-  let emojiAutocompleteRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
-
-  // Mention autocomplete state
-  type MentionAutocompleteState = {
-    query: string; // Search query (without leading @)
-    triggerStart: number; // Position of @ in text
-  };
-  let mentionAutocomplete = $state<MentionAutocompleteState | null>(null);
-  let mentionAutocompleteRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(
-    null
-  );
-
   // Close autocomplete popups when switching rooms
   $effect(() => {
     void roomId;
-    emojiAutocomplete = null;
-    mentionAutocomplete = null;
+    autocomplete.resetForRoom();
   });
-
-  // Detect :emoji pattern at cursor (requires at least 2 chars after :)
-  function getEmojiPartialAtCursor(): { query: string; start: number } | null {
-    if (!editorApi) return null;
-
-    const textBefore = editorApi.getTextBeforeCursor();
-
-    // Match :word at end of text (requires at least 2 chars after :)
-    // Must be preceded by whitespace, start of string, or another emoji
-    const match = textBefore.match(/(?:^|[\s]):([\w]{2,})$/);
-    if (!match) return null;
-
-    return {
-      query: match[1],
-      start: textBefore.length - match[1].length - 1 // Position of :
-    };
-  }
-
-  // Update emoji autocomplete state when input changes
-  function updateEmojiAutocomplete() {
-    const partial = getEmojiPartialAtCursor();
-    if (partial && searchEmojis(partial.query, 1).length > 0) {
-      emojiAutocomplete = {
-        query: partial.query,
-        triggerStart: partial.start
-      };
-      // Only one popup at a time
-      mentionAutocomplete = null;
-    } else {
-      emojiAutocomplete = null;
-    }
-  }
 
   // Handle emoji selection from autocomplete
   function handleEmojiSelect(emoji: string, _name: string) {
-    if (!emojiAutocomplete || !editorApi) return;
-
-    const textBefore = editorApi.getTextBeforeCursor();
-    const charsToReplace = textBefore.length - emojiAutocomplete.triggerStart;
-    editorApi.replaceTextBeforeCursor(charsToReplace, emoji + ' ');
-    emojiAutocomplete = null;
+    autocomplete.selectEmoji(emoji);
   }
 
   function closeEmojiAutocomplete() {
-    emojiAutocomplete = null;
-  }
-
-  // Update mention autocomplete state when input changes
-  function updateMentionAutocomplete() {
-    // Don't show mention popup if emoji popup is active
-    if (emojiAutocomplete) {
-      mentionAutocomplete = null;
-      return;
-    }
-
-    const partial = getMentionPartialAtCursor();
-    if (partial && findMatchingMembers(partial.partial).length > 0) {
-      mentionAutocomplete = {
-        query: partial.partial,
-        triggerStart: partial.start
-      };
-    } else {
-      mentionAutocomplete = null;
-    }
+    autocomplete.closeEmoji();
   }
 
   // Handle mention selection from autocomplete
   function handleMentionSelect(login: string, viaTab: boolean) {
-    if (!mentionAutocomplete) return;
-
-    const triggerStart = mentionAutocomplete.triggerStart;
-    const originalPartial = mentionAutocomplete.query;
-
-    applyCompletion(login, triggerStart);
-    mentionAutocomplete = null;
-
-    // When selected via Tab, set up tab completion state so subsequent
-    // Tab presses cycle through the other candidates (matching existing behavior).
-    if (viaTab) {
-      const candidates = findMatchingMembers(originalPartial);
-      if (candidates.length > 1) {
-        const selectedIdx = candidates.indexOf(login);
-        tabCompletionState = {
-          candidates,
-          index: selectedIdx >= 0 ? selectedIdx : 0,
-          triggerStart,
-          originalPartial
-        };
-      }
-    }
+    autocomplete.selectMention(login, viaTab);
   }
 
   function closeMentionAutocomplete() {
-    mentionAutocomplete = null;
-  }
-
-  // Find usernames that match a partial string using fuzzy matching
-  function findMatchingMembers(partial: string): string[] {
-    const scored: { login: string; score: number }[] = [];
-
-    for (const m of members) {
-      const loginScore = fuzzyMatch(partial, m.login);
-      const displayScore = fuzzyMatch(partial, m.displayName);
-      const bestScore = Math.max(loginScore ?? -1, displayScore ?? -1);
-
-      if (bestScore > 0) {
-        scored.push({ login: m.login, score: bestScore });
-      }
-    }
-
-    // Sort by score (descending) so better matches come first
-    scored.sort((a, b) => b.score - a.score);
-
-    return scored.map((s) => s.login);
-  }
-
-  // Detect if cursor is at end of @partial pattern (at least 1 char after @)
-  function getMentionPartialAtCursor(): { partial: string; start: number } | null {
-    if (!editorApi) return null;
-
-    const textBefore = editorApi.getTextBeforeCursor();
-
-    // Match @word at end of text (requires at least 1 char after @)
-    // Must be preceded by whitespace or start of string
-    // Includes dots for usernames like "hendrik.mans"
-    const match = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_.-]+)$/);
-    if (!match) return null;
-
-    return {
-      partial: match[1],
-      start: textBefore.length - match[1].length - 1 // Position of @
-    };
-  }
-
-  // Apply a completion - replace @partial with @username + space
-  function applyCompletion(username: string, atPosition: number) {
-    if (!editorApi) return;
-
-    const textBefore = editorApi.getTextBeforeCursor();
-    const charsToReplace = textBefore.length - atPosition;
-    editorApi.replaceTextBeforeCursor(charsToReplace, '@' + username + ' ');
-  }
-
-  // Handle Tab key for @mention autocomplete
-  function handleTabCompletion(event: KeyboardEvent): boolean {
-    // First, check if we're continuing an active completion cycle
-    // (cursor is right after a completed username + space)
-    if (tabCompletionState && tabCompletionState.candidates.length > 1) {
-      const currentUsername = tabCompletionState.candidates[tabCompletionState.index];
-      const expectedCursorPos = tabCompletionState.triggerStart + 1 + currentUsername.length + 1; // @ + username + space
-      const currentPos = editorApi?.getTextBeforeCursor().length ?? 0;
-
-      if (currentPos === expectedCursorPos) {
-        // Continue cycling through candidates
-        event.preventDefault();
-        const nextIndex = (tabCompletionState.index + 1) % tabCompletionState.candidates.length;
-        tabCompletionState = { ...tabCompletionState, index: nextIndex };
-        applyCompletion(tabCompletionState.candidates[nextIndex], tabCompletionState.triggerStart);
-        return true;
-      }
-    }
-
-    // Check for new @mention partial
-    const mentionInfo = getMentionPartialAtCursor();
-    if (!mentionInfo || mentionInfo.partial.length === 0) {
-      return false; // Let default Tab behavior happen
-    }
-
-    event.preventDefault();
-
-    // Start new completion
-    const candidates = findMatchingMembers(mentionInfo.partial);
-    if (candidates.length > 0) {
-      tabCompletionState = {
-        candidates,
-        index: 0,
-        triggerStart: mentionInfo.start,
-        originalPartial: mentionInfo.partial
-      };
-      applyCompletion(candidates[0], mentionInfo.start);
-    }
-
-    return true;
-  }
-
-  function formatFileSize(bytes: number): string {
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
-    if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${bytes} bytes`;
-  }
-
-  /**
-   * Validate files against instance capabilities and upload limits.
-   * Returns only the files that pass validation, toasting errors for rejected ones.
-   */
-  function validateFiles(files: File[]): File[] {
-    const accepted: File[] = [];
-    for (const file of files) {
-      const isVideo = file.type.startsWith('video/');
-      if (isVideo && !serverInfo.videoProcessingEnabled) {
-        toast.error('Video uploads are disabled on this server.');
-        continue;
-      }
-
-      const limit = isVideo ? serverInfo.maxVideoUploadSize : serverInfo.maxUploadSize;
-      if (file.size > limit) {
-        toast.error(
-          `${file.name} is too large (${formatFileSize(file.size)}). Maximum is ${formatFileSize(limit)}.`
-        );
-      } else {
-        accepted.push(file);
-      }
-    }
-    return accepted;
-  }
-
-  function filesToPreviewItems(files: File[]): FileWithUrl[] {
-    return files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file)
-    }));
-  }
-
-  async function stageFiles(files: File[]) {
-    const validFiles = validateFiles(files);
-    if (validFiles.length === 0) return;
-
-    pendingAttachmentCount += validFiles.length;
-    try {
-      const prepared = await prepareFiles(validFiles);
-      if (prepared.length > 0) {
-        filesWithUrls = [...filesWithUrls, ...filesToPreviewItems(prepared)];
-      }
-    } catch (err) {
-      console.error('Error preparing attachment files:', err);
-      toast.error('Failed to prepare attachment');
-    } finally {
-      pendingAttachmentCount -= validFiles.length;
-    }
+    autocomplete.closeMention();
   }
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files) {
-      void stageFiles(Array.from(target.files));
+      void attachments.stageFiles(Array.from(target.files));
     }
     // Reset input so same file can be selected again
     target.value = '';
   }
 
   function removeFile(index: number) {
-    const removed = filesWithUrls[index];
-    if (removed) {
-      URL.revokeObjectURL(removed.url);
-    }
-    filesWithUrls = filesWithUrls.filter((_, i) => i !== index);
+    attachments.removeFile(index);
   }
 
   /**
@@ -619,7 +309,7 @@
    * Creates object URLs for preview and adds to the attachment list.
    */
   async function addFiles(files: File[]) {
-    await stageFiles(files);
+    await attachments.stageFiles(files);
   }
 
   // Focus the input programmatically (e.g., when opening thread from mobile action sheet)
@@ -653,7 +343,7 @@
     }
 
     if (pastedFiles.length > 0) {
-      void stageFiles(pastedFiles);
+      void attachments.stageFiles(pastedFiles);
       return true; // Prevent TipTap from processing the paste
     }
     return false; // Let TipTap handle text pastes
@@ -666,45 +356,51 @@
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
+  type MentionConfirmation = {
+    recipientCount: number;
+    token: string;
+  };
+
+  function mentionConfirmation(error: unknown): MentionConfirmation | null {
+    const graphQLErrors =
+      error && typeof error === 'object' && 'graphQLErrors' in error
+        ? (error.graphQLErrors as Array<{ extensions?: Record<string, unknown> }>)
+        : [];
+
+    for (const graphQLError of graphQLErrors) {
+      const extensions = graphQLError.extensions;
+      if (extensions?.code !== 'MENTION_CONFIRMATION_REQUIRED') continue;
+      const count = extensions.recipientCount;
+      const token = extensions.mentionConfirmationToken;
+      if (typeof count === 'number' && typeof token === 'string' && token) {
+        return { recipientCount: count, token };
+      }
+    }
+    return null;
+  }
+
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
     const bodyToSend = normalizeMessageBody(message.trim());
     const hasBody = hasVisibleContent(bodyToSend);
-    const filesToSend = selectedFiles.length > 0 ? [...selectedFiles] : null;
+    const filesToSend =
+      attachments.selectedFiles.length > 0 ? [...attachments.selectedFiles] : null;
     if (!hasBody && !filesToSend) return;
 
-    // Capture active link preview before clearing state
-    const previewURL = detectedURLs[0];
-    const activePreview = previewURL ? previews.get(previewURL) : null;
-    const previewFields = activePreview ? useFragment(LinkPreviewFragment, activePreview) : null;
-    const linkPreviewInput =
-      activePreview && previewFields && !dismissedURLs.has(previewURL)
-        ? {
-            url: previewFields.url,
-            title: previewFields.title,
-            description: previewFields.description,
-            siteName: previewFields.siteName,
-            imageAssetId: activePreview.imageAssetId,
-            embedType: previewFields.embedType,
-            embedId: previewFields.embedId
-          }
-        : null;
+    const linkPreviewInput = linkPreviews.buildInput();
 
     // Optimistically clear the editor so the user can start typing the next
     // message immediately (matches Slack/Discord behavior).
     message = '';
     editorApi?.setContent('');
-    for (const { url } of filesWithUrls) {
-      URL.revokeObjectURL(url);
-    }
-    filesWithUrls = [];
-    clearLinkPreviews();
+    attachments.clear();
+    linkPreviews.clear();
 
     loading = true;
 
     try {
-      const response = await connection().client.mutation(PostMessageMutation, {
+      const buildInput = (mentionConfirmationToken: string | null) => ({
         input: {
           roomId,
           body: bodyToSend || null,
@@ -712,9 +408,34 @@
           threadRootEventId: inThread ?? null,
           inReplyTo: inReplyTo ?? null,
           linkPreview: linkPreviewInput,
-          alsoSendToChannel: alsoSendToChannel || null
+          alsoSendToChannel: alsoSendToChannel || null,
+          mentionConfirmationToken
         }
       });
+
+      let response = await connection().client.mutation(PostMessageMutation, buildInput(null));
+
+      if (response.error) {
+        const confirmation = mentionConfirmation(response.error);
+        if (confirmation !== null) {
+          const confirmed = window.confirm(
+            `This message will notify ${confirmation.recipientCount} people. Send it anyway?`
+          );
+          if (confirmed) {
+            response = await connection().client.mutation(
+              PostMessageMutation,
+              buildInput(confirmation.token)
+            );
+          } else {
+            message = bodyToSend;
+            editorApi?.setContent(bodyToSend);
+            if (filesToSend) {
+              attachments.restore(attachments.filesToPreviewItems(filesToSend));
+            }
+            return;
+          }
+        }
+      }
 
       if (response.error) {
         toast.error('Failed to send message');
@@ -723,7 +444,7 @@
         message = bodyToSend;
         editorApi?.setContent(bodyToSend);
         if (filesToSend) {
-          filesWithUrls = filesToPreviewItems(filesToSend);
+          attachments.restore(attachments.filesToPreviewItems(filesToSend));
         }
       } else {
         // Scroll the enclosing pane to the user's new message. The composer
@@ -761,8 +482,18 @@
 
     loading = true;
 
+    const input: {
+      roomId: string;
+      eventId: string;
+      body: string;
+      alsoSendToChannel?: boolean;
+    } = { roomId, eventId, body: trimmedBody };
+    if (showEditEchoCheckbox) {
+      input.alsoSendToChannel = alsoSendToChannel;
+    }
+
     const response = await connection().client.mutation(UpdateMessageMutation, {
-      input: { roomId, eventId, body: trimmedBody }
+      input
     });
 
     if (response.error) {
@@ -779,7 +510,7 @@
   async function handleSubmit() {
     // Guard against double-sends while editor stays editable, and against
     // submitting before pasted/dropped/selected files have finished staging.
-    if (loading || inputDisabled || pendingAttachmentCount > 0) return;
+    if (loading || inputDisabled || attachments.pendingCount > 0) return;
     if (isEditing) {
       await editMessage();
     } else {
@@ -797,22 +528,22 @@
   // Return true to prevent TipTap's default handling.
   function handleEditorKeyDown(event: KeyboardEvent): boolean {
     // Handle emoji autocomplete keyboard events first
-    if (emojiAutocomplete && emojiAutocompleteRef) {
-      if (emojiAutocompleteRef.handleKeyDown(event)) {
+    if (autocomplete.emoji && autocomplete.emojiRef) {
+      if (autocomplete.emojiRef.handleKeyDown(event)) {
         return true;
       }
     }
 
     // Handle mention autocomplete keyboard events
-    if (mentionAutocomplete && mentionAutocompleteRef) {
-      if (mentionAutocompleteRef.handleKeyDown(event)) {
+    if (autocomplete.mention && autocomplete.mentionRef) {
+      if (autocomplete.mentionRef.handleKeyDown(event)) {
         return true;
       }
     }
 
     // Handle Tab for @mention autocomplete
     if (event.key === 'Tab') {
-      if (handleTabCompletion(event)) {
+      if (autocomplete.handleTabCompletion(event)) {
         return true;
       }
       // If no completion happened, let default Tab behavior occur
@@ -820,7 +551,7 @@
 
     // Reset tab-completion state on any other key
     if (event.key !== 'Tab') {
-      tabCompletionState = null;
+      autocomplete.resetTabCompletion();
     }
 
     if (event.key === 'Escape') {
@@ -842,7 +573,11 @@
     if (event.key === 'ArrowUp' && !isEditing && (editorApi?.getText() ?? '').trim() === '') {
       const lastMsg = lastEditableMessageCtx?.getLastEditableMessage();
       if (lastMsg) {
-        editState.startEdit(lastMsg.eventId, lastMsg.body);
+        editState.startEdit(lastMsg.eventId, lastMsg.body, {
+          threadRootEventId: lastMsg.threadRootEventId,
+          channelEchoEventId: lastMsg.channelEchoEventId,
+          canAddChannelEcho: lastMsg.canAddChannelEcho
+        });
         return true;
       }
     }
@@ -866,8 +601,7 @@
     if (text !== previousMessage) {
       onTyping?.();
     }
-    updateEmojiAutocomplete();
-    updateMentionAutocomplete();
+    autocomplete.update();
   }
 
   // Called when TipTap editor is ready - sync any pending state
@@ -892,22 +626,25 @@
   }}
 >
   <!-- Link / message preview -->
-  {#if detectedURLs[0]}
-    {@const url = detectedURLs[0]}
+  {#if linkPreviews.activeURL}
+    {@const url = linkPreviews.activeURL}
     {@const messageLink = parseMessageLink(url)}
     {#if messageLink}
-      <MessagePreviewCard link={messageLink} onDismiss={() => dismissPreview(url)} />
-    {:else if fetchingURLs.has(url)}
+      <MessagePreviewCard link={messageLink} onDismiss={() => linkPreviews.dismissPreview(url)} />
+    {:else if linkPreviews.fetchingURLs.has(url)}
       <LinkPreviewSkeleton />
-    {:else if previews.get(url)}
-      <LinkPreviewCard preview={previews.get(url)!} onDismiss={() => dismissPreview(url)} />
+    {:else if linkPreviews.previews.get(url)}
+      <LinkPreviewCard
+        preview={linkPreviews.previews.get(url)!}
+        onDismiss={() => linkPreviews.dismissPreview(url)}
+      />
     {/if}
   {/if}
 
   <!-- Selected files preview -->
-  {#if filesWithUrls.length > 0}
+  {#if attachments.filesWithUrls.length > 0}
     <div class="flex flex-wrap gap-2 rounded-lg bg-surface-300 p-2">
-      {#each filesWithUrls as { file, url }, index (index)}
+      {#each attachments.filesWithUrls as { file, url }, index (url)}
         <div class="relative">
           {#if file.type.startsWith('image/')}
             <img src={url} alt={file.name} class="h-16 w-16 rounded-md object-cover" />
@@ -925,7 +662,7 @@
               data-testid="audio-attachment-preview"
               class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
             >
-              <span class="iconify uil--music text-lg text-muted"></span>
+              <span class="iconify text-lg text-muted uil--music"></span>
             </div>
           {:else}
             <div class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200">
@@ -948,7 +685,7 @@
   <input
     bind:this={fileInputElement}
     type="file"
-    accept={attachmentAccept}
+    accept={attachments.accept}
     multiple
     onchange={handleFileSelect}
     class="hidden"
@@ -964,21 +701,22 @@
     class:sending={loading}
   >
     <!-- Emoji autocomplete popup -->
-    {#if emojiAutocomplete}
+    {#if autocomplete.emoji}
       <EmojiAutocomplete
-        bind:this={emojiAutocompleteRef}
-        query={emojiAutocomplete.query}
+        bind:this={autocomplete.emojiRef}
+        query={autocomplete.emoji.query}
         onSelect={handleEmojiSelect}
         onClose={closeEmojiAutocomplete}
       />
     {/if}
 
     <!-- Mention autocomplete popup -->
-    {#if mentionAutocomplete}
+    {#if autocomplete.mention}
       <MentionAutocomplete
-        bind:this={mentionAutocompleteRef}
-        query={mentionAutocomplete.query}
+        bind:this={autocomplete.mentionRef}
+        query={autocomplete.mention.query}
         {members}
+        roles={mentionRoles}
         onSelect={handleMentionSelect}
         onClose={closeMentionAutocomplete}
       />
@@ -1022,7 +760,7 @@
   </div>
 
   <!-- Also send to channel checkbox (thread replies only, when permitted) -->
-  {#if showAlsoSendToChannel && !isEditing}
+  {#if (showAlsoSendToChannel && !isEditing) || showEditEchoCheckbox}
     <label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
       <input
         type="checkbox"

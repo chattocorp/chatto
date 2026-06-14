@@ -16,16 +16,16 @@ import (
 // or the Gin session cookie, and returns an updated http.Request with the user
 // injected into its context.
 // Returns the original request if no user is authenticated (allowing unauthenticated requests).
-func injectUserIntoContext(c *gin.Context, chattoCore *core.ChattoCore) *http.Request {
+func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 	ctx := c.Request.Context()
 
 	// 1. Check Authorization: Bearer <token> header first (cross-origin clients)
 	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 		if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && strings.TrimSpace(token) != "" {
 			token = strings.TrimSpace(token)
-			userID, err := chattoCore.ValidateAuthToken(ctx, token)
+			userID, err := s.core.ValidateAuthToken(ctx, token)
 			if err == nil {
-				user, err := chattoCore.GetUser(ctx, userID)
+				user, err := s.core.GetUser(ctx, userID)
 				if err == nil {
 					ctx = auth.WithUser(ctx, user)
 					return c.Request.WithContext(ctx)
@@ -37,26 +37,19 @@ func injectUserIntoContext(c *gin.Context, chattoCore *core.ChattoCore) *http.Re
 	}
 
 	// 2. Fall back to session cookie (embedded SPA clients)
-	session := sessions.Default(c)
-	if session == nil {
+	userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
+	if !ok {
 		return c.Request
 	}
 
-	userIdRaw := session.Get("user_id")
-	if userIdRaw == nil {
-		return c.Request
-	}
-
-	userId, ok := userIdRaw.(string)
-	if !ok || userId == "" {
-		return c.Request
-	}
-
-	user, err := chattoCore.GetUser(ctx, userId)
+	user, err := s.core.GetUser(ctx, userID)
 	if err != nil {
-		log.Warn("Failed to load user from session", "userId", userId, "error", err)
+		log.Warn("Failed to load user from session", "userId", userID, "error", err)
+		clearCookieSessionAuth(sessions.Default(c))
 		return c.Request
 	}
+
+	s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 
 	ctx = auth.WithUser(ctx, user)
 	return c.Request.WithContext(ctx)

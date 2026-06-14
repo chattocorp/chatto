@@ -22,7 +22,14 @@ export function sidebarSwipe(node: HTMLElement) {
       .find((el) => el !== node && !node.contains(el));
   }
 
+  function tappedChild(x: number, y: number) {
+    const target = document.elementFromPoint(x, y);
+    return target !== null && target !== node && node.contains(target);
+  }
+
   function forwardLongPress(x: number, y: number) {
+    if (tappedChild(x, y)) return;
+
     elementBelow(x, y)?.dispatchEvent(
       new MouseEvent('contextmenu', {
         bubbles: true,
@@ -35,6 +42,8 @@ export function sidebarSwipe(node: HTMLElement) {
   }
 
   function forwardTap(x: number, y: number) {
+    if (tappedChild(x, y)) return;
+
     const target = elementBelow(x, y);
     if (!target) return;
     const opts: MouseEventInit = {

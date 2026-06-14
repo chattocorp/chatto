@@ -1,16 +1,25 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- timestamp hrefs use buildMessageLinkPath which already calls resolve() */
+  import { untrack } from 'svelte';
   import { startDMWith } from '$lib/dm/startDM';
+  import { resolve } from '$app/paths';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
+  import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
   import { graphql } from '$lib/gql';
-  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
-  import { getRoomPermissions, getRoomMembers, getComposerContext, type RoomMember } from '$lib/state/room';
+  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import {
+    getRoomPermissions,
+    getRoomMembers,
+    getMentionRoles,
+    getComposerContext,
+    type MessagesStore,
+    type RoomMember
+  } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -31,10 +40,11 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
-  import { useEvent, useMessageActions } from '$lib/hooks';
+  import { useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
-  import { buildMessageLinkPath, buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
+  import { buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
+  import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
 
@@ -46,11 +56,13 @@
     event,
     compact = false,
     roomId,
+    messageStore = null,
     onOpenThread
   }: {
     event: RoomEventViewFragment;
     compact?: boolean;
     roomId: string;
+    messageStore?: MessagesStore | null;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
   } = $props();
 
@@ -64,6 +76,11 @@
   const isTouch = isTouchDevice();
   // Wrap in $derived to ensure reactivity when the member list changes
   const members = $derived(getRoomMembers());
+  const mentionRoleHandles = $derived(
+    getMentionRoles()
+      .filter((role) => role.pingable && role.name !== 'everyone')
+      .map((role) => role.name)
+  );
   // Actor may be null if the user has been deleted.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ? useFragment(UserAvatarFragment, event.actor) : null);
@@ -80,7 +97,8 @@
   const canEdit = $derived(
     (isAuthor &&
       event &&
-      Date.now() - new Date(event.createdAt).getTime() < serverInfo.messageEditWindowSeconds * 1000) ||
+      Date.now() - new Date(event.createdAt).getTime() <
+        serverInfo.messageEditWindowSeconds * 1000) ||
       roomPermissions.canManageOthersMessage
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
@@ -213,15 +231,24 @@
   // Check if this is an echo (MessagePostedEvent with echoOfEventId set)
   const isEcho = $derived(messageEvent?.echoOfEventId != null);
 
+  const editEventId = $derived(isEcho ? messageEvent!.echoOfEventId! : event.id);
+  const editThreadRootEventId = $derived(
+    isEcho ? (messageEvent?.echoFromThreadRootEventId ?? null) : (messageEvent?.threadRootEventId ?? null)
+  );
+  const editChannelEchoEventId = $derived(
+    isEcho ? event.id : (messageEvent?.channelEchoEventId ?? null)
+  );
+  const canReconcileChannelEcho = $derived(
+    isAuthor &&
+      !!editThreadRootEventId &&
+      (!!editChannelEchoEventId ||
+        (roomPermissions.canEchoMessage && roomPermissions.canPostMessage))
+  );
+
   // Common message data for rendering (body, attachments, reactions, updatedAt)
   const msg = $derived(messageEvent);
 
   const timestamp = $derived(event ? formatMessageTime(event.createdAt, userSettings) : '');
-
-  // Canonical link for this message (internal path for href, absolute URL for copy).
-  const messageLinkPath = $derived(
-    event ? buildMessageLinkPath(getActiveServer(), roomId, event.id) : ''
-  );
 
   // Message links referenced in this message's body — rendered inline as previews.
   const embeddedMessageLinks = $derived.by<MessageLink[]>(() => {
@@ -314,64 +341,18 @@
   // reply-attribution context, deleted-then-reacted-to messages disappearing).
   const isDeleted = $derived(!msg?.body && !hasAttachments);
 
-  // Reply preview: per-message fetch of the replied-to event.
-  let replyTarget = $state<RoomEventViewFragment | null>(null);
-
-  function fetchReplyTarget(eventId: string) {
-    connection().client
-      .query(
-        graphql(`
-          query ReplyPreview($roomId: ID!, $eventId: ID!) {
-            room(roomId: $roomId) {
-              event(eventId: $eventId) {
-                ...RoomEventView
-              }
-            }
-          }
-        `),
-        { roomId, eventId }
-      )
-      .toPromise()
-      .then((result) => {
-        const ev = result.data?.room?.event;
-        if (ev) {
-          const fetched = useFragment(RoomEventViewFragmentDoc, ev);
-          if (fetched) {
-            replyTarget = fetched;
-          }
-        }
-      });
-  }
-
-  // Fetch reply target when inReplyTo is set
-  $effect(() => {
+  const replyTarget = $derived.by(() => {
     const replyToId = messageEvent?.inReplyTo;
-    if (!replyToId) {
-      replyTarget = null;
-      return;
-    }
-
-    // Reset on new reply target
-    replyTarget = null;
-    fetchReplyTarget(replyToId);
+    if (!replyToId) return null;
+    return messageStore?.getEventById(replyToId);
   });
 
-  // Refetch reply target when the replied-to message is edited or deleted
-  useEvent((spaceEvent) => {
+  // Fetch reply target only when it is outside the already-loaded event window.
+  $effect(() => {
     const replyToId = messageEvent?.inReplyTo;
-    if (!replyToId || !replyTarget) return;
-
-    const evt = spaceEvent.event;
-    if (
-      (evt?.__typename === 'MessageRetractedEvent' ||
-        evt?.__typename === 'MessageEditedEvent') &&
-      evt.roomId === roomId
-    ) {
-      // Check if the deleted/updated message is our reply target
-      if (replyTarget.id === evt.messageEventId) {
-        fetchReplyTarget(replyToId);
-      }
-    }
+    if (!replyToId) return;
+    if (!messageStore) return;
+    untrack(() => messageStore.ensureEvent(replyToId));
   });
 
   // Derive reply preview from locally fetched target
@@ -388,10 +369,7 @@
       ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
       : 'Deleted User';
     const typename = replyTarget.event?.__typename;
-    const body =
-      typename === 'MessagePostedEvent'
-        ? (replyTarget.event.body ?? null)
-        : null;
+    const body = typename === 'MessagePostedEvent' ? (replyTarget.event.body ?? null) : null;
     return { name, body, actor: repliedActor };
   });
 
@@ -413,6 +391,55 @@
   const canStartDMs = $derived(serverPerms.current.canStartDMs);
   let popoverUser = $state<RoomMember | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);
+  let banningMemberId = $state<string | null>(null);
+  let banDialogUser = $state<RoomMember | null>(null);
+  let banError = $state<string | null>(null);
+
+  const BanRoomMemberMutation = graphql(`
+    mutation BanRoomMemberFromMessageEvent($input: BanRoomMemberInput!) {
+      banRoomMember(input: $input)
+    }
+  `);
+
+  const canBanPopoverUser = $derived.by(() => {
+    if (
+      !popoverUser ||
+      !roomPermissions.canBanRoomMembers ||
+      popoverUser.id === currentUser.user?.id
+    ) {
+      return false;
+    }
+    const targetUserId = popoverUser.id;
+    return members.some((member) => member.id === targetUserId);
+  });
+
+  function openBanDialog(member: RoomMember) {
+    banDialogUser = member;
+    banError = null;
+    closePopover();
+  }
+
+  async function banFromRoom(member: RoomMember, reason: string, expiresAt: string | null) {
+    if (banningMemberId) return;
+
+    banningMemberId = member.id;
+    banError = null;
+    const displayName = member.displayName || member.login;
+    const result = await connection().client.mutation(BanRoomMemberMutation, {
+      input: { roomId, userId: member.id, reason, expiresAt }
+    });
+    banningMemberId = null;
+
+    if (result.error) {
+      banError = 'Failed to ban member from room';
+      toast.error(banError);
+      console.error('Failed to ban member from room:', result.error);
+      return;
+    }
+
+    toast.success(`Banned ${displayName} from room`);
+    banDialogUser = null;
+  }
 
   function showPopoverForActor(e: MouseEvent) {
     if (!actor) return;
@@ -472,7 +499,12 @@
 
   function scrollToReplyTarget() {
     // For echo events, open the thread and highlight the replied-to message there
-    if (isEcho && messageEvent?.inReplyTo && messageEvent.echoFromThreadRootEventId && onOpenThread) {
+    if (
+      isEcho &&
+      messageEvent?.inReplyTo &&
+      messageEvent.echoFromThreadRootEventId &&
+      onOpenThread
+    ) {
       onOpenThread(messageEvent.echoFromThreadRootEventId, messageEvent.inReplyTo);
       return;
     }
@@ -534,11 +566,15 @@
       {#if compact}
         <div class="flex w-11 shrink-0 items-center justify-center">
           <a
-            href={messageLinkPath}
+            href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+              serverId: serverIdToSegment(getActiveServer()),
+              roomId,
+              messageId: event.id
+            })}
             onclick={copyMessageLink}
             oncontextmenu={(e) => e.stopPropagation()}
             title="Click to copy link to this message"
-            class="text-xs whitespace-nowrap text-muted opacity-0 hover:underline group-hover:opacity-100"
+            class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
           >
             {timestamp}
           </a>
@@ -599,7 +635,11 @@
               <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
             {/if}
             <a
-              href={messageLinkPath}
+              href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+                serverId: serverIdToSegment(getActiveServer()),
+                roomId,
+                messageId: event.id
+              })}
               onclick={copyMessageLink}
               oncontextmenu={(e) => e.stopPropagation()}
               title="Click to copy link to this message"
@@ -652,6 +692,7 @@
             <MessageContent
               body={msg.body}
               {members}
+              roleHandles={mentionRoleHandles}
               edited={isEdited}
               onMentionClick={showPopoverForMember}
             />
@@ -711,9 +752,12 @@
           serverId={getActiveServer()}
           {roomId}
           messageEventId={event.id}
-          eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+          eventId={editEventId}
           deleteEventId={event.id}
           messageBody={msg.body ?? ''}
+          threadRootEventId={editThreadRootEventId}
+          channelEchoEventId={editChannelEchoEventId}
+          canAddChannelEcho={canReconcileChannelEcho}
           reactions={msg?.reactions ?? []}
           canReact={roomPermissions.canReact}
           {canEdit}
@@ -733,8 +777,21 @@
       user={popoverUser}
       anchorRect={popoverAnchorRect}
       canSendMessage={canStartDMs}
+      canBanFromRoom={canBanPopoverUser}
+      banningFromRoom={banningMemberId === popoverUser.id}
       onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}
+      onBanFromRoom={() => openBanDialog(popoverUser!)}
       onClose={closePopover}
+    />
+  {/if}
+
+  {#if banDialogUser}
+    <BanRoomMemberModal
+      user={banDialogUser}
+      submitting={banningMemberId === banDialogUser.id}
+      error={banError}
+      onconfirm={(reason, expiresAt) => banFromRoom(banDialogUser!, reason, expiresAt)}
+      onclose={() => (banDialogUser = null)}
     />
   {/if}
 
@@ -751,9 +808,12 @@
         serverId={getActiveServer()}
         {roomId}
         messageEventId={event.id}
-        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        threadRootEventId={editThreadRootEventId}
+        channelEchoEventId={editChannelEchoEventId}
+        canAddChannelEcho={canReconcileChannelEcho}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}
@@ -784,9 +844,12 @@
         serverId={getActiveServer()}
         {roomId}
         messageEventId={event.id}
-        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        threadRootEventId={editThreadRootEventId}
+        channelEchoEventId={editChannelEchoEventId}
+        canAddChannelEcho={canReconcileChannelEcho}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}

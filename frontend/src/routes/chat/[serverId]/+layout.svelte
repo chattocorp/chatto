@@ -86,6 +86,6 @@
 {:else if serverStore}
   <!-- Server store exists but user state is still resolving (e.g., remote server
        loading, or brief reactive update on origin). Render children to avoid a blank
-       screen — child routes validate their own access (validateSpace, useRoomData). -->
+       screen — child routes validate their own access (validateServer, useRoomData). -->
   {@render children?.()}
 {/if}

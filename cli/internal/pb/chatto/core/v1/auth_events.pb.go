@@ -22,61 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AuditRequestMetadata captures request details that are safe to persist in
-// the durable audit log. Raw IP addresses, links, and tokens never belong here.
-type AuditRequestMetadata struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserAgent     string                 `protobuf:"bytes,1,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	IpHash        string                 `protobuf:"bytes,2,opt,name=ip_hash,json=ipHash,proto3" json:"ip_hash,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AuditRequestMetadata) Reset() {
-	*x = AuditRequestMetadata{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AuditRequestMetadata) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AuditRequestMetadata) ProtoMessage() {}
-
-func (x *AuditRequestMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AuditRequestMetadata.ProtoReflect.Descriptor instead.
-func (*AuditRequestMetadata) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *AuditRequestMetadata) GetUserAgent() string {
-	if x != nil {
-		return x.UserAgent
-	}
-	return ""
-}
-
-func (x *AuditRequestMetadata) GetIpHash() string {
-	if x != nil {
-		return x.IpHash
-	}
-	return ""
-}
-
-type RegistrationLinkIssuedEvent struct {
+type RegistrationVerificationCodeIssuedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EmailHash     string                 `protobuf:"bytes,1,opt,name=email_hash,json=emailHash,proto3" json:"email_hash,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
@@ -85,21 +31,21 @@ type RegistrationLinkIssuedEvent struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegistrationLinkIssuedEvent) Reset() {
-	*x = RegistrationLinkIssuedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[1]
+func (x *RegistrationVerificationCodeIssuedEvent) Reset() {
+	*x = RegistrationVerificationCodeIssuedEvent{}
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegistrationLinkIssuedEvent) String() string {
+func (x *RegistrationVerificationCodeIssuedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegistrationLinkIssuedEvent) ProtoMessage() {}
+func (*RegistrationVerificationCodeIssuedEvent) ProtoMessage() {}
 
-func (x *RegistrationLinkIssuedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[1]
+func (x *RegistrationVerificationCodeIssuedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -110,33 +56,33 @@ func (x *RegistrationLinkIssuedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegistrationLinkIssuedEvent.ProtoReflect.Descriptor instead.
-func (*RegistrationLinkIssuedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{1}
+// Deprecated: Use RegistrationVerificationCodeIssuedEvent.ProtoReflect.Descriptor instead.
+func (*RegistrationVerificationCodeIssuedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RegistrationLinkIssuedEvent) GetEmailHash() string {
+func (x *RegistrationVerificationCodeIssuedEvent) GetEmailHash() string {
 	if x != nil {
 		return x.EmailHash
 	}
 	return ""
 }
 
-func (x *RegistrationLinkIssuedEvent) GetExpiresAt() *timestamppb.Timestamp {
+func (x *RegistrationVerificationCodeIssuedEvent) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-func (x *RegistrationLinkIssuedEvent) GetRequest() *AuditRequestMetadata {
+func (x *RegistrationVerificationCodeIssuedEvent) GetRequest() *AuditRequestMetadata {
 	if x != nil {
 		return x.Request
 	}
 	return nil
 }
 
-type EmailVerificationLinkIssuedEvent struct {
+type EmailVerificationCodeIssuedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EmailHash     string                 `protobuf:"bytes,2,opt,name=email_hash,json=emailHash,proto3" json:"email_hash,omitempty"`
@@ -146,21 +92,21 @@ type EmailVerificationLinkIssuedEvent struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *EmailVerificationLinkIssuedEvent) Reset() {
-	*x = EmailVerificationLinkIssuedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[2]
+func (x *EmailVerificationCodeIssuedEvent) Reset() {
+	*x = EmailVerificationCodeIssuedEvent{}
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *EmailVerificationLinkIssuedEvent) String() string {
+func (x *EmailVerificationCodeIssuedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*EmailVerificationLinkIssuedEvent) ProtoMessage() {}
+func (*EmailVerificationCodeIssuedEvent) ProtoMessage() {}
 
-func (x *EmailVerificationLinkIssuedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[2]
+func (x *EmailVerificationCodeIssuedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,33 +117,33 @@ func (x *EmailVerificationLinkIssuedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use EmailVerificationLinkIssuedEvent.ProtoReflect.Descriptor instead.
-func (*EmailVerificationLinkIssuedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use EmailVerificationCodeIssuedEvent.ProtoReflect.Descriptor instead.
+func (*EmailVerificationCodeIssuedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *EmailVerificationLinkIssuedEvent) GetUserId() string {
+func (x *EmailVerificationCodeIssuedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *EmailVerificationLinkIssuedEvent) GetEmailHash() string {
+func (x *EmailVerificationCodeIssuedEvent) GetEmailHash() string {
 	if x != nil {
 		return x.EmailHash
 	}
 	return ""
 }
 
-func (x *EmailVerificationLinkIssuedEvent) GetExpiresAt() *timestamppb.Timestamp {
+func (x *EmailVerificationCodeIssuedEvent) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-func (x *EmailVerificationLinkIssuedEvent) GetRequest() *AuditRequestMetadata {
+func (x *EmailVerificationCodeIssuedEvent) GetRequest() *AuditRequestMetadata {
 	if x != nil {
 		return x.Request
 	}
@@ -216,7 +162,7 @@ type PasswordResetLinkIssuedEvent struct {
 
 func (x *PasswordResetLinkIssuedEvent) Reset() {
 	*x = PasswordResetLinkIssuedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -228,7 +174,7 @@ func (x *PasswordResetLinkIssuedEvent) String() string {
 func (*PasswordResetLinkIssuedEvent) ProtoMessage() {}
 
 func (x *PasswordResetLinkIssuedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -241,7 +187,7 @@ func (x *PasswordResetLinkIssuedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PasswordResetLinkIssuedEvent.ProtoReflect.Descriptor instead.
 func (*PasswordResetLinkIssuedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{3}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PasswordResetLinkIssuedEvent) GetUserId() string {
@@ -283,7 +229,7 @@ type AccountDeletionConfirmationIssuedEvent struct {
 
 func (x *AccountDeletionConfirmationIssuedEvent) Reset() {
 	*x = AccountDeletionConfirmationIssuedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +241,7 @@ func (x *AccountDeletionConfirmationIssuedEvent) String() string {
 func (*AccountDeletionConfirmationIssuedEvent) ProtoMessage() {}
 
 func (x *AccountDeletionConfirmationIssuedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +254,7 @@ func (x *AccountDeletionConfirmationIssuedEvent) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use AccountDeletionConfirmationIssuedEvent.ProtoReflect.Descriptor instead.
 func (*AccountDeletionConfirmationIssuedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{4}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AccountDeletionConfirmationIssuedEvent) GetUserId() string {
@@ -342,7 +288,7 @@ type PasswordResetCompletedEvent struct {
 
 func (x *PasswordResetCompletedEvent) Reset() {
 	*x = PasswordResetCompletedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +300,7 @@ func (x *PasswordResetCompletedEvent) String() string {
 func (*PasswordResetCompletedEvent) ProtoMessage() {}
 
 func (x *PasswordResetCompletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -367,7 +313,7 @@ func (x *PasswordResetCompletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PasswordResetCompletedEvent.ProtoReflect.Descriptor instead.
 func (*PasswordResetCompletedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{5}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PasswordResetCompletedEvent) GetUserId() string {
@@ -395,7 +341,7 @@ type LoginSucceededEvent struct {
 
 func (x *LoginSucceededEvent) Reset() {
 	*x = LoginSucceededEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +353,7 @@ func (x *LoginSucceededEvent) String() string {
 func (*LoginSucceededEvent) ProtoMessage() {}
 
 func (x *LoginSucceededEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +366,7 @@ func (x *LoginSucceededEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginSucceededEvent.ProtoReflect.Descriptor instead.
 func (*LoginSucceededEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LoginSucceededEvent) GetUserId() string {
@@ -454,7 +400,7 @@ type LoginFailedEvent struct {
 
 func (x *LoginFailedEvent) Reset() {
 	*x = LoginFailedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +412,7 @@ func (x *LoginFailedEvent) String() string {
 func (*LoginFailedEvent) ProtoMessage() {}
 
 func (x *LoginFailedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +425,7 @@ func (x *LoginFailedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginFailedEvent.ProtoReflect.Descriptor instead.
 func (*LoginFailedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{7}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *LoginFailedEvent) GetIdentifierHash() string {
@@ -506,7 +452,7 @@ type LogoutSucceededEvent struct {
 
 func (x *LogoutSucceededEvent) Reset() {
 	*x = LogoutSucceededEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -518,7 +464,7 @@ func (x *LogoutSucceededEvent) String() string {
 func (*LogoutSucceededEvent) ProtoMessage() {}
 
 func (x *LogoutSucceededEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -531,7 +477,7 @@ func (x *LogoutSucceededEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutSucceededEvent.ProtoReflect.Descriptor instead.
 func (*LogoutSucceededEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *LogoutSucceededEvent) GetUserId() string {
@@ -560,7 +506,7 @@ type AuthCodeIssuedEvent struct {
 
 func (x *AuthCodeIssuedEvent) Reset() {
 	*x = AuthCodeIssuedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -572,7 +518,7 @@ func (x *AuthCodeIssuedEvent) String() string {
 func (*AuthCodeIssuedEvent) ProtoMessage() {}
 
 func (x *AuthCodeIssuedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -585,7 +531,7 @@ func (x *AuthCodeIssuedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthCodeIssuedEvent.ProtoReflect.Descriptor instead.
 func (*AuthCodeIssuedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AuthCodeIssuedEvent) GetUserId() string {
@@ -627,7 +573,7 @@ type AuthCodeExchangeSucceededEvent struct {
 
 func (x *AuthCodeExchangeSucceededEvent) Reset() {
 	*x = AuthCodeExchangeSucceededEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -639,7 +585,7 @@ func (x *AuthCodeExchangeSucceededEvent) String() string {
 func (*AuthCodeExchangeSucceededEvent) ProtoMessage() {}
 
 func (x *AuthCodeExchangeSucceededEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -652,7 +598,7 @@ func (x *AuthCodeExchangeSucceededEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthCodeExchangeSucceededEvent.ProtoReflect.Descriptor instead.
 func (*AuthCodeExchangeSucceededEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{10}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AuthCodeExchangeSucceededEvent) GetUserId() string {
@@ -688,7 +634,7 @@ type AuthCodeExchangeFailedEvent struct {
 
 func (x *AuthCodeExchangeFailedEvent) Reset() {
 	*x = AuthCodeExchangeFailedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +646,7 @@ func (x *AuthCodeExchangeFailedEvent) String() string {
 func (*AuthCodeExchangeFailedEvent) ProtoMessage() {}
 
 func (x *AuthCodeExchangeFailedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +659,7 @@ func (x *AuthCodeExchangeFailedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthCodeExchangeFailedEvent.ProtoReflect.Descriptor instead.
 func (*AuthCodeExchangeFailedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{11}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AuthCodeExchangeFailedEvent) GetUserId() string {
@@ -756,7 +702,7 @@ type BearerTokenIssuedEvent struct {
 
 func (x *BearerTokenIssuedEvent) Reset() {
 	*x = BearerTokenIssuedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[12]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +714,7 @@ func (x *BearerTokenIssuedEvent) String() string {
 func (*BearerTokenIssuedEvent) ProtoMessage() {}
 
 func (x *BearerTokenIssuedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[12]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +727,7 @@ func (x *BearerTokenIssuedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BearerTokenIssuedEvent.ProtoReflect.Descriptor instead.
 func (*BearerTokenIssuedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{12}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *BearerTokenIssuedEvent) GetUserId() string {
@@ -823,7 +769,7 @@ type BearerTokenRevokedEvent struct {
 
 func (x *BearerTokenRevokedEvent) Reset() {
 	*x = BearerTokenRevokedEvent{}
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[13]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -835,7 +781,7 @@ func (x *BearerTokenRevokedEvent) String() string {
 func (*BearerTokenRevokedEvent) ProtoMessage() {}
 
 func (x *BearerTokenRevokedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[13]
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -848,7 +794,7 @@ func (x *BearerTokenRevokedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BearerTokenRevokedEvent.ProtoReflect.Descriptor instead.
 func (*BearerTokenRevokedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{13}
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *BearerTokenRevokedEvent) GetUserId() string {
@@ -872,22 +818,138 @@ func (x *BearerTokenRevokedEvent) GetRequest() *AuditRequestMetadata {
 	return nil
 }
 
+type OAuthConsentGrantedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RedirectOrigin string                 `protobuf:"bytes,2,opt,name=redirect_origin,json=redirectOrigin,proto3" json:"redirect_origin,omitempty"`
+	Request        *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *OAuthConsentGrantedEvent) Reset() {
+	*x = OAuthConsentGrantedEvent{}
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OAuthConsentGrantedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OAuthConsentGrantedEvent) ProtoMessage() {}
+
+func (x *OAuthConsentGrantedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OAuthConsentGrantedEvent.ProtoReflect.Descriptor instead.
+func (*OAuthConsentGrantedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *OAuthConsentGrantedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *OAuthConsentGrantedEvent) GetRedirectOrigin() string {
+	if x != nil {
+		return x.RedirectOrigin
+	}
+	return ""
+}
+
+func (x *OAuthConsentGrantedEvent) GetRequest() *AuditRequestMetadata {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+type OAuthConsentDeniedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RedirectOrigin string                 `protobuf:"bytes,2,opt,name=redirect_origin,json=redirectOrigin,proto3" json:"redirect_origin,omitempty"`
+	Request        *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *OAuthConsentDeniedEvent) Reset() {
+	*x = OAuthConsentDeniedEvent{}
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OAuthConsentDeniedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OAuthConsentDeniedEvent) ProtoMessage() {}
+
+func (x *OAuthConsentDeniedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_auth_events_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OAuthConsentDeniedEvent.ProtoReflect.Descriptor instead.
+func (*OAuthConsentDeniedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_auth_events_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *OAuthConsentDeniedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *OAuthConsentDeniedEvent) GetRedirectOrigin() string {
+	if x != nil {
+		return x.RedirectOrigin
+	}
+	return ""
+}
+
+func (x *OAuthConsentDeniedEvent) GetRequest() *AuditRequestMetadata {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
 var File_chatto_core_v1_auth_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_auth_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/auth_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"N\n" +
-	"\x14AuditRequestMetadata\x12\x1d\n" +
-	"\n" +
-	"user_agent\x18\x01 \x01(\tR\tuserAgent\x12\x17\n" +
-	"\aip_hash\x18\x02 \x01(\tR\x06ipHash\"\xb7\x01\n" +
-	"\x1bRegistrationLinkIssuedEvent\x12\x1d\n" +
+	" chatto/core/v1/auth_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bchatto/core/v1/models.proto\"\xc3\x01\n" +
+	"'RegistrationVerificationCodeIssuedEvent\x12\x1d\n" +
 	"\n" +
 	"email_hash\x18\x01 \x01(\tR\temailHash\x129\n" +
 	"\n" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12>\n" +
 	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\xd5\x01\n" +
-	" EmailVerificationLinkIssuedEvent\x12\x17\n" +
+	" EmailVerificationCodeIssuedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
 	"email_hash\x18\x02 \x01(\tR\temailHash\x129\n" +
@@ -943,6 +1005,14 @@ const file_chatto_core_v1_auth_events_proto_rawDesc = "" +
 	"\x17BearerTokenRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12>\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\x9c\x01\n" +
+	"\x18OAuthConsentGrantedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
+	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12>\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\x9b\x01\n" +
+	"\x17OAuthConsentDeniedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
+	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12>\n" +
 	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequestB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fAuthEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
@@ -958,49 +1028,53 @@ func file_chatto_core_v1_auth_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_auth_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_auth_events_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chatto_core_v1_auth_events_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_chatto_core_v1_auth_events_proto_goTypes = []any{
-	(*AuditRequestMetadata)(nil),                   // 0: chatto.core.v1.AuditRequestMetadata
-	(*RegistrationLinkIssuedEvent)(nil),            // 1: chatto.core.v1.RegistrationLinkIssuedEvent
-	(*EmailVerificationLinkIssuedEvent)(nil),       // 2: chatto.core.v1.EmailVerificationLinkIssuedEvent
-	(*PasswordResetLinkIssuedEvent)(nil),           // 3: chatto.core.v1.PasswordResetLinkIssuedEvent
-	(*AccountDeletionConfirmationIssuedEvent)(nil), // 4: chatto.core.v1.AccountDeletionConfirmationIssuedEvent
-	(*PasswordResetCompletedEvent)(nil),            // 5: chatto.core.v1.PasswordResetCompletedEvent
-	(*LoginSucceededEvent)(nil),                    // 6: chatto.core.v1.LoginSucceededEvent
-	(*LoginFailedEvent)(nil),                       // 7: chatto.core.v1.LoginFailedEvent
-	(*LogoutSucceededEvent)(nil),                   // 8: chatto.core.v1.LogoutSucceededEvent
-	(*AuthCodeIssuedEvent)(nil),                    // 9: chatto.core.v1.AuthCodeIssuedEvent
-	(*AuthCodeExchangeSucceededEvent)(nil),         // 10: chatto.core.v1.AuthCodeExchangeSucceededEvent
-	(*AuthCodeExchangeFailedEvent)(nil),            // 11: chatto.core.v1.AuthCodeExchangeFailedEvent
-	(*BearerTokenIssuedEvent)(nil),                 // 12: chatto.core.v1.BearerTokenIssuedEvent
-	(*BearerTokenRevokedEvent)(nil),                // 13: chatto.core.v1.BearerTokenRevokedEvent
-	(*timestamppb.Timestamp)(nil),                  // 14: google.protobuf.Timestamp
+	(*RegistrationVerificationCodeIssuedEvent)(nil), // 0: chatto.core.v1.RegistrationVerificationCodeIssuedEvent
+	(*EmailVerificationCodeIssuedEvent)(nil),        // 1: chatto.core.v1.EmailVerificationCodeIssuedEvent
+	(*PasswordResetLinkIssuedEvent)(nil),            // 2: chatto.core.v1.PasswordResetLinkIssuedEvent
+	(*AccountDeletionConfirmationIssuedEvent)(nil),  // 3: chatto.core.v1.AccountDeletionConfirmationIssuedEvent
+	(*PasswordResetCompletedEvent)(nil),             // 4: chatto.core.v1.PasswordResetCompletedEvent
+	(*LoginSucceededEvent)(nil),                     // 5: chatto.core.v1.LoginSucceededEvent
+	(*LoginFailedEvent)(nil),                        // 6: chatto.core.v1.LoginFailedEvent
+	(*LogoutSucceededEvent)(nil),                    // 7: chatto.core.v1.LogoutSucceededEvent
+	(*AuthCodeIssuedEvent)(nil),                     // 8: chatto.core.v1.AuthCodeIssuedEvent
+	(*AuthCodeExchangeSucceededEvent)(nil),          // 9: chatto.core.v1.AuthCodeExchangeSucceededEvent
+	(*AuthCodeExchangeFailedEvent)(nil),             // 10: chatto.core.v1.AuthCodeExchangeFailedEvent
+	(*BearerTokenIssuedEvent)(nil),                  // 11: chatto.core.v1.BearerTokenIssuedEvent
+	(*BearerTokenRevokedEvent)(nil),                 // 12: chatto.core.v1.BearerTokenRevokedEvent
+	(*OAuthConsentGrantedEvent)(nil),                // 13: chatto.core.v1.OAuthConsentGrantedEvent
+	(*OAuthConsentDeniedEvent)(nil),                 // 14: chatto.core.v1.OAuthConsentDeniedEvent
+	(*timestamppb.Timestamp)(nil),                   // 15: google.protobuf.Timestamp
+	(*AuditRequestMetadata)(nil),                    // 16: chatto.core.v1.AuditRequestMetadata
 }
 var file_chatto_core_v1_auth_events_proto_depIdxs = []int32{
-	14, // 0: chatto.core.v1.RegistrationLinkIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 1: chatto.core.v1.RegistrationLinkIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	14, // 2: chatto.core.v1.EmailVerificationLinkIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: chatto.core.v1.EmailVerificationLinkIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	14, // 4: chatto.core.v1.PasswordResetLinkIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: chatto.core.v1.PasswordResetLinkIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	14, // 6: chatto.core.v1.AccountDeletionConfirmationIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: chatto.core.v1.AccountDeletionConfirmationIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 8: chatto.core.v1.PasswordResetCompletedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 9: chatto.core.v1.LoginSucceededEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 10: chatto.core.v1.LoginFailedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 11: chatto.core.v1.LogoutSucceededEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	14, // 12: chatto.core.v1.AuthCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 13: chatto.core.v1.AuthCodeIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 14: chatto.core.v1.AuthCodeExchangeSucceededEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 15: chatto.core.v1.AuthCodeExchangeFailedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	14, // 16: chatto.core.v1.BearerTokenIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 17: chatto.core.v1.BearerTokenIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	0,  // 18: chatto.core.v1.BearerTokenRevokedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	15, // 0: chatto.core.v1.RegistrationVerificationCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	16, // 1: chatto.core.v1.RegistrationVerificationCodeIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	15, // 2: chatto.core.v1.EmailVerificationCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	16, // 3: chatto.core.v1.EmailVerificationCodeIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	15, // 4: chatto.core.v1.PasswordResetLinkIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	16, // 5: chatto.core.v1.PasswordResetLinkIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	15, // 6: chatto.core.v1.AccountDeletionConfirmationIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	16, // 7: chatto.core.v1.AccountDeletionConfirmationIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 8: chatto.core.v1.PasswordResetCompletedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 9: chatto.core.v1.LoginSucceededEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 10: chatto.core.v1.LoginFailedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 11: chatto.core.v1.LogoutSucceededEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	15, // 12: chatto.core.v1.AuthCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	16, // 13: chatto.core.v1.AuthCodeIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 14: chatto.core.v1.AuthCodeExchangeSucceededEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 15: chatto.core.v1.AuthCodeExchangeFailedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	15, // 16: chatto.core.v1.BearerTokenIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	16, // 17: chatto.core.v1.BearerTokenIssuedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 18: chatto.core.v1.BearerTokenRevokedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 19: chatto.core.v1.OAuthConsentGrantedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	16, // 20: chatto.core.v1.OAuthConsentDeniedEvent.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_auth_events_proto_init() }
@@ -1008,13 +1082,14 @@ func file_chatto_core_v1_auth_events_proto_init() {
 	if File_chatto_core_v1_auth_events_proto != nil {
 		return
 	}
+	file_chatto_core_v1_models_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_auth_events_proto_rawDesc), len(file_chatto_core_v1_auth_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

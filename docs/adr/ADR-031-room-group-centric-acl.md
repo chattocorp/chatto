@@ -22,7 +22,7 @@ Adopt a **channel-centric ACL** model for channel-room permissions with **room g
 
 | Container | Configures | Examples |
 |---|---|---|
-| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.access`, `admin.view-users`, `user.delete-any`, `user.delete-self` |
+| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.view-users`, `user.delete-any`, `user.delete-self` |
 | **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo` |
 | **Room** | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
@@ -35,12 +35,12 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 ### Membership and structural invariants
 
 - **Every channel room belongs to exactly one group.** No nullable `groupID`, no "uncategorized" branch in the resolver. (DM rooms do not belong to a group.)
-- **Sets are operator-managed, not system-protected.** On first boot, one group named "Lobby" is seeded; the auto-created `announcements` and `general` channels go into it. The operator can rename, reorder, or delete this group like any other.
-- **Set deletion is rejected while rooms exist.** Operators must move all rooms out first. No "delete and reassign" cascade — the rejection is deliberate to avoid surprise.
-- **Room creation requires a group.** When no set is implied by UI context, the API requires one explicitly. There is no implicit fallback group; the seed "Lobby" group only matters at first-boot.
-- **Set membership is stored on the room record** (one `groupID` field per room).
+- **Room groups are operator-managed, not system-protected.** On first boot, one group named "Lobby" is seeded; the auto-created `announcements` and `general` channels go into it. The operator can rename, reorder, or delete this group like any other.
+- **Room group deletion is rejected while rooms exist.** Operators must move all rooms out first. No "delete and reassign" cascade — the rejection is deliberate to avoid surprise.
+- **Room creation requires a group.** When no room group is implied by UI context, the GraphQL API requires one explicitly. Lower-level bootstrap/import paths may still use the seed "Lobby" group while constructing first-boot state.
+- **Room group membership is stored on the room record** (one `groupID` field per room).
 - **Moving a room between groups requires `room.manage` in BOTH the source and target group.** The action changes the room's effective ACL overnight, so the caller must be authorized in both ends of the move.
-- **Sets are ordered.** Set order, like room order within a group, is captured in the layout proto (same atomic-OCC pattern as today's `RoomLayout`).
+- **Room groups are ordered.** Room group order, like room order within a group, is captured in the layout proto (same atomic-OCC pattern as today's `RoomLayout`).
 
 ### Resolution
 

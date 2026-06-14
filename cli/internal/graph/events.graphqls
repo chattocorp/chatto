@@ -11,10 +11,12 @@ type Event {
   id: ID! @goField(forceResolver: true)
   "When this event was created."
   createdAt: Time! @goField(forceResolver: true)
-  "The ID of the user who triggered this event."
-  actorId: ID! @goField(forceResolver: true)
+  "The ID of the user who triggered this event. Null for system/synthetic events."
+  actorId: ID @goField(forceResolver: true)
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
+  "Server-signed opaque cursor for resuming durable subscription delivery. Null for transient and synthetic events."
+  deliveryCursor: String @goField(forceResolver: true)
   "The concrete event data."
   event: EventType! @goField(forceResolver: true)
 }
@@ -32,6 +34,8 @@ union EventType =
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
+  | RoomMemberBannedEvent
+  | RoomMemberUnbannedEvent
   | ServerMemberDeletedEvent
   # Messages
   | MessagePostedEvent
@@ -45,7 +49,6 @@ union EventType =
   # Typing indicators
   | UserTypingEvent
   # Video processing
-  | VideoProcessingCompletedEvent
   | AssetProcessingStartedEvent
   | AssetProcessingSucceededEvent
   | AssetProcessingFailedEvent
@@ -53,10 +56,10 @@ union EventType =
   # Presence
   | PresenceChangedEvent
   # Voice calls
+  | CallStartedEvent
   | CallParticipantJoinedEvent
   | CallParticipantLeftEvent
-  # Server config
-  | ServerConfigUpdatedEvent
+  | CallEndedEvent
   # User lifecycle
   | UserCreatedEvent
   | UserDeletedEvent
@@ -93,25 +96,6 @@ type ThreadCreatedEvent {
 }
 
 # ==============================================================================
-# SERVER CONFIG EVENTS
-# ==============================================================================
-
-"""
-Event: Server configuration was updated.
-Clients should refetch server info to get the new values.
-"""
-type ServerConfigUpdatedEvent {
-  "The updated server name."
-  serverName: String!
-  "The updated MOTD (null if cleared)."
-  motd: String
-  "The updated welcome message (null if cleared)."
-  welcomeMessage: String
-  "The updated blocked usernames (null if cleared)."
-  blockedUsernames: String
-}
-
-# ==============================================================================
 # USER LIFECYCLE EVENTS
 # ==============================================================================
 
@@ -145,8 +129,8 @@ type UserProfileUpdatedEvent {
   userId: ID!
   "The user's updated display name."
   displayName: String!
-  "The user's avatar URL (empty string if no avatar)."
-  avatarUrl: String!
+  "The user's avatar URL, or null if no avatar is set."
+  avatarUrl: String @goField(forceResolver: true)
   "The user's current login/username."
   login: String!
 }
@@ -156,8 +140,8 @@ Event: The current user's display preferences were updated.
 Published to the user across all sessions for multi-tab sync.
 """
 type ServerUserPreferencesUpdatedEvent {
-  "IANA timezone name (empty string = browser default)."
-  timezone: String!
+  "IANA timezone name, or null to use the browser default."
+  timezone: String @goField(forceResolver: true)
   "Time display format."
   timeFormat: TimeFormat! @goField(forceResolver: true)
 }
@@ -180,17 +164,18 @@ type NotificationLevelChangedEvent {
 # ==============================================================================
 
 """
-Event: The server was updated.
+Event: Public server profile/configuration changed.
+Clients should refetch `Server.profile` and any authenticated server settings they display.
 """
 type ServerUpdatedEvent {
   "The server's updated name."
   name: String!
-  "The server's description (empty if not set)."
-  description: String!
-  "The server's logo URL (empty if no logo)."
-  logoUrl: String!
-  "The server's banner URL (empty if no banner)."
-  bannerUrl: String!
+  "The server's description, or null if not set."
+  description: String @goField(forceResolver: true)
+  "The server's logo URL, or null if no logo is set."
+  logoUrl: String @goField(forceResolver: true)
+  "The server's banner URL, or null if no banner is set."
+  bannerUrl: String @goField(forceResolver: true)
 }
 
 # ==============================================================================
@@ -205,8 +190,8 @@ type RoomCreatedEvent {
   roomId: ID!
   "The room's name."
   name: String!
-  "The room's description."
-  description: String!
+  "The room's description, or null if not set."
+  description: String @goField(forceResolver: true)
 }
 
 """
@@ -217,8 +202,8 @@ type RoomUpdatedEvent {
   roomId: ID!
   "The room's updated name."
   name: String!
-  "The room's updated description."
-  description: String!
+  "The room's updated description, or null if not set."
+  description: String @goField(forceResolver: true)
 }
 
 """
@@ -268,6 +253,28 @@ type UserLeftRoomEvent {
 }
 
 """
+Event: A user was banned from a room.
+Reason and expiry are intentionally not exposed on the public event feed.
+"""
+type RoomMemberBannedEvent {
+  "The ID of the room the user was banned from."
+  roomId: ID!
+  "The ID of the banned user."
+  userId: ID!
+}
+
+"""
+Event: A room ban was removed.
+Reason is intentionally not exposed on the public event feed.
+"""
+type RoomMemberUnbannedEvent {
+  "The ID of the room the user was unbanned from."
+  roomId: ID!
+  "The ID of the unbanned user."
+  userId: ID!
+}
+
+"""
 Event: A server member's account was deleted.
 Published to notify clients to update member lists and refresh messages
 to show "Deleted User" and unavailable content.
@@ -295,28 +302,32 @@ type MessagePostedEvent {
   inReplyTo: ID @goField(forceResolver: true)
   "Event ID of the thread root message (null for top-level messages). For direct replies, equals inReplyTo. For nested replies, references the original root."
   threadRootEventId: ID @goField(forceResolver: true)
-  "Emoji reactions on this message, aggregated by emoji."
-  reactions: [Reaction!]! @goField(forceResolver: true)
+  "Emoji reaction summaries on this message, aggregated by emoji."
+  reactions: [ReactionSummary!]! @goField(forceResolver: true)
   "When the message was last updated (null if never edited). Lazy-loaded from body."
   updatedAt: Time @goField(forceResolver: true)
   "Event ID of the original thread reply this echoes (null for non-echo messages)."
   echoOfEventId: ID @goField(forceResolver: true)
   "The thread this echo originates from (null for non-echo messages)."
   echoFromThreadRootEventId: ID @goField(forceResolver: true)
+  "Event ID of the visible channel echo for this thread reply, if one exists."
+  channelEchoEventId: ID @goField(forceResolver: true)
   "Number of replies in this thread (0 for non-root messages or messages without replies)."
   replyCount: Int! @goField(forceResolver: true)
   "Timestamp of the most recent reply (null if no replies or not a root message)."
   lastReplyAt: Time @goField(forceResolver: true)
-  "Users who have replied in this thread (empty for non-root messages or messages without replies). Returns up to `first` participants (default 5) for preview."
+  "Users who have replied in this thread (empty for non-root messages or messages without replies). Returns up to `first` participants (default 5, max 10) for preview."
   threadParticipants(first: Int = 5): [User!]! @goField(forceResolver: true)
   "Whether the current viewer is following this thread. Null for non-root messages or messages without replies."
   viewerIsFollowingThread: Boolean @goField(forceResolver: true)
   """
-  Replies to this message, when it is a thread root. Returns an empty list when
+  Replies to this message, when it is a thread root. Returns an empty page when
   this message is itself a thread reply. Replies are returned in chronological
-  order and do not include this root event.
+  order and do not include this root event. Uses the same opaque cursor shape as
+  `Room.events`.
   """
-  threadReplies: [Event!]! @goField(forceResolver: true)
+  threadReplies(limit: Int = 50, before: String, after: String): RoomEventsConnection!
+    @goField(forceResolver: true)
 }
 
 """
@@ -401,54 +412,40 @@ type UserTypingEvent {
 # ==============================================================================
 
 """
-Event: Video processing completed (or failed).
-Published when a video attachment finishes transcoding. The frontend uses this
-to refetch the message and display the video player.
-"""
-type VideoProcessingCompletedEvent {
-  "The room ID."
-  roomId: ID!
-  "The original attachment ID that was processed."
-  attachmentId: ID!
-  "The event ID of the message containing the processed attachment."
-  messageEventId: ID! @goField(forceResolver: true)
-}
-
-"""
 Event: asset processing has been enqueued. Emitted before SucceededEvent or
 FailedEvent so subscribers can render a "processing…" placeholder.
 """
 type AssetProcessingStartedEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
+  "The room ID, when the processed asset is still associated with a room message."
+  roomId: ID @goField(forceResolver: true)
   "The original asset ID whose processing has been enqueued."
   assetId: ID!
-  "The event ID of the message containing the attachment, when message-owned."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the attachment, when message-owned and still available."
+  messageEventId: ID @goField(forceResolver: true)
 }
 
 """
 Event: asset processing produced a durable derivative manifest.
 """
 type AssetProcessingSucceededEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
+  "The room ID, when the processed asset is still associated with a room message."
+  roomId: ID @goField(forceResolver: true)
   "The original asset ID that was processed."
   assetId: ID!
-  "The event ID of the message containing the processed attachment, when message-owned."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the processed attachment, when message-owned and still available."
+  messageEventId: ID @goField(forceResolver: true)
 }
 
 """
 Event: asset processing reached a durable failed/unavailable outcome.
 """
 type AssetProcessingFailedEvent {
-  "The room ID."
-  roomId: ID! @goField(forceResolver: true)
+  "The room ID, when the processed asset is still associated with a room message."
+  roomId: ID @goField(forceResolver: true)
   "The original asset ID that failed processing."
   assetId: ID!
-  "The event ID of the message containing the attachment, when message-owned."
-  messageEventId: ID! @goField(forceResolver: true)
+  "The event ID of the message containing the attachment, when message-owned and still available."
+  messageEventId: ID @goField(forceResolver: true)
   "Stable machine-readable reason."
   reasonCode: String! @goField(forceResolver: true)
 }
@@ -559,7 +556,7 @@ Event: The channel-room groups (ordering, names, or membership) were updated.
 Clients should refetch `Server.roomGroups` to get the new shape.
 """
 type RoomGroupsUpdatedEvent {
-  "Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets."
+  "Always true. Vestigial — clients only need the event arrival to trigger a refetch of room groups."
   changed: Boolean! @goField(forceResolver: true)
 }
 
@@ -568,7 +565,7 @@ type RoomGroupsUpdatedEvent {
 # ==============================================================================
 
 """
-Synthetic event emitted by the server on the `myServerEvents` subscription
+Synthetic event emitted by the server on the `myEvents` subscription
 every ~25 seconds. It has no payload — clients use its arrival cadence to
 detect a dead subscription on an otherwise-healthy WebSocket and trigger
 a reconnect. Safe to ignore in event handlers.
@@ -596,18 +593,18 @@ type SessionTerminatedEvent {
 # ==============================================================================
 
 """
-A reaction represents emoji responses to a message, aggregated by emoji type.
+A reaction summary represents emoji responses to a message, aggregated by emoji type.
 Emoji values are shortcode names (e.g., "thumbsup", "heart") — clients convert to Unicode for display.
 """
-type Reaction {
+type ReactionSummary {
   "The emoji shortcode name (e.g., \"thumbsup\", \"heart\")."
   emoji: String!
   "Total number of users who reacted with this emoji."
-  count: Int!
-  "List of users who reacted with this emoji."
-  users: [User!]!
+  count: Int! @goField(forceResolver: true)
+  "Preview of users who reacted with this emoji (default 3, max 10)."
+  users(first: Int = 3): [User!]! @goField(forceResolver: true)
   "Whether the current user has reacted with this emoji."
-  hasReacted: Boolean!
+  hasReacted: Boolean! @goField(forceResolver: true)
 }
 
 """
@@ -643,7 +640,7 @@ type Attachment {
   "The MIME type (e.g., 'image/jpeg', 'video/mp4')."
   contentType: String!
   "The file size in bytes."
-  size: Int! @goField(forceResolver: true)
+  size: Int64! @goField(forceResolver: true, type: "int64")
   "Image width in pixels (0 for non-images)."
   width: Int!
   "Image height in pixels (0 for non-images)."

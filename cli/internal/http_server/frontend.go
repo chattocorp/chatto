@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -188,15 +187,14 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		c.Next()
 	})
 
-	// refreshSessionIfAuthenticated extends the session cookie lifetime for authenticated users.
-	// This prevents session expiration while the user is actively using the app.
-	// Note: We must call Set() before Save() because gin-contrib/sessions only saves
-	// if the session has been "written" to. Get() alone doesn't mark it as modified.
+	// refreshSessionIfAuthenticated validates and rotates authenticated
+	// cookie-session records for active SPA browsing. KV TTL is set only when
+	// a session is created, so near-expiry sessions are rotated instead of
+	// "touched" in place.
 	refreshSessionIfAuthenticated := func(c *gin.Context) {
-		session := sessions.Default(c)
-		if userID := session.Get("user_id"); userID != nil {
-			session.Set("user_id", userID) // Mark session as modified
-			session.Save()                 // Now actually saves and refreshes cookie
+		userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
+		if ok {
+			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 		}
 	}
 

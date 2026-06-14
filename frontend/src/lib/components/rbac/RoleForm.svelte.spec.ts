@@ -8,6 +8,7 @@ function renderRoleForm(
     name: string;
     displayName: string;
     description: string;
+    pingable: boolean;
     nameEditable: boolean;
     saving: boolean;
     submitLabel: string;
@@ -20,6 +21,7 @@ function renderRoleForm(
     name: '',
     displayName: '',
     description: '',
+    pingable: false,
     nameEditable: true,
     saving: false,
     submitLabel: 'Save',
@@ -53,6 +55,11 @@ describe('RoleForm', () => {
     it('renders description textarea', async () => {
       const { container } = renderRoleForm({});
       await expect.element(q(container, '#description')).toBeInTheDocument();
+    });
+
+    it('renders pingable checkbox', async () => {
+      const { container } = renderRoleForm({});
+      await expect.element(q(container, '#pingable')).toBeInTheDocument();
     });
 
     it('renders submit button with custom label', async () => {
@@ -126,6 +133,7 @@ describe('RoleForm', () => {
       await expect.element(q(container, '#name')).toBeDisabled();
       await expect.element(q(container, '#displayName')).toBeDisabled();
       await expect.element(q(container, '#description')).toBeDisabled();
+      await expect.element(q(container, '#pingable')).toBeDisabled();
     });
 
     it('disables submit button when saving', async () => {

@@ -9,7 +9,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
   import ScrollFader from '$lib/ui/ScrollFader.svelte';
-  import ServerSpaceSection from './ServerSpaceSection.svelte';
+  import ServerSidebarEntry from './ServerSidebarEntry.svelte';
   import AddServerDialog from './components/AddServerDialog.svelte';
 
   // Check whether any authenticated server grants a permission.
@@ -36,7 +36,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       {#each serverRegistry.servers as server (server.id)}
         {@const store = serverRegistry.tryGetStore(server.id)}
         {#if store?.isAuthenticated}
-          <ServerSpaceSection
+          <ServerSidebarEntry
             serverId={server.id}
             currentUserId={store.currentUser.user?.id}
           />

@@ -26,6 +26,7 @@ const (
 	AggregateGroup  = "group"
 	AggregateLayout = "layout"
 	AggregateUser   = "user"
+	AggregateAsset  = "asset"
 	AggregateRBAC   = "rbac"
 	AggregateAuth   = "auth"
 )
@@ -45,7 +46,7 @@ const LayoutSingletonID = "default"
 const RBACServerID = "server"
 
 // AuthServerID is the singleton aggregate ID for anonymous/server-wide auth
-// audit facts, such as registration link issuance before a user exists.
+// audit facts, such as registration code issuance before a user exists.
 const AuthServerID = "server"
 
 // Event-type tokens. NATS-idiomatic snake_case; the trailing segment of
@@ -56,13 +57,15 @@ const AuthServerID = "server"
 // string literals.
 const (
 	// Room aggregate
-	EventRoomCreated    = "room_created"
-	EventRoomUpdated    = "room_updated"
-	EventRoomArchived   = "room_archived"
-	EventRoomUnarchived = "room_unarchived"
-	EventRoomDeleted    = "room_deleted"
-	EventUserJoinedRoom = "user_joined"
-	EventUserLeftRoom   = "user_left"
+	EventRoomCreated        = "room_created"
+	EventRoomUpdated        = "room_updated"
+	EventRoomArchived       = "room_archived"
+	EventRoomUnarchived     = "room_unarchived"
+	EventRoomDeleted        = "room_deleted"
+	EventUserJoinedRoom     = "user_joined"
+	EventUserLeftRoom       = "user_left"
+	EventRoomMemberBanned   = "room_member_banned"
+	EventRoomMemberUnbanned = "room_member_unbanned"
 
 	// Messages (also under the room aggregate — every message event for
 	// a room lives under evt.room.{R}.message_*, so a subscriber on
@@ -74,6 +77,7 @@ const (
 	EventMessagePosted            = "message_posted"
 	EventMessageEdited            = "message_edited"
 	EventMessageRetracted         = "message_retracted"
+	EventMessageBody              = "message_body"
 	EventThreadCreated            = "thread_created"
 	EventAssetCreated             = "asset_created"
 	EventAssetProcessingStarted   = "asset_processing_started"
@@ -85,6 +89,12 @@ const (
 	// derived from these durable events by the reaction projection.
 	EventReactionAdded   = "reaction_added"
 	EventReactionRemoved = "reaction_removed"
+
+	// Voice call participant state (also under the room aggregate).
+	EventCallStarted           = "call_started"
+	EventCallParticipantJoined = "call_joined"
+	EventCallParticipantLeft   = "call_left"
+	EventCallEnded             = "call_ended"
 
 	// Group aggregate
 	EventRoomGroupCreated      = "group_created"
@@ -98,7 +108,6 @@ const (
 	EventRoomGroupsReordered = "groups_reordered"
 
 	// Config aggregate (singleton)
-	EventServerConfigChanged                = "config_changed"
 	EventServerNameChanged                  = "server_name_changed"
 	EventServerDescriptionChanged           = "server_description_changed"
 	EventServerWelcomeMessageChanged        = "server_welcome_message_changed"
@@ -137,6 +146,7 @@ const (
 	EventRBACRoleCreated            = "role_created"
 	EventRBACRoleDisplayNameChanged = "role_display_name_changed"
 	EventRBACRoleDescriptionChanged = "role_description_changed"
+	EventRBACRolePingableChanged    = "role_pingable_changed"
 	EventRBACRoleDeleted            = "role_deleted"
 	EventRBACRolesReordered         = "roles_reordered"
 	EventRBACRoleAssigned           = "role_assigned"
@@ -146,19 +156,21 @@ const (
 	EventRBACPermissionCleared      = "permission_cleared"
 
 	// Auth/security audit
-	EventRegistrationLinkIssued            = "registration_link_issued"
-	EventEmailVerificationLinkIssued       = "email_verification_link_issued"
-	EventPasswordResetLinkIssued           = "password_reset_link_issued"
-	EventAccountDeletionConfirmationIssued = "account_deletion_confirmation_issued"
-	EventPasswordResetCompleted            = "password_reset_completed"
-	EventLoginSucceeded                    = "login_succeeded"
-	EventLoginFailed                       = "login_failed"
-	EventLogoutSucceeded                   = "logout_succeeded"
-	EventAuthCodeIssued                    = "auth_code_issued"
-	EventAuthCodeExchangeSucceeded         = "auth_code_exchange_succeeded"
-	EventAuthCodeExchangeFailed            = "auth_code_exchange_failed"
-	EventBearerTokenIssued                 = "bearer_token_issued"
-	EventBearerTokenRevoked                = "bearer_token_revoked"
+	EventRegistrationVerificationCodeIssued = "registration_verification_code_issued"
+	EventEmailVerificationCodeIssued        = "email_verification_code_issued"
+	EventPasswordResetLinkIssued            = "password_reset_link_issued"
+	EventAccountDeletionConfirmationIssued  = "account_deletion_confirmation_issued"
+	EventPasswordResetCompleted             = "password_reset_completed"
+	EventLoginSucceeded                     = "login_succeeded"
+	EventLoginFailed                        = "login_failed"
+	EventLogoutSucceeded                    = "logout_succeeded"
+	EventAuthCodeIssued                     = "auth_code_issued"
+	EventAuthCodeExchangeSucceeded          = "auth_code_exchange_succeeded"
+	EventAuthCodeExchangeFailed             = "auth_code_exchange_failed"
+	EventBearerTokenIssued                  = "bearer_token_issued"
+	EventBearerTokenRevoked                 = "bearer_token_revoked"
+	EventOAuthConsentGranted                = "oauth_consent_granted"
+	EventOAuthConsentDenied                 = "oauth_consent_denied"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -186,6 +198,18 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserJoinedRoom
 	case *corev1.Event_UserLeftRoom:
 		return EventUserLeftRoom
+	case *corev1.Event_RoomMemberBanned:
+		return EventRoomMemberBanned
+	case *corev1.Event_RoomMemberUnbanned:
+		return EventRoomMemberUnbanned
+	case *corev1.Event_VoiceCallParticipantJoined:
+		return EventCallParticipantJoined
+	case *corev1.Event_VoiceCallParticipantLeft:
+		return EventCallParticipantLeft
+	case *corev1.Event_VoiceCallStarted:
+		return EventCallStarted
+	case *corev1.Event_VoiceCallEnded:
+		return EventCallEnded
 
 	case *corev1.Event_MessagePosted:
 		return EventMessagePosted
@@ -193,6 +217,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageEdited
 	case *corev1.Event_MessageRetracted:
 		return EventMessageRetracted
+	case *corev1.Event_MessageBody:
+		return EventMessageBody
 	case *corev1.Event_ThreadCreated:
 		return EventThreadCreated
 	case *corev1.Event_AssetCreated:
@@ -227,8 +253,6 @@ func EventTypeOf(e *corev1.Event) string {
 	case *corev1.Event_RoomGroupsReordered:
 		return EventRoomGroupsReordered
 
-	case *corev1.Event_ServerConfigChanged:
-		return EventServerConfigChanged
 	case *corev1.Event_ServerNameChanged:
 		return EventServerNameChanged
 	case *corev1.Event_ServerDescriptionChanged:
@@ -299,6 +323,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACRoleDisplayNameChanged
 	case *corev1.Event_RbacRoleDescriptionChanged:
 		return EventRBACRoleDescriptionChanged
+	case *corev1.Event_RbacRolePingableChanged:
+		return EventRBACRolePingableChanged
 	case *corev1.Event_RbacRoleDeleted:
 		return EventRBACRoleDeleted
 	case *corev1.Event_RbacRolesReordered:
@@ -314,10 +340,10 @@ func EventTypeOf(e *corev1.Event) string {
 	case *corev1.Event_RbacPermissionCleared:
 		return EventRBACPermissionCleared
 
-	case *corev1.Event_RegistrationLinkIssued:
-		return EventRegistrationLinkIssued
-	case *corev1.Event_EmailVerificationLinkIssued:
-		return EventEmailVerificationLinkIssued
+	case *corev1.Event_RegistrationVerificationCodeIssued:
+		return EventRegistrationVerificationCodeIssued
+	case *corev1.Event_EmailVerificationCodeIssued:
+		return EventEmailVerificationCodeIssued
 	case *corev1.Event_PasswordResetLinkIssued:
 		return EventPasswordResetLinkIssued
 	case *corev1.Event_AccountDeletionConfirmationIssued:
@@ -340,6 +366,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBearerTokenIssued
 	case *corev1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
+	case *corev1.Event_OauthConsentGranted:
+		return EventOAuthConsentGranted
+	case *corev1.Event_OauthConsentDenied:
+		return EventOAuthConsentDenied
 	}
 	return ""
 }
@@ -423,6 +453,13 @@ func UserAggregate(userID string) Aggregate {
 	return Aggregate{Type: AggregateUser, ID: userID}
 }
 
+// AssetAggregate is the typed constructor for an asset aggregate. It owns
+// binary lifecycle and processing facts; room visibility is carried by the
+// asset payload/projections, not by the subject namespace.
+func AssetAggregate(assetID string) Aggregate {
+	return Aggregate{Type: AggregateAsset, ID: assetID}
+}
+
 // RBACAggregate is the typed constructor for server-level RBAC events:
 // role definitions/order and server-scoped permission decisions.
 func RBACAggregate() Aggregate {
@@ -449,6 +486,13 @@ func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
 
+// EventSubjectFilter returns the wildcard filter matching every event in the
+// EVT stream. Use sparingly: most invariants should OCC against a narrower
+// aggregate namespace, but cross-aggregate invariants may need the stream-wide
+// boundary.
+// Pattern: evt.>
+func EventSubjectFilter() string { return SubjectRoot + ">" }
+
 // RoomSubjectFilter returns the wildcard filter matching every event of
 // every room aggregate, across all event types.
 // Pattern: evt.room.>
@@ -473,6 +517,11 @@ func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" 
 // aggregate event.
 // Pattern: evt.user.>
 func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
+
+// AssetSubjectFilter returns the wildcard filter matching every asset
+// aggregate event.
+// Pattern: evt.asset.>
+func AssetSubjectFilter() string { return SubjectRoot + AggregateAsset + ".>" }
 
 // RBACSubjectFilter returns the wildcard filter matching every RBAC aggregate
 // event.
@@ -518,6 +567,12 @@ func UserEventTypeFilter(eventType string) string {
 	return AggregateEventTypeFilter(AggregateUser, eventType)
 }
 
+// AssetEventTypeFilter is the asset analogue of RoomEventTypeFilter.
+// Pattern: evt.asset.*.{eventType}
+func AssetEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateAsset, eventType)
+}
+
 // RBACEventTypeFilter is the RBAC analogue of RoomEventTypeFilter.
 // Pattern: evt.rbac.*.{eventType}
 func RBACEventTypeFilter(eventType string) string {
@@ -542,6 +597,12 @@ func ParseGroupSubject(subject string) (groupID string, ok bool) {
 // subject. Accepts durable and republished live forms.
 func ParseUserSubject(subject string) (userID string, ok bool) {
 	return parseAggregateSubject(subject, AggregateUser)
+}
+
+// ParseAssetSubject extracts the assetID from an asset-aggregate event
+// subject. Accepts durable and republished live forms.
+func ParseAssetSubject(subject string) (assetID string, ok bool) {
+	return parseAggregateSubject(subject, AggregateAsset)
 }
 
 // parseAggregateSubject extracts the aggregate ID from a subject of the

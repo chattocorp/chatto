@@ -51,20 +51,3 @@ type PermissionExplanation {
   "Full ordered trace; the head is the winning decision."
   trace: [PermissionTraceEntry!]!
 }
-
-extend type Query {
-  """
-  Explain every applicable permission for a user at the given scope.
-  - userId only → server-scoped permissions.
-  - userId + roomId → room-scoped permissions.
-  Authorization: The viewer must be either the target user (self-inspection
-  at any scope they are a member of) or a server admin at the requested
-  scope.
-  """
-  permissionExplanation(
-    "User whose permissions to explain."
-    userId: ID!
-    "Optional room scope."
-    roomId: ID
-  ): [PermissionExplanation!]! @goField(forceResolver: true)
-}

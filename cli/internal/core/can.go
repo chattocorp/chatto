@@ -1,6 +1,9 @@
 package core
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // can.go provides semantic helper functions for permission checks. These wrap
 // the low-level HasServerPermission / hasServerPermission / hasRoomPermission
@@ -18,12 +21,6 @@ import "context"
 // ============================================================================
 // Server-tier Permissions
 // ============================================================================
-
-// CanAdminAccess checks if a user can access the admin panel.
-// Only server admins have this permission.
-func (c *ChattoCore) CanAdminAccess(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermAdminAccess)
-}
 
 // CanAdminUsersView checks if a user can view the users page in admin.
 func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool, error) {
@@ -44,7 +41,8 @@ func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, e
 	return c.HasServerPermission(ctx, userID, PermRoleManage)
 }
 
-// CanAdminSystemView checks if a user can view the system and data pages in admin.
+// CanAdminSystemView checks if a user can view system projection diagnostics
+// in admin. The full systemInfo field is owner-only.
 func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (bool, error) {
 	return c.HasServerPermission(ctx, userID, PermAdminSystemView)
 }
@@ -91,7 +89,11 @@ var adminPermissions = []Permission{
 	PermRoleManage,
 	PermRoleAssign,
 	PermRoomManage,
+	PermRoomMemberBan,
 	PermUserDeleteAny,
+	PermAdminUsersView,
+	PermAdminSystemView,
+	PermAdminAuditView,
 }
 
 // HasAnyAdminPermission checks if a user has any admin-level permission.
@@ -178,8 +180,12 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // CanJoinRoomAt checks if a user can join a specific room. Uses room-scope
 // permission resolution (room override > group override > server default).
 // This is the gate for global-room implicit membership: a global room's
-// members are exactly the users for whom this returns true.
+// members are exactly the users for whom this returns true. Active room bans
+// deny joins even when RBAC would otherwise allow them.
 func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	if kind == KindChannel && c.rooms().isRoomBanActive(roomID, userID, time.Now()) {
+		return false, nil
+	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomJoin)
 }
 

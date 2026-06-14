@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -65,6 +66,45 @@ func TestCreateRoomGroup_EmptyNameRejected(t *testing.T) {
 			t.Errorf("CreateRoomGroup(%q) error = %v, want ErrRoomGroupNameEmpty", name, err)
 		}
 	}
+}
+
+func TestRoomGroupMetadataLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	t.Run("create accepts values at max length", func(t *testing.T) {
+		set, err := core.CreateRoomGroup(
+			ctx,
+			"actor",
+			strings.Repeat("n", MaxRoomGroupNameLength),
+			strings.Repeat("d", MaxRoomGroupDescriptionLength),
+		)
+		if err != nil {
+			t.Fatalf("CreateRoomGroup at max lengths: %v", err)
+		}
+		if len(set.Name) != MaxRoomGroupNameLength || len(set.Description) != MaxRoomGroupDescriptionLength {
+			t.Fatalf("created group lengths = name:%d description:%d", len(set.Name), len(set.Description))
+		}
+	})
+
+	t.Run("create rejects over-limit name", func(t *testing.T) {
+		_, err := core.CreateRoomGroup(ctx, "actor", strings.Repeat("n", MaxRoomGroupNameLength+1), "")
+		assertStringLengthError(t, err, "room group name", MaxRoomGroupNameLength)
+	})
+
+	t.Run("create rejects over-limit description", func(t *testing.T) {
+		_, err := core.CreateRoomGroup(ctx, "actor", "Group", strings.Repeat("d", MaxRoomGroupDescriptionLength+1))
+		assertStringLengthError(t, err, "room group description", MaxRoomGroupDescriptionLength)
+	})
+
+	t.Run("update rejects over-limit metadata", func(t *testing.T) {
+		set, err := core.CreateRoomGroup(ctx, "actor", "Short", "")
+		if err != nil {
+			t.Fatalf("CreateRoomGroup: %v", err)
+		}
+		_, err = core.UpdateRoomGroup(ctx, "actor", set.Id, "Short", strings.Repeat("d", MaxRoomGroupDescriptionLength+1))
+		assertStringLengthError(t, err, "room group description", MaxRoomGroupDescriptionLength)
+	})
 }
 
 func TestUpdateRoomGroup(t *testing.T) {

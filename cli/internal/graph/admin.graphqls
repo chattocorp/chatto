@@ -1,15 +1,15 @@
-"Admin-only queries. Returns null if the user is not an server admin."
+"Admin-console query namespace. Returns null unless the viewer is authenticated."
 type AdminQueries {
-  "Get aggregate operational metrics (NATS/JetStream connection + account-level usage)."
-  systemInfo: SystemInfo!
+  "Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role."
+  systemInfo: SystemInfo! @goField(forceResolver: true)
 }
 
 extend type Query {
-  "Admin-only queries. Returns null if user lacks admin permission."
+  "Admin-console queries. Returns null unless the viewer is authenticated. Child fields enforce their own capabilities."
   admin: AdminQueries
 }
 
-"Information about the NATS connection."
+"Point-in-time diagnostic information about the backing message broker connection."
 type ConnectionInfo {
   "Whether the connection to NATS is currently active."
   connected: Boolean!
@@ -25,7 +25,7 @@ type ConnectionInfo {
   rtt: String!
 }
 
-"JetStream account limits and usage."
+"Point-in-time storage-account limits and usage. Intended for operator diagnostics."
 type AccountInfo {
   "Memory limit in bytes (-1 for unlimited)"
   memory: Int64!
@@ -45,7 +45,7 @@ type AccountInfo {
   consumersUsed: Int!
 }
 
-"Basic state for one JetStream stream."
+"Diagnostic state for one retained storage stream. Raw names and subjects are operator-facing diagnostics, not product concepts."
 type NatsStreamInfo {
   "Stream name."
   name: String!
@@ -71,7 +71,7 @@ type NatsStreamInfo {
   clusterLeader: String!
 }
 
-"Basic state for one JetStream consumer."
+"Diagnostic state for one storage consumer. Raw consumer names and subjects are operator-facing diagnostics, not product concepts."
 type NatsConsumerInfo {
   "Stream this consumer belongs to."
   stream: String!
@@ -107,7 +107,7 @@ type NatsConsumerInfo {
   ackFloorStreamSequence: String!
 }
 
-"Current JetStream stream and consumer diagnostics."
+"Current stream and consumer diagnostics. Values are point-in-time and may change between refreshes."
 type NatsStats {
   "Streams in the JetStream account."
   streams: [NatsStreamInfo!]!
@@ -123,7 +123,7 @@ type NatsStats {
   totalAckPending: Int!
 }
 
-"Aggregate operational metrics."
+"Point-in-time operator diagnostics for this deployment."
 type SystemInfo {
   "NATS connection status and server info."
   connection: ConnectionInfo!
@@ -166,37 +166,35 @@ type AdminServerConfig {
 "Input for updating server configuration."
 input UpdateServerConfigInput {
   "Welcome message shown on the login page. Set to empty string to clear."
-  welcomeMessage: String
+  welcomeMessage: String @length(max: 10000)
   "Server name for page titles. Set to empty string to use default."
-  serverName: String
+  serverName: String @length(max: 80)
   "Message of the Day for the header. Set to empty string to clear."
-  motd: String
-  "Blocked usernames (newline-separated). Set to empty string to clear."
-  blockedUsernames: String
+  motd: String @length(max: 1000)
   "Short server description for OG link-preview metadata. Set to empty string to clear."
-  description: String
+  description: String @length(max: 500)
 }
 
 extend type AdminQueries {
-  "Get server configuration."
+  "Get server configuration. Requires `server.manage`."
   serverConfig: AdminServerConfig! @goField(forceResolver: true)
 }
 
 # =============================================================================
-# Event Log (EVT inspection)
+# Event Log Diagnostics
 # =============================================================================
 
-"One entry in the event-sourcing log (EVT). Each entry corresponds to one durable domain event under ADR-033."
+"One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed."
 type EventLogEntry {
-  "Stream sequence — the canonical monotonic ID. NATS uses uint64, serialised here as a String so values past 2^31 don't overflow GraphQL Int."
+  "Monotonic event-log sequence, serialized as a String so large values do not overflow GraphQL Int."
   sequence: String!
-  "NATS subject the event was published on (e.g. 'evt.room.RAbc', 'evt.config.server')."
+  "Diagnostic storage subject. Useful for operators, but clients should not parse it as a stable product contract."
   subject: String!
-  "Aggregate type parsed from the subject (e.g. 'room', 'config')."
+  "Diagnostic aggregate category derived from storage metadata."
   aggregateType: String!
-  "Aggregate ID parsed from the subject (a NanoID for entity aggregates, a sentinel like 'server' for singletons)."
+  "Diagnostic aggregate identifier derived from storage metadata."
   aggregateId: String!
-  "Event variant tag from the protobuf oneof, e.g. 'UserJoinedRoomEvent', 'ServerConfigChangedEvent'. Empty if the event has no recognised payload variant."
+  "Diagnostic event variant label. Empty if the payload cannot be classified."
   eventType: String!
   "Per-event unique identifier from event.id."
   eventId: String!
@@ -204,11 +202,11 @@ type EventLogEntry {
   actorId: String!
   "When the event was created (per the event payload, not the stream)."
   createdAt: Time!
-  "Protobuf payload encoded as JSON for human inspection."
+  "Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape."
   payloadJson: String!
 }
 
-"A page of EventLogEntries, newest first."
+"A page of diagnostic event-log entries, newest first."
 type EventLogConnection {
   "Entries on this page, ordered newest → oldest."
   entries: [EventLogEntry!]!
@@ -216,14 +214,14 @@ type EventLogConnection {
   hasOlder: Boolean!
   "Pass as the next call's `before` to fetch the next (older) page. Null when there are no older entries."
   endCursor: String
-  "Total messages currently in EVT — an operational metric, not bounded by `limit`."
-  totalCount: Int!
+  "Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int."
+  totalCount: Int64! @goField(type: "int64")
 }
 
 extend type AdminQueries {
-  "Browse the event-sourcing log (EVT) newest-first. `limit` defaults to 50, max 200. `before` is a stream sequence (as String); entries returned will have sequence < before."
+  "Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before."
   eventLog(limit: Int, before: String): EventLogConnection! @goField(forceResolver: true)
-  "Fetch a single event-log entry by its stream sequence. Returns null if the sequence doesn't exist."
+  "Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist."
   eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)
 }
 
@@ -233,7 +231,7 @@ extend type AdminQueries {
 
 "One named diagnostic count/byte bucket for a projection."
 type ProjectionMetric {
-  "Stable metric identifier, e.g. 'timeline_entries' or 'event_id_index'."
+  "Diagnostic metric identifier, e.g. 'timeline_entries' or 'event_id_index'. Names may evolve with projection implementation."
   name: String!
   "Count associated with this metric."
   value: Int64!
@@ -241,22 +239,28 @@ type ProjectionMetric {
   bytes: Int64!
 }
 
-"Runtime state for one event-sourced projection."
+"Point-in-time runtime state for one event-sourced projection."
 type ProjectionState {
   "Human-readable projection name."
   name: String!
-  "NATS subject filters consumed by this projection."
+  "Diagnostic storage subject filters consumed by this projection."
   subjects: [String!]!
   "Whether the projector run loop has started."
   started: Boolean!
-  "Highest EVT stream sequence applied by this projection, serialized as String to avoid GraphQL Int overflow."
+  "Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow."
   lastAppliedSequence: String!
-  "Highest EVT stream sequence currently matching this projection's subject filters."
+  "Highest event-log sequence currently matching this projection's subject filters."
   matchingStreamSequence: String!
-  "Highest sequence in the EVT stream, regardless of whether this projection consumes it."
+  "Highest sequence in the event log, regardless of whether this projection consumes it."
   streamLastSequence: String!
   "Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence."
   lag: Int64!
+  "Whether this projection has stopped after a fatal decode or apply error."
+  failed: Boolean!
+  "Failed event-log sequence, serialized as String. Zero when the projection has not failed."
+  failedSequence: String!
+  "Operator-facing failure summary. Empty when the projection has not failed."
+  failure: String!
   "Primary projected entry count for this projection."
   entryCount: Int64!
   "Estimated bytes held in memory by this projection."
@@ -268,18 +272,57 @@ type ProjectionState {
 }
 
 extend type AdminQueries {
-  "Inspect runtime state and rough memory estimates for event-sourced projections."
+  "Inspect point-in-time runtime state and rough memory estimates for event-sourced projections."
   projections: [ProjectionState!]! @goField(forceResolver: true)
 }
 
-"Admin mutations for configuration management."
+# =============================================================================
+# Room Moderation
+# =============================================================================
+
+"An active room ban shown in server-admin moderation tools."
+type RoomBan {
+  "The event ID that created the active ban."
+  id: ID!
+  "The channel room this ban applies to."
+  roomId: ID!
+  "The room this ban applies to, if it still exists."
+  room: Room @goField(forceResolver: true)
+  "The banned user."
+  userId: ID!
+  "The banned user, if the account still exists."
+  user: User @goField(forceResolver: true)
+  "The moderator who created the ban."
+  moderatorId: ID!
+  "The moderator who created the ban, if the account still exists."
+  moderator: User @goField(forceResolver: true)
+  "Moderator-entered reason retained for audit."
+  reason: String!
+  "When the ban was created."
+  createdAt: Time!
+  "When this ban expires. Null means indefinite."
+  expiresAt: Time
+}
+
+extend type AdminQueries {
+  "List active room bans. Requires server-scope `room.ban-member`."
+  roomBans(roomId: ID): [RoomBan!]! @goField(forceResolver: true)
+}
+
+"Admin mutations for security and user management."
 type AdminMutations {
-  "Update server configuration. Returns the updated config section."
-  updateServerConfig(input: UpdateServerConfigInput!): AdminServerConfig! @goField(forceResolver: true)
+  "Update the newline-separated blocked-username list and return the effective saved value. Requires `server.manage`."
+  updateBlockedUsernames(input: UpdateBlockedUsernamesInput!): String! @goField(forceResolver: true)
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
   clearUsernameCooldown(input: ClearUsernameCooldownInput!): Boolean! @goField(forceResolver: true)
+}
+
+"Input for AdminMutations.updateBlockedUsernames."
+input UpdateBlockedUsernamesInput {
+  "Blocked usernames (newline-separated). Set to empty string to clear."
+  blockedUsernames: String! @length(max: 10000)
 }
 
 "Input for AdminMutations.clearUsernameCooldown."
@@ -299,6 +342,9 @@ input AdminUpdateUserInput {
 }
 
 extend type Mutation {
-  "Admin mutations. Returns null if user lacks admin permission."
+  "Update runtime-editable server configuration. Requires `server.manage`."
+  updateServerConfig(input: UpdateServerConfigInput!): ServerProfile! @goField(forceResolver: true)
+
+  "Admin mutations. Returns null unless the viewer is authenticated. Child fields enforce their own capabilities."
   admin: AdminMutations @goField(forceResolver: true)
 }

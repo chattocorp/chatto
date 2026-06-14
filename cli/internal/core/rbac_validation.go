@@ -33,3 +33,13 @@ func ValidateRoleName(name string) error {
 	}
 	return nil
 }
+
+func validateRoleMetadata(displayName, description string) error {
+	if err := validateStringMaxLength("role display name", displayName, MaxRoleDisplayNameLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("role description", description, MaxRoleDescriptionLength); err != nil {
+		return err
+	}
+	return nil
+}

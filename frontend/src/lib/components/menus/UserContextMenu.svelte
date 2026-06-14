@@ -10,6 +10,9 @@ ContextMenu, which handles both modes automatically.
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
 - `canSendMessage` - Whether to show the "Send Message" button
 - `onSendMessage` - Callback when "Send Message" is clicked
+- `canBanFromRoom` - Whether to show the room-ban action
+- `banningFromRoom` - Whether the room-ban action is currently running
+- `onBanFromRoom` - Callback when "Ban from room" is clicked
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
@@ -22,7 +25,10 @@ ContextMenu, which handles both modes automatically.
     user,
     anchorRect,
     canSendMessage = false,
+    canBanFromRoom = false,
+    banningFromRoom = false,
     onSendMessage,
+    onBanFromRoom,
     onClose
   }: {
     user: {
@@ -34,7 +40,10 @@ ContextMenu, which handles both modes automatically.
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
     canSendMessage?: boolean;
+    canBanFromRoom?: boolean;
+    banningFromRoom?: boolean;
     onSendMessage?: () => void;
+    onBanFromRoom?: () => void;
     onClose?: () => void;
   } = $props();
 
@@ -43,6 +52,10 @@ ContextMenu, which handles both modes automatically.
   function handleSendMessage() {
     onSendMessage?.();
     onClose?.();
+  }
+
+  function handleBanFromRoom() {
+    onBanFromRoom?.();
   }
 </script>
 
@@ -62,11 +75,23 @@ ContextMenu, which handles both modes automatically.
       </div>
     </div>
 
-    {#if canSendMessage}
+    {#if canSendMessage || canBanFromRoom}
       <div class="border-t border-border p-1">
-        <button type="button" class="sidebar-item" onclick={handleSendMessage}>
-          Send Message
-        </button>
+        {#if canSendMessage}
+          <button type="button" class="sidebar-item" onclick={handleSendMessage}>
+            Send Message
+          </button>
+        {/if}
+        {#if canBanFromRoom}
+          <button
+            type="button"
+            class="sidebar-item text-danger disabled:cursor-not-allowed disabled:opacity-50"
+            onclick={handleBanFromRoom}
+            disabled={banningFromRoom}
+          >
+            {banningFromRoom ? 'Banning...' : 'Ban from room'}
+          </button>
+        {/if}
       </div>
     {/if}
   </div>

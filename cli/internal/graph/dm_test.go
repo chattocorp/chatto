@@ -82,10 +82,10 @@ func TestMutationResolver_StartDM(t *testing.T) {
 		}
 
 		// Create a restriction role, deny message.post on it, and assign to user
-		if _, err := env.core.CreateServerRole(env.ctx, "dmblocked", "DM Blocked", ""); err != nil {
+		if _, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, "dmblocked", "DM Blocked", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := env.core.DenyServerPermission(env.ctx, "dmblocked", core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, "dmblocked", core.PermMessagePost); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, blockedUser.Id, "dmblocked"); err != nil {
@@ -101,4 +101,31 @@ func TestMutationResolver_StartDM(t *testing.T) {
 	// Note: Starting DM with nonexistent user currently succeeds (no validation on participant IDs).
 	// This could be considered a feature (lazy validation) or a bug. Not testing this case
 	// until the expected behavior is clarified.
+}
+
+func TestRoomResolver_GroupIDReturnsNullForDMRooms(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.Room()
+
+	channelGroupID, err := resolver.GroupID(env.authContext(), env.testRoom)
+	if err != nil {
+		t.Fatalf("GroupID for channel returned error: %v", err)
+	}
+	if channelGroupID == nil || *channelGroupID != env.testRoom.GroupId {
+		t.Fatalf("GroupID for channel = %v, want %q", channelGroupID, env.testRoom.GroupId)
+	}
+
+	other := env.createVerifiedUser(t, "dm-group-peer", "DM Group Peer", "password123")
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	dmGroupID, err := resolver.GroupID(env.authContext(), dm)
+	if err != nil {
+		t.Fatalf("GroupID for DM returned error: %v", err)
+	}
+	if dmGroupID != nil {
+		t.Fatalf("GroupID for DM = %v, want nil", dmGroupID)
+	}
 }

@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	graphauth "hmans.de/chatto/internal/graph/auth"
 )
 
 // Pre-compiled regexes for login validation
@@ -20,6 +22,19 @@ var (
 	validLoginRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 	invalidCharsRegex = regexp.MustCompile(`[^a-z0-9._-]`)
 )
+
+func isStaleLoginCredentialError(err error) bool {
+	return errors.Is(err, core.ErrCookieSessionNotFound) || errors.Is(err, core.ErrAuthTokenNotFound)
+}
+
+func (s *HTTPServer) authEmailServerName(ctx context.Context) string {
+	if s.core != nil && s.core.ConfigManager() != nil {
+		if name, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil && strings.TrimSpace(name) != "" {
+			return name
+		}
+	}
+	return "Chatto"
+}
 
 func (s *HTTPServer) setupAuthRoutes() {
 	auth := s.router.Group("/auth")
@@ -33,7 +48,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Read user ID before clearing session (needed for session terminated event)
 		session := sessions.Default(c)
-		userID, _ := session.Get("user_id").(string)
+		userID, cookieSessionID, _ := cookieSessionIDs(session)
 
 		// If authenticated via bearer token, revoke it
 		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
@@ -42,6 +57,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 					log.Warn("Failed to revoke bearer token on logout", "error", err)
 				}
 			}
+		}
+
+		if err := s.core.RevokeCookieSession(ctx, userID, cookieSessionID); err != nil {
+			log.Warn("Failed to revoke cookie session on logout", "error", err)
 		}
 
 		// Clear the session cookie
@@ -121,32 +140,65 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Verify credentials by login name
 		ctx := c.Request.Context()
-		user, err := s.core.VerifyPassword(ctx, login, loginRequest.Password)
+		user, authGeneration, err := s.core.VerifyPasswordWithAuthGeneration(ctx, login, loginRequest.Password)
 		if err != nil {
 			if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
 				log.Warn("Failed to append failed-login audit event", "error", auditErr)
 			}
-			log.Error("Login failed", "login", login, "error", err)
+			log.Error("Login failed", "error", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
 
-		// Create session
-		session := sessions.Default(c)
-		session.Set("user_id", user.Id)
-		err = session.Save()
-		if err != nil {
+		// Create server-side cookie session
+		if err := s.createCookieSessionForGeneration(c, user.Id, "password_login", authGeneration); err != nil {
+			if isStaleLoginCredentialError(err) {
+				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
+					log.Warn("Failed to append stale-login audit event", "error", auditErr)
+				}
+				log.Warn("Login became stale before session creation", "userId", user.Id)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+				return
+			}
 			log.Error("Failed to save session", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
+		if s.passwordLoginSessionCreatedHook != nil {
+			s.passwordLoginSessionCreatedHook(c, user.Id, authGeneration)
+		}
+
+		session := sessions.Default(c)
+		cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+		bearerToken := ""
+
+		// Issue a bearer token (cross-origin clients use this instead of the session cookie).
+		// If the password changed after VerifyPasswordWithAuthGeneration, the proven
+		// generation is stale; undo the cookie session and fail the login cleanly.
+		token, err := s.core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration)
+		if err != nil {
+			if isStaleLoginCredentialError(err) {
+				_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+				clearCookieSessionAuth(session)
+				_ = session.Save()
+				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
+					log.Warn("Failed to append stale-login audit event", "error", auditErr)
+				}
+				log.Warn("Login became stale before bearer token creation", "userId", user.Id)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+				return
+			}
+			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
+		} else {
+			bearerToken = token
+		}
+
 		if err := s.ensureCSRFToken(c, session); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
-			return
-		}
-		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
-			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			if bearerToken != "" {
+				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_csrf_failed")
+			}
 			session.Clear()
 			_ = session.Save()
 			clearCSRFCookie(c)
@@ -154,27 +206,37 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		log.Info("User logged in successfully", "userId", user.Id, "login", user.Login)
+		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
+			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			if bearerToken != "" {
+				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_audit_failed")
+			}
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
+		}
+
+		log.Info("User logged in successfully", "userId", user.Id)
 
 		response := gin.H{
 			"success": true,
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		// Issue a bearer token (cross-origin clients use this instead of the session cookie)
-		if token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "password_login"); err == nil {
-			response["token"] = token
-		} else {
-			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
+		if bearerToken != "" {
+			response["token"] = bearerToken
 		}
 
 		c.JSON(http.StatusOK, response)
 	})
 
 	// Email-first registration endpoint (step 1)
-	// Accepts email only, creates a registration token, and sends a verification email.
-	// The user completes account creation via POST /auth/register/complete after clicking
-	// the email link.
+	// Accepts email only, creates a registration code, and sends it by email.
+	// The user exchanges the code via POST /auth/register/verify-code, then
+	// completes account creation via POST /auth/register/complete.
 	auth.POST("register", func(c *gin.Context) {
 		// Check if registration is enabled
 		if !s.config.Auth.DirectRegistrationOrDefault() {
@@ -204,47 +266,91 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Check if email is already claimed — but always return 200 to prevent enumeration
 		emailClaimed, err := s.core.IsEmailClaimed(ctx, req.Email)
 		if err != nil {
-			log.Error("Failed to check email availability", "email", req.Email, "error", err)
+			log.Error("Failed to check email availability", "error", err)
 		}
 		if emailClaimed {
 			// Don't reveal that the email is taken — just return success
-			log.Info("Registration attempt for already-claimed email", "email", req.Email)
+			log.Info("Registration attempt for already-claimed email")
 			c.JSON(http.StatusOK, gin.H{
-				"message": "If this email is available, you will receive a registration link.",
+				"message": "If this email is available, you will receive a registration code.",
 			})
 			return
 		}
 
-		// Create registration token
-		token, err := s.core.CreateRegistrationToken(ctx, req.Email)
+		// Create registration code
+		code, err := s.core.CreateRegistrationCode(ctx, req.Email)
 		if err != nil {
-			log.Error("Failed to create registration token", "email", req.Email, "error", err)
+			if errors.Is(err, core.ErrRegistrationCodeLimitExceeded) ||
+				errors.Is(err, core.ErrRegistrationCodeExhausted) {
+				log.Info("Registration code request throttled")
+				c.JSON(http.StatusOK, gin.H{
+					"message": "If this email is available, you will receive a registration code.",
+				})
+				return
+			}
+			log.Error("Failed to create registration code", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
 
 		// Send registration email
-		completeURL := fmt.Sprintf("%s/register/complete?token=%s", s.config.Webserver.URL, token)
+		serverName := s.authEmailServerName(ctx)
 		err = s.mailer.Send(email.Message{
 			To:      req.Email,
-			Subject: "Complete your Chatto registration",
-			Body:    fmt.Sprintf("Welcome to Chatto!\n\nClick the link below to complete your registration:\n\n%s\n\nThis link will expire in 24 hours.\n\nIf you didn't request this, you can ignore this email.", completeURL),
+			Subject: fmt.Sprintf("Complete your registration for %s", serverName),
+			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code),
 		})
 		if err != nil {
-			log.Error("Failed to send registration email", "email", req.Email, "error", err)
+			log.Error("Failed to send registration email", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 			return
 		}
 
-		log.Info("Sent registration email", "email", req.Email)
+		log.Info("Sent registration email")
 		c.JSON(http.StatusOK, gin.H{
-			"message": "If this email is available, you will receive a registration link.",
+			"message": "If this email is available, you will receive a registration code.",
 		})
 	})
 
+	// Registration code verification endpoint (step 2)
+	// Validates the emailed six-digit code and returns a short-lived completion token.
+	auth.POST("register/verify-code", func(c *gin.Context) {
+		if !s.config.Auth.DirectRegistrationOrDefault() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Registration is disabled"})
+			return
+		}
+
+		var req struct {
+			Email string `json:"email" binding:"required,email"`
+			Code  string `json:"code" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A valid email address and verification code are required"})
+			return
+		}
+		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+
+		token, err := s.core.VerifyRegistrationCode(c.Request.Context(), req.Email, req.Code)
+		if err != nil {
+			if errors.Is(err, core.ErrRegistrationCodeNotFound) ||
+				errors.Is(err, core.ErrRegistrationCodeExpired) ||
+				errors.Is(err, core.ErrRegistrationCodeInvalid) ||
+				errors.Is(err, core.ErrRegistrationCodeExhausted) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired registration code"})
+				return
+			}
+			log.Error("Failed to verify registration code", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"completionToken": token})
+	})
+
 	// Registration completion endpoint (step 2)
-	// Validates the registration token, creates the user account, verifies the email,
-	// and creates a session.
+	// Validates the registration completion token, creates the user account,
+	// verifies the email, and creates a session.
 	auth.POST("register/complete", func(c *gin.Context) {
 		// Check if registration is enabled
 		if !s.config.Auth.DirectRegistrationOrDefault() {
@@ -270,10 +376,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 		tokenData, err := s.core.GetRegistrationToken(ctx, req.Token)
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationTokenNotFound) || errors.Is(err, core.ErrRegistrationTokenExpired) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired registration link"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired registration code"})
 				return
 			}
-			log.Error("Failed to validate registration token", "error", err)
+			log.Error("Failed to validate registration completion token", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -293,7 +399,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Check if login is blocked
 		isBlocked, err := s.core.ConfigManager().IsUsernameBlocked(ctx, req.Login)
 		if err != nil {
-			log.Error("Failed to check blocked usernames", "login", req.Login, "error", err)
+			log.Error("Failed to check blocked usernames", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -305,7 +411,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Check if email was claimed while token was outstanding
 		emailClaimed, err := s.core.IsEmailClaimed(ctx, tokenData.Email)
 		if err != nil {
-			log.Error("Failed to check email availability", "email", tokenData.Email, "error", err)
+			log.Error("Failed to check email availability", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
@@ -337,34 +443,38 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			log.Error("Registration failed", "login", req.Login, "error", err)
+			log.Error("Registration failed", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
 		}
 
 		// Server membership is implicit; global rooms appear automatically.
 
-		// Delete registration token (consumed)
+		// Delete registration completion token (consumed)
 		if err := s.core.DeleteRegistrationToken(ctx, req.Token); err != nil {
-			log.Error("Failed to delete registration token", "error", err)
+			log.Error("Failed to delete registration completion token", "error", err)
 			// Don't fail — user was created successfully
 		}
 
-		// Create session
-		session := sessions.Default(c)
-		session.Set("user_id", user.Id)
-		if err := session.Save(); err != nil {
+		// Create server-side cookie session
+		if err := s.createCookieSession(c, user.Id, "registration_complete"); err != nil {
 			log.Error("Failed to save session", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
+		session := sessions.Default(c)
 		if err := s.ensureCSRFToken(c, session); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
 
-		log.Info("User registered and logged in", "userId", user.Id, "login", user.Login)
+		log.Info("User registered and logged in", "userId", user.Id)
 
 		response := gin.H{
 			"success": true,
@@ -380,35 +490,91 @@ func (s *HTTPServer) setupAuthRoutes() {
 		c.JSON(http.StatusOK, response)
 	})
 
-	// Email verification endpoint
-	auth.GET("verify-email", func(c *gin.Context) {
-		token := c.Query("token")
-		if token == "" {
-			c.Redirect(http.StatusTemporaryRedirect, "/?error=missing_token")
+	// Authenticated email verification code request.
+	auth.POST("verify-email/request-code", func(c *gin.Context) {
+		req := s.injectUserIntoContext(c)
+		user := graphauth.ForContext(req.Context())
+		if user == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			return
+		}
+		if s.mailer == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Email delivery is not configured"})
 			return
 		}
 
-		ctx := c.Request.Context()
+		var body struct {
+			Email string `json:"email" binding:"required,email"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A valid email address is required"})
+			return
+		}
+		body.Email = strings.ToLower(strings.TrimSpace(body.Email))
 
-		userID, err := s.core.VerifyEmail(ctx, token)
+		code, err := s.core.CreateEmailVerificationCode(req.Context(), user.Id, body.Email)
 		if err != nil {
-			if errors.Is(err, core.ErrTokenNotFound) || errors.Is(err, core.ErrTokenExpired) {
-				log.Warn("Email verification failed: invalid or expired token")
-				c.Redirect(http.StatusTemporaryRedirect, "/?error=invalid_token")
+			if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) ||
+				errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
+				c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many verification code requests. Please try again later."})
+				return
+			}
+			log.Error("Failed to create email verification code", "userId", user.Id, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
+			return
+		}
+		serverName := s.authEmailServerName(req.Context())
+		if err := s.mailer.Send(email.Message{
+			To:      body.Email,
+			Subject: fmt.Sprintf("Verify your email for %s", serverName),
+			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, code),
+		}); err != nil {
+			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Verification code sent."})
+	})
+
+	// Authenticated email verification code confirmation.
+	auth.POST("verify-email/confirm-code", func(c *gin.Context) {
+		req := s.injectUserIntoContext(c)
+		user := graphauth.ForContext(req.Context())
+		if user == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			return
+		}
+
+		var body struct {
+			Email string `json:"email" binding:"required,email"`
+			Code  string `json:"code" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A valid email address and verification code are required"})
+			return
+		}
+		body.Email = strings.ToLower(strings.TrimSpace(body.Email))
+
+		if _, err := s.core.VerifyEmailCode(req.Context(), user.Id, body.Email, body.Code); err != nil {
+			if errors.Is(err, core.ErrTokenNotFound) ||
+				errors.Is(err, core.ErrTokenExpired) ||
+				errors.Is(err, core.ErrEmailVerificationCodeInvalid) ||
+				errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification code"})
 				return
 			}
 			if errors.Is(err, core.ErrEmailAlreadyVerified) {
-				log.Warn("Email verification failed: email already verified by another user")
-				c.Redirect(http.StatusTemporaryRedirect, "/?error=email_taken")
+				c.JSON(http.StatusConflict, gin.H{"error": "This email address is already in use"})
 				return
 			}
-			log.Error("Email verification failed", "error", err)
-			c.Redirect(http.StatusTemporaryRedirect, "/?error=verification_failed")
+			log.Error("Email verification failed", "userId", user.Id, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Email verification failed"})
 			return
 		}
 
-		log.Info("Email verified successfully", "userId", userID)
-		c.Redirect(http.StatusTemporaryRedirect, "/?email_verified=true")
+		log.Info("Email verified successfully", "userId", user.Id)
+		c.JSON(http.StatusOK, gin.H{"success": true})
 	})
 
 	// Forgot password endpoint - request a password reset email
@@ -435,16 +601,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Only send email if token was created (email exists and is verified)
 		if token != "" && s.mailer != nil {
+			serverName := s.authEmailServerName(ctx)
 			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
 			err = s.mailer.Send(email.Message{
 				To:      normalizedEmail,
-				Subject: "Reset your Chatto password",
-				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset your password for your Chatto account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.\n\n- The Chatto Team", resetURL),
+				Subject: fmt.Sprintf("Reset your %s password", serverName),
+				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
 			})
 			if err != nil {
-				log.Error("Failed to send password reset email", "email", normalizedEmail, "error", err)
+				log.Error("Failed to send password reset email", "error", err)
 			} else {
-				log.Info("Sent password reset email", "email", normalizedEmail)
+				log.Info("Sent password reset email")
 			}
 		}
 

@@ -1,5 +1,5 @@
-import { graphql } from '$lib/gql';
-import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
+import { graphql, useFragment } from '$lib/gql';
+import { RoomType, UserAvatarUserFragmentDoc, type PresenceStatus } from '$lib/gql/graphql';
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
@@ -15,7 +15,10 @@ export type RoomData = {
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
   canManageRoom: boolean;
+  canBanRoomMembers: boolean;
   members: RoomMember[];
+  membersTotalCount: number;
+  membersHasMore: boolean;
 };
 
 export type DMData = {
@@ -96,19 +99,18 @@ export function useRoomData(getProps: () => { roomId: string }) {
               viewerCanManageOthersMessage
               viewerCanEchoMessage
               viewerCanManageRoom
+              viewerCanBanRoomMembers
               members(limit: 100) {
                 users {
-                  id
-                  login
-                  displayName
-                  avatarUrl(width: 96, height: 96)
-                  presenceStatus
+                  ...UserAvatarUser
                 }
+                totalCount
+                hasMore
               }
             }
             server {
-              config {
-                serverName
+              profile {
+                name
               }
               viewerCanManageRooms
             }
@@ -139,20 +141,17 @@ export function useRoomData(getProps: () => { roomId: string }) {
 
         roomData = {
           room: resp.data.room,
-          spaceName: resp.data.server?.config.serverName ?? null,
+          spaceName: resp.data.server?.profile.name ?? null,
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
           canReact: resp.data.room.viewerCanReact,
           canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
           canManageRoom: resp.data.room.viewerCanManageRoom,
-          members: resp.data.room.members.users.map((m) => ({
-            id: m.id,
-            login: m.login,
-            displayName: m.displayName,
-            avatarUrl: m.avatarUrl,
-            presenceStatus: m.presenceStatus
-          }))
+          canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers,
+          members: resp.data.room.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
+          membersTotalCount: resp.data.room.members.totalCount,
+          membersHasMore: resp.data.room.members.hasMore
         };
       })
       .catch((err) => {
@@ -179,12 +178,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
               id
               members(limit: 100) {
                 users {
-                  id
-                  login
-                  displayName
-                  avatarUrl(width: 96, height: 96)
-                  presenceStatus
+                  ...UserAvatarUser
                 }
+                totalCount
+                hasMore
               }
             }
             viewer {
@@ -203,7 +200,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
           return;
         }
         dmData = {
-          participants: resp.data.room.members.users,
+          participants: resp.data.room.members.users.map((m) =>
+            useFragment(UserAvatarUserFragmentDoc, m)
+          ),
           currentUserId: resp.data.viewer?.user.id ?? null
         };
       });

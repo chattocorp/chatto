@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-06-02
+**Last reviewed:** 2026-06-07
 
 ## Overview
 
@@ -11,22 +11,24 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 - **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
 - **OAuth login** — operators can configure OAuth providers (e.g., Google). The login page shows provider buttons; clicking takes the user through the standard authorization-code flow.
-- **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries the user ID; the server resolves the current user from projections per request.
+- **Chatto OAuth authorization** — cross-origin Chatto clients use `/oauth/authorize` with PKCE to obtain a short-lived authorization code, then exchange it at `/oauth/token` for an opaque bearer token. Redirect URIs must use this server's configured `webserver.url` origin, an explicit `webserver.oauth_redirect_origins` entry, an exact `webserver.allowed_origins` entry, or a loopback development origin; wildcard CORS does not authorize OAuth redirects. `oauth_redirect_origins = ["*"]` temporarily accepts any valid HTTPS redirect origin for controlled alpha deployments. The first authorization for a trusted redirect origin shows a user consent screen and remembers approval per user + origin.
+- **Cookie session** — on successful auth from the embedded SPA, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries an opaque session ID plus the user ID needed to derive the lookup key; the authoritative `CookieSession` protobuf record lives in `RUNTIME_STATE` under `cookie_session.{userId}.{hmac}` with a per-key TTL. The server validates the KV record and resolves the current user from projections per request.
 - **CSRF protection** — cookie-session unsafe requests to `/api/graphql` and `/auth/logout` must include an `X-CSRF-Token` header matching the readable `chatto_csrf` cookie and the token stored in the signed session. Bearer-only requests are exempt because bearer credentials are not ambient browser cookies.
 - **Bearer token** — every authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Cross-origin clients store it (usually in `localStorage`) and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL.
 - **WebSocket auth** — for the embedded SPA, the cookie is automatically attached to the WebSocket upgrade and the user is authenticated before the WS handshake completes. For cross-origin clients, the token in `connectionParams` is checked at upgrade time.
-- **Logout** — for cookie sessions: the server clears the session and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
-- **Session refresh** — the cookie TTL gets refreshed as the user actively uses the app (including on static file requests). Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
+- **Logout** — for cookie sessions: the server deletes the current cookie-session KV record, clears the cookie, and the SPA does a hard reload. For tokens: the client removes the token from `localStorage`; optionally the server revokes the token by deleting its KV key.
+- **Session refresh** — cookie-session KV TTL cannot be touched in place, so active sessions are rotated near expiry: the server creates a replacement `CookieSession` record with a fresh TTL, updates the browser cookie, and deletes the old record best-effort. Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
+- **Password and account lifecycle revocation** — password resets, password changes, and account deletion advance the user's auth generation through durable `EVT` user events. Cookie sessions, bearer tokens, and OAuth authorization codes store the auth generation they were issued against; validation waits the user projection to the current auth-generation events and rejects credentials from older generations. Generation `0` is reserved for pre-field legacy runtime credentials and is upgraded on validation when the credential is not older than the current password event. Revoke-all scans still delete matching `cookie_session.*` and `session.*` records as cleanup.
 - **Password reset tokens** — reset links are backed by `RUNTIME_STATE` HMAC-derived `password_reset.{hmac}` records with a 1-hour per-key TTL. Raw reset tokens and links are never written to `EVT` or backup archives.
 - **Server version handshake** — the WebSocket `connection_ack` payload includes the server's version. The frontend uses this to detect deployed-version drift and prompt the user to refresh.
-- **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, bearer-token issuance/revocation, OAuth authorization-code issuance/exchange, registration-link issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
+- **Auth audit facts** — successful cookie logins, failed password login attempts, logout completion, bearer-token issuance/revocation, OAuth consent decisions, OAuth authorization-code issuance/exchange, registration-code issuance, email-verification-code issuance, password-reset link issuance, and password-reset completion are appended to `EVT` for admin audit-log inspection. Payloads carry safe request metadata only: capped user agent, HMAC-hashed IP, and hashed identifiers where needed.
 
 ## Design Decisions
 
 ### 1. Cookie-based sessions for same-origin
 
-**Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The session stores only the user ID; the current user record is resolved from projections per request.
-**Why:** Cookies are the simplest mechanism for browser SPAs — the browser handles attachment, expiry, and HttpOnly protects against XSS-extracted tokens. WebSocket auth comes for free because the browser sends the cookie with the upgrade request. See ADR-017.
+**Decision:** The embedded SPA authenticates via HTTP-only `SameSite=Lax` cookies. The cookie stores an opaque session ID and user ID, while the authoritative `CookieSession` protobuf record lives in `RUNTIME_STATE` with per-key TTL and safe request metadata. The current user record is resolved from projections per request.
+**Why:** Cookies are the simplest mechanism for browser SPAs — the browser handles attachment, expiry, and HttpOnly protects against XSS-extracted tokens. Storing the server-side session record in `RUNTIME_STATE` adds revocation for logout, password changes/resets, and account deletion while staying within Chatto's NATS-backed runtime-state model. WebSocket auth comes from the browser sending the cookie with the upgrade request. See ADR-017 and ADR-036.
 **Tradeoff:** Non-browser clients can't use cookies. The bearer token path exists for them.
 
 ### 1a. CSRF protection for cookie-authenticated writes
@@ -37,15 +39,15 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 
 ### 2. Bearer tokens for cross-origin
 
-**Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys. Tokens are validated by KV lookup; revocation is one delete.
+**Decision:** Cross-origin clients (multi-instance frontend, CLI tools) authenticate via opaque bearer tokens stored in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys. Tokens are validated by KV lookup plus the current user auth generation derived from `EVT`; single-token revocation is one delete, and user-wide cleanup scans `session.*` for records owned by that user.
 **Why:** Cookies are scoped to one origin and `SameSite=Lax` blocks them on cross-origin requests. Tokens are origin-agnostic. We chose opaque tokens over JWTs because Chatto still resolves the current user and permissions server-side per request — JWT's "stateless validation" advantage gives little here, while opaque tokens give instant revocation and natural TTL via KV's built-in expiry. See ADR-024.
 **Tradeoff:** Tokens stored in `localStorage` are vulnerable to XSS; cookie sessions are not. Cross-origin clients accept this tradeoff in exchange for being able to authenticate at all. Operators must keep `[core].secret_key` stable across restores to preserve active bearer-token sessions.
 
 ### 3. Sliding-window TTL for tokens (and cookies)
 
-**Decision:** Each successful token validation rewrites the runtime-state entry with a fresh per-key TTL (default 90 days). Cookies are similarly refreshed on every static-file request.
+**Decision:** Each successful token validation rewrites the runtime-state entry with a fresh per-key TTL (default 90 days). Cookie sessions use the same inactivity window but rotate near expiry instead of touching TTL in place.
 **Why:** Time-from-creation expiry would surprise users — "you've been logged in for 90 days, time to re-auth, even though you've been using the app daily". Sliding-window means active users stay logged in indefinitely; only genuinely inactive sessions expire.
-**Tradeoff:** A long-stolen token stays valid until it lapses or gets explicitly revoked. Operators concerned about this can lower the TTL or implement a "revoke all tokens for user" action (not currently exposed — see ADR-024).
+**Tradeoff:** A long-stolen token stays valid until it lapses, gets explicitly revoked, or the user's password lifecycle advances the auth cutoff. Operators concerned about shorter compromise windows can lower the TTL.
 
 ### 4. WebSocket auth at HTTP upgrade
 
@@ -71,17 +73,19 @@ Chatto authenticates users via two parallel mechanisms: HTTP-only cookie session
 **Why:** Without it, users get subtle errors when a deployed schema change lands but their old client is still connected. A "the server has been upgraded, please refresh" toast handles it explicitly.
 **Tradeoff:** The frontend has to handle the toast and the user has to act on it. Considered acceptable for the rare deployment-during-session case.
 
-### 8. OAuth tokens delivered via query parameter
+### 8. OAuth code exchange and redirect-origin allow-list
 
-**Decision:** OAuth callbacks redirect to the frontend with `?token=…` in the URL.
-**Why:** The simplest delivery mechanism. The browser hands the token to the frontend; the frontend stores it (or sets up its cookie session) and replaces the URL to drop the parameter from history.
-**Tradeoff:** The token briefly appears in browser history and server access logs. Acceptable for v1; a code-exchange flow can be added later if needed. See ADR-024.
+**Decision:** Chatto's OAuth authorization endpoint returns a short-lived authorization code to the client's callback; the client exchanges that code plus its PKCE verifier at `/oauth/token` for a bearer token. Redirect URIs are accepted only for trusted origins: the server's own configured `webserver.url` origin, explicit `webserver.oauth_redirect_origins` entries, exact `webserver.allowed_origins` entries, and loopback development origins. The first authorization for a user + redirect origin requires explicit consent; approved origins are remembered through durable `EVT` facts.
+**Why:** PKCE keeps bearer tokens out of callback URLs, the redirect allow-list prevents a logged-in user from being tricked into sending an authorization code to an attacker-controlled HTTPS origin, and consent gives the user a human-readable checkpoint before a bearer token can be minted for a trusted client origin. The `allowed_origins = ["*"]` CORS default is intentionally not treated as OAuth trust.
+**Tradeoff:** A separately hosted multi-server frontend must be listed explicitly in each server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before users can connect that server through OAuth, and users see one prompt per trusted client origin. For controlled alpha deployments, `oauth_redirect_origins = ["*"]` temporarily restores broad HTTPS callback acceptance at the cost of weakening redirect-origin protection. We do not use an operator-managed client registry because any compatible Chatto client should be able to connect to any compatible Chatto server once its origin is trusted.
 
 ### 9. EVT audit facts without raw secrets
 
-**Decision:** Authentication workflows append durable audit facts to `EVT`, but token bodies, links, passwords, auth codes, raw IP addresses, raw redirect URIs, and raw login/email identifiers stay out of the event log. Successful user-scoped facts live on `evt.user.{userId}`; anonymous/server-wide facts such as registration-link issuance and failed login attempts live on `evt.auth.server`.
+**Decision:** Authentication workflows append durable audit facts to `EVT`, but token bodies, verification codes, links, passwords, auth codes, raw IP addresses, full redirect URIs, and raw login/email identifiers stay out of the event log. OAuth consent grant/deny facts store the canonical redirect origin in plaintext so users can recognize approved client addresses in future management UI. Successful user-scoped facts live on `evt.user.{userId}`; anonymous/server-wide facts such as registration-code issuance and failed login attempts live on `evt.auth.server`.
 **Why:** `EVT` is Chatto's durable audit trail as well as the event-sourcing stream. Operators need to answer "what happened?" for sensitive workflows, but the audit log must not become a secondary secret store.
 **Tradeoff:** Failed-login and unknown-code exchange attempts intentionally do not reveal whether the submitted identifier or code matched an account. Admins get timing, request metadata, and stable hashes for known-user workflows, not raw credential guesses.
+
+**OTP guardrails:** Registration and authenticated email-verification OTPs share `RUNTIME_STATE` `email_otp.*` records. Each challenge allows at most ten issued codes and five wrong-code attempts in its 15-minute TTL window; exhaustion blocks fresh codes for that challenge until TTL.
 
 ### 10. Short-lived auth codes in runtime state
 
@@ -100,5 +104,4 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 
 ## Open Questions
 
-- A "revoke all tokens for this user" affordance for admins. Currently tokens are revoked one at a time by KV key. Useful in the case of a compromised user.
-- A code-exchange OAuth callback flow to keep the token out of the URL/history. Not currently planned.
+- A "revoke all tokens for this user" admin affordance. Core supports revoke-all for password/account lifecycle flows, but there is no dedicated admin UI action yet.

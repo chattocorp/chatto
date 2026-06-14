@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-06
 
 ## Overview
 
@@ -11,6 +11,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 - The sidebar shows rooms grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
 - Server admins can create, rename, reorder, and delete groups via the admin UI.
+- Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - A freshly bootstrapped server has one group named "Lobby" containing the auto-created `announcements` and `general` rooms. Operators can rename it, reorder it, or replace it like any other group.
 - Deleting a group is rejected while rooms still live in it. Operators move rooms out first.

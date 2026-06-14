@@ -5,9 +5,36 @@ inputs:
     description: "Install ffmpeg (only needed for E2E tests with video processing)"
     required: false
     default: "false"
+  install-cli-deps:
+    description: "Install Go/CLI dependencies"
+    required: false
+    default: "true"
+  install-frontend-deps:
+    description: "Install frontend dependencies"
+    required: false
+    default: "true"
 runs:
   using: "composite"
   steps:
+    - name: Cache Go modules
+      if: inputs.install-cli-deps == 'true'
+      uses: actions/cache@v5
+      with:
+        path: ~/go/pkg/mod
+        key: go-mod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum') }}
+        restore-keys: |
+          go-mod-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Cache Go build artifacts
+      if: inputs.install-cli-deps == 'true'
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/go-build
+        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'cli/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/src/**', 'frontend/static/**', 'frontend/svelte.config.js', 'frontend/tsconfig.json', 'frontend/vite.config.ts', 'mise.toml') }}
+        restore-keys: |
+          go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-
+          go-build-${{ runner.os }}-${{ runner.arch }}-
+
     # mise-action installs mise and the tools defined in mise.toml (Go, Node)
     # with automatic caching of the tool installations
     - name: Setup mise
@@ -21,16 +48,6 @@ runs:
       with:
         version: 10
 
-    - name: Cache Go modules
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: go-${{ runner.os }}-${{ hashFiles('cli/go.sum') }}
-        restore-keys: |
-          go-${{ runner.os }}-
-
     - name: Install ffmpeg (required for video processing e2e tests)
       if: inputs.install-ffmpeg == 'true'
       shell: bash
@@ -39,9 +56,11 @@ runs:
         sudo apt-get install -y -qq ffmpeg
 
     - name: Install CLI dependencies
+      if: inputs.install-cli-deps == 'true'
       shell: bash
       run: mise deps-cli
 
     - name: Install Frontend dependencies
+      if: inputs.install-frontend-deps == 'true'
       shell: bash
       run: mise deps-frontend

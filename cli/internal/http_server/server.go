@@ -3,11 +3,11 @@ package http_server
 import (
 	"context"
 	"crypto/tls"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -41,11 +41,16 @@ type HTTPServer struct {
 	addr       string
 	version    string
 	logger     *log.Logger
+
+	// Optional test hook used to make password-login revocation races deterministic.
+	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
+	failAssetProxyRequests          atomic.Int64
 }
 
 const (
 	httpServerReadHeaderTimeout = 10 * time.Second
 	httpServerIdleTimeout       = 2 * time.Minute
+	httpServerShutdownTimeout   = 5 * time.Second
 )
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
@@ -64,7 +69,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
-		router.Use(gin.Logger())
+		router.Use(requestLogger(logger))
 	}
 
 	s := &HTTPServer{
@@ -96,34 +101,59 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 	}
 }
 
+func requestLogger(logger *log.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		hasQuery := c.Request.URL.RawQuery != ""
+
+		c.Next()
+
+		status := c.Writer.Status()
+		fields := []any{
+			"status", status,
+			"method", c.Request.Method,
+			"path", path,
+			"latency", time.Since(start).String(),
+			"client_ip_present", c.ClientIP() != "",
+			"user_agent", c.Request.UserAgent(),
+			"bytes", c.Writer.Size(),
+		}
+		if hasQuery {
+			fields = append(fields, "query_present", true)
+		}
+		if len(c.Errors) > 0 {
+			fields = append(fields, "error_count", len(c.Errors.ByType(gin.ErrorTypePrivate)))
+		}
+
+		switch {
+		case status >= http.StatusInternalServerError:
+			logger.Error("HTTP request", fields...)
+		case status >= http.StatusBadRequest:
+			logger.Warn("HTTP request", fields...)
+		default:
+			logger.Info("HTTP request", fields...)
+		}
+	}
+}
+
 func (s *HTTPServer) setupRoutes() error {
 	// SESSION MANAGEMENT
 
 	// Configure session middleware
 	authKey := []byte(s.config.Webserver.CookieSigningSecret)
 	var sessionStore cookie.Store
-	if encHex := s.config.Webserver.CookieEncryptionSecret; encHex != "" {
-		encKey, err := hex.DecodeString(encHex)
-		if err != nil {
-			return fmt.Errorf("webserver.cookie_encryption_secret: must be hex-encoded: %w", err)
-		}
-		switch len(encKey) {
-		case 16, 24, 32:
-		default:
-			return fmt.Errorf("webserver.cookie_encryption_secret must decode to 16, 24, or 32 bytes (got %d)", len(encKey))
-		}
+	encKey, err := s.config.Webserver.CookieEncryptionKey()
+	if err != nil {
+		return err
+	}
+	if len(encKey) > 0 {
 		sessionStore = cookie.NewStore(authKey, encKey)
 	} else {
 		s.logger.Warn("webserver.cookie_encryption_secret is not set; session cookies are signed but NOT encrypted. Run `chatto init` on a fresh server to generate one, or add a hex-encoded 32-byte value to chatto.toml.")
 		sessionStore = cookie.NewStore(authKey)
 	}
-	sessionStore.Options(sessions.Options{
-		MaxAge:   60 * 60 * 24 * 90, // 90 days
-		HttpOnly: true,
-		Secure:   strings.HasPrefix(s.config.Webserver.URL, "https"),
-		Path:     "/",
-		SameSite: http.SameSiteLaxMode,
-	})
+	sessionStore.Options(cookieSessionOptions(s.config.Auth.TokenTTLOrDefault(), strings.HasPrefix(s.config.Webserver.URL, "https")))
 	s.router.Use(sessions.Sessions("chatto_session", sessionStore))
 
 	// Build allowed origins list once and share between CORS middleware and WebSocket CheckOrigin
@@ -231,13 +261,20 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) shutdownServer(server *http.Server) error {
+	return s.shutdownServerWithTimeout(server, httpServerShutdownTimeout)
+}
+
+func (s *HTTPServer) shutdownServerWithTimeout(server *http.Server, timeout time.Duration) error {
 	s.logger.Info("Shutting down server", "addr", server.Addr)
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		s.logger.Error("Server forced to shutdown", "addr", server.Addr, "error", err)
+		if closeErr := server.Close(); closeErr != nil {
+			return fmt.Errorf("graceful shutdown: %w; forced close: %w", err, closeErr)
+		}
 		return err
 	}
 

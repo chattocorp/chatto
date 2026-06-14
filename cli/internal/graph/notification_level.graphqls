@@ -30,12 +30,12 @@ type ViewerNotificationPreference {
 }
 
 extend type Server {
-  "The current user's server-level notification preference. Null if not authenticated."
+  "The current user's server-level notification preference."
   viewerNotificationPreference: ViewerNotificationPreference @goField(forceResolver: true)
 }
 
 extend type Room {
-  "The current user's notification preference for this room. Null if not authenticated."
+  "The current user's notification preference for this room."
   viewerNotificationPreference: ViewerNotificationPreference @goField(forceResolver: true)
 }
 

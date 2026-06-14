@@ -6,7 +6,8 @@
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
 
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { useFragment } from '$lib/gql';
+  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
 
@@ -142,6 +143,7 @@
     {:else}
       <div class="flex flex-col">
         {#each allNotifications as item (item.notification.id)}
+          {@const actor = item.notification.actor ? useFragment(UserAvatarFragment, item.notification.actor) : null}
           <div
             class="flex w-full cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface-100"
             role="button"
@@ -150,8 +152,8 @@
             onclick={() => handleClick(item)}
             onkeydown={(e) => e.key === 'Enter' && handleClick(item)}
           >
-            {#if item.notification.actor}
-              <UserAvatar user={item.notification.actor} size="md" showPresence={false} />
+            {#if actor}
+              <UserAvatar user={actor} size="md" showPresence={false} />
             {/if}
 
             <div class="min-w-0 flex-1">

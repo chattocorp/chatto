@@ -3,21 +3,15 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { getChromePermissions } from '$lib/state/space';
+  import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
 
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
 
   let { children } = $props();
 
-  const spacePermissions = getChromePermissions();
+  const chromePermissions = getChromePermissions();
   const serverPerms = getServerPermissions();
-
-  // Check if user can access ANY admin section — space-side (server roles,
-  // rooms, members) OR instance-side (runtime config, system info).
-  const canAccessAnyAdmin = $derived(
-    spacePermissions.current.hasAnyAdminPermission || serverPerms.current.canViewAdmin
-  );
 
   // Map routes to required permissions
   // Returns the permission check function for each route prefix
@@ -28,43 +22,49 @@
     const generalBase = resolve('/chat/[serverId]/server-admin/general', params);
     const membersBase = resolve('/chat/[serverId]/server-admin/members', params);
     const roomsBase = adminBase + '/rooms';
+    const moderationBase = adminBase + '/moderation';
     const permissionsBase = adminBase + '/permissions';
     const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
     const eventLogBase = adminBase + '/event-log';
 
-    // General settings page requires space.manage permission
+    // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
-      return () => spacePermissions.current.canManage;
+      return () => chromePermissions.current.canManage;
     }
 
-    // Members pages: viewable by anyone with the space-side roles.assign or
-    // the instance-side admin.view-users — covers both "server moderator
-    // managing members" and "instance admin browsing the user directory."
+    // Members pages: viewable by anyone with role assignment or
+    // admin.view-users — covers both "server moderator managing members"
+    // and "server admin browsing the user directory."
     if (pathname.startsWith(membersBase)) {
       return () =>
-        spacePermissions.current.canAssignRoles ||
+        chromePermissions.current.canAssignRoles ||
         serverPerms.current.canAdminViewUsers;
     }
 
     // Rooms pages require room.manage permission
     if (pathname.startsWith(roomsBase)) {
-      return () => spacePermissions.current.canManageRooms;
+      return () => chromePermissions.current.canManageRooms;
     }
 
-    // Permissions pages: space.roles.manage OR instance.admin.view-roles
+    // Moderation pages: the resolver enforces server-scope room.ban-member.
+    if (pathname.startsWith(moderationBase)) {
+      return () => chromePermissions.current.hasAnyAdminPermission;
+    }
+
+    // Permissions pages: role.manage OR admin.view-roles
     if (pathname.startsWith(permissionsBase)) {
       return () =>
-        spacePermissions.current.canManageRoles ||
+        chromePermissions.current.canManageRoles ||
         serverPerms.current.canAdminViewRoles;
     }
 
-    // Security (blocked usernames) — instance-admin scope
+    // Security (blocked usernames) — server.manage
     if (pathname.startsWith(securityBase)) {
-      return () => serverPerms.current.canViewAdmin;
+      return () => chromePermissions.current.canManage;
     }
 
-    // System info (NATS/JetStream stats) — admin.view-system
+    // System info (NATS/JetStream stats) — owner-only for now.
     if (pathname.startsWith(systemBase)) {
       return () => serverPerms.current.canAdminViewSystem;
     }
@@ -74,19 +74,14 @@
       return () => serverPerms.current.canAdminViewAudit;
     }
 
-    // Admin home page is accessible to anyone with ANY admin permission
-    if (pathname === adminBase) {
-      return () => canAccessAnyAdmin;
-    }
-
-    // Default: require space.manage for any other admin route
-    return () => spacePermissions.current.canManage;
+    // Default: require server manage for any other admin route
+    return () => chromePermissions.current.canManage;
   }
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
 
   const permissionsLoaded = $derived(
-    spacePermissions.current.loaded && serverPerms.current.loaded
+    chromePermissions.current.loaded && serverPerms.current.loaded
   );
 </script>
 

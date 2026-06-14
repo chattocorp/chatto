@@ -4,16 +4,16 @@ All fields come from the PushSubscription object returned by the browser's Push 
 """
 input PushSubscriptionInput {
   "The push service endpoint URL (from PushSubscription.endpoint)"
-  endpoint: String!
+  endpoint: String! @length(max: 4096)
 
   "The client's P-256 ECDH public key for message encryption (from PushSubscription.keys.p256dh)"
-  p256dh: String!
+  p256dh: String! @length(max: 256)
 
   "Authentication secret for message encryption (from PushSubscription.keys.auth)"
-  auth: String!
+  auth: String! @length(max: 128)
 
   "Optional user agent string for device identification"
-  userAgent: String
+  userAgent: String @length(max: 512)
 }
 
 extend type Mutation {

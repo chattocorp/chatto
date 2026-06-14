@@ -64,6 +64,26 @@ message VerifiedEmail {
   google.protobuf.Timestamp verified_at = 2;
 }
 
+// AuditRequestMetadata captures request details that are safe to persist in
+// auth audit facts and auth-adjacent runtime records. Raw IP addresses, links,
+// and tokens never belong here.
+message AuditRequestMetadata {
+  string user_agent = 1;
+  string ip_hash = 2;
+}
+
+// CookieSession is the server-side runtime-state record for the embedded SPA's
+// HTTP cookie session. The raw session ID is never stored in this payload; it is
+// represented only by the HMAC-derived RUNTIME_STATE key.
+message CookieSession {
+  string user_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string source = 4;
+  AuditRequestMetadata request = 5;
+  uint64 auth_generation = 6;
+}
+
 // DeprecatedAsset is the storage-pointer-only proto used for legacy values:
 // branding KV entries, avatar pointers on UserAvatarSetEvent, and the
 // Storage field on legacy embedded Attachment protos. Wire format matches
@@ -131,15 +151,17 @@ message Role {
   string display_name = 2; // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
   string description = 3;
   int32 position = 4; // Hierarchy position: lower = higher rank. Owner=0, Everyone=MAX_INT32
+  bool pingable = 5; // Whether messages can ping users assigned to this role.
 }
 
 // UserPresenceStatus indicates a user's online presence status.
 // Named to avoid conflict with the GraphQL PresenceStatus enum.
 // Note: OFFLINE is not stored - absence of a key means offline.
 enum UserPresenceStatus {
-  USER_PRESENCE_STATUS_ONLINE = 0;
-  USER_PRESENCE_STATUS_AWAY = 1;
-  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 2;
+  USER_PRESENCE_STATUS_UNSPECIFIED = 0;
+  USER_PRESENCE_STATUS_ONLINE = 1;
+  USER_PRESENCE_STATUS_AWAY = 2;
+  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 3;
 }
 
 // UserPresence represents a user's current live presence status.
@@ -219,13 +241,12 @@ message Attachment {
   string message_body_id = 10;
 }
 
-// MessageBody stores the actual content of a message.
-// Stored separately from events in KV buckets for GDPR compliance.
-// This allows individual message bodies to be deleted while preserving
-// the audit trail in the event stream.
-// Message bodies are always encrypted. Legacy bodies use the author's
-// per-user ChaCha20-Poly1305 key directly. New bodies use a versioned
-// envelope with a per-user message-body DEK epoch.
+// MessageBody stores the encrypted content and body-owned metadata of a
+// message. New bodies are carried by MessageBodyEvent so the encrypted
+// payload can be securely deleted while preserving public timeline facts.
+// Message bodies are always encrypted. Legacy bodies use the author's per-user
+// ChaCha20-Poly1305 key directly. V2 bodies use a per-user message-body DEK
+// epoch directly.
 message MessageBody {
   string author_id = 1;
   google.protobuf.Timestamp created_at = 2;
@@ -236,12 +257,16 @@ message MessageBody {
   // means XChaCha20-Poly1305 body encryption with the author's referenced
   // message-body DEK epoch.
   int32 encryption_version = 4;
-  // V2 only: per-user message-body DEK epoch that encrypted this body.
+  // V2: per-user message-body DEK epoch that encrypted this body.
   int32 content_key_epoch = 5;
+  // Event envelope ID of the MessageBodyEvent carrying this body. Included in
+  // AAD for new body-event-carried bodies to prevent replaying old encrypted
+  // body payloads under new body events.
+  string body_event_id = 6;
 
   // Encrypted message body ciphertext with auth tag. For legacy bodies this
-  // is ChaCha20-Poly1305. For v2 envelope bodies this is XChaCha20-Poly1305
-  // using the referenced message-body DEK.
+  // is ChaCha20-Poly1305. For v2 envelope bodies this uses the referenced
+  // message-body DEK.
   bytes encrypted_body = 20;
   // Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
   // for v2 XChaCha20-Poly1305.
@@ -317,10 +342,8 @@ message CachedLinkPreview {
 //     appended (orphan recovery). The layout is a hint, not a source
 //     of truth for "which groups exist".
 //
-// Migration: the boot-time migrator picks up legacy state from older
-// shapes (`legacy_sections`, `legacy_unsorted_room_ids`) and writes
-// per-key group docs + a fresh `group_ids` list, then leaves the
-// legacy fields empty. New writes only ever set `group_ids`.
+// Current writes only ever set `group_ids`. The legacy fields are retained for
+// wire compatibility with older backups/clients.
 message RoomLayout {
   // legacy_sections is the on-the-wire compatible read for the
   // pre-split shape (main's `repeated RoomLayoutSection sections`).
@@ -359,7 +382,7 @@ message RoomGroup {
 // VideoProcessingState tracks the async processing state of a video attachment.
 // Legacy entries were stored in SERVER_RUNTIME at key "video.{attachmentId}".
 // New durable completed/failed manifests live in AssetProcessing* EVT events;
-// this shape remains for transient worker progress and legacy import.
+// this shape remains for transient worker progress.
 message VideoProcessingState {
   // Current processing status
   VideoStatus status = 1;
@@ -388,6 +411,7 @@ message VideoProcessingState {
 }
 
 enum VideoStatus {
+  // buf:lint:ignore ENUM_ZERO_VALUE_SUFFIX
   VIDEO_STATUS_PENDING = 0;
   VIDEO_STATUS_PROCESSING = 1;
   VIDEO_STATUS_COMPLETED = 2;

@@ -76,6 +76,29 @@ func TestRoomMembershipProjection_Idempotency(t *testing.T) {
 	}
 }
 
+func TestRoomMembershipProjection_BanRemovesTarget(t *testing.T) {
+	p := NewRoomMembershipProjection()
+
+	mustApply(t, p, joinEvent("R1", "target"))
+	mustApply(t, p, &corev1.Event{
+		ActorId: "moderator",
+		Event: &corev1.Event_RoomMemberBanned{
+			RoomMemberBanned: &corev1.RoomMemberBannedEvent{
+				RoomId: "R1",
+				UserId: "target",
+				Reason: "moderation test",
+			},
+		},
+	})
+
+	if p.IsMember("R1", "target") {
+		t.Error("target should no longer be a member after room ban")
+	}
+	if p.IsMember("R1", "moderator") {
+		t.Error("moderator should not be removed by a target-user ban event")
+	}
+}
+
 func TestRoomMembershipProjection_EmptyRoomDropped(t *testing.T) {
 	// Room should be removed from the index entirely once it has no
 	// members, so Members/Rooms don't return stale entries.
@@ -144,14 +167,14 @@ func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
 		t.Error("want error on missing room_id, got nil")
 	}
 
-	// Missing actor_id.
-	noActor := &corev1.Event{
+	// Missing user_id and actor_id.
+	noUser := &corev1.Event{
 		Event: &corev1.Event_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
 		},
 	}
-	if err := p.Apply(noActor, 2); err == nil {
-		t.Error("want error on missing actor_id, got nil")
+	if err := p.Apply(noUser, 2); err == nil {
+		t.Error("want error on missing user_id, got nil")
 	}
 
 	// Unrelated event type: silently ignored.

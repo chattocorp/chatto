@@ -57,11 +57,12 @@ function makeSystemEvent(
     createdAt: string;
   }> = {}
 ): RoomEventViewFragment {
+  const actorId = overrides.actorId ?? 'u_user1';
   return {
     id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
     createdAt: overrides.createdAt ?? '2025-04-27T12:00:00Z',
-    actorId: overrides.actorId ?? 'u_user1',
-    actor: { id: overrides.actorId ?? 'u_user1', login: 'tester', avatarUrl: null },
+    actorId,
+    actor: { id: actorId, login: 'tester', avatarUrl: null },
     event: {
       __typename: typename,
       roomId: 'r_test'
@@ -97,6 +98,12 @@ describe('buildVirtualItems', () => {
     const events = [makeMessageEvent({ id: 'e1' })];
     const items = buildVirtualItems(meta(events), null, true);
     expect(items[0]).toMatchObject({ type: 'start-marker' });
+  });
+
+  it('omits start-marker when showStartMarker is false', () => {
+    const events = [makeMessageEvent({ id: 'e1' })];
+    const items = buildVirtualItems(meta(events), null, true, false);
+    expect(items.find((i) => i.type === 'start-marker')).toBeUndefined();
   });
 
   it('does not emit start-marker for an empty event list even if hasReachedStart', () => {
@@ -181,6 +188,22 @@ describe('buildVirtualItems', () => {
     expect(e2).toMatchObject({ type: 'event', isFirstInGroup: false });
   });
 
+  it('preserves input event order even when createdAt moves backwards', () => {
+    const events = [
+      makeSystemEvent('UserJoinedRoomEvent', { id: 'join', createdAt: '2025-05-08T12:00:00Z' }),
+      makeMessageEvent({ id: 'first-message', createdAt: '2025-03-17T12:00:00Z' }),
+      makeMessageEvent({ id: 'second-message', createdAt: '2025-03-18T12:00:00Z' })
+    ];
+
+    const items = buildVirtualItems(meta(events), null, false);
+    const eventKeys = items.flatMap((i) => {
+      if (i.type === 'event') return i.key;
+      if (i.type === 'system-group') return i.events.map((event) => event.id);
+      return [];
+    });
+    expect(eventKeys).toEqual(['join', 'first-message', 'second-message']);
+  });
+
   it('produces stable, unique keys per item', () => {
     const events = [
       makeMessageEvent({ id: 'e1', createdAt: '2025-04-26T23:00:00Z' }),
@@ -236,6 +259,22 @@ describe('buildVirtualItems', () => {
         { kind: 'join', count: 2 },
         { kind: 'leave', count: 1 },
         { kind: 'join', count: 2 }
+      ]);
+    });
+
+    it('groups leave events by actor-only membership facts', () => {
+      const events = [
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l1', actorId: 'u_a' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l2', actorId: 'u_b' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l3', actorId: 'u_c' })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups.map((g) => ({ kind: g.kind, count: g.events.length }))).toEqual([
+        { kind: 'leave', count: 3 }
       ]);
     });
 

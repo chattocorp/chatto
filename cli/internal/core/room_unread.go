@@ -142,7 +142,7 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	if eventID == "" {
 		return time.Time{}, nil
 	}
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.rooms().timelineEntry(eventID)
 	if !ok {
 		return time.Time{}, nil
 	}

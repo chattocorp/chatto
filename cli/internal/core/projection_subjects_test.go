@@ -29,6 +29,11 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{events.RoomSubjectFilter()},
 		},
 		{
+			name: "call state uses room aggregate namespace",
+			got:  NewCallStateProjection().Subjects(),
+			want: []string{events.RoomSubjectFilter()},
+		},
+		{
 			name: "room group layout uses group namespace plus layout namespace",
 			got:  NewRoomGroupLayoutProjection().Subjects(),
 			want: []string{events.GroupSubjectFilter(), events.LayoutSubjectFilter()},
@@ -56,12 +61,29 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			},
 		},
 		{
+			name: "assets use canonical asset namespace plus legacy beta room asset lanes",
+			got:  NewAssetProjection().Subjects(),
+			want: []string{
+				events.AssetSubjectFilter(),
+				events.RoomEventTypeFilter(events.EventAssetCreated),
+				events.RoomEventTypeFilter(events.EventAssetProcessingStarted),
+				events.RoomEventTypeFilter(events.EventAssetProcessingSucceeded),
+				events.RoomEventTypeFilter(events.EventAssetProcessingFailed),
+				events.RoomEventTypeFilter(events.EventAssetDeleted),
+			},
+		},
+		{
 			name: "content keys remain focused",
 			got:  NewContentKeyProjection().Subjects(),
 			want: []string{
 				events.UserEventTypeFilter(events.EventUserDEKGenerated),
 				events.UserEventTypeFilter(events.EventUserKeyShredded),
 			},
+		},
+		{
+			name: "mentionables uses stream-wide namespace",
+			got:  NewMentionablesProjection(nil, nil).Subjects(),
+			want: []string{events.EventSubjectFilter()},
 		},
 	}
 

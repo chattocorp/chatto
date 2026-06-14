@@ -8,8 +8,8 @@ import (
 )
 
 // mergeInheritedDecisions is exercised end-to-end through the room-scope
-// tierRoles tests, but those happy paths only cover the cases where the
-// role of interest survives universal-role filtering. The pure merge
+// rolePermissionTierMatrix tests, but those happy paths only cover the cases
+// where the role of interest survives universal-role filtering. The pure merge
 // logic is small but has a few edge cases (override wins per-permission,
 // either side may be empty) that are easier to assert directly.
 func TestMergeInheritedDecisions(t *testing.T) {

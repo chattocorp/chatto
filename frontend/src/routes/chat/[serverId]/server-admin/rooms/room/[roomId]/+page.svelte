@@ -17,7 +17,7 @@
   );
 
   // Lightweight lookup for the room's display name; the matrix itself
-  // fetches its own data via tierRoles.
+  // fetches its own data via admin.rbac.rolePermissionTierMatrix.
   const RoomNameQuery = graphql(`
     query AdminRoomPermissionsName($roomId: ID!) {
       room(roomId: $roomId) {

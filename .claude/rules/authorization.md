@@ -70,8 +70,8 @@ Wide gaps between system roles leave room for custom roles to be positioned at a
 
 DM rooms use the same hierarchy walker as channels, with one extra rule: a static set of permissions is *unconditionally denied* in DM contexts regardless of role grants. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`. Two reasons appear:
 
-- **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.edit-any`, `message.delete-any`, `room.manage`, `message.echo`).
-- **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.create` / `member.invite` / `member.remove` don't apply.
+- **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.manage`, `room.manage`, `room.ban-member`, `message.echo`).
+- **Category mismatch** — DMs have their own creation and fixed-membership APIs, so channel-style `room.create` / `room.ban-member` don't apply.
 
 Access *to* DM rooms is gated by participation (`requireRoomMember`). There are no `dm.*` permissions; `message.post` gates starting DMs and root DM messages, while `message.post-in-thread` gates thread replies. The deny-list only constrains what a participant can do once inside.
 
@@ -121,7 +121,6 @@ Permission constants follow the pattern `InstPerm{Category}{Action}` (singular n
 | `InstPermAdmin{Area}{Action}` | `InstPermAdminUsersView` | Admin permissions |
 **Common mistakes** (avoid these):
 - `InstPermSpacesCreate` → Use `InstPermSpaceCreate` (singular)
-- `InstPermAdminAccessUsersView` → Use `InstPermAdminUsersView`
 
 The Go constants in `cli/internal/core/permissions.go` are the source of truth. Frontend TypeScript types are generated via `mise codegen-types`.
 
@@ -150,7 +149,32 @@ at. Examples after the message-perms consolidation:
 |------------|--------|
 | `server.manage`, `role.manage`, `role.assign`, `admin.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
-| `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+| `room.join`, `room.manage`, `room.ban-member`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+
+### Permission Naming
+
+Permission strings must have exactly two dot-separated segments:
+`{objectType}.{verb}`. The RBAC key code derives `objectType` and `verb`
+directly from that shape and panics on nested dots. For compound actions,
+keep the object type as the first segment and use dashes in the verb:
+
+- Good: `room.ban-member`, `message.post-in-thread`, `admin.view-users`
+- Bad: `room.member.remove`, `message.thread.post`
+
+Moderator actions that affect another user's membership should use explicit
+moderation events, not overloaded join/leave events. In particular,
+`UserJoinedRoomEvent` and `UserLeftRoomEvent` are actor-only membership facts;
+the actor is the user who joined or left. A moderator ban/removal must use a
+dedicated event such as `RoomMemberBannedEvent` for audit and moderation state.
+If the action should be visible as a normal membership transition, also emit a
+normal actor-only join/leave event for the affected user; never add a target
+user ID to join/leave events.
+
+When adding a permission, update `cli/internal/core/permission.go`,
+`frontend/src/lib/permissions.ts`, the relevant FDR/ADR docs, and tests
+covering permission scope / DM boundary behavior. Then regenerate the Go
+and frontend mirrors (`mise codegen-cli`, `mise codegen-types`, and
+`mise codegen-frontend` as applicable).
 
 `CanCreateRoom(userID, kind, groupID)` takes an optional group context:
 when `groupID` is non-empty the check uses the group→server walk; with
@@ -165,7 +189,8 @@ the ability to create rooms only in specific groups.
 | `role.manage` | Create/edit/delete roles and their permission grants |
 | `role.assign` | Assign roles to users |
 | `room.create` | Create new rooms in a group |
-| `room.manage` | Edit, configure permissions on, and delete rooms |
+| `room.manage` | Edit, configure permissions on, and delete channel rooms |
+| `room.ban-member` | Ban lower-ranked members from channel rooms |
 | `room.join` | Join existing rooms |
 | `message.post` | Post root messages in a room |
 | `message.post-in-thread` | Post messages inside a thread |
@@ -173,7 +198,7 @@ the ability to create rooms only in specific groups.
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
 | `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
-| `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel access tiers |
+| `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel sub-view access tiers |
 
 ## GraphQL Authorization Reference
 
@@ -182,8 +207,8 @@ the ability to create rooms only in specific groups.
 | Query | Auth Required | Additional Check |
 |-------|---------------|------------------|
 | `me` | No | Returns null if unauthenticated |
-| `user(id)` | No | Public user profiles |
-| `users` | Yes | Server admin only |
+| `user(userId)` / `userByLogin(login)` | Yes | Member profiles are public to authenticated users |
+| `server.members(...)` | Yes | Server member directory visible to authenticated users |
 | `spaces` | No | Discovery - lists all spaces |
 | `space(id)` | No | Discovery - view any space |
 | `room(spaceId, roomId)` | Yes | Room membership required |
@@ -203,6 +228,7 @@ the ability to create rooms only in specific groups.
 | `createRoom` | Yes | `rooms.create` |
 | `joinRoom` | Yes | Space membership + `rooms.join` |
 | `leaveRoom` | Yes | None |
+| `banRoomMember` | Yes | Channel rooms only; `room.ban-member` + actor strictly outranks target |
 | `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
 | `updateMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
 | `deleteMessage` | Yes | Room membership + (author is allowed) OR (`message.manage` + outranks the author) |
@@ -324,40 +350,62 @@ Owners pass every permission check through the standard hierarchy
 walk (owner is position 1000, the highest rank). They have access to:
 
 - `/admin` routes in the frontend
-- `Query.admin` and `Query.users` in GraphQL
+- `Query.admin` in GraphQL; member-directory reads use authenticated `Server.members`
 - System monitoring data (NATS stats, streams, KV buckets)
 - Everything else (the owner role's grants cover all permissions)
 
 See `admin.md` for the role / config-owner narrative.
 
+## OAuth Client Authorization
+
+Chatto's `/oauth/authorize` endpoint is for compatible Chatto clients that need
+opaque bearer tokens for cross-origin server connections.
+
+- Redirect URIs must match the server's configured `webserver.url`, an explicit
+  `webserver.oauth_redirect_origins` entry, an exact `webserver.allowed_origins`
+  entry, or a loopback development origin. Wildcard CORS
+  (`allowed_origins = ["*"]`) is not OAuth redirect trust.
+- `oauth_redirect_origins = ["*"]` is an OAuth-specific temporary escape hatch
+  for controlled alpha deployments. It allows any otherwise valid HTTPS
+  redirect origin, so prefer exact origins for production.
+- The first authorization for a trusted redirect origin must show a consent
+  screen. Approval is remembered per user + canonical origin through durable
+  `EVT` facts; denial is recorded for audit but does not grant consent.
+- Do not add an operator-managed OAuth client registry or require `client_id`
+  for this flow. Any version-compatible Chatto client should be able to connect
+  to any compatible Chatto server once the origin is trusted and the user
+  consents.
+- Do not persist full redirect URIs in `EVT`. OAuth consent facts may store
+  the canonical redirect origin in plaintext so users can later recognize and
+  manage approved client addresses.
+
 ## Attachment URL Authorization
 
-Asset binaries are served by the HTTP handler at `/assets/attachments/{signedLocator}` (and `/assets/attachments/{signedLocator}/t/{transformPath}` for image transforms). The locator is a signed payload that carries everything the handler needs to authorize and serve — there is no separate metadata bucket to look up.
+Attachment binaries are primarily served by the HTTP handler at `/assets/files/{assetId}` (and `/assets/files/{assetId}/image/{width}x{height}/{fit}` for image transforms). Browser-facing GraphQL fields append a per-user `access` ticket query parameter and expose its expiry through `AssetURL { url, expiresAt }`. The stable path identifies the binary; the ticket authorizes direct browser/standalone-client loads.
 
 See [ADR-032](../../docs/adr/ADR-032-signed-attachment-locator-urls.md) for the full design.
 
-**The locator IS the capability.** The signed payload carries the calling user's ID (`u`) and a Unix-second expiry (`e`) alongside the room/attachment fields. The handler trusts those claims and does not consult the session cookie or `Authorization` header. This is what lets cross-origin `<img>` tags work for remote-server attachments — neither cookies nor bearer headers reach the asset endpoint in that flow.
+**The access ticket IS the browser capability.** The signed ticket carries the asset ID (`a`), calling user's ID (`u`), Unix-second expiry (`e`), and transform parameters when applicable. The handler trusts those signed claims and does not require cookies or bearer headers when an `access` ticket is present. This is what lets cross-origin `<img>` tags work for remote-server attachments — neither cookies nor bearer headers reach the asset endpoint in that flow.
 
-**Per-request flow** (`resolveLocatorAttachment` in `cli/internal/http_server/assets.go`):
+**Per-request flow** (`resolveStableAttachment` in `cli/internal/http_server/assets.go`):
 
-1. **Signature check** — `signedurl.ParseSignedAttachmentLocator` verifies the locator's HMAC against `[core.assets].signing_secret`. Invalid → 403. Also catches forged/tampered URLs.
-2. **Expiry check** — `loc.Expired(time.Now().Unix())` rejects URLs past their `ExpiresAt`. Expired → 403. Bounds the leak window.
-3. **Room membership** — `RoomMembershipExists(kind, loc.UserID, loc.RoomID)` checks that the *signed user* is still a member of the room. Not a member → 403. This is what auto-revokes URLs on kick/leave.
-4. **Attachment lookup** — `LookupAttachment(loc)` dispatches on the locator's source field:
-   - `b` (body key) → `FindBodyAttachment(b, a)` reads the `MessageBody` and returns the matching attachment proto.
-   - `v` (video-origin attachment ID) → `FindVideoOriginAttachment(v, a)` reads the `VideoProcessingState` and returns the variant or thumbnail attachment proto.
-   Missing → 404.
-5. Serve the binary from the proto's `Storage` field (presigned S3 redirect or NATS stream).
+1. **Ticket or request-user resolution** — `resolveStableAssetViewerID` accepts either a signed `access` ticket or, for same-origin/API clients fetching the original binary, the request cookie/bearer user. Image derivatives require a ticket so transform parameters stay bounded by GraphQL-minted URLs.
+2. **Signature / expiry / transform check** — `signedurl.ParseSignedAssetAccessTicket` verifies HMAC, expiry, asset ID, and transform parameters. Invalid, expired, or mismatched → 403.
+3. **Asset declaration lookup** — `RoomTimeline.AssetCreation(assetID)` and `AssetRoomID(assetID)` resolve the asset and its room scope from projected EVT facts. Missing → 404/403.
+4. **Room membership** — `RoomMembershipExists(kind, userID, roomID)` checks that the resolved user is still a member of the room. Not a member → 403. This is what auto-revokes URLs on kick/leave.
+5. Serve the binary from the declared asset storage (presigned S3 redirect or NATS stream).
 
-**The authorization model in one line:** *holding a non-expired signed URL for user X authorizes the attachment fetch as long as X is still a member of the room declared in the URL.* No per-attachment ACLs.
+**The authorization model in one line:** *holding a non-expired access ticket for user X authorizes the asset fetch as long as X is still a member of the asset's room.* No per-attachment ACLs.
 
-**URLs are per-user.** `attachmentResolver.URL` / `ThumbnailURL` (in `events.resolvers.go`) bake `auth.ForContext(ctx).Id` and `time.Now() + core.AttachmentURLTTL` into the locator at GraphQL resolve time. Two users querying the same attachment get two distinct signed URLs. We intentionally do **not** want shared/CDN-cached attachment URLs — attachments are private content.
+**URLs are per-user.** `attachmentResolver.AssetURL` / `ThumbnailAssetURL`, `videoProcessing.thumbnailAssetUrl`, and `videoVariant.assetUrl` (in `events.resolvers.go`) bake `callerID(ctx)` and `time.Now() + core.AssetAccessTicketTTL` into the access ticket at GraphQL resolve time. Two users querying the same attachment get two distinct signed URLs. We intentionally do **not** want shared/CDN-cached attachment URLs — attachments are private content.
 
 **Properties worth knowing:**
 
-- **The signed URL grants access standalone.** A leaked URL is usable by anyone who has it until the deadline passes *or* the signed user loses room membership, whichever comes first. We treat this as a stopgap, not a real cross-origin auth design — `AttachmentURLTTL` is deliberately short (currently **5 minutes**) so URLs really only work while a page is being rendered. A cleaner solution (service worker proxying remote-server requests with the bearer token, most likely) is a follow-up.
+- **The access ticket grants access standalone.** A leaked URL is usable by anyone who has it until the deadline passes *or* the signed user loses room membership, whichever comes first. `AssetAccessTicketTTL` is currently **1 hour**; browser clients refresh `AssetURL` fields before expiry and after load failures.
+- **The browser app hides tickets behind virtual URLs when possible.** Once the Service Worker controls the page, frontend render helpers turn stable `/assets/files/...` URLs into same-origin `/__chatto/assets/{serverId}/...` URLs and register the real ticketed target with the worker. The copied DOM URL is not a bearer credential; it only resolves inside a Chatto client with the matching server registration and credentials. The worker may keep full successful responses in its private asset cache, which is acceptable because the user has already received those bytes.
 - **Auto-revocation still works.** Kicking a user invalidates their outstanding URLs at the next fetch (membership check fails). Deleting an attachment 404s its URLs (lookup returns nil).
 - **Secret rotation invalidates every URL at once.** No key versioning today. Currently-loaded pages would 403 their attachment requests after rotation until the user re-renders; URLs are emitted on every GraphQL response, so the impact is bounded to "until next page transition." Mention in the runbook for any future rotation event.
 - **Asset access bypasses the GraphQL audit layer.** No per-fetch audit log today. Pre-existing gap, not introduced by this design.
+- **Legacy locator URLs still exist.** `/assets/attachments/{signedLocator}` and transform variants remain supported for compatibility/internal fallback. They use `AttachmentURLTTL` (currently **5 minutes**) and `resolveLocatorAttachment`, but new GraphQL attachment fields should prefer the stable `/assets/files/...` + `access` ticket shape.
 
-**When extending attachment auth** (e.g., per-attachment ACLs, share links, view-once semantics): the natural extension points are (a) adding fields to the locator payload, or (b) adding checks between step 3 and step 5 of the flow above. Don't reintroduce a per-attachment metadata bucket — the URL is meant to carry the policy claims.
+**When extending attachment auth** (e.g., per-attachment ACLs, share links, view-once semantics): the natural extension points are (a) adding scoped fields to the access ticket when the browser must carry the claim, or (b) adding checks between asset declaration lookup and serving the binary. Don't reintroduce a per-attachment metadata bucket — the asset event and URL credential are meant to carry the policy claims.

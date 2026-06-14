@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-06-01
+**Last reviewed:** 2026-06-13
 
 ## Overview
 
@@ -32,14 +32,26 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 ### 3. Durable events, in-memory projection is source of truth
 
 **Decision:** Reaction add/remove changes append durable room-aggregate events to EVT (`evt.room.{roomId}.reaction_added` / `reaction_removed`). Current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. Live subscribers receive reactions through the EVT stream's `live.evt.>` republish path after projection readiness and authorization checks.
-**Why:** Reactions are part of the event-sourcing migration tracked by #596. Keeping them in the room stream makes add/remove ordering explicit, gives replayable state, and removes the KV bucket from the hot read/write path.
+**Why:** Reactions are durable room facts. Keeping them in the room stream makes add/remove ordering explicit, gives replayable state, and removes the old KV bucket from the hot read/write path.
 **Tradeoff:** The first projection version keeps all current reaction state in RAM. That is simple and correct; bounded or demand-loaded projections can follow once the rest of the event-sourcing architecture is in place and real access patterns are measured.
 
-### 4. Quick-reaction recents are per-device, not per-user
+### 4. GraphQL exposes reactor names as a bounded preview
+
+**Decision:** `ReactionSummary.count` is the total current count, while `ReactionSummary.users(first:)` returns a bounded preview of reacting users (default 3, max 10). The message UI asks for five preview users and renders any remaining count as overflow.
+**Why:** Reaction pills need a quick hover tooltip, not an unbounded user directory embedded in every message event. Keeping the full count separate preserves the main signal while preventing popular reactions from inflating timeline payloads.
+**Tradeoff:** Clients that need a complete reactor list will need a future dedicated paginated query instead of overloading the message timeline shape.
+
+### 5. Quick-reaction recents are per-device, not per-user
 
 **Decision:** The recent-reactions list lives in `localStorage`, not on the server.
 **Why:** Server-side recents would mean a "your recents" query on every message hover (frequent and small) and a new write per reaction. Local storage is free and fast. The downside — losing recents between devices — is small relative to the cost.
 **Tradeoff:** Recents don't sync across devices.
+
+### 6. Reconnect catch-up uses resumable myEvents, not visible timeline rows
+
+**Decision:** Missed reaction add/remove events are recovered through `Subscription.myEvents(after:)`. Durable EVT-backed subscription events carry a server-signed, user-bound opaque `deliveryCursor`; the web client remembers the latest cursor and passes it when the singleton event bus resubscribes after reconnect or wake.
+**Why:** Reactions mutate existing message rows. If a client reconnects after missing only a reaction, visible timeline pagination has no new row to return. Replaying the raw durable reaction event through `myEvents` keeps the API model simple: queries fetch current projected state, and the subscription delivers the durable facts the client missed.
+**Tradeoff:** Replay is limited to durable room EVT facts for rooms the user is currently a member of. Invalid, expired, or over-budget cursors force a full refresh from projected query state instead of replaying. Transient sync signals and presence changes remain live-only, and clients still refetch the affected message row when a replayed reaction arrives.
 
 ## Permissions
 

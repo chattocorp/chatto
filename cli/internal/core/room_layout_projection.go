@@ -24,9 +24,8 @@ type RoomLayoutProjection struct {
 	groupIDs []string
 }
 
-// NewRoomLayoutProjection returns an empty projection. Order is empty
-// on a fresh server; the boot-time migration seeds it from any
-// pre-existing room_layout KV.
+// NewRoomLayoutProjection returns an empty projection. Order is empty on a
+// fresh server and is rebuilt from RoomGroupsReordered events when present.
 func NewRoomLayoutProjection() *RoomLayoutProjection {
 	return &RoomLayoutProjection{}
 }

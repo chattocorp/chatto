@@ -23,11 +23,12 @@ import {
 import { eventBusManager } from './state/server/eventBus.svelte';
 
 export const MyServerEventsSubscriptionDoc = graphql(`
-  subscription MyServerEvents {
-    myEvents {
+  subscription MyServerEvents($after: String) {
+    myEvents(after: $after) {
       id
       createdAt
       actorId
+      deliveryCursor
       actor {
         ...UserAvatarUser
       }
@@ -47,7 +48,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
             emoji
             count
             hasReacted
-            users {
+            users(first: 5) {
               id
               displayName
             }
@@ -57,6 +58,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           threadRootEventId
           echoOfEventId
           echoFromThreadRootEventId
+          channelEchoEventId
           replyCount
           lastReplyAt
           threadParticipants(first: 5) {
@@ -119,25 +121,20 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
           typingThreadRootEventId: threadRootEventId
         }
-        ... on VideoProcessingCompletedEvent {
-          roomId
-          attachmentId
-          messageEventId
-        }
         ... on AssetProcessingStartedEvent {
-          roomId
+          processingRoomId: roomId
           assetId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetProcessingSucceededEvent {
-          roomId
+          processingRoomId: roomId
           assetId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetProcessingFailedEvent {
-          roomId
+          processingRoomId: roomId
           assetId
-          messageEventId
+          processingMessageEventId: messageEventId
         }
         ... on AssetDeletedEvent {
           deletedRoomId: roomId
@@ -153,11 +150,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
         }
         # Deployment-wide events.
-        ... on ServerConfigUpdatedEvent {
-          serverName
-          motd
-          welcomeMessage
-        }
         ... on ServerUpdatedEvent {
           name
           description
@@ -345,7 +337,7 @@ function onTypedEventDirect<T>(
 export type UserProfileUpdate = {
   userId: string;
   displayName: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
   login: string;
 };
 
@@ -370,7 +362,7 @@ export function onMention(handler: (notification: MentionNotification) => void):
 
     return {
       roomId: e.roomId,
-      actorUserId: actor?.id ?? env.actorId,
+      actorUserId: actor?.id ?? env.actorId ?? '',
       actorDisplayName: actor?.displayName ?? 'Unknown user',
       spaceName: '',
       roomName: e.room.name
@@ -393,7 +385,7 @@ export function onNewDM(handler: (notification: DMNotification) => void): () => 
 
     return {
       roomId: e.roomId,
-      senderId: sender?.id ?? env.actorId,
+      senderId: sender?.id ?? env.actorId ?? '',
       senderDisplayName: sender?.displayName ?? 'Unknown user',
       senderAvatarUrl: sender?.avatarUrl ?? '',
       conversationName: e.conversationName
@@ -441,7 +433,7 @@ export function onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void
 }
 
 export type UserSettingsUpdate = {
-  timezone: string;
+  timezone: string | null;
   timeFormat: TimeFormat;
 };
 
@@ -504,7 +496,10 @@ type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 export function onPresenceChange(handler: PresenceHandler): () => void {
   return onTypedEvent('PresenceChangedEvent', (envelope, e) => {
     return { userId: envelope.actorId, status: e.status as PresenceStatus };
-  }, ({ userId, status }) => handler(userId, status));
+  }, ({ userId, status }) => {
+    if (!userId) return;
+    handler(userId, status);
+  });
 }
 
 export interface TypingEventData {
@@ -526,6 +521,7 @@ export function onTypingEvent(handler: TypingHandler): () => void {
   if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
     if (event.event?.__typename !== 'UserTypingEvent') return;
+    if (!event.actorId) return;
     const ev = event.event as { roomId: string; typingThreadRootEventId?: string | null };
     handler({
       userId: event.actorId,

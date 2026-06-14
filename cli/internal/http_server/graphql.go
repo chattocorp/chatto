@@ -1,7 +1,11 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -24,6 +28,8 @@ import (
 	"hmans.de/chatto/pkg/gqldepthlimit"
 )
 
+const graphQLJSONMaxRequestBodySize int64 = 1 << 20 // 1 MiB
+
 func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	// Ensure logger is initialized (tests may bypass NewHTTPServer)
 	if s.logger == nil {
@@ -33,11 +39,10 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	// Configure GraphQL server with injected dependencies
 	resolver := graph.NewResolver(s.core, s.config.Owners, s.config.Auth, s.config.Push, s.config.Video, s.config.LiveKit, s.version)
 
-	config := graph.Config{
-		Resolvers: resolver,
-	}
+	config := graph.NewConfig(resolver)
 
 	h := handler.New(graph.NewExecutableSchema(config))
+	h.AroundFields(graph.DefaultAuthFieldMiddleware)
 
 	// Add request timing middleware
 	h.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
@@ -132,7 +137,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 			}
 
 			if user != nil {
-				s.logger.Debug("WebSocket connection authenticated", "userId", user.Id, "login", user.Login)
+				s.logger.Debug("WebSocket connection authenticated", "userId", user.Id)
 			}
 
 			// Create a fresh context for the WebSocket connection WITHOUT dataloaders.
@@ -196,23 +201,23 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	s.router.Any("/api/graphql", func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 
-		// Refresh session cookie for authenticated users to prevent expiration.
-		// Note: We must call Set() before Save() because gin-contrib/sessions only saves
-		// if the session has been "written" to. Get() alone doesn't mark it as modified.
+		if !limitGraphQLJSONRequestBody(c) {
+			return
+		}
+
 		session := sessions.Default(c)
-		if userID := session.Get("user_id"); userID != nil {
-			session.Set("user_id", userID)
-			session.Save()
-		} else {
+		if userID, _, ok := cookieSessionIDs(session); !ok {
 			// Log unauthenticated requests to help diagnose cookie/session issues
 			// (e.g., reverse proxy stripping Set-Cookie headers)
 			s.logger.Debug("GraphQL request without session",
 				"host", c.Request.Host,
 				"hasCookie", c.Request.Header.Get("Cookie") != "")
+		} else if userID == "" {
+			clearCookieSessionAuth(session)
 		}
 
 		// Inject authenticated user into request context
-		r := injectUserIntoContext(c, s.core)
+		r := s.injectUserIntoContext(c)
 		// Inject dataloaders for this request
 		r = injectDataloadersIntoContext(r, s.core)
 		h.ServeHTTP(c.Writer, r)
@@ -221,5 +226,48 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	p := playground.Handler("CHATTO API Playground", "/api/graphql")
 	s.router.GET("/api/playground", func(c *gin.Context) {
 		p.ServeHTTP(c.Writer, c.Request)
+	})
+}
+
+func limitGraphQLJSONRequestBody(c *gin.Context) bool {
+	if c.Request.Method != http.MethodPost {
+		return true
+	}
+
+	mediaType, _, err := mime.ParseMediaType(c.Request.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return true
+	}
+
+	limit := graphQLJSONMaxRequestBodySize
+
+	if c.Request.ContentLength > limit {
+		rejectGraphQLRequestBodyTooLarge(c, limit)
+		return false
+	}
+
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, limit+1))
+	_ = c.Request.Body.Close()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"errors": []gin.H{{"message": "could not read GraphQL request body"}},
+		})
+		return false
+	}
+	if int64(len(body)) > limit {
+		rejectGraphQLRequestBodyTooLarge(c, limit)
+		return false
+	}
+
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	c.Request.ContentLength = int64(len(body))
+	return true
+}
+
+func rejectGraphQLRequestBodyTooLarge(c *gin.Context, limit int64) {
+	c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{
+		"errors": []gin.H{{
+			"message": fmt.Sprintf("GraphQL request body exceeds maximum size of %d bytes", limit),
+		}},
 	})
 }

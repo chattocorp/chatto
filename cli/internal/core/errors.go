@@ -88,6 +88,11 @@ var (
 	// DM conversations are permanent and cannot be left.
 	ErrCannotLeaveDMConversation = errors.New("cannot leave DM conversations")
 
+	// ErrCannotBanDMRoomMember is returned when a moderator tries to ban
+	// someone from a DM room. DM membership is the privacy boundary and
+	// cannot be moderated like a channel room.
+	ErrCannotBanDMRoomMember = errors.New("cannot ban members from DM conversations")
+
 	// ErrLoginTooShort is returned when a login is shorter than MinLoginLength.
 	ErrLoginTooShort = errors.New("username must be at least 2 characters")
 
@@ -119,7 +124,7 @@ var (
 	// reactions, or joining.
 	ErrRoomArchived = errors.New("room is archived")
 
-// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
+	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
 	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)
 
 	// ErrPasswordTooLong is returned when a password exceeds MaxPasswordLength.
@@ -166,4 +171,64 @@ const (
 	// surprising hash collisions on long passwords sharing the same prefix while
 	// still leaving room for passphrases.
 	MaxPasswordLength = 128
+
+	// MaxServerNameLength is the maximum length of a runtime-editable server name in bytes.
+	MaxServerNameLength = 80
+
+	// MaxServerDescriptionLength is the maximum length of a server description in bytes.
+	MaxServerDescriptionLength = 500
+
+	// MaxServerMOTDLength is the maximum length of a server message of the day in bytes.
+	MaxServerMOTDLength = 1000
+
+	// MaxServerWelcomeMessageLength is the maximum length of a server welcome message in bytes.
+	MaxServerWelcomeMessageLength = 10000
+
+	// MaxServerBlockedUsernamesLength is the maximum length of the blocked-username list in bytes.
+	MaxServerBlockedUsernamesLength = 10000
+
+	// MaxRoleDisplayNameLength is the maximum length of a server role display name in bytes.
+	MaxRoleDisplayNameLength = 80
+
+	// MaxRoleDescriptionLength is the maximum length of a server role description in bytes.
+	MaxRoleDescriptionLength = 500
+
+	// MaxRoomGroupNameLength is the maximum length of a room group display name in bytes.
+	MaxRoomGroupNameLength = 80
+
+	// MaxRoomGroupDescriptionLength is the maximum length of a room group description in bytes.
+	MaxRoomGroupDescriptionLength = 500
+
+	// MaxPushEndpointLength is the maximum length of a Push API endpoint URL in bytes.
+	MaxPushEndpointLength = 4096
+
+	// MaxPushKeyLength is the maximum length of a Push API p256dh public key in bytes.
+	MaxPushKeyLength = 256
+
+	// MaxPushAuthLength is the maximum length of a Push API auth secret in bytes.
+	MaxPushAuthLength = 128
+
+	// MaxPushUserAgentLength is the maximum length of a stored push user-agent string in bytes.
+	MaxPushUserAgentLength = 512
+
+	// MaxLinkPreviewURLLength is the maximum length of a client-provided link preview URL in bytes.
+	MaxLinkPreviewURLLength = 2048
+
+	// MaxLinkPreviewTitleLength is the maximum length of a client-provided link preview title in bytes.
+	MaxLinkPreviewTitleLength = 300
+
+	// MaxLinkPreviewDescriptionLength is the maximum length of a client-provided link preview description in bytes.
+	MaxLinkPreviewDescriptionLength = 1000
+
+	// MaxLinkPreviewSiteNameLength is the maximum length of a client-provided link preview site name in bytes.
+	MaxLinkPreviewSiteNameLength = 200
+
+	// MaxLinkPreviewEmbedTypeLength is the maximum length of a client-provided link preview embed type in bytes.
+	MaxLinkPreviewEmbedTypeLength = 64
+
+	// MaxLinkPreviewEmbedIDLength is the maximum length of a client-provided link preview embed ID in bytes.
+	MaxLinkPreviewEmbedIDLength = 256
+
+	// MaxLinkPreviewImageAssetIDLength is the maximum length of a client-provided link preview image asset ID in bytes.
+	MaxLinkPreviewImageAssetIDLength = 15
 )

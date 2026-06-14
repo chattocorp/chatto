@@ -34,6 +34,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'room.manage': {
     description: "Edit a room's settings and permissions, and delete rooms"
   },
+  'room.ban-member': {
+    description: 'Ban lower-ranked members from rooms'
+  },
 
   // Message permissions
   'message.post': {
@@ -62,14 +65,11 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Admin panel
-  'admin.access': {
-    description: 'Access the admin panel'
-  },
   'admin.view-users': {
     description: 'View the users page in admin'
   },
   'admin.view-system': {
-    description: 'View the system and data pages in admin'
+    description: 'View projection diagnostics in admin'
   },
   'admin.view-audit': {
     description: 'View the audit log in admin'

@@ -1,4 +1,5 @@
-import { graphql } from '$lib/gql';
+import { graphql, useFragment } from '$lib/gql';
+import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
 import { usePresenceChange, useEvent } from '$lib/hooks/useEvent.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import {
@@ -6,6 +7,12 @@ import {
   type RoomMember
 } from '$lib/state/room';
 import type { RoomData, DMData } from '$lib/hooks/useRoomData.svelte';
+
+type RoomMembersPage = {
+  members: RoomMember[];
+  totalCount: number;
+  hasMore: boolean;
+};
 
 /**
  * Syncs room members into the shared context store.
@@ -27,40 +34,62 @@ export function useRoomMembersSync(
   const connection = useConnection();
   const roomMembersStore = createRoomMembers();
 
-  async function fetchRoomMembers(): Promise<RoomMember[]> {
+  async function fetchRoomMembers(offset = 0): Promise<RoomMembersPage | null> {
     const { roomId } = getProps();
     const resp = await connection().client.query(
       graphql(`
-        query GetRoomMembersForStore($roomId: ID!) {
+        query GetRoomMembersForStore($roomId: ID!, $offset: Int) {
           room(roomId: $roomId) {
-            members(limit: 100) {
+            members(limit: 100, offset: $offset) {
               users {
-                id
-                login
-                displayName
-                avatarUrl(width: 96, height: 96)
-                presenceStatus
+                ...UserAvatarUser
               }
+              totalCount
+              hasMore
             }
           }
         }
       `),
-      { roomId }
+      { roomId, offset }
     );
 
     if (resp.error) {
       console.error('Failed to fetch room members:', resp.error);
+      return null;
     }
 
-    return (
-      resp.data?.room?.members.users.map((m) => ({
-        id: m.id,
-        login: m.login,
-        displayName: m.displayName,
-        avatarUrl: m.avatarUrl,
-        presenceStatus: m.presenceStatus
-      })) ?? []
-    );
+    const connectionData = resp.data?.room?.members;
+    if (!connectionData) {
+      console.error('Failed to fetch room members: missing members connection');
+      return null;
+    }
+
+    return {
+      members: connectionData.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
+      totalCount: connectionData.totalCount,
+      hasMore: connectionData.hasMore
+    };
+  }
+
+  async function loadMoreMembers() {
+    const current = roomMembersStore.current;
+    if (current.loadingMore || !current.hasMore) return;
+
+    const currentRoomId = getProps().roomId;
+    roomMembersStore.setLoadingMore(true);
+    try {
+      const page = await fetchRoomMembers(current.members.length);
+      if (page && getProps().roomId === currentRoomId) {
+        roomMembersStore.appendMembers(page.members, {
+          totalCount: page.totalCount,
+          hasMore: page.hasMore
+        });
+      }
+    } finally {
+      if (getProps().roomId === currentRoomId) {
+        roomMembersStore.setLoadingMore(false);
+      }
+    }
   }
 
   // Seed members from roomData/dmData
@@ -78,7 +107,10 @@ export function useRoomMembersSync(
         }))
       );
     } else if (!isDM && roomData) {
-      roomMembersStore.setMembers(roomData.members);
+      roomMembersStore.setMembers(roomData.members, {
+        totalCount: roomData.membersTotalCount,
+        hasMore: roomData.membersHasMore
+      });
     }
 
     return () => {
@@ -86,7 +118,7 @@ export function useRoomMembersSync(
     };
   });
 
-  // Refetch on join/leave events
+  // Refetch on membership-changing events.
   useEvent((event) => {
     if (!event.event) return;
     const eventType = event.event.__typename;
@@ -95,9 +127,12 @@ export function useRoomMembersSync(
       event.event.roomId === getProps().roomId
     ) {
       const currentRoomId = getProps().roomId;
-      fetchRoomMembers().then((members) => {
-        if (getProps().roomId === currentRoomId) {
-          roomMembersStore.setMembers(members);
+      fetchRoomMembers().then((page) => {
+        if (page && getProps().roomId === currentRoomId) {
+          roomMembersStore.setMembers(page.members, {
+            totalCount: page.totalCount,
+            hasMore: page.hasMore
+          });
         }
       });
     }
@@ -108,5 +143,8 @@ export function useRoomMembersSync(
     roomMembersStore.updatePresence(userId, status);
   });
 
-  return roomMembersStore;
+  return {
+    ...roomMembersStore,
+    loadMoreMembers
+  };
 }

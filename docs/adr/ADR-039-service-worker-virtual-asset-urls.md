@@ -1,0 +1,45 @@
+# ADR-039: Service Worker Virtual Asset URLs with Ticketed Fallback
+
+**Date:** 2026-06-08
+
+## Context
+
+Chatto's browser client can connect to multiple registered servers. A page served by one Chatto server may render attachment media from another registered server. Native browser media elements such as `<img>` and `<video>` cannot reliably attach Chatto's registered-server bearer token to those cross-origin subresource requests, and SameSite cookie behavior makes relying on remote-server cookies brittle.
+
+To make remote attachments render, Chatto introduced per-user asset access tickets on stable asset paths such as `/assets/files/{assetId}?access={ticket}` and `/assets/files/{assetId}/image/{width}x{height}/{fit}?access={ticket}`. The backend verifies the ticket signature, expiry, and current room membership on each fetch. That makes remote media work, but the URL is still a bearer capability until it expires or the signed user loses access. A user can copy the rendered asset URL out of the DOM and share it with someone else.
+
+We want the normal web app to avoid putting bearer asset tickets in rendered markup, while preserving two properties:
+
+1. Assets should still render in browsers or modes where Service Workers are unavailable, disabled, not yet controlling the page, or cleared by browser storage policy.
+2. Once a user has already loaded immutable asset bytes, the browser may cache those bytes privately for performance.
+
+## Decision
+
+In Service Worker-controlled browser sessions, the frontend renders stable asset URLs through a same-origin virtual namespace:
+
+```text
+/__chatto/assets/{serverId}/assets/files/{assetId}[...]
+```
+
+The virtual URL is not a bearer credential. It only resolves inside a Chatto client whose Service Worker has received the matching server registration and credentials from the app. The frontend registers a hidden mapping from the virtual URL to the current ticketed target URL, and the worker resolves fetches by using that mapping or by rebuilding the target from the registered server URL and asset path.
+
+For full `GET` requests, the worker fetches the target with the registered server bearer token when available, adds `X-Chatto-Asset-Proxy: 1`, and stores successful `200` responses in a private `chatto-assets-v1` Cache Storage cache. The backend treats that proxy header as a request to stream the asset through Chatto instead of redirecting originals to S3, so the worker can cache the actual response body. The app asks the worker to clear the asset cache for a server when that server is removed, and to clear the whole asset cache on global sign-out.
+
+The restart and fallback paths are explicit and intentional:
+
+- If a controlled page is still open but the browser has terminated and restarted the idle Service Worker, the worker asks open window clients to resend registered servers and the requested virtual target mapping before failing the fetch.
+- If `navigator.serviceWorker.controller` is absent, asset URL helpers return the existing direct ticketed asset URL.
+- Legacy `/assets/attachments/{signedLocator}` URLs stay on their existing compatibility path and are not rewritten through the virtual namespace.
+- Media `Range` requests are not cached by the asset proxy. The worker redirects them to the hidden target URL so browser media playback keeps current Range behavior until Chatto has deliberate Range streaming through the proxy path.
+- If the browser clears Service Worker state or Cache Storage, the app resynchronizes registered servers after the worker controls the page again. Until then, direct ticketed URLs remain the compatibility path.
+
+## Consequences
+
+- **Copied DOM URLs are no longer access tickets in the main app path.** A copied `/__chatto/assets/...` URL is same-origin and only useful inside a controlled Chatto browser session with the matching registered server credentials.
+- **Ticketed URLs remain part of the architecture.** They are still emitted by GraphQL and still authorize non-Service-Worker clients, first-load/non-controlled pages, legacy clients, and Range redirects. Their TTL and membership checks remain important security controls.
+- **Open pages are the recovery source for worker restarts.** Service Worker globals are volatile. The client keeps the virtual-target mappings it registered and answers worker resync requests so lazy-loaded assets can recover after an idle worker restart without persisting tickets to durable browser storage.
+- **The fallback is less private but more compatible.** Browsers without working Service Workers keep rendering assets using the pre-existing ticketed URL behavior. This is acceptable because it is the old behavior, not a new breakage, and because ticket expiry plus membership checks still bound exposure.
+- **Private browser caching is allowed for already-seen bytes.** The worker may cache full successful asset responses because the user has already received immutable content. Cache entries are scoped to the browser profile and cleared when server registrations are removed or the user signs out.
+- **Safari, private browsing, and managed browsers may see less benefit.** Service Worker or Cache Storage behavior can be unavailable, ephemeral, or aggressively evicted. The feature must remain an enhancement with a reliable direct-URL fallback.
+- **Range support remains deliberately conservative.** Redirecting Range requests avoids partially reimplementing media streaming in the Service Worker. A future backend proxy streaming design can replace this fallback when we need cacheable or non-ticketed Range playback.
+- **Backend asset serving now has a proxy mode.** `X-Chatto-Asset-Proxy: 1` is a private contract between the browser Service Worker and Chatto servers. It must be allowed by CORS and included in `Vary` so proxy-streamed responses do not mix with presigned-redirect responses.

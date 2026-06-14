@@ -3,9 +3,14 @@ package graph
 import (
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -27,16 +32,15 @@ func TestAdminMutations_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin user gets nil", func(t *testing.T) {
-		// Create a regular user (not in admin emails list)
+	t.Run("authenticated non-admin user gets AdminMutations namespace", func(t *testing.T) {
 		regularUser := env.createVerifiedUser(t, "regular", "Regular User", "password123")
 
 		result, err := mutation.Admin(env.authContextForUser(regularUser))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for non-admin user")
+		if result == nil {
+			t.Error("expected AdminMutations object for authenticated user")
 		}
 	})
 
@@ -51,65 +55,47 @@ func TestAdminMutations_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("user without verified admin email gets nil", func(t *testing.T) {
-		// Set up environment where admin@example.com is in the admin list
+	t.Run("user without verified owner email gets AdminMutations namespace", func(t *testing.T) {
 		envWithAdminEmail := setupTestResolverWithAdmin(t, []string{"admin@example.com"})
 
-		// Create a user without any verified email (or with a different one)
 		unverifiedUser, err := envWithAdminEmail.core.CreateUser(envWithAdminEmail.ctx, "system", "no-verified-email", "No Verified", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		// This user has no verified emails at all, so shouldn't get admin access
-		// even though admin@example.com is in the admin list
 
 		mutation2 := envWithAdminEmail.resolver.Mutation()
 		result, err := mutation2.Admin(envWithAdminEmail.authContextForUser(unverifiedUser))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for user without verified admin email")
+		if result == nil {
+			t.Error("expected AdminMutations object for authenticated user")
 		}
 	})
 
-	t.Run("user with different verified email gets nil", func(t *testing.T) {
-		// User has a verified email but it's not in the admin list
+	t.Run("user with different verified email gets AdminMutations namespace", func(t *testing.T) {
 		userWithDifferentEmail := env.createVerifiedUser(t, "diff-email", "Different Email", "password123")
-		// This creates a user with verified email diff-email@example.com
-		// But the admin list only has testuser@example.com
 
 		result, err := mutation.Admin(env.authContextForUser(userWithDifferentEmail))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for user with different verified email")
+		if result == nil {
+			t.Error("expected AdminMutations object for authenticated user")
 		}
 	})
 }
 
 // ============================================================================
-// UpdateServerConfig Defense-in-Depth Tests
+// UpdateServerConfig Admin-Focused Tests
 // ============================================================================
 
-func TestUpdateServerConfig_Authorization(t *testing.T) {
+func TestUpdateServerConfig_AdminUserCanUpdateWelcomeMessage(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 
 	t.Run("admin can update server config", func(t *testing.T) {
-		// First get the admin mutations object
-		adminMutations, err := env.resolver.Mutation().Admin(env.authContext())
-		if err != nil {
-			t.Fatalf("failed to get admin mutations: %v", err)
-		}
-		if adminMutations == nil {
-			t.Fatal("expected admin mutations, got nil")
-		}
-
-		// Now call UpdateServerConfig
 		welcomeMsg := "Welcome to Chatto!"
-		adminMutResolver := env.resolver.AdminMutations()
-		result, err := adminMutResolver.UpdateServerConfig(env.authContext(), adminMutations, model.UpdateServerConfigInput{
+		result, err := env.resolver.Mutation().UpdateServerConfig(env.authContext(), model.UpdateServerConfigInput{
 			WelcomeMessage: &welcomeMsg,
 		})
 		if err != nil {
@@ -127,12 +113,9 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 		// Create a non-admin user
 		regularUser := env.createVerifiedUser(t, "regular-config", "Regular User", "password123")
 
-		// Try to call UpdateServerConfig directly (bypassing parent resolver)
-		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
-		_, err := adminMutResolver.UpdateServerConfig(
+		_, err := env.resolver.Mutation().UpdateServerConfig(
 			env.authContextForUser(regularUser),
-			&model.AdminMutations{},
 			model.UpdateServerConfigInput{
 				WelcomeMessage: &welcomeMsg,
 			},
@@ -143,14 +126,76 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 	})
 
 	t.Run("unauthenticated user calling UpdateServerConfig gets not authenticated", func(t *testing.T) {
-		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
-		_, err := adminMutResolver.UpdateServerConfig(
+		_, err := env.resolver.Mutation().UpdateServerConfig(
 			env.unauthContext(),
-			&model.AdminMutations{},
 			model.UpdateServerConfigInput{
 				WelcomeMessage: &welcomeMsg,
 			},
+		)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+}
+
+func TestUpdateServerConfig_PublishesSingleServerUpdatedLiveEvent(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	events, cleanup := subscribeServerUpdatedLiveEvents(t, env.nc)
+	defer cleanup()
+
+	serverName := "Live Config Server"
+	motd := "Live config MOTD"
+	_, err := env.resolver.Mutation().UpdateServerConfig(env.authContext(), model.UpdateServerConfigInput{
+		ServerName: &serverName,
+		Motd:       &motd,
+	})
+	if err != nil {
+		t.Fatalf("UpdateServerConfig: %v", err)
+	}
+
+	event := expectServerUpdatedLiveEvent(t, events)
+	if got := event.GetServerUpdated().GetName(); got != serverName {
+		t.Fatalf("ServerUpdatedEvent.name = %q, want %q", got, serverName)
+	}
+	expectNoServerUpdatedLiveEvent(t, events)
+}
+
+func TestUpdateBlockedUsernames_Authorization(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	adminMutations := env.resolver.AdminMutations()
+
+	t.Run("admin can update blocked usernames", func(t *testing.T) {
+		blocked := "root\nadmin\nsupport"
+		result, err := adminMutations.UpdateBlockedUsernames(env.authContext(), &model.AdminMutations{}, model.UpdateBlockedUsernamesInput{
+			BlockedUsernames: blocked,
+		})
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+		if result != blocked {
+			t.Errorf("expected blocked usernames %q, got %q", blocked, result)
+		}
+	})
+
+	t.Run("non-admin gets permission denied", func(t *testing.T) {
+		regularUser := env.createVerifiedUser(t, "regular-blocked-usernames", "Regular User", "password123")
+
+		_, err := adminMutations.UpdateBlockedUsernames(
+			env.authContextForUser(regularUser),
+			&model.AdminMutations{},
+			model.UpdateBlockedUsernamesInput{BlockedUsernames: "root"},
+		)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("unauthenticated user gets not authenticated", func(t *testing.T) {
+		_, err := adminMutations.UpdateBlockedUsernames(
+			env.unauthContext(),
+			&model.AdminMutations{},
+			model.UpdateBlockedUsernamesInput{BlockedUsernames: "root"},
 		)
 		if !errors.Is(err, core.ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
@@ -158,9 +203,79 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 	})
 }
 
+func TestUpdateBlockedUsernames_DoesNotPublishMemberVisibleLiveEvent(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	adminMutations := env.resolver.AdminMutations()
+	events, cleanup := subscribeServerUpdatedLiveEvents(t, env.nc)
+	defer cleanup()
+
+	blocked := "secret-admin-only\nreserved"
+	result, err := adminMutations.UpdateBlockedUsernames(env.authContext(), &model.AdminMutations{}, model.UpdateBlockedUsernamesInput{
+		BlockedUsernames: blocked,
+	})
+	if err != nil {
+		t.Fatalf("UpdateBlockedUsernames: %v", err)
+	}
+	if result != blocked {
+		t.Fatalf("blocked usernames result = %q, want %q", result, blocked)
+	}
+	expectNoServerUpdatedLiveEvent(t, events)
+}
+
 // ============================================================================
 // AdminMutations.UpdateUser / ClearUsernameCooldown Tests
 // ============================================================================
+
+func subscribeServerUpdatedLiveEvents(t *testing.T, nc *nats.Conn) (<-chan *corev1.LiveEvent, func()) {
+	t.Helper()
+
+	events := make(chan *corev1.LiveEvent, 4)
+	sub, err := nc.Subscribe(subjects.LiveSyncConfigEvent("server_updated"), func(msg *nats.Msg) {
+		var event corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
+			t.Errorf("failed to unmarshal live event: %v", err)
+			return
+		}
+		events <- &event
+	})
+	if err != nil {
+		t.Fatalf("Subscribe(server_updated): %v", err)
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	return events, func() {
+		if err := sub.Unsubscribe(); err != nil {
+			t.Errorf("Unsubscribe(server_updated): %v", err)
+		}
+	}
+}
+
+func expectServerUpdatedLiveEvent(t *testing.T, events <-chan *corev1.LiveEvent) *corev1.LiveEvent {
+	t.Helper()
+
+	select {
+	case event := <-events:
+		if event.GetServerUpdated() == nil {
+			t.Fatalf("expected ServerUpdatedEvent, got %T", event.GetEvent())
+		}
+		return event
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for ServerUpdatedEvent")
+		return nil
+	}
+}
+
+func expectNoServerUpdatedLiveEvent(t *testing.T, events <-chan *corev1.LiveEvent) {
+	t.Helper()
+
+	select {
+	case event := <-events:
+		t.Fatalf("unexpected ServerUpdatedEvent: %+v", event.GetServerUpdated())
+	case <-time.After(200 * time.Millisecond):
+	}
+}
 
 // TestAdminUpdateUser_Authorization verifies authorization, role-hierarchy
 // enforcement, and config-admin bypass for the admin user-management
@@ -313,15 +428,19 @@ func TestAdminQuery_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin user gets nil", func(t *testing.T) {
+	t.Run("authenticated non-admin user gets AdminQueries namespace", func(t *testing.T) {
 		regularUser := env.createVerifiedUser(t, "regular-query", "Regular User", "password123")
 
 		result, err := query.Admin(env.authContextForUser(regularUser))
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if result != nil {
-			t.Error("expected nil result for non-admin user")
+		if result == nil {
+			t.Fatal("expected AdminQueries object for authenticated user")
+		}
+		_, err = env.resolver.AdminQueries().SystemInfo(env.authContextForUser(regularUser), result)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected SystemInfo permission denial, got: %v", err)
 		}
 	})
 
@@ -333,7 +452,11 @@ func TestAdminQuery_Authorization(t *testing.T) {
 		if result == nil {
 			t.Error("expected AdminQueries object, got nil")
 		}
-		if result.SystemInfo == nil {
+		systemInfo, err := env.resolver.AdminQueries().SystemInfo(env.authContext(), result)
+		if err != nil {
+			t.Fatalf("expected SystemInfo resolver success, got error: %v", err)
+		}
+		if systemInfo == nil {
 			t.Error("expected SystemInfo, got nil")
 		}
 	})

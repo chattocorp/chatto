@@ -109,7 +109,7 @@ The full suite should stay well under 10 seconds on a developer machine; if a si
 
 ## Running e2e tests locally
 
-**E2E does NOT need Docker / `mise dev` / OrbStack.** Each Playwright test spawns its own `chatto` binary with embedded NATS on a random per-worker port (see `e2e/fixtures/server.ts`). The Playwright `globalSetup` calls `mise build-e2e-server` on every run; mise's source/output tracking turns that into a no-op when nothing has changed and a real rebuild when backend code has, so you don't need a manual rebuild step when iterating.
+**E2E does NOT need Docker / Tilt / OrbStack.** Each Playwright test spawns its own `chatto` binary with embedded NATS on a random per-worker port (see `e2e/fixtures/server.ts`). The Playwright `globalSetup` calls `mise build-e2e-server` on every run; mise's source/output tracking turns that into a no-op when nothing has changed and a real rebuild when backend code has, so you don't need a manual rebuild step when iterating.
 
 ```sh
 mise test-e2e                                                    # full e2e suite

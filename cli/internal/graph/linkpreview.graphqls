@@ -27,19 +27,19 @@ the data in the postMessage mutation so it can be attached to the message.
 """
 input LinkPreviewInput {
   "The URL that was previewed."
-  url: String!
+  url: String! @length(max: 2048)
   "The page title."
-  title: String
+  title: String @length(max: 300)
   "The page description."
-  description: String
+  description: String @length(max: 1000)
   "Asset ID of the preview image (from the linkPreview query response)."
-  imageAssetId: String
+  imageAssetId: String @length(max: 15)
   "The site name."
-  siteName: String
+  siteName: String @length(max: 200)
   "Type of embed: 'generic', 'youtube', 'vimeo', etc."
-  embedType: String
+  embedType: String @length(max: 64)
   "Embed ID for rich embeds (e.g., YouTube video ID)."
-  embedId: String
+  embedId: String @length(max: 256)
 }
 
 extend type Query {
@@ -48,7 +48,7 @@ extend type Query {
   Returns null if the URL cannot be previewed.
   Requires authentication.
   """
-  linkPreview(url: String!): LinkPreview
+  linkPreview(url: String! @length(max: 2048)): LinkPreview
 }
 
 extend type MessagePostedEvent {

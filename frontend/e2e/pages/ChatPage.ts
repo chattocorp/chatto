@@ -47,20 +47,20 @@ export class ChatPage {
    * Wait until the user is in the deployment's bootstrap server and return
    * the server name. Post-ADR-030 there is no per-deployment Space record;
    * signup auto-joins the default rooms and this just confirms the server
-   * config is reachable. `name` and `description` args are ignored,
+   * profile is reachable. `name` and `description` args are ignored,
    * retained only so existing call sites compile.
    */
   async createSpace(_name?: string, _description?: string): Promise<string> {
     const data = await graphqlQuery<{
-      server: { config: { serverName: string } } | null;
+      server: { profile: { name: string } } | null;
     }>(
       this.page,
-      `query { server { config { serverName } } }`
+      `query { server { profile { name } } }`
     );
     if (!data.server) {
-      throw new Error('Server query returned no data — bootstrap config likely broken');
+      throw new Error('Server query returned no data — bootstrap profile likely broken');
     }
-    return data.server.config.serverName;
+    return data.server.profile.name;
   }
 
   /**
@@ -102,7 +102,7 @@ export class ChatPage {
 
   /** Get the unread dot locator for a specific space */
   getSpaceUnreadDot(spaceName: string): Locator {
-    return this.getSpaceIconContainer(spaceName).getByTestId('space-unread-dot');
+    return this.getSpaceIconContainer(spaceName).getByTestId('server-unread-dot');
   }
 
   /** Click the unread dot on a specific space icon */
@@ -153,7 +153,11 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
-    await this.page.request.post('/auth/logout');
+    const logoutResponse = await this.page.request.post('/auth/logout');
+    expect(logoutResponse.ok()).toBeTruthy();
+    // Unload the currently mounted app before re-authenticating as admin; the
+    // previous session can otherwise issue a late redirect during navigation.
+    await this.page.goto('about:blank');
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
@@ -168,18 +172,25 @@ export class ChatPage {
    */
   async createRoom(name?: string, description?: string): Promise<string> {
     const roomName = name ?? `test-room-${Date.now()}`;
-    const spaceId = await this.getSpaceId();
+    const groupData = await graphqlQuery<{ server: { roomGroups: { id: string }[] } }>(
+      this.page,
+      `query { server { roomGroups { id } } }`
+    );
+    const groupId = groupData.server.roomGroups[0]?.id;
+    if (!groupId) {
+      throw new Error('No room group available for e2e room creation');
+    }
 
     // Create and join room via API
     const result = await this.page.evaluate(
-      async ({ spaceId, roomName, description }) => {
+      async ({ roomName, description, groupId }) => {
         const createRes = await fetch('/api/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           credentials: 'include',
           body: JSON.stringify({
             query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-            variables: { input: { name: roomName, description: description || undefined } }
+            variables: { input: { name: roomName, description: description || undefined, groupId } }
           })
         });
         const createData = await createRes.json();
@@ -201,7 +212,7 @@ export class ChatPage {
 
         return { roomId };
       },
-      { spaceId, roomName, description }
+      { roomName, description, groupId }
     );
 
     // Navigate to the new room

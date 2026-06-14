@@ -16,11 +16,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             room {
@@ -31,11 +27,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             mentionRoom: room {
@@ -49,11 +41,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             replyRoom: room {
@@ -68,11 +56,7 @@ const NotificationsQueryDoc = graphql(`
             id
             createdAt
             actor {
-              id
-              login
-              displayName
-              avatarUrl(width: 96, height: 96)
-              presenceStatus
+              ...UserAvatarUser
             }
             summary
             roomMsgRoom: room {
@@ -98,8 +82,8 @@ const HasNotificationsQueryDoc = graphql(`
 const InstanceNameQueryDoc = graphql(`
   query NotificationInstanceName {
     server {
-      config {
-        serverName
+      profile {
+        name
       }
     }
   }
@@ -421,7 +405,7 @@ export class NotificationStore {
         const nameRes = await this.#client
           .query(InstanceNameQueryDoc, {}, { requestPolicy: 'cache-first' })
           .toPromise();
-        this.serverName = nameRes.data?.server?.config.serverName ?? null;
+        this.serverName = nameRes.data?.server?.profile.name ?? null;
       } catch {
         // ignore
       }

@@ -16,7 +16,7 @@ import { SvelteMap } from 'svelte/reactivity';
 
 type ProfileUpdate = {
   displayName: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
   login: string;
 };
 
@@ -35,7 +35,7 @@ export function createUserProfileCache() {
 
   // Return update function with closure over state (no getContext() call needed)
   return {
-    update: (userId: string, displayName: string, avatarUrl: string, login: string) => {
+    update: (userId: string, displayName: string, avatarUrl: string | null, login: string) => {
       state.current.set(userId, { displayName, avatarUrl, login });
     }
   };

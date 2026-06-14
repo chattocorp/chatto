@@ -34,10 +34,7 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 		return []*corev1.User{}, nil
 	}
 
-	limit := 5
-	if first != nil && *first > 0 {
-		limit = int(*first)
-	}
+	limit := firstNArg(first, 5, 10)
 
 	participantIDs := obj.ParticipantIDs
 	if len(participantIDs) > limit {
@@ -69,16 +66,14 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer,
 		return nil, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.LegacySpaceIDForRoomKind(kind)})
+	limitVal, offsetVal := paginationArgs(limit, offset, 20, 100)
+	page, err := r.core.ListFollowedThreadsPage(ctx, user.Id, []string{core.LegacySpaceIDForRoomKind(kind)}, limitVal, offsetVal)
 	if err != nil {
 		return nil, err
 	}
 
-	limitVal, offsetVal := paginationArgs(limit, offset, 20, 100)
-	page, totalCount, hasMore := paginateSlice(threads, limitVal, offsetVal)
-
-	result := make([]*model.FollowedThread, 0, len(page))
-	for _, t := range page {
+	result := make([]*model.FollowedThread, 0, len(page.Threads))
+	for _, t := range page.Threads {
 		var lastReplyAt *timestamppb.Timestamp
 		if t.LastReplyAt != nil {
 			lastReplyAt = timestamppb.New(*t.LastReplyAt)
@@ -96,8 +91,8 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer,
 
 	return &model.FollowedThreadsConnection{
 		Threads:    result,
-		TotalCount: int32(totalCount),
-		HasMore:    hasMore,
+		TotalCount: int32(page.TotalCount),
+		HasMore:    page.HasMore,
 	}, nil
 }
 
@@ -109,18 +104,7 @@ func (r *viewerResolver) HasUnreadFollowedThreads(ctx context.Context, obj *mode
 		return false, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.LegacySpaceIDForRoomKind(kind)})
-	if err != nil {
-		return false, err
-	}
-
-	for _, t := range threads {
-		if t.HasUnread {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return r.core.HasUnreadFollowedThreads(ctx, user.Id, []string{core.LegacySpaceIDForRoomKind(kind)})
 }
 
 // FollowedThread returns FollowedThreadResolver implementation.

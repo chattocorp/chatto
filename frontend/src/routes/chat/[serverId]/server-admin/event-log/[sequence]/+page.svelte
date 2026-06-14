@@ -41,7 +41,7 @@
   let error = $derived(
     entryQuery.error ??
       (!entryQuery.loading && !entryQuery.data?.admin
-        ? 'Event log unavailable (admin access required)'
+        ? 'Event log unavailable (audit permission required)'
         : null)
   );
 

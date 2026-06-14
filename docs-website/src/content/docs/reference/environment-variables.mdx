@@ -13,6 +13,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Log level. Values: `debug`, `info`, `warn`, `error`.
 </EnvVar>
 
+<EnvVar name="CHATTO_LOG_FORMAT" toml="general.log_format" default="auto">
+  Log output format. Values: `auto`, `text`, `json`, `logfmt`. `auto` uses text when Chatto is attached to a terminal and JSON otherwise. Use `json` for Loki/Grafana ingestion so each log line includes a structured `level` field.
+</EnvVar>
+
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
@@ -27,6 +31,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   256-bit hex secret for signing session cookies. Generate with `openssl rand -hex 32`.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" toml="webserver.cookie_encryption_secret">
+  Optional hex secret for encrypting session cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
+</EnvVar>
+
 <EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
   Enable WebSocket compression.
 </EnvVar>
@@ -36,7 +44,11 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API.
+  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API. Wildcard CORS does not trust OAuth redirect callbacks.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
+  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
 </EnvVar>
 
 ### TLS
@@ -93,6 +105,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 
 <EnvVar name="CHATTO_CORE_ASSETS_S3_BUCKET" toml="core.assets.s3.bucket">
   S3 bucket name. Created automatically on startup if it doesn't exist.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_PATH_PREFIX" toml="core.assets.s3.path_prefix">
+  Optional object key prefix for all S3 assets. Leave empty to store objects at the bucket root.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_S3_REGION" toml="core.assets.s3.region">
@@ -194,7 +210,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
-  TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Tokens older than this are automatically invalidated.
+  Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
 </EnvVar>
 
 ### OIDC
@@ -264,7 +280,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_PUSH_VAPID_SUBJECT" toml="push.vapid_subject">
-  VAPID subject identifier. Must be a `mailto:` or `https:` URL.
+  VAPID subject identifier. Use an operator email address, optionally prefixed with `mailto:`, or an `https:` contact URL.
 </EnvVar>
 
 ## Video Processing

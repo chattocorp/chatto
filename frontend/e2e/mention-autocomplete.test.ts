@@ -80,10 +80,16 @@ test.describe('Mention autocomplete', () => {
       expect(inputValue2).not.toBe(inputValue1);
       expect(inputValue2).toMatch(/^@al(ice|fred)[0-9]+ $/);
 
-      // Press Tab again to cycle back to first
+      // Press Tab again to cycle to the virtual @all mention, which also
+      // matches "al" and is ordered after matching users.
       await roomPage.messageInput.press('Tab');
       const inputValue3 = (await roomPage.messageInput.textContent()) ?? '';
-      expect(inputValue3).toBe(inputValue1);
+      expect(inputValue3).toBe('@all ');
+
+      // Press Tab once more to cycle back to the first user match.
+      await roomPage.messageInput.press('Tab');
+      const inputValue4 = (await roomPage.messageInput.textContent()) ?? '';
+      expect(inputValue4).toBe(inputValue1);
     } finally {
       await context2.close();
     }
@@ -274,11 +280,7 @@ test.describe('Mention autocomplete', () => {
       });
     });
 
-    test('popup disappears when deleting below threshold', async ({
-      page,
-      chatPage,
-      roomPage
-    }) => {
+    test('popup disappears when deleting below threshold', async ({ page, chatPage, roomPage }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.createSpace();

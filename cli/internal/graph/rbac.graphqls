@@ -1,0 +1,51 @@
+"""
+RBAC tooling namespace for role, permission, and permission inspection screens.
+Individual fields enforce their own finer-grained authorization gates, such as
+`role.manage` or `room.manage`.
+"""
+type RbacQueries {
+  """
+  Return the full role-permission matrix at a tier: every applicable role
+  with its override and inherited baseline.
+
+  Pass `roomId` for per-room override editing, `groupId` for room-group-scope
+  editing, or neither for server-scope editing. Passing both is rejected.
+  """
+  rolePermissionTierMatrix(
+    "Optional room scope."
+    roomId: ID
+    "Optional room-group scope."
+    groupId: ID
+  ): TierRoles @goField(forceResolver: true)
+
+  """
+  Permission matrix for a specific role. Authorization: viewer must hold
+  `role.manage` at server scope.
+  """
+  rolePermissionMatrix(roleName: String!): RolePermissionMatrix
+    @goField(forceResolver: true)
+
+  """
+  Permission matrix for a specific user. Authorization mirrors user-level
+  permission mutations: viewer must hold `role.manage` and strictly outrank
+  the target. Self-introspection is not allowed.
+  """
+  userPermissionMatrix(userId: ID!): UserPermissionMatrix
+    @goField(forceResolver: true)
+
+  """
+  Explain every applicable permission for a user at the given scope.
+  Authorization: admin/tooling-only, with no self-inspection path.
+  """
+  permissionExplanation(
+    "User whose permissions to explain."
+    userId: ID!
+    "Optional room scope."
+    roomId: ID
+  ): [PermissionExplanation!]! @goField(forceResolver: true)
+}
+
+extend type AdminQueries {
+  "RBAC editor and inspection queries."
+  rbac: RbacQueries! @goField(forceResolver: true)
+}

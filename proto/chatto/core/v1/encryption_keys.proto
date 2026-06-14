@@ -13,9 +13,10 @@ message UserKeyEncryptionKey {
 }
 
 // UserDataEncryptionKey is the wrapped data-encryption-key record stored in
-// ENCRYPTION_KEYS under UserDEKGeneratedEvent.content_key_ref. It is
-// deliberately outside EVT so crypto-shredding can destroy key material
-// without mutating event history.
+// RUNTIME_STATE under UserDEKGeneratedEvent.content_key_ref. It is deliberately
+// outside EVT so crypto-shredding can destroy key material without mutating
+// event history, but it remains part of normal data backups because the record
+// is unusable without the KMS KEK referenced by wrapping_key_ref.
 message UserDataEncryptionKey {
   bytes encrypted_content_key = 1;
   bytes content_key_nonce = 2;

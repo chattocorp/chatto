@@ -77,6 +77,16 @@ func (r *mutationResolver) DismissAllNotifications(ctx context.Context) (int32, 
 	return int32(count), nil
 }
 
+// EventID is the resolver for the eventId field.
+func (r *notificationCreatedEventResolver) EventID(ctx context.Context, obj *corev1.NotificationCreatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetEventId()), nil
+}
+
+// InReplyToID is the resolver for the inReplyToId field.
+func (r *notificationCreatedEventResolver) InReplyToID(ctx context.Context, obj *corev1.NotificationCreatedEvent) (*string, error) {
+	return nilIfEmpty(obj.GetInReplyToId()), nil
+}
+
 // Actor is the resolver for the actor field.
 func (r *replyNotificationItemResolver) Actor(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.User, error) {
 	return r.resolveOptionalUser(ctx, obj.ActorID)
@@ -137,6 +147,11 @@ func (r *Resolver) MentionNotificationItem() MentionNotificationItemResolver {
 	return &mentionNotificationItemResolver{r}
 }
 
+// NotificationCreatedEvent returns NotificationCreatedEventResolver implementation.
+func (r *Resolver) NotificationCreatedEvent() NotificationCreatedEventResolver {
+	return &notificationCreatedEventResolver{r}
+}
+
 // ReplyNotificationItem returns ReplyNotificationItemResolver implementation.
 func (r *Resolver) ReplyNotificationItem() ReplyNotificationItemResolver {
 	return &replyNotificationItemResolver{r}
@@ -144,4 +159,5 @@ func (r *Resolver) ReplyNotificationItem() ReplyNotificationItemResolver {
 
 type dMMessageNotificationItemResolver struct{ *Resolver }
 type mentionNotificationItemResolver struct{ *Resolver }
+type notificationCreatedEventResolver struct{ *Resolver }
 type replyNotificationItemResolver struct{ *Resolver }

@@ -1,6 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
-import { RefreshMessageAttachmentUrlsDocument } from '$lib/gql/graphql';
+import { FitMode, RefreshMessageAttachmentUrlsDocument } from '$lib/gql/graphql';
 
 export type ExpiringAssetUrl = {
   url: string;
@@ -14,6 +14,72 @@ export type RefreshedAttachmentUrls = {
   variantAssetUrls: Map<string, ExpiringAssetUrl>;
 };
 
+export type AttachmentThumbnailRefreshOptions = {
+  width: number;
+  height: number;
+  fit: FitMode;
+};
+
+export const DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH: AttachmentThumbnailRefreshOptions = {
+  width: 960,
+  height: 800,
+  fit: FitMode.Contain
+};
+
+export const ASSET_URL_REFRESH_LEAD_MS = 2 * 60_000;
+
+export function assetUrlExpiresAtMs(assetUrl: ExpiringAssetUrl | null | undefined): number | null {
+  if (!assetUrl) return null;
+  const expiresAt = new Date(assetUrl.expiresAt).getTime();
+  return Number.isNaN(expiresAt) ? Date.now() : expiresAt;
+}
+
+export function assetUrlRefreshAt(
+  assetUrl: ExpiringAssetUrl | null | undefined,
+  leadMs = ASSET_URL_REFRESH_LEAD_MS
+): number | null {
+  const expiresAt = assetUrlExpiresAtMs(assetUrl);
+  return expiresAt === null ? null : expiresAt - leadMs;
+}
+
+export function assetUrlNeedsRefresh(
+  assetUrl: ExpiringAssetUrl | null | undefined,
+  now = Date.now(),
+  leadMs = ASSET_URL_REFRESH_LEAD_MS
+): boolean {
+  const refreshAt = assetUrlRefreshAt(assetUrl, leadMs);
+  return refreshAt !== null && refreshAt <= now;
+}
+
+export function earliestAssetUrlRefreshAt(
+  assetUrls: Iterable<ExpiringAssetUrl | null | undefined>,
+  leadMs = ASSET_URL_REFRESH_LEAD_MS
+): number | null {
+  let nextRefreshAt: number | null = null;
+  for (const assetUrl of assetUrls) {
+    const refreshAt = assetUrlRefreshAt(assetUrl, leadMs);
+    if (refreshAt === null) continue;
+    nextRefreshAt = nextRefreshAt === null ? refreshAt : Math.min(nextRefreshAt, refreshAt);
+  }
+  return nextRefreshAt;
+}
+
+export function mergeRefreshedAttachmentUrls(
+  current: Map<string, RefreshedAttachmentUrls>,
+  fresh: Map<string, RefreshedAttachmentUrls>
+): Map<string, RefreshedAttachmentUrls> {
+  if (fresh.size === 0) return current;
+  return new Map([...current, ...fresh]);
+}
+
+export function withAssetUrlRetryParam(url: string, retry: string | number): string {
+  const hashStart = url.indexOf('#');
+  const base = hashStart === -1 ? url : url.slice(0, hashStart);
+  const hash = hashStart === -1 ? '' : url.slice(hashStart);
+  const separator = base.includes('?') ? '&' : '?';
+  return `${base}${separator}retry=${encodeURIComponent(String(retry))}${hash}`;
+}
+
 // Re-fetch a message event's attachment URLs just before the user actually
 // needs them. Asset URL fields re-sign on every resolve; the staleness lives
 // in already-rendered query/subscription data, not the server.
@@ -22,7 +88,13 @@ export type RefreshedAttachmentUrls = {
 // Runtime uses the generated document below so TypeScript doesn't depend on
 // the exact whitespace of the typed graphql() overload.
 void graphql(`
-  query RefreshMessageAttachmentUrls($roomId: ID!, $eventId: ID!) {
+  query RefreshMessageAttachmentUrls(
+    $roomId: ID!
+    $eventId: ID!
+    $thumbnailWidth: Int = 960
+    $thumbnailHeight: Int = 800
+    $thumbnailFit: FitMode = CONTAIN
+  ) {
     room(roomId: $roomId) {
       event(eventId: $eventId) {
         event {
@@ -34,7 +106,11 @@ void graphql(`
                 url
                 expiresAt
               }
-              thumbnailAssetUrl(width: 960, height: 800, fit: CONTAIN) {
+              thumbnailAssetUrl(
+                width: $thumbnailWidth
+                height: $thumbnailHeight
+                fit: $thumbnailFit
+              ) {
                 url
                 expiresAt
               }
@@ -62,11 +138,18 @@ void graphql(`
 export async function refreshAttachmentUrlsForMessage(
   client: Client,
   roomId: string,
-  eventId: string
+  eventId: string,
+  thumbnailOptions = DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH
 ): Promise<Map<string, RefreshedAttachmentUrls>> {
   const fresh = new Map<string, RefreshedAttachmentUrls>();
   const result = await client
-    .query(RefreshMessageAttachmentUrlsDocument, { roomId, eventId })
+    .query(RefreshMessageAttachmentUrlsDocument, {
+      roomId,
+      eventId,
+      thumbnailWidth: thumbnailOptions.width,
+      thumbnailHeight: thumbnailOptions.height,
+      thumbnailFit: thumbnailOptions.fit
+    })
     .toPromise();
   if (result.error) {
     console.warn('Failed to refresh attachment URLs', result.error);

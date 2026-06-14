@@ -75,7 +75,11 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  * Logs out the current user.
  */
 async function logoutUser(page: Page): Promise<void> {
-  await page.request.post('/auth/logout');
+  const response = await page.request.post('/auth/logout');
+  expect(response.ok()).toBeTruthy();
+  // Unload the SPA before switching identities. Otherwise the old authenticated
+  // app can react to logout and race a later page.goto() with its own redirect.
+  await page.goto('about:blank');
 }
 
 /**
@@ -97,6 +101,7 @@ async function createRoomViaAPI(
     maybeName ??
     (spaceIdOrName && spaceIdOrName !== 'server' ? spaceIdOrName : undefined) ??
     `testroom${Date.now()}`;
+  const groupId = await getDefaultRoomGroupId(page);
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -108,13 +113,30 @@ async function createRoomViaAPI(
 					createRoom(input: $input) { id name }
 				}
 			`,
-      variables: { input: { name: roomName } }
+      variables: { input: { name: roomName, groupId } }
     }
   });
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
   expect(data.data?.createRoom).toBeTruthy();
   return data.data.createRoom.id;
+}
+
+async function getDefaultRoomGroupId(page: Page): Promise<string> {
+  const response = await page.request.post('/api/graphql', {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-REQUEST-TYPE': 'GraphQL'
+    },
+    data: { query: `query { server { roomGroups { id } } }` }
+  });
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  const groupId = data.data?.server?.roomGroups?.[0]?.id;
+  if (!groupId) {
+    throw new Error(`No room group available for e2e room creation: ${JSON.stringify(data)}`);
+  }
+  return groupId;
 }
 
 /**
@@ -864,6 +886,7 @@ test.describe('Space Permission Enforcement', () => {
       // Create admin user and space
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
+      const groupId = await getDefaultRoomGroupId(page);
 
       // Create a room (admin has room.create by default)
       const roomResponse = await page.request.post('/api/graphql', {
@@ -878,7 +901,7 @@ test.describe('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: { name: `testroom${Date.now()}` }
+            input: { name: `testroom${Date.now()}`, groupId }
           }
         }
       });
@@ -921,6 +944,7 @@ test.describe('Space Permission Enforcement', () => {
       // Create admin user and space
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
+      const groupId = await getDefaultRoomGroupId(page);
 
       // Create a room (admin has room.create by default)
       const roomResponse = await page.request.post('/api/graphql', {
@@ -935,7 +959,7 @@ test.describe('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: { name: `testroom${Date.now()}` }
+            input: { name: `testroom${Date.now()}`, groupId }
           }
         }
       });
@@ -981,6 +1005,7 @@ test.describe('Space Permission Enforcement', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
+      const groupId = await getDefaultRoomGroupId(page);
 
       const roomResponse = await page.request.post('/api/graphql', {
         headers: {
@@ -994,7 +1019,7 @@ test.describe('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: { name: `testroom${Date.now()}` }
+            input: { name: `testroom${Date.now()}`, groupId }
           }
         }
       });
@@ -1081,7 +1106,7 @@ test.describe('Space Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('administration link hidden when user lacks room.manage permission', async ({ page }) => {
+    test('administration gear hidden when user lacks room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1099,11 +1124,11 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration link should NOT be visible
-      await expect(page.getByRole('link', { name: 'Administration' })).not.toBeVisible();
+      // Administration gear should NOT be visible
+      await expect(page.getByRole('link', { name: 'Server administration' })).not.toBeVisible();
     });
 
-    test('administration link visible when user has room.manage permission', async ({ page }) => {
+    test('administration gear visible when user has room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -1124,8 +1149,8 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration link should be visible
-      await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible();
+      // Administration gear should be visible
+      await expect(page.getByRole('link', { name: 'Server administration' })).toBeVisible();
     });
   });
 });

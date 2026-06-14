@@ -9,6 +9,7 @@
     error,
     description,
     disabled = false,
+    onchange,
     children
   }: {
     id: string;
@@ -17,6 +18,7 @@
     error?: string;
     description?: string;
     disabled?: boolean;
+    onchange?: (event: Event) => void;
     children?: Snippet;
   } = $props();
 </script>
@@ -28,6 +30,7 @@
       {id}
       bind:checked
       {disabled}
+      {onchange}
       class="checkbox"
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}

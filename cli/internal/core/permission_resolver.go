@@ -459,9 +459,10 @@ func (r *PermissionResolver) probeSet(
 // DM rooms refuse to answer for channel-style operations.
 var dmBoundaryDeniedPermissions = map[Permission]bool{
 	// Privacy boundary.
-	PermRoomManage:    true,
-	PermMessageManage: true,
-	PermMessageEcho:   true,
+	PermRoomManage:       true,
+	PermRoomMemberBan: true,
+	PermMessageManage:    true,
+	PermMessageEcho:      true,
 	// DMs have their own creation / membership APIs.
 	PermRoomCreate: true,
 }

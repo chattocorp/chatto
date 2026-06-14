@@ -1,27 +1,37 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
+	"hmans.de/chatto/internal/core/linkpreview"
 )
 
 // Session keys for the OIDC login flow (PKCE).
 const (
 	sessionKeyOIDCState        = "oidc_state"
 	sessionKeyOIDCCodeVerifier = "oidc_code_verifier"
+
+	oidcAvatarFetchTimeout = 10 * time.Second
+	oidcAvatarMaxBytes     = 5 * 1024 * 1024
 )
+
+var oidcAvatarClient = linkpreview.NewSSRFSafeClient(oidcAvatarFetchTimeout)
 
 // oidcProvider holds the lazily-initialized OIDC provider, oauth2 config, and
 // token verifier. Initialized on first login attempt. Retries on failure.
@@ -161,7 +171,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 		// Check for error from provider
 		if errCode := c.Query("error"); errCode != "" {
-			log.Warn("OIDC provider returned error", "error", errCode, "description", c.Query("error_description"))
+			log.Warn("OIDC provider returned error", "error", errCode)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_denied")
 			return
 		}
@@ -207,12 +217,12 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			return
 		}
 
-		log.Info("OIDC token verified", "sub", idToken.Subject, "issuer", idToken.Issuer)
+		log.Info("OIDC token verified", "issuer", idToken.Issuer)
 
 		// Some providers (e.g. Zitadel) don't include email in the ID token.
 		// Fall back to the userinfo endpoint.
 		if claims.Email == "" {
-			log.Info("OIDC ID token missing email, falling back to userinfo", "sub", idToken.Subject)
+			log.Info("OIDC ID token missing email, falling back to userinfo")
 			userInfo, err := op.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 			if err != nil {
 				log.Error("Failed to fetch OIDC userinfo", "error", err)
@@ -246,15 +256,15 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		}
 
 		if user != nil {
-			log.Info("OIDC login matched by subject", "sub", subject, "userId", user.Id)
+			log.Info("OIDC login matched by subject", "userId", user.Id)
 		} else {
 			// 2. No subject link — try to find existing user by verified email
 			user, _ = s.core.GetUserByVerifiedEmail(ctx, claims.Email)
 
 			if user != nil {
-				log.Info("OIDC login matched by email, linking subject", "sub", subject, "userId", user.Id)
+				log.Info("OIDC login matched by email, linking subject", "userId", user.Id)
 			} else {
-				log.Info("OIDC login creating new user", "sub", subject)
+				log.Info("OIDC login creating new user")
 				// 3. No existing user — create a new one
 				login := deriveLoginFromEmail(claims.Email)
 				displayName := claims.Name
@@ -278,9 +288,9 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 			// Link the OIDC subject to this user for future logins
 			if err := s.core.LinkOIDCSubject(ctx, issuer, subject, user.Id); err != nil {
-				log.Error("Failed to link OIDC subject", "error", err, "userId", user.Id, "subject", subject)
+				log.Error("Failed to link OIDC subject", "error", err, "userId", user.Id)
 			} else {
-				log.Info("Linked OIDC subject to user", "userId", user.Id, "subject", subject)
+				log.Info("Linked OIDC subject to user", "userId", user.Id)
 			}
 		}
 
@@ -294,9 +304,8 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			}
 		}
 
-		// Create session
-		session.Set("user_id", user.Id)
-		if err := session.Save(); err != nil {
+		// Create server-side cookie session
+		if err := s.createCookieSession(c, user.Id, "oidc_login"); err != nil {
 			log.Error("Failed to save session", "error", err)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 			return
@@ -308,6 +317,9 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		}
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, claims.Email); err != nil {
 			log.Error("Failed to append OIDC login audit event", "userId", user.Id, "error", err)
+			session = sessions.Default(c)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
 			session.Clear()
 			_ = session.Save()
 			clearCSRFCookie(c)
@@ -317,7 +329,13 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 		// If there's a pending OAuth authorize flow, complete it
 		if hasPendingOAuthAuthorize(session) {
-			s.completeOAuthAuthorize(c, user.Id)
+			authGeneration, err := s.core.CurrentAuthGeneration(ctx, user.Id)
+			if err != nil {
+				log.Error("Failed to read auth generation for OAuth authorize", "userId", user.Id, "error", err)
+				c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
+				return
+			}
+			s.continueOAuthAuthorize(c, user.Id, authGeneration)
 			return
 		}
 
@@ -374,7 +392,7 @@ func fetchAndUploadAvatarFromURL(ctx context.Context, avatarURL string, s *HTTPS
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := oidcAvatarClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -384,7 +402,15 @@ func fetchAndUploadAvatarFromURL(ctx context.Context, avatarURL string, s *HTTPS
 		return nil
 	}
 
-	asset, err := s.core.UploadUserAvatar(ctx, userID, resp.Body)
+	avatarData, err := io.ReadAll(io.LimitReader(resp.Body, oidcAvatarMaxBytes+1))
+	if err != nil {
+		return err
+	}
+	if len(avatarData) > oidcAvatarMaxBytes {
+		return fmt.Errorf("avatar exceeds maximum size of %d bytes", oidcAvatarMaxBytes)
+	}
+
+	asset, err := s.core.UploadUserAvatar(ctx, userID, bytes.NewReader(avatarData))
 	if err != nil {
 		return err
 	}

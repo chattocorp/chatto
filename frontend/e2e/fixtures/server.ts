@@ -61,7 +61,7 @@ async function waitForServer(port: number, timeoutMs = 45000): Promise<void> {
     } catch {
       // Server not ready yet
     }
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 25));
   }
   throw new Error(`Server on port ${port} did not become ready within ${timeoutMs}ms`);
 }
@@ -97,6 +97,7 @@ export async function startServer(
       cwd: __dirname,
       env: {
         ...process.env,
+        CHATTO_VIDEO_ENABLED: 'false',
         ...options.env,
         CHATTO_WEBSERVER_PORT: String(ports.webserver),
         CHATTO_WEBSERVER_URL: `http://localhost:${ports.webserver}`,

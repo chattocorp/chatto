@@ -59,21 +59,24 @@ type Room {
   viewerCanEchoMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can edit/configure this room (room.manage)."
   viewerCanManageRoom: Boolean! @goField(forceResolver: true)
+  "Whether the current user can ban lower-ranked members from this room."
+  viewerCanBanRoomMembers: Boolean! @goField(forceResolver: true)
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
   """
   Channel rooms belong to exactly one RoomGroup; this field identifies which
-  one. Empty string for DM rooms — those don't participate in the set
-  layout (see ADR-031).
+  one. DM rooms return null because they do not participate in room-group
+  layout or ACLs.
   """
-  groupId: ID!
+  groupId: ID @goField(forceResolver: true)
 
   """
-  Fetch historical events for this room (default limit: 50). Use the
-  opaque `before` cursor for backward pagination and `after` for forward
-  pagination — pass the `startCursor` / `endCursor` from a previous
-  `RoomEventsConnection` response. Cursors are opaque strings; clients
-  must not attempt to parse them.
+  Fetch historical events for this room (default limit: 50, max: 500;
+  larger values are silently clamped). Use the opaque `before` cursor
+  for backward pagination and `after` for forward pagination — pass the
+  `startCursor` / `endCursor` from a previous `RoomEventsConnection`
+  response. Cursors are opaque strings; clients must not attempt to
+  parse them.
   """
   events(limit: Int = 50, before: String, after: String): RoomEventsConnection!
     @goField(forceResolver: true)
@@ -82,7 +85,8 @@ type Room {
   event(eventId: ID!): Event @goField(forceResolver: true)
 
   """
-  Fetch events in this room centered around a specific event.
+  Fetch events in this room centered around a specific event (default
+  limit: 50, max: 500; larger values are silently clamped).
   Returns a window of events with the target event roughly in the middle.
   Used for "jump to message" when clicking reply links to messages not in the loaded range.
   """

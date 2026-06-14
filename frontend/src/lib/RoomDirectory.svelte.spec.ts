@@ -5,8 +5,8 @@ import Harness from './RoomDirectoryTestHarness.svelte';
 import {
   RoomDirectoryStore,
   type DirectoryRoom
-} from '$lib/state/space/roomDirectory.svelte';
-import type { RoomsListItem } from '$lib/state/space';
+} from '$lib/state/server/roomDirectory.svelte';
+import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 import { RoomType } from '$lib/gql/graphql';
 
 const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({

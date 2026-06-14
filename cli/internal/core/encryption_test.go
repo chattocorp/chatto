@@ -72,15 +72,15 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, event)
 
-	// Post-#597 cutover: the body is embedded in the MessagePostedEvent
-	// payload, not stored separately in SERVER_BODIES. Inspect the
-	// embedded MessageBody directly.
-	stored := event.GetMessagePosted().GetBody()
-	require.NotNil(t, stored, "expected embedded body on the published event")
+	stored, retracted, ok := core.RoomTimeline.LatestBody(event.Id)
+	require.True(t, ok, "expected message to be projected")
+	require.False(t, retracted, "new message should not be retracted")
+	require.NotNil(t, stored, "expected projected body from MessageBodyEvent")
 	require.NotEmpty(t, stored.EncryptedBody, "encrypted body should not be empty")
 	require.NotEmpty(t, stored.EncryptionNonce, "nonce should not be empty")
 	require.Equal(t, encryption.EnvelopeVersionV2, stored.EncryptionVersion, "new messages should use v2 envelopes")
 	require.EqualValues(t, 1, stored.ContentKeyEpoch, "new messages should reference the active message-body DEK epoch")
+	require.NotEmpty(t, stored.BodyEventId, "new body-event-carried bodies should bind to their body event")
 
 	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
 	require.NoError(t, err)
@@ -98,6 +98,10 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotEmpty(t, storedContentKey.GetEncryptedContentKey(), "wrapped DEK should be stored in DEK storage")
 	require.NotEmpty(t, storedContentKey.GetContentKeyNonce(), "wrapped DEK nonce should be stored in DEK storage")
 	require.Equal(t, contentKeyEvent.GetWrappingKeyRef(), storedContentKey.GetWrappingKeyRef())
+	_, err = core.storage.runtimeStateKV.Get(ctx, contentKeyEvent.GetContentKeyRef())
+	require.NoError(t, err, "wrapped DEK should be stored in RUNTIME_STATE")
+	_, err = core.storage.encryptionKV.Get(ctx, contentKeyEvent.GetContentKeyRef())
+	require.Error(t, err, "wrapped DEK should not be stored in ENCRYPTION_KEYS")
 
 	// Verify we can read the message back (decrypted)
 	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
@@ -116,7 +120,9 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Bound to one event", nil, "", "", nil, false)
 	require.NoError(t, err)
-	stored := event.GetMessagePosted().GetBody()
+	stored, retracted, ok := core.RoomTimeline.LatestBody(event.Id)
+	require.True(t, ok)
+	require.False(t, retracted)
 	require.NotNil(t, stored)
 
 	plaintext, err := core.decryptMessageBody(ctx, event.Id, room.Id, stored)
@@ -128,6 +134,29 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 
 	_, err = core.decryptMessageBody(ctx, event.Id, "RtamperedRoomID", stored)
 	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+
+	t.Run("tampered body event ID", func(t *testing.T) {
+		tampered := proto.Clone(stored).(*corev1.MessageBody)
+		tampered.BodyEventId = "EtamperedBodyEventID"
+		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
+		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+	})
+
+	t.Run("tampered body nonce", func(t *testing.T) {
+		tampered := proto.Clone(stored).(*corev1.MessageBody)
+		tampered.EncryptionNonce = append([]byte(nil), tampered.GetEncryptionNonce()...)
+		tampered.EncryptionNonce[0] ^= 0xff
+		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
+		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+	})
+
+	t.Run("tampered ciphertext", func(t *testing.T) {
+		tampered := proto.Clone(stored).(*corev1.MessageBody)
+		tampered.EncryptedBody = append([]byte(nil), tampered.GetEncryptedBody()...)
+		tampered.EncryptedBody[0] ^= 0xff
+		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
+		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
+	})
 }
 
 func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
@@ -276,7 +305,7 @@ func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 	stored.WrappingKeyRef = storedWrappingKeyRef
 	data, err := proto.Marshal(stored)
 	require.NoError(t, err)
-	_, err = core.storage.encryptionKV.Put(ctx, contentKeyEvent.GetContentKeyRef(), data)
+	_, err = core.storage.runtimeStateKV.Put(ctx, contentKeyEvent.GetContentKeyRef(), data)
 	require.NoError(t, err)
 
 	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
@@ -328,7 +357,7 @@ func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
 	}})
 	seq, err := core.appendUserEvent(ctx, user.Id, event, "", nil)
 	require.NoError(t, err)
-	require.NoError(t, core.ContentKeysProjector.WaitForSeq(ctx, seq))
+	require.NoError(t, core.ContentKeysProjector.WaitFor(ctx, events.SubjectPosition(events.UserAggregate(user.Id).SubjectFor(event), seq)))
 
 	err = core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id)
 	require.ErrorIs(t, err, dekstore.ErrInvalidRef)
@@ -382,11 +411,12 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message body should be tombstoned by UserKeyShreddedEvent before decrypt")
 
-	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventAssetDeleted))
-	require.NoError(t, err)
-	require.Len(t, deletedEvents, 3)
 	deletedIDs := map[string]bool{}
-	for _, e := range deletedEvents {
+	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(att.Id).Subject(events.EventAssetDeleted))
+		require.NoError(t, err)
+		require.Len(t, deletedEvents, 1)
+		e := deletedEvents[0]
 		deletedIDs[e.GetAssetDeleted().GetAssetId()] = true
 	}
 	require.True(t, deletedIDs[original.Id], "source asset should get AssetDeletedEvent")
@@ -414,7 +444,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	deletedAvatar, err := core.GetUserAvatar(ctx, author.Id)
 	require.NoError(t, err)
 	require.Nil(t, deletedAvatar)
-	_, err = core.storage.serverStore.Get(ctx, avatar.Id)
+	_, err = core.storage.serverAssets.Get(ctx, avatar.Id)
 	require.Error(t, err, "avatar backing bytes should be deleted after key shred and account deletion")
 }
 

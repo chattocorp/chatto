@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -45,13 +48,153 @@ func TestChattoCore_PostMessage(t *testing.T) {
 		t.Errorf("MessagePosted.RoomId = %s, want %s", messagePosted.RoomId, room.Id)
 	}
 
-	// Body is now lazy-loaded, fetch it separately using messageBodyId
+	// Body is lazy-loaded from the body projection using the message event ID.
 	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, roomEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}
 	if fetchedBody != messageBody {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
+	}
+}
+
+func TestChattoCore_PostMessageRejectsAssetFromDifferentRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "crossasset-user", "Cross Asset User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sourceRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "source-assets", "Source")
+	if err != nil {
+		t.Fatalf("CreateRoom source: %v", err)
+	}
+	targetRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "target-assets", "Target")
+	if err != nil {
+		t.Fatalf("CreateRoom target: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, sourceRoom.Id); err != nil {
+		t.Fatalf("JoinRoom source: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, targetRoom.Id); err != nil {
+		t.Fatalf("JoinRoom target: %v", err)
+	}
+	attachment, err := core.UploadAttachment(ctx, user.Id, sourceRoom.Id, "cross-room.txt", "text/plain", bytes.NewReader([]byte("cross-room")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, targetRoom.Id, user.Id, "", []string{attachment.Id}, "", "", nil, false); err == nil {
+		t.Fatal("PostMessage with only a cross-room asset succeeded; want visible-content error")
+	}
+}
+
+func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "system", KindChannel, "", "edit-echo", "Edit echo")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	user, err := core.CreateUser(ctx, "system", "edit-echo-user", "Edit Echo User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+		t.Fatal("reply unexpectedly starts with a channel echo")
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited with echo", WithMessageChannelEcho(true)); err != nil {
+		t.Fatalf("EditMessage add echo: %v", err)
+	}
+	echoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("expected edit to create a channel echo")
+	}
+	echoText, err := core.GetMessageBody(ctx, KindChannel, echoID)
+	if err != nil {
+		t.Fatalf("Get echo body: %v", err)
+	}
+	if echoText != "reply edited with echo" {
+		t.Fatalf("echo body = %q, want edited body", echoText)
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited again"); err != nil {
+		t.Fatalf("EditMessage preserve echo: %v", err)
+	}
+	if gotEchoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
+		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply without echo", WithMessageChannelEcho(false)); err != nil {
+		t.Fatalf("EditMessage remove echo: %v", err)
+	}
+	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+		t.Fatal("expected echo to be hidden after unchecking")
+	}
+	replyText, err := core.GetMessageBody(ctx, KindChannel, reply.Id)
+	if err != nil {
+		t.Fatalf("Get reply body: %v", err)
+	}
+	if replyText != "reply without echo" {
+		t.Fatalf("reply body = %q, want latest edit", replyText)
+	}
+}
+
+func TestChattoCore_EditMessageRejectsInvalidEchoStateTargets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "system", KindChannel, "", "invalid-edit-echo", "Invalid edit echo")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	author, err := core.CreateUser(ctx, "system", "invalid-edit-echo-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "system", "invalid-edit-echo-other", "Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, other.Id, KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	if err := core.EditMessage(ctx, author.Id, KindChannel, room.Id, root.Id, "root edited", WithMessageChannelEcho(true)); err == nil {
+		t.Fatal("expected root message echo-state edit to fail")
+	}
+
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+	if err := core.EditMessage(ctx, other.Id, KindChannel, room.Id, reply.Id, "other edit", WithMessageChannelEcho(true)); !errors.Is(err, ErrNotMessageAuthor) {
+		t.Fatalf("expected ErrNotMessageAuthor, got %v", err)
+	}
+	if body, err := core.GetMessageBody(ctx, KindChannel, reply.Id); err != nil || body != "reply" {
+		t.Fatalf("invalid echo-state edit should not change body; body=%q err=%v", body, err)
 	}
 }
 
@@ -89,13 +232,13 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatal("expected local video processing request")
 	}
 
-	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(attachment.Id)
+	manifest, ok := core.Assets.VideoAttachmentManifest(attachment.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("expected AssetProcessingStarted manifest, got %+v", manifest)
 	}
 }
 
-func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
+func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -119,7 +262,7 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 		t.Fatal("Event should be a MessagePosted event")
 	}
 
-	// Verify the body can be fetched via GetMessageBody using messageBodyId
+	// Verify the body can be fetched via GetMessageBody using the message event ID.
 	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, roomEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
@@ -128,14 +271,9 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
 
-	// Post-#597 cutover: the body lives embedded in the event payload
-	// on the EVT stream, not in a separate SERVER_BODIES KV entry.
-	// Recover it through the projection-backed GetFullMessageBody and
-	// then verify the encryption envelope by peeking at the body
-	// embedded on the MessagePostedEvent we just received back.
-	storedBody := roomEvent.GetMessagePosted().GetBody()
-	if storedBody == nil {
-		t.Fatal("Expected message body to be embedded on the published event")
+	storedBody, retracted, ok := core.RoomTimeline.LatestBody(roomEvent.Id)
+	if !ok || retracted || storedBody == nil {
+		t.Fatal("Expected projected message body from MessageBodyEvent")
 	}
 
 	// Messages are always encrypted - verify encrypted fields are set
@@ -151,7 +289,9 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	if storedBody.ContentKeyEpoch != 1 {
 		t.Errorf("ContentKeyEpoch = %d, want 1", storedBody.ContentKeyEpoch)
 	}
-
+	if storedBody.BodyEventId == "" {
+		t.Error("BodyEventId should be set")
+	}
 	// Verify timestamps are set correctly
 	if storedBody.CreatedAt == nil {
 		t.Error("CreatedAt should be set")
@@ -159,6 +299,114 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	// UpdatedAt should be nil for new messages (only set when message is edited)
 	if storedBody.UpdatedAt != nil {
 		t.Error("UpdatedAt should be nil for new messages")
+	}
+}
+
+func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "bodyless-user", "Bodyless User", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "private body payload", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if posted.GetMessagePosted() == nil {
+		t.Fatal("expected MessagePostedEvent")
+	}
+
+	agg := events.RoomAggregate(room.Id)
+	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessageBody))
+	if err != nil {
+		t.Fatalf("SubjectEvents(message_body): %v", err)
+	}
+	if len(bodyEvents) != 1 {
+		t.Fatalf("message_body events = %d, want 1", len(bodyEvents))
+	}
+	bodyEvent := bodyEvents[0].GetMessageBody()
+	if bodyEvent == nil {
+		t.Fatal("expected MessageBodyEvent")
+	}
+	if bodyEvent.GetEventId() != posted.Id {
+		t.Fatalf("MessageBodyEvent.event_id = %q, want %q", bodyEvent.GetEventId(), posted.Id)
+	}
+	if bodyEvent.GetBody().GetBodyEventId() != bodyEvents[0].GetId() {
+		t.Fatalf("body_event_id = %q, want body envelope id %q", bodyEvent.GetBody().GetBodyEventId(), bodyEvents[0].GetId())
+	}
+
+	postEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	if err != nil {
+		t.Fatalf("SubjectEvents(message_posted): %v", err)
+	}
+	if len(postEvents) != 1 || postEvents[0].GetMessagePosted() == nil {
+		t.Fatalf("message_posted event should exist: %+v", postEvents)
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited private body payload"); err != nil {
+		t.Fatalf("EditMessage: %v", err)
+	}
+	editEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessageEdited))
+	if err != nil {
+		t.Fatalf("SubjectEvents(message_edited): %v", err)
+	}
+	if len(editEvents) != 1 {
+		t.Fatalf("message_edited events = %d, want 1", len(editEvents))
+	}
+	if editEvents[0].GetMessageEdited() == nil {
+		t.Fatal("expected MessageEditedEvent")
+	}
+	body, err := core.GetMessageBody(ctx, KindChannel, posted.Id)
+	if err != nil {
+		t.Fatalf("GetMessageBody: %v", err)
+	}
+	if body != "edited private body payload" {
+		t.Fatalf("body = %q, want edited content", body)
+	}
+}
+
+func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "secure-delete-user", "Secure Delete User", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "original", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	seqs, current, ok := core.RoomTimeline.BodyEventSeqs(posted.Id)
+	if !ok || len(seqs) != 1 || current == 0 {
+		t.Fatalf("BodyEventSeqs after post = (%v, %d, %v), want one current body event", seqs, current, ok)
+	}
+	originalSeq := current
+	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); err != nil {
+		t.Fatalf("original body event should exist before edit: %v", err)
+	}
+
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited"); err != nil {
+		t.Fatalf("EditMessage: %v", err)
+	}
+	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
+		t.Fatalf("original body event after edit error = %v, want ErrMsgNotFound", err)
+	}
+	_, editedSeq, ok := core.RoomTimeline.BodyEventSeqs(posted.Id)
+	if !ok || editedSeq == 0 || editedSeq == originalSeq {
+		t.Fatalf("current body seq after edit = %d (ok=%v), want new seq", editedSeq, ok)
+	}
+	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); err != nil {
+		t.Fatalf("edited body event should exist before delete: %v", err)
+	}
+
+	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, posted.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
+		t.Fatalf("edited body event after delete error = %v, want ErrMsgNotFound", err)
 	}
 }
 
@@ -269,6 +517,117 @@ func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
 			t.Errorf("Expected ErrMessageTooLong, got: %v", err)
 		}
 	})
+}
+
+func TestChattoCore_EditMessage_BodyTooLong(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "editlength", "editlength", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "original", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	t.Run("edit at max length succeeds", func(t *testing.T) {
+		if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, strings.Repeat("a", MaxMessageBodyLength)); err != nil {
+			t.Fatalf("EditMessage at max length: %v", err)
+		}
+	})
+
+	t.Run("edit over max length fails", func(t *testing.T) {
+		err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, strings.Repeat("a", MaxMessageBodyLength+1))
+		if !errors.Is(err, ErrMessageTooLong) {
+			t.Fatalf("EditMessage error = %v, want ErrMessageTooLong", err)
+		}
+	})
+}
+
+func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Previews", "Preview discussion")
+	user, _ := core.CreateUser(ctx, "system", "previewuser", "previewuser", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	t.Run("link preview at max lengths succeeds", func(t *testing.T) {
+		embedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength)
+		imageAssetID := strings.Repeat("a", MaxLinkPreviewImageAssetIDLength)
+		preview := &corev1.LinkPreview{
+			Url:          strings.Repeat("u", MaxLinkPreviewURLLength),
+			Title:        strings.Repeat("t", MaxLinkPreviewTitleLength),
+			Description:  strings.Repeat("d", MaxLinkPreviewDescriptionLength),
+			ImageAssetId: &imageAssetID,
+			SiteName:     strings.Repeat("s", MaxLinkPreviewSiteNameLength),
+			EmbedType:    strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
+			EmbedId:      &embedID,
+		}
+		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", preview, false); err != nil {
+			t.Fatalf("PostMessage with max-length link preview: %v", err)
+		}
+	})
+
+	overLimitEmbedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength+1)
+	overLimitImageAssetID := strings.Repeat("a", MaxLinkPreviewImageAssetIDLength+1)
+	tests := []struct {
+		name    string
+		preview *corev1.LinkPreview
+		field   string
+		max     int
+	}{
+		{
+			name:    "URL",
+			preview: &corev1.LinkPreview{Url: strings.Repeat("u", MaxLinkPreviewURLLength+1)},
+			field:   "link preview URL",
+			max:     MaxLinkPreviewURLLength,
+		},
+		{
+			name:    "title",
+			preview: &corev1.LinkPreview{Title: strings.Repeat("t", MaxLinkPreviewTitleLength+1)},
+			field:   "link preview title",
+			max:     MaxLinkPreviewTitleLength,
+		},
+		{
+			name:    "description",
+			preview: &corev1.LinkPreview{Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength+1)},
+			field:   "link preview description",
+			max:     MaxLinkPreviewDescriptionLength,
+		},
+		{
+			name:    "image asset ID",
+			preview: &corev1.LinkPreview{ImageAssetId: &overLimitImageAssetID},
+			field:   "link preview image asset ID",
+			max:     MaxLinkPreviewImageAssetIDLength,
+		},
+		{
+			name:    "site name",
+			preview: &corev1.LinkPreview{SiteName: strings.Repeat("s", MaxLinkPreviewSiteNameLength+1)},
+			field:   "link preview site name",
+			max:     MaxLinkPreviewSiteNameLength,
+		},
+		{
+			name:    "embed type",
+			preview: &corev1.LinkPreview{EmbedType: strings.Repeat("e", MaxLinkPreviewEmbedTypeLength+1)},
+			field:   "link preview embed type",
+			max:     MaxLinkPreviewEmbedTypeLength,
+		},
+		{
+			name:    "embed ID",
+			preview: &corev1.LinkPreview{EmbedId: &overLimitEmbedID},
+			field:   "link preview embed ID",
+			max:     MaxLinkPreviewEmbedIDLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", tt.preview, false)
+			assertStringLengthError(t, err, tt.field, tt.max)
+		})
+	}
 }
 
 // TestChattoCore_PostMessage_InvisibleChars tests that messages with only invisible Unicode

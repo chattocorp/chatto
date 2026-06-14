@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-13
 
 ## Overview
 
@@ -15,8 +15,12 @@ Chatto controls who can do what through role-based access control. Every authent
 - Permission grants/denies can be configured at three scopes: per-server (the role default), per room-group, and per room. The most specific scope wins.
 - Permissions gate capabilities, not every form of visibility. For example, DM read access comes from room membership, while `message.post` gates starting DMs and sending root DM messages.
 - Server admins can drag-and-drop to reorder custom roles. System roles are fixed in rank.
+- Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners pass every permission check because the `owner` role is seeded with every server-scope permission — not because the resolver special-cases them. Owners are not above the rules; they hold the rules.
 - Operators can designate owners via `owners.emails` in `chatto.toml`. Matching users are auto-assigned the `owner` role when their email is verified, and already-verified matching users are assigned the role on server boot.
+- GraphQL RBAC editor and inspection queries live under `Query.admin.rbac`. `Query.admin` is an authenticated namespace; the RBAC fields keep their narrower gates such as `role.manage` or `room.manage`.
+- Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
+- User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
 
 ## Design Decisions
 
@@ -52,15 +56,23 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 6. Rank gates target-user mutations, in addition to permissions
 
-**Decision:** Mutations that target another user (rename, role assignment, profile edits) require both the relevant permission **and** that the actor outrank the target.
-**Why:** Otherwise a rogue moderator with `role.assign` could rename the owner. Permission asks "can this role do X at all?"; rank asks "does the actor outrank this specific target?". Both are needed.
+**Decision:** Mutations that target another user (rename, role assignment, profile edits, room member bans) require both the relevant permission **and** that the actor outrank the target.
+**Why:** Otherwise a rogue moderator with `role.assign` could rename the owner, or one with `room.ban-member` could ban a peer from a channel. Permission asks "can this role do X at all?"; rank asks "does the actor outrank this specific target?". Both are needed.
 **Tradeoff:** Two-step checks are more code than a single permission lookup, and easy to forget when adding new mutations. Helpers (`requireUserAdminTarget`, `requireUserPermissionTarget`) exist to keep call sites uniform.
 
 ### 7. RBAC state is event-sourced
 
 **Decision:** Role definitions, role order, assignments, and explicit permission decisions are durable events, with reads served from an in-memory RBAC projection.
-**Why:** This aligns RBAC with the rest of Chatto's event-sourced migration and makes authorization reads rebuildable from the deployment event log. See ADR-033 and ADR-035.
+**Why:** This aligns RBAC with Chatto's current event-sourced architecture and makes authorization reads rebuildable from the deployment event log. See ADR-033 and ADR-035.
 **Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes.
+
+User-triggered RBAC events are audit facts as well as state facts, so their event envelope actor is the user who performed the operation. Core APIs still accept `SystemActorID` for trusted non-user paths such as bootstrapping default roles and permissions.
+
+### 8. Permission-decision events carry typed scope and subject
+
+**Decision:** Permission grant/deny/clear events store `scope` as `{kind, id}` (`SERVER`, `GROUP`, `ROOM`) and `subject` as `{kind, id}` (`ROLE`, `USER`).
+**Why:** The old flattened fields made role/user permission subjects indistinguishable and relied on string conventions for scope. The typed shape freezes the domain model before beta and prevents future role IDs from colliding with user IDs.
+**Tradeoff:** Event constructors do a little more validation, and compatibility readers for older persisted event shapes have to infer subject kind from legacy wire fields.
 
 ## Permissions
 
@@ -68,8 +80,10 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 - `role.manage` — create, edit, delete roles and the permissions attached to them.
 - `role.assign` — assign roles to users.
-- `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate access to the admin UI and its sub-views.
+- `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission.
 - `message.post` — post root messages in rooms and start DMs. Reading DMs is not permission-gated; it follows room membership.
+- `room.manage` — edit/configure/delete channel rooms.
+- `room.ban-member` — ban lower-ranked members from channel rooms. DM membership is not managed through this permission.
 
 ## Related
 

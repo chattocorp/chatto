@@ -15,17 +15,25 @@ import type { PresenceStatus } from '$lib/gql/graphql';
  */
 export class PresenceCache {
   #entries = new SvelteMap<string, PresenceStatus>();
+  #version = $state(0);
 
   update(userId: string, status: PresenceStatus) {
     this.#entries.set(userId, status);
+    this.#version++;
   }
 
   clear() {
     this.#entries.clear();
+    this.#version++;
   }
 
   get(userId: string, fallback: PresenceStatus): PresenceStatus {
+    void this.#version;
     return this.#entries.get(userId) ?? fallback;
+  }
+
+  get version() {
+    return this.#version;
   }
 }
 

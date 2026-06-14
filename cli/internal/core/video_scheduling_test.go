@@ -85,7 +85,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 			t.Fatalf("schedule: %v", err)
 		}
 
-		manifest, ok := core.RoomTimeline.VideoAttachmentManifest(att.Id)
+		manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
 		if !ok || manifest.Started == nil {
 			t.Fatalf("manifest = %+v, want Started", manifest)
 		}
@@ -121,7 +121,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 			t.Fatalf("schedule: %v", err)
 		}
 
-		manifest, ok := core.RoomTimeline.VideoAttachmentManifest(att.Id)
+		manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
 		if !ok || manifest.Failed == nil {
 			t.Fatalf("manifest = %+v, want Failed", manifest)
 		}
@@ -165,7 +165,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	pending := core.RoomTimeline.UnmanifestedVideoAttachments()
+	pending := core.assetLifecycle().UnmanifestedVideoAttachments()
 	if len(pending) != 1 || pending[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments = %+v, want %q", pending, att.Id)
 	}
@@ -185,11 +185,11 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 	}
 
 	// ...and it must leave a Started marker so a second recovery is a no-op.
-	manifest, ok := core.RoomTimeline.VideoAttachmentManifest(att.Id)
+	manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)
 	}
-	if got := core.RoomTimeline.UnmanifestedVideoAttachments(); len(got) != 0 {
+	if got := core.assetLifecycle().UnmanifestedVideoAttachments(); len(got) != 0 {
 		t.Fatalf("UnmanifestedVideoAttachments after recovery = %+v, want none", got)
 	}
 }

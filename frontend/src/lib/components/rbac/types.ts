@@ -10,6 +10,7 @@ export type Role = {
   permissionDenials: string[];
   isSystem: boolean;
   position: number;
+  pingable: boolean;
 };
 
 export type PermissionState = 'allow' | 'deny' | 'neutral';

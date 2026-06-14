@@ -82,6 +82,7 @@ test.describe('Admin Access Control', () => {
 
     // Should see access denied message
     await adminPage.expectAccessDenied();
+    await adminPage.expectAdminGearNotVisible();
     await expect(
       page.getByText('You do not have permission to access this page.')
     ).toBeVisible();
@@ -104,29 +105,29 @@ test.describe('Admin Access Control', () => {
   });
 });
 
-test.describe('Admin Dashboard', () => {
-  test('admin users can access the dashboard', async ({ page, adminPage }) => {
+test.describe('Admin General Page', () => {
+  test('admin users can access the default admin destination', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.goto();
 
-    // Should see the dashboard
-    await adminPage.expectDashboardVisible();
+    // Should see the General settings page
+    await adminPage.expectGeneralPageVisible();
+
+    // Admin pages use their own sidebar and highlight the current page.
+    await adminPage.expectBackToChatVisible();
+    await adminPage.expectSidebarLinkActive('General');
 
     // Should see the sidebar navigation
     await adminPage.expectSidebarNavVisible();
-
-    // Should see the back to chat link
-    await adminPage.expectBackToChatVisible();
   });
 
-  test('dashboard shows user and space counts', async ({ page, adminPage }) => {
+  test('default admin destination shows General settings', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.goto();
 
-    // Wait for stats to load
-    await adminPage.expectDashboardStatsVisible();
+    await adminPage.expectGeneralPageVisible();
   });
 });
 
@@ -157,7 +158,7 @@ test.describe('Admin Users Page', () => {
 });
 
 // Admin Spaces page retired in PR(a) — instance metadata is managed via the
-// Server Admin → General page now; the dashboard no longer has a "spaces" tier.
+// Server Admin → General page now; the old spaces tier is gone.
 
 test.describe('Admin System Page', () => {
   test('admin can view system information', async ({ page, adminPage }) => {
@@ -177,6 +178,28 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
+  test('server header gear opens the first permitted admin page', async ({ page, adminPage }) => {
+    await createAndLoginAdminUser(page);
+
+    await page.goto(routes.space());
+
+    await adminPage.expectAdminGearVisible();
+    await adminPage.navigateToAdminViaGear();
+    await adminPage.expectGeneralPageVisible();
+    await adminPage.expectBackToChatVisible();
+    await adminPage.expectSidebarLinkActive('General');
+  });
+
+  test('admin pages use the dedicated server-admin sidebar shell', async ({ page, adminPage }) => {
+    await createAndLoginAdminUser(page);
+
+    await adminPage.gotoUsers();
+
+    await adminPage.expectUsersPageVisible();
+    await adminPage.expectBackToChatVisible();
+    await adminPage.expectSidebarLinkActive('Users');
+  });
+
   test('sidebar navigation works correctly', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
@@ -190,9 +213,9 @@ test.describe('Admin Navigation', () => {
     await adminPage.navigateToSystem();
     await adminPage.expectSystemPageVisible();
 
-    // Navigate back to Dashboard
-    await adminPage.navigateToDashboard();
-    await adminPage.expectDashboardVisible();
+    // Navigate back to General
+    await adminPage.navigateToGeneral();
+    await adminPage.expectGeneralPageVisible();
   });
 
   test('back to chat link works', async ({ page, adminPage }) => {
@@ -212,10 +235,10 @@ test.describe('Admin Granular Permissions', () => {
     // Reset all potentially modified everyone role permissions.
     // Uses page.request which maintains the admin session cookies.
     const permissions = [
-      'admin.access',
       'admin.view-users',
       'admin.view-system',
-      'admin.view-roles'
+      'role.manage',
+      'room.manage'
     ];
 
     for (const permission of permissions) {
@@ -232,10 +255,13 @@ test.describe('Admin Granular Permissions', () => {
     }
   });
 
-  test('user with admin permission can access dashboard', async ({ page, browser }) => {
-    // First, as admin, grant admin.access to everyone role
+  test('user with a concrete admin capability can access their admin section', async ({
+    page,
+    browser
+  }) => {
+    // First, as admin, grant an admin-view capability to everyone role.
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.view-users');
 
     // Now create a regular user and try to access admin
     const regularContext = await browser.newContext();
@@ -243,23 +269,26 @@ test.describe('Admin Granular Permissions', () => {
     const regularAdminPage = new AdminPage(regularPage);
     await createAndLoginTestUser(regularPage);
 
-    await regularAdminPage.goto();
+    await regularAdminPage.gotoUsers();
 
-    // Should see the dashboard (not access denied)
-    await regularAdminPage.expectDashboardVisible();
+    // Should see the permitted section (not access denied) and the dedicated
+    // admin sidebar should only expose their allowed links.
+    await regularAdminPage.expectUsersPageVisible();
+    await regularAdminPage.expectSidebarLinkVisible('Users');
+    await regularAdminPage.expectSidebarLinkActive('Users');
 
     // Clean up: revoke the permission
-    await revokePermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.view-users');
     await regularContext.close();
   });
 
-  test('user with admin but without admin.view-users sees limited nav items', async ({
+  test('user with room.manage but without admin.view-users sees limited nav items', async ({
     page,
     browser
   }) => {
-    // Grant only admin.access to everyone role
+    // Grant only a non-user admin capability to everyone role.
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'room.manage');
 
     // Create regular user and access admin
     const regularContext = await browser.newContext();
@@ -267,24 +296,22 @@ test.describe('Admin Granular Permissions', () => {
     const regularAdminPage = new AdminPage(regularPage);
     await createAndLoginTestUser(regularPage);
 
-    await regularAdminPage.goto();
+    await regularPage.goto(routes.serverAdminRooms);
 
-    // Should see dashboard in nav
-    await regularAdminPage.expectSidebarLinkVisible('Dashboard');
+    // Should see their concrete admin section in nav
+    await regularAdminPage.expectSidebarLinkVisible('Rooms');
 
     // Should NOT see Users, System (no permissions for those)
     await regularAdminPage.expectSidebarLinkNotVisible('Users');
     await regularAdminPage.expectSidebarLinkNotVisible('System');
 
     // Clean up
-    await revokePermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'room.manage');
     await regularContext.close();
   });
 
   test('user with admin.view-users permission can see users list', async ({ page, browser }) => {
-    // Grant admin.access and admin.view-users to everyone role
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
     await grantPermission(page, 'everyone', 'admin.view-users');
 
     // Create regular user
@@ -302,7 +329,6 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectUserCountVisible();
 
     // Clean up
-    await revokePermission(page, 'everyone', 'admin.access');
     await revokePermission(page, 'everyone', 'admin.view-users');
     await regularContext.close();
   });
@@ -311,9 +337,7 @@ test.describe('Admin Granular Permissions', () => {
     page,
     browser
   }) => {
-    // Grant only admin (not admin.view-users)
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
 
     // Create regular user
     const regularContext = await browser.newContext();
@@ -326,17 +350,14 @@ test.describe('Admin Granular Permissions', () => {
     // Should see access denied with the specific permission mentioned
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-users');
 
-    // Clean up
-    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
-  test('user without admin.view-system sees access denied on /chat/-/admin/system', async ({
+  test('non-owner sees access denied on /chat/-/admin/system', async ({
     page,
     browser
   }) => {
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
@@ -347,7 +368,6 @@ test.describe('Admin Granular Permissions', () => {
 
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
 
-    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
@@ -356,7 +376,6 @@ test.describe('Admin Granular Permissions', () => {
     browser
   }) => {
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
@@ -367,14 +386,14 @@ test.describe('Admin Granular Permissions', () => {
 
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-roles');
 
-    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
-  test('user with admin.view-system permission can see system page', async ({ page, browser }) => {
-    // Grant admin and admin.view-system
+  test('user with admin.view-system permission still cannot see owner-only system page', async ({
+    page,
+    browser
+  }) => {
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
     await grantPermission(page, 'everyone', 'admin.view-system');
 
     const regularContext = await browser.newContext();
@@ -384,36 +403,34 @@ test.describe('Admin Granular Permissions', () => {
 
     await regularAdminPage.gotoSystem();
 
-    await regularAdminPage.expectSystemPageVisible();
-    await regularAdminPage.expectSystemConnected();
+    await regularAdminPage.expectAccessDeniedForPermission('owner');
 
     // Clean up
-    await revokePermission(page, 'everyone', 'admin.access');
     await revokePermission(page, 'everyone', 'admin.view-system');
     await regularContext.close();
   });
 
   // Note: a read-only view of the roles page (admin.view-roles without
   // admin.manage-roles) was removed when the UI moved from a per-role
-  // editor to the unified matrix. The matrix's tierRoles query gates on
+  // editor to the unified matrix. The matrix's rolePermissionTierMatrix query gates on
   // instance admin / role.manage, so view-roles alone is currently not
   // sufficient to render the page. Re-add the test once the matrix grows
   // a read-only mode.
 
   test('nav items dynamically update based on granted permissions', async ({ page, browser }) => {
-    // Start with only admin
+    // Start with one concrete admin capability.
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'room.manage');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
     const regularAdminPage = new AdminPage(regularPage);
     await createAndLoginTestUser(regularPage);
 
-    await regularAdminPage.goto();
+    await regularPage.goto(routes.serverAdminRooms);
 
-    // Initially should only see Dashboard
-    await regularAdminPage.expectSidebarLinkVisible('Dashboard');
+    // Initially should only see the room management section
+    await regularAdminPage.expectSidebarLinkVisible('Rooms');
     await regularAdminPage.expectSidebarLinkNotVisible('Users');
 
     // Now grant admin.view-users permission as admin
@@ -423,13 +440,14 @@ test.describe('Admin Granular Permissions', () => {
     await regularPage.reload();
     await regularAdminPage.expectSidebarLinkVisible('Users');
 
-    // Grant admin.view-system
+    // Grant admin.view-system. System diagnostics remain owner-only for now,
+    // so this permission alone must not reveal the route.
     await grantPermission(page, 'everyone', 'admin.view-system');
     await regularPage.reload();
-    await regularAdminPage.expectSidebarLinkVisible('System');
+    await regularAdminPage.expectSidebarLinkNotVisible('System');
 
     // Clean up
-    await revokePermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'room.manage');
     await revokePermission(page, 'everyone', 'admin.view-users');
     await revokePermission(page, 'everyone', 'admin.view-system');
     await regularContext.close();
@@ -454,7 +472,10 @@ test.describe('User Permission Management', () => {
     ).toBeVisible();
   });
 
-  test('granting a role with admin.access gives user admin access', async ({ page, browser }) => {
+  test('granting a role with admin.view-users gives user admin access', async ({
+    page,
+    browser
+  }) => {
     await createAndLoginAdminUser(page);
 
     // Create a regular user
@@ -464,18 +485,18 @@ test.describe('User Permission Management', () => {
     const regularUser = await createAndLoginTestUser(regularPage);
 
     // Regular user should NOT have admin access initially
-    await regularAdminPage.goto();
+    await regularAdminPage.gotoUsers();
     await expect(regularPage.getByText('Access Denied', { exact: true })).toBeVisible();
 
-    // Create a role with admin.access and assign it to the user (via API as admin)
+    // Create a role with an admin-view capability and assign it to the user.
     const roleName = generateRoleName('grant');
     await createRoleViaAPI(page, roleName, 'Grant Admin');
-    await grantPermission(page, roleName, 'admin.access');
+    await grantPermission(page, roleName, 'admin.view-users');
     await assignRoleViaAPI(page, regularUser.id!, roleName);
 
     // Regular user should now have admin access
     await regularPage.reload();
-    await regularAdminPage.expectDashboardVisible();
+    await regularAdminPage.expectUsersPageVisible();
 
     // Clean up
     await revokeRoleViaAPI(page, regularUser.id!, roleName);

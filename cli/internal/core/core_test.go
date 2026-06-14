@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -56,7 +55,7 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 // startCoreServices runs ChattoCore's background services (PresenceHub +
 // projectors) for the duration of a test. Required because membership
-// mutations call WaitForSeq, and StreamMyEvents depends on PresenceHub —
+// mutations call WaitFor, and StreamMyEvents depends on PresenceHub —
 // neither works without the corresponding loop running.
 //
 // Once `core.Run` owns the lifecycle of every background service, new
@@ -102,44 +101,6 @@ func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {
 	return info.State.Msgs
 }
 
-func ensureLegacyKeyValue(t *testing.T, core *ChattoCore, bucket string) jetstream.KeyValue {
-	t.Helper()
-	ctx := testContext(t)
-	kv, err := core.js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:  bucket,
-		Storage: jetstream.FileStorage,
-	})
-	if err != nil {
-		t.Fatalf("create legacy %s KV: %v", bucket, err)
-	}
-	return kv
-}
-
-func ensureLegacyServerRuntimeKV(t *testing.T, core *ChattoCore) jetstream.KeyValue {
-	t.Helper()
-	kv := ensureLegacyKeyValue(t, core, "SERVER_RUNTIME")
-	core.storage.serverRuntimeKV = kv
-	return kv
-}
-
-func ensureLegacyServerConfigKV(t *testing.T, core *ChattoCore) jetstream.KeyValue {
-	t.Helper()
-	kv := ensureLegacyKeyValue(t, core, "SERVER_CONFIG")
-	core.storage.serverConfigKV = kv
-	return kv
-}
-
-func assertLegacyKeyAbsent(t *testing.T, kv jetstream.KeyValue, key, label string) {
-	t.Helper()
-	if kv == nil {
-		return
-	}
-	ctx := testContext(t)
-	if _, err := kv.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Fatalf("%s lookup error = %v, want ErrKeyNotFound", label, err)
-	}
-}
-
 func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
@@ -176,54 +137,11 @@ func TestNewChattoCore_DoesNotProvisionLegacyImportResourcesOnFreshBoot(t *testi
 	if _, err := core.js.Stream(ctx, "SERVER_EVENTS"); !errors.Is(err, jetstream.ErrStreamNotFound) {
 		t.Fatalf("legacy stream SERVER_EVENTS lookup error = %v, want ErrStreamNotFound", err)
 	}
-}
-
-func TestNewChattoCore_CopiesLegacyCallStateToMemoryCache(t *testing.T) {
-	_, nc := testutil.StartNATS(t)
-	ctx := testContext(t)
-	js, err := jetstream.New(nc)
-	if err != nil {
-		t.Fatalf("jetstream: %v", err)
+	if _, err := core.js.ObjectStore(ctx, "INSTANCE_ASSETS"); !errors.Is(err, jetstream.ErrBucketNotFound) {
+		t.Fatalf("legacy object store INSTANCE_ASSETS lookup error = %v, want ErrBucketNotFound", err)
 	}
-
-	legacy, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:  "CALL_STATE",
-		Storage: jetstream.MemoryStorage,
-		History: 1,
-	})
-	if err != nil {
-		t.Fatalf("create legacy CALL_STATE: %v", err)
-	}
-	state := callState{Participants: []CallParticipant{{
-		UserID:      "user-1",
-		DisplayName: "Alice",
-		Login:       "alice",
-		JoinedAt:    123,
-	}}}
-	data, err := json.Marshal(&state)
-	if err != nil {
-		t.Fatalf("marshal call state: %v", err)
-	}
-	if _, err := legacy.Put(ctx, legacyCallStateKey("channel", "room-1"), data); err != nil {
-		t.Fatalf("put legacy call state: %v", err)
-	}
-
-	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
-		SecretKey: "test-core-secret",
-		Assets: config.AssetsConfig{
-			SigningSecret: "test-signing-secret",
-		},
-	})
-	if err != nil {
-		t.Fatalf("NewChattoCore: %v", err)
-	}
-
-	participants, err := core.GetCallParticipants(ctx, "channel", "room-1")
-	if err != nil {
-		t.Fatalf("GetCallParticipants: %v", err)
-	}
-	if len(participants) != 1 || participants[0].UserID != "user-1" {
-		t.Fatalf("participants = %+v, want copied legacy participant user-1", participants)
+	if _, err := core.js.ObjectStore(ctx, "SERVER_ASSETS"); err != nil {
+		t.Fatalf("SERVER_ASSETS lookup error = %v", err)
 	}
 }
 
@@ -641,7 +559,7 @@ func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyEvents(subCtx, user.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents failed: %v", err)
 	}
@@ -722,7 +640,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyEvents(subCtx, user1.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user1.Id, 0)
 	if err != nil {
 		t.Fatalf("StreamMyEvents failed: %v", err)
 	}
@@ -775,7 +693,7 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 	ctx := testContext(t)
 
 	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
-		Subject: "live.sync.config.updated",
+		Subject: "live.sync.config.server_updated",
 	}, &corev1.LiveEvent{
 		Id:      "LIVE-empty",
 		ActorId: "U1",

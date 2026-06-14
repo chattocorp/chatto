@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/auth_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/message_events.proto";
+import "chatto/core/v1/moderation_events.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
@@ -50,8 +51,8 @@ message Event {
   // ID of the user who triggered this event.
   string actor_id = 3;
 
-  reserved 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
-  reserved "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
+  reserved 500, 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
+  reserved "server_config_changed", "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
   reserved "sequence_id";
 
@@ -76,7 +77,13 @@ message Event {
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;
     UserLeftRoomEvent user_left_room = 311;
-    SpaceMemberDeletedEvent space_member_deleted = 320;
+    ServerMemberDeletedEvent server_member_deleted = 320;
+
+    // ----- Voice calls (330-339, durable room facts) -----
+    CallParticipantJoinedEvent voice_call_participant_joined = 330;
+    CallParticipantLeftEvent voice_call_participant_left = 331;
+    CallStartedEvent voice_call_started = 332;
+    CallEndedEvent voice_call_ended = 333;
 
     // ----- Messages (400-424) -----
     MessagePostedEvent message_posted = 400;
@@ -86,6 +93,7 @@ message Event {
     MessageEditedEvent message_edited = 401;
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
+    MessageBodyEvent message_body = 404;
 
     // ----- Threads (425-449, durable, room-owned) -----
     ThreadCreatedEvent thread_created = 425;
@@ -101,11 +109,9 @@ message Event {
     AssetDeletedEvent asset_deleted = 454;
 
     // ----- Config / preferences (500-599, durable) -----
-    // Distinct from ServerConfigUpdatedEvent at 1000, which is the
-    // legacy live-only GraphQL adapter payload. The durable variants
-    // below live on the EVT stream (subjects under evt.config.>) per
-    // ADRs 033/034/035.
-    ServerConfigChangedEvent server_config_changed = 500; // legacy snapshot event, decode-only.
+    // These variants live on the EVT stream (subjects under evt.config.>)
+    // per ADRs 033/034/035. Member-visible server profile/config live
+    // invalidation uses LiveEvent.ServerUpdatedEvent instead.
     ServerNameChangedEvent server_name_changed = 501;
     ServerDescriptionChangedEvent server_description_changed = 502;
     ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;
@@ -172,12 +178,18 @@ message Event {
     RbacPermissionGrantedEvent rbac_permission_granted = 810;
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
+    RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
+
+    // ----- Moderation (840-899, durable, room-owned) -----
+    RoomMemberBannedEvent room_member_banned = 840;
+    RoomMemberUnbannedEvent room_member_unbanned = 841;
 
     // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
-    // These facts are intentionally minimal: no raw token, link, IP address,
-    // password, auth code, bearer token, or unhashed email is persisted in EVT.
-    RegistrationLinkIssuedEvent registration_link_issued = 900;
-    EmailVerificationLinkIssuedEvent email_verification_link_issued = 901;
+    // These facts are intentionally minimal: no raw token, verification code,
+    // link, IP address, password, auth code, bearer token, OAuth redirect URI,
+    // or unhashed email is persisted in EVT.
+    RegistrationVerificationCodeIssuedEvent registration_verification_code_issued = 900;
+    EmailVerificationCodeIssuedEvent email_verification_code_issued = 901;
     PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
     AccountDeletionConfirmationIssuedEvent account_deletion_confirmation_issued = 903;
     PasswordResetCompletedEvent password_reset_completed = 904;
@@ -189,6 +201,8 @@ message Event {
     AuthCodeExchangeFailedEvent auth_code_exchange_failed = 910;
     BearerTokenIssuedEvent bearer_token_issued = 911;
     BearerTokenRevokedEvent bearer_token_revoked = 912;
+    OAuthConsentGrantedEvent oauth_consent_granted = 913;
+    OAuthConsentDeniedEvent oauth_consent_denied = 914;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

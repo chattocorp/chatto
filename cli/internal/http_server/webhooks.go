@@ -37,6 +37,11 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		c.Status(http.StatusOK)
 		return
 	}
+	if !liveKitWebhookRoomBelongsToInstance(event.Room.Name, s.config.LiveKit.ServerID) {
+		logger.Warn("Ignoring LiveKit webhook for foreign room", "room", event.Room.Name, "instance", s.config.LiveKit.ServerID)
+		c.Status(http.StatusOK)
+		return
+	}
 	spaceID, roomID := core.ParseLiveKitRoomName(event.Room.Name)
 	if spaceID == "" || roomID == "" {
 		logger.Warn("Unrecognized LiveKit room name", "name", event.Room.Name)
@@ -79,4 +84,12 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func liveKitWebhookRoomBelongsToInstance(roomName, instanceID string) bool {
+	roomInstanceID := core.ParseLiveKitRoomServerID(roomName)
+	if instanceID == "" {
+		return roomInstanceID == ""
+	}
+	return roomInstanceID == instanceID
 }

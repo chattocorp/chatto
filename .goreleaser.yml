@@ -1,10 +1,6 @@
 version: 2
 project_name: chatto
 
-before:
-  hooks:
-    - mise build-frontend
-
 builds:
   - env:
       - CGO_ENABLED=0
@@ -46,6 +42,8 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
+      - "--cache-from=type=gha,scope=chatto-backend-amd64"
+      - "--cache-to=type=gha,scope=chatto-backend-amd64,mode=max"
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
@@ -60,6 +58,8 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
+      - "--cache-from=type=gha,scope=chatto-backend-arm64"
+      - "--cache-to=type=gha,scope=chatto-backend-arm64,mode=max"
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"

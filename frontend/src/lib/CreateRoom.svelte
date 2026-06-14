@@ -7,7 +7,7 @@
     groupId,
     onroomcreated
   }: {
-    /** When provided, the new room is placed into this set. */
+    /** The room group the new channel room is placed into. */
     groupId?: string;
     onroomcreated?: (roomId: string) => void;
   } = $props();
@@ -37,6 +37,12 @@
     submitError = '';
 
     try {
+      const targetGroupId = groupId;
+      if (!targetGroupId) {
+        submitError = 'Choose a room group before creating a room.';
+        return;
+      }
+
       const result = await connection()
         .client.mutation(
           graphql(`
@@ -52,7 +58,7 @@
             input: {
               name: values.name.trim(),
               description: values.description.trim() || undefined,
-              groupId: groupId ?? undefined
+              groupId: targetGroupId
             }
           }
         )

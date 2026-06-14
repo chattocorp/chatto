@@ -2,6 +2,10 @@
 
 **Date:** 2026-05-24
 
+**Status update:** The 0.1.x event-sourcing rollout has completed across the
+existing Chatto servers, and the pre-0.1 boot importers plus ES boot verifier
+were removed on 2026-06-12.
+
 ## Context
 
 The move to event sourcing ([ADR-033](ADR-033-event-sourced-state-with-projections.md)) cannot ship as a single big-bang change. Chatto has live deployments with real user data; migration must preserve every record. There are also too many aggregates (rooms, memberships, users, RBAC, threads, reactions, read state, messages, …) to migrate atomically, and each has its own quirks (encryption, bulk operations, cross-references).
@@ -34,24 +38,24 @@ the riskiest part of the migration. The actual rollout model is:
 
 1. **Define event types.** Add or reuse protobuf event types in `proto/`. Existing types (`UserJoinedRoom`, `UserLeftRoom`, etc. defined for the live-event system) are reused where they cover the aggregate's lifecycle; new types are added only where current types do not. This is a per-aggregate call; the introducing PR enumerates additions.
 2. **Build the projection.** Implements the framework's `Projection` interface (`Apply`, `Snapshot`, `Restore`). Tested in isolation by feeding it events. Not yet wired to any read path.
-3. **Register the boot import.** A new function (e.g. `MigrateRoomMembershipToES`) reads the aggregate's pre-ES KV/stream state and emits real events into `EVT` with original metadata preserved where available (timestamps, actor IDs, message IDs, encrypted bodies, etc.). It's wired into `migrations.RunAll`, so it runs inside `NewChattoCore` on every boot. Replayable (see below) — already-migrated subjects no-op via OCC.
+3. **Register the boot import.** During the rollout window, each aggregate had an idempotent boot importer that read pre-ES KV/stream state and emitted real events into `EVT` with original metadata preserved where available (timestamps, actor IDs, message IDs, encrypted bodies, etc.). These importers have now been removed.
 4. **Cut over reads and writes.** Read paths (GraphQL resolvers, internal authz helpers, etc.) switch from KV/`SERVER_EVENTS` to projections. Mutations publish only to `EVT` plus any required non-durable live mirror; they do not write legacy KV or `SERVER_EVENTS`.
 5. **Validate on production-like data.** Before production rollout, restore a backup/copy of the community server into a scratch instance running the ES build. Boot imports must complete, projections must populate, and smoke tests must cover room lists, memberships, server config, sidebar layout, messages, threads, reactions, edits/deletes, and live delivery.
-6. **Decommission later.** Delete legacy KV keys, legacy stream usage, and boot importers only after every aggregate has moved to event-only writes and the ES build has burned in. **DEFERRED — see "Cleanup on hold" below.**
+6. **Decommission.** Delete legacy KV/stream usage and boot importers after every aggregate has moved to event-only writes and the ES build has burned in. **Completed 2026-06-12.**
 
 Each phase is one or a small number of PRs. Phases 1-3 can land independently of user-visible behavior. Phase 4 is the real gate: once merged and deployed, the aggregate's source of truth is `EVT`. A rollback after new writes requires restoring a pre-cutover backup or building an explicit ES-to-legacy recovery tool; there is no live KV mirror to fall back to.
 
-### Cleanup on hold (until full ES shape lands)
+### Cleanup
 
-Cleanup is **deferred for every aggregate** until the full set of aggregates has been migrated and the new ES system's shape has settled. Current end-state per aggregate is: event-only writes, legacy data retained but quiescent, boot importer retained.
+Cleanup was deferred for every aggregate until the full set of aggregates had been migrated and the new ES system's shape had settled. That condition has now been met for the 0.1.x rollout, and the accumulated boot importers and verifier have been removed.
 
-Rationale:
+Original rationale for deferring cleanup:
 
-- **Import evidence.** Keeping legacy data available makes it possible to inspect what was imported if a projection or event-shape bug appears during rollout.
-- **Importer safety.** Boot importers are idempotent and cheap after first run. Keeping them around lets scratch restores, partial boots, and re-runs use the same production code path.
+- **Import evidence.** Keeping legacy data available made it possible to inspect what was imported if a projection or event-shape bug appeared during rollout.
+- **Importer safety.** Boot importers were idempotent and cheap after first run. Keeping them around let scratch restores, partial boots, and re-runs use the same production code path during the rollout window.
 - **Interface review window.** Holding off on irreversible deletion lets us shape the new event/projection/manager APIs across all aggregates before committing to the cleanup.
 
-Cleanup unblocks once: (a) every aggregate has reached event-only writes, (b) the new system has burned in across at least one production cycle, and (c) we've agreed the projection and mutator APIs are stable.
+Cleanup unblocked once: (a) every aggregate had reached event-only writes, (b) the new system had burned in across the existing servers, and (c) the projection and mutator APIs were stable enough for the 0.1.x lane.
 
 ### Why migrations run at boot, not as a CLI subcommand
 
@@ -59,7 +63,7 @@ An earlier draft of this ADR (and a now-deleted `chatto evt migrate` CLI) had ea
 
 Running the migrations at boot inside `NewChattoCore` avoids the multi-process problem entirely. The cost is one extra step at startup; the steady-state cost (after first boot) is a KV key scan and per-subject OCC check, both O(aggregates).
 
-Manual re-runs are not currently exposed. If we ever need them — e.g. for testing or rolling back a botched stream — we'd add the surface (likely a GraphQL admin mutation) at that point.
+Manual re-runs were never exposed, and the boot importers have since been removed. Any future repair or backfill would need a new explicit tool rather than relying on this rollout path.
 
 ### First aggregate: room membership
 
@@ -86,17 +90,9 @@ The always-OCC invariant from ADR-033 makes migration replayability automatic:
 
 ### Rollout observability
 
-Boot migrations emit one structured log marker per migration step, including
-whether the legacy source exists, whether the step completed/skipped/failed,
-duration, and the `EVT` stream message/byte delta appended by that step. This
-keeps no-op boots visible while making first-import runs auditable from logs.
-
-`core.es_boot_verify` enables the boot verifier: after projectors catch up, it
-logs legacy counts, projected counts, per-event-type `EVT` counts, decode
-errors, warnings, and problems. `core.es_boot_verify_strict` upgrades verifier
-problems into boot failure for cutover gates and scratch-restore dry runs. It is
-opt-in so normal production restarts do not fail on a diagnostic-only scan
-unless rollout explicitly asks for that behavior.
+Boot migrations emitted structured log markers during the rollout. The
+`core.es_boot_verify` and `core.es_boot_verify_strict` settings were temporary
+rollout diagnostics and no longer exist.
 
 Determinism is the migration command's responsibility: events for a given subject must be emitted in the same order across runs given the same KV state. This is a property of the iteration code, not of the framework.
 
@@ -134,19 +130,19 @@ If we hit a migration where this turns out to be the wrong call, we add the shad
 
 ## Consequences
 
-- **Per-aggregate cadence.** Each migration is one or more PRs: event/projection/importer first, then direct read/write cutover. Many can land in parallel across aggregates once the framework stabilises.
-- **Two systems coexist, but not as mirrors.** The old `SERVER_EVENTS` stream, legacy KV buckets, and the new `EVT` stream all exist during the migration window. For migrated aggregates, only `EVT` is written; legacy storage is pre-cutover data and import evidence.
+- **Per-aggregate cadence.** Each migration landed as one or more PRs: event/projection/importer first, then direct read/write cutover.
+- **Two systems coexisted, but not as mirrors.** The old `SERVER_EVENTS` stream, legacy KV buckets, and the new `EVT` stream existed together during the migration window. For migrated aggregates, only `EVT` was written; legacy storage was pre-cutover data and import evidence.
 - **Cutover is not independently revertable after new writes.** This is the cost of avoiding dual-write. Rollout discipline moves to backup, scratch restore, real-data validation, and fix-forward readiness.
-- **Migration functions accumulate temporary surface.** Each aggregate's boot-import call lives in `migrations.RunAll` until cleanup. With cleanup deferred indefinitely (see "Cleanup on hold"), expect to carry the import surface for the foreseeable future.
+- **Migration functions accumulated temporary surface.** The boot-import surface was intentionally carried through rollout and removed once cleanup unblocked.
 - **No divergence safety net at cutover.** Cutover relies on tests plus validation against a copy of production/community data. A latent projection bug could cause user-visible incorrectness. We accept this for migration velocity in alpha and revisit if any migration burns us.
-- **The framework matures through use.** Room membership shakes out the first version of the internal events package. Aggregates two through five will refine it; the remainder should be mechanical.
-- **Messages were pulled forward once the framework existed.** Messages are the highest-volume migration and the aggregate that ADR-033's RAM win actually unlocks. We still validate them harder than smaller aggregates, but they do not wait for users/RBAC/read-state.
+- **The framework matured through use.** Room membership shook out the first version of the internal events package, and later aggregates refined it.
+- **Messages were pulled forward once the framework existed.** Messages were the highest-volume migration and the aggregate that ADR-033's RAM win actually unlocked.
 
 ## Out of scope for this ADR
 
 - The specific protobuf event additions for each aggregate — decided per-aggregate at migration time.
 - Snapshot strategy and the projection-restore-from-snapshot path — deferred.
-- Long-term retention of the legacy `SERVER_EVENTS` stream after the last aggregate migrates — handled as a one-off cleanup later.
+- Long-term retention of the legacy `SERVER_EVENTS` stream after the last aggregate migrates — now handled by the 2026-06-12 cleanup.
 - A general "framework readiness" gate before starting aggregate two. We start the next aggregate when the previous direct-cutover path has enough test and rollout confidence; no separate framework-quality checkpoint.
 
 ## Related

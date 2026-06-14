@@ -38,8 +38,8 @@ async function gqlRequest<T>(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: { query, variables }
   });
-  expect(resp.ok()).toBeTruthy();
-  const json = await resp.json();
+  const json = await resp.json().catch(async () => ({ raw: await resp.text() }));
+  expect(resp.ok(), JSON.stringify(json)).toBeTruthy();
   if (json.errors) throw new Error(JSON.stringify(json.errors));
   return json.data;
 }
@@ -52,10 +52,17 @@ async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace>
 }
 
 async function createRoomViaAPI(page: Page, name: string): Promise<string> {
+  const groupData = await gqlRequest<{ server: { roomGroups: { id: string }[] } }>(
+    page,
+    `query { server { roomGroups { id } } }`
+  );
+  const groupId = groupData.server.roomGroups[0]?.id;
+  if (!groupId) throw new Error('No room group available for e2e room creation');
+
   const data = await gqlRequest<{ createRoom: { id: string; name: string } }>(
     page,
     `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-    { input: { name } }
+    { input: { name, groupId } }
   );
   return data.createRoom.id;
 }
@@ -145,7 +152,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     if (currentGroup === targetId) continue;
     await gqlRequest(
       page,
-      `mutation($input: MoveRoomToSetInput!) { moveRoomToSet(input: $input) { id } }`,
+      `mutation($input: MoveRoomToGroupInput!) { moveRoomToGroup(input: $input) { id } }`,
       { input: { roomId, groupId: targetId } }
     );
   }
@@ -606,13 +613,9 @@ test.describe('Room Layout', () => {
         await createAndLoginTestUser(page2);
         await joinSpace(page2, "");
 
-        // Navigate to admin area directly — User B shouldn't see "Rooms" nav
-        await page2.goto(routes.serverAdmin());
-        await expect(
-          page2
-            .getByRole('heading', { name: 'Dashboard', level: 1 })
-            .or(page2.getByText('Access Denied', { exact: true }))
-        ).toBeVisible();
+        // Navigate to Rooms directly — User B should be denied.
+        await page2.goto(routes.serverAdminRooms);
+        await expect(page2.getByText('Access Denied', { exact: true })).toBeVisible();
 
         // User B shouldn't see the Rooms nav item (requires room.manage)
         const spaceAdminPage2 = new SpaceAdminPage(page2);

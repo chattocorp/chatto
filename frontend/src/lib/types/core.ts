@@ -52,9 +52,13 @@ export const PermRoomJoin: Permission = "room.join";
  */
 export const PermRoomList: Permission = "room.list";
 /**
- * PermRoomManage allows updating or deleting any room.
+ * PermRoomManage allows updating or deleting channel rooms.
  */
 export const PermRoomManage: Permission = "room.manage";
+/**
+ * PermRoomMemberBan allows banning lower-ranked users from channel rooms.
+ */
+export const PermRoomMemberBan: Permission = "room.ban-member";
 /**
  * PermMessagePost allows posting new root messages in rooms and starting DMs.
  */
@@ -93,15 +97,11 @@ export const PermRoleManage: Permission = "role.manage";
  */
 export const PermRoleAssign: Permission = "role.assign";
 /**
- * PermAdminAccess allows access to the admin panel.
- */
-export const PermAdminAccess: Permission = "admin.access";
-/**
  * PermAdminUsersView allows viewing the users page in admin.
  */
 export const PermAdminUsersView: Permission = "admin.view-users";
 /**
- * PermAdminSystemView allows viewing system and data pages in admin.
+ * PermAdminSystemView allows viewing projection diagnostics in admin.
  */
 export const PermAdminSystemView: Permission = "admin.view-system";
 /**

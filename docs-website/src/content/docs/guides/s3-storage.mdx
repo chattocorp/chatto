@@ -12,8 +12,9 @@ Switching to an S3-compatible backend offloads file storage to a dedicated objec
 ## How It Works
 
 - **New uploads** go to S3 when configured
-- **Existing attachments** stored in NATS continue to work — Chatto checks both backends when serving files
+- **Existing attachments** stored in NATS continue to work — each asset remembers which backend stores its bytes
 - **URLs don't change** — the storage backend is an internal detail; asset URLs always use the same format
+- **S3 prefixes are movable** — Chatto stores prefix-free asset keys, so you can move objects to a different S3 prefix and update config without rewriting Chatto metadata
 
 This means you can enable S3 at any time without migrating existing data. Old NATS-stored files remain accessible alongside new S3-stored ones.
 
@@ -27,6 +28,7 @@ Set the storage backend to `s3` and provide your bucket credentials:
 CHATTO_CORE_ASSETS_STORAGE_BACKEND=s3
 CHATTO_CORE_ASSETS_S3_ENDPOINT=s3.amazonaws.com
 CHATTO_CORE_ASSETS_S3_BUCKET=chatto-assets
+CHATTO_CORE_ASSETS_S3_PATH_PREFIX=production/chatto
 CHATTO_CORE_ASSETS_S3_REGION=eu-central-1
 CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID=your-access-key
 CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY=your-secret-key
@@ -40,6 +42,7 @@ storage_backend = "s3"
 [core.assets.s3]
 endpoint = "s3.amazonaws.com"
 bucket = "chatto-assets"
+path_prefix = "production/chatto"
 region = "eu-central-1"
 access_key_id = "your-access-key"
 secret_access_key = "your-secret-key"
@@ -55,6 +58,7 @@ Chatto creates the bucket automatically on startup if it doesn't exist.
 |---------|---------|-------------|
 | `endpoint` | — | S3 endpoint URL |
 | `bucket` | — | Bucket name |
+| `path_prefix` | — | Optional object key prefix for all S3 assets. Leading/trailing slashes are ignored. |
 | `region` | — | AWS region (optional for non-AWS services) |
 | `access_key_id` | — | Access key |
 | `secret_access_key` | — | Secret key |
@@ -102,7 +106,8 @@ CHATTO_CORE_ASSETS_S3_PATH_STYLE=true
 
 ## Switching Storage Backends
 
-You can switch **from S3 back to NATS** at any time — just change `storage_backend` back to `nats`. Existing S3 files remain accessible because Chatto checks both backends when serving attachments. New uploads will go to NATS.
+You can switch **from S3 back to NATS** at any time — just change `storage_backend` back to `nats`. Existing S3 files remain accessible because each asset records its storage backend. New uploads will go to NATS.
+You can also change `path_prefix` after moving or copying the S3 objects to the new prefix. Chatto stores logical, prefix-free asset keys in NATS, so no Chatto metadata rewrite is needed.
 
 <Aside type="caution">
   You **cannot** change from one S3 provider or bucket to another. Chatto only has a single S3 configuration — if you switch endpoints or buckets, files stored in the previous location become inaccessible. If you need to migrate between S3 providers, copy the data at the storage level first.

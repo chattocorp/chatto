@@ -5,22 +5,25 @@
  * to room members who haven't joined yet.
  *
  * Data sources:
- * - Initial load: `callParticipants` GraphQL query (from MEMORY_CACHE call state)
+ * - Initial load: `callParticipants` GraphQL query (from the call-state projection)
  * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
  */
 
-import { graphql } from '$lib/gql';
-import type { CallParticipant, UserAvatarUserFragment } from '$lib/gql/graphql';
+import { graphql, useFragment } from '$lib/gql';
+import type {
+	GetCallParticipantsQuery,
+	UserAvatarUserFragment
+} from '$lib/gql/graphql';
+import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 
 const CallParticipantsQuery = graphql(`
 	query GetCallParticipants($roomId: ID!) {
 		room(roomId: $roomId) {
 			callParticipants {
-				userId
-				displayName
-				login
-				avatarUrl
+				user {
+					...UserAvatarUser
+				}
 				joinedAt
 			}
 		}
@@ -34,6 +37,8 @@ export type ObserverParticipant = {
 	login: string;
 	avatarUrl: string | null;
 };
+
+type QueryCallParticipant = NonNullable<GetCallParticipantsQuery['room']>['callParticipants'][number];
 
 export class CallParticipantsState {
 	#client: Client;
@@ -104,11 +109,12 @@ export class CallParticipantsState {
 	}
 }
 
-function toObserverParticipant(p: CallParticipant): ObserverParticipant {
+function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
+	const user = useFragment(UserAvatarUserFragmentDoc, p.user);
 	return {
-		userId: p.userId,
-		displayName: p.displayName,
-		login: p.login,
-		avatarUrl: p.avatarUrl ?? null
+		userId: user.id,
+		displayName: user.displayName,
+		login: user.login,
+		avatarUrl: user.avatarUrl ?? null
 	};
 }

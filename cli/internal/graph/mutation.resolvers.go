@@ -17,7 +17,6 @@ import (
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -34,10 +33,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 		desc = *input.Description
 	}
 
-	groupID := ""
-	if input.GroupID != nil {
-		groupID = *input.GroupID
-	}
+	groupID := input.GroupID
 
 	// Authorization: check CanCreateRoom permission, scoped to the target
 	// group when one is specified. A role granted room.create at server
@@ -223,6 +219,49 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		body = *input.Body
 	}
 
+	// Get threading fields if provided
+	var inThread string
+	if input.ThreadRootEventID != nil {
+		inThread = *input.ThreadRootEventID
+	}
+	var inReplyTo string
+	if input.InReplyTo != nil {
+		inReplyTo = *input.InReplyTo
+	}
+
+	// Extract alsoSendToChannel from input (defaults to false)
+	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
+
+	mentionConfirmationScope := core.MentionConfirmationScope{
+		UserID:            user.Id,
+		RoomID:            input.RoomID,
+		Kind:              kind,
+		Body:              body,
+		ThreadRootEventID: inThread,
+		AlsoSendToChannel: alsoSendToChannel,
+	}
+	mentionRecipientCountConfirmed := false
+	if body != "" {
+		recipientCount, err := r.core.MentionNotificationRecipientCountForBody(ctx, kind, input.RoomID, user.Id, body)
+		if err != nil {
+			return nil, err
+		}
+		if recipientCount > core.LargeMentionNotificationThreshold {
+			token := ""
+			if input.MentionConfirmationToken != nil {
+				token = *input.MentionConfirmationToken
+			}
+			if err := r.core.ValidateMentionConfirmationToken(token, mentionConfirmationScope); err != nil {
+				nextToken, err := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, recipientCount)
+				if err != nil {
+					return nil, err
+				}
+				return nil, largeMentionConfirmationError(recipientCount, nextToken)
+			}
+			mentionRecipientCountConfirmed = true
+		}
+	}
+
 	// Process file uploads if any (file uploads stay direct via HTTP)
 	var attachments []*corev1.Attachment
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
@@ -268,19 +307,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			attachments = append(attachments, attachment)
 		}
 	}
-
-	// Get threading fields if provided
-	var inThread string
-	if input.ThreadRootEventID != nil {
-		inThread = *input.ThreadRootEventID
-	}
-	var inReplyTo string
-	if input.InReplyTo != nil {
-		inReplyTo = *input.InReplyTo
-	}
-
-	// Extract alsoSendToChannel from input (defaults to false)
-	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
 
 	// Authorization: if echoing to channel, check message.echo AND message.post permissions.
 	// An echo creates a root-level message, so it requires the same permission as posting directly.
@@ -338,6 +364,9 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			postMessageOptions = append(postMessageOptions, core.WithVideoProcessingAssets(videoProcessingAssetIDs...))
 		}
 	}
+	if mentionRecipientCountConfirmed {
+		postMessageOptions = append(postMessageOptions, core.WithLargeMentionConfirmed())
+	}
 
 	assetIDs := make([]string, 0, len(attachments))
 	for _, att := range attachments {
@@ -347,6 +376,13 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, assetIDs, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
 	if err != nil {
+		if confirmErr, ok := err.(*core.MentionConfirmationRequiredError); ok {
+			token, tokenErr := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, confirmErr.RecipientCount)
+			if tokenErr != nil {
+				return nil, tokenErr
+			}
+			return nil, largeMentionConfirmationError(confirmErr.RecipientCount, token)
+		}
 		return nil, err
 	}
 
@@ -377,61 +413,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	return core.NewEVTEventEnvelope(event), nil
 }
 
-// UpdateServer is the resolver for the updateServer field.
-func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	can, err := r.core.CanManageServer(ctx, user.Id)
-	if err != nil {
-		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// The server name, description, motd, and welcome message are all
-	// canonical state on the runtime-editable ServerConfig (KV) — that's
-	// what the resolver reads on reload. The chrome header listens for
-	// ServerUpdatedEvent (published below) to refresh name/logo/banner.
-	if cm := r.core.ConfigManager(); cm != nil {
-		updated, err := cm.UpdateServerConfigFunc(ctx, user.Id, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
-			if cfg == nil {
-				cfg = &configv1.ServerConfig{}
-			}
-			cfg.ServerName = input.Name
-			if input.Description != nil {
-				cfg.Description = *input.Description
-			}
-			if input.Motd != nil {
-				cfg.Motd = *input.Motd
-			}
-			if input.WelcomeMessage != nil {
-				cfg.WelcomeMessage = *input.WelcomeMessage
-			}
-			return cfg, nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("save server config: %w", err)
-		}
-		// Live-update is best-effort; the config write already succeeded.
-		_ = r.core.PublishServerConfigUpdated(
-			ctx,
-			user.Id,
-			updated.ServerName,
-			updated.Motd,
-			updated.WelcomeMessage,
-			updated.BlockedUsernames,
-		)
-		// Publish ServerUpdatedEvent so the chrome header picks up the new
-		// name immediately (same path used by logo/banner upload).
-		r.core.PublishServerBrandingUpdate(ctx, user.Id)
-	}
-
-	return r.serverModel(), nil
-}
-
 // UploadServerLogo is the resolver for the uploadServerLogo field.
 func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.UploadServerLogoInput) (*model.Server, error) {
 	user, err := r.requireServerManager(ctx)
@@ -445,7 +426,7 @@ func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.Upl
 	}
 
 	if err := r.core.SetServerLogo(ctx, user.Id, asset); err != nil {
-		r.core.CleanupAsset(ctx, asset)
+		r.core.CleanupAsset(ctx, core.DeprecatedAssetFromAsset(asset))
 		return nil, fmt.Errorf("failed to save logo: %w", err)
 	}
 
@@ -479,7 +460,7 @@ func (r *mutationResolver) UploadServerBanner(ctx context.Context, input model.U
 	}
 
 	if err := r.core.SetServerBanner(ctx, user.Id, asset); err != nil {
-		r.core.CleanupAsset(ctx, asset)
+		r.core.CleanupAsset(ctx, core.DeprecatedAssetFromAsset(asset))
 		return nil, fmt.Errorf("failed to save banner: %w", err)
 	}
 
@@ -511,8 +492,10 @@ func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInp
 		return nil, err
 	}
 
-	// Authorization: check CanJoinRoom (includes space membership check)
-	can, err := r.core.CanJoinRoom(ctx, user.Id, kind)
+	// Authorization: check the room-specific join gate so room/group denies
+	// and active room bans match viewerCanJoinRoom without revealing which
+	// underlying authorization rule denied the join.
+	can, err := r.core.CanJoinRoomAt(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -543,6 +526,83 @@ func (r *mutationResolver) LeaveRoom(ctx context.Context, input model.LeaveRoomI
 		return false, err
 	}
 
+	return true, nil
+}
+
+// BanRoomMember is the resolver for the banRoomMember field.
+func (r *mutationResolver) BanRoomMember(ctx context.Context, input model.BanRoomMemberInput) (bool, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
+	if err != nil {
+		return false, err
+	}
+	if kind == core.KindDM {
+		return false, core.ErrCannotBanDMRoomMember
+	}
+
+	can, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindChannel, input.RoomID, core.PermRoomMemberBan)
+	if err != nil {
+		return false, err
+	}
+	if !can {
+		return false, core.ErrPermissionDenied
+	}
+	outranks, err := r.core.OutranksUser(ctx, user.Id, input.UserID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check role hierarchy: %w", err)
+	}
+	if !outranks {
+		return false, core.ErrPermissionDenied
+	}
+
+	var expiresAt *time.Time
+	if input.ExpiresAt != nil {
+		t := input.ExpiresAt.AsTime()
+		expiresAt = &t
+	}
+
+	if _, err := r.core.BanRoomMember(ctx, user.Id, core.KindChannel, input.RoomID, input.UserID, input.Reason, expiresAt); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// UnbanRoomMember is the resolver for the unbanRoomMember field.
+func (r *mutationResolver) UnbanRoomMember(ctx context.Context, input model.UnbanRoomMemberInput) (bool, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
+	if err != nil {
+		return false, err
+	}
+	if kind == core.KindDM {
+		return false, core.ErrCannotBanDMRoomMember
+	}
+
+	can, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindChannel, input.RoomID, core.PermRoomMemberBan)
+	if err != nil {
+		return false, err
+	}
+	if !can {
+		return false, core.ErrPermissionDenied
+	}
+	outranks, err := r.core.OutranksUser(ctx, user.Id, input.UserID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check role hierarchy: %w", err)
+	}
+	if !outranks {
+		return false, core.ErrPermissionDenied
+	}
+
+	if err := r.core.UnbanRoomMember(ctx, user.Id, core.KindChannel, input.RoomID, input.UserID, input.Reason); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -953,7 +1013,31 @@ func (r *mutationResolver) UpdateMessage(ctx context.Context, input model.Update
 		}
 	}
 
-	if err := r.core.EditMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.Body); err != nil {
+	var editOptions []core.EditMessageOption
+	if input.AlsoSendToChannel != nil {
+		if messageBody.AuthorId != user.Id {
+			return false, core.ErrNotMessageAuthor
+		}
+		if *input.AlsoSendToChannel {
+			can, err := r.core.CanEchoMessage(ctx, user.Id, kind, input.RoomID)
+			if err != nil {
+				return false, err
+			}
+			if !can {
+				return false, core.ErrPermissionDenied
+			}
+			can, err = r.core.CanPostMessage(ctx, user.Id, kind, input.RoomID)
+			if err != nil {
+				return false, err
+			}
+			if !can {
+				return false, core.ErrPermissionDenied
+			}
+		}
+		editOptions = append(editOptions, core.WithMessageChannelEcho(*input.AlsoSendToChannel))
+	}
+
+	if err := r.core.EditMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.Body, editOptions...); err != nil {
 		return false, err
 	}
 

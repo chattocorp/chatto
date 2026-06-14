@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,15 @@ import (
 // ErrProjectionFailed marks a projector that stopped applying events
 // because its Projection.Apply returned an error.
 var ErrProjectionFailed = errors.New("projection failed")
+
+// ErrProjectionSubjectNotConsumed is returned when a caller asks a projector
+// to wait for a subject outside the projection's declared filter set.
+var ErrProjectionSubjectNotConsumed = errors.New("projection does not consume subject")
+
+// ErrProjectionSequenceSubjectMismatch is returned when a caller asks a
+// projector to wait for a sequence that belongs to a different subject than the
+// one supplied by the caller.
+var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence subject mismatch")
 
 // MemoryProjection is an embeddable base for projections whose state
 // lives entirely in process memory. It contributes a sync.RWMutex that
@@ -52,6 +62,12 @@ func (*MemoryProjection) Restore(_ []byte) error { return nil }
 // Idempotency: Apply(e, n) followed by Apply(e, n) must produce the same
 // state as a single Apply(e, n). Snapshots aren't implemented yet, but the
 // contract holds now so we don't have to revisit it later.
+//
+// Event immutability: core event protobufs are durable facts. Apply
+// implementations must treat the input event as read-only, and projection
+// read APIs that expose event pointers rely on callers treating those events
+// as read-only as well. Projections that derive mutable current-state values
+// from events should copy those values before mutating or returning them.
 type Projection interface {
 	// Subjects returns the subject filter(s) this projection consumes.
 	// Wildcards are supported (e.g. "server.evt.room.>").
@@ -85,12 +101,26 @@ type Projector struct {
 	waiters   []seqWaiter
 	failedSeq uint64
 	failedErr error
+	failedCh  chan struct{}
 	// started flips true the first time Run is invoked and stays true
-	// for the projector's lifetime. WaitForSeq uses this to short-
+	// for the projector's lifetime. WaitFor uses this to short-
 	// circuit during boot-time mutations that happen before
 	// ChattoCore.Run gets a chance to start the consumer (see the
-	// WaitForSeq doc for why).
+	// WaitFor doc for why).
 	started bool
+}
+
+// ProjectorStatus is a concurrency-safe snapshot of a projector's
+// lifecycle state. Operators use it for diagnostics; core readiness uses
+// Err to surface fatal projection failures.
+type ProjectorStatus struct {
+	Started bool
+	LastSeq uint64
+
+	Failed    bool
+	FailedSeq uint64
+	Failure   string
+	Err       error
 }
 
 type seqWaiter struct {
@@ -102,19 +132,43 @@ type seqWaiter struct {
 // — call Run for that.
 func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
 	return &Projector{
-		js:     js,
-		stream: stream,
-		proj:   proj,
-		logger: logger,
+		js:       js,
+		stream:   stream,
+		proj:     proj,
+		logger:   logger,
+		failedCh: make(chan struct{}),
 	}
+}
+
+// Status returns the projector's current lifecycle state. Safe to call from
+// any goroutine.
+func (p *Projector) Status() ProjectorStatus {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	status := ProjectorStatus{
+		Started: p.started,
+		LastSeq: p.lastSeq,
+	}
+	if p.failedErr != nil {
+		status.Failed = true
+		status.FailedSeq = p.failedSeq
+		status.Failure = p.failedErr.Error()
+		status.Err = p.failedErr
+	}
+	return status
+}
+
+// Err returns the fatal projection error, if the projector has stopped
+// because it could not decode or apply an event.
+func (p *Projector) Err() error {
+	return p.Status().Err
 }
 
 // LastSeq returns the highest stream sequence applied to the projection so
 // far. Safe to call from any goroutine.
 func (p *Projector) LastSeq() uint64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.lastSeq
+	return p.Status().LastSeq
 }
 
 // Started reports whether Run has entered its body — i.e. whether
@@ -122,9 +176,7 @@ func (p *Projector) LastSeq() uint64 {
 // test helpers (and lifecycle code) that need to wait for projectors
 // to come online before issuing reads against the projection.
 func (p *Projector) Started() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.started
+	return p.Status().Started
 }
 
 // Subjects returns the subject filters this projector consumes.
@@ -148,11 +200,12 @@ func (p *Projector) Subjects() []string {
 // has already been durably published — only the local projection
 // hasn't caught up.
 func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
-	seq, err := pub.Append(ctx, agg.SubjectFor(event), event)
+	subject := agg.SubjectFor(event)
+	seq, err := pub.Append(ctx, subject, event)
 	if err != nil {
 		return 0, err
 	}
-	if err := p.WaitForSeq(ctx, seq); err != nil {
+	if err := p.WaitFor(ctx, SubjectPosition(subject, seq)); err != nil {
 		return seq, err
 	}
 	return seq, nil
@@ -162,33 +215,48 @@ func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, agg Aggre
 // safely retry the same payload after an OCC conflict. See
 // Publisher.AppendEventually for the safety rule.
 func (p *Projector) AppendEventuallyAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
-	seq, err := pub.AppendEventually(ctx, agg.SubjectFor(event), event)
+	subject := agg.SubjectFor(event)
+	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
 		return 0, err
 	}
-	if err := p.WaitForSeq(ctx, seq); err != nil {
+	if err := p.WaitFor(ctx, SubjectPosition(subject, seq)); err != nil {
 		return seq, err
 	}
 	return seq, nil
 }
 
-// WaitForSeq blocks until LastSeq() >= seq or ctx is done.
+// WaitFor blocks until LastSeq() >= pos.Seq or ctx is done.
 //
-// Used by writers that need read-your-writes consistency: capture the seq
-// from Publisher.Append, pass it here, then read from the projection.
+// Used by writers that need read-your-writes consistency: capture the stream
+// position for the write target, pass it here, then read from the projection.
+// The stream sequence must belong to pos.SubjectFilter, and the sequence's
+// actual subject must match one of this projector's subject filters.
 //
-// If LastSeq() is already >= seq when called, returns immediately with no
+// If LastSeq() is already >= pos.Seq when called, returns immediately with no
 // error. Otherwise registers a waiter and blocks.
 //
 // Precondition: the projector's Run loop is expected to be active by
-// the time any code reaches WaitForSeq. Callers that mutate during
+// the time any code reaches WaitFor. Callers that mutate during
 // boot (ensureChannelRoomsAreInAGroup, SeedDefaultRooms) are
 // orchestrated by core.Run / core.WaitForBoot to make this true.
 // Calling before Run started would block forever waiting for a
 // sequence that never advances — that's the symptom we want, since
 // the alternative (silently skipping the wait) leaves the projection
 // out of sync with the KV write and produces orphan-room bugs.
-func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
+func (p *Projector) WaitFor(ctx context.Context, pos StreamPosition) error {
+	if pos.IsZero() {
+		return nil
+	}
+
+	if err := p.validateSeqSubject(ctx, pos); err != nil {
+		return err
+	}
+
+	return p.waitForSeq(ctx, pos.Seq)
+}
+
+func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 	p.mu.Lock()
 	if p.failedErr != nil && seq >= p.failedSeq {
 		err := p.failedErr
@@ -234,36 +302,92 @@ func (p *Projector) WaitForSeq(ctx context.Context, seq uint64) error {
 	}
 }
 
+func (p *Projector) validateConsumesSubject(subject string) error {
+	subjects := p.proj.Subjects()
+	for _, filter := range subjects {
+		if subjectMatchesFilter(filter, subject) {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: subject %q not matched by filters %v",
+		ErrProjectionSubjectNotConsumed, subject, subjects)
+}
+
+func (p *Projector) validateSeqSubject(ctx context.Context, pos StreamPosition) error {
+	msg, err := p.stream.GetMsg(ctx, pos.Seq)
+	if err != nil {
+		return fmt.Errorf("load stream sequence %d before projection wait: %w", pos.Seq, err)
+	}
+	if !subjectMatchesFilter(pos.SubjectFilter, msg.Subject) {
+		return fmt.Errorf("%w: seq %d belongs to %q, not %q",
+			ErrProjectionSequenceSubjectMismatch, pos.Seq, msg.Subject, pos.SubjectFilter)
+	}
+	if err := p.validateConsumesSubject(msg.Subject); err != nil {
+		return err
+	}
+	return nil
+}
+
+func subjectMatchesFilter(filter, subject string) bool {
+	if filter == "" || subject == "" {
+		return false
+	}
+	filterTokens := strings.Split(filter, ".")
+	subjectTokens := strings.Split(subject, ".")
+
+	for i, token := range filterTokens {
+		if token == ">" {
+			return i == len(filterTokens)-1 && len(subjectTokens) > i
+		}
+		if i >= len(subjectTokens) {
+			return false
+		}
+		if token != "*" && token != subjectTokens[i] {
+			return false
+		}
+	}
+	return len(subjectTokens) == len(filterTokens)
+}
+
 // WaitForCurrent blocks until the projection has applied the latest
 // stream message currently matching its subject filters. It is intended
-// for diagnostics and boot verification: call it after the projector is
+// for diagnostics and sequencing: call it after the projector is
 // running to ensure projection reads reflect the stream as of this call.
 func (p *Projector) WaitForCurrent(ctx context.Context) error {
-	target, err := p.CurrentTargetSeq(ctx)
+	target, err := p.currentTarget(ctx)
 	if err != nil {
 		return err
 	}
-	if target == 0 {
+	if target.seq == 0 {
 		return nil
 	}
-	return p.WaitForSeq(ctx, target)
+	return p.waitForSeq(ctx, target.seq)
 }
 
 // CurrentTargetSeq returns the highest stream sequence currently matching
 // this projection's subject filters. A zero return means the stream has no
 // message for any of the filters yet.
 func (p *Projector) CurrentTargetSeq(ctx context.Context) (uint64, error) {
-	var target uint64
+	target, err := p.currentTarget(ctx)
+	return target.seq, err
+}
+
+type projectionTarget struct {
+	seq uint64
+}
+
+func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error) {
+	var target projectionTarget
 	for _, subject := range p.proj.Subjects() {
 		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
 				continue
 			}
-			return 0, fmt.Errorf("last msg for subject %q: %w", subject, err)
+			return projectionTarget{}, fmt.Errorf("last msg for subject %q: %w", subject, err)
 		}
-		if msg.Sequence > target {
-			target = msg.Sequence
+		if msg.Sequence > target.seq {
+			target = projectionTarget{seq: msg.Sequence}
 		}
 	}
 	return target, nil
@@ -297,6 +421,7 @@ func (p *Projector) fail(seq uint64, err error) {
 	if p.failedErr == nil {
 		p.failedSeq = seq
 		p.failedErr = fmt.Errorf("%w at seq %d: %w", ErrProjectionFailed, seq, err)
+		close(p.failedCh)
 	}
 	for _, w := range p.waiters {
 		close(w.ch)
@@ -343,8 +468,15 @@ func (p *Projector) Run(ctx context.Context) error {
 	}
 	defer cc.Stop()
 
-	<-ctx.Done()
-	return ctx.Err()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.failedCh:
+		if err := p.Err(); err != nil {
+			return err
+		}
+		return ErrProjectionFailed
+	}
 }
 
 // handleMessage is the per-event callback wired into the OrderedConsumer's
@@ -364,17 +496,19 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 
 	meta, err := msg.Metadata()
 	if err != nil {
-		p.logger.Warn("Skipping event with no metadata", "subject", msg.Subject(), "error", err)
+		p.logger.Error("Projection message metadata failed", "subject", msg.Subject(), "error", err)
+		p.fail(0, fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err))
 		return
 	}
 
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
-		p.logger.Warn("Skipping unmarshalable event",
+		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
+		p.logger.Error("Projection decode failed",
 			"subject", msg.Subject(),
 			"seq", meta.Sequence.Stream,
 			"error", err)
-		p.advance(meta.Sequence.Stream)
+		p.fail(meta.Sequence.Stream, err)
 		return
 	}
 

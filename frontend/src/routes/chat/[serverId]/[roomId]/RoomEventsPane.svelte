@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { useEvent } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';
+  import { getComposerContext, MessagesStore, type RoomMember } from '$lib/state/room';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import EventList from './EventList.svelte';
@@ -29,7 +29,7 @@
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new RoomMessagesStore(
+  const store = new MessagesStore(
     connection(),
     () => currentUser.user?.id ?? null
   );
@@ -68,8 +68,7 @@
   });
 
   // Drive store loads from roomId / manual-refetch prop changes. Silent
-  // reconnect + tab-resume catch-ups are owned by the store itself — they
-  // do not flow through this effect.
+  // reconnect + tab-resume catch-ups are owned by the server event bus.
   $effect(() => {
     void refetchTrigger;
     store.setRoom(roomId);
@@ -95,6 +94,7 @@
 
 <EventList
   {roomId}
+  messageStore={store}
   events={roomEvents}
   alwaysScrollToBottom={false}
   showNewMessagesIndicator={true}

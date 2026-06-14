@@ -7,10 +7,13 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
@@ -181,6 +184,23 @@ func (r *roomResolver) ViewerCanManageRoom(ctx context.Context, obj *corev1.Room
 	return r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindOfRoom(obj), obj.Id, core.PermRoomManage)
 }
 
+// ViewerCanBanRoomMembers is the resolver for the viewerCanBanRoomMembers field.
+func (r *roomResolver) ViewerCanBanRoomMembers(ctx context.Context, obj *corev1.Room) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	return r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindOfRoom(obj), obj.Id, core.PermRoomMemberBan)
+}
+
+// GroupID is the resolver for the groupId field.
+func (r *roomResolver) GroupID(ctx context.Context, obj *corev1.Room) (*string, error) {
+	if core.KindOfRoom(obj) == core.KindDM {
+		return nil, nil
+	}
+	return nilIfEmpty(obj.GetGroupId()), nil
+}
+
 // Events is the resolver for the events field.
 func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
 	user, err := requireAuth(ctx)
@@ -196,10 +216,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		return nil, core.ErrNotRoomMember
 	}
 
-	var fetchLimit uint32 = 50
-	if limit != nil {
-		fetchLimit = uint32(*limit)
-	}
+	fetchLimit := roomEventsLimit(limit)
 
 	var result *core.RoomEventsResult
 	if after != nil && *after != "" {
@@ -207,7 +224,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		if err != nil {
 			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEventsAfter(ctx, core.KindOfRoom(obj), obj.Id, afterSeq, int(fetchLimit))
+		result, err = r.core.GetRoomEventsAfter(ctx, core.KindOfRoom(obj), obj.Id, afterSeq, fetchLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +237,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 			}
 			beforeSeq = &seq
 		}
-		result, err = r.core.GetRoomEvents(ctx, core.KindOfRoom(obj), obj.Id, int(fetchLimit), beforeSeq)
+		result, err = r.core.GetRoomEvents(ctx, core.KindOfRoom(obj), obj.Id, fetchLimit, beforeSeq)
 		if err != nil {
 			return nil, err
 		}
@@ -268,10 +285,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		return nil, core.ErrNotRoomMember
 	}
 
-	fetchLimit := 50
-	if limit != nil {
-		fetchLimit = int(*limit)
-	}
+	fetchLimit := roomEventsLimit(limit)
 
 	result, err := r.core.GetRoomEventsAround(ctx, core.KindOfRoom(obj), obj.Id, eventID, fetchLimit)
 	if err != nil {
@@ -314,6 +328,10 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 
 	avatarSize := 96
 	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize, "cover")
+	e2eeKey, err := r.core.GetVoiceCallE2EEKey(ctx, obj.Id)
+	if err != nil {
+		return nil, err
+	}
 
 	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, core.LegacySpaceIDForRoomKind(core.KindOfRoom(obj)), obj.Id)
 	token, err := core.GenerateVoiceCallToken(
@@ -324,6 +342,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 		user.DisplayName,
 		user.Login,
 		avatarURL,
+		e2eeKey,
 	)
 	if err != nil {
 		return nil, err
@@ -349,19 +368,19 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 		return nil, err
 	}
 
-	result := make([]*model.CallParticipant, len(participants))
-	for i, p := range participants {
-		var avatarURL *string
-		if p.AvatarURL != "" {
-			avatarURL = &p.AvatarURL
+	result := make([]*model.CallParticipant, 0, len(participants))
+	for _, p := range participants {
+		user, err := r.getUser(ctx, p.UserID)
+		if err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				continue
+			}
+			return nil, err
 		}
-		result[i] = &model.CallParticipant{
-			UserID:      p.UserID,
-			DisplayName: p.DisplayName,
-			Login:       p.Login,
-			AvatarURL:   avatarURL,
-			JoinedAt:    int32(p.JoinedAt),
-		}
+		result = append(result, &model.CallParticipant{
+			User:     user,
+			JoinedAt: timestamppb.New(time.Unix(p.JoinedAt, 0)),
+		})
 	}
 	return result, nil
 }

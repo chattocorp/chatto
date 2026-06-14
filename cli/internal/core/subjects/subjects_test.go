@@ -372,14 +372,14 @@ func TestLiveSubjects(t *testing.T) {
 		"LiveSyncAllEvents":   "live.sync.>",
 		"LiveSyncUserEvent":   "live.sync.user.U1.settings_updated",
 		"LiveSyncRoomEvent":   "live.sync.room.channel.R1.typing",
-		"LiveSyncConfigEvent": "live.sync.config.updated",
+		"LiveSyncConfigEvent": "live.sync.config.server_updated",
 		"LiveSyncMember":      "live.sync.member.left",
 	}
 	got := map[string]string{
 		"LiveSyncAllEvents":   LiveSyncAllEvents(),
 		"LiveSyncUserEvent":   LiveSyncUserEvent("U1", "settings_updated"),
 		"LiveSyncRoomEvent":   LiveSyncRoomEvent("channel", "R1", "typing"),
-		"LiveSyncConfigEvent": LiveSyncConfigEvent("updated"),
+		"LiveSyncConfigEvent": LiveSyncConfigEvent("server_updated"),
 		"LiveSyncMember":      LiveSyncMember("member_left"),
 	}
 	for k, want := range cases {

@@ -24,11 +24,8 @@ const maxConfigUpdateRetries = 5
 
 // ConfigManager handles runtime server configuration.
 //
-// ADR-035 phase 6: writes are event-only (publish to EVT +
-// WaitForSeq for read-your-writes). Reads come from the in-memory
-// ConfigProjection. The legacy INSTANCE_CONFIG KV bucket is
-// retained as pre-ES import evidence for MigrateServerConfigToES, but
-// is not written by this code anymore.
+// Writes are event-only (publish to EVT + WaitForSeq for read-your-writes).
+// Reads come from the in-memory ConfigProjection.
 type ConfigManager struct {
 	service    *ConfigService
 	projection *ConfigProjection
@@ -66,7 +63,7 @@ func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerCon
 //
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
-// migration code and tests that bypass the compose step.
+// tests and controlled repair paths that bypass the compose step.
 func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
 	return cm.publish(ctx, actorID, cfg)
 }
@@ -99,6 +96,9 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 		if updated == nil {
 			return nil, fmt.Errorf("update function returned nil config")
 		}
+		if err := validateServerConfig(updated); err != nil {
+			return nil, err
+		}
 
 		err = cm.service.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
 		if err == nil {
@@ -118,10 +118,40 @@ func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *confi
 	if cm.service == nil {
 		return fmt.Errorf("config manager: event publisher/projector not configured")
 	}
+	if err := validateServerConfig(cfg); err != nil {
+		return err
+	}
 
 	return cm.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
+}
+
+func validateServerConfig(cfg *configv1.ServerConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if err := validateStringMaxLength("server name", cfg.GetServerName(), MaxServerNameLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server description", cfg.GetDescription(), MaxServerDescriptionLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server welcome message", cfg.GetWelcomeMessage(), MaxServerWelcomeMessageLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server MOTD", cfg.GetMotd(), MaxServerMOTDLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server blocked usernames", cfg.GetBlockedUsernames(), MaxServerBlockedUsernamesLength); err != nil {
+		return err
+	}
+	for _, blocked := range parseBlockedUsernames(cfg.GetBlockedUsernames()) {
+		if err := validateStringMaxLength("blocked username", blocked, MaxLoginLength); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (cm *ConfigManager) effectiveConfigForUpdate() *configv1.ServerConfig {

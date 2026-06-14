@@ -28,13 +28,13 @@ export const MATRIX: Matrix = {
     otherSpaceOwner: "allow",
     instanceAdmin: "allow",
   },
-  "Query.users": {
+  "Query.server.members": {
     anon: "auth",
-    randomUser: "deny",
-    spaceMember: "deny",
-    roomMember: "deny",
-    spaceAdmin: "deny",
-    otherSpaceOwner: "deny",
+    randomUser: "allow",
+    spaceMember: "allow",
+    roomMember: "allow",
+    spaceAdmin: "allow",
+    otherSpaceOwner: "allow",
     instanceAdmin: "allow",
   },
   "Query.user(otherUserId)": {

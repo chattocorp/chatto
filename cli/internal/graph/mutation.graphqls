@@ -5,13 +5,13 @@ type Mutation {
   "Create a new room."
   createRoom(input: CreateRoomInput!): Room!
 
-  "Update an existing room's name and description. Requires rooms.manage permission."
+  "Update an existing room's name and description. Requires room.manage permission."
   updateRoom(input: UpdateRoomInput!): Room!
 
-  "Archive a room. Hides it from sidebar and Browse Rooms. Requires rooms.manage permission."
+  "Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission."
   archiveRoom(input: ArchiveRoomInput!): Room!
 
-  "Unarchive a previously archived room. Requires rooms.manage permission."
+  "Unarchive a previously archived room. Requires room.manage permission."
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
   """
@@ -24,9 +24,6 @@ type Mutation {
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): Event!
-
-  "Update the server's name. Requires server.manage permission."
-  updateServer(input: UpdateServerInput!): Server!
 
   "Upload a logo for the server. Requires server.manage permission."
   uploadServerLogo(input: UploadServerLogoInput!): Server!
@@ -45,6 +42,20 @@ type Mutation {
 
   "Leave the specified room."
   leaveRoom(input: LeaveRoomInput!): Boolean!
+
+  """
+  Ban a target user from a channel room. Requires `room.ban-member` in the
+  room and the caller must strictly outrank the target user. DM rooms cannot
+  be moderated this way. The reason is required for moderation audit logs.
+  """
+  banRoomMember(input: BanRoomMemberInput!): Boolean!
+
+  """
+  Unban a user from a channel room. Requires `room.ban-member` in the room,
+  and the caller must strictly outrank the target user. The reason is required
+  for moderation audit logs.
+  """
+  unbanRoomMember(input: UnbanRoomMemberInput!): Boolean!
 
   """
   Mark a room as read for the current user.
@@ -91,8 +102,8 @@ type Mutation {
   """
   Delete a message body for GDPR compliance.
   The message remains as a retracted/deleted entry, but the content is removed.
-  Requires either delete_any_message permission (moderator) or delete_own_message permission
-  and ownership of the message.
+  Requires message.manage to delete another user's message; authors can delete
+  their own messages.
   Returns true on success.
   """
   deleteMessage(input: DeleteMessageInput!): Boolean!
@@ -190,11 +201,11 @@ input CreateRoomInput {
   "Optional description of the room's purpose."
   description: String
   """
-  Optional room-set ID to place the new room in. Required once the
-  room-sets feature is fully wired (see ADR-031); during the transition
-  it may be omitted, in which case the room is created without a set.
+  Room group ID to place the new channel room in. Channel room creation
+  requires an explicit group; DM rooms are created through the DM APIs and
+  do not use this input.
   """
-  groupId: ID
+  groupId: ID!
 }
 
 """
@@ -210,27 +221,13 @@ input UpdateRoomInput {
 }
 
 """
-Input for updating the server.
-"""
-input UpdateServerInput {
-  "The new name for the server."
-  name: String!
-  "The new description for the server. Set to empty string to clear."
-  description: String
-  "Message of the Day, displayed in the chat header. Set to empty string to clear."
-  motd: String
-  "Welcome message shown on the login page (markdown supported). Set to empty string to clear."
-  welcomeMessage: String
-}
-
-"""
 Input for posting a message to a room.
 """
 input PostMessageInput {
   "The ID of the room to post to."
   roomId: ID!
   "The message content. Optional if attachments are provided."
-  body: String
+  body: String @length(max: 10000)
   "Optional file attachments (images, videos, etc.)."
   attachments: [Upload!]
   "Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post)."
@@ -239,6 +236,8 @@ input PostMessageInput {
   inReplyTo: ID
   "Also echo this thread reply to the main channel for visibility (requires message.echo permission)."
   alsoSendToChannel: Boolean
+  "Short-lived token returned after a large mention confirmation prompt. Authorizes sending this exact message even if the current recipient count drifts."
+  mentionConfirmationToken: String
   "Link preview data from the composer. Server stores this directly without fetching."
   linkPreview: LinkPreviewInput
 }
@@ -296,7 +295,9 @@ input UpdateMessageInput {
   "The event ID of the message to update."
   eventId: ID!
   "The new message content."
-  body: String!
+  body: String! @length(max: 10000)
+  "For thread replies, whether the reply should have a visible channel echo after saving. Omit to preserve current echo state."
+  alsoSendToChannel: Boolean
 }
 
 """
@@ -369,6 +370,32 @@ Input for leaving a room.
 input LeaveRoomInput {
   "The ID of the room to leave."
   roomId: ID!
+}
+
+"""
+Input for banning another member from a channel room.
+"""
+input BanRoomMemberInput {
+  "The ID of the channel room to ban the member from."
+  roomId: ID!
+  "The ID of the user to ban from the room."
+  userId: ID!
+  "Moderator-entered reason stored for audit."
+  reason: String! @length(min: 1, max: 1000)
+  "Optional expiry for a temporary ban. Null means indefinite."
+  expiresAt: Time
+}
+
+"""
+Input for removing a room ban.
+"""
+input UnbanRoomMemberInput {
+  "The ID of the channel room to unban the user from."
+  roomId: ID!
+  "The ID of the user to unban."
+  userId: ID!
+  "Moderator-entered reason stored for audit."
+  reason: String! @length(min: 1, max: 1000)
 }
 
 """

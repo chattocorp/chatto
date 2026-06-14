@@ -607,6 +607,83 @@ func TestChattoCore_SetPasswordHash(t *testing.T) {
 	}
 }
 
+func TestChattoCore_SetPasswordHash_RevokesBearerTokens(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "password-revoke-user", "Password Revoke User", "initial123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	otherUser, err := core.CreateUser(ctx, "system", "password-revoke-other", "Password Revoke Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	token1, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken 1: %v", err)
+	}
+	token2, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken 2: %v", err)
+	}
+	otherToken, err := core.CreateAuthToken(ctx, otherUser.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken other: %v", err)
+	}
+
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	if _, err := core.ValidateAuthToken(ctx, token1); err != ErrAuthTokenNotFound {
+		t.Fatalf("token1 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token2); err != ErrAuthTokenNotFound {
+		t.Fatalf("token2 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if gotUserID, err := core.ValidateAuthToken(ctx, otherToken); err != nil {
+		t.Fatalf("other token should remain valid: %v", err)
+	} else if gotUserID != otherUser.Id {
+		t.Fatalf("other token user ID = %q, want %q", gotUserID, otherUser.Id)
+	}
+}
+
+func TestChattoCore_FailedPasswordChangeKeepsOldPasswordUsable(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "password-failed-change-user", "Password Failed Change User", "oldpassword")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.VerifyPassword(ctx, user.Login, "oldpassword"); err != nil {
+		t.Fatalf("old password should initially verify: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+
+	if err := core.SetPasswordHash(ctx, user.Id, "short"); err == nil {
+		t.Fatal("SetPasswordHash should reject too-short password")
+	}
+
+	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration after failure: %v", err)
+	}
+	if afterGeneration != authGeneration {
+		t.Fatalf("auth generation = %d, want unchanged %d", afterGeneration, authGeneration)
+	}
+	if verified, err := core.VerifyPassword(ctx, user.Login, "oldpassword"); err != nil {
+		t.Fatalf("old password should remain usable after failed change: %v", err)
+	} else if verified.Id != user.Id {
+		t.Fatalf("verified user ID = %q, want %q", verified.Id, user.Id)
+	}
+}
+
 func TestChattoCore_CreateUser_WithoutPassword(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -754,6 +831,40 @@ func TestChattoCore_CreateUser_BlockedUsername(t *testing.T) {
 			t.Errorf("Expected ErrUsernameBlocked, got: %v", err)
 		}
 	})
+}
+
+func TestChattoCore_CreateUser_MentionNamespaceReserved(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "helpdesk", "Helpdesk", ""); err != nil {
+		t.Fatalf("CreateServerRole helpdesk: %v", err)
+	}
+
+	for _, login := range []string{"all", "here", "helpdesk", "HELPDESK"} {
+		t.Run(login, func(t *testing.T) {
+			_, err := core.CreateUser(ctx, "system", login, login, "password123")
+			if !errors.Is(err, ErrUsernameBlocked) {
+				t.Fatalf("CreateUser(%q) error = %v, want ErrUsernameBlocked", login, err)
+			}
+		})
+	}
+}
+
+func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "oldhandle", "Old Handle", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.UpdateUserLogin(ctx, user.Id, "newhandle"); err != nil {
+		t.Fatalf("UpdateUserLogin: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "oldhandle", "Old Handle", ""); err != nil {
+		t.Fatalf("CreateServerRole with released login: %v", err)
+	}
 }
 
 func TestChattoCore_UpdateUserLogin(t *testing.T) {
@@ -1384,6 +1495,41 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	_, err = core.ServerStore().Get(ctx, asset.GetNats().Key)
 	if err == nil {
 		t.Error("Expected asset to be deleted from object store")
+	}
+}
+
+func TestChattoCore_DeleteUser_CleansUpAvatarCache(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "avatarcacheuser", "Avatar Cache User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	asset, err := core.UploadUserAvatar(ctx, user.Id, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("Failed to upload avatar: %v", err)
+	}
+	if err := core.SetUserAvatar(ctx, user.Id, asset); err != nil {
+		t.Fatalf("Failed to set avatar: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(ServerAssetSignResource, asset.Id, 64, 64, "cover")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store avatar cached resize: %v", err)
+	}
+
+	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
+		t.Fatalf("Failed to delete user: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting avatar cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Avatar cache entry should be deleted during account deletion")
 	}
 }
 

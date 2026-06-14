@@ -17,7 +17,9 @@ func (*RoomArchivedEvent) IsEventType()             {}
 func (*RoomUnarchivedEvent) IsEventType()           {}
 func (*UserJoinedRoomEvent) IsEventType()           {}
 func (*UserLeftRoomEvent) IsEventType()             {}
-func (*SpaceMemberDeletedEvent) IsEventType()       {}
+func (*RoomMemberBannedEvent) IsEventType()         {}
+func (*RoomMemberUnbannedEvent) IsEventType()       {}
+func (*ServerMemberDeletedEvent) IsEventType()      {}
 func (*MessagePostedEvent) IsEventType()            {}
 func (*MessageEditedEvent) IsEventType()            {}
 func (*MessageRetractedEvent) IsEventType()         {}
@@ -30,13 +32,13 @@ func (*ReactionAddedEvent) IsEventType()            {}
 func (*ReactionRemovedEvent) IsEventType()          {}
 func (*UserTypingEvent) IsEventType()               {}
 func (*PresenceChangedEvent) IsEventType()          {}
-func (*VideoProcessingCompletedEvent) IsEventType() {}
+func (*CallStartedEvent) IsEventType()              {}
 func (*CallParticipantJoinedEvent) IsEventType()    {}
 func (*CallParticipantLeftEvent) IsEventType()      {}
+func (*CallEndedEvent) IsEventType()                {}
 
 // Deployment-scoped events.
 
-func (*ServerConfigUpdatedEvent) IsEventType()          {}
 func (*UserCreatedEvent) IsEventType()                  {}
 func (*UserDeletedEvent) IsEventType()                  {}
 func (*UserProfileUpdatedEvent) IsEventType()           {}

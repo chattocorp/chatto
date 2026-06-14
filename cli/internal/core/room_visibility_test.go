@@ -32,11 +32,11 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 	})
 
 	t.Run("room-scope deny of room.list on everyone: non-member loses visibility", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomList); err != nil {
+		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomList)
+			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
 		})
 
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-denied", "Stranger", "password123")
@@ -50,11 +50,11 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 	})
 
 	t.Run("denying room.join does NOT affect visibility — separate gate", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomJoin); err != nil {
+		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomJoin)
+			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
 		})
 
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-no-join", "Stranger", "password123")
@@ -72,11 +72,11 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 		if _, err := core.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
 			t.Fatalf("JoinRoom: %v", err)
 		}
-		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomList); err != nil {
+		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomList)
+			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
 		})
 
 		got, err := core.CanSeeRoom(ctx, member.Id, KindChannel, room.Id)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -15,8 +16,9 @@ import (
 
 // S3Client wraps minio-go client for S3-compatible storage operations.
 type S3Client struct {
-	client *minio.Client
-	bucket string
+	client     *minio.Client
+	bucket     string
+	pathPrefix string
 }
 
 // NewS3Client creates a new S3 client from configuration.
@@ -24,6 +26,10 @@ type S3Client struct {
 func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 	if cfg.Endpoint == "" || cfg.Bucket == "" {
 		return nil, nil
+	}
+	cfg.NormalizePathPrefix()
+	if err := cfg.ValidatePathPrefix(); err != nil {
+		return nil, err
 	}
 
 	// Set up bucket lookup type based on path-style config
@@ -45,14 +51,37 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 	}
 
 	return &S3Client{
-		client: client,
-		bucket: cfg.Bucket,
+		client:     client,
+		bucket:     cfg.Bucket,
+		pathPrefix: cfg.PathPrefix,
 	}, nil
 }
 
 // Bucket returns the configured bucket name.
 func (s *S3Client) Bucket() string {
 	return s.bucket
+}
+
+// PathPrefix returns the configured S3 object-key prefix after normalization.
+func (s *S3Client) PathPrefix() string {
+	return s.pathPrefix
+}
+
+func (s *S3Client) physicalKey(logicalKey string) string {
+	if s.pathPrefix == "" {
+		return logicalKey
+	}
+	if logicalKey == "" {
+		return s.pathPrefix
+	}
+	return s.pathPrefix + "/" + logicalKey
+}
+
+func (s *S3Client) logicalKey(physicalKey string) string {
+	if s.pathPrefix == "" {
+		return physicalKey
+	}
+	return strings.TrimPrefix(physicalKey, s.pathPrefix+"/")
 }
 
 // EnsureBucket creates the bucket if it doesn't exist.
@@ -83,13 +112,13 @@ func (s *S3Client) PutObject(ctx context.Context, key string, reader io.Reader, 
 		ContentType: contentType,
 	}
 
-	info, err := s.client.PutObject(ctx, s.bucket, key, reader, size, opts)
+	info, err := s.client.PutObject(ctx, s.bucket, s.physicalKey(key), reader, size, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload object: %w", err)
 	}
 
 	return &S3ObjectInfo{
-		Key:         info.Key,
+		Key:         s.logicalKey(info.Key),
 		Size:        info.Size,
 		ContentType: contentType,
 	}, nil
@@ -103,7 +132,7 @@ func (s *S3Client) PutObjectFromBytes(ctx context.Context, key string, data []by
 // GetObject retrieves an object from S3.
 // The returned reader must be closed by the caller.
 func (s *S3Client) GetObject(ctx context.Context, key string) (io.ReadCloser, *S3ObjectInfo, error) {
-	obj, err := s.client.GetObject(ctx, s.bucket, key, minio.GetObjectOptions{})
+	obj, err := s.client.GetObject(ctx, s.bucket, s.physicalKey(key), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get object: %w", err)
 	}
@@ -115,7 +144,7 @@ func (s *S3Client) GetObject(ctx context.Context, key string) (io.ReadCloser, *S
 	}
 
 	return obj, &S3ObjectInfo{
-		Key:         stat.Key,
+		Key:         s.logicalKey(stat.Key),
 		Size:        stat.Size,
 		ContentType: stat.ContentType,
 	}, nil
@@ -127,7 +156,7 @@ func (s *S3Client) GetObjectFromBucket(ctx context.Context, bucket, key string) 
 		bucket = s.bucket
 	}
 
-	obj, err := s.client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
+	obj, err := s.client.GetObject(ctx, bucket, s.physicalKey(key), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get object: %w", err)
 	}
@@ -139,7 +168,7 @@ func (s *S3Client) GetObjectFromBucket(ctx context.Context, bucket, key string) 
 	}
 
 	return obj, &S3ObjectInfo{
-		Key:         stat.Key,
+		Key:         s.logicalKey(stat.Key),
 		Size:        stat.Size,
 		ContentType: stat.ContentType,
 	}, nil
@@ -147,7 +176,7 @@ func (s *S3Client) GetObjectFromBucket(ctx context.Context, bucket, key string) 
 
 // DeleteObject deletes an object from S3.
 func (s *S3Client) DeleteObject(ctx context.Context, key string) error {
-	err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
+	err := s.client.RemoveObject(ctx, s.bucket, s.physicalKey(key), minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete object: %w", err)
 	}
@@ -160,7 +189,7 @@ func (s *S3Client) DeleteObjectFromBucket(ctx context.Context, bucket, key strin
 		bucket = s.bucket
 	}
 
-	err := s.client.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{})
+	err := s.client.RemoveObject(ctx, bucket, s.physicalKey(key), minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete object: %w", err)
 	}
@@ -169,13 +198,13 @@ func (s *S3Client) DeleteObjectFromBucket(ctx context.Context, bucket, key strin
 
 // StatObject returns metadata about an object without downloading it.
 func (s *S3Client) StatObject(ctx context.Context, key string) (*S3ObjectInfo, error) {
-	stat, err := s.client.StatObject(ctx, s.bucket, key, minio.StatObjectOptions{})
+	stat, err := s.client.StatObject(ctx, s.bucket, s.physicalKey(key), minio.StatObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat object: %w", err)
 	}
 
 	return &S3ObjectInfo{
-		Key:         stat.Key,
+		Key:         s.logicalKey(stat.Key),
 		Size:        stat.Size,
 		ContentType: stat.ContentType,
 	}, nil
@@ -196,7 +225,7 @@ func IsNoSuchKeyError(err error) bool {
 // PresignedGetURL generates a presigned GET URL for an S3 object.
 // The URL is valid for the specified duration (max 7 days).
 func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.Duration) (*url.URL, error) {
-	return s.client.PresignedGetObject(ctx, s.bucket, key, expiry, nil)
+	return s.client.PresignedGetObject(ctx, s.bucket, s.physicalKey(key), expiry, nil)
 }
 
 // S3 key helpers for organizing assets in S3.

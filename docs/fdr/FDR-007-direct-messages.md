@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-06-07
 
 ## Overview
 
@@ -15,6 +15,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 - Maximum 10 participants per DM.
 - A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
 - Operators can prevent a user from starting new DMs or sending root messages in existing DMs by revoking `message.post`; thread replies follow `message.post-in-thread`.
+- Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
 - Inside a DM room, ordinary message-related features apply: posting, replies, threads, reactions, edits, deletes, mentions, attachments.
 - Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
 
@@ -36,7 +37,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 
 **Decision:** A DM room ID is a hash of the sorted participant user IDs.
 **Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID — starting a DM with the same group always lands in the same room without a database lookup.
-**Tradeoff:** Adding or removing a participant from a DM would change the room ID, which means group membership is fixed at creation. Acceptable: in practice, group DMs are short-lived and re-creating with the new set is fine.
+**Tradeoff:** Adding or removing a participant from a DM would change the room ID, which means group membership is fixed at creation. Acceptable: in practice, group DMs are short-lived and re-creating with the new set is fine. Users who need a different participant set start a new DM.
 
 ### 4. Per-server scope (no unified inbox)
 

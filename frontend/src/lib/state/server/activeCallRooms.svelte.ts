@@ -10,8 +10,8 @@
  */
 
 import { SvelteMap } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
-import type { UserAvatarUserFragment } from '$lib/gql/graphql';
+import { graphql, useFragment } from '$lib/gql';
+import { UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
 
@@ -25,10 +25,9 @@ const CallParticipantsQuery = graphql(`
 	query GetSidebarCallParticipants($roomId: ID!) {
 		room(roomId: $roomId) {
 			callParticipants {
-				userId
-				displayName
-				login
-				avatarUrl
+				user {
+					...UserAvatarUser
+				}
 				joinedAt
 			}
 		}
@@ -99,12 +98,15 @@ export class ActiveCallRoomsState {
 				if (participants) {
 					this.serverRooms.set(
 						roomId,
-						participants.map((p) => ({
-							userId: p.userId,
-							displayName: p.displayName,
-							login: p.login,
-							avatarUrl: p.avatarUrl ?? null
-						}))
+						participants.map((p) => {
+							const user = useFragment(UserAvatarUserFragmentDoc, p.user);
+							return {
+								userId: user.id,
+								displayName: user.displayName,
+								login: user.login,
+								avatarUrl: user.avatarUrl ?? null
+							};
+						})
 					);
 				} else if (!this.serverRooms.has(roomId)) {
 					// Room is active but we couldn't fetch participants

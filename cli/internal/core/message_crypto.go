@@ -20,8 +20,11 @@ type userDEK struct {
 
 type messageContentKey = userDEK
 
-func messageBodyAAD(eventID, roomID, authorID string, epoch int32) []byte {
-	return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, roomID, authorID, epoch))
+func messageBodyAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) []byte {
+	if bodyEventID == "" {
+		return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, roomID, authorID, epoch))
+	}
+	return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00body_event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, bodyEventID, roomID, authorID, epoch))
 }
 
 func contentKeyAAD(userID string, epoch int32) []byte {
@@ -35,7 +38,7 @@ func userDEKAAD(userID string, purpose corev1.UserDEKPurpose, epoch int32) []byt
 	return []byte(fmt.Sprintf("chatto:user-dek-context:v1\x00user_id=%s\x00purpose=%d\x00epoch=%d", userID, purpose, epoch))
 }
 
-func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.MessageBody, roomID, eventID, plaintext string) error {
+func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.MessageBody, roomID, eventID, bodyEventID, plaintext string) error {
 	if body == nil {
 		return fmt.Errorf("message body is nil")
 	}
@@ -43,12 +46,15 @@ func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.Messag
 	if authorID == "" {
 		return fmt.Errorf("message body author is empty")
 	}
+	if bodyEventID == "" {
+		return fmt.Errorf("message body event ID is empty")
+	}
 	contentKey, err := c.ensureActiveMessageContentKey(ctx, authorID)
 	if err != nil {
 		return err
 	}
 
-	encrypted, err := encryption.EncryptWithContentKey(contentKey.key, []byte(plaintext), messageBodyAAD(eventID, roomID, authorID, contentKey.epoch))
+	encrypted, err := encryption.EncryptWithContentKey(contentKey.key, []byte(plaintext), messageBodyAAD(eventID, bodyEventID, roomID, authorID, contentKey.epoch))
 	if err != nil {
 		return fmt.Errorf("failed to encrypt message body: %w", err)
 	}
@@ -56,6 +62,7 @@ func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.Messag
 	body.EncryptionNonce = encrypted.Nonce
 	body.EncryptionVersion = encryption.EnvelopeVersionV2
 	body.ContentKeyEpoch = contentKey.epoch
+	body.BodyEventId = bodyEventID
 	return nil
 }
 
@@ -128,7 +135,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		if err != nil {
 			return nil, fmt.Errorf("read DEK OCC filter seq: %w", err)
 		}
-		if err := c.waitForUserContentKeysCurrent(ctx, userID); err != nil {
+		if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
 			return nil, err
 		}
 		if event, ok := c.ContentKeys.Active(userID, purpose); ok {
@@ -154,7 +161,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
 		if err == nil {
-			if err := c.ContentKeysProjector.WaitForSeq(ctx, seq); err != nil {
+			if err := c.userService.waitForContentKeys(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return nil, fmt.Errorf("wait for DEK projection: %w", err)
 			}
 			return &userDEK{epoch: 1, purpose: purpose, key: key}, nil

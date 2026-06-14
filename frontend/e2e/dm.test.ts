@@ -260,8 +260,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       // Scope to the Server Gutter so we don't collide with notification
       // buttons rendered inside the Server Sidebar.
       const serverIconWrapper = page
-        .locator('.server-gutter .space-icon-wrapper')
-        .filter({ has: page.getByTestId('space-icon') });
+        .locator('.server-gutter .server-icon-wrapper')
+        .filter({ has: page.getByTestId('server-icon') });
       await expect(serverIconWrapper).toBeVisible();
       await expect(serverIconWrapper.getByRole('button')).toHaveCount(0);
 

@@ -183,6 +183,12 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", nil); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
+	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, tokenData.UserID, "password_reset"); err != nil {
+		c.logger.Warn("Failed to clean up runtime credentials after password reset", "user_id", tokenData.UserID, "error", err)
+	}
+	if err := c.PublishSessionTerminated(ctx, tokenData.UserID, "password_reset"); err != nil {
+		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", tokenData.UserID, "reason", "password_reset", "error", err)
+	}
 
 	return nil
 }

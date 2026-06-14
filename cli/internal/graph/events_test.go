@@ -1,7 +1,9 @@
 package graph
 
 import (
+	"bytes"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
@@ -67,10 +69,18 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if reactions[0].Emoji != "thumbsup" {
 			t.Errorf("expected emoji 'thumbsup', got %s", reactions[0].Emoji)
 		}
-		if reactions[0].Count != 1 {
-			t.Errorf("expected count 1, got %d", reactions[0].Count)
+		count, err := env.resolver.ReactionSummary().Count(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.Count returned error: %v", err)
 		}
-		if !reactions[0].HasReacted {
+		if count != 1 {
+			t.Errorf("expected count 1, got %d", count)
+		}
+		hasReacted, err := env.resolver.ReactionSummary().HasReacted(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.HasReacted returned error: %v", err)
+		}
+		if !hasReacted {
 			t.Error("expected hasReacted true for the user who reacted")
 		}
 	})
@@ -88,8 +98,65 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		if len(reactions) != 1 {
 			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
 		}
-		if reactions[0].HasReacted {
+		hasReacted, err := env.resolver.ReactionSummary().HasReacted(env.authContextForUser(otherUser), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.HasReacted returned error: %v", err)
+		}
+		if hasReacted {
 			t.Error("expected hasReacted false for user who didn't react")
+		}
+	})
+
+	t.Run("reaction users are a bounded preview", func(t *testing.T) {
+		for i := 0; i < 6; i++ {
+			user, err := env.core.CreateUser(env.ctx, "system", "reaction-preview-"+string(rune('a'+i)), "Reaction Preview", "password123")
+			if err != nil {
+				t.Fatalf("failed to create preview user %d: %v", i, err)
+			}
+			if _, err := env.core.AddReaction(env.ctx, core.KindChannel, env.testRoom.Id, event.Id, "thumbsup", user.Id); err != nil {
+				t.Fatalf("failed to add preview reaction %d: %v", i, err)
+			}
+		}
+
+		reactions, err := resolver.Reactions(env.authContext(), msgEvent)
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+		if len(reactions) != 1 {
+			t.Fatalf("expected 1 reaction group, got %d", len(reactions))
+		}
+		count, err := env.resolver.ReactionSummary().Count(env.authContext(), reactions[0])
+		if err != nil {
+			t.Fatalf("ReactionSummary.Count returned error: %v", err)
+		}
+		if count != 7 {
+			t.Fatalf("reaction count = %d, want 7", count)
+		}
+
+		users, err := env.resolver.ReactionSummary().Users(env.authContext(), reactions[0], nil)
+		if err != nil {
+			t.Fatalf("ReactionSummary.Users returned error: %v", err)
+		}
+		if len(users) != 3 {
+			t.Fatalf("default reaction users len = %d, want 3", len(users))
+		}
+
+		first := int32(5)
+		users, err = env.resolver.ReactionSummary().Users(env.authContext(), reactions[0], &first)
+		if err != nil {
+			t.Fatalf("ReactionSummary.Users(first: 5) returned error: %v", err)
+		}
+		if len(users) != 5 {
+			t.Fatalf("reaction users(first: 5) len = %d, want 5", len(users))
+		}
+
+		oversized := int32(100)
+		users, err = env.resolver.ReactionSummary().Users(env.authContext(), reactions[0], &oversized)
+		if err != nil {
+			t.Fatalf("ReactionSummary.Users(first: 100) returned error: %v", err)
+		}
+		if len(users) != 7 {
+			t.Fatalf("reaction users(first: 100) len = %d, want all 7 available under max 10", len(users))
 		}
 	})
 
@@ -133,6 +200,80 @@ func TestMessagePostedEventResolver_Body(t *testing.T) {
 	})
 }
 
+func TestMessageEditedEventResolver_LoadsBodyFieldsFromProjection(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.MessageEditedEvent()
+
+	attachment, err := env.core.UploadAttachment(env.ctx, core.SystemActorID, env.testRoom.Id, "attachment.txt", "text/plain", bytes.NewReader([]byte("hello")))
+	if err != nil {
+		t.Fatalf("failed to upload attachment: %v", err)
+	}
+	post, err := env.core.PostMessage(
+		env.ctx,
+		core.KindChannel,
+		env.testRoom.Id,
+		env.testUser.Id,
+		"Original body",
+		[]string{attachment.Id},
+		"",
+		"",
+		&corev1.LinkPreview{
+			Url:   "https://example.com/original",
+			Title: "Original preview",
+		},
+		false,
+	)
+	if err != nil {
+		t.Fatalf("failed to post message: %v", err)
+	}
+	if err := env.core.EditMessage(env.ctx, env.testUser.Id, core.KindChannel, env.testRoom.Id, post.Id, "Edited body"); err != nil {
+		t.Fatalf("failed to edit message: %v", err)
+	}
+
+	edited := &corev1.MessageEditedEvent{
+		RoomId:  env.testRoom.Id,
+		EventId: post.Id,
+	}
+
+	body, err := resolver.Body(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("Body returned error: %v", err)
+	}
+	if body == nil || *body != "Edited body" {
+		t.Fatalf("Body = %v, want Edited body", body)
+	}
+
+	attachments, err := resolver.Attachments(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("Attachments returned error: %v", err)
+	}
+	if len(attachments) != 1 {
+		t.Fatalf("Attachments = %d, want 1", len(attachments))
+	}
+	if attachments[0].RoomId != env.testRoom.Id {
+		t.Fatalf("Attachment.RoomId = %q, want %q", attachments[0].RoomId, env.testRoom.Id)
+	}
+	if attachments[0].MessageBodyId != post.Id {
+		t.Fatalf("Attachment.MessageBodyId = %q, want %q", attachments[0].MessageBodyId, post.Id)
+	}
+
+	linkPreview, err := resolver.LinkPreview(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("LinkPreview returned error: %v", err)
+	}
+	if linkPreview == nil || linkPreview.Title != "Original preview" {
+		t.Fatalf("LinkPreview = %+v, want original preview", linkPreview)
+	}
+
+	updatedAt, err := resolver.UpdatedAt(env.authContext(), edited)
+	if err != nil {
+		t.Fatalf("UpdatedAt returned error: %v", err)
+	}
+	if updatedAt == nil {
+		t.Fatal("UpdatedAt = nil, want edit timestamp from projected body")
+	}
+}
+
 func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 	env := setupTestResolver(t)
 	resolver := env.resolver.Attachment()
@@ -169,13 +310,13 @@ func TestAttachmentResolver_VideoProcessingFromManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
+	if err := env.core.Assets.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
+	if err := env.core.Assets.Apply(testDerivativeAssetCreatedEvent("A-480", attachment.Id, "480p", 854, 480, 42), 1); err != nil {
 		t.Fatalf("Apply derivative asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
+	if err := env.core.Assets.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video manifest: %v", err)
 	}
 
@@ -215,10 +356,10 @@ func TestAttachmentResolver_VideoProcessingFailedManifest(t *testing.T) {
 			},
 		},
 	}
-	if err := env.core.RoomTimeline.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
+	if err := env.core.Assets.Apply(testAssetCreatedEvent(env.testRoom.Id, attachment.Id, attachment.ContentType), 1); err != nil {
 		t.Fatalf("Apply asset creation: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(event, 1); err != nil {
+	if err := env.core.Assets.Apply(event, 1); err != nil {
 		t.Fatalf("Apply video failure: %v", err)
 	}
 
@@ -251,15 +392,104 @@ func TestAssetProcessingSucceededEventResolver_MessageEventID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MessageEventID returned error: %v", err)
 	}
-	if got != "M1" {
-		t.Fatalf("MessageEventID = %q, want M1 (read off the event)", got)
+	if got == nil || *got != "M1" {
+		t.Fatalf("MessageEventID = %v, want M1 (read off the event)", got)
 	}
 
-	// One-shot migration events don't carry it; the resolver yields empty.
+	// One-shot migration events don't carry it; the resolver yields null.
 	if got, err := resolver.MessageEventID(env.authContext(), &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"}); err != nil {
 		t.Fatalf("MessageEventID returned error: %v", err)
-	} else if got != "" {
-		t.Fatalf("MessageEventID without stamp = %q, want empty", got)
+	} else if got != nil {
+		t.Fatalf("MessageEventID without stamp = %v, want nil", got)
+	}
+}
+
+func TestEventResolver_ActorIDNullForSystemEvents(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.Event()
+
+	got, err := resolver.ActorID(env.authContext(), core.NewEVTEventEnvelope(&corev1.Event{}))
+	if err != nil {
+		t.Fatalf("ActorID returned error: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("ActorID for empty actor = %v, want nil", got)
+	}
+
+	got, err = resolver.ActorID(env.authContext(), core.NewEVTEventEnvelope(&corev1.Event{ActorId: "U123"}))
+	if err != nil {
+		t.Fatalf("ActorID returned error: %v", err)
+	}
+	if got == nil || *got != "U123" {
+		t.Fatalf("ActorID = %v, want U123", got)
+	}
+}
+
+func TestEventResolver_DeliveryCursorIsSignedForViewer(t *testing.T) {
+	env := setupTestResolver(t)
+	resolver := env.resolver.Event()
+
+	cursor, err := resolver.DeliveryCursor(env.authContext(), core.NewEVTEventEnvelopeWithDeliverySeq(&corev1.Event{Id: "E1"}, 123))
+	if err != nil {
+		t.Fatalf("DeliveryCursor returned error: %v", err)
+	}
+	if cursor == nil || *cursor == "" {
+		t.Fatal("DeliveryCursor returned nil/empty cursor")
+	}
+	if bytes.Contains([]byte(*cursor), []byte("123")) {
+		t.Fatalf("DeliveryCursor should be opaque, got %q", *cursor)
+	}
+
+	seq, err := env.core.ParseEventDeliveryCursor(env.testUser.Id, *cursor, time.Now())
+	if err != nil {
+		t.Fatalf("ParseEventDeliveryCursor: %v", err)
+	}
+	if seq != 123 {
+		t.Fatalf("parsed seq = %d, want 123", seq)
+	}
+
+	empty, err := resolver.DeliveryCursor(env.authContext(), core.NewEVTEventEnvelope(&corev1.Event{Id: "E2"}))
+	if err != nil {
+		t.Fatalf("DeliveryCursor for seq=0 returned error: %v", err)
+	}
+	if empty != nil {
+		t.Fatalf("DeliveryCursor for seq=0 = %v, want nil", *empty)
+	}
+}
+
+func TestNullableEventResolvers_EmptyStringsBecomeNull(t *testing.T) {
+	env := setupTestResolver(t)
+
+	roomID, err := env.resolver.AssetProcessingStartedEvent().RoomID(env.authContext(), &corev1.AssetProcessingStartedEvent{AssetId: "A-missing"})
+	if err != nil {
+		t.Fatalf("AssetProcessingStartedEvent.RoomID returned error: %v", err)
+	}
+	if roomID != nil {
+		t.Fatalf("AssetProcessingStartedEvent.RoomID = %v, want nil", roomID)
+	}
+
+	messageEventID, err := env.resolver.AssetProcessingStartedEvent().MessageEventID(env.authContext(), &corev1.AssetProcessingStartedEvent{})
+	if err != nil {
+		t.Fatalf("AssetProcessingStartedEvent.MessageEventID returned error: %v", err)
+	}
+	if messageEventID != nil {
+		t.Fatalf("AssetProcessingStartedEvent.MessageEventID = %v, want nil", messageEventID)
+	}
+
+	timezone, err := env.resolver.ServerUserPreferencesUpdatedEvent().Timezone(env.authContext(), &corev1.ServerUserPreferencesUpdatedEvent{})
+	if err != nil {
+		t.Fatalf("ServerUserPreferencesUpdatedEvent.Timezone returned error: %v", err)
+	}
+	if timezone != nil {
+		t.Fatalf("ServerUserPreferencesUpdatedEvent.Timezone = %v, want nil", timezone)
+	}
+
+	avatarURL, err := env.resolver.UserProfileUpdatedEvent().AvatarURL(env.authContext(), &corev1.UserProfileUpdatedEvent{})
+	if err != nil {
+		t.Fatalf("UserProfileUpdatedEvent.AvatarURL returned error: %v", err)
+	}
+	if avatarURL != nil {
+		t.Fatalf("UserProfileUpdatedEvent.AvatarURL = %v, want nil", avatarURL)
 	}
 }
 

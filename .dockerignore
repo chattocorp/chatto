@@ -9,6 +9,7 @@
 !frontend/.npmrc
 !frontend/src/
 !frontend/static/
+!frontend/build/
 !frontend/svelte.config.js
 !frontend/tsconfig.json
 !frontend/vite.config.ts

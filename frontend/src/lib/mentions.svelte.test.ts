@@ -144,6 +144,33 @@ describe('wrapValidMentions', () => {
       expect(result).toContain('<a href="#">this link</a>');
       expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
     });
+
+    it('wraps known role mention handles', () => {
+      const result = wrapValidMentions(
+        '<p>@admin @owner @support @unknown</p>',
+        members,
+        undefined,
+        ['admin', 'owner', 'support']
+      );
+
+      expect(result).toContain(
+        '<span class="mention mention-role" data-role-name="admin">@admin</span>'
+      );
+      expect(result).toContain(
+        '<span class="mention mention-role" data-role-name="owner">@owner</span>'
+      );
+      expect(result).toContain(
+        '<span class="mention mention-role" data-role-name="support">@support</span>'
+      );
+      expect(result).toContain('@unknown');
+    });
+
+    it('matches role mention handles case-insensitively', () => {
+      const result = wrapValidMentions('<p>Hello @ADMIN</p>', members, undefined, ['admin']);
+      expect(result).toContain(
+        '<span class="mention mention-role" data-role-name="admin">@ADMIN</span>'
+      );
+    });
   });
 
   describe('self-mention highlighting', () => {

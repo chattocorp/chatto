@@ -8,7 +8,9 @@ import { TIMEOUTS } from './constants';
 // Video processing (ffmpeg transcode) can take up to 45s for small test videos.
 const VIDEO_PROCESSING_TIMEOUT = 45_000;
 
-test.describe('video player', () => {
+test.use({ serverOptions: { env: { CHATTO_VIDEO_ENABLED: 'true' } } });
+
+test.describe('video player @ffmpeg', () => {
 	test.setTimeout(90_000);
 
 	test('uploaded video renders Vidstack player without settings menu', async ({
@@ -75,8 +77,8 @@ test.describe('video player', () => {
 				expect(computedDisplay).toBe('none');
 			}
 
-			// User 2: VideoProcessingCompletedEvent must also be delivered via the
-			// subscription so that the second user sees the player without reloading.
+			// User 2: the asset processing completion event must also be delivered
+			// via the subscription so that the second user sees the player without reloading.
 			await expect(roomPage2.mediaPlayer).toBeVisible({ timeout: VIDEO_PROCESSING_TIMEOUT });
 
 			// Filter for critical errors (ignore noise like favicon 404s)

@@ -13,12 +13,14 @@ type RoomDirectoryProjection struct {
 	events.MemoryProjection
 	Catalog    *RoomCatalogProjection
 	Membership *RoomMembershipProjection
+	Bans       *RoomBanProjection
 }
 
 func NewRoomDirectoryProjection() *RoomDirectoryProjection {
 	return &RoomDirectoryProjection{
 		Catalog:    NewRoomCatalogProjection(),
 		Membership: NewRoomMembershipProjection(),
+		Bans:       NewRoomBanProjection(),
 	}
 }
 
@@ -30,5 +32,8 @@ func (p *RoomDirectoryProjection) Apply(event *corev1.Event, seq uint64) error {
 	if err := p.Catalog.Apply(event, seq); err != nil {
 		return err
 	}
-	return p.Membership.Apply(event, seq)
+	if err := p.Membership.Apply(event, seq); err != nil {
+		return err
+	}
+	return p.Bans.Apply(event, seq)
 }

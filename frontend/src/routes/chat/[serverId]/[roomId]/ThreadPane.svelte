@@ -9,7 +9,7 @@
 
   const notificationStore = serverRegistry.getStore(getActiveServer()).notifications;
   import { appState } from '$lib/state/globals.svelte';
-  import { getRoomMembers, createComposerContext, ThreadMessagesStore } from '$lib/state/room';
+  import { getRoomMembers, createComposerContext, MessagesStore } from '$lib/state/room';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import MessageComposer, {
@@ -42,7 +42,7 @@
   const members = $derived(getRoomMembers());
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new ThreadMessagesStore(
+  const store = new MessagesStore(
     connection(),
     () => currentUser.user?.id ?? null
   );
@@ -93,7 +93,7 @@
   let canPost = $derived(canPostInThread);
 
   // Reload thread events when the thread prop changes. Silent reconnect +
-  // tab-resume catch-ups are owned by the store itself.
+  // tab-resume catch-ups are owned by the server event bus.
   $effect(() => {
     store.setThread(roomId, threadRootEventId);
   });
@@ -116,11 +116,14 @@
       eventData.roomId === roomId &&
       eventData.threadRootEventId === threadRootEventId
     ) {
-      typingIndicator.removeTypingUser(serverEvent.actorId);
+      const actorId = serverEvent.actorId;
+      if (actorId) {
+        typingIndicator.removeTypingUser(actorId);
+      }
 
       if (
         currentUser.user &&
-        serverEvent.actorId !== currentUser.user.id &&
+        actorId !== currentUser.user.id &&
         appState.isPresent
       ) {
         void markThreadAsRead(threadRootEventId, serverEvent.id);
@@ -290,10 +293,15 @@
 
   <EventList
     {roomId}
+    messageStore={store}
     events={threadEvents}
     alwaysScrollToBottom={false}
     showNewMessagesIndicator={true}
-    enablePagination={false}
+    enablePagination={true}
+    isLoadingMore={store.isLoadingMore}
+    hasReachedStart={store.hasReachedStart}
+    showStartMarker={false}
+    onLoadMore={() => store.loadMore()}
     filterThreadReplies={false}
     {updateCounter}
     enableLastEditableFinder={true}
