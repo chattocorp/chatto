@@ -56,6 +56,18 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			},
 		},
 		{
+			name: "assets use canonical asset namespace plus legacy beta room asset lanes",
+			got:  NewAssetProjection().Subjects(),
+			want: []string{
+				events.AssetSubjectFilter(),
+				events.RoomEventTypeFilter(events.EventAssetCreated),
+				events.RoomEventTypeFilter(events.EventAssetProcessingStarted),
+				events.RoomEventTypeFilter(events.EventAssetProcessingSucceeded),
+				events.RoomEventTypeFilter(events.EventAssetProcessingFailed),
+				events.RoomEventTypeFilter(events.EventAssetDeleted),
+			},
+		},
+		{
 			name: "content keys remain focused",
 			got:  NewContentKeyProjection().Subjects(),
 			want: []string{
