@@ -15,6 +15,8 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
     case 'RoomDeletedEvent':
     case 'RoomArchivedEvent':
     case 'RoomUnarchivedEvent':
+    case 'CallStartedEvent':
+    case 'CallEndedEvent':
       return true;
     default:
       return false;

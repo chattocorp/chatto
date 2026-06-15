@@ -301,6 +301,25 @@ describe('MessageContent component', () => {
       expect(q(container, 'span.mention')).toBeNull();
     });
 
+    it('does not wrap an @mention inside escaped-backtick inline code', async () => {
+      const { container } = renderMessage('\\`@alice\\`', [member('alice')]);
+      await expect.poll(() => q(container, 'code')).toBeTruthy();
+      expect(q(container, 'span.mention')).toBeNull();
+    });
+
+    it('does not wrap an @mention split by markdown formatting', async () => {
+      const { container } = renderMessage('@*alice*', [member('alice')]);
+      await expect.poll(() => q(container, 'em')).toBeTruthy();
+      expect(q(container, 'span.mention')).toBeNull();
+    });
+
+    it('wraps an @mention immediately after escaped-backtick inline code', async () => {
+      const { container } = renderMessage('\\`cmd\\`@alice', [member('alice')]);
+      await expect.poll(() => q(container, 'span.mention')).toBeTruthy();
+      expect(q(container, 'code')?.textContent).toContain('cmd');
+      expect(q(container, 'span.mention')?.textContent).toBe('@alice');
+    });
+
     it('wraps a known role mention when role handles include the name', async () => {
       const { container } = renderMessage('Hello @admin!', [], ['admin']);
       await expect.poll(() => q(container, 'span.mention-role')).toBeTruthy();

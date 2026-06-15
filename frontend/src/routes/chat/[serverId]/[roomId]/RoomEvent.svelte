@@ -120,11 +120,19 @@
         ... on ServerMemberDeletedEvent {
           userId
         }
+        ... on CallStartedEvent {
+          roomId
+          callId
+        }
         ... on CallParticipantJoinedEvent {
           roomId
           callId
         }
         ... on CallParticipantLeftEvent {
+          roomId
+          callId
+        }
+        ... on CallEndedEvent {
           roomId
           callId
         }

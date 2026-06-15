@@ -69,6 +69,12 @@ describe('wrapValidMentions', () => {
       // bob inside code should not be styled
       expect(result).not.toContain('data-user-id="bob"');
     });
+
+    it('styles mentions immediately after inline code', () => {
+      const result = wrapValidMentions('<p><code>cmd</code>@alice</p>', members);
+      expect(result).toContain('<code>cmd</code>');
+      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+    });
   });
 
   describe('blockquote exclusion', () => {

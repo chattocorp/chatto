@@ -66,6 +66,61 @@ describe('extractMentions', () => {
     // The regex doesn't allow trailing dots
     expect(extractMentions('@alice.')).toEqual(['alice']);
   });
+
+  it('does not extract mentions across emphasis boundaries', () => {
+    expect(extractMentions('@al*ice*')).toEqual(['al']);
+    expect(extractMentions('@*alice*')).toEqual([]);
+  });
+
+  it('ignores mentions inside inline code', () => {
+    expect(extractMentions('`@alice` @bob')).toEqual(['bob']);
+  });
+
+  it('ignores mentions inside escaped-backtick inline code', () => {
+    expect(extractMentions('\\`@alice\\` @bob')).toEqual(['bob']);
+  });
+
+  it('extracts mentions immediately after inline code', () => {
+    expect(extractMentions('`cmd`@alice')).toEqual(['alice']);
+    expect(extractMentions('see`cmd`@alice')).toEqual(['alice']);
+    expect(extractMentions('see `cmd`@alice')).toEqual(['alice']);
+  });
+
+  it('extracts mentions immediately after escaped-backtick inline code', () => {
+    expect(extractMentions('\\`cmd\\`@alice')).toEqual(['alice']);
+  });
+
+  it('ignores mentions inside fenced code blocks', () => {
+    expect(extractMentions('```\n@all\n```\n@bob')).toEqual(['bob']);
+  });
+
+  it('ignores mentions inside indented code blocks', () => {
+    expect(extractMentions('    @alice\n@bob')).toEqual(['bob']);
+  });
+
+  it('ignores mentions inside blockquotes', () => {
+    expect(extractMentions('> @alice said hi\n\n@bob replied')).toEqual(['bob']);
+  });
+
+  it('preserves mention order around excluded markdown regions', () => {
+    expect(extractMentions('@alice `@bob` @charlie\n> @dora\n```\n@erin\n```\n@frank')).toEqual([
+      'alice',
+      'charlie',
+      'frank'
+    ]);
+  });
+
+  it('does not treat unmatched backticks as code spans', () => {
+    expect(extractMentions('` @alice')).toEqual(['alice']);
+  });
+
+  it('treats literal html code tags as plain markdown text', () => {
+    expect(extractMentions('<code>@alice</code>')).toEqual(['alice']);
+  });
+
+  it('keeps a backslash before a mention as a mention boundary', () => {
+    expect(extractMentions('\\@alice')).toEqual(['alice']);
+  });
 });
 
 describe('findMemberByMention', () => {
@@ -122,5 +177,26 @@ describe('isUserMentioned', () => {
 
   it('returns false for empty text', () => {
     expect(isUserMentioned('', 'alice', members)).toBe(false);
+  });
+
+  it('returns false when the mention handle is split by emphasis', () => {
+    expect(isUserMentioned('@al*ice*', 'alice', members)).toBe(false);
+    expect(isUserMentioned('@*alice*', 'alice', members)).toBe(false);
+  });
+
+  it('returns false for a mention inside inline code', () => {
+    expect(isUserMentioned('Hello `@alice`!', 'alice', members)).toBe(false);
+  });
+
+  it('returns false for a mention inside escaped-backtick inline code', () => {
+    expect(isUserMentioned('Hello \\`@alice\\`!', 'alice', members)).toBe(false);
+  });
+
+  it('returns true for a mention immediately after inline code', () => {
+    expect(isUserMentioned('Hello `cmd`@alice!', 'alice', members)).toBe(true);
+  });
+
+  it('returns false for a mention inside a blockquote', () => {
+    expect(isUserMentioned('> Hello @alice!', 'alice', members)).toBe(false);
   });
 });

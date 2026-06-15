@@ -19,8 +19,26 @@ func TestExtractURLs(t *testing.T) {
 		{"respects maxURLs", "see https://a.com and https://b.com", 1, []string{"https://a.com"}},
 		{"deduplicates", "see https://example.com and https://example.com again", 5, []string{"https://example.com"}},
 		{"strips trailing punctuation", "visit https://example.com.", 5, []string{"https://example.com"}},
+		{"strips multiple trailing punctuation marks", "visit https://example.com/path!!", 5, []string{"https://example.com/path"}},
+		{"strips wrapper closing parenthesis", "visit (https://example.com/path)", 5, []string{"https://example.com/path"}},
+		{"keeps balanced path parentheses", "visit https://example.com/path_(v1)", 5, []string{"https://example.com/path_(v1)"}},
+		{"keeps query string", "visit https://example.com/path?q=1&sort=desc", 5, []string{"https://example.com/path?q=1&sort=desc"}},
+		{"deduplicates ignoring fragment", "see https://example.com/a#one and https://example.com/a#two", 5, []string{"https://example.com/a#one"}},
+		{"deduplicates lowercased host", "see https://Example.com/a and https://example.com/a", 5, []string{"https://Example.com/a"}},
 		{"http scheme", "visit http://example.com", 5, []string{"http://example.com"}},
 		{"zero maxURLs", "https://example.com", 0, nil},
+		{"negative maxURLs", "https://example.com", -1, nil},
+		{"ignores ftp scheme", "visit ftp://example.com", 5, nil},
+		{"ignores email addresses", "mail user@example.com", 5, nil},
+		{"ignores inline code URLs", "run `curl https://example.com` first", 5, nil},
+		{"ignores escaped-backtick inline code URLs", "run \\`curl https://example.com\\` first", 5, nil},
+		{"detects URL immediately after inline code", "`curl`https://example.com", 5, []string{"https://example.com"}},
+		{"ignores fenced code URLs", "```\nhttps://example.com\n```\nhttps://outside.example", 5, []string{"https://outside.example"}},
+		{"ignores indented code URLs", "    https://example.com\nhttps://outside.example", 5, []string{"https://outside.example"}},
+		{"ignores blockquote URLs", "> https://quoted.example\n\nhttps://outside.example", 5, []string{"https://outside.example"}},
+		{"detects explicit markdown link destination", "read [the docs](https://example.com/docs)", 5, []string{"https://example.com/docs"}},
+		{"detects angle autolink", "read <https://example.com/docs>", 5, []string{"https://example.com/docs"}},
+		{"preserves order around excluded markdown regions", "https://a.example `https://skip.example` https://b.example\n> https://quote.example\n\nhttps://c.example", 5, []string{"https://a.example", "https://b.example", "https://c.example"}},
 	}
 
 	for _, tt := range tests {
@@ -46,6 +64,8 @@ func TestParseYouTubeVideoID(t *testing.T) {
 		{"v/ URL", "https://www.youtube.com/v/dQw4w9WgXcQ", "dQw4w9WgXcQ"},
 		{"mobile URL", "https://m.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"},
 		{"no www", "https://youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"},
+		{"watch URL with trailing params", "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42", "dQw4w9WgXcQ"},
+		{"short URL with query", "https://youtu.be/dQw4w9WgXcQ?t=42", "dQw4w9WgXcQ"},
 
 		// Non-YouTube URLs that should NOT match (hostname-anchored)
 		{"not youtube domain", "https://notyoutube.com/watch?v=dQw4w9WgXcQ", ""},
@@ -57,7 +77,9 @@ func TestParseYouTubeVideoID(t *testing.T) {
 		{"empty string", "", ""},
 		{"not a URL", "not-a-url", ""},
 		{"wrong ID length", "https://youtu.be/short", ""},
+		{"short URL with extra path segment", "https://youtu.be/dQw4w9WgXcQ/extra", ""},
 		{"no video ID", "https://www.youtube.com/watch", ""},
+		{"non-http youtube URL", "ftp://www.youtube.com/watch?v=dQw4w9WgXcQ", ""},
 	}
 
 	for _, tt := range tests {

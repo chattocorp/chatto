@@ -41,6 +41,7 @@ require (
 	github.com/vikstrous/dataloadgen v0.0.10
 	github.com/wneessen/go-mail v0.7.3
 	github.com/xhit/go-str2duration/v2 v2.1.0
+	github.com/yuin/goldmark v1.8.2
 	golang.org/x/crypto v0.52.0
 	golang.org/x/image v0.41.0
 	golang.org/x/oauth2 v0.36.0

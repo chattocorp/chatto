@@ -4,6 +4,10 @@
       "type": "http",
       "url": "https://mcp.svelte.dev/mcp"
     },
+    "mdn": {
+      "type": "http",
+      "url": "https://mcp.mdn.mozilla.net/"
+    },
     "chrome-devtools": {
       "command": "npx",
       "args": ["-y", "chrome-devtools-mcp@latest", "--headless", "--isolated"]
