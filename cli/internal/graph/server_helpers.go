@@ -23,7 +23,7 @@ func (r *Resolver) resolveRoomKind(ctx context.Context, roomID string) (core.Roo
 func (r *mutationResolver) serverModel() *model.Server {
 	return &model.Server{
 		Version:              r.version,
-		EnabledAuthProviders: r.authConfig.EnabledProviders(),
+		EnabledAuthProviders: r.authConfig.EnabledProviderMethods(),
 		AuthProviders:        authProviderModels(r.authConfig.PublicProviders()),
 	}
 }

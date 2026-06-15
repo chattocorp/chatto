@@ -46,7 +46,7 @@ type Server {
   "The application version."
   version: String! @public
 
-  "List of enabled SSO provider IDs. Deprecated: use authProviders."
+  "List of enabled SSO provider methods. Deprecated: use authProviders."
   enabledAuthProviders: [String!]! @public
 
   "External login providers enabled on this server."

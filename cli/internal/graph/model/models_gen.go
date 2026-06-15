@@ -1001,7 +1001,7 @@ type SendTypingIndicatorInput struct {
 type Server struct {
 	// The application version.
 	Version string `json:"version"`
-	// List of enabled SSO provider IDs. Deprecated: use authProviders.
+	// List of enabled SSO provider methods. Deprecated: use authProviders.
 	EnabledAuthProviders []string `json:"enabledAuthProviders"`
 	// External login providers enabled on this server.
 	AuthProviders []*AuthProvider `json:"authProviders"`

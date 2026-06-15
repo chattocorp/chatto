@@ -8,21 +8,6 @@ import (
 	"hmans.de/chatto/internal/config"
 )
 
-func TestServerInfoAuthMethodsUsesCompatibilityValues(t *testing.T) {
-	methods := serverInfoAuthMethods(config.AuthConfig{
-		Providers: []config.AuthProviderConfig{
-			{ID: "hub", Type: config.AuthProviderTypeOpenIDConnect},
-			{ID: "hub-backup", Type: config.AuthProviderTypeOpenIDConnect},
-			{ID: "github-main", Type: config.AuthProviderTypeGitHub},
-		},
-	})
-
-	want := []string{"oidc", "github"}
-	if !slices.Equal(methods, want) {
-		t.Fatalf("serverInfoAuthMethods() = %v, want %v", methods, want)
-	}
-}
-
 func TestProviderScopesForOIDC(t *testing.T) {
 	t.Run("default requests openid profile email", func(t *testing.T) {
 		scopes := providerScopes(config.AuthProviderConfig{Type: config.AuthProviderTypeOpenIDConnect})

@@ -64,7 +64,7 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 
 	// Build compatibility auth methods list. Provider-specific IDs are exposed
 	// through authProviders; authMethods stays method-oriented for older clients.
-	authMethods := serverInfoAuthMethods(s.config.Auth)
+	authMethods := s.config.Auth.EnabledProviderMethods()
 	if s.config.Auth.DirectRegistrationOrDefault() {
 		authMethods = append([]string{"password"}, authMethods...)
 	}
@@ -118,23 +118,6 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 		IconURL:          iconURL,
 		BannerURL:        bannerURL,
 	})
-}
-
-func serverInfoAuthMethods(authConfig config.AuthConfig) []string {
-	methods := make([]string, 0, len(authConfig.Providers))
-	seen := make(map[string]struct{}, len(authConfig.Providers))
-	for _, provider := range authConfig.Providers {
-		method := provider.Type
-		if provider.Type == config.AuthProviderTypeOpenIDConnect {
-			method = "oidc"
-		}
-		if _, ok := seen[method]; ok {
-			continue
-		}
-		seen[method] = struct{}{}
-		methods = append(methods, method)
-	}
-	return methods
 }
 
 func serverInfoAuthProviders(providers []config.AuthProviderConfig) []serverInfoAuthProvider {

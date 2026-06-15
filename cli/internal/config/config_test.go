@@ -1339,6 +1339,20 @@ func TestAuthConfig_EnabledProviders(t *testing.T) {
 	}
 }
 
+func TestAuthConfig_EnabledProviderMethods(t *testing.T) {
+	auth := AuthConfig{Providers: []AuthProviderConfig{
+		{ID: "hub", Type: AuthProviderTypeOpenIDConnect},
+		{ID: "hub-backup", Type: AuthProviderTypeOpenIDConnect},
+		{ID: "github-main", Type: AuthProviderTypeGitHub},
+	}}
+
+	got := auth.EnabledProviderMethods()
+	want := []string{"oidc", "github"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("EnabledProviderMethods() = %v, want %v", got, want)
+	}
+}
+
 func TestAuthConfig_PublicProviders(t *testing.T) {
 	auth := AuthConfig{Providers: []AuthProviderConfig{
 		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},
@@ -1417,6 +1431,15 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		err := cfg.Validate()
 		if err == nil || !strings.Contains(err.Error(), "issuer_url is required") {
 			t.Fatalf("Validate() error = %v, want issuer_url error", err)
+		}
+	})
+
+	t.Run("rejects oidc with relative issuer", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "hub", Type: AuthProviderTypeOpenIDConnect, ClientID: "id", ClientSecret: "secret", IssuerURL: "chatto-id"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "auth.providers[0].issuer_url must use http or https") {
+			t.Fatalf("Validate() error = %v, want issuer_url absolute URL error", err)
 		}
 	})
 }

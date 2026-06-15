@@ -986,6 +986,25 @@ func TestQueryResolver_Server(t *testing.T) {
 		}
 	})
 
+	t.Run("returns legacy auth provider methods", func(t *testing.T) {
+		resolver := &Resolver{
+			version: "1.0.0",
+			authConfig: config.AuthConfig{Providers: []config.AuthProviderConfig{
+				{ID: "chatto-hub", Type: config.AuthProviderTypeOpenIDConnect},
+				{ID: "github-main", Type: config.AuthProviderTypeGitHub},
+			}},
+		}
+
+		instance, err := resolver.Query().Server(context.Background())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		got := strings.Join(instance.EnabledAuthProviders, ",")
+		if want := "oidc,github"; got != want {
+			t.Fatalf("EnabledAuthProviders = %v, want %v", instance.EnabledAuthProviders, want)
+		}
+	})
+
 	t.Run("returns nil welcome message when core not initialized", func(t *testing.T) {
 		// Without a core, the welcome message should be nil
 		resolver := &Resolver{

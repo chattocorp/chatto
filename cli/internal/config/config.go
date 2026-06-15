@@ -376,6 +376,25 @@ func (c *AuthConfig) EnabledProviders() []string {
 	return providers
 }
 
+// EnabledProviderMethods returns legacy method-oriented SSO provider names.
+// Provider-specific IDs are exposed through PublicProviders/AuthProvider.
+func (c *AuthConfig) EnabledProviderMethods() []string {
+	methods := make([]string, 0, len(c.Providers))
+	seen := make(map[string]struct{}, len(c.Providers))
+	for _, provider := range c.Providers {
+		method := provider.Type
+		if provider.Type == AuthProviderTypeOpenIDConnect {
+			method = "oidc"
+		}
+		if _, ok := seen[method]; ok {
+			continue
+		}
+		seen[method] = struct{}{}
+		methods = append(methods, method)
+	}
+	return methods
+}
+
 // PublicProviders returns login metadata safe to expose before authentication.
 func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
 	providers := make([]AuthProviderConfig, 0, len(c.Providers))
@@ -829,8 +848,8 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, prefix+".issuer_url is required when type = 'openid-connect'")
 		}
 		if provider.IssuerURL != "" {
-			if _, err := url.Parse(provider.IssuerURL); err != nil {
-				errs = append(errs, fmt.Sprintf("%s.issuer_url is invalid: %v", prefix, err))
+			if err := validateAbsoluteHTTPURL(prefix+".issuer_url", provider.IssuerURL); err != nil {
+				errs = append(errs, err.Error())
 			}
 		}
 	}
