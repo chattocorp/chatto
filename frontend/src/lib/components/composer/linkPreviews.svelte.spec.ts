@@ -24,6 +24,29 @@ describe('LinkPreviewState', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it('does not fetch previews for ignored markdown URL regions or non-http URLs', async () => {
+    vi.useFakeTimers();
+    const query = vi.fn();
+    const state = new LinkPreviewState(() => clientWithQuery(query));
+
+    for (const message of [
+      '`https://example.com`',
+      '\\`https://example.com\\`',
+      '```\nhttps://example.com\n```',
+      '> https://example.com',
+      'mail user@example.com',
+      'ftp://example.com/file'
+    ]) {
+      const cleanup = state.scheduleDetection(message, false);
+      await vi.advanceTimersByTimeAsync(500);
+      cleanup();
+
+      expect(state.detectedURLs).toEqual([]);
+    }
+
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('fetches non-message links and converts the active preview into mutation input', async () => {
     vi.useFakeTimers();
     const url = 'https://example.com/story';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractURLs } from './linkPreview';
+import { extractURLs, isYouTubeURL, parseYouTubeVideoID } from './linkPreview';
 
 describe('extractURLs', () => {
   describe('protocol URLs', () => {
@@ -14,6 +14,21 @@ describe('extractURLs', () => {
     it('extracts URLs with paths and query strings', () => {
       expect(extractURLs('See https://example.com/path?q=1')).toEqual([
         'https://example.com/path?q=1'
+      ]);
+    });
+
+    it('strips trailing punctuation from protocol URLs', () => {
+      expect(extractURLs('See https://example.com/path!!')).toEqual([
+        'https://example.com/path'
+      ]);
+    });
+
+    it('strips wrapper closing parentheses but keeps balanced URL parentheses', () => {
+      expect(extractURLs('See (https://example.com/path)')).toEqual([
+        'https://example.com/path'
+      ]);
+      expect(extractURLs('See https://example.com/path_(v1)')).toEqual([
+        'https://example.com/path_(v1)'
       ]);
     });
   });
@@ -70,6 +85,17 @@ describe('extractURLs', () => {
       const urls = extractURLs('www.example.com and https://www.example.com', 5);
       expect(urls).toHaveLength(1);
     });
+
+    it('deduplicates case-insensitive hosts and ignores fragments', () => {
+      expect(extractURLs('https://Example.com/a#one https://example.com/a#two', 5)).toEqual([
+        'https://Example.com/a#one'
+      ]);
+    });
+
+    it('returns no URLs when maxURLs is zero or negative', () => {
+      expect(extractURLs('https://example.com', 0)).toEqual([]);
+      expect(extractURLs('https://example.com', -1)).toEqual([]);
+    });
   });
 
   describe('edge cases', () => {
@@ -88,5 +114,87 @@ describe('extractURLs', () => {
     it('handles URL at end of text', () => {
       expect(extractURLs('check out https://example.com')).toEqual(['https://example.com']);
     });
+
+    it('ignores email addresses and non-http URLs', () => {
+      expect(extractURLs('mail user@example.com')).toEqual([]);
+      expect(extractURLs('fetch ftp://example.com/file')).toEqual([]);
+    });
+  });
+
+  describe('markdown boundaries', () => {
+    it('ignores URLs inside inline code', () => {
+      expect(extractURLs('Run `curl https://example.com` first')).toEqual([]);
+    });
+
+    it('ignores URLs inside escaped-backtick inline code', () => {
+      expect(extractURLs('Run \\`curl https://example.com\\` first')).toEqual([]);
+    });
+
+    it('detects URLs immediately after inline code', () => {
+      expect(extractURLs('`curl`https://example.com')).toEqual(['https://example.com']);
+    });
+
+    it('ignores URLs inside fenced and indented code blocks', () => {
+      expect(extractURLs('```\nhttps://example.com\n```\nhttps://outside.example')).toEqual([
+        'https://outside.example'
+      ]);
+      expect(extractURLs('    https://example.com\nhttps://outside.example')).toEqual([
+        'https://outside.example'
+      ]);
+    });
+
+    it('ignores URLs inside blockquotes', () => {
+      expect(extractURLs('> https://quoted.example\n\nhttps://outside.example')).toEqual([
+        'https://outside.example'
+      ]);
+    });
+
+    it('detects explicit markdown link destinations', () => {
+      expect(extractURLs('Read [the docs](https://example.com/docs)')).toEqual([
+        'https://example.com/docs'
+      ]);
+    });
+
+    it('preserves order around excluded markdown regions', () => {
+      expect(
+        extractURLs(
+          'https://a.example `https://skip.example` https://b.example\n> https://quote.example\n\nhttps://c.example',
+          5
+        )
+      ).toEqual(['https://a.example', 'https://b.example', 'https://c.example']);
+    });
+  });
+});
+
+describe('parseYouTubeVideoID', () => {
+  it('extracts valid YouTube video IDs from supported URL forms', () => {
+    expect(parseYouTubeVideoID('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ'
+    );
+    expect(parseYouTubeVideoID('https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ'
+    );
+    expect(parseYouTubeVideoID('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ'
+    );
+    expect(parseYouTubeVideoID('https://youtu.be/dQw4w9WgXcQ?t=42')).toBe('dQw4w9WgXcQ');
+    expect(parseYouTubeVideoID('https://m.youtube.com/shorts/dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ'
+    );
+  });
+
+  it('rejects non-YouTube hosts and invalid video URL forms', () => {
+    expect(parseYouTubeVideoID('https://notyoutube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(
+      parseYouTubeVideoID('https://evil.com/redirect?to=youtube.com/watch?v=dQw4w9WgXcQ')
+    ).toBeNull();
+    expect(parseYouTubeVideoID('https://youtu.be/short')).toBeNull();
+    expect(parseYouTubeVideoID('https://youtu.be/dQw4w9WgXcQ/extra')).toBeNull();
+    expect(parseYouTubeVideoID('ftp://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+  });
+
+  it('backs isYouTubeURL with the same parser', () => {
+    expect(isYouTubeURL('https://youtu.be/dQw4w9WgXcQ')).toBe(true);
+    expect(isYouTubeURL('https://example.com/watch?v=dQw4w9WgXcQ')).toBe(false);
   });
 });
