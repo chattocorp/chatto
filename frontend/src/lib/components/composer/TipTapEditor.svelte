@@ -16,7 +16,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { Editor, Extension, InputRule } from '@tiptap/core';
+  import { Editor, Extension, InputRule, mergeAttributes } from '@tiptap/core';
   import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
   import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
   import StarterKit from '@tiptap/starter-kit';
@@ -64,24 +64,44 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   });
 
   const CODE_LANGUAGE_OPTIONS = [
-    { value: '', label: 'text' },
-    { value: 'ts', label: 'ts' },
-    { value: 'js', label: 'js' },
-    { value: 'json', label: 'json' },
-    { value: 'html', label: 'html' },
-    { value: 'css', label: 'css' },
-    { value: 'bash', label: 'bash' },
-    { value: 'py', label: 'py' },
-    { value: 'go', label: 'go' },
-    { value: 'rust', label: 'rust' },
-    { value: 'sql', label: 'sql' },
-    { value: 'yaml', label: 'yaml' },
-    { value: 'md', label: 'md' },
-    { value: 'graphql', label: 'graphql' }
+    { value: 'text', label: 'TEXT' },
+    { value: 'ts', label: 'TS' },
+    { value: 'js', label: 'JS' },
+    { value: 'json', label: 'JSON' },
+    { value: 'html', label: 'HTML' },
+    { value: 'css', label: 'CSS' },
+    { value: 'bash', label: 'BASH' },
+    { value: 'py', label: 'PY' },
+    { value: 'go', label: 'GO' },
+    { value: 'rust', label: 'RUST' },
+    { value: 'sql', label: 'SQL' },
+    { value: 'yaml', label: 'YAML' },
+    { value: 'md', label: 'MD' },
+    { value: 'graphql', label: 'GRAPHQL' }
   ];
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
   const codeFenceLineRegex = /^```([\w-]+)?$/;
+
+  const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
+    renderHTML({ node, HTMLAttributes }) {
+      const language = node.attrs.language || 'text';
+
+      return [
+        'pre',
+        mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+          'data-language': language
+        }),
+        [
+          'code',
+          {
+            class: language ? this.options.languageClassPrefix + language : null
+          },
+          0
+        ]
+      ];
+    }
+  });
 
   function paragraphTextWithLineBreaks(node: ProseMirrorNode) {
     return node.textBetween(0, node.content.size, '\n', '\n');
@@ -358,15 +378,26 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   } = $props();
 
   let editorElement = $state<HTMLDivElement>();
+  let editorFrameElement = $state<HTMLDivElement>();
   let editor = $state<Editor | null>(null);
   let activeCodeBlockLanguage = $state<string | null>(null);
+  let activeCodeBlockSelectorPosition = $state<{ right: number; bottom: number } | null>(null);
   let activeLinkHref = $state<string | null>(null);
   let activeLinkRange = $state<{ from: number; to: number } | null>(null);
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
 
-  let hasCodeBlockControls = $derived(activeCodeBlockLanguage !== null);
   let hasLinkControls = $derived(activeLinkHref !== null);
+  let activeCodeBlockLanguageLabel = $derived(
+    CODE_LANGUAGE_OPTIONS.find((language) => language.value === activeCodeBlockLanguage)?.label ??
+      activeCodeBlockLanguage?.toUpperCase() ??
+      'TEXT'
+  );
+  let codeLanguageSelectStyle = $derived(
+    activeCodeBlockSelectorPosition
+      ? `right: ${activeCodeBlockSelectorPosition.right}px; bottom: ${activeCodeBlockSelectorPosition.bottom}px;`
+      : ''
+  );
 
   function getAdjacentLinkRange(e: Editor) {
     const linkType = e.state.schema.marks.link;
@@ -389,12 +420,54 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return null;
   }
 
+  function updateActiveCodeBlockSelectorPosition(e: Editor) {
+    if (!editorFrameElement || !e.isActive('codeBlock')) {
+      activeCodeBlockSelectorPosition = null;
+      return;
+    }
+
+    const selectionFrom = e.state.selection.$from;
+    let codeBlockDepth = 0;
+    for (let depth = selectionFrom.depth; depth > 0; depth -= 1) {
+      if (selectionFrom.node(depth).type.name === 'codeBlock') {
+        codeBlockDepth = depth;
+        break;
+      }
+    }
+
+    if (!codeBlockDepth) {
+      activeCodeBlockSelectorPosition = null;
+      return;
+    }
+
+    const codeBlockPosition = selectionFrom.before(codeBlockDepth);
+    const nodeDom = e.view.nodeDOM(codeBlockPosition);
+    const preElement =
+      nodeDom instanceof HTMLElement
+        ? nodeDom.tagName === 'PRE'
+          ? nodeDom
+          : nodeDom.closest('pre')
+        : null;
+    if (!preElement) {
+      activeCodeBlockSelectorPosition = null;
+      return;
+    }
+
+    const frameRect = editorFrameElement.getBoundingClientRect();
+    const preRect = preElement.getBoundingClientRect();
+    activeCodeBlockSelectorPosition = {
+      right: frameRect.right - preRect.right,
+      bottom: frameRect.bottom - preRect.bottom
+    };
+  }
+
   function updateActiveControls(e: Editor) {
     if (e.isActive('codeBlock')) {
-      activeCodeBlockLanguage = e.getAttributes('codeBlock').language ?? '';
+      activeCodeBlockLanguage = e.getAttributes('codeBlock').language || 'text';
     } else {
       activeCodeBlockLanguage = null;
     }
+    updateActiveCodeBlockSelectorPosition(e);
 
     const adjacentLink = getAdjacentLinkRange(e);
 
@@ -478,17 +551,24 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   function buildApi(e: Editor): TipTapEditorApi {
+    const syncControls = () => {
+      if (e.isDestroyed) return;
+      updateActiveControls(e);
+    };
+
     return {
       getText: () => (e.isDestroyed ? '' : e.getText({ blockSeparator: '\n' })),
 
       setContent: (markdown: string) => {
         if (e.isDestroyed) return;
         e.commands.setContent(markdown, { contentType: 'markdown' });
+        tick().then(syncControls);
       },
 
       focus: (position: 'start' | 'end' = 'end') => {
         if (e.isDestroyed) return;
         e.commands.focus(position);
+        tick().then(syncControls);
       },
 
       getTextBeforeCursor: () => {
@@ -507,6 +587,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           .deleteRange({ from: from - charCount, to: from })
           .insertContent(replacement)
           .run();
+        tick().then(syncControls);
       }
     };
   }
@@ -539,7 +620,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
                 breaks: true
               }
             }),
-            CodeBlockLowlight.configure({ lowlight }),
+            ComposerCodeBlockLowlight.configure({ lowlight }),
             MarkdownLinkInputRule,
             MarkdownCodeFenceShortcut,
             CompletedMarkdownCodeFence,
@@ -602,73 +683,82 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   });
 </script>
 
-<div class="flex min-w-0 flex-1 flex-col gap-1">
-  {#if hasCodeBlockControls || hasLinkControls}
-    <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
-      {#if hasCodeBlockControls}
-        <select
-          aria-label="Code language"
-          title="Code language"
-          value={activeCodeBlockLanguage ?? ''}
-          disabled={!editable}
-          onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}
-          class="h-6 cursor-pointer rounded border border-border bg-surface-200 px-1.5 text-xs text-text outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {#each CODE_LANGUAGE_OPTIONS as language (language.value)}
-            <option value={language.value}>{language.label}</option>
-          {/each}
-        </select>
-      {/if}
+<svelte:window onresize={() => editor && updateActiveControls(editor)} />
 
-      {#if hasLinkControls}
-        <div class="flex min-w-0 items-center gap-1">
-          <input
-            aria-label="Link URL"
-            title="Link URL"
-            value={linkHrefDraft}
-            disabled={!editable}
-            oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
-            onkeydown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                applyLinkHref();
-              }
-            }}
-            onblur={applyLinkHref}
-            class="h-6 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          <button
-            type="button"
-            aria-label="Open link"
-            title="Open link"
-            disabled={!activeLinkHref}
-            onclick={openActiveLink}
-            class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text"
-          >
-            <span class="iconify text-base uil--external-link-alt"></span>
-          </button>
-          <button
-            type="button"
-            aria-label="Remove link"
-            title="Remove link"
-            disabled={!editable}
-            onclick={removeLink}
-            class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span class="iconify text-base uil--link-broken"></span>
-          </button>
-        </div>
-      {/if}
+<div bind:this={editorFrameElement} class="relative flex min-w-0 flex-1 flex-col gap-1">
+  {#if hasLinkControls}
+    <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
+      <div class="flex min-w-0 items-center gap-1">
+        <input
+          aria-label="Link URL"
+          title="Link URL"
+          value={linkHrefDraft}
+          disabled={!editable}
+          oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
+          onkeydown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              applyLinkHref();
+            }
+          }}
+          onblur={applyLinkHref}
+          class="h-6 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+        />
+        <button
+          type="button"
+          aria-label="Open link"
+          title="Open link"
+          disabled={!activeLinkHref}
+          onclick={openActiveLink}
+          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text"
+        >
+          <span class="iconify text-base uil--external-link-alt"></span>
+        </button>
+        <button
+          type="button"
+          aria-label="Remove link"
+          title="Remove link"
+          disabled={!editable}
+          onclick={removeLink}
+          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span class="iconify text-base uil--link-broken"></span>
+        </button>
+      </div>
     </div>
   {/if}
 
   <div
     bind:this={editorElement}
+    onscroll={() => editor && updateActiveControls(editor)}
     class={[
       'tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
       !editable && 'cursor-not-allowed'
     ]}
   ></div>
+
+  {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
+    <div class="absolute z-10" style={codeLanguageSelectStyle}>
+      <div
+        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-200 pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase hover:bg-surface-300 hover:text-text focus-within:bg-surface-300 focus-within:text-text focus-within:ring-1 focus-within:ring-accent"
+      >
+        <span>{activeCodeBlockLanguageLabel}</span>
+        <span class="iconify size-3 uil--angle-down"></span>
+        <select
+          aria-label="Code language"
+          title="Code language"
+          value={activeCodeBlockLanguage}
+          disabled={!editable}
+          onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}
+          class="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        >
+          {#each CODE_LANGUAGE_OPTIONS as language (language.value)}
+            <option value={language.value}>{language.label}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -739,20 +829,55 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   :global(.tiptap-editor .ProseMirror pre) {
-    overflow-x: auto;
+    overflow: hidden;
     position: relative;
+    width: 100%;
     border-radius: 0.375rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface-200);
-    padding: 0.75rem;
+    border: 1px solid var(--color-surface-200);
+    background: transparent;
+    padding: 0.5rem 0.75rem;
     font-family: var(--font-mono);
     font-size: 0.875rem;
+    line-height: 1.5;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+
+  :global(.tiptap-editor .ProseMirror > pre) {
+    margin-block: 0.5rem;
+  }
+
+  :global(.tiptap-editor .ProseMirror > pre:first-child) {
+    margin-top: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror > pre:last-child) {
+    margin-bottom: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror pre[data-language]::after) {
+    content: attr(data-language);
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    border-top-left-radius: 0.375rem;
+    background: var(--color-surface-200);
+    padding: 0.125rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    letter-spacing: 0.025em;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    pointer-events: none;
   }
 
   :global(.tiptap-editor .ProseMirror pre code) {
+    display: block;
+    overflow-x: auto;
     background: transparent;
-    padding: 0;
+    padding: 0 3.5rem 0 0;
     font-size: inherit;
+    line-height: inherit;
     color: var(--composer-code-text);
     white-space: pre;
   }

@@ -902,6 +902,9 @@ describe('MessageComposer', () => {
       await typeEditorLiteralText(editor, '```ts');
       await pressEditorKey(editor, 'Enter', { shiftKey: true });
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
+      await vi.waitFor(() =>
+        expect(editor.querySelector('pre')).toHaveAttribute('data-language', 'ts')
+      );
       document.execCommand('insertText', false, 'const answer = 42;');
 
       const languageSelect = q(container, 'select[aria-label="Code language"]') as HTMLSelectElement;
@@ -910,6 +913,9 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() =>
         expect(editor.querySelector('code')?.classList.contains('language-js')).toBe(true)
+      );
+      await vi.waitFor(() =>
+        expect(editor.querySelector('pre')).toHaveAttribute('data-language', 'js')
       );
       expect(editor.querySelector('pre code span')).toBeTruthy();
       (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
