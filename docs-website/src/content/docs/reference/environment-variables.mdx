@@ -153,8 +153,8 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Enable the embedded NATS server. Set to `false` when connecting to an external NATS server.
 </EnvVar>
 
-<EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="4222">
-  Embedded NATS server port. Set to `0` to disable the TCP listener (in-process only).
+<EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="0">
+  Embedded NATS server port. Leave unset or set to `0` for in-process only mode. Set to `4222` or another port to expose a TCP listener for NATS CLI/admin commands.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_BIND_ADDRESS" toml="nats.embedded.bind_address" default="127.0.0.1">
@@ -170,17 +170,17 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_AUTH_TOKEN" toml="nats.embedded.auth_token">
-  Auth token for the embedded NATS server. For embedded mode, Chatto derives matching `nats.client` defaults for CLI/admin commands unless you override them explicitly.
+  Auth token for the embedded NATS server. When the embedded TCP port is enabled, Chatto derives matching `nats.client` defaults for CLI/admin commands unless you override them explicitly.
 </EnvVar>
 
 ### Client
 
-<EnvVar name="CHATTO_NATS_CLIENT_URL" toml="nats.client.url" default="nats://localhost:4222">
-  NATS server URL to connect to. Supports comma-separated URLs for cluster failover (e.g., `nats://n1:4222,nats://n2:4222`).
+<EnvVar name="CHATTO_NATS_CLIENT_URL" toml="nats.client.url">
+  NATS server URL to connect to when using external NATS or an exposed embedded TCP listener. Supports comma-separated URLs for cluster failover (e.g., `nats://n1:4222,nats://n2:4222`).
 </EnvVar>
 
-<EnvVar name="CHATTO_NATS_CLIENT_AUTH_METHOD" toml="nats.client.auth_method" default="token">
-  NATS authentication method. Values: `none`, `token`, `userpass`, `credentials`, `nkey`.
+<EnvVar name="CHATTO_NATS_CLIENT_AUTH_METHOD" toml="nats.client.auth_method">
+  NATS authentication method for external NATS or an exposed embedded TCP listener. Values: `none`, `token`, `userpass`, `credentials`, `nkey`.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_CLIENT_TOKEN" toml="nats.client.token">

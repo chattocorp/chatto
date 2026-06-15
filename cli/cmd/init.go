@@ -72,7 +72,7 @@ var initCmd = &cobra.Command{
 		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
-				LogLevel:  "debug",
+				LogLevel:  "info",
 				LogFormat: "auto",
 			},
 			Auth: config.AuthConfig{
@@ -84,17 +84,25 @@ var initCmd = &cobra.Command{
 			Webserver: config.WebserverConfig{
 				Port:                   4000,
 				URL:                    "http://localhost:4000",
+				AllowedOrigins:         []string{"*"},
 				CookieSigningSecret:    sessionSecretString,
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
 			Core: config.CoreConfig{
 				SecretKey: coreSecretString,
 				Assets: config.AssetsConfig{
-					SigningSecret: signingSecretString,
-					MaxUploadSize: 25 * datasize.MB,
+					SigningSecret:  signingSecretString,
+					MaxUploadSize:  25 * datasize.MB,
+					StorageBackend: config.StorageBackendNATS,
 				},
 			},
 			NATS: config.NATSConfig{
+				Replicas: 1,
+				Client: config.NATSClientConfig{
+					URL:        "nats://nats.example.com:4222",
+					AuthMethod: config.NATSAuthToken,
+					Token:      "replace-me",
+				},
 				Embedded: config.EmbeddedNATSConfig{
 					Enabled:     true,
 					Port:        4222,
@@ -117,10 +125,6 @@ var initCmd = &cobra.Command{
 			log.Fatal("Failed to write config file", "error", err)
 		}
 		fmt.Printf("Configuration written to %s\n", configPath)
-		fmt.Printf("\nSetup complete! Run 'chatto run -c %s' to start the server.\n", configPath)
-		fmt.Println("\nTo connect with NATS CLI for debugging:")
-		fmt.Printf("  nats context save chatto --server localhost:4222 --token %s\n", authTokenString)
-		fmt.Println("  nats context select chatto")
 	},
 }
 
