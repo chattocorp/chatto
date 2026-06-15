@@ -74,6 +74,45 @@ client_secret = "..."
 `issuer_url` must be an absolute `http` or `https` URL. Chatto uses OIDC discovery from that issuer and verifies the ID token before matching the external identity.
 
 </TabItem>
+<TabItem label="Environment">
+
+For container platforms, set `CHATTO_AUTH_PROVIDERS` to a JSON array. The field names match the TOML keys:
+
+```bash
+CHATTO_AUTH_PROVIDERS='[
+  {
+    "id": "chatto-hub",
+    "type": "openid-connect",
+    "label": "Chatto Hub",
+    "issuer_url": "https://hub.chatto.dev",
+    "client_id": "...",
+    "client_secret": "..."
+  },
+  {
+    "id": "github-main",
+    "type": "github",
+    "label": "GitHub",
+    "client_id": "...",
+    "client_secret": "..."
+  }
+]'
+```
+
+`CHATTO_AUTH_PROVIDERS` replaces any providers from `chatto.toml`.
+
+Chatto also accepts the older single-provider OIDC variables for compatibility:
+
+```bash
+CHATTO_AUTH_OIDC_ENABLED=true
+CHATTO_AUTH_OIDC_ISSUER_URL=https://hub.chatto.dev
+CHATTO_AUTH_OIDC_CLIENT_ID=...
+CHATTO_AUTH_OIDC_CLIENT_SECRET=...
+# CHATTO_AUTH_OIDC_LABEL="Chatto Hub"
+```
+
+Those legacy variables create one `openid-connect` provider with `id = "oidc"`. Do not combine `CHATTO_AUTH_PROVIDERS` with `CHATTO_AUTH_OIDC_ENABLED`.
+
+</TabItem>
 <TabItem label="GitHub">
 
 ```toml

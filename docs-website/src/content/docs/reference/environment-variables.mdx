@@ -218,6 +218,12 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.
 Supported provider types are `openid-connect`, `github`, `gitlab`, `google`, and `discord`.
 
+<EnvVar name="CHATTO_AUTH_PROVIDERS" toml="auth.providers">
+  JSON array of external login provider objects. This is the environment-variable equivalent of repeated `[[auth.providers]]` tables and is the recommended shape for container and Kubernetes deployments.
+</EnvVar>
+
+For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `openid-connect` provider with `id = "oidc"`. Do not combine them with `CHATTO_AUTH_PROVIDERS`.
+
 ```toml
 [[auth.providers]]
 id = "chatto-hub"

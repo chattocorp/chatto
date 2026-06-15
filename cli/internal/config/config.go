@@ -2,10 +2,12 @@ package config
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -309,15 +311,15 @@ var authProviderDefaultLabels = map[string]string{
 // a stable local issuer namespace for OAuth-only providers and must not be
 // changed after users link identities through it.
 type AuthProviderConfig struct {
-	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type            string            `toml:"type" comment:"Provider type: openid-connect, github, gitlab, google, or discord."`
-	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
-	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
-	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
-	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'openid-connect'."`
-	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
-	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
-	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+	ID              string            `toml:"id" json:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type            string            `toml:"type" json:"type" comment:"Provider type: openid-connect, github, gitlab, google, or discord."`
+	Label           string            `toml:"label,commented" json:"label,omitempty" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID        string            `toml:"client_id" json:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret    string            `toml:"client_secret" json:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
+	IssuerURL       string            `toml:"issuer_url,commented" json:"issuer_url,omitempty" comment:"OIDC issuer URL. Required when type = 'openid-connect'."`
+	Scopes          []string          `toml:"scopes,commented" json:"scopes,omitempty" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail    *bool             `toml:"request_email,commented" json:"request_email,omitempty" comment:"Whether to request email scopes for providers that support it. Default: true."`
+	ProviderOptions map[string]string `toml:"provider_options,commented" json:"provider_options,omitempty" comment:"Provider-specific options reserved for future use."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.
@@ -991,6 +993,9 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	if err := env.Parse(&cfg); err != nil {
 		return cfg, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
+	if err := applyAuthProviderEnv(&cfg); err != nil {
+		return cfg, err
+	}
 
 	// 3. Apply derived defaults and normalize harmless spelling differences
 	cfg.ApplyDefaults()
@@ -1002,4 +1007,46 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func applyAuthProviderEnv(cfg *ChattoConfig) error {
+	providersJSON := strings.TrimSpace(os.Getenv("CHATTO_AUTH_PROVIDERS"))
+	legacyOIDCEnabled := strings.TrimSpace(os.Getenv("CHATTO_AUTH_OIDC_ENABLED"))
+
+	if providersJSON != "" {
+		if legacyOIDCEnabled != "" {
+			return fmt.Errorf("CHATTO_AUTH_PROVIDERS cannot be combined with legacy CHATTO_AUTH_OIDC_ENABLED")
+		}
+		var providers []AuthProviderConfig
+		if err := json.Unmarshal([]byte(providersJSON), &providers); err != nil {
+			return fmt.Errorf("CHATTO_AUTH_PROVIDERS must be a JSON array of auth provider objects: %w", err)
+		}
+		cfg.Auth.Providers = providers
+		return nil
+	}
+
+	if legacyOIDCEnabled == "" {
+		return nil
+	}
+	enabled, err := strconv.ParseBool(legacyOIDCEnabled)
+	if err != nil {
+		return fmt.Errorf("CHATTO_AUTH_OIDC_ENABLED must be a boolean: %w", err)
+	}
+	if !enabled {
+		cfg.Auth.Providers = nil
+		return nil
+	}
+	label := os.Getenv("CHATTO_AUTH_OIDC_LABEL")
+	if label == "" {
+		label = "Chatto Hub"
+	}
+	cfg.Auth.Providers = []AuthProviderConfig{{
+		ID:           "oidc",
+		Type:         AuthProviderTypeOpenIDConnect,
+		Label:        label,
+		IssuerURL:    os.Getenv("CHATTO_AUTH_OIDC_ISSUER_URL"),
+		ClientID:     os.Getenv("CHATTO_AUTH_OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("CHATTO_AUTH_OIDC_CLIENT_SECRET"),
+	}}
+	return nil
 }
