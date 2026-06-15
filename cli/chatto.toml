@@ -1,74 +1,205 @@
-# Chatto Config for local development
-
 [general]
-log_level = 'debug'
-log_format = 'text'
+# Log level. Possible values: debug, info, warn, error.
+log_level = 'info'
+# Log output format. Possible values: auto, text, json, logfmt. Default: auto (text on terminals, JSON otherwise).
+# log_format = 'auto'
+
+# Email addresses that confer owner status.
+[owners]
+# Email addresses that confer owner status. Users with these verified emails get full instance access, including /admin routes.
+emails = []
 
 [webserver]
-url = 'http://localhost:5173'
+# Public URL where the webserver is accessible. Used for generating absolute URLs.
+url = 'http://localhost:4000'
+# Port for the webserver to listen on.
 port = 4000
-allowed_origins = []
-cookie_signing_secret = '3ad5f5f911b6865b1a729335f4544d102a99a2847a3d5076431ed43877dd6bd9'
-cookie_encryption_secret = 'f61dd5e478f0c494bd7cc1d6136d8fd9b1c9cde38677f5c3a04f2ae181fd8464'
+# Origins allowed for cross-server browser API access. Use ["*"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks.
+allowed_origins = ['*']
+# Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP.
+oauth_redirect_origins = []
+# Secret for signing session cookies. NEVER SHARE THIS!
+# If it leaks, change it immediately, but please note that all existing sessions will become invalid.
+cookie_signing_secret = '4b9bc57f5cac5510487f51f16b87b45f99ceed1da9119ac43b4e9462f5d5c8b4'
+# Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie.
+cookie_encryption_secret = 'a3fe231fac31daa1a93daa614019c3ef992094164bf88457a4e9bb237ff5c347'
 
+# Automatic TLS configuration via Let's Encrypt.
+[webserver.tls]
+# Enable automatic TLS via Let's Encrypt. Note: default ports 80/443 require elevated privileges.
+enabled = false
+# Domain name for the TLS certificate. Required when TLS is enabled.
+# domain = ''
+# Email address for Let's Encrypt notifications. Required when TLS is enabled.
+# email = ''
+# Directory to cache TLS certificates. Default: .chatto/certs
+# cache_dir = ''
+# Port for HTTP server (ACME challenges and HTTPS redirect). Default: 80. Use a higher port if running without elevated privileges.
+# http_port = 0
+
+# Core service configuration.
 [core]
-secret_key = '7f3e0d39031f4ee7e2078aafc785f1969b8f1d4a4ea178a4732cb2096fe7f3bb'
+# Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!
+# If it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid.
+secret_key = '984c667dbc7ae8707291e4c6ad4b1270cc744f90a1316d754280ab2addfe82b1'
 
 [core.assets]
-signing_secret = 'd4fac8f5c710d419dbb05c00381ca1d0fbbeb007d8da4367d00cbfa212758fc1'
+# Secret for signing asset URLs. NEVER SHARE THIS!
+# If it leaks, regenerate it. Existing signed URLs will become invalid but will be regenerated on next request.
+signing_secret = '4828a1642d4a56630bc44f2f88aad2397b3be1e5b188b6329606594404a515d4'
+# Maximum size for uploaded files. Supports human-readable formats like '25 MB', '25MB', '25MiB'.
 max_upload_size = '25MB'
+# Where to store new uploads: 'nats' (default) or 's3'. Existing assets are served from their original location regardless of this setting.
+storage_backend = 'nats'
 
-# Image resize cache (optional). When enabled, resized images are cached in
-# NATS Object Store to avoid re-processing on subsequent requests.
+# S3-compatible storage configuration. Only used when storage_backend = 's3'.
+# [core.assets.s3]
+# S3 endpoint URL. Use 's3.amazonaws.com' for AWS, or custom endpoint for MinIO, Wasabi, etc.
+# endpoint = ''
+# S3 bucket name for storing assets.
+# bucket = ''
+# Optional object key prefix for all S3 assets. Stored asset references remain prefix-free so this can be changed after moving objects in S3.
+# path_prefix = ''
+# AWS region. Optional for non-AWS S3-compatible services.
+# region = ''
+# S3 access key ID.
+# access_key_id = ''
+# S3 secret access key. NEVER SHARE THIS!
+# secret_access_key = ''
+
+# Caching configuration for resized images.
 [core.assets.cache]
-enabled = true
-ttl = '7d'
+# Enable caching for resized images. Default: false (opt-in).
+enabled = false
+# Time-to-live for cached images. Supports '7d', '1w', '168h', etc. Default: 7d.
+ttl = 0
 
-[auth.oidc]
-enabled = true
-issuer_url = 'https://chatto.id/realms/chatto-hub'
-client_id = 'chatto-dev'
-client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
+# Authentication configuration.
+[auth]
+# Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true.
+direct_registration = true
+# TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d.
+# token_ttl = 0
 
+# OIDC provider configuration (e.g. Chatto Hub).
+# [auth.oidc]
+# Enable OIDC login (e.g. via Chatto Hub).
+# enabled = false
+# OIDC issuer URL. Used for discovery (/.well-known/openid-configuration).
+# issuer_url = ''
+# OIDC client ID, obtained from Chatto Hub or your OIDC provider.
+# client_id = ''
+# OIDC client secret. NEVER SHARE THIS!
+# client_secret = ''
+# Button label shown on the login page. Default: 'Chatto Hub'.
+# label = ''
+
+# Instance-wide resource limits. Use -1 for unlimited.
+# [limits]
+# Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email.
+# max_users = -1
+
+# SMTP configuration for transactional emails.
 [smtp]
-enabled = true
-host = 'mailpit.k8s.orb.local'
-port = 1025
-tls = 'opportunistic'
-from = 'Chatto Local Development <chatto@chatto.run>'
+# Enable SMTP for sending transactional emails (verification, password reset, etc.).
+enabled = false
+# SMTP server hostname. Example: smtp.example.com
+host = ''
+# SMTP server port. Common value: 587 (STARTTLS).
+port = 0
+# SMTP TLS policy: mandatory (default) or opportunistic. Opportunistic allows plaintext fallback and should only be used when explicitly required.
+# tls = ''
+# SMTP authentication username.
+username = ''
+# SMTP authentication password. NEVER SHARE THIS!
+password = ''
+# From address for outgoing emails. Example: noreply@example.com
+from = ''
 
-[video]
-enabled = true
+# Web Push notification configuration.
+# [push]
+# Enable Web Push notifications. Default: false (opt-in to avoid third-party server contact).
+# enabled = false
+# VAPID public key (base64-encoded). Generate with: openssl ecparam -genkey -name prime256v1 | openssl ec -pubout
+# vapid_public_key = ''
+# VAPID private key (base64-encoded). NEVER SHARE THIS!
+# vapid_private_key = ''
+# VAPID subject (operator email, optional mailto: prefix, or https: URL). Used by push services to contact the operator.
+# vapid_subject = ''
 
-# LiveKit voice calls. Provided by the always-on chatto-tools stack on OrbStack.
-[livekit]
-enabled = true
-url = 'ws://livekit.chatto-tools.orb.local:7880'
-api_key = 'devkey'
-api_secret = 'secret'
+# Video processing configuration. Requires ffmpeg.
+# [video]
+# Enable video processing (transcoding, thumbnails). Requires ffmpeg installed on the system.
+# enabled = false
+# Path to ffmpeg binary. Auto-detected from PATH if empty.
+# ffmpeg_path = ''
+# Path to ffprobe binary. Auto-detected from PATH if empty.
+# ffprobe_path = ''
+# Maximum number of videos to process simultaneously. Default: 2.
+# max_concurrent = 0
+# Maximum size for video uploads. Supports human-readable formats like '100 MB'. Default: 100 MB.
+# max_upload_size = '0B'
+# Temporary directory for video processing. Default: system temp directory.
+# temp_dir = ''
+
+# LiveKit voice call configuration.
+# [livekit]
+# Enable LiveKit voice call support. Requires a running LiveKit server.
+# enabled = false
+# LiveKit server WebSocket URL. Example: ws://localhost:7880 (dev) or wss://livekit.example.com (prod).
+# url = ''
+# LiveKit API key.
+# api_key = ''
+# LiveKit API secret. NEVER SHARE THIS!
+# api_secret = ''
+# URL where LiveKit sends webhook events. Defaults to {webserver.url}/webhooks/livekit.
+# webhook_url = ''
+# Unique identifier for this server, prefixed to LiveKit room names. Required when multiple Chatto servers share the same LiveKit cluster.
+# server_id = ''
+# Deprecated alias for server_id. Prefer server_id / CHATTO_LIVEKIT_SERVER_ID.
+# instance_id = ''
+# API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-server API key.
+# webhook_api_key = ''
+# API secret for webhook signature validation. Falls back to api_secret if not set.
+# webhook_api_secret = ''
+
+[nats]
+# Number of replicas for JetStream streams, KV buckets, and object stores. Must be 1, 3, or 5 (odd numbers for quorum). Use 3 or 5 only with a matching NATS cluster.
+replicas = 1
+
+# External NATS client settings. To use an external server or cluster, set nats.embedded.enabled = false, then uncomment and update this section. Embedded NATS derives its client settings automatically.
+# [nats.client]
+# NATS server URL. Use a comma-separated list for cluster failover, e.g. nats://n1:4222,nats://n2:4222.
+# url = 'nats://nats.example.com:4222'
+# Authentication method for the external NATS server: none, token, userpass, credentials, or nkey.
+# auth_method = 'token'
+# Token for token auth. Only used when auth_method = 'token'. NEVER SHARE THIS!
+# token = 'replace-me'
+# Username for userpass auth. Only used when auth_method = 'userpass'.
+# username = ''
+# Password for userpass auth. Only used when auth_method = 'userpass'. NEVER SHARE THIS!
+# password = ''
+# Path to a NATS .creds file. Only used when auth_method = 'credentials'.
+# credentials_file = ''
+# NKey seed. Only used when auth_method = 'nkey'. NEVER SHARE THIS!
+# nkey_seed = ''
+# PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the connection uses TLS.
+# ca_cert = ''
 
 [nats.embedded]
+# Enable embedded NATS server.
 enabled = true
-port = 4555
-# http_port = 8555
+# Uncomment to expose embedded NATS over TCP for nats CLI/admin commands. When left commented, Chatto connects in-process and no NATS port is opened.
+# port = 4222
+# Address to bind NATS ports. Default: 127.0.0.1 (localhost only).
+# bind_address = '127.0.0.1'
+# NATS monitoring/stats HTTP port. Set to 0 to disable.
+# http_port = 8222
+# Directory where the embedded NATS server stores its data.
 data_dir = './data'
-auth_token = 'd5ed70d13c4682609dfd0a4f65bf7e59ef22f3be8502762b501d3b7cf0b73b43'
+# Authentication token for NATS connections. Auto-generated on init.
+auth_token = 'c5a489d9ef580aa7f03fb70ea667684ee10a75b84ab851a6e92e63bbba25e6d1'
 
-# Dev-only bootstrap. Creates these users + the initial instance only when the
-# server is otherwise empty. Plaintext passwords are fine because release
-# binaries don't compile this code path.
-[[bootstrap.users]]
-login = 'alice'
-display_name = 'Alice'
-email = 'alice@example.com'
-password = 'foobar123'
-server_role = 'owner'
-
-[[bootstrap.users]]
-login = 'bob'
-display_name = 'Bob'
-email = 'bob@example.com'
-password = 'foobar123'
-
-[bootstrap.server]
-name = 'Local Development'
+# Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely.
+# [bootstrap]
+# users = []
