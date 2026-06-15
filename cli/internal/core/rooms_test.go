@@ -2,7 +2,10 @@ package core
 
 import (
 	"errors"
+	"sync"
 	"testing"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_CreateRoom(t *testing.T) {
@@ -271,6 +274,43 @@ func TestChattoCore_CreateRoom_DuplicateName(t *testing.T) {
 	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "Another general room")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists, got: %v", err)
+	}
+}
+
+func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	successes := make(chan *corev1.Room, 8)
+
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "concurrent-name", "")
+			if err != nil {
+				errs <- err
+				return
+			}
+			successes <- room
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	close(successes)
+
+	if got := len(successes); got != 1 {
+		t.Fatalf("concurrent CreateRoom successes = %d, want 1", got)
+	}
+	for err := range errs {
+		if !errors.Is(err, ErrRoomNameExists) {
+			t.Fatalf("concurrent CreateRoom error = %v, want ErrRoomNameExists", err)
+		}
 	}
 }
 

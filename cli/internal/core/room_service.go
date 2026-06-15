@@ -83,6 +83,17 @@ func (m *RoomService) waitForGroupLayout(ctx context.Context, pos events.StreamP
 	return waitForPositionAll(ctx, pos, waitForProjection("room group layout", m.groupLayoutProjector))
 }
 
+func (m *RoomService) waitForGroupLayoutCurrent(ctx context.Context, publisher *events.Publisher) error {
+	pos, err := publisher.LastSubjectPosition(ctx, events.GroupSubjectFilter())
+	if err != nil {
+		return err
+	}
+	if pos.IsZero() {
+		return nil
+	}
+	return m.waitForGroupLayout(ctx, pos)
+}
+
 func (m *RoomService) waitForTimeline(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("room timeline", m.timelineProjector))
 }
@@ -96,11 +107,14 @@ func (m *RoomService) waitForReactions(ctx context.Context, pos events.StreamPos
 }
 
 func (m *RoomService) waitForReactionsCurrent(ctx context.Context, publisher *events.Publisher, roomID string) error {
-	agg := events.RoomAggregate(roomID)
-	return waitForProjectionSubjectsCurrent(ctx, publisher, "reactions", m.reactionsProjector,
-		agg.Subject(events.EventReactionAdded),
-		agg.Subject(events.EventReactionRemoved),
-	)
+	pos, err := publisher.LastSubjectPosition(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		return err
+	}
+	if pos.IsZero() {
+		return nil
+	}
+	return m.waitForReactions(ctx, pos)
 }
 
 func (m *RoomService) waitForDirectoryAndTimeline(ctx context.Context, pos events.StreamPosition) error {
@@ -167,6 +181,21 @@ func (m *RoomService) roomsByKind(kind corev1.RoomKind) []*corev1.Room {
 
 func (m *RoomService) roomIDByName(name string) string {
 	return m.directory.Catalog.FindByName(name)
+}
+
+func (m *RoomService) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
+	return m.directory.Catalog.NameClaimSnapshot(name)
+}
+
+func (m *RoomService) waitForDirectoryCurrent(ctx context.Context, publisher *events.Publisher) error {
+	pos, err := publisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+	if err != nil {
+		return err
+	}
+	if pos.IsZero() {
+		return nil
+	}
+	return m.waitForDirectory(ctx, pos)
 }
 
 func (m *RoomService) activeRoomBan(roomID, userID string, now time.Time) (RoomBan, bool) {
@@ -263,6 +292,10 @@ func (m *RoomService) reactionsBatch(eventIDs []string) map[string][]ReactionSum
 
 func (m *RoomService) hasReaction(messageEventID, emoji, userID string) bool {
 	return m.reactions.HasReaction(messageEventID, emoji, userID)
+}
+
+func (m *RoomService) reactionMutationSnapshot(roomID, messageEventID, emoji, userID string) ReactionMutationSnapshot {
+	return m.reactions.ReactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 }
 
 func (m *RoomService) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {

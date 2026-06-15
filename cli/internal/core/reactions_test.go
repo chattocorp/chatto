@@ -5,7 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -121,6 +123,76 @@ func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
 	}
 	if len(reactions) != 1 || reactions[0].Emoji != "thumbsup" || len(reactions[0].UserIDs) != 1 || reactions[0].UserIDs[0] != user.Id {
 		t.Fatalf("unexpected reactions after concurrent duplicate add: %+v", reactions)
+	}
+}
+
+func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	reactions := NewReactionProjection()
+	reactionsProjector := harness.projector(reactions)
+	core := &ChattoCore{
+		logger:             testServiceLogger(),
+		EventPublisher:     harness.publisher,
+		Reactions:          reactions,
+		ReactionsProjector: reactionsProjector,
+	}
+	core.roomService = newRoomService(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+
+	addedOnOtherReplica := newReactionAddedEvent("U1", "R1", "M1", "thumbsup")
+	addSubject := events.RoomAggregate("R1").SubjectFor(addedOnOtherReplica)
+	addSeq, err := harness.publisher.AppendEventually(ctx, addSubject, addedOnOtherReplica)
+	if err != nil {
+		t.Fatalf("append existing reaction: %v", err)
+	}
+	if err := reactions.Apply(addedOnOtherReplica, addSeq); err != nil {
+		t.Fatalf("seed stale reaction projection: %v", err)
+	}
+
+	removedOnOtherReplica := newReactionRemovedEvent("U1", "R1", "M1", "thumbsup")
+	removeSubject := events.RoomAggregate("R1").SubjectFor(removedOnOtherReplica)
+	if _, err := harness.publisher.AppendEventually(ctx, removeSubject, removedOnOtherReplica); err != nil {
+		t.Fatalf("append remote reaction removal: %v", err)
+	}
+	if !reactions.ReactionMutationSnapshot("R1", "M1", "thumbsup", "U1").Exists {
+		t.Fatal("test setup expected stale projection to still contain reaction")
+	}
+
+	type result struct {
+		added bool
+		err   error
+	}
+	resultCh := make(chan result, 1)
+	go func() {
+		added, err := core.publishReactionMutation(
+			ctx,
+			KindChannel,
+			"R1",
+			"M1",
+			"thumbsup",
+			"U1",
+			newReactionAddedEvent("U1", "R1", "M1", "thumbsup"),
+		)
+		resultCh <- result{added: added, err: err}
+	}()
+
+	select {
+	case got := <-resultCh:
+		t.Fatalf("AddReaction returned before stale projection catch-up: added=%v err=%v", got.added, got.err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startTestProjector(t, reactionsProjector)
+	got := <-resultCh
+	if got.err != nil {
+		t.Fatalf("AddReaction after projection catch-up: %v", got.err)
+	}
+	if !got.added {
+		t.Fatal("AddReaction returned false from stale no-op snapshot after catch-up")
+	}
+	if snapshot := reactions.ReactionMutationSnapshot("R1", "M1", "thumbsup", "U1"); !snapshot.Exists {
+		t.Fatal("reaction projection should contain re-added reaction")
 	}
 }
 

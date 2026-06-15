@@ -21,9 +21,9 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 1. Room name uniqueness via EVT projection and OCC
 
-**Decision:** Room names are unique server-wide (case-insensitive). Uniqueness is enforced by checking the room catalog projection and appending name-changing room events with wildcard OCC against the room aggregate event set.
+**Decision:** Room names are unique server-wide (case-insensitive). Uniqueness is enforced by checking a room catalog projection snapshot and appending name-changing room events with wildcard OCC against the room aggregate event set.
 **Why:** Race-tolerant name claiming is the only way to safely handle two operators creating the same-named room at the same moment. EVT OCC lets the event log remain the source of truth without maintaining a legacy KV name mirror.
-**Tradeoff:** Renames must coordinate through the event log and projection readiness instead of a single KV claim. The payoff is no dual-write divergence.
+**Tradeoff:** Renames must coordinate through the event log and projection readiness instead of a single KV claim. The snapshot carries the matching `evt.room.>` sequence so stale projections conflict and retry instead of committing a duplicate claim. The payoff is no dual-write divergence.
 
 ### 2. Every channel room belongs to exactly one group
 

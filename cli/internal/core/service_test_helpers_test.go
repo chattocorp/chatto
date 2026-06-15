@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/testutil"
 )
 
 type testEventHarness struct {
+	nc        *nats.Conn
 	js        jetstream.JetStream
 	stream    jetstream.Stream
 	publisher *events.Publisher
@@ -35,6 +37,7 @@ func newTestEventHarness(t *testing.T) *testEventHarness {
 		t.Fatalf("CreateOrUpdateStream: %v", err)
 	}
 	return &testEventHarness{
+		nc:        nc,
 		js:        js,
 		stream:    stream,
 		publisher: events.NewPublisher(js, stream, testServiceLogger()),

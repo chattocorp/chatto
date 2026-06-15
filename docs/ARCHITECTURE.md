@@ -116,7 +116,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Raw room log, visible timeline index, latest message bodies, hidden echoes, message asset references, legacy room-asset replay routing |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, asset reconnect replay |
 | Threads            | Threads              | `evt.room.>`, `evt.user.*.user_key_shredded`               | Per-thread reply logs, summaries, participants, reply counts                               |
-| Reactions          | Reactions            | `evt.room.*.reaction_added`, `evt.room.*.reaction_removed` | Current per-message reaction sets and summaries                                            |
+| Reactions          | Reactions            | `evt.room.>`                                               | Current per-message reaction sets and room-scoped snapshot OCC positions                   |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, and active room IDs                           |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
 | Users              | Users                | `evt.user.>`                                               | Account/profile/auth lookup state, verified emails, OAuth subjects, encrypted user PII     |
@@ -346,6 +346,7 @@ auth workflow audit facts.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded room facts such as edits, retractions, reactions, and thread replies; visible readers skip or fold those facts before serving the room timeline. Asset lifecycle facts live in `AssetProjection`, which also consumes legacy beta `evt.room.{roomId}.asset_*` facts. `Subscription.myEvents(after:)` uses the raw room log plus asset projection replay so folded facts can reach the client as ordinary durable events without appearing as standalone timeline rows in `Room.events`.
 - Writes append to `EVT` only for durable domain facts; legacy KV/stream data is not maintained as a mirror.
+- Mutations whose decision comes from a projection use a snapshot that carries both derived state and the applied stream sequence for the same OCC subject/filter. On conflict, writers wait for the owning projection to the latest matching tail and retry from a fresh snapshot.
 - Read-your-writes is provided by waiting for the local projector to reach the append sequence.
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)

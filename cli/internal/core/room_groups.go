@@ -187,22 +187,30 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) error {
 	occFilter := events.GroupSubjectFilter()
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
-		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, occFilter)
-		if err != nil {
-			return fmt.Errorf("read room-group OCC seq: %w", err)
-		}
-		if filterSeq > 0 {
-			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(occFilter, filterSeq)); err != nil {
-				return fmt.Errorf("wait for room group layout projection: %w", err)
+		snapshot := c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
+		if !snapshot.TargetExists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before not-found decision: %w", err)
+			}
+			snapshot = c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
+			if !snapshot.TargetExists {
+				return ErrRoomGroupNotFound
 			}
 		}
 
-		if !c.RoomGroups.Exists(targetGroupID) {
-			return ErrRoomGroupNotFound
-		}
-
-		sourceGroupID := c.RoomGroups.GroupForRoom(roomID)
+		sourceGroupID := snapshot.SourceGroupID
 		if sourceGroupID == targetGroupID {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before no-op decision: %w", err)
+			}
+			snapshot = c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
+			sourceGroupID = snapshot.SourceGroupID
+			if !snapshot.TargetExists {
+				return ErrRoomGroupNotFound
+			}
+			if sourceGroupID != targetGroupID {
+				continue
+			}
 			// Already in the target group; idempotent no-op.
 			return nil
 		}
@@ -237,7 +245,7 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 				Subject:       sourceAgg.SubjectFor(removed),
 				Event:         removed,
 				HasOCC:        true,
-				ExpectedSeq:   filterSeq,
+				ExpectedSeq:   snapshot.Seq,
 				FilterSubject: occFilter,
 			})
 		}
@@ -248,7 +256,7 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 		})
 		if !entries[0].HasOCC {
 			entries[0].HasOCC = true
-			entries[0].ExpectedSeq = filterSeq
+			entries[0].ExpectedSeq = snapshot.Seq
 			entries[0].FilterSubject = occFilter
 		}
 
@@ -268,6 +276,10 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return fmt.Errorf("publish move-room batch: %w", err)
+		}
+
+		if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+			return fmt.Errorf("wait for room group layout projection after OCC conflict: %w", err)
 		}
 
 		select {
