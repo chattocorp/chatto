@@ -44,8 +44,8 @@ type GeneralConfig struct {
 // Note: Default ports 80/443 require elevated privileges (sudo, CAP_NET_BIND_SERVICE, or root).
 type TLSConfig struct {
 	Enabled  bool   `toml:"enabled" env:"CHATTO_WEBSERVER_TLS_ENABLED" comment:"Enable automatic TLS via Let's Encrypt. Note: default ports 80/443 require elevated privileges."`
-	Domain   string `toml:"domain" env:"CHATTO_WEBSERVER_TLS_DOMAIN" comment:"Domain name for the TLS certificate. Required when TLS is enabled."`
-	Email    string `toml:"email" env:"CHATTO_WEBSERVER_TLS_EMAIL" comment:"Email address for Let's Encrypt notifications. Required when TLS is enabled."`
+	Domain   string `toml:"domain,commented" env:"CHATTO_WEBSERVER_TLS_DOMAIN" comment:"Domain name for the TLS certificate. Required when TLS is enabled."`
+	Email    string `toml:"email,commented" env:"CHATTO_WEBSERVER_TLS_EMAIL" comment:"Email address for Let's Encrypt notifications. Required when TLS is enabled."`
 	CacheDir string `toml:"cache_dir,commented" env:"CHATTO_WEBSERVER_TLS_CACHE_DIR" comment:"Directory to cache TLS certificates. Default: .chatto/certs"`
 	HTTPPort int    `toml:"http_port,commented" env:"CHATTO_WEBSERVER_TLS_HTTP_PORT" comment:"Port for HTTP server (ACME challenges and HTTPS redirect). Default: 80. Use a higher port if running without elevated privileges."`
 }
@@ -69,8 +69,8 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 type WebserverConfig struct {
 	URL                    string    `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
 	Port                   int       `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional origins allowed for CORS and WebSocket connections. Exact non-wildcard entries also trust OAuth redirect callbacks for backward compatibility, but allowed_origins = [\"*\"] is CORS-only."`
-	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted for OAuth redirect callbacks. Use exact HTTPS origins in production. Temporarily, [\"*\"] allows any valid HTTPS origin; loopback development origins may use HTTP."`
+	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks."`
+	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP."`
 	WebSocketCompression   *bool     `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression for GraphQL connections. Reduces bandwidth but uses more CPU. Default: true."`
 	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Useful for debugging but can be noisy in production. Default: false."`
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
@@ -344,7 +344,7 @@ func (c *AuthConfig) EnabledProviders() []string {
 
 type EmbeddedNATSConfig struct {
 	Enabled     bool   `toml:"enabled" env:"CHATTO_NATS_EMBEDDED_ENABLED" comment:"Enable embedded NATS server."`
-	Port        int    `toml:"port" env:"CHATTO_NATS_EMBEDDED_PORT" comment:"NATS server port. Required for CLI commands to connect."`
+	Port        int    `toml:"port,commented" env:"CHATTO_NATS_EMBEDDED_PORT" comment:"Uncomment to expose embedded NATS over TCP for nats CLI/admin commands. When left commented, Chatto connects in-process and no NATS port is opened."`
 	BindAddress string `toml:"bind_address,commented" env:"CHATTO_NATS_EMBEDDED_BIND_ADDRESS" comment:"Address to bind NATS ports. Default: 127.0.0.1 (localhost only)."`
 	HTTPPort    int    `toml:"http_port,commented" env:"CHATTO_NATS_EMBEDDED_HTTP_PORT" comment:"NATS monitoring/stats HTTP port. Set to 0 to disable."`
 	DataDir     string `toml:"data_dir" env:"CHATTO_NATS_EMBEDDED_DATA_DIR" comment:"Directory where the embedded NATS server stores its data."`
@@ -373,14 +373,14 @@ const (
 // NATSClientConfig contains settings for connecting to an external NATS server.
 // Also used for CLI commands (like chatto admin) to connect to the embedded server.
 type NATSClientConfig struct {
-	URL             string         `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. For embedded server, use nats://localhost:4222."`
-	AuthMethod      NATSAuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method: none, token, userpass, credentials, nkey"`
-	Token           string         `toml:"token" env:"CHATTO_NATS_CLIENT_TOKEN" comment:"Token for token auth. NEVER SHARE THIS!"`
-	Username        string         `toml:"username,commented" env:"CHATTO_NATS_CLIENT_USERNAME" comment:"Username for userpass auth."`
-	Password        string         `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. NEVER SHARE THIS!"`
-	CredentialsFile string         `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to .creds file for credentials auth."`
-	NKeySeed        string         `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed for nkey auth. NEVER SHARE THIS!"`
-	CACert          string         `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS cert. When set, the connection uses TLS."`
+	URL             string         `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. Use a comma-separated list for cluster failover, e.g. nats://n1:4222,nats://n2:4222."`
+	AuthMethod      NATSAuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method for the external NATS server: none, token, userpass, credentials, or nkey."`
+	Token           string         `toml:"token" env:"CHATTO_NATS_CLIENT_TOKEN" comment:"Token for token auth. Only used when auth_method = 'token'. NEVER SHARE THIS!"`
+	Username        string         `toml:"username,commented" env:"CHATTO_NATS_CLIENT_USERNAME" comment:"Username for userpass auth. Only used when auth_method = 'userpass'."`
+	Password        string         `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. Only used when auth_method = 'userpass'. NEVER SHARE THIS!"`
+	CredentialsFile string         `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to a NATS .creds file. Only used when auth_method = 'credentials'."`
+	NKeySeed        string         `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed. Only used when auth_method = 'nkey'. NEVER SHARE THIS!"`
+	CACert          string         `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the connection uses TLS."`
 }
 
 // NATSAuthConfig returns the auth configuration suitable for natsauth.ConnectOptions.
@@ -397,8 +397,8 @@ func (c *NATSClientConfig) NATSAuthConfig() natsauth.Config {
 }
 
 type NATSConfig struct {
-	Replicas int                `toml:"replicas,commented" env:"CHATTO_NATS_REPLICAS" comment:"Number of replicas for JetStream streams, KV buckets, and object stores. Must be 1, 3, or 5 (odd numbers for quorum). Default: 1. Set to 3 or 5 when running a NATS cluster for fault tolerance."`
-	Client   NATSClientConfig   `toml:"client,omitempty" comment:"Client settings for CLI commands to connect to NATS."`
+	Replicas int                `toml:"replicas" env:"CHATTO_NATS_REPLICAS" comment:"Number of replicas for JetStream streams, KV buckets, and object stores. Must be 1, 3, or 5 (odd numbers for quorum). Use 3 or 5 only with a matching NATS cluster."`
+	Client   NATSClientConfig   `toml:"client,commented" comment:"External NATS client settings. To use an external server or cluster, set nats.embedded.enabled = false, then uncomment and update this section. Embedded NATS derives its client settings automatically."`
 	Embedded EmbeddedNATSConfig `toml:"embedded"`
 }
 
@@ -610,10 +610,10 @@ type BootstrapServer struct {
 
 type ChattoConfig struct {
 	General   GeneralConfig   `toml:"general"`
+	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver WebserverConfig `toml:"webserver"`
 	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
 	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
-	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
 	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP      SMTPConfig      `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push      PushConfig      `toml:"push,commented" comment:"Web Push notification configuration."`

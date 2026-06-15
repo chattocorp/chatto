@@ -6,7 +6,7 @@ description: How to deploy Chatto using Docker Compose.
 import { Steps, Aside, FileTree, LinkCard, CardGrid } from "@astrojs/starlight/components";
 import ArchDiagram from "../../../components/diagrams/DockerComposeDiagram.astro";
 
-This guide walks through deploying Chatto with Docker Compose, including NATS for messaging, LiveKit for voice and video calls, and Caddy as a reverse proxy with automatic TLS.
+This guide walks through deploying Chatto with Docker Compose, including NATS for messaging and persistence, LiveKit for voice and video calls, and Caddy as a reverse proxy with automatic TLS.
 
 ## Architecture
 
@@ -20,6 +20,7 @@ Caddy terminates TLS and proxies traffic to both Chatto and LiveKit's WebSocket 
 - A domain pointing to your server (e.g., `chat.example.com`)
 - A `livekit.*` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
 - Firewall allowing inbound TCP 80, 443 and UDP 50000-50200
+- SMTP credentials for email/password registration, email verification, and password reset
 <Aside type="tip">
   If you don't need voice and video calls, see [Disabling voice and video calls](#disabling-voice-and-video-calls) to simplify the setup.
 </Aside>
@@ -43,7 +44,7 @@ By the end of this section, your project directory will look like this:
    mkdir chatto && cd chatto
    ```
 
-3. **Create `compose.yml`**
+2. **Create `compose.yml`**
 
    ```yaml
    services:
@@ -76,7 +77,7 @@ By the end of this section, your project directory will look like this:
          retries: 3
 
      chatto:
-       image: ghcr.io/hmans/chatto:latest
+       image: ghcr.io/chattocorp/chatto:latest
        env_file: .env
        depends_on:
          nats:
@@ -107,11 +108,11 @@ By the end of this section, your project directory will look like this:
      caddy_config:
    ```
 
-4. **Create `Caddyfile`**
+3. **Create `Caddyfile`**
 
    Caddy proxies Chatto on the main domain and LiveKit's WebSocket signaling on the `livekit.*` subdomain:
 
-   ```caddy
+   ```text
    {$PUBLIC_URL:chat.example.com} {
      reverse_proxy chatto:4000 {
        lb_policy round_robin
@@ -129,7 +130,7 @@ By the end of this section, your project directory will look like this:
    }
    ```
 
-5. **Create `livekit.yaml`**
+4. **Create `livekit.yaml`**
 
    ```yaml
    port: 7880
@@ -151,12 +152,13 @@ By the end of this section, your project directory will look like this:
      level: info
    ```
 
-6. **Create `.env`**
+5. **Create `.env`**
 
    ```bash
    # Generate secrets with: openssl rand -hex 32
 
    PUBLIC_URL=chat.example.com
+   CHATTO_OWNERS_EMAILS=admin@example.com
 
    # NATS
    NATS_TOKEN=<generate-me>
@@ -175,22 +177,35 @@ By the end of this section, your project directory will look like this:
    CHATTO_LOG_LEVEL=info
    CHATTO_LOG_FORMAT=json
 
+   # SMTP
+   CHATTO_SMTP_ENABLED=true
+   CHATTO_SMTP_HOST=smtp.example.com
+   CHATTO_SMTP_PORT=587
+   CHATTO_SMTP_TLS=mandatory
+   CHATTO_SMTP_USERNAME=your-username
+   CHATTO_SMTP_PASSWORD=your-password
+   CHATTO_SMTP_FROM=noreply@example.com
+
    # LiveKit
    CHATTO_LIVEKIT_ENABLED=true
    CHATTO_LIVEKIT_URL=wss://livekit.chat.example.com
    CHATTO_LIVEKIT_API_KEY=your-api-key
    CHATTO_LIVEKIT_API_SECRET=your-api-secret
+   # Defaults to CHATTO_WEBSERVER_URL + /webhooks/livekit
+   # CHATTO_LIVEKIT_WEBHOOK_URL=https://chat.example.com/webhooks/livekit
    ```
 
    Replace all `<generate-me>` values with output from `openssl rand -hex 32`. Make sure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match, and the LiveKit key/secret match what's in `livekit.yaml`.
 
-7. **Start the stack**
+   Set `CHATTO_OWNERS_EMAILS` to the email address you will use for the first account. Registration sends a code by email and creates the account with that email already verified; if it matches this list, Chatto assigns the owner role automatically.
+
+6. **Start the stack**
 
    ```bash
    docker compose up -d
    ```
 
-   Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account.
+   Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
 
 </Steps>
 
@@ -231,19 +246,11 @@ Back up `nats_data` regularly. By default, file attachments and media are also s
 
 ## Optional Features
 
-### SMTP (Email)
+### Direct Registration and SMTP
 
-Required for email verification and password reset. Add to `.env`:
+The setup above enables direct email/password registration, which requires SMTP because Chatto sends registration codes by email. SMTP is also used for email verification and password reset.
 
-```bash
-CHATTO_SMTP_ENABLED=true
-CHATTO_SMTP_HOST=smtp.example.com
-CHATTO_SMTP_PORT=587
-CHATTO_SMTP_TLS=mandatory
-CHATTO_SMTP_USERNAME=your-username
-CHATTO_SMTP_PASSWORD=your-password
-CHATTO_SMTP_FROM=noreply@example.com
-```
+If you do not want public email/password registration after the first owner exists, set `CHATTO_AUTH_DIRECT_REGISTRATION=false`. Users can still sign in through configured SSO providers.
 
 ### Push Notifications
 
@@ -262,6 +269,10 @@ The official Chatto Docker image includes `ffmpeg`. To enable video transcoding,
 
 ```bash
 CHATTO_VIDEO_ENABLED=true
+# Optional tuning
+# CHATTO_VIDEO_MAX_CONCURRENT=2
+# CHATTO_VIDEO_MAX_UPLOAD_SIZE=100MB
+# CHATTO_VIDEO_TEMP_DIR=/tmp
 ```
 
 <LinkCard title="Video Processing" href="/guides/video-processing/" description="Transcoding options, concurrency tuning, and storage considerations." />
@@ -352,6 +363,10 @@ rtc:
 ## Troubleshooting
 
 **Chatto can't connect to NATS** — Ensure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match in `.env`.
+
+**Registration says email delivery is not configured** — Direct email/password registration requires SMTP. Set `CHATTO_SMTP_ENABLED=true` and configure `CHATTO_SMTP_HOST`, `CHATTO_SMTP_PORT`, `CHATTO_SMTP_TLS`, and `CHATTO_SMTP_FROM`. Add username and password when your SMTP server requires authentication.
+
+**The first account is not an owner** — Make sure `CHATTO_OWNERS_EMAILS` contains the verified email address for that account. For an already-verified account, restart Chatto after updating the variable; Chatto applies matching owner roles on boot.
 
 **Caddy not getting certificates** — Verify DNS records point to your server and ports 80/443 are open. Check `docker compose logs caddy` for ACME errors.
 
