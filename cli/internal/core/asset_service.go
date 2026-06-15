@@ -499,10 +499,6 @@ func (s *AssetService) AssetSubtreeIDs(assetID string) []string {
 	return s.Assets.AssetSubtreeIDs(assetID)
 }
 
-func (s *AssetService) AssetEventsBetweenForRooms(afterSeq, throughSeq uint64, memberRooms map[string]struct{}, predicate func(*corev1.Event) bool, limit int) []*AssetTimelineEntry {
-	return s.Assets.AssetEventsBetweenForRooms(afterSeq, throughSeq, memberRooms, predicate, limit)
-}
-
 func (s *AssetService) MessageAssetsByAuthor(userID string) []MessageAssetRef {
 	return s.RoomTimeline.MessageAssetsByAuthor(userID)
 }

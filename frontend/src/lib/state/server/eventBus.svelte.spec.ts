@@ -158,7 +158,7 @@ describe('eventBusManager subscription robustness', () => {
 		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('ws reconnected'))).toBe(true);
 	});
 
-	it('subscribes without a replay cursor on initial start and reconnect', () => {
+	it('subscribes without variables on initial start and reconnect', () => {
 		const fake = new FakeGqlClient();
 		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
 		expect(fake.subscriptionMock.mock.calls[0][1]).toEqual({});
@@ -167,7 +167,6 @@ describe('eventBusManager subscription robustness', () => {
 			data: {
 				myEvents: {
 					actorId: 'a',
-					deliveryCursor: 'seq:10',
 					event: { __typename: 'ServerUpdatedEvent' }
 				}
 			}

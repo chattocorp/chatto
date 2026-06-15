@@ -51,7 +51,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 **Decision:** On browser wake/reconnect, the web client refreshes the currently viewed room window from projected GraphQL reads instead of replaying missed reaction events through its event bus. If the user is at the bottom it fetches the latest room page; if scrolled up it refetches around the visible anchor event and preserves scroll by event ID.
 **Why:** Reactions mutate existing message rows. Refetching projected message rows updates reactions, edits, retractions, attachment processing state, and newly posted messages through one path, while avoiding fragile reconnect replay state in the browser.
-**Tradeoff:** This is scoped to the room/thread the user is actually viewing. Other rooms catch up through normal queries when opened and through whatever live events are received while connected. The server-side `myEvents(after:)` replay capability still exists for callers that need it, but the bundled web client no longer depends on it for PWA wake recovery.
+**Tradeoff:** This is scoped to the room/thread the user is actually viewing. Other rooms catch up through normal queries when opened and through whatever live events are received while connected. The `myEvents` subscription is intentionally live-only and no longer exposes a replay cursor.
 
 ## Permissions
 

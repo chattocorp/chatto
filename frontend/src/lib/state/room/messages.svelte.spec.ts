@@ -424,7 +424,6 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			createdAt: '2026-05-27T00:00:01Z',
 			actorId: 'u2',
 			actor: null,
-			deliveryCursor: 'seq:2',
 			event: {
 				__typename: 'ReactionAddedEvent',
 				roomId: 'room-1',

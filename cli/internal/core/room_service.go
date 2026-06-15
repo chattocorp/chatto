@@ -131,29 +131,6 @@ func (m *RoomService) waitForTimelineAndThreads(ctx context.Context, pos events.
 	)
 }
 
-func (m *RoomService) waitForMyEventsReplayTail(ctx context.Context, pub *events.Publisher, pos events.StreamPosition) error {
-	if err := waitForPositionAll(ctx, pos,
-		waitForProjection("room timeline", m.timelineProjector),
-		waitForProjection("threads", m.threadsProjector),
-		waitForProjection("room directory", m.directoryProjector),
-	); err != nil {
-		return err
-	}
-	return waitForProjectionSubjectsCurrent(ctx, pub, "reactions", m.reactionsProjector,
-		events.RoomEventTypeFilter(events.EventReactionAdded),
-		events.RoomEventTypeFilter(events.EventReactionRemoved),
-	)
-}
-
-func (m *RoomService) waitForMyEventsReplayCurrent(ctx context.Context) error {
-	return waitForCurrentAll(ctx,
-		waitForProjection("room timeline", m.timelineProjector),
-		waitForProjection("threads", m.threadsProjector),
-		waitForProjection("room directory", m.directoryProjector),
-		waitForProjection("reactions", m.reactionsProjector),
-	)
-}
-
 func (m *RoomService) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *corev1.Event) error {
 	if err := m.waitForTimelineAndThreads(ctx, pos); err != nil {
 		return err
@@ -264,10 +241,6 @@ func (m *RoomService) visibleRoomTimelineAfter(roomID string, limit int, afterSt
 
 func (m *RoomService) visibleRoomTimelineAround(roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool) {
 	return m.timeline.VisibleRoomTimelineAround(roomID, eventID, limit)
-}
-
-func (m *RoomService) roomTimelineBetween(roomID string, afterStreamSeq, throughStreamSeq uint64, include func(*corev1.Event) bool, limit int) []*TimelineEntry {
-	return m.timeline.RoomTimelineBetween(roomID, afterStreamSeq, throughStreamSeq, include, limit)
 }
 
 func (m *RoomService) threadExists(rootEventID string) bool {

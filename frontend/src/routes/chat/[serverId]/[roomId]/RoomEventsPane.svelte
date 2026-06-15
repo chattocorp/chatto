@@ -57,12 +57,9 @@
     return null;
   });
 
-  let refetchTrigger = $state(0);
-
   // Wire jumpState handlers to the store
   if (jumpState) {
     jumpState.setJumpHandler((eventId: string) => store.jumpToMessage(eventId, jumpState));
-    jumpState.setJumpToPresentHandler(() => store.jumpToPresent(jumpState));
     jumpState.setLoadNewerHandler(() => store.loadNewer(jumpState));
   }
 
@@ -72,10 +69,9 @@
     if (jumpState) jumpState.reset();
   });
 
-  // Drive store loads from roomId / manual-refetch prop changes. Silent
-  // reconnect + tab-resume catch-ups are owned by the server event bus.
+  // Drive store loads from roomId changes. Silent reconnect + tab-resume
+  // catch-ups refresh the current message window without resetting the store.
   $effect(() => {
-    void refetchTrigger;
     store.setRoom(roomId);
   });
 
