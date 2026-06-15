@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
-import { FULL_REFRESH_REQUIRED_EVENT, eventBusManager } from './eventBus.svelte';
+import { eventBusManager } from './eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 
 /**
@@ -158,10 +158,10 @@ describe('eventBusManager subscription robustness', () => {
 		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('ws reconnected'))).toBe(true);
 	});
 
-	it('resumes from the last durable delivery cursor on reconnect', () => {
+	it('subscribes without a replay cursor on initial start and reconnect', () => {
 		const fake = new FakeGqlClient();
 		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscriptionMock.mock.calls[0][1]).toEqual({ after: null });
+		expect(fake.subscriptionMock.mock.calls[0][1]).toEqual({});
 
 		fake.current.next({
 			data: {
@@ -174,65 +174,20 @@ describe('eventBusManager subscription robustness', () => {
 		});
 		fake.bumpReconnect();
 
-		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: 'seq:10' });
+		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({});
 	});
 
-	it('does not advance the resume cursor for heartbeat or transient events', () => {
+	it('does not dispatch heartbeat events to handlers', () => {
 		const fake = new FakeGqlClient();
 		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		const handler = vi.fn();
+		eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
 		fake.current.next({
 			data: { myEvents: { actorId: '', event: { __typename: 'HeartbeatEvent' } } }
 		});
-		fake.current.next({
-			data: {
-				myEvents: {
-					actorId: 'u1',
-					deliveryCursor: null,
-					event: { __typename: 'UserTypingEvent', roomId: 'room-1' }
-				}
-			}
-		});
-		fake.bumpReconnect();
 
-		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: null });
-	});
-
-	it('requests a full refresh and clears the cursor when replay is rejected', () => {
-		const fake = new FakeGqlClient();
-		const onFullRefresh = vi.fn();
-		window.addEventListener(FULL_REFRESH_REQUIRED_EVENT, onFullRefresh);
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-
-		fake.current.next({
-			data: {
-				myEvents: {
-					actorId: 'a',
-					deliveryCursor: 'signed-cursor',
-					event: { __typename: 'ServerUpdatedEvent' }
-				}
-			}
-		});
-		fake.current.next({
-			error: {
-				graphQLErrors: [
-					{ extensions: { code: 'MY_EVENTS_FULL_REFRESH_REQUIRED' } }
-				]
-			}
-		});
-		fake.bumpReconnect();
-
-		expect(onFullRefresh).toHaveBeenCalledTimes(1);
-		expect((onFullRefresh.mock.calls[0][0] as CustomEvent).detail).toEqual({
-			serverId: TEST_SERVER
-		});
-		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({ after: null });
-		expect(
-			consoleDebug.mock.calls.some((c: unknown[]) =>
-				String(c[0]).includes('replay cursor rejected')
-			)
-		).toBe(true);
-		window.removeEventListener(FULL_REFRESH_REQUIRED_EVENT, onFullRefresh);
+		expect(handler).not.toHaveBeenCalled();
 	});
 
 	it('does NOT re-subscribe when stopBus is called (teardown guard)', () => {
@@ -248,38 +203,4 @@ describe('eventBusManager subscription robustness', () => {
 		expect(fake.subscribeCalls).toBe(1);
 	});
 
-	it('re-subscribes after STALE_THRESHOLD_MS of only heartbeats (watchdog)', () => {
-		vi.useFakeTimers();
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-
-		// Heartbeat counts as activity — refreshes lastEventAt but is not
-		// dispatched. Send one near the start.
-		fake.current.next({
-			data: { myEvents: { actorId: '', event: { __typename: 'HeartbeatEvent' } } }
-		});
-
-		// Advance past the 40s watchdog threshold without sending anything else.
-		vi.advanceTimersByTime(50_000);
-
-		expect(fake.subscribeCalls).toBeGreaterThanOrEqual(2);
-	});
-
-	it('does NOT refresh the watchdog on error-only results', () => {
-		vi.useFakeTimers();
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-
-		// Stream of errors with no data — must NOT keep the watchdog alive.
-		for (let i = 0; i < 5; i++) {
-			vi.advanceTimersByTime(10_000);
-			fake.current.next({ error: new Error('flapping') });
-		}
-
-		// Total elapsed: 50s — well past the 40s threshold. If the error-only
-		// path were refreshing lastEventAt, the watchdog would never fire.
-		expect(fake.subscribeCalls).toBeGreaterThanOrEqual(2);
-	});
 });

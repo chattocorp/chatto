@@ -29,6 +29,11 @@ import {
 
 type MessageScope = 'room' | 'thread';
 
+export type RefreshCurrentWindowResult = {
+  hasOlder: boolean;
+  hasNewer: boolean;
+};
+
 function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
 }
@@ -393,6 +398,75 @@ export class MessagesStore {
     this.resetAndFetchLatest();
   }
 
+  /**
+   * Refresh the currently displayed message window from projected state without
+   * clearing the buffer. Used after tab wake / reconnect when the client may
+   * have missed subscription events.
+   */
+  async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
+    if (!this.scope || !this.roomId) return { hasOlder: false, hasNewer: false };
+
+    const thisLoad = this.startLoad();
+    const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
+    console.debug('[room-refresh] store refresh started', {
+      roomId: this.roomId,
+      scope: this.scope,
+      anchorEventId: anchorEventId ?? null,
+      existingCount: this.events.length
+    });
+
+    try {
+      if (this.scope === 'thread') {
+        const result = await this.refreshThreadWindow(thisLoad, existingBeforeFetch);
+        console.debug('[room-refresh] store refresh finished', {
+          roomId: this.roomId,
+          scope: this.scope,
+          mode: 'thread',
+          result,
+          eventCount: this.events.length
+        });
+        return result;
+      }
+
+      if (anchorEventId) {
+        const refreshedAroundAnchor = await this.refreshRoomAround(
+          thisLoad,
+          anchorEventId,
+          existingBeforeFetch
+        );
+        if (refreshedAroundAnchor) {
+          console.debug('[room-refresh] store refresh finished', {
+            roomId: this.roomId,
+            scope: this.scope,
+            mode: 'around',
+            anchorEventId,
+            result: refreshedAroundAnchor,
+            eventCount: this.events.length
+          });
+          return refreshedAroundAnchor;
+        }
+        console.debug('[room-refresh] anchor refresh unavailable, falling back to latest', {
+          roomId: this.roomId,
+          anchorEventId
+        });
+      }
+
+      const result = await this.refreshRoomLatest(thisLoad, existingBeforeFetch);
+      console.debug('[room-refresh] store refresh finished', {
+        roomId: this.roomId,
+        scope: this.scope,
+        mode: 'latest',
+        result,
+        eventCount: this.events.length
+      });
+      return result;
+    } catch (error) {
+      if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+      console.error('MessagesStore: refreshCurrentWindow failed:', error);
+      return { hasOlder: false, hasNewer: false };
+    }
+  }
+
   private onMessagePosted(
     spaceEvent: RoomEventViewFragment,
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
@@ -653,6 +727,144 @@ export class MessagesStore {
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
     this.hasReachedStart = false;
+  }
+
+  private replaceWithSnapshotAndUpdateCursors(
+    connection: {
+      events: readonly RawEvent[];
+      startCursor?: string | null;
+      endCursor?: string | null;
+      hasOlder?: boolean;
+    },
+    existingBeforeFetch: ReadonlySet<string>
+  ): void {
+    const fetched = unmask(connection.events);
+    const newSeen = new SvelteSet<string>();
+    const merged: RoomEventViewFragment[] = [];
+
+    for (const e of fetched) {
+      if (newSeen.has(e.id)) continue;
+      newSeen.add(e.id);
+      merged.push(e);
+    }
+
+    // Preserve subscription events that arrived while the refresh query was in
+    // flight. Older pre-refresh rows outside the fetched window are deliberately
+    // dropped: this is a projected-state reload of the current window.
+    for (const e of this.events) {
+      if (existingBeforeFetch.has(e.id) || newSeen.has(e.id)) continue;
+      newSeen.add(e.id);
+      merged.push(e);
+    }
+
+    this.events = merged;
+    this.seenIds = newSeen;
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = !(connection.hasOlder ?? false);
+    console.debug('[room-refresh] snapshot applied', {
+      fetchedCount: fetched.length,
+      preservedInFlightCount: merged.length - fetched.length,
+      eventCount: this.events.length,
+      hasOlder: connection.hasOlder ?? false,
+      hasReachedStart: this.hasReachedStart
+    });
+  }
+
+  private async refreshRoomLatest(
+    thisLoad: number,
+    existingBeforeFetch: ReadonlySet<string>
+  ): Promise<RefreshCurrentWindowResult> {
+    const result = await this.client
+      .query(
+        RoomLatestQuery,
+        {
+          roomId: this.roomId,
+          limit: PAGE_SIZE
+        },
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+    if (result.error) {
+      console.error('MessagesStore: refreshRoomLatest error:', result.error);
+      return { hasOlder: false, hasNewer: false };
+    }
+
+    const page = result.data?.room?.events;
+    if (!page) return { hasOlder: false, hasNewer: false };
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer };
+  }
+
+  private async refreshRoomAround(
+    thisLoad: number,
+    anchorEventId: string,
+    existingBeforeFetch: ReadonlySet<string>
+  ): Promise<RefreshCurrentWindowResult | null> {
+    const result = await this.client
+      .query(
+        RoomAroundQuery,
+        {
+          roomId: this.roomId,
+          eventId: anchorEventId,
+          limit: PAGE_SIZE
+        },
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+    if (result.error) {
+      console.error('MessagesStore: refreshRoomAround error:', result.error);
+      return null;
+    }
+
+    const page = result.data?.room?.eventsAround;
+    if (!page) return null;
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer };
+  }
+
+  private async refreshThreadWindow(
+    thisLoad: number,
+    existingBeforeFetch: ReadonlySet<string>
+  ): Promise<RefreshCurrentWindowResult> {
+    const result = await this.client
+      .query(
+        ThreadEventsQuery,
+        {
+          roomId: this.roomId,
+          threadRootEventId: this.threadRootEventId,
+          limit: PAGE_SIZE
+        },
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+    if (result.error) {
+      console.error('MessagesStore: refreshThreadWindow error:', result.error);
+      return { hasOlder: false, hasNewer: false };
+    }
+
+    const root = result.data?.room?.event;
+    if (!root) return { hasOlder: false, hasNewer: false };
+
+    const page = threadRepliesConnection(root);
+    const replies = page?.events ?? [];
+    this.replaceWithSnapshotAndUpdateCursors(
+      {
+        events: [root, ...replies],
+        startCursor: page?.startCursor,
+        endCursor: page?.endCursor,
+        hasOlder: page?.hasOlder
+      },
+      existingBeforeFetch
+    );
+    this.sortThreadEvents();
+    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false };
   }
 
   private resetAndFetchLatest(): void {

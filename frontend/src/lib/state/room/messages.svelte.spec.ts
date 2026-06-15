@@ -595,6 +595,90 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
+	it('soft-refreshes the latest room window without entering initial loading', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			roomEventsResult({
+				events: [messageWithReaction('m1', 'heart'), threadMessageEvent('m2')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:2',
+				hasOlder: false,
+				hasNewer: false
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow();
+		await settle();
+
+		expect(store.isInitialLoading).toBe(false);
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2']);
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'heart', count: 1 }]
+		});
+		expect(fake.queryMock).toHaveBeenCalledOnce();
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', limit: 50 });
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
+	it('soft-refreshes around an anchor event when one is provided', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1'), threadMessageEvent('m2'), threadMessageEvent('m3')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:3',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{
+				room: {
+					eventsAround: {
+						events: [messageWithReaction('m2', 'thumbsup')],
+						targetIndex: 0,
+						startCursor: 'seq:2',
+						endCursor: 'seq:2',
+						hasOlder: true,
+						hasNewer: true
+					}
+				}
+			}
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow('m2');
+		await settle();
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m2']);
+		expect(store.hasReachedStart).toBe(false);
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'thumbsup', count: 1 }]
+		});
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+			roomId: 'room-1',
+			eventId: 'm2',
+			limit: 50
+		});
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
 	it('dispose() is idempotent', () => {
 		const fake = new FakeGqlClient();
 		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);

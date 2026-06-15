@@ -53,7 +53,7 @@
 </script>
 
 {#if message}
-  <div class="mt-4 flex items-center gap-4 px-2 md:px-4">
+  <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       {#if event.event.__typename === 'CallEndedEvent'}
