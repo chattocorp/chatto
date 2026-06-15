@@ -30,6 +30,7 @@ function editor(initialText: string): {
       },
       focus: () => {},
       getTextBeforeCursor: () => text.slice(0, cursor),
+      isInCodeBlock: () => false,
       replaceTextBeforeCursor: (charCount, replacement) => {
         text = text.slice(0, cursor - charCount) + replacement + text.slice(cursor);
         cursor = cursor - charCount + replacement.length;

@@ -15,11 +15,13 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import TipTapEditor, { type TipTapEditorApi } from './TipTapEditor.svelte';
+  import type { TipTapEditorApi } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
+
+  const tipTapEditorModule = import('./TipTapEditor.svelte');
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -582,6 +584,10 @@
       }
     }
 
+    if (event.key === 'Enter' && !event.shiftKey && editorApi?.isInCodeBlock()) {
+      return false;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey && !isTouchDevice()) {
       handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
       return true;
@@ -620,7 +626,7 @@
   bind:this={composerEl}
   class="flex flex-col gap-2 p-2"
   onclick={(e) => {
-    if (!(e.target as HTMLElement).closest('button, a, input, label, .tiptap')) {
+    if (!(e.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {
       editorApi?.focus();
     }
   }}
@@ -735,16 +741,20 @@
     {/if}
 
     <!-- Text input (TipTap editor) -->
-    <TipTapEditor
-      placeholder={currentPlaceholder}
-      editable={!inputDisabled}
-      autofocus={autoFocus && shouldAutoFocus()}
-      {testid}
-      onUpdate={handleEditorUpdate}
-      onKeyDown={handleEditorKeyDown}
-      onPaste={handlePaste}
-      onReady={handleEditorReady}
-    />
+    {#await tipTapEditorModule}
+      <div class="min-h-8 min-w-0 flex-1 py-1" aria-hidden="true"></div>
+    {:then { default: TipTapEditor }}
+      <TipTapEditor
+        placeholder={currentPlaceholder}
+        editable={!inputDisabled}
+        autofocus={autoFocus && shouldAutoFocus()}
+        {testid}
+        onUpdate={handleEditorUpdate}
+        onKeyDown={handleEditorKeyDown}
+        onPaste={handlePaste}
+        onReady={handleEditorReady}
+      />
+    {/await}
 
     <!-- Send button -->
     <button

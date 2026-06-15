@@ -14,6 +14,22 @@ const backendTarget =
   `http://localhost:${process.env.CHATTO_WEBSERVER_PORT || '4000'}`;
 const enableGraphqlCodegenClientOptimizer =
   process.env.CHATTO_DISABLE_GRAPHQL_CODEGEN_OPTIMIZER !== '1';
+const highlightLanguageDeps = [
+  'highlight.js/lib/languages/bash',
+  'highlight.js/lib/languages/css',
+  'highlight.js/lib/languages/go',
+  'highlight.js/lib/languages/graphql',
+  'highlight.js/lib/languages/javascript',
+  'highlight.js/lib/languages/json',
+  'highlight.js/lib/languages/markdown',
+  'highlight.js/lib/languages/python',
+  'highlight.js/lib/languages/rust',
+  'highlight.js/lib/languages/sql',
+  'highlight.js/lib/languages/typescript',
+  'highlight.js/lib/languages/xml',
+  'highlight.js/lib/languages/yaml'
+];
+const tiptapDeps = ['@tiptap/pm/state'];
 
 function graphqlCodegenClientOptimizer(): Plugin {
   const graphqlCallPattern = /\bgraphql\s*\(\s*`([\s\S]*?)`\s*\)/g;
@@ -161,9 +177,16 @@ export default defineConfig({
     // compiled for SSR. Bundle them into the SSR output to avoid
     // "could not be resolved" warnings (the code paths are guarded by
     // $effect which doesn't run during SSR).
-    noExternal: ['@tiptap/core', '@tiptap/starter-kit', '@tiptap/extension-placeholder']
+    noExternal: [
+      '@tiptap/core',
+      '@tiptap/extension-code-block-lowlight',
+      '@tiptap/extension-placeholder',
+      '@tiptap/markdown',
+      '@tiptap/starter-kit'
+    ]
   },
   optimizeDeps: {
+    include: [...highlightLanguageDeps, ...tiptapDeps],
     exclude: ['@urql/svelte']
   },
   server: {
@@ -228,7 +251,12 @@ export default defineConfig({
             // Pre-bundle Shiki theme packages for dynamic import in browser tests
             optimizer: {
               web: {
-                include: ['@shikijs/themes/github-light', '@shikijs/themes/nord']
+                include: [
+                  '@shikijs/themes/github-light',
+                  '@shikijs/themes/nord',
+                  ...highlightLanguageDeps,
+                  ...tiptapDeps
+                ]
               }
             }
           }

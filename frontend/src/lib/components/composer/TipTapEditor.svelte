@@ -9,26 +9,326 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `editable` - Whether the editor accepts input
 - `autofocus` - Focus editor on mount
 - `testid` - data-testid attribute for E2E testing
-- `onUpdate` - Called with plain text content on each change
+- `onUpdate` - Called with markdown content on each change
 - `onKeyDown` - Keyboard event handler; return true to prevent TipTap default
 - `onPaste` - Paste event handler; return true to prevent TipTap default
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { Editor } from '@tiptap/core';
+  import { Editor, Extension, InputRule } from '@tiptap/core';
+  import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
+  import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
   import StarterKit from '@tiptap/starter-kit';
+  import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+  import { Markdown } from '@tiptap/markdown';
   import Placeholder from '@tiptap/extension-placeholder';
+  import { createLowlight } from 'lowlight';
+  import bash from 'highlight.js/lib/languages/bash';
+  import css from 'highlight.js/lib/languages/css';
+  import go from 'highlight.js/lib/languages/go';
+  import graphql from 'highlight.js/lib/languages/graphql';
+  import javascript from 'highlight.js/lib/languages/javascript';
+  import json from 'highlight.js/lib/languages/json';
+  import markdown from 'highlight.js/lib/languages/markdown';
+  import python from 'highlight.js/lib/languages/python';
+  import rust from 'highlight.js/lib/languages/rust';
+  import sql from 'highlight.js/lib/languages/sql';
+  import typescript from 'highlight.js/lib/languages/typescript';
+  import xml from 'highlight.js/lib/languages/xml';
+  import yaml from 'highlight.js/lib/languages/yaml';
+
+  const lowlight = createLowlight({
+    bash,
+    css,
+    go,
+    graphql,
+    javascript,
+    json,
+    markdown,
+    python,
+    rust,
+    sql,
+    typescript,
+    xml,
+    yaml
+  });
+
+  lowlight.registerAlias({
+    bash: ['sh', 'shell'],
+    javascript: ['js'],
+    markdown: ['md'],
+    python: ['py'],
+    typescript: ['ts'],
+    xml: ['html']
+  });
+
+  const CODE_LANGUAGE_OPTIONS = [
+    { value: '', label: 'text' },
+    { value: 'ts', label: 'ts' },
+    { value: 'js', label: 'js' },
+    { value: 'json', label: 'json' },
+    { value: 'html', label: 'html' },
+    { value: 'css', label: 'css' },
+    { value: 'bash', label: 'bash' },
+    { value: 'py', label: 'py' },
+    { value: 'go', label: 'go' },
+    { value: 'rust', label: 'rust' },
+    { value: 'sql', label: 'sql' },
+    { value: 'yaml', label: 'yaml' },
+    { value: 'md', label: 'md' },
+    { value: 'graphql', label: 'graphql' }
+  ];
+
+  const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
+  const codeFenceLineRegex = /^```([\w-]+)?$/;
+
+  function paragraphTextWithLineBreaks(node: ProseMirrorNode) {
+    return node.textBetween(0, node.content.size, '\n', '\n');
+  }
+
+  function createParagraphFromText(schema: Schema, text: string) {
+    const paragraph = schema.nodes.paragraph;
+    const hardBreak = schema.nodes.hardBreak;
+    if (!text) return paragraph.create();
+
+    const content = text.split('\n').flatMap((line, index, lines) => {
+      const nodes = [];
+      if (line) nodes.push(schema.text(line));
+      if (index < lines.length - 1 && hardBreak) nodes.push(hardBreak.create());
+      return nodes;
+    });
+
+    return paragraph.create(null, content);
+  }
+
+  function buildCodeFenceReplacement({
+    schema,
+    paragraph,
+    openLineIndex,
+    closeLineIndex,
+    appendTrailingParagraph
+  }: {
+    schema: Schema;
+    paragraph: Parameters<typeof paragraphTextWithLineBreaks>[0];
+    openLineIndex: number;
+    closeLineIndex: number | null;
+    appendTrailingParagraph: boolean;
+  }) {
+    const text = paragraphTextWithLineBreaks(paragraph);
+    const lines = text.split('\n');
+    const openingMatch = lines[openLineIndex]?.match(codeFenceLineRegex);
+    const codeBlock = schema.nodes.codeBlock;
+    if (!openingMatch || !codeBlock) return null;
+
+    const beforeText = lines.slice(0, openLineIndex).join('\n');
+    const codeText =
+      closeLineIndex === null ? '' : lines.slice(openLineIndex + 1, closeLineIndex).join('\n');
+    const afterText =
+      closeLineIndex === null
+        ? lines.slice(openLineIndex + 1).join('\n')
+        : lines.slice(closeLineIndex + 1).join('\n');
+    const language = openingMatch[1] || null;
+
+    const nodes = [];
+    const beforeNode = beforeText ? createParagraphFromText(schema, beforeText) : null;
+    if (beforeNode) nodes.push(beforeNode);
+    const codeNode = codeBlock.create(
+      language ? { language } : undefined,
+      codeText ? schema.text(codeText) : null
+    );
+    nodes.push(codeNode);
+    if (afterText) {
+      nodes.push(createParagraphFromText(schema, afterText));
+    } else if (appendTrailingParagraph) {
+      nodes.push(schema.nodes.paragraph.create());
+    }
+
+    return { nodes, codeNode, beforeNodeSize: beforeNode?.nodeSize ?? 0 };
+  }
+
+  const MarkdownLinkInputRule = Extension.create({
+    name: 'markdownLinkInputRule',
+
+    addInputRules() {
+      return [
+        new InputRule({
+          find: markdownLinkInputRegex,
+          handler: ({ state, range, match }) => {
+            const prefix = match[1] ?? '';
+            const label = match[2];
+            const href = match[3];
+            const linkType = state.schema.marks.link;
+            if (!label || !href || !linkType) return null;
+
+            const from = range.from + prefix.length;
+            const to = range.to;
+            const tr = state.tr;
+
+            tr.delete(from, to);
+            tr.insertText(label, from);
+            tr.addMark(from, from + label.length, linkType.create({ href }));
+            tr.removeStoredMark(linkType);
+          }
+        })
+      ];
+    }
+  });
+
+  const MarkdownCodeFenceShortcut = Extension.create({
+    name: 'markdownCodeFenceShortcut',
+    priority: 1000,
+
+    addKeyboardShortcuts() {
+      return {
+        'Shift-Enter': () => {
+          const { editor } = this;
+          if (editor.isActive('codeBlock')) {
+            return editor.commands.exitCode();
+          }
+
+          const { selection } = editor.state;
+          const { empty } = selection;
+          const fromPos = selection.$from;
+          if (!empty || fromPos.parent.type.name !== 'paragraph') return false;
+          if (fromPos.depth !== 1) return false;
+
+          const textBeforeCursor = fromPos.parent.textBetween(0, fromPos.parentOffset, '\n', '\n');
+          const textAfterCursor = fromPos.parent.textBetween(
+            fromPos.parentOffset,
+            fromPos.parent.content.size,
+            '\n',
+            '\n'
+          );
+          const currentLine = textBeforeCursor.split('\n').at(-1) ?? '';
+          if (textAfterCursor && !textAfterCursor.startsWith('\n')) return false;
+
+          const match = currentLine.match(codeFenceLineRegex);
+          if (!match) return false;
+
+          const paragraphPos = fromPos.before(1);
+          const currentLineIndex = textBeforeCursor.split('\n').length - 1;
+          const appendTrailingParagraph =
+            paragraphPos + fromPos.parent.nodeSize === editor.state.doc.content.size;
+          const replacement = buildCodeFenceReplacement({
+            schema: editor.state.schema,
+            paragraph: fromPos.parent,
+            openLineIndex: currentLineIndex,
+            closeLineIndex: null,
+            appendTrailingParagraph
+          });
+          if (!replacement) return false;
+
+          const codePosition = paragraphPos + replacement.beforeNodeSize;
+          const tr = editor.state.tr.replaceWith(
+            paragraphPos,
+            paragraphPos + fromPos.parent.nodeSize,
+            replacement.nodes
+          );
+          tr.setSelection(TextSelection.create(tr.doc, codePosition + 1));
+          editor.view.dispatch(tr.scrollIntoView());
+          return true;
+        },
+
+        Enter: () => {
+          const { editor } = this;
+          if (!editor.isActive('codeBlock')) return false;
+          return editor.commands.newlineInCode();
+        }
+      };
+    }
+  });
+
+  const CompletedMarkdownCodeFence = Extension.create({
+    name: 'completedMarkdownCodeFence',
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('completedMarkdownCodeFence'),
+          appendTransaction: (transactions, _oldState, newState) => {
+            if (!transactions.some((transaction) => transaction.docChanged)) return null;
+
+            let paragraphPos = 0;
+            for (let index = 0; index < newState.doc.childCount; index += 1) {
+              const paragraph = newState.doc.child(index);
+              const currentParagraphPos = paragraphPos;
+              paragraphPos += paragraph.nodeSize;
+              if (paragraph.type.name !== 'paragraph') continue;
+
+              const lines = paragraphTextWithLineBreaks(paragraph).split('\n');
+              for (let openLineIndex = 0; openLineIndex < lines.length; openLineIndex += 1) {
+                if (!codeFenceLineRegex.test(lines[openLineIndex] ?? '')) continue;
+
+                for (
+                  let closeLineIndex = openLineIndex + 1;
+                  closeLineIndex < lines.length;
+                  closeLineIndex += 1
+                ) {
+                  if (lines[closeLineIndex] !== '```') continue;
+
+                  const appendTrailingParagraph =
+                    currentParagraphPos + paragraph.nodeSize === newState.doc.content.size &&
+                    closeLineIndex === lines.length - 1;
+                  const replacement = buildCodeFenceReplacement({
+                    schema: newState.schema,
+                    paragraph,
+                    openLineIndex,
+                    closeLineIndex,
+                    appendTrailingParagraph
+                  });
+                  if (!replacement) return null;
+
+                  const tr = newState.tr.replaceWith(
+                    currentParagraphPos,
+                    currentParagraphPos + paragraph.nodeSize,
+                    replacement.nodes
+                  );
+                  const codeEnd =
+                    currentParagraphPos + replacement.beforeNodeSize + replacement.codeNode.nodeSize;
+                  tr.setSelection(TextSelection.near(tr.doc.resolve(codeEnd + 1), 1));
+                  return tr;
+                }
+              }
+            }
+
+            return null;
+          }
+        })
+      ];
+    }
+  });
+
+  const TrailingParagraphAfterCodeBlock = Extension.create({
+    name: 'trailingParagraphAfterCodeBlock',
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('trailingParagraphAfterCodeBlock'),
+          appendTransaction: (_transactions, _oldState, newState) => {
+            const paragraph = newState.schema.nodes.paragraph;
+            const lastChild = newState.doc.lastChild;
+            if (!paragraph || !lastChild || lastChild.type.name !== 'codeBlock') return null;
+
+            return newState.tr.insert(newState.doc.content.size, paragraph.create());
+          }
+        })
+      ];
+    }
+  });
 
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
-    /** Set editor content from plain text */
-    setContent: (text: string) => void;
+    /** Set editor content from markdown */
+    setContent: (markdown: string) => void;
     /** Focus the editor */
     focus: (position?: 'start' | 'end') => void;
     /** Get plain text from document start to cursor position */
     getTextBeforeCursor: () => string;
+    /** Whether the current selection is inside a code block */
+    isInCodeBlock: () => boolean;
     /**
      * Replace N characters before the cursor with new text.
      * Used for mention/emoji completion where we know the pattern
@@ -59,44 +359,148 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   let editorElement = $state<HTMLDivElement>();
   let editor = $state<Editor | null>(null);
+  let activeCodeBlockLanguage = $state<string | null>(null);
+  let activeLinkHref = $state<string | null>(null);
+  let activeLinkRange = $state<{ from: number; to: number } | null>(null);
+  let linkHrefDraft = $state('');
+  let linkDraftInitializedFor = $state<string | null>(null);
 
-  /**
-   * Convert plain text to TipTap-compatible HTML.
-   * Each line becomes a paragraph. Empty lines use `<p></p>` (no `<br>`):
-   * the HardBreak extension's renderText returns `\n`, so a `<br>` inside an
-   * empty paragraph would round-trip back through getText() as an extra
-   * newline on top of the block separator, doubling blank lines on each edit.
-   */
-  function plainTextToHtml(text: string): string {
-    if (!text) return '<p></p>';
-    return text
-      .split('\n')
-      .map((line) => {
-        if (!line) return '<p></p>';
-        const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `<p>${escaped}</p>`;
-      })
-      .join('');
+  let hasCodeBlockControls = $derived(activeCodeBlockLanguage !== null);
+  let hasLinkControls = $derived(activeLinkHref !== null);
+
+  function getAdjacentLinkRange(e: Editor) {
+    const linkType = e.state.schema.marks.link;
+    const { selection } = e.state;
+    if (!linkType || !selection.empty) return null;
+
+    const fromPos = selection.$from;
+    const adjacentNodes = [
+      { node: fromPos.nodeBefore, from: fromPos.pos - (fromPos.nodeBefore?.nodeSize ?? 0) },
+      { node: fromPos.nodeAfter, from: fromPos.pos }
+    ];
+
+    for (const { node, from } of adjacentNodes) {
+      const mark = node?.marks.find((m) => m.type === linkType);
+      if (node && mark) {
+        return { href: mark.attrs.href ?? '', range: { from, to: from + node.nodeSize } };
+      }
+    }
+
+    return null;
+  }
+
+  function updateActiveControls(e: Editor) {
+    if (e.isActive('codeBlock')) {
+      activeCodeBlockLanguage = e.getAttributes('codeBlock').language ?? '';
+    } else {
+      activeCodeBlockLanguage = null;
+    }
+
+    const adjacentLink = getAdjacentLinkRange(e);
+
+    if (e.isActive('link') || adjacentLink) {
+      const href = adjacentLink?.href ?? e.getAttributes('link').href ?? '';
+      activeLinkHref = href;
+      activeLinkRange = adjacentLink?.range ?? null;
+      if (linkDraftInitializedFor !== href) {
+        linkHrefDraft = href;
+        linkDraftInitializedFor = href;
+      }
+    } else {
+      activeLinkHref = null;
+      activeLinkRange = null;
+      linkHrefDraft = '';
+      linkDraftInitializedFor = null;
+    }
+  }
+
+  function setCodeBlockLanguage(language: string) {
+    if (!editor) return;
+
+    editor
+      .chain()
+      .focus()
+      .updateAttributes('codeBlock', { language: language || null })
+      .run();
+    updateActiveControls(editor);
+  }
+
+  function normalizeHref(href: string) {
+    const trimmed = href.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  }
+
+  function applyLinkHref() {
+    if (!editor || activeLinkHref === null) return;
+
+    const href = normalizeHref(linkHrefDraft);
+    if (!href) {
+      removeLink();
+      return;
+    }
+
+    const linkType = editor.state.schema.marks.link;
+    if (activeLinkRange && linkType) {
+      const tr = editor.state.tr.addMark(
+        activeLinkRange.from,
+        activeLinkRange.to,
+        linkType.create({ href })
+      );
+      editor.view.dispatch(tr);
+      editor.commands.focus();
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+    }
+    updateActiveControls(editor);
+  }
+
+  function removeLink() {
+    if (!editor) return;
+
+    const linkType = editor.state.schema.marks.link;
+    if (activeLinkRange && linkType) {
+      const tr = editor.state.tr.removeMark(activeLinkRange.from, activeLinkRange.to, linkType);
+      editor.view.dispatch(tr);
+      editor.commands.focus();
+    } else {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    }
+    updateActiveControls(editor);
+  }
+
+  function openActiveLink() {
+    const href = normalizeHref(activeLinkHref ?? '');
+    if (!href) return;
+
+    window.open(href, '_blank', 'noopener,noreferrer');
   }
 
   function buildApi(e: Editor): TipTapEditorApi {
     return {
-      getText: () => e.getText({ blockSeparator: '\n' }),
+      getText: () => (e.isDestroyed ? '' : e.getText({ blockSeparator: '\n' })),
 
-      setContent: (text: string) => {
-        e.commands.setContent(plainTextToHtml(text));
+      setContent: (markdown: string) => {
+        if (e.isDestroyed) return;
+        e.commands.setContent(markdown, { contentType: 'markdown' });
       },
 
       focus: (position: 'start' | 'end' = 'end') => {
+        if (e.isDestroyed) return;
         e.commands.focus(position);
       },
 
       getTextBeforeCursor: () => {
+        if (e.isDestroyed) return '';
         const { from } = e.state.selection;
         return e.state.doc.textBetween(0, from, '\n');
       },
 
+      isInCodeBlock: () => !e.isDestroyed && e.isActive('codeBlock'),
+
       replaceTextBeforeCursor: (charCount: number, replacement: string) => {
+        if (e.isDestroyed) return;
         const { from } = e.state.selection;
         e.chain()
           .focus()
@@ -120,22 +524,30 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           element: editorElement,
           extensions: [
             StarterKit.configure({
-              // Phase 1: disable formatting extensions (plain text only)
-              bold: false,
-              italic: false,
-              strike: false,
-              code: false,
+              // Keep the composer subset aligned with the rendered message markdown.
               codeBlock: false,
-              blockquote: false,
-              bulletList: false,
-              orderedList: false,
-              listItem: false,
-              heading: false,
-              horizontalRule: false
+              strike: false,
+              underline: false,
+              horizontalRule: false,
+              link: {
+                openOnClick: false,
+                enableClickSelection: true
+              }
             }),
+            Markdown.configure({
+              markedOptions: {
+                breaks: true
+              }
+            }),
+            CodeBlockLowlight.configure({ lowlight }),
+            MarkdownLinkInputRule,
+            MarkdownCodeFenceShortcut,
+            CompletedMarkdownCodeFence,
+            TrailingParagraphAfterCodeBlock,
             Placeholder.configure({ placeholder })
           ],
-          content: '<p></p>',
+          content: '',
+          contentType: 'markdown',
           editable,
           autofocus: autofocus ? 'end' : false,
           editorProps: {
@@ -148,7 +560,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
           },
           onUpdate: ({ editor: ed }) => {
-            onUpdate?.(ed.getText({ blockSeparator: '\n' }));
+            updateActiveControls(ed);
+            onUpdate?.(ed.isEmpty ? '' : ed.getMarkdown());
+          },
+          onSelectionUpdate: ({ editor: ed }) => {
+            updateActiveControls(ed);
           }
         })
     );
@@ -186,13 +602,74 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   });
 </script>
 
-<div
-  bind:this={editorElement}
-  class={[
-    'tiptap-editor max-h-50 min-h-8 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
-    !editable && 'cursor-not-allowed'
-  ]}
-></div>
+<div class="flex min-w-0 flex-1 flex-col gap-1">
+  {#if hasCodeBlockControls || hasLinkControls}
+    <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
+      {#if hasCodeBlockControls}
+        <select
+          aria-label="Code language"
+          title="Code language"
+          value={activeCodeBlockLanguage ?? ''}
+          disabled={!editable}
+          onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}
+          class="h-6 cursor-pointer rounded border border-border bg-surface-200 px-1.5 text-xs text-text outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {#each CODE_LANGUAGE_OPTIONS as language (language.value)}
+            <option value={language.value}>{language.label}</option>
+          {/each}
+        </select>
+      {/if}
+
+      {#if hasLinkControls}
+        <div class="flex min-w-0 items-center gap-1">
+          <input
+            aria-label="Link URL"
+            title="Link URL"
+            value={linkHrefDraft}
+            disabled={!editable}
+            oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                applyLinkHref();
+              }
+            }}
+            onblur={applyLinkHref}
+            class="h-6 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <button
+            type="button"
+            aria-label="Open link"
+            title="Open link"
+            disabled={!activeLinkHref}
+            onclick={openActiveLink}
+            class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text"
+          >
+            <span class="iconify text-base uil--external-link-alt"></span>
+          </button>
+          <button
+            type="button"
+            aria-label="Remove link"
+            title="Remove link"
+            disabled={!editable}
+            onclick={removeLink}
+            class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span class="iconify text-base uil--link-broken"></span>
+          </button>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  <div
+    bind:this={editorElement}
+    class={[
+      'tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
+      !editable && 'cursor-not-allowed'
+    ]}
+  ></div>
+</div>
 
 <style>
   /* ProseMirror needs explicit outline removal and placeholder styling
@@ -201,10 +678,155 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     outline: none;
     word-break: break-word;
     font-size: 16px; /* Prevent iOS Safari auto-zoom on focus */
+    line-height: 1.5;
   }
 
-  :global(.tiptap-editor .ProseMirror p) {
+  :global(.tiptap-editor .ProseMirror p),
+  :global(.tiptap-editor .ProseMirror blockquote),
+  :global(.tiptap-editor .ProseMirror ul),
+  :global(.tiptap-editor .ProseMirror ol),
+  :global(.tiptap-editor .ProseMirror pre),
+  :global(.tiptap-editor .ProseMirror h1),
+  :global(.tiptap-editor .ProseMirror h2),
+  :global(.tiptap-editor .ProseMirror h3),
+  :global(.tiptap-editor .ProseMirror h4),
+  :global(.tiptap-editor .ProseMirror h5),
+  :global(.tiptap-editor .ProseMirror h6) {
     margin: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror > * + *) {
+    margin-top: 0.5em;
+  }
+
+  :global(.tiptap-editor .ProseMirror strong) {
+    font-weight: 600;
+  }
+
+  :global(.tiptap-editor .ProseMirror a) {
+    color: var(--color-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  :global(.tiptap-editor .ProseMirror ul),
+  :global(.tiptap-editor .ProseMirror ol) {
+    padding-left: 1.5em;
+  }
+
+  :global(.tiptap-editor .ProseMirror ul) {
+    list-style-type: disc;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol) {
+    list-style-type: decimal;
+  }
+
+  :global(.tiptap-editor .ProseMirror blockquote) {
+    border-left: 3px solid var(--color-border);
+    padding-left: 1em;
+    color: var(--color-muted);
+    font-style: italic;
+  }
+
+  :global(.tiptap-editor .ProseMirror code:not(pre code)) {
+    border-radius: 0.25rem;
+    background: var(--color-surface-200);
+    padding: 0.125rem 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  :global(.tiptap-editor .ProseMirror pre) {
+    overflow-x: auto;
+    position: relative;
+    border-radius: 0.375rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-200);
+    padding: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+
+  :global(.tiptap-editor .ProseMirror pre code) {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+    color: var(--composer-code-text);
+    white-space: pre;
+  }
+
+  :global(.tiptap-editor) {
+    --composer-code-text: #24292f;
+    --composer-code-comment: #6e7781;
+    --composer-code-keyword: #cf222e;
+    --composer-code-string: #0a3069;
+    --composer-code-title: #8250df;
+    --composer-code-literal: #0550ae;
+    --composer-code-attribute: #953800;
+  }
+
+  :global(:root[data-theme='dark'] .tiptap-editor) {
+    --composer-code-text: #d0d7de;
+    --composer-code-comment: #8b949e;
+    --composer-code-keyword: #ff7b72;
+    --composer-code-string: #a5d6ff;
+    --composer-code-title: #d2a8ff;
+    --composer-code-literal: #79c0ff;
+    --composer-code-attribute: #ffa657;
+  }
+
+  :global(.tiptap-editor .ProseMirror .hljs-comment),
+  :global(.tiptap-editor .ProseMirror .hljs-quote) {
+    color: var(--composer-code-comment);
+    font-style: italic;
+  }
+
+  :global(.tiptap-editor .ProseMirror .hljs-keyword),
+  :global(.tiptap-editor .ProseMirror .hljs-selector-tag),
+  :global(.tiptap-editor .ProseMirror .hljs-subst) {
+    color: var(--composer-code-keyword);
+  }
+
+  :global(.tiptap-editor .ProseMirror .hljs-string),
+  :global(.tiptap-editor .ProseMirror .hljs-regexp),
+  :global(.tiptap-editor .ProseMirror .hljs-symbol),
+  :global(.tiptap-editor .ProseMirror .hljs-bullet) {
+    color: var(--composer-code-string);
+  }
+
+  :global(.tiptap-editor .ProseMirror .hljs-title),
+  :global(.tiptap-editor .ProseMirror .hljs-section),
+  :global(.tiptap-editor .ProseMirror .hljs-name),
+  :global(.tiptap-editor .ProseMirror .hljs-selector-id),
+  :global(.tiptap-editor .ProseMirror .hljs-selector-class) {
+    color: var(--composer-code-title);
+  }
+
+  :global(.tiptap-editor .ProseMirror .hljs-number),
+  :global(.tiptap-editor .ProseMirror .hljs-literal),
+  :global(.tiptap-editor .ProseMirror .hljs-type),
+  :global(.tiptap-editor .ProseMirror .hljs-built_in) {
+    color: var(--composer-code-literal);
+  }
+
+  :global(.tiptap-editor .ProseMirror .hljs-attr),
+  :global(.tiptap-editor .ProseMirror .hljs-attribute),
+  :global(.tiptap-editor .ProseMirror .hljs-variable),
+  :global(.tiptap-editor .ProseMirror .hljs-template-variable) {
+    color: var(--composer-code-attribute);
+  }
+
+  :global(.tiptap-editor .ProseMirror h1),
+  :global(.tiptap-editor .ProseMirror h2),
+  :global(.tiptap-editor .ProseMirror h3),
+  :global(.tiptap-editor .ProseMirror h4),
+  :global(.tiptap-editor .ProseMirror h5),
+  :global(.tiptap-editor .ProseMirror h6) {
+    font-size: inherit;
+    font-weight: 600;
+    text-decoration: underline;
   }
 
   /* Placeholder styling via the Placeholder extension */
