@@ -4,6 +4,7 @@ import { serverRegistry } from './registry.svelte';
 import { csrfHeaders } from '$lib/auth/csrf';
 
 const SESSION_VALIDATION_COOLDOWN_MS = 5000;
+const GRAPHQL_REQUEST_HEADERS = { 'X-REQUEST-TYPE': 'GraphQL' };
 
 /**
  * Delay between WS reconnection attempts. The first attempt after a
@@ -271,7 +272,13 @@ export class GraphQLClient {
 			url,
 			preferGetMethod: false,
 			fetchOptions: () => ({
-				headers: token ? { Authorization: `Bearer ${token}` } : csrfHeaders()
+				// The backend's CSRF middleware treats explicitly-marked GraphQL
+				// requests as safe to authenticate with the session cookie alone.
+				// Keep the marker on every GraphQL POST; add the CSRF token when
+				// this browser has one, or bearer auth for remote servers.
+				headers: token
+					? { ...GRAPHQL_REQUEST_HEADERS, Authorization: `Bearer ${token}` }
+					: { ...GRAPHQL_REQUEST_HEADERS, ...csrfHeaders() }
 			}),
 			exchanges: [
 				mapExchange({
