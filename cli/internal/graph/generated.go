@@ -165,6 +165,13 @@ type ComplexityRoot struct {
 		Width             func(childComplexity int) int
 	}
 
+	AuthProvider struct {
+		ID       func(childComplexity int) int
+		Label    func(childComplexity int) int
+		LoginURL func(childComplexity int) int
+		Type     func(childComplexity int) int
+	}
+
 	CallEndedEvent struct {
 		CallId func(childComplexity int) int
 		RoomId func(childComplexity int) int
@@ -748,6 +755,7 @@ type ComplexityRoot struct {
 
 	Server struct {
 		AssetCount                   func(childComplexity int) int
+		AuthProviders                func(childComplexity int) int
 		AvailablePermissions         func(childComplexity int) int
 		DirectRegistrationEnabled    func(childComplexity int) int
 		EnabledAuthProviders         func(childComplexity int) int
@@ -1728,6 +1736,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Attachment.Width(childComplexity), true
+
+	case "AuthProvider.id":
+		if e.ComplexityRoot.AuthProvider.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthProvider.ID(childComplexity), true
+	case "AuthProvider.label":
+		if e.ComplexityRoot.AuthProvider.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthProvider.Label(childComplexity), true
+	case "AuthProvider.loginUrl":
+		if e.ComplexityRoot.AuthProvider.LoginURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthProvider.LoginURL(childComplexity), true
+	case "AuthProvider.type":
+		if e.ComplexityRoot.AuthProvider.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthProvider.Type(childComplexity), true
 
 	case "CallEndedEvent.callId":
 		if e.ComplexityRoot.CallEndedEvent.CallId == nil {
@@ -4500,6 +4533,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.AssetCount(childComplexity), true
+	case "Server.authProviders":
+		if e.ComplexityRoot.Server.AuthProviders == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Server.AuthProviders(childComplexity), true
 	case "Server.availablePermissions":
 		if e.ComplexityRoot.Server.AvailablePermissions == nil {
 			break
@@ -5758,6 +5797,20 @@ func (ec *executionContext) childFields_Attachment(ctx context.Context, field gr
 	return nil, fmt.Errorf("no field named %q was found under type Attachment", field.Name)
 }
 
+func (ec *executionContext) childFields_AuthProvider(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_AuthProvider_id(ctx, field)
+	case "type":
+		return ec.fieldContext_AuthProvider_type(ctx, field)
+	case "label":
+		return ec.fieldContext_AuthProvider_label(ctx, field)
+	case "loginUrl":
+		return ec.fieldContext_AuthProvider_loginUrl(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AuthProvider", field.Name)
+}
+
 func (ec *executionContext) childFields_CallParticipant(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "user":
@@ -6388,6 +6441,8 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 		return ec.fieldContext_Server_version(ctx, field)
 	case "enabledAuthProviders":
 		return ec.fieldContext_Server_enabledAuthProviders(ctx, field)
+	case "authProviders":
+		return ec.fieldContext_Server_authProviders(ctx, field)
 	case "profile":
 		return ec.fieldContext_Server_profile(ctx, field)
 	case "pushNotificationsEnabled":
@@ -10124,6 +10179,150 @@ func (ec *executionContext) fieldContext_Attachment_videoProcessing(_ context.Co
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _AuthProvider_id(ctx context.Context, field graphql.CollectedField, obj *model.AuthProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuthProvider_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuthProvider_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuthProvider", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AuthProvider_type(ctx context.Context, field graphql.CollectedField, obj *model.AuthProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuthProvider_type(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuthProvider_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuthProvider", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AuthProvider_label(ctx context.Context, field graphql.CollectedField, obj *model.AuthProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuthProvider_label(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuthProvider_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuthProvider", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AuthProvider_loginUrl(ctx context.Context, field graphql.CollectedField, obj *model.AuthProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuthProvider_loginUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LoginURL, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuthProvider_loginUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuthProvider", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _CallEndedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallEndedEvent) (ret graphql.Marshaler) {
@@ -21181,6 +21380,51 @@ func (ec *executionContext) fieldContext_Server_enabledAuthProviders(_ context.C
 	return graphql.NewScalarFieldContext("Server", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Server_authProviders(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Server_authProviders(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AuthProviders, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal []*model.AuthProvider
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, obj, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.AuthProvider) graphql.Marshaler {
+			return ec.marshalNAuthProvider2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAuthProviderᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Server_authProviders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Server",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AuthProvider(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Server_profile(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -30734,6 +30978,60 @@ func (ec *executionContext) _Attachment(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var authProviderImplementors = []string{"AuthProvider"}
+
+func (ec *executionContext) _AuthProvider(ctx context.Context, sel ast.SelectionSet, obj *model.AuthProvider) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, authProviderImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuthProvider")
+		case "id":
+			out.Values[i] = ec._AuthProvider_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._AuthProvider_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._AuthProvider_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "loginUrl":
+			out.Values[i] = ec._AuthProvider_loginUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var callEndedEventImplementors = []string{"CallEndedEvent", "EventType"}
 
 func (ec *executionContext) _CallEndedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallEndedEvent) graphql.Marshaler {
@@ -37827,6 +38125,11 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "authProviders":
+			out.Values[i] = ec._Server_authProviders(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "profile":
 			field := field
 
@@ -42015,6 +42318,32 @@ func (ec *executionContext) marshalNAttachment2ᚖhmansᚗdeᚋchattoᚋinternal
 		return graphql.Null
 	}
 	return ec._Attachment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAuthProvider2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAuthProviderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AuthProvider) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAuthProvider2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAuthProvider(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAuthProvider2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAuthProvider(ctx context.Context, sel ast.SelectionSet, v *model.AuthProvider) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AuthProvider(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNBanRoomMemberInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐBanRoomMemberInput(ctx context.Context, v any) (model.BanRoomMemberInput, error) {

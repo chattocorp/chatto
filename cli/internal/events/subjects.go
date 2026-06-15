@@ -135,6 +135,7 @@ const (
 	EventUserVerifiedEmailAdded       = "verified_email_added"
 	EventUserPasswordHashChanged      = "password_hash_changed"
 	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
+	EventUserExternalIdentityLinked   = "external_identity_linked"
 	EventUserServerPreferencesChanged = "server_preferences_changed"
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
@@ -304,6 +305,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserPasswordHashChanged
 	case *corev1.Event_UserOidcSubjectLinked:
 		return EventUserOIDCSubjectLinked
+	case *corev1.Event_UserExternalIdentityLinked:
+		return EventUserExternalIdentityLinked
 	case *corev1.Event_UserServerPreferencesChanged:
 		return EventUserServerPreferencesChanged
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -448,7 +451,7 @@ func ConfigSubjectAggregate(subject string) Aggregate {
 
 // UserAggregate is the typed constructor for a user aggregate. It owns
 // identity/profile state, verified-email indexes, password auth state,
-// OIDC subject links, server preferences, and account deletion.
+// external identity links, server preferences, and account deletion.
 func UserAggregate(userID string) Aggregate {
 	return Aggregate{Type: AggregateUser, ID: userID}
 }

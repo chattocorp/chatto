@@ -198,20 +198,6 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 			wantError: "webserver.allowed_origins contains invalid origin",
 		},
 		{
-			name: "OIDC enabled through env must include client secret",
-			env: map[string]string{
-				"CHATTO_WEBSERVER_PORT":                  "4000",
-				"CHATTO_WEBSERVER_URL":                   "https://chat.example",
-				"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-				"CHATTO_CORE_SECRET_KEY":                 "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-				"CHATTO_CORE_ASSETS_SIGNING_SECRET":      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
-				"CHATTO_AUTH_OIDC_ENABLED":               "true",
-				"CHATTO_AUTH_OIDC_ISSUER_URL":            "https://id.example",
-				"CHATTO_AUTH_OIDC_CLIENT_ID":             "chatto",
-			},
-			wantError: "auth.oidc.client_secret is required when OIDC is enabled",
-		},
-		{
 			name: "webserver URL from env must include scheme and host",
 			env: map[string]string{
 				"CHATTO_WEBSERVER_PORT":                  "4000",
@@ -775,32 +761,6 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 	}
 }
 
-func TestChattoConfig_Validate_OIDC(t *testing.T) {
-	cfg := validTestConfig()
-	cfg.Webserver.URL = "https://chat.example"
-	cfg.Auth.OIDC = OIDCConfig{
-		Enabled:      true,
-		IssuerURL:    "https://id.example",
-		ClientID:     "chatto",
-		ClientSecret: "secret",
-	}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("Validate() with complete OIDC config failed: %v", err)
-	}
-	if !cfg.Auth.OIDC.IsConfigured() {
-		t.Fatal("complete OIDC config should be configured")
-	}
-
-	cfg.Auth.OIDC.ClientSecret = ""
-	if cfg.Auth.OIDC.IsConfigured() {
-		t.Fatal("OIDC without client_secret should not be configured")
-	}
-	err := cfg.Validate()
-	if err == nil || !strings.Contains(err.Error(), "auth.oidc.client_secret is required when OIDC is enabled") {
-		t.Fatalf("Validate() error = %v, want missing OIDC client secret", err)
-	}
-}
-
 func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -818,16 +778,17 @@ func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing
 			wantError: "webserver.url is required when SMTP is enabled",
 		},
 		{
-			name: "OIDC",
+			name: "auth provider",
 			modify: func(c *ChattoConfig) {
-				c.Auth.OIDC = OIDCConfig{
-					Enabled:      true,
+				c.Auth.Providers = []AuthProviderConfig{{
+					ID:           "hub",
+					Type:         AuthProviderTypeOpenIDConnect,
 					IssuerURL:    "https://id.example",
 					ClientID:     "chatto",
 					ClientSecret: "secret",
-				}
+				}}
 			},
-			wantError: "webserver.url is required when OIDC is enabled",
+			wantError: "webserver.url is required when auth providers are configured",
 		},
 		{
 			name: "push",
@@ -1352,6 +1313,14 @@ func TestAuthConfig_EnabledProviders(t *testing.T) {
 			auth: AuthConfig{},
 			want: nil,
 		},
+		{
+			name: "returns configured provider ids",
+			auth: AuthConfig{Providers: []AuthProviderConfig{
+				{ID: "hub", Type: AuthProviderTypeOpenIDConnect},
+				{ID: "github-main", Type: AuthProviderTypeGitHub},
+			}},
+			want: []string{"hub", "github-main"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1368,6 +1337,88 @@ func TestAuthConfig_EnabledProviders(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthConfig_PublicProviders(t *testing.T) {
+	auth := AuthConfig{Providers: []AuthProviderConfig{
+		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},
+		{ID: "github-main", Type: AuthProviderTypeGitHub, ClientID: "id", ClientSecret: "secret"},
+	}}
+
+	got := auth.PublicProviders()
+	if len(got) != 2 {
+		t.Fatalf("PublicProviders() len = %d, want 2", len(got))
+	}
+	if got[0].ID != "hub" || got[0].Type != AuthProviderTypeOpenIDConnect || got[0].Label != "Chatto Hub" {
+		t.Fatalf("PublicProviders()[0] = %+v", got[0])
+	}
+	if got[1].ID != "github-main" || got[1].Type != AuthProviderTypeGitHub || got[1].Label != "GitHub" {
+		t.Fatalf("PublicProviders()[1] = %+v", got[1])
+	}
+	if got[0].ClientID != "" || got[0].ClientSecret != "" || got[0].IssuerURL != "" {
+		t.Fatalf("PublicProviders leaked provider secrets/options: %+v", got[0])
+	}
+}
+
+func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
+	baseConfig := func() ChattoConfig {
+		return ChattoConfig{
+			Webserver: WebserverConfig{
+				URL:                 "https://chat.example",
+				Port:                4000,
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+			Core: CoreConfig{
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				Assets:    AssetsConfig{SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"},
+			},
+		}
+	}
+
+	t.Run("accepts curated providers", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{
+			{ID: "hub", Type: AuthProviderTypeOpenIDConnect, ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},
+			{ID: "github-main", Type: AuthProviderTypeGitHub, ClientID: "id", ClientSecret: "secret"},
+			{ID: "gitlab-main", Type: AuthProviderTypeGitLab, ClientID: "id", ClientSecret: "secret"},
+			{ID: "google-main", Type: AuthProviderTypeGoogle, ClientID: "id", ClientSecret: "secret"},
+			{ID: "discord-main", Type: AuthProviderTypeDiscord, ClientID: "id", ClientSecret: "secret"},
+			{ID: "azure", Type: AuthProviderTypeMicrosoftOnline, ClientID: "id", ClientSecret: "secret"},
+		}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("Validate() unexpected error = %v", err)
+		}
+	})
+
+	t.Run("rejects unknown provider", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "apple", Type: "apple", ClientID: "id", ClientSecret: "secret"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "auth.providers[0].type") {
+			t.Fatalf("Validate() error = %v, want provider type error", err)
+		}
+	})
+
+	t.Run("rejects duplicate provider ids", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{
+			{ID: "github", Type: AuthProviderTypeGitHub, ClientID: "id", ClientSecret: "secret"},
+			{ID: "github", Type: AuthProviderTypeGitLab, ClientID: "id", ClientSecret: "secret"},
+		}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "configured more than once") {
+			t.Fatalf("Validate() error = %v, want duplicate id error", err)
+		}
+	})
+
+	t.Run("rejects oidc without issuer", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "hub", Type: AuthProviderTypeOpenIDConnect, ClientID: "id", ClientSecret: "secret"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "issuer_url is required") {
+			t.Fatalf("Validate() error = %v, want issuer_url error", err)
+		}
+	})
 }
 
 func TestChattoConfig_Validate_SMTP(t *testing.T) {

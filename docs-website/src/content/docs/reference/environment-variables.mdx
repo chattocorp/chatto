@@ -213,27 +213,22 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
 </EnvVar>
 
-### OIDC
+### External Login Providers
 
-<EnvVar name="CHATTO_AUTH_OIDC_ENABLED" toml="auth.oidc.enabled" default="false">
-  Enable OIDC sign-in (e.g. via Chatto Hub).
-</EnvVar>
+External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.
+Supported provider types are `openid-connect`, `github`, `gitlab`, `google`, `discord`, and `microsoftonline`.
 
-<EnvVar name="CHATTO_AUTH_OIDC_ISSUER_URL" toml="auth.oidc.issuer_url">
-  OIDC issuer URL. Used for discovery via `/.well-known/openid-configuration`.
-</EnvVar>
+```toml
+[[auth.providers]]
+id = "chatto-hub"
+type = "openid-connect"
+label = "Chatto Hub"
+issuer_url = "https://hub.chatto.dev"
+client_id = "..."
+client_secret = "..."
+```
 
-<EnvVar name="CHATTO_AUTH_OIDC_CLIENT_ID" toml="auth.oidc.client_id">
-  OIDC client ID, obtained from your OIDC provider.
-</EnvVar>
-
-<EnvVar name="CHATTO_AUTH_OIDC_CLIENT_SECRET" toml="auth.oidc.client_secret">
-  OIDC client secret.
-</EnvVar>
-
-<EnvVar name="CHATTO_AUTH_OIDC_LABEL" toml="auth.oidc.label" default="Chatto Hub">
-  Button label shown on the login page for the OIDC provider.
-</EnvVar>
+Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
 ## SMTP
 

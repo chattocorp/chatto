@@ -21,6 +21,7 @@ func (r *queryResolver) Server(ctx context.Context) (*model.Server, error) {
 	return &model.Server{
 		Version:              r.version,
 		EnabledAuthProviders: r.authConfig.EnabledProviders(),
+		AuthProviders:        authProviderModels(r.authConfig.PublicProviders()),
 	}, nil
 }
 

@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-713: durable user aggregate events on evt.user.{userId}.*
+//   - 700-714: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -110,6 +110,19 @@ message UserOIDCSubjectLinkedEvent {
   string issuer = 2;
   string subject = 3;
   string subject_hash = 4;
+}
+
+message UserExternalIdentityLinkedEvent {
+  string user_id = 1;
+  // For OIDC providers this is the verified issuer URL. For OAuth-only
+  // providers this is the configured local provider ID.
+  string issuer = 2;
+  // Raw provider subjects are included only for events written after this
+  // field existed. Projections prefer subject_hash when present.
+  string subject = 3;
+  string subject_hash = 4;
+  string provider_id = 5;
+  string provider_type = 6;
 }
 
 message UserServerPreferencesChangedEvent {

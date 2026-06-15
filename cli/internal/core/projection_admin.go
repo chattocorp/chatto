@@ -526,8 +526,8 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for hash, userID := range p.emailIndex {
 		emailBytes += int64(len(hash) + len(userID))
 	}
-	oidcBytes := int64(len(p.oidcIndex)) * projectionMapEntryOverhead
-	for hash, userID := range p.oidcIndex {
+	oidcBytes := int64(len(p.identityIndex)) * projectionMapEntryOverhead
+	for hash, userID := range p.identityIndex {
 		oidcBytes += int64(len(hash) + len(userID))
 	}
 	seenBytes := int64(len(p.eventIDSeen)) * projectionMapEntryOverhead
@@ -538,7 +538,7 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		{Name: "verified_emails", Value: verifiedEmails, Bytes: 0},
 		{Name: "login_index", Value: int64(len(p.loginIndex)), Bytes: loginBytes},
 		{Name: "email_index", Value: int64(len(p.emailIndex)), Bytes: emailBytes},
-		{Name: "oidc_index", Value: int64(len(p.oidcIndex)), Bytes: oidcBytes},
+		{Name: "external_identity_index", Value: int64(len(p.identityIndex)), Bytes: oidcBytes},
 		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
 	}
 }

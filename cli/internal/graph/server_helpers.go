@@ -2,7 +2,9 @@ package graph
 
 import (
 	"context"
+	"net/url"
 
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -22,7 +24,21 @@ func (r *mutationResolver) serverModel() *model.Server {
 	return &model.Server{
 		Version:              r.version,
 		EnabledAuthProviders: r.authConfig.EnabledProviders(),
+		AuthProviders:        authProviderModels(r.authConfig.PublicProviders()),
 	}
+}
+
+func authProviderModels(providers []config.AuthProviderConfig) []*model.AuthProvider {
+	result := make([]*model.AuthProvider, 0, len(providers))
+	for _, provider := range providers {
+		result = append(result, &model.AuthProvider{
+			ID:       provider.ID,
+			Type:     provider.Type,
+			Label:    provider.LabelOrDefault(),
+			LoginURL: "/auth/providers/" + url.PathEscape(provider.ID),
+		})
+	}
+	return result
 }
 
 // requireServerManager is the common gate for server-admin mutations:

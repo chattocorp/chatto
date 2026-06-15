@@ -289,32 +289,66 @@ type CoreConfig struct {
 	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
-// OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
-type OIDCConfig struct {
-	Enabled      bool   `toml:"enabled" env:"CHATTO_AUTH_OIDC_ENABLED" comment:"Enable OIDC login (e.g. via Chatto Hub)."`
-	IssuerURL    string `toml:"issuer_url" env:"CHATTO_AUTH_OIDC_ISSUER_URL" comment:"OIDC issuer URL. Used for discovery (/.well-known/openid-configuration)."`
-	ClientID     string `toml:"client_id" env:"CHATTO_AUTH_OIDC_CLIENT_ID" comment:"OIDC client ID, obtained from Chatto Hub or your OIDC provider."`
-	ClientSecret string `toml:"client_secret" env:"CHATTO_AUTH_OIDC_CLIENT_SECRET" comment:"OIDC client secret. NEVER SHARE THIS!"`
-	Label        string `toml:"label,commented" env:"CHATTO_AUTH_OIDC_LABEL" comment:"Button label shown on the login page. Default: 'Chatto Hub'."`
+const (
+	AuthProviderTypeOpenIDConnect   = "openid-connect"
+	AuthProviderTypeGitHub          = "github"
+	AuthProviderTypeGitLab          = "gitlab"
+	AuthProviderTypeGoogle          = "google"
+	AuthProviderTypeDiscord         = "discord"
+	AuthProviderTypeMicrosoftOnline = "microsoftonline"
+)
+
+var authProviderDefaultLabels = map[string]string{
+	AuthProviderTypeOpenIDConnect:   "OpenID Connect",
+	AuthProviderTypeGitHub:          "GitHub",
+	AuthProviderTypeGitLab:          "GitLab",
+	AuthProviderTypeGoogle:          "Google",
+	AuthProviderTypeDiscord:         "Discord",
+	AuthProviderTypeMicrosoftOnline: "Microsoft",
 }
 
-// LabelOrDefault returns the configured label, or "Chatto Hub" if not set.
-func (c *OIDCConfig) LabelOrDefault() string {
-	if c.Label == "" {
-		return "Chatto Hub"
+// AuthProviderConfig contains one configured external login provider. The ID is
+// a stable local issuer namespace for OAuth-only providers and must not be
+// changed after users link identities through it.
+type AuthProviderConfig struct {
+	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type            string            `toml:"type" comment:"Provider type: openid-connect, github, gitlab, google, discord, or microsoftonline."`
+	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
+	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'openid-connect'."`
+	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
+	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+}
+
+// LabelOrDefault returns the configured label, or a provider-specific default.
+func (c AuthProviderConfig) LabelOrDefault() string {
+	if c.Label != "" {
+		return c.Label
 	}
-	return c.Label
+	if label, ok := authProviderDefaultLabels[c.Type]; ok {
+		return label
+	}
+	return c.ID
 }
 
-// IsConfigured returns true if OIDC is enabled and all required fields are set.
-func (c *OIDCConfig) IsConfigured() bool {
-	return c.Enabled && c.IssuerURL != "" && c.ClientID != "" && c.ClientSecret != ""
+func (c AuthProviderConfig) RequestEmailOrDefault() bool {
+	if c.RequestEmail == nil {
+		return true
+	}
+	return *c.RequestEmail
+}
+
+func IsAllowedAuthProviderType(providerType string) bool {
+	_, ok := authProviderDefaultLabels[providerType]
+	return ok
 }
 
 type AuthConfig struct {
-	DirectRegistration *bool      `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
-	TokenTTL           Duration   `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
-	OIDC               OIDCConfig `toml:"oidc,commented" comment:"OIDC provider configuration (e.g. Chatto Hub)."`
+	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
 }
 
 // TokenTTLOrDefault returns the configured bearer token TTL, or 90 days if not set.
@@ -333,11 +367,24 @@ func (c *AuthConfig) DirectRegistrationOrDefault() bool {
 	return *c.DirectRegistration
 }
 
-// EnabledProviders returns a list of enabled SSO provider names.
+// EnabledProviders returns a list of configured SSO provider IDs.
 func (c *AuthConfig) EnabledProviders() []string {
-	var providers []string
-	if c.OIDC.IsConfigured() {
-		providers = append(providers, "oidc")
+	providers := make([]string, 0, len(c.Providers))
+	for _, provider := range c.Providers {
+		providers = append(providers, provider.ID)
+	}
+	return providers
+}
+
+// PublicProviders returns login metadata safe to expose before authentication.
+func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
+	providers := make([]AuthProviderConfig, 0, len(c.Providers))
+	for _, provider := range c.Providers {
+		providers = append(providers, AuthProviderConfig{
+			ID:    provider.ID,
+			Type:  provider.Type,
+			Label: provider.LabelOrDefault(),
+		})
 	}
 	return providers
 }
@@ -753,6 +800,41 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
+	// External auth providers
+	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
+	for i, provider := range c.Auth.Providers {
+		prefix := fmt.Sprintf("auth.providers[%d]", i)
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when auth providers are configured")
+		}
+		if provider.ID == "" {
+			errs = append(errs, prefix+".id is required")
+		} else if strings.ContainsAny(provider.ID, "/?#") || strings.TrimSpace(provider.ID) != provider.ID {
+			errs = append(errs, prefix+".id must be a stable URL-safe identifier without spaces or path separators")
+		} else if _, exists := seenProviderIDs[provider.ID]; exists {
+			errs = append(errs, fmt.Sprintf("auth provider id %q is configured more than once", provider.ID))
+		} else {
+			seenProviderIDs[provider.ID] = struct{}{}
+		}
+		if !IsAllowedAuthProviderType(provider.Type) {
+			errs = append(errs, prefix+".type must be one of: openid-connect, github, gitlab, google, discord, microsoftonline")
+		}
+		if provider.ClientID == "" {
+			errs = append(errs, prefix+".client_id is required")
+		}
+		if provider.ClientSecret == "" {
+			errs = append(errs, prefix+".client_secret is required")
+		}
+		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
+			errs = append(errs, prefix+".issuer_url is required when type = 'openid-connect'")
+		}
+		if provider.IssuerURL != "" {
+			if _, err := url.Parse(provider.IssuerURL); err != nil {
+				errs = append(errs, fmt.Sprintf("%s.issuer_url is invalid: %v", prefix, err))
+			}
+		}
+	}
+
 	// TLS configuration
 	if c.Webserver.TLS.Enabled {
 		if c.Webserver.TLS.Domain == "" {
@@ -781,22 +863,6 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.SMTP.From == "" {
 			errs = append(errs, "smtp.from is required when SMTP is enabled")
-		}
-	}
-
-	// OIDC configuration
-	if c.Auth.OIDC.Enabled {
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when OIDC is enabled")
-		}
-		if c.Auth.OIDC.IssuerURL == "" {
-			errs = append(errs, "auth.oidc.issuer_url is required when OIDC is enabled")
-		}
-		if c.Auth.OIDC.ClientID == "" {
-			errs = append(errs, "auth.oidc.client_id is required when OIDC is enabled")
-		}
-		if c.Auth.OIDC.ClientSecret == "" {
-			errs = append(errs, "auth.oidc.client_secret is required when OIDC is enabled")
 		}
 	}
 

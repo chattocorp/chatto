@@ -118,7 +118,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Reactions          | Reactions            | `evt.room.>`                                               | Current per-message reaction sets and room-scoped snapshot OCC positions                   |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, and active room IDs                           |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
-| Users              | Users                | `evt.user.>`                                               | Account/profile/auth lookup state, verified emails, OAuth subjects, encrypted user PII     |
+| Users              | Users                | `evt.user.>`                                               | Account/profile/auth lookup state, verified emails, external identity links, encrypted user PII |
 | Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded` | Active and shredded user DEK epochs for message bodies and user PII                        |
 | RBAC               | RBAC                 | `evt.rbac.>`                                               | Roles, role order, assignments, scoped allow/deny decisions                                |
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
@@ -129,7 +129,7 @@ Notes: "Registered projector" names match the admin projection diagnostics. Comp
 
 Key files: [`cli/internal/graph/`](../cli/internal/graph/) (schemas in `*.graphqls` files, resolvers in `*.resolvers.go`)
 
-The GraphQL API is the primary client-facing interface for Chatto. It provides queries, mutations, and a single unified subscription over HTTP and WebSocket connections. Fields require authentication by default unless explicitly marked public in the schema. Authentication is cookie-session-based; user registration, login, password reset, email verification, and OAuth flows are REST endpoints (under `/auth/...`) rather than GraphQL mutations.
+The GraphQL API is the primary client-facing interface for Chatto. It provides queries, mutations, and a single unified subscription over HTTP and WebSocket connections. Fields require authentication by default unless explicitly marked public in the schema. Authentication is cookie-session-based; user registration, login, password reset, email verification, and external provider login flows are REST endpoints (under `/auth/...`) rather than GraphQL mutations. Public server metadata includes `Server.authProviders`, a list of configured external login providers with IDs, types, labels, and login URLs.
 
 The schema is modular: each feature area lives in its own `.graphqls` file and extends the root `Query` / `Mutation` / `Subscription` types. The operations below group by user-facing area, not by source file.
 
@@ -516,7 +516,8 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
 | `evt.user.{userId}.verified_email_added`                    | `UserVerifiedEmailAddedEvent`                       |
 | `evt.user.{userId}.password_hash_changed`                   | `UserPasswordHashChangedEvent`                      |
-| `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent`                        |
+| `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent` (legacy replay)        |
+| `evt.user.{userId}.external_identity_linked`                | `UserExternalIdentityLinkedEvent`                   |
 | `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |

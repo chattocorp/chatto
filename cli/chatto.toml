@@ -24,8 +24,10 @@ max_upload_size = '25MB'
 enabled = true
 ttl = '7d'
 
-[auth.oidc]
-enabled = true
+[[auth.providers]]
+id = 'chatto-hub'
+type = 'openid-connect'
+label = 'Chatto Hub'
 issuer_url = 'https://chatto.id/realms/chatto-hub'
 client_id = 'chatto-dev'
 client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'

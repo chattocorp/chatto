@@ -113,6 +113,37 @@ func TestServerInfo(t *testing.T) {
 		}
 	})
 
+	t.Run("includes configured auth provider metadata", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{
+			Providers: []config.AuthProviderConfig{
+				{ID: "hub", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub"},
+				{ID: "github-main", Type: config.AuthProviderTypeGitHub},
+			},
+		})
+
+		req := httptest.NewRequest("GET", "/api/server", nil)
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		var resp serverInfoResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		if got, want := resp.AuthMethods, []string{"password", "oidc", "github"}; strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("authMethods = %v, want %v", got, want)
+		}
+		if len(resp.AuthProviders) != 2 {
+			t.Fatalf("authProviders len = %d, want 2", len(resp.AuthProviders))
+		}
+		if resp.AuthProviders[0].ID != "hub" || resp.AuthProviders[0].Type != config.AuthProviderTypeOpenIDConnect || resp.AuthProviders[0].Label != "Chatto Hub" || resp.AuthProviders[0].LoginURL != "/auth/providers/hub" {
+			t.Fatalf("authProviders[0] = %+v", resp.AuthProviders[0])
+		}
+		if resp.AuthProviders[1].ID != "github-main" || resp.AuthProviders[1].Type != config.AuthProviderTypeGitHub || resp.AuthProviders[1].Label != "GitHub" || resp.AuthProviders[1].LoginURL != "/auth/providers/github-main" {
+			t.Fatalf("authProviders[1] = %+v", resp.AuthProviders[1])
+		}
+	})
+
 	t.Run("registration disabled hides password and sets registrationOpen false", func(t *testing.T) {
 		disabled := false
 		s := setupServerInfoServer(t, config.AuthConfig{
