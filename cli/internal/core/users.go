@@ -952,16 +952,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// cleanup iterates each kind.
 	allKinds := []RoomKind{KindChannel, KindDM}
 
-	// Delete all message bodies authored by this user
-	for _, kind := range allKinds {
-		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, kind)
-		if err != nil {
-			c.logger.Warn("Failed to delete message bodies", "user_id", userID, "kind", kind, "error", err)
-		} else if deleted > 0 {
-			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "kind", kind, "count", deleted)
-		}
-	}
-
 	// Delete encryption key (crypto-shreds any remaining encrypted data) and
 	// record the durable shred signal projections use to tombstone messages
 	// before decrypting.

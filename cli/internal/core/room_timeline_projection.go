@@ -40,10 +40,8 @@ type RoomTimelineProjection struct {
 	// echoLinks maps an original message's event_id to the event_ids
 	// of any echoes pointing at it. Maintained as MessagePostedEvents
 	// with EchoOfEventId arrive. Used by EditMessage / DeleteMessage
-	// to fan mutations across linked messages — pre-cutover the
-	// echo + original shared a messageBodyId, so an edit on either
-	// updated both via the shared SERVER_BODIES entry; post-cutover
-	// each has its own projected body payload and we need explicit
+	// to fan mutations across linked messages. Each echo has its own
+	// projected body payload, so edits and retractions need explicit
 	// propagation.
 	echoLinks map[string][]string
 	// hiddenEchoes tracks echo MessagePostedEvents that were directly

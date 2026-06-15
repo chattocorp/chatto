@@ -898,7 +898,6 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 type storage struct {
 	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
 	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
-	serverBodiesKV jetstream.KeyValue // SERVER_BODIES    - legacy message bodies retained for cleanup
 
 	serverAssets    jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
@@ -965,11 +964,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	serverBodiesKV, err := openLegacyKeyValue(ctx, js, "SERVER_BODIES")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_BODIES KV bucket: %w", err)
-	}
-
 	serverAssets, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
 		Bucket:      "SERVER_ASSETS",
 		Description: "Server asset binaries (avatars, branding, link previews, attachments)",
@@ -1010,23 +1004,11 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	return &storage{
 		encryptionKV:    encryptionKV,
 		runtimeStateKV:  runtimeStateKV,
-		serverBodiesKV:  serverBodiesKV,
 		serverAssets:    serverAssets,
 		serverEvtStream: serverEvtStream,
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
-}
-
-func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.KeyValue, error) {
-	kv, err := js.KeyValue(ctx, bucket)
-	if err == nil {
-		return kv, nil
-	}
-	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return nil, nil
-	}
-	return nil, err
 }
 
 // ============================================================================
@@ -1080,13 +1062,6 @@ func roomKeyPrefix(kind RoomKind) string {
 // trying again).
 func roomNameIndexKey(name string) string {
 	return fmt.Sprintf("room_name_index.%s", strings.ToLower(strings.TrimSpace(name)))
-}
-
-// messageBodyKey returns the KV key for a message body in a bodies bucket.
-// The key format is {userID}.{bodyID} to enable efficient prefix-based filtering
-// when deleting all message bodies for a specific user.
-func messageBodyKey(userID, messageBodyID string) string {
-	return userID + "." + messageBodyID
 }
 
 // eventIDFromBodyKey extracts the event ID portion from a message body key.
