@@ -131,11 +131,14 @@ describe('eventBusManager subscription robustness', () => {
 		const fake = new FakeGqlClient();
 		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
 		expect(fake.subscribeCalls).toBe(1);
+		const catchUp = vi.fn();
+		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
 		// Server sent Complete (or graphql-ws closed the Sink) → source ends.
 		fake.current.complete();
 
 		expect(fake.subscribeCalls).toBe(2);
+		expect(catchUp).toHaveBeenCalledWith('subscription-ended');
 		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('source ended'))).toBe(true);
 
 		// And the new subscription is wired through — events flow.
@@ -151,11 +154,29 @@ describe('eventBusManager subscription robustness', () => {
 		const fake = new FakeGqlClient();
 		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
 		expect(fake.subscribeCalls).toBe(1);
+		const catchUp = vi.fn();
+		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
 		fake.bumpReconnect();
 
 		expect(fake.subscribeCalls).toBe(2);
+		expect(catchUp).toHaveBeenCalledWith('ws-reconnected');
 		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('ws reconnected'))).toBe(true);
+	});
+
+	it('re-subscribes and notifies catch-up handlers when heartbeats stall', () => {
+		vi.useFakeTimers();
+		const fake = new FakeGqlClient();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		expect(fake.subscribeCalls).toBe(1);
+		const catchUp = vi.fn();
+		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+
+		vi.advanceTimersByTime(90_000);
+
+		expect(fake.subscribeCalls).toBe(2);
+		expect(catchUp).toHaveBeenCalledWith('heartbeat-stalled');
+		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('heartbeat stalled'))).toBe(true);
 	});
 
 	it('subscribes without variables on initial start and reconnect', () => {

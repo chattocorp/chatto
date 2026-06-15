@@ -90,6 +90,25 @@ function messageWithReaction(id: string, emoji: string) {
 	};
 }
 
+function threadMessageWithReaction(id: string, threadRootEventId: string, emoji: string) {
+	const event = threadMessageEvent(id, threadRootEventId);
+	return {
+		...event,
+		event: {
+			...event.event,
+			reactions: [
+				{
+					__typename: 'ReactionSummary',
+					emoji,
+					count: 1,
+					hasReacted: false,
+					users: []
+				}
+			]
+		}
+	};
+}
+
 function callEvent(
 	typename:
 		| 'CallStartedEvent'
@@ -672,6 +691,56 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		expect(fake.queryMock.mock.calls[0][1]).toEqual({
 			roomId: 'room-1',
 			eventId: 'm2',
+			limit: 50
+		});
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
+	it('soft-refreshes a thread around an anchored reply', async () => {
+		const fake = new FakeGqlClient([
+			threadQueryResult({
+				replies: [
+					threadMessageEvent('r18', 't1'),
+					threadMessageEvent('r19', 't1'),
+					threadMessageEvent('r20', 't1')
+				],
+				startCursor: 'seq:18',
+				endCursor: 'seq:20',
+				hasOlder: true,
+				hasNewer: true
+			}),
+			threadQueryResult({
+				replies: [
+					threadMessageEvent('r19', 't1'),
+					threadMessageWithReaction('r20', 't1', 'thumbsup'),
+					threadMessageEvent('r21', 't1')
+				],
+				startCursor: 'seq:19',
+				endCursor: 'seq:21',
+				hasOlder: true,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow('r20');
+		await settle();
+
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r19', 'r20', 'r21']);
+		expect(store.hasReachedStart).toBe(false);
+		expect(store.threadEvents.find((event) => event.id === 'r20')?.event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'thumbsup', count: 1 }]
+		});
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+			roomId: 'room-1',
+			threadRootEventId: 't1',
+			anchorEventId: 'r20',
 			limit: 50
 		});
 		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });

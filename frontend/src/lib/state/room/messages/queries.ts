@@ -96,4 +96,27 @@ export const ThreadEventsQuery = graphql(`
   }
 `);
 
+export const ThreadEventsAroundQuery = graphql(`
+  query ThreadMessagesAround($roomId: ID!, $threadRootEventId: ID!, $anchorEventId: ID!, $limit: Int) {
+    room(roomId: $roomId) {
+      event(eventId: $threadRootEventId) {
+        ...RoomEventView
+        event {
+          ... on MessagePostedEvent {
+            threadReplies: threadRepliesAround(eventId: $anchorEventId, limit: $limit) {
+              events {
+                ...RoomEventView
+              }
+              startCursor
+              endCursor
+              hasOlder
+              hasNewer
+            }
+          }
+        }
+      }
+    }
+  }
+`);
+
 export const PAGE_SIZE = 50;

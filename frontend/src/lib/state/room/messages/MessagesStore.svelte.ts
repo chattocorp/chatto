@@ -16,6 +16,7 @@ import {
   RoomAroundQuery,
   RoomBeforeQuery,
   RoomLatestQuery,
+  ThreadEventsAroundQuery,
   ThreadEventsQuery
 } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
@@ -417,11 +418,16 @@ export class MessagesStore {
 
     try {
       if (this.scope === 'thread') {
-        const result = await this.refreshThreadWindow(thisLoad, existingBeforeFetch);
+        const result = await this.refreshThreadWindow(
+          thisLoad,
+          existingBeforeFetch,
+          anchorEventId ?? null
+        );
         console.debug('[room-refresh] store refresh finished', {
           roomId: this.roomId,
           scope: this.scope,
-          mode: 'thread',
+          mode: anchorEventId ? 'thread-around' : 'thread-latest',
+          anchorEventId: anchorEventId ?? null,
           result,
           eventCount: this.events.length
         });
@@ -829,18 +835,26 @@ export class MessagesStore {
 
   private async refreshThreadWindow(
     thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>
+    existingBeforeFetch: ReadonlySet<string>,
+    anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
-    const result = await this.client
-      .query(
-        ThreadEventsQuery,
-        {
+    const query = anchorEventId && anchorEventId !== this.threadRootEventId
+      ? ThreadEventsAroundQuery
+      : ThreadEventsQuery;
+    const variables = anchorEventId && anchorEventId !== this.threadRootEventId
+      ? {
+          roomId: this.roomId,
+          threadRootEventId: this.threadRootEventId,
+          anchorEventId,
+          limit: PAGE_SIZE
+        }
+      : {
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
           limit: PAGE_SIZE
-        },
-        { requestPolicy: 'network-only' }
-      )
+        };
+    const result = await this.client
+      .query(query, variables, { requestPolicy: 'network-only' })
       .toPromise();
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };

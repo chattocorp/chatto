@@ -241,6 +241,33 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		}
 	})
 
+	t.Run("GetThreadReplyEventsAround centers reply window", func(t *testing.T) {
+		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root for around replies", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root message: %v", err)
+		}
+
+		replies := make([]*corev1.Event, 0, 5)
+		for i := 1; i <= 5; i++ {
+			reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, fmt.Sprintf("Around reply %d", i), nil, rootEvent.Id, "", nil, false)
+			if err != nil {
+				t.Fatalf("Failed to post reply %d: %v", i, err)
+			}
+			replies = append(replies, reply)
+		}
+
+		page, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, replies[2].Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround: %v", err)
+		}
+		if got := eventIDsForTest(page.Events); len(got) != 3 || got[0] != replies[1].Id || got[1] != replies[2].Id || got[2] != replies[3].Id {
+			t.Fatalf("around page = %v, want [%s, %s, %s]", got, replies[1].Id, replies[2].Id, replies[3].Id)
+		}
+		if !page.HasOlder || !page.HasNewer {
+			t.Fatalf("around page hasOlder/hasNewer = %v/%v, want true/true", page.HasOlder, page.HasNewer)
+		}
+	})
+
 	t.Run("GetThreadMetadata returns reply count and last reply time", func(t *testing.T) {
 		// Post a new root message
 		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root for metadata test", nil, "", "", nil, false)

@@ -189,4 +189,37 @@ describe('ServerStateStore live server updates', () => {
       }
     ]);
   });
+
+  it('refreshes projected server state when the event bus may have missed events', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = new ServerStateStore(registered, fake as unknown as GraphQLClient);
+    store.serverInfo.livekitUrl = 'wss://livekit';
+    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+    store.activeCallRooms.load = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
+    expect(store.currentUser.validateSession).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
+    expect(store.notifications.fetch).toHaveBeenCalledOnce();
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+    expect(store.activeCallRooms.load).toHaveBeenCalledOnce();
+  });
 });

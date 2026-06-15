@@ -635,6 +635,47 @@ func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *mod
 	return buildRoomEventsConnection(result), nil
 }
 
+// ThreadRepliesAround is the resolver for the threadRepliesAround field.
+func (r *messagePostedEventResolver) ThreadRepliesAround(ctx context.Context, obj *model.MessagePostedEvent, eventID string, limit *int32) (*model.RoomEventsConnection, error) {
+	payload := messagePostedPayload(obj)
+	if payload == nil || payload.InThread != "" {
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
+	}
+	threadRootEventID := messagePostedEventID(obj)
+	if threadRootEventID == "" {
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
+	}
+
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind, err := r.core.FindRoomKind(ctx, payload.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, payload.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	result, err := r.core.GetThreadReplyEventsAround(
+		ctx,
+		kind,
+		payload.RoomId,
+		threadRootEventID,
+		eventID,
+		roomEventsLimit(limit),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return buildRoomEventsConnection(result), nil
+}
+
 // MessageEventID is the resolver for the messageEventId field.
 func (r *messageRetractedEventResolver) MessageEventID(ctx context.Context, obj *corev1.MessageRetractedEvent) (string, error) {
 	if obj.EventId == "" {

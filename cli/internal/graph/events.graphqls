@@ -326,6 +326,13 @@ type MessagePostedEvent {
   """
   threadReplies(limit: Int = 50, before: String, after: String): RoomEventsConnection!
     @goField(forceResolver: true)
+  """
+  Replies to this message centered around a reply event ID. Returns an empty
+  page when this message is itself a thread reply. The root event is not
+  included.
+  """
+  threadRepliesAround(eventId: ID!, limit: Int = 50): RoomEventsConnection!
+    @goField(forceResolver: true)
 }
 
 """

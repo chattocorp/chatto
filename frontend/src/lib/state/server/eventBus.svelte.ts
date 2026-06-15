@@ -11,9 +11,12 @@
 
 import { pipe, subscribe as urqlSubscribe, onEnd } from 'wonka';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { EventHandler, EventBus } from '$lib/eventBus.svelte';
+import type { EventBusCatchUpReason, EventHandler, EventBus } from '$lib/eventBus.svelte';
 import { MyServerEventsSubscriptionDoc } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
+
+const HEARTBEAT_STALL_MS = 75_000;
+const HEARTBEAT_WATCHDOG_MS = 15_000;
 
 function errorDebug(error: unknown) {
 	const graphQLErrors = (error as { graphQLErrors?: Array<{ message?: string; extensions?: { code?: unknown } }> })
@@ -43,9 +46,10 @@ class EventBusManager {
 	 * cleanup function without creating a duplicate.
 	 *
 	 * The bus stays intentionally small: it re-subscribes when the current
-	 * source ends or when the underlying WebSocket reconnects. Missed-message
-	 * recovery is owned by the visible room, which refreshes projected state
-	 * on wake/reconnect instead of relying on subscription replay.
+	 * source ends, when the underlying WebSocket reconnects, or when the
+	 * server heartbeat goes silent while the tab is visible. Consumers that
+	 * own projected state can register `catchUpHandlers` to refetch after
+	 * those gaps instead of relying on subscription replay.
 	 *
 	 * @returns Cleanup function that stops the bus.
 	 */
@@ -58,7 +62,8 @@ class EventBusManager {
 
 		const client = gqlClient.client;
 		const handlers = new SvelteSet<EventHandler>();
-		const bus: EventBus = { handlers };
+		const catchUpHandlers = new SvelteSet<(reason: EventBusCatchUpReason) => void>();
+		const bus: EventBus = { handlers, catchUpHandlers };
 		let lastEventAt = Date.now();
 		let heartbeatCount = 0;
 		let dispatchedEventCount = 0;
@@ -95,7 +100,7 @@ class EventBusManager {
 						...debugState()
 					});
 					console.warn(`[eventBus:${serverId}] subscription source ended`);
-					resubscribe('subscription source ended');
+					resubscribe('subscription source ended', 'subscription-ended');
 				}),
 				urqlSubscribe((result) => {
 					if (result.error) {
@@ -146,7 +151,22 @@ class EventBusManager {
 			);
 		};
 
-		const resubscribe = (reason: string) => {
+		const notifyCatchUpHandlers = (reason: EventBusCatchUpReason) => {
+			console.debug(`[eventBus:${serverId}] notifying catch-up handlers`, {
+				reason,
+				catchUpHandlers: catchUpHandlers.size,
+				...debugState()
+			});
+			for (const handler of catchUpHandlers) {
+				try {
+					handler(reason);
+				} catch (err) {
+					console.error(`[eventBus:${serverId}] catch-up handler threw`, err);
+				}
+			}
+		};
+
+		const resubscribe = (reason: string, catchUpReason: EventBusCatchUpReason) => {
 			if (stopped) return;
 			resubscribeCount++;
 			console.debug(`[eventBus:${serverId}] resubscribe requested`, {
@@ -161,6 +181,7 @@ class EventBusManager {
 			teardownInProgress = false;
 			lastEventAt = Date.now();
 			this.#subscriptions.set(serverId, subscribeOnce(reason));
+			notifyCatchUpHandlers(catchUpReason);
 		};
 
 		console.debug(`[eventBus:${serverId}] bus started`, debugState());
@@ -181,16 +202,32 @@ class EventBusManager {
 						`[eventBus:${serverId}] ws reconnectCount ${lastSeenReconnects} → ${n}, resubscribing`
 					);
 					lastSeenReconnects = n;
-					resubscribe('ws reconnected');
+					resubscribe('ws reconnected', 'ws-reconnected');
 				}
 			});
 		});
+
+		const heartbeatWatchdog = setInterval(() => {
+			if (stopped) return;
+			if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+			const ageMs = Date.now() - lastEventAt;
+			if (ageMs < HEARTBEAT_STALL_MS) return;
+			console.debug(`[eventBus:${serverId}] heartbeat watchdog detected stale stream`, {
+				ageMs,
+				...debugState()
+			});
+			console.warn(
+				`[eventBus:${serverId}] heartbeat stalled; re-subscribing (${Math.round(ageMs / 1000)}s since last event)`
+			);
+			resubscribe('heartbeat stalled', 'heartbeat-stalled');
+		}, HEARTBEAT_WATCHDOG_MS);
 
 		this.#cleanups.set(serverId, () => {
 			// Flag the closure so the upcoming sub.unsubscribe() in stopBus
 			// doesn't fire a reentrant resubscribe through onEnd.
 			stopped = true;
 			console.debug(`[eventBus:${serverId}] bus stopping`, debugState());
+			clearInterval(heartbeatWatchdog);
 			stopReconnectEffect();
 		});
 
