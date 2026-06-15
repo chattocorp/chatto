@@ -150,7 +150,7 @@ type Documents = {
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": typeof types.DeleteMyAccountDocument,
     "\n            mutation UpdateSettings($input: UpdateSettingsInput!) {\n              updateSettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": typeof types.UpdateSettingsDocument,
     "\n\t\tquery MyFollowedThreads($limit: Int!, $offset: Int!) {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads(limit: $limit, offset: $offset) {\n\t\t\t\t\tthreads {\n\t\t\t\t\t\troomId\n\t\t\t\t\t\troom {\n\t\t\t\t\t\t\tname\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthreadRootEventId\n\t\t\t\t\t\trootMessage {\n\t\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t\t}\n\t\t\t\t\t\treplyCount\n\t\t\t\t\t\tlastReplyAt\n\t\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t\t}\n\t\t\t\t\t\thasUnread\n\t\t\t\t\t}\n\t\t\t\t\ttotalCount\n\t\t\t\t\thasMore\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.MyFollowedThreadsDocument,
-    "\n    query LoginPageInfo {\n      server {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": typeof types.LoginPageInfoDocument,
+    "\n    query LoginPageInfo {\n      server {\n        authProviders {\n          id\n          type\n          label\n          loginUrl\n        }\n        directRegistrationEnabled\n      }\n    }\n  ": typeof types.LoginPageInfoDocument,
 };
 const documents: Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateRoomDocument,
@@ -289,7 +289,7 @@ const documents: Documents = {
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": types.DeleteMyAccountDocument,
     "\n            mutation UpdateSettings($input: UpdateSettingsInput!) {\n              updateSettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": types.UpdateSettingsDocument,
     "\n\t\tquery MyFollowedThreads($limit: Int!, $offset: Int!) {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads(limit: $limit, offset: $offset) {\n\t\t\t\t\tthreads {\n\t\t\t\t\t\troomId\n\t\t\t\t\t\troom {\n\t\t\t\t\t\t\tname\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthreadRootEventId\n\t\t\t\t\t\trootMessage {\n\t\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t\t}\n\t\t\t\t\t\treplyCount\n\t\t\t\t\t\tlastReplyAt\n\t\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t\t}\n\t\t\t\t\t\thasUnread\n\t\t\t\t\t}\n\t\t\t\t\ttotalCount\n\t\t\t\t\thasMore\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.MyFollowedThreadsDocument,
-    "\n    query LoginPageInfo {\n      server {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": types.LoginPageInfoDocument,
+    "\n    query LoginPageInfo {\n      server {\n        authProviders {\n          id\n          type\n          label\n          loginUrl\n        }\n        directRegistrationEnabled\n      }\n    }\n  ": types.LoginPageInfoDocument,
 };
 
 /**
@@ -853,7 +853,7 @@ export function graphql(source: "\n\t\tquery MyFollowedThreads($limit: Int!, $of
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    query LoginPageInfo {\n      server {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  "): (typeof documents)["\n    query LoginPageInfo {\n      server {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  "];
+export function graphql(source: "\n    query LoginPageInfo {\n      server {\n        authProviders {\n          id\n          type\n          label\n          loginUrl\n        }\n        directRegistrationEnabled\n      }\n    }\n  "): (typeof documents)["\n    query LoginPageInfo {\n      server {\n        authProviders {\n          id\n          type\n          label\n          loginUrl\n        }\n        directRegistrationEnabled\n      }\n    }\n  "];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

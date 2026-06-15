@@ -219,8 +219,8 @@ func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef
 // in a single best-effort transaction. If verification fails after the user record is
 // written, the user record is rolled back so signup paths don't produce orphan accounts.
 //
-// Used by signup-completion (post email-link click) and OIDC callbacks, where the email
-// has already been proven (via clicking the link or via an OIDC `email_verified` claim).
+// Used by signup-completion (post email-link click) and trusted account-link
+// flows where the email has already been proven.
 func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*corev1.User, error) {
 	user, err := c.CreateUser(ctx, actorID, login, displayName, password)
 	if err != nil {

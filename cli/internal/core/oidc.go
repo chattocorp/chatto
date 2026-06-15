@@ -14,6 +14,8 @@ import (
 var (
 	// ErrOIDCSubjectAlreadyClaimed is returned when an OIDC subject is already linked to a different user.
 	ErrOIDCSubjectAlreadyClaimed = errors.New("OIDC subject is already linked to another account")
+	// ErrExternalIdentityAlreadyClaimed is returned when an external identity is already linked to a different user.
+	ErrExternalIdentityAlreadyClaimed = errors.New("external identity is already linked to another account")
 )
 
 // userByOIDCSubjectKey returns the KV key for the OIDC subject-to-user index.
@@ -23,35 +25,59 @@ func userByOIDCSubjectKey(issuer, subject string) string {
 }
 
 func oidcSubjectHash(issuer, subject string) string {
+	return externalIdentityHash(issuer, subject)
+}
+
+func externalIdentityHash(issuer, subject string) string {
 	hash := sha256.Sum256([]byte(issuer + ":" + subject))
 	return hex.EncodeToString(hash[:])
 }
 
-// GetUserByOIDCSubject looks up a user by their OIDC issuer and subject.
-func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject string) (*corev1.User, error) {
-	if user, ok := c.Users.GetByOIDCSubject(issuer, subject); ok {
+// GetUserByExternalIdentity looks up a user by provider issuer namespace and subject.
+func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*corev1.User, error) {
+	if user, ok := c.Users.GetByExternalIdentity(issuer, subject); ok {
 		return user, nil
 	}
 	return nil, nil
 }
 
-// LinkOIDCSubject links an OIDC subject to a Chatto user. Uses atomic create
-// to prevent race conditions. Idempotent if already linked to the same user.
-func (c *ChattoCore) LinkOIDCSubject(ctx context.Context, issuer, subject, userID string) error {
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserOidcSubjectLinked{
-		UserOidcSubjectLinked: &corev1.UserOIDCSubjectLinkedEvent{
-			UserId:      userID,
-			Issuer:      issuer,
-			Subject:     subject,
-			SubjectHash: oidcSubjectHash(issuer, subject),
+// GetUserByOIDCSubject looks up a user by their OIDC issuer and subject.
+func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject string) (*corev1.User, error) {
+	return c.GetUserByExternalIdentity(ctx, issuer, subject)
+}
+
+// LinkExternalIdentity links a verified provider subject to a Chatto user.
+// The issuer is the durable identity namespace: the verified OIDC issuer URL
+// for OIDC providers and the stable configured provider ID for OAuth-only
+// providers. providerID/providerType are event-time metadata and are not used
+// for lookup, so config changes do not break existing links. Idempotent for the same user.
+func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, providerType, issuer, subject, userID string) error {
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
+		UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+			UserId:       userID,
+			Issuer:       issuer,
+			Subject:      subject,
+			SubjectHash:  externalIdentityHash(issuer, subject),
+			ProviderId:   providerID,
+			ProviderType: providerType,
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		existing, ok := c.Users.GetByOIDCSubject(issuer, subject)
+		existing, ok := c.Users.GetByExternalIdentity(issuer, subject)
 		if ok && existing.GetId() != userID {
-			return ErrOIDCSubjectAlreadyClaimed
+			return ErrExternalIdentityAlreadyClaimed
 		}
 		return nil
 	})
+	return err
+}
+
+// LinkOIDCSubject links an OIDC subject to a Chatto user. Uses atomic create
+// to prevent race conditions. Idempotent if already linked to the same user.
+func (c *ChattoCore) LinkOIDCSubject(ctx context.Context, issuer, subject, userID string) error {
+	err := c.LinkExternalIdentity(ctx, "oidc", "oidc", issuer, subject, userID)
+	if errors.Is(err, ErrExternalIdentityAlreadyClaimed) {
+		return ErrOIDCSubjectAlreadyClaimed
+	}
 	return err
 }

@@ -32,6 +32,7 @@ export default defineConfig({
             "guides/s3-storage",
             "guides/video-processing",
             "guides/voice-calls",
+            "guides/external-login-providers",
             "guides/backup-restore",
             "guides/security",
             "guides/permissions",

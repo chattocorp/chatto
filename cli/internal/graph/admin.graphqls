@@ -241,6 +241,8 @@ type ProjectionMetric {
 
 "Point-in-time runtime state for one event-sourced projection."
 type ProjectionState {
+  "Stable machine-readable projection key, suitable for metric labels and automation."
+  key: String!
   "Human-readable projection name."
   name: String!
   "Diagnostic storage subject filters consumed by this projection."

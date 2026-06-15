@@ -160,7 +160,6 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 			query ServerBootstrap {
 				server {
 					version
-					enabledAuthProviders
 					profile {
 						name
 						logoUrl
@@ -177,9 +176,8 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 
 		var data struct {
 			Server *struct {
-				Version              string   `json:"version"`
-				EnabledAuthProviders []string `json:"enabledAuthProviders"`
-				Profile              struct {
+				Version string `json:"version"`
+				Profile struct {
 					Name      string  `json:"name"`
 					LogoURL   *string `json:"logoUrl"`
 					BannerURL *string `json:"bannerUrl"`
@@ -971,18 +969,24 @@ func TestQueryResolver_Server(t *testing.T) {
 		}
 	})
 
-	t.Run("returns empty auth providers when none configured", func(t *testing.T) {
+	t.Run("returns auth provider metadata", func(t *testing.T) {
 		resolver := &Resolver{
-			version:    "1.0.0",
-			authConfig: config.AuthConfig{},
+			version: "1.0.0",
+			authConfig: config.AuthConfig{Providers: []config.AuthProviderConfig{
+				{ID: "chatto-hub", Type: config.AuthProviderTypeOpenIDConnect},
+				{ID: "github-main", Type: config.AuthProviderTypeGitHub},
+			}},
 		}
 
 		instance, err := resolver.Query().Server(context.Background())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-		if len(instance.EnabledAuthProviders) != 0 {
-			t.Errorf("Expected 0 providers, got %d", len(instance.EnabledAuthProviders))
+		if len(instance.AuthProviders) != 2 {
+			t.Fatalf("AuthProviders len = %d, want 2", len(instance.AuthProviders))
+		}
+		if got := instance.AuthProviders[0]; got.ID != "chatto-hub" || got.Type != config.AuthProviderTypeOpenIDConnect {
+			t.Fatalf("AuthProviders[0] = %+v", got)
 		}
 	})
 

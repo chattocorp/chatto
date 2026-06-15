@@ -48,6 +48,7 @@ type ChattoCore struct {
 	mediaService       *MediaService
 	callService        *CallService
 	assetService       *AssetService
+	services           []serviceRegistration
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -729,10 +730,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// record. Runtime lifecycle and admin diagnostics both consume this
 	// same list, so adding a projection has a single wiring point.
 	var projections []projectionRegistration
-	newProjector := func(p events.Projection, name string, estimate func() (int64, int64, []ProjectionAdminMetric)) *events.Projector {
+	newProjector := func(p events.Projection, key string, name string, estimate func() (int64, int64, []ProjectionAdminMetric)) *events.Projector {
 		loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
 		pr := events.NewProjector(js, storage.serverEvtStream, p, logger.WithPrefix("core."+loggerName))
 		projections = append(projections, projectionRegistration{
+			key:       key,
 			name:      name,
 			projector: pr,
 			estimate:  estimate,
@@ -741,17 +743,17 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	roomDirectory := NewRoomDirectoryProjection()
-	roomDirectoryProjector := newProjector(roomDirectory, "Room Directory", roomDirectory.adminProjectionEstimate)
+	roomDirectoryProjector := newProjector(roomDirectory, "room_directory", "Room Directory", roomDirectory.adminProjectionEstimate)
 	roomMembership := roomDirectory.Membership
 	roomBans := roomDirectory.Bans
 
 	serverConfigProjection := NewConfigProjection()
-	serverConfigProjector := newProjector(serverConfigProjection, "Server Config", serverConfigProjection.adminProjectionEstimate)
+	serverConfigProjector := newProjector(serverConfigProjection, "server_config", "Server Config", serverConfigProjection.adminProjectionEstimate)
 
 	roomCatalog := roomDirectory.Catalog
 
 	roomGroupLayout := NewRoomGroupLayoutProjection()
-	roomGroupLayoutProjector := newProjector(roomGroupLayout, "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
+	roomGroupLayoutProjector := newProjector(roomGroupLayout, "room_group_layout", "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
 	roomGroups := roomGroupLayout.Groups
 	roomLayout := roomGroupLayout.Layout
 
@@ -760,31 +762,31 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// do all filtering and rendering at query time. v1 shape — we
 	// iterate significantly on this once we observe read patterns.
 	roomTimeline := NewRoomTimelineProjection()
-	roomTimelineProjector := newProjector(roomTimeline, "Room Timeline", roomTimeline.adminProjectionEstimate)
+	roomTimelineProjector := newProjector(roomTimeline, "room_timeline", "Room Timeline", roomTimeline.adminProjectionEstimate)
 
 	callState := NewCallStateProjection()
-	callStateProjector := newProjector(callState, "Call State", callState.adminProjectionEstimate)
+	callStateProjector := newProjector(callState, "call_state", "Call State", callState.adminProjectionEstimate)
 
 	assetProjection := NewAssetProjection()
-	assetProjector := newProjector(assetProjection, "Assets", assetProjection.adminProjectionEstimate)
+	assetProjector := newProjector(assetProjection, "assets", "Assets", assetProjection.adminProjectionEstimate)
 
 	threads := NewThreadProjection()
-	threadsProjector := newProjector(threads, "Threads", threads.adminProjectionEstimate)
+	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
 
 	reactions := NewReactionProjection()
-	reactionsProjector := newProjector(reactions, "Reactions", reactions.adminProjectionEstimate)
+	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
 
 	users := NewUserProjection(encMgr.keyWrapper, encMgr.contentKeys)
-	usersProjector := newProjector(users, "Users", users.adminProjectionEstimate)
+	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
-	contentKeysProjector := newProjector(contentKeys, "Content Keys", contentKeys.adminProjectionEstimate)
+	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
 
 	rbac := NewRBACProjection()
-	rbacProjector := newProjector(rbac, "RBAC", rbac.adminProjectionEstimate)
+	rbacProjector := newProjector(rbac, "rbac", "RBAC", rbac.adminProjectionEstimate)
 
 	mentionables := NewMentionablesProjection(encMgr.keyWrapper, encMgr.contentKeys)
-	mentionablesProjector := newProjector(mentionables, "Mentionables", mentionables.adminProjectionEstimate)
+	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
 
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
@@ -890,6 +892,21 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.presenceService = NewPresenceService(js, storage.memoryCacheKV, logger)
 	core.PresenceHub = core.presenceService.hub
 	core.myEventsService = NewMyEventsService(core)
+	core.services = []serviceRegistration{
+		{key: "chatto_core", name: "Chatto Core"},
+		{key: "event_publisher", name: "Event Publisher"},
+		{key: "config_service", name: "Config Service"},
+		{key: "config_manager", name: "Config Manager"},
+		{key: "room_service", name: "Room Service"},
+		{key: "user_service", name: "User Service"},
+		{key: "rbac_service", name: "RBAC Service"},
+		{key: "mentionables_service", name: "Mentionables Service"},
+		{key: "presence_service", name: "Presence Service"},
+		{key: "my_events_service", name: "My Events Service"},
+		{key: "call_service", name: "Call Service"},
+		{key: "media_service", name: "Media Service"},
+		{key: "asset_service", name: "Asset Service"},
+	}
 
 	return core, nil
 }

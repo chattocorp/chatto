@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,6 +78,38 @@ type WebserverConfig struct {
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
 	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+}
+
+// MetricsConfig controls the process-local Prometheus scrape endpoint.
+type MetricsConfig struct {
+	Enabled     bool   `toml:"enabled" env:"CHATTO_METRICS_ENABLED" comment:"Expose a Prometheus-compatible metrics endpoint on a separate internal HTTP listener. Default: false."`
+	BindAddress string `toml:"bind_address,commented" env:"CHATTO_METRICS_BIND_ADDRESS" comment:"Address to bind the metrics listener. Default: 127.0.0.1 (localhost only)."`
+	Port        int    `toml:"port,commented" env:"CHATTO_METRICS_PORT" comment:"Port for the metrics listener. Default: 9090."`
+	Path        string `toml:"path,commented" env:"CHATTO_METRICS_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
+}
+
+// BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
+func (c *MetricsConfig) BindAddressOrDefault() string {
+	if c.BindAddress == "" {
+		return "127.0.0.1"
+	}
+	return c.BindAddress
+}
+
+// PortOrDefault returns the metrics listener port, defaulting to 9090.
+func (c *MetricsConfig) PortOrDefault() int {
+	if c.Port == 0 {
+		return 9090
+	}
+	return c.Port
+}
+
+// PathOrDefault returns the metrics scrape path, defaulting to /metrics.
+func (c *MetricsConfig) PathOrDefault() string {
+	if c.Path == "" {
+		return "/metrics"
+	}
+	return c.Path
 }
 
 func validateHexSecret(name, value string, required bool) error {
@@ -289,32 +323,64 @@ type CoreConfig struct {
 	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
-// OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
-type OIDCConfig struct {
-	Enabled      bool   `toml:"enabled" env:"CHATTO_AUTH_OIDC_ENABLED" comment:"Enable OIDC login (e.g. via Chatto Hub)."`
-	IssuerURL    string `toml:"issuer_url" env:"CHATTO_AUTH_OIDC_ISSUER_URL" comment:"OIDC issuer URL. Used for discovery (/.well-known/openid-configuration)."`
-	ClientID     string `toml:"client_id" env:"CHATTO_AUTH_OIDC_CLIENT_ID" comment:"OIDC client ID, obtained from Chatto Hub or your OIDC provider."`
-	ClientSecret string `toml:"client_secret" env:"CHATTO_AUTH_OIDC_CLIENT_SECRET" comment:"OIDC client secret. NEVER SHARE THIS!"`
-	Label        string `toml:"label,commented" env:"CHATTO_AUTH_OIDC_LABEL" comment:"Button label shown on the login page. Default: 'Chatto Hub'."`
+const (
+	AuthProviderTypeOpenIDConnect = "oidc"
+	AuthProviderTypeGitHub        = "github"
+	AuthProviderTypeGitLab        = "gitlab"
+	AuthProviderTypeGoogle        = "google"
+	AuthProviderTypeDiscord       = "discord"
+)
+
+var authProviderDefaultLabels = map[string]string{
+	AuthProviderTypeOpenIDConnect: "OpenID Connect",
+	AuthProviderTypeGitHub:        "GitHub",
+	AuthProviderTypeGitLab:        "GitLab",
+	AuthProviderTypeGoogle:        "Google",
+	AuthProviderTypeDiscord:       "Discord",
 }
 
-// LabelOrDefault returns the configured label, or "Chatto Hub" if not set.
-func (c *OIDCConfig) LabelOrDefault() string {
-	if c.Label == "" {
-		return "Chatto Hub"
+// AuthProviderConfig contains one configured external login provider. The ID is
+// a stable local issuer namespace for OAuth-only providers and must not be
+// changed after users link identities through it.
+type AuthProviderConfig struct {
+	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type            string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
+	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
+	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
+	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
+	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+}
+
+// LabelOrDefault returns the configured label, or a provider-specific default.
+func (c AuthProviderConfig) LabelOrDefault() string {
+	if c.Label != "" {
+		return c.Label
 	}
-	return c.Label
+	if label, ok := authProviderDefaultLabels[c.Type]; ok {
+		return label
+	}
+	return c.ID
 }
 
-// IsConfigured returns true if OIDC is enabled and all required fields are set.
-func (c *OIDCConfig) IsConfigured() bool {
-	return c.Enabled && c.IssuerURL != "" && c.ClientID != "" && c.ClientSecret != ""
+func (c AuthProviderConfig) RequestEmailOrDefault() bool {
+	if c.RequestEmail == nil {
+		return true
+	}
+	return *c.RequestEmail
+}
+
+func IsAllowedAuthProviderType(providerType string) bool {
+	_, ok := authProviderDefaultLabels[providerType]
+	return ok
 }
 
 type AuthConfig struct {
-	DirectRegistration *bool      `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
-	TokenTTL           Duration   `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
-	OIDC               OIDCConfig `toml:"oidc,commented" comment:"OIDC provider configuration (e.g. Chatto Hub)."`
+	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
 }
 
 // TokenTTLOrDefault returns the configured bearer token TTL, or 90 days if not set.
@@ -333,11 +399,43 @@ func (c *AuthConfig) DirectRegistrationOrDefault() bool {
 	return *c.DirectRegistration
 }
 
-// EnabledProviders returns a list of enabled SSO provider names.
+// EnabledProviders returns a list of configured SSO provider IDs.
 func (c *AuthConfig) EnabledProviders() []string {
-	var providers []string
-	if c.OIDC.IsConfigured() {
-		providers = append(providers, "oidc")
+	providers := make([]string, 0, len(c.Providers))
+	for _, provider := range c.Providers {
+		providers = append(providers, provider.ID)
+	}
+	return providers
+}
+
+// EnabledProviderMethods returns legacy method-oriented SSO provider names.
+// Provider-specific IDs are exposed through PublicProviders/AuthProvider.
+func (c *AuthConfig) EnabledProviderMethods() []string {
+	methods := make([]string, 0, len(c.Providers))
+	seen := make(map[string]struct{}, len(c.Providers))
+	for _, provider := range c.Providers {
+		method := provider.Type
+		if provider.Type == AuthProviderTypeOpenIDConnect {
+			method = "oidc"
+		}
+		if _, ok := seen[method]; ok {
+			continue
+		}
+		seen[method] = struct{}{}
+		methods = append(methods, method)
+	}
+	return methods
+}
+
+// PublicProviders returns login metadata safe to expose before authentication.
+func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
+	providers := make([]AuthProviderConfig, 0, len(c.Providers))
+	for _, provider := range c.Providers {
+		providers = append(providers, AuthProviderConfig{
+			ID:    provider.ID,
+			Type:  provider.Type,
+			Label: provider.LabelOrDefault(),
+		})
 	}
 	return providers
 }
@@ -612,6 +710,7 @@ type ChattoConfig struct {
 	General   GeneralConfig   `toml:"general"`
 	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver WebserverConfig `toml:"webserver"`
+	Metrics   MetricsConfig   `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
 	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
 	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
@@ -699,6 +798,18 @@ func (c *ChattoConfig) Validate() error {
 	if c.Webserver.Port == 0 && !c.Webserver.TLS.Enabled {
 		errs = append(errs, "webserver.port is required when TLS is disabled")
 	}
+	if c.Metrics.Enabled {
+		if c.Metrics.Port < 0 || c.Metrics.Port > 65535 {
+			errs = append(errs, "metrics.port must be between 0 and 65535")
+		}
+		metricsPath := c.Metrics.PathOrDefault()
+		if !strings.HasPrefix(metricsPath, "/") {
+			errs = append(errs, "metrics.path must start with /")
+		}
+		if strings.ContainsAny(metricsPath, "?#") {
+			errs = append(errs, "metrics.path must not contain query strings or fragments")
+		}
+	}
 	if c.NATS.Embedded.Enabled {
 		if c.NATS.Embedded.Port < 0 || c.NATS.Embedded.Port > 65535 {
 			errs = append(errs, "nats.embedded.port must be between 0 and 65535")
@@ -753,6 +864,41 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
+	// External auth providers
+	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
+	for i, provider := range c.Auth.Providers {
+		prefix := fmt.Sprintf("auth.providers[%d]", i)
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when auth providers are configured")
+		}
+		if provider.ID == "" {
+			errs = append(errs, prefix+".id is required")
+		} else if strings.ContainsAny(provider.ID, "/?#") || strings.TrimSpace(provider.ID) != provider.ID {
+			errs = append(errs, prefix+".id must be a stable URL-safe identifier without spaces or path separators")
+		} else if _, exists := seenProviderIDs[provider.ID]; exists {
+			errs = append(errs, fmt.Sprintf("auth provider id %q is configured more than once", provider.ID))
+		} else {
+			seenProviderIDs[provider.ID] = struct{}{}
+		}
+		if !IsAllowedAuthProviderType(provider.Type) {
+			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord")
+		}
+		if provider.ClientID == "" {
+			errs = append(errs, prefix+".client_id is required")
+		}
+		if provider.ClientSecret == "" {
+			errs = append(errs, prefix+".client_secret is required")
+		}
+		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
+			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
+		}
+		if provider.IssuerURL != "" {
+			if err := validateAbsoluteHTTPURL(prefix+".issuer_url", provider.IssuerURL); err != nil {
+				errs = append(errs, err.Error())
+			}
+		}
+	}
+
 	// TLS configuration
 	if c.Webserver.TLS.Enabled {
 		if c.Webserver.TLS.Domain == "" {
@@ -781,22 +927,6 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.SMTP.From == "" {
 			errs = append(errs, "smtp.from is required when SMTP is enabled")
-		}
-	}
-
-	// OIDC configuration
-	if c.Auth.OIDC.Enabled {
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when OIDC is enabled")
-		}
-		if c.Auth.OIDC.IssuerURL == "" {
-			errs = append(errs, "auth.oidc.issuer_url is required when OIDC is enabled")
-		}
-		if c.Auth.OIDC.ClientID == "" {
-			errs = append(errs, "auth.oidc.client_id is required when OIDC is enabled")
-		}
-		if c.Auth.OIDC.ClientSecret == "" {
-			errs = append(errs, "auth.oidc.client_secret is required when OIDC is enabled")
 		}
 	}
 
@@ -908,6 +1038,9 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	if err := env.Parse(&cfg); err != nil {
 		return cfg, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
+	if err := applyAuthProviderEnv(&cfg); err != nil {
+		return cfg, err
+	}
 
 	// 3. Apply derived defaults and normalize harmless spelling differences
 	cfg.ApplyDefaults()
@@ -919,4 +1052,149 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func applyAuthProviderEnv(cfg *ChattoConfig) error {
+	providers, providersSet, err := authProvidersFromEnv()
+	if err != nil {
+		return err
+	}
+	legacyOIDCEnabled := strings.TrimSpace(os.Getenv("CHATTO_AUTH_OIDC_ENABLED"))
+
+	if providersSet {
+		if legacyOIDCEnabled != "" {
+			return fmt.Errorf("CHATTO_AUTH_PROVIDERS_* cannot be combined with legacy CHATTO_AUTH_OIDC_ENABLED")
+		}
+		cfg.Auth.Providers = providers
+		return nil
+	}
+
+	if legacyOIDCEnabled == "" {
+		return nil
+	}
+	enabled, err := strconv.ParseBool(legacyOIDCEnabled)
+	if err != nil {
+		return fmt.Errorf("CHATTO_AUTH_OIDC_ENABLED must be a boolean: %w", err)
+	}
+	if !enabled {
+		cfg.Auth.Providers = nil
+		return nil
+	}
+	label := os.Getenv("CHATTO_AUTH_OIDC_LABEL")
+	if label == "" {
+		label = "Chatto Hub"
+	}
+	cfg.Auth.Providers = []AuthProviderConfig{{
+		ID:           "oidc",
+		Type:         AuthProviderTypeOpenIDConnect,
+		Label:        label,
+		IssuerURL:    os.Getenv("CHATTO_AUTH_OIDC_ISSUER_URL"),
+		ClientID:     os.Getenv("CHATTO_AUTH_OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("CHATTO_AUTH_OIDC_CLIENT_SECRET"),
+	}}
+	return nil
+}
+
+func authProvidersFromEnv() ([]AuthProviderConfig, bool, error) {
+	const prefix = "CHATTO_AUTH_PROVIDERS_"
+	providersByIndex := make(map[int]*AuthProviderConfig)
+
+	for _, entry := range os.Environ() {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		rest := strings.TrimPrefix(name, prefix)
+		indexPart, field, ok := strings.Cut(rest, "_")
+		if !ok {
+			return nil, false, fmt.Errorf("%s must use CHATTO_AUTH_PROVIDERS_<index>_<field>", name)
+		}
+		index, err := strconv.Atoi(indexPart)
+		if err != nil || index < 0 {
+			return nil, false, fmt.Errorf("%s uses invalid provider index %q", name, indexPart)
+		}
+
+		provider := providersByIndex[index]
+		if provider == nil {
+			provider = &AuthProviderConfig{}
+			providersByIndex[index] = provider
+		}
+		if err := applyAuthProviderEnvField(provider, name, field, value); err != nil {
+			return nil, false, err
+		}
+	}
+
+	if len(providersByIndex) == 0 {
+		return nil, false, nil
+	}
+
+	indices := make([]int, 0, len(providersByIndex))
+	for index := range providersByIndex {
+		indices = append(indices, index)
+	}
+	sort.Ints(indices)
+	for expected, index := range indices {
+		if index != expected {
+			return nil, false, fmt.Errorf("CHATTO_AUTH_PROVIDERS_* indexes must be contiguous starting at 0; missing index %d", expected)
+		}
+	}
+
+	providers := make([]AuthProviderConfig, 0, len(indices))
+	for _, index := range indices {
+		providers = append(providers, *providersByIndex[index])
+	}
+	return providers, true, nil
+}
+
+func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value string) error {
+	switch field {
+	case "ID":
+		provider.ID = value
+	case "TYPE":
+		provider.Type = value
+	case "LABEL":
+		provider.Label = value
+	case "CLIENT_ID":
+		provider.ClientID = value
+	case "CLIENT_SECRET":
+		provider.ClientSecret = value
+	case "ISSUER_URL":
+		provider.IssuerURL = value
+	case "SCOPES":
+		provider.Scopes = splitCommaSeparatedEnv(value)
+	case "REQUEST_EMAIL":
+		requestEmail, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("%s must be a boolean: %w", name, err)
+		}
+		provider.RequestEmail = &requestEmail
+	default:
+		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
+		if strings.HasPrefix(field, providerOptionsPrefix) {
+			optionName := strings.ToLower(strings.TrimPrefix(field, providerOptionsPrefix))
+			if optionName == "" {
+				return fmt.Errorf("%s must include a provider option name", name)
+			}
+			if provider.ProviderOptions == nil {
+				provider.ProviderOptions = make(map[string]string)
+			}
+			provider.ProviderOptions[optionName] = value
+			return nil
+		}
+		return fmt.Errorf("%s uses unknown auth provider field %q", name, field)
+	}
+	return nil
+}
+
+func splitCommaSeparatedEnv(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }

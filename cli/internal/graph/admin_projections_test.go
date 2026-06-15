@@ -18,8 +18,11 @@ func TestAdminProjections_State(t *testing.T) {
 	require.NotEmpty(t, projections)
 
 	byName := make(map[string]bool, len(projections))
+	byKey := make(map[string]string, len(projections))
 	for _, p := range projections {
 		byName[p.Name] = true
+		byKey[p.Key] = p.Name
+		require.NotEmpty(t, p.Key)
 		require.NotEmpty(t, p.Subjects, "projection %s should expose subject filters", p.Name)
 		require.NotEmpty(t, p.LastAppliedSequence)
 		require.NotEmpty(t, p.MatchingStreamSequence)
@@ -33,6 +36,7 @@ func TestAdminProjections_State(t *testing.T) {
 	require.True(t, byName["Threads"])
 	require.True(t, byName["Reactions"])
 	require.True(t, byName["Content Keys"])
+	require.Equal(t, "Content Keys", byKey["content_keys"])
 }
 
 func TestAdminProjections_AuthorizationDenied(t *testing.T) {

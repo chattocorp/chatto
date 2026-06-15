@@ -752,6 +752,40 @@ func TestChattoCore_AddPasswordToOAuthUser(t *testing.T) {
 	}
 }
 
+func TestChattoCore_LinkExternalIdentity(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "externaluser", "External User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "system", "externalother", "External Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity idempotent: %v", err)
+	}
+
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "12345")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found == nil || found.Id != user.Id {
+		t.Fatalf("GetUserByExternalIdentity = %v, want %s", found, user.Id)
+	}
+
+	err = core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", other.Id)
+	if !errors.Is(err, ErrExternalIdentityAlreadyClaimed) {
+		t.Fatalf("LinkExternalIdentity conflict error = %v, want ErrExternalIdentityAlreadyClaimed", err)
+	}
+}
+
 func TestChattoCore_CreateUser_ShortPassword(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
