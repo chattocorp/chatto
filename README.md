@@ -20,27 +20,6 @@ A lot of projects say this and people often ignore it, so let me spell things ou
 
 It should be no surprise that we are working hard to move towards a release that can give better guarantees, but we're not there yet.
 
-## Development with Conductor
-
-[Conductor](https://conductor.build) workspaces run the dev stack natively via `tilt up` — no Docker or Kubernetes required. The `run` script in `.conductor/settings.toml` wires Conductor's assigned `$CONDUCTOR_PORT` (and `+1` / `+2`) into the env vars the `Tiltfile` reads:
-
-| Port              | Process                              |
-| ----------------- | ------------------------------------ |
-| `$CONDUCTOR_PORT` | Vite dev server (user-facing URL)    |
-| `+1`              | Go backend (`CHATTO_WEBSERVER_PORT`) |
-| `+2`              | Embedded NATS                        |
-| `+9`              | Tilt web UI                          |
-
-Outside Conductor, `mise x -- tilt up --stream` uses the defaults from the `Tiltfile` (Vite 5173, backend 4000, NATS 4555).
-
-The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command starts Tilt in streaming mode and lets Tilt supervise the backend, frontend, and GraphQL codegen processes. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
-
-Each instance is bootstrapped with the same dev credentials (configured in `cli/chatto.toml` under `[[bootstrap.users]]`):
-
-- **Login:** `alice`
-- **Email:** `alice@example.com`
-- **Password:** `foobar123`
-
 ## License
 
 Chatto is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE). This means:
@@ -53,4 +32,4 @@ For full details, see the [LICENSE](LICENSE) file or run `chatto license`.
 
 ## Contributing
 
-This project is **not accepting outside contributions** at this time. If you have feedback, bug reports, or ideas, please [get in touch](mailto:hendrik@mans.de) — we'd love to hear from you.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local development notes. This project is **not accepting outside contributions** at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik@mans.de).
