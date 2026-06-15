@@ -95,12 +95,6 @@ var initCmd = &cobra.Command{
 				},
 			},
 			NATS: config.NATSConfig{
-				// Client config for CLI commands to connect to the embedded server
-				Client: config.NATSClientConfig{
-					URL:        "nats://localhost:4222",
-					AuthMethod: config.NATSAuthToken,
-					Token:      authTokenString,
-				},
 				Embedded: config.EmbeddedNATSConfig{
 					Enabled:     true,
 					Port:        4222,

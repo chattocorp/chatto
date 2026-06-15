@@ -46,29 +46,28 @@ This document uses the canonical terms from the [glossary](GLOSSARY.md), especia
 
 ## NATS Authentication
 
-Chatto supports multiple methods for authenticating with NATS, configured via `[nats.client]` in `chatto.toml`:
+Chatto supports embedded NATS for single-process/self-hosted installs and external NATS for clustered deployments. Embedded NATS is configured under `[nats.embedded]`; when the embedded TCP listener is enabled, `ReadConfig` derives matching `[nats.client]` defaults for CLI/admin commands. External NATS connections are configured explicitly via `[nats.client]`.
 
-| Method        | Config             | Description                                                      |
-| ------------- | ------------------ | ---------------------------------------------------------------- |
-| `nkey`        | `nkey_seed`        | Default for embedded NATS. Uses Ed25519 keypairs.                |
-| `userpass`    | `username`, `password` | Simple username/password authentication.                      |
-| `credentials` | `credentials_file` | JWT authentication via standard `.creds` file (for external NATS). |
-| `none`        | -                  | No authentication (for trusted networks only).                   |
+| Method        | Config                                  | Description                                                       |
+| ------------- | --------------------------------------- | ----------------------------------------------------------------- |
+| `token`       | `token` / `nats.embedded.auth_token`    | Default for embedded NATS and simple external deployments.        |
+| `userpass`    | `username`, `password`                  | Simple username/password authentication.                          |
+| `credentials` | `credentials_file`                      | JWT authentication via standard `.creds` file for external NATS.  |
+| `nkey`        | `nkey_seed`                             | NKey seed auth for external NATS deployments that use NKeys.      |
+| `none`        | -                                       | No authentication; only acceptable on trusted private networks.   |
 
 **Embedded NATS Setup:**
 
 When using embedded NATS (default), `chatto init` generates:
-- `chatto.toml` with NKey seed in `[nats.client]`
-- `nats-server.conf` with the corresponding public key in `authorization.users`
-
-The `nats-server.conf` file is auto-generated on first startup if missing. Users can edit it to add clustering, TLS, or additional authorization rules.
+- `chatto.toml` with `[nats.embedded]`, a local TCP listener, JetStream data directory, and generated `auth_token`
+- Derived `[nats.client]` connection defaults at config-load time so CLI commands can connect to the embedded server without duplicating the token in the file
 
 **External NATS Setup:**
 
-For connecting to an external NATS cluster with JWT authentication:
+For connecting to an external NATS cluster:
 1. Set `nats.embedded.enabled = false`
-2. Set `nats.client.auth_method = "credentials"`
-3. Set `nats.client.credentials_file = "path/to/your.creds"`
+2. Set `nats.client.url` to the external NATS URL(s)
+3. Set `nats.client.auth_method` plus the matching credential field (`token`, `username`/`password`, `credentials_file`, or `nkey_seed`)
 
 ## Architecture & APIs
 

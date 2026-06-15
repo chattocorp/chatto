@@ -24,7 +24,8 @@ import (
 func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.BootstrapConfig) {
 	logger := log.WithPrefix("bootstrap")
 
-	hasServer := cfg.Server != nil
+	serverConfig := cfg.ServerOrDefault()
+	hasServer := serverConfig != nil
 	if len(cfg.Users) == 0 && !hasServer {
 		// Always log something so operators can confirm the bootstrap path ran.
 		// At debug level so a config without a [bootstrap] section doesn't add
@@ -56,7 +57,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		if firstUserID == "" {
 			firstUserID = userID
 		}
-		if ownerID == "" && u.ServerRole == "owner" {
+		if ownerID == "" && u.RoleOrDefault() == "owner" {
 			ownerID = userID
 		}
 		if created {
@@ -74,16 +75,16 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 	serverCreated := false
 	if hasServer {
 		if ownerID == "" {
-			logger.Error("[bootstrap] instance requires at least one user; skipping server setup")
+			logger.Error("[bootstrap] server requires at least one user; skipping server setup")
 		} else {
-			serverCreated = applyBootstrapServer(ctx, logger, c, *cfg.Server, ownerID, bootstrapUserIDs)
+			serverCreated = applyBootstrapServer(ctx, logger, c, *serverConfig, ownerID, bootstrapUserIDs)
 		}
 	}
 
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,
 		"users_existing", usersExisting,
-		"instance_created", serverCreated,
+		"server_created", serverCreated,
 	)
 }
 
@@ -146,7 +147,7 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 	if existing, err := c.GetUserByLogin(ctx, u.Login); err == nil && existing != nil {
 		logger.Debug("[bootstrap] user already exists; skipping create", "user_id", existing.Id)
 		// Still try to apply role + email below (idempotent).
-		assignBootstrapRole(ctx, logger, c, existing.Id, u.ServerRole)
+		assignBootstrapRole(ctx, logger, c, existing.Id, u.RoleOrDefault())
 		ensureBootstrapEmail(ctx, logger, c, existing.Id, u.Email)
 		return existing.Id, false
 	}
@@ -163,7 +164,7 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 	}
 
 	ensureBootstrapEmail(ctx, logger, c, user.Id, u.Email)
-	assignBootstrapRole(ctx, logger, c, user.Id, u.ServerRole)
+	assignBootstrapRole(ctx, logger, c, user.Id, u.RoleOrDefault())
 
 	return user.Id, true
 }
@@ -193,7 +194,7 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 	case "moderator":
 		roleName = core.RoleModerator
 	default:
-		logger.Warn("Unknown instance_role in [bootstrap]; ignoring", "user_id", userID, "role", role)
+		logger.Warn("Unknown server_role in [bootstrap]; ignoring", "user_id", userID, "role", role)
 		return
 	}
 	// SystemActorID bypasses hierarchy checks — bootstrap operates as the system.
@@ -211,7 +212,7 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 // skipped).
 func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapServer, ownerID string, bootstrapUserIDs []string) bool {
 	if inst.Name == "" {
-		logger.Error("Skipping [bootstrap.instance] with empty name")
+		logger.Error("Skipping [bootstrap.server] with empty name")
 		return false
 	}
 
@@ -221,7 +222,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	if cm := c.ConfigManager(); cm != nil {
 		current, err := cm.GetServerConfig(ctx)
 		if err != nil {
-			logger.Warn("Failed to read server config before [bootstrap.instance] seed", "error", err)
+			logger.Warn("Failed to read server config before [bootstrap.server] seed", "error", err)
 		} else if current == nil || current.ServerName == "" {
 			if _, err := cm.UpdateServerConfigFunc(ctx, "system:bootstrap", func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 				if current == nil {
@@ -232,7 +233,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 				}
 				return current, nil
 			}); err != nil {
-				logger.Warn("Failed to seed server config from [bootstrap.instance]", "error", err)
+				logger.Warn("Failed to seed server config from [bootstrap.server]", "error", err)
 			}
 		}
 	}

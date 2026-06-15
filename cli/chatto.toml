@@ -47,11 +47,6 @@ url = 'ws://livekit.chatto-tools.orb.local:7880'
 api_key = 'devkey'
 api_secret = 'secret'
 
-[nats.client]
-url = 'nats://localhost:4555'
-auth_method = 'token'
-token = 'd5ed70d13c4682609dfd0a4f65bf7e59ef22f3be8502762b501d3b7cf0b73b43'
-
 [nats.embedded]
 enabled = true
 port = 4555
@@ -67,7 +62,7 @@ login = 'alice'
 display_name = 'Alice'
 email = 'alice@example.com'
 password = 'foobar123'
-instance_role = 'owner'
+server_role = 'owner'
 
 [[bootstrap.users]]
 login = 'bob'
@@ -75,5 +70,5 @@ display_name = 'Bob'
 email = 'bob@example.com'
 password = 'foobar123'
 
-[bootstrap.instance]
+[bootstrap.server]
 name = 'Local Development'

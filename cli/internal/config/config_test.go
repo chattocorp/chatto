@@ -22,10 +22,10 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 
 	// Set required env vars
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
-	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "000102030405060708090a0b0c0d0e0f")
-	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
-	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 
 	// ReadConfig should succeed even without chatto.toml
 	cfg, err := ReadConfig("")
@@ -37,13 +37,13 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	if cfg.Webserver.Port != 4000 {
 		t.Errorf("expected port 4000, got %d", cfg.Webserver.Port)
 	}
-	if cfg.Webserver.CookieSigningSecret != "test-cookie-secret" {
+	if cfg.Webserver.CookieSigningSecret != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
 		t.Errorf("expected cookie secret to be set from env var")
 	}
 	if cfg.Webserver.CookieEncryptionSecret != "000102030405060708090a0b0c0d0e0f" {
 		t.Errorf("expected cookie encryption secret to be set from env var")
 	}
-	if cfg.Core.SecretKey != "test-core-secret" {
+	if cfg.Core.SecretKey != "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789" {
 		t.Errorf("expected core secret to be set from env var")
 	}
 }
@@ -64,13 +64,13 @@ func TestReadConfig_WithConfigFile(t *testing.T) {
 	configContent := `
 [webserver]
 port = 5000
-cookie_signing_secret = "file-cookie-secret"
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [core]
-secret_key = "file-core-secret"
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
-signing_secret = "file-assets-secret"
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -104,13 +104,13 @@ func TestReadConfig_EnvOverridesFile(t *testing.T) {
 	configContent := `
 [webserver]
 port = 5000
-cookie_signing_secret = "file-cookie-secret"
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [core]
-secret_key = "file-core-secret"
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
-signing_secret = "file-assets-secret"
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -142,14 +142,114 @@ func TestReadConfig_InvalidCookieEncryptionSecretFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
-	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "not-hex")
-	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
-	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 
 	_, err = ReadConfig("")
 	if err == nil || !strings.Contains(err.Error(), "webserver.cookie_encryption_secret must be hex-encoded") {
 		t.Fatalf("ReadConfig() error = %v, want cookie encryption validation error", err)
+	}
+}
+
+func TestReadConfig_ValidatesEnvOverrides(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    string
+		env       map[string]string
+		wantError string
+	}{
+		{
+			name: "required secret overridden by env must be valid hex",
+			config: `
+[webserver]
+port = 5000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`,
+			env: map[string]string{
+				"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET": "not-hex",
+			},
+			wantError: "webserver.cookie_signing_secret must be hex-encoded",
+		},
+		{
+			name: "allowed origins overridden by env must be real origins",
+			config: `
+[webserver]
+port = 5000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+allowed_origins = ["https://client.example"]
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`,
+			env: map[string]string{
+				"CHATTO_WEBSERVER_ALLOWED_ORIGINS": "https://client.example/path",
+			},
+			wantError: "webserver.allowed_origins contains invalid origin",
+		},
+		{
+			name: "OIDC enabled through env must include client secret",
+			env: map[string]string{
+				"CHATTO_WEBSERVER_PORT":                  "4000",
+				"CHATTO_WEBSERVER_URL":                   "https://chat.example",
+				"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+				"CHATTO_CORE_SECRET_KEY":                 "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				"CHATTO_CORE_ASSETS_SIGNING_SECRET":      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+				"CHATTO_AUTH_OIDC_ENABLED":               "true",
+				"CHATTO_AUTH_OIDC_ISSUER_URL":            "https://id.example",
+				"CHATTO_AUTH_OIDC_CLIENT_ID":             "chatto",
+			},
+			wantError: "auth.oidc.client_secret is required when OIDC is enabled",
+		},
+		{
+			name: "webserver URL from env must include scheme and host",
+			env: map[string]string{
+				"CHATTO_WEBSERVER_PORT":                  "4000",
+				"CHATTO_WEBSERVER_URL":                   "chat.example",
+				"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+				"CHATTO_CORE_SECRET_KEY":                 "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				"CHATTO_CORE_ASSETS_SIGNING_SECRET":      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+			},
+			wantError: "webserver.url must use http or https",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
+			}
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("failed to change to temp directory: %v", err)
+			}
+			t.Cleanup(func() { os.Chdir(originalDir) })
+
+			if tt.config != "" {
+				if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(tt.config), 0644); err != nil {
+					t.Fatalf("failed to write config file: %v", err)
+				}
+			}
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+
+			_, err = ReadConfig("")
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("ReadConfig() error = %v, want to contain %q", err, tt.wantError)
+			}
+		})
 	}
 }
 
@@ -170,13 +270,13 @@ log_format = "text"
 
 [webserver]
 port = 5000
-cookie_signing_secret = "file-cookie-secret"
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [core]
-secret_key = "file-core-secret"
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
-signing_secret = "file-assets-secret"
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -214,14 +314,14 @@ func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
 	configContent := `
 [webserver]
 port = 5000
-cookie_signing_secret = "file-cookie-secret"
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 oauth_redirect_origins = ["https://client.example"]
 
 [core]
-secret_key = "file-core-secret"
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
-signing_secret = "file-assets-secret"
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -259,13 +359,13 @@ func TestReadConfig_S3PathPrefixFromTOMLAndEnv(t *testing.T) {
 	configContent := `
 [webserver]
 port = 5000
-cookie_signing_secret = "file-cookie-secret"
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [core]
-secret_key = "file-core-secret"
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
-signing_secret = "file-assets-secret"
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 storage_backend = "s3"
 
 [core.assets.s3]
@@ -273,7 +373,7 @@ endpoint = "s3.amazonaws.com"
 bucket = "test-bucket"
 path_prefix = "/tenant-a/chatto/"
 access_key_id = "test-key"
-secret_access_key = "test-secret"
+secret_access_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -309,9 +409,9 @@ func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
-	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "test-cookie-secret")
-	t.Setenv("CHATTO_CORE_SECRET_KEY", "test-core-secret")
-	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "test-assets-secret")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_SMTP_TLS", "opportunistic")
 
 	cfg, err := ReadConfig("")
@@ -467,14 +567,23 @@ func intPtr(i int) *int {
 	return &i
 }
 
-func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
-	base := ChattoConfig{
-		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
+func validTestConfig() ChattoConfig {
+	return ChattoConfig{
+		Webserver: WebserverConfig{
+			Port:                4000,
+			CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		},
 		Core: CoreConfig{
-			SecretKey: "core-secret",
-			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
+			SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+			Assets: AssetsConfig{
+				SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+			},
 		},
 	}
+}
+
+func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
+	base := validTestConfig()
 
 	tests := []struct {
 		name     string
@@ -502,6 +611,27 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 			},
 			errorMsg: "core.assets.signing_secret is required",
 		},
+		{
+			name: "core secret must be hex",
+			modify: func(c *ChattoConfig) {
+				c.Core.SecretKey = "not-hex"
+			},
+			errorMsg: "core.secret_key must be hex-encoded",
+		},
+		{
+			name: "webserver cookie secret must be 32 bytes",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.CookieSigningSecret = "000102"
+			},
+			errorMsg: "webserver.cookie_signing_secret must decode to 32 bytes",
+		},
+		{
+			name: "asset signing secret must be 32 bytes",
+			modify: func(c *ChattoConfig) {
+				c.Core.Assets.SigningSecret = "000102"
+			},
+			errorMsg: "core.assets.signing_secret must decode to 32 bytes",
+		},
 	}
 
 	for _, tt := range tests {
@@ -517,13 +647,7 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 }
 
 func TestChattoConfig_Validate_CookieEncryptionSecret(t *testing.T) {
-	base := ChattoConfig{
-		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
-		Core: CoreConfig{
-			SecretKey: "core-secret",
-			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
-		},
-	}
+	base := validTestConfig()
 
 	tests := []struct {
 		name      string
@@ -576,13 +700,7 @@ func TestChattoConfig_Validate_CookieEncryptionSecret(t *testing.T) {
 }
 
 func TestChattoConfig_Validate_LogFormat(t *testing.T) {
-	base := ChattoConfig{
-		Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "web-secret"},
-		Core: CoreConfig{
-			SecretKey: "core-secret",
-			Assets:    AssetsConfig{SigningSecret: "asset-secret"},
-		},
-	}
+	base := validTestConfig()
 
 	for _, format := range []string{"", "auto", "text", "json", "logfmt", "JSON"} {
 		t.Run("valid_"+format, func(t *testing.T) {
@@ -599,6 +717,302 @@ func TestChattoConfig_Validate_LogFormat(t *testing.T) {
 	err := cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "general.log_format must be one of: auto, text, json, logfmt") {
 		t.Fatalf("Validate() error = %v, want invalid log_format error", err)
+	}
+}
+
+func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
+	tests := []struct {
+		name      string
+		modify    func(*ChattoConfig)
+		wantError string
+	}{
+		{
+			name: "valid webserver URL and origins",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example"
+				c.Webserver.AllowedOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
+				c.Webserver.OAuthRedirectOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
+			},
+		},
+		{
+			name: "webserver URL requires http or https",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "chat.example"
+			},
+			wantError: "webserver.url must use http or https",
+		},
+		{
+			name: "allowed origin rejects paths",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.AllowedOrigins = []string{"https://client.example/path"}
+			},
+			wantError: "webserver.allowed_origins contains invalid origin",
+		},
+		{
+			name: "OAuth origin requires https outside loopback",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.OAuthRedirectOrigins = []string{"http://client.example"}
+			},
+			wantError: "non-loopback OAuth redirect origins must use https",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("Validate() unexpected error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestChattoConfig_Validate_OIDC(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example"
+	cfg.Auth.OIDC = OIDCConfig{
+		Enabled:      true,
+		IssuerURL:    "https://id.example",
+		ClientID:     "chatto",
+		ClientSecret: "secret",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() with complete OIDC config failed: %v", err)
+	}
+	if !cfg.Auth.OIDC.IsConfigured() {
+		t.Fatal("complete OIDC config should be configured")
+	}
+
+	cfg.Auth.OIDC.ClientSecret = ""
+	if cfg.Auth.OIDC.IsConfigured() {
+		t.Fatal("OIDC without client_secret should not be configured")
+	}
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "auth.oidc.client_secret is required when OIDC is enabled") {
+		t.Fatalf("Validate() error = %v, want missing OIDC client secret", err)
+	}
+}
+
+func TestChattoConfig_Validate_EnabledIntegrationsRequireWebserverURL(t *testing.T) {
+	tests := []struct {
+		name      string
+		modify    func(*ChattoConfig)
+		wantError string
+	}{
+		{
+			name: "SMTP",
+			modify: func(c *ChattoConfig) {
+				c.SMTP.Enabled = true
+				c.SMTP.Host = "smtp.example.com"
+				c.SMTP.Port = 587
+				c.SMTP.From = "noreply@example.com"
+			},
+			wantError: "webserver.url is required when SMTP is enabled",
+		},
+		{
+			name: "OIDC",
+			modify: func(c *ChattoConfig) {
+				c.Auth.OIDC = OIDCConfig{
+					Enabled:      true,
+					IssuerURL:    "https://id.example",
+					ClientID:     "chatto",
+					ClientSecret: "secret",
+				}
+			},
+			wantError: "webserver.url is required when OIDC is enabled",
+		},
+		{
+			name: "push",
+			modify: func(c *ChattoConfig) {
+				c.Push.Enabled = true
+				c.Push.VAPIDPublicKey = "public-key"
+				c.Push.VAPIDPrivateKey = "private-key"
+				c.Push.VAPIDSubject = "mailto:admin@example.com"
+			},
+			wantError: "webserver.url is required when push is enabled",
+		},
+		{
+			name: "LiveKit",
+			modify: func(c *ChattoConfig) {
+				c.LiveKit.Enabled = true
+				c.LiveKit.URL = "wss://livekit.example"
+				c.LiveKit.APIKey = "key"
+				c.LiveKit.APISecret = "secret"
+			},
+			wantError: "webserver.url is required when LiveKit is enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestChattoConfig_ApplyDefaultsAndNormalize(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example"
+	cfg.NATS.Embedded = EmbeddedNATSConfig{
+		Enabled:   true,
+		Port:      4222,
+		AuthToken: "nats-token",
+	}
+	cfg.LiveKit = LiveKitConfig{
+		Enabled:    true,
+		URL:        "wss://livekit.example",
+		APIKey:     "key",
+		APISecret:  "secret",
+		InstanceID: "legacy-server-id",
+	}
+	cfg.Core.Assets.StorageBackend = StorageBackendS3
+	cfg.Core.Assets.S3 = S3Config{
+		Endpoint:        "s3.amazonaws.com",
+		Bucket:          "assets",
+		PathPrefix:      "/tenant/chatto/",
+		AccessKeyID:     "key",
+		SecretAccessKey: "secret",
+	}
+	cfg.Bootstrap.LegacyInstance = &BootstrapServer{Name: "Legacy"}
+	cfg.Bootstrap.Users = []BootstrapUser{{Login: "alice", InstanceRole: "owner"}}
+
+	cfg.ApplyDefaults()
+	cfg.Normalize()
+
+	if cfg.NATS.Client.URL != "nats://127.0.0.1:4222" {
+		t.Fatalf("derived NATS client URL = %q", cfg.NATS.Client.URL)
+	}
+	if cfg.NATS.Client.AuthMethod != NATSAuthToken || cfg.NATS.Client.Token != "nats-token" {
+		t.Fatalf("derived NATS client auth = %q/%q", cfg.NATS.Client.AuthMethod, cfg.NATS.Client.Token)
+	}
+	if cfg.LiveKit.ServerID != "legacy-server-id" {
+		t.Fatalf("LiveKit server ID = %q", cfg.LiveKit.ServerID)
+	}
+	if cfg.LiveKit.WebhookURL != "https://chat.example/webhooks/livekit" {
+		t.Fatalf("LiveKit webhook URL = %q", cfg.LiveKit.WebhookURL)
+	}
+	if cfg.Core.Assets.S3.PathPrefix != "tenant/chatto" {
+		t.Fatalf("normalized S3 prefix = %q", cfg.Core.Assets.S3.PathPrefix)
+	}
+	if cfg.Bootstrap.Server == nil || cfg.Bootstrap.Server.Name != "Legacy" {
+		t.Fatalf("bootstrap server alias was not applied: %+v", cfg.Bootstrap.Server)
+	}
+	if cfg.Bootstrap.Users[0].ServerRole != "owner" {
+		t.Fatalf("bootstrap server_role alias = %q", cfg.Bootstrap.Users[0].ServerRole)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() after defaults failed: %v", err)
+	}
+}
+
+func TestChattoConfig_ValidateDoesNotMutate(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example"
+	cfg.LiveKit = LiveKitConfig{
+		Enabled:   true,
+		URL:       "wss://livekit.example",
+		APIKey:    "key",
+		APISecret: "secret",
+	}
+	cfg.Core.Assets.StorageBackend = StorageBackendS3
+	cfg.Core.Assets.S3 = S3Config{
+		Endpoint:        "s3.amazonaws.com",
+		Bucket:          "assets",
+		PathPrefix:      "/tenant/chatto/",
+		AccessKeyID:     "key",
+		SecretAccessKey: "secret",
+	}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() unexpected error = %v", err)
+	}
+	if cfg.LiveKit.WebhookURL != "" {
+		t.Fatalf("Validate() mutated LiveKit webhook URL to %q", cfg.LiveKit.WebhookURL)
+	}
+	if cfg.Core.Assets.S3.PathPrefix != "/tenant/chatto/" {
+		t.Fatalf("Validate() mutated S3 path prefix to %q", cfg.Core.Assets.S3.PathPrefix)
+	}
+}
+
+func TestChattoConfig_Validate_NATSClientTokenMatchesEmbedded(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.NATS.Embedded = EmbeddedNATSConfig{
+		Enabled:   true,
+		Port:      4222,
+		AuthToken: "embedded-token",
+	}
+	cfg.NATS.Client = NATSClientConfig{
+		AuthMethod: NATSAuthToken,
+		Token:      "other-token",
+	}
+
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "nats.client.token must match nats.embedded.auth_token") {
+		t.Fatalf("Validate() error = %v, want NATS token mismatch", err)
+	}
+}
+
+func TestReadConfig_DeprecatedServerAliases(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 4000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+[livekit]
+instance_id = "legacy-server-id"
+
+[[bootstrap.users]]
+login = "alice"
+instance_role = "owner"
+
+[bootstrap.instance]
+name = "Legacy Bootstrap"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.LiveKit.ServerID != "legacy-server-id" {
+		t.Fatalf("LiveKit legacy instance_id alias = %q", cfg.LiveKit.ServerID)
+	}
+	if cfg.Bootstrap.Server == nil || cfg.Bootstrap.Server.Name != "Legacy Bootstrap" {
+		t.Fatalf("bootstrap legacy instance alias = %+v", cfg.Bootstrap.Server)
+	}
+	if got := cfg.Bootstrap.Users[0].ServerRole; got != "owner" {
+		t.Fatalf("bootstrap legacy instance_role alias = %q", got)
 	}
 }
 
@@ -631,13 +1045,13 @@ func TestReadConfig_LimitsFromTOML(t *testing.T) {
 	configContent := `
 [webserver]
 port = 4000
-cookie_signing_secret = "x"
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [core]
-secret_key = "z"
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
-signing_secret = "y"
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
 [limits]
 max_users = -1
@@ -664,9 +1078,9 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
-	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "x")
-	t.Setenv("CHATTO_CORE_SECRET_KEY", "z")
-	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "y")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_LIMITS_MAX_USERS", "0")
 
 	cfg, err := ReadConfig("")
@@ -681,8 +1095,8 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 func TestChattoConfig_Validate_Limits(t *testing.T) {
 	base := func() ChattoConfig {
 		return ChattoConfig{
-			Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "x"},
-			Core:      CoreConfig{SecretKey: "z", Assets: AssetsConfig{SigningSecret: "y"}},
+			Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+			Core:      CoreConfig{SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", Assets: AssetsConfig{SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"}},
 		}
 	}
 
@@ -710,12 +1124,12 @@ func TestChattoConfig_Validate_TLS(t *testing.T) {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
 				Port:                4000,
-				CookieSigningSecret: "test-secret",
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
 			Core: CoreConfig{
-				SecretKey: "test-core-secret",
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 				Assets: AssetsConfig{
-					SigningSecret: "test-asset-secret",
+					SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 				},
 			},
 		}
@@ -833,12 +1247,12 @@ func TestChattoConfig_Validate_EmbeddedNATS(t *testing.T) {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
 				Port:                4000,
-				CookieSigningSecret: "test-secret",
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
 			Core: CoreConfig{
-				SecretKey: "test-core-secret",
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 				Assets: AssetsConfig{
-					SigningSecret: "test-asset-secret",
+					SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 				},
 			},
 			NATS: NATSConfig{
@@ -961,12 +1375,12 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
 				Port:                4000,
-				CookieSigningSecret: "test-secret",
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
 			Core: CoreConfig{
-				SecretKey: "test-core-secret",
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 				Assets: AssetsConfig{
-					SigningSecret: "test-asset-secret",
+					SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 				},
 			},
 		}
@@ -986,6 +1400,7 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 		{
 			name: "valid config with SMTP",
 			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example"
 				c.SMTP.Enabled = true
 				c.SMTP.Host = "smtp.example.com"
 				c.SMTP.Port = 587
@@ -996,6 +1411,7 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 		{
 			name: "valid config with explicit mandatory SMTP TLS",
 			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example"
 				c.SMTP.Enabled = true
 				c.SMTP.Host = "smtp.example.com"
 				c.SMTP.Port = 587
@@ -1007,6 +1423,7 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 		{
 			name: "valid config with explicit opportunistic SMTP TLS",
 			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example"
 				c.SMTP.Enabled = true
 				c.SMTP.Host = "smtp.example.com"
 				c.SMTP.Port = 587
@@ -1092,12 +1509,12 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
 				Port:                4000,
-				CookieSigningSecret: "test-secret",
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
 			Core: CoreConfig{
-				SecretKey: "test-core-secret",
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 				Assets: AssetsConfig{
-					SigningSecret: "test-asset-secret",
+					SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 				},
 			},
 		}
@@ -1123,7 +1540,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 					Bucket:          "test-bucket",
 					Region:          "us-east-1",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: false,
@@ -1137,7 +1554,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 					Bucket:          "test-bucket",
 					PathPrefix:      "/",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: false,
@@ -1151,7 +1568,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 					Bucket:          "test-bucket",
 					PathPrefix:      "/tenant-a/chatto/",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: false,
@@ -1165,7 +1582,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 					Bucket:          "test-bucket",
 					PathPrefix:      "tenant//chatto",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: true,
@@ -1180,7 +1597,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 					Bucket:          "test-bucket",
 					PathPrefix:      "tenant\nchatto",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: true,
@@ -1193,7 +1610,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 				c.Core.Assets.S3 = S3Config{
 					Bucket:          "test-bucket",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: true,
@@ -1206,7 +1623,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 				c.Core.Assets.S3 = S3Config{
 					Endpoint:        "s3.amazonaws.com",
 					AccessKeyID:     "test-key",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: true,
@@ -1219,7 +1636,7 @@ func TestChattoConfig_Validate_S3(t *testing.T) {
 				c.Core.Assets.S3 = S3Config{
 					Endpoint:        "s3.amazonaws.com",
 					Bucket:          "test-bucket",
-					SecretAccessKey: "test-secret",
+					SecretAccessKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				}
 			},
 			wantError: true,
@@ -1391,12 +1808,12 @@ func TestChattoConfig_Validate_Push(t *testing.T) {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
 				Port:                4000,
-				CookieSigningSecret: "test-secret",
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},
 			Core: CoreConfig{
-				SecretKey: "test-core-secret",
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
 				Assets: AssetsConfig{
-					SigningSecret: "test-asset-secret",
+					SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 				},
 			},
 		}
@@ -1416,6 +1833,7 @@ func TestChattoConfig_Validate_Push(t *testing.T) {
 		{
 			name: "valid config with push",
 			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example"
 				c.Push.Enabled = true
 				c.Push.VAPIDPublicKey = "public-key"
 				c.Push.VAPIDPrivateKey = "private-key"

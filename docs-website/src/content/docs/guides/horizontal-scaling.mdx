@@ -121,13 +121,13 @@ startupProbe:
 
 ## Voice and Video Calls with Multiple Server Processes
 
-If you're using LiveKit for calls, set a unique `instance_id` on each Chatto server process so LiveKit webhooks are routed correctly:
+If you're using LiveKit for calls, set the same `server_id` on every replica of one Chatto server. Use a different value only for different Chatto servers that share the same LiveKit cluster:
 
 ```bash
-CHATTO_LIVEKIT_INSTANCE_ID=server-1
+CHATTO_LIVEKIT_SERVER_ID=server-1
 ```
 
-The `instance_id` is prefixed to LiveKit room names, allowing the webhook handler to identify which Chatto server process should process each event. Without it, webhooks may be misrouted when multiple server processes share a LiveKit cluster.
+The `server_id` is prefixed to deterministic LiveKit room names, allowing the webhook handler to identify which Chatto server owns each event. If replicas of the same Chatto server use different values, users routed to different replicas can receive tokens for different LiveKit rooms for the same Chatto room.
 
 ## Load Balancing
 
@@ -149,7 +149,7 @@ The [Docker Compose deployment guide](/guides/dockercompose/) includes a Caddy c
 | `core.secret_key` | Yes | Bearer-token and account-flow verifier keys |
 | `core.assets.signing_secret` | Yes | Asset URL signing |
 | `webserver.url` | Yes | Public URL for absolute links |
-| `livekit.instance_id` | **No** — must be unique | Webhook routing |
+| `livekit.server_id` | Yes, within one Chatto server | Use a different value only across Chatto servers sharing one LiveKit cluster |
 
 <CardGrid>
   <LinkCard title="High Availability" href="/guides/high-availability/" description="NATS clustering and JetStream replication for fault tolerance." />
