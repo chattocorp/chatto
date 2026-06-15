@@ -290,21 +290,19 @@ type CoreConfig struct {
 }
 
 const (
-	AuthProviderTypeOpenIDConnect   = "openid-connect"
-	AuthProviderTypeGitHub          = "github"
-	AuthProviderTypeGitLab          = "gitlab"
-	AuthProviderTypeGoogle          = "google"
-	AuthProviderTypeDiscord         = "discord"
-	AuthProviderTypeMicrosoftOnline = "microsoftonline"
+	AuthProviderTypeOpenIDConnect = "openid-connect"
+	AuthProviderTypeGitHub        = "github"
+	AuthProviderTypeGitLab        = "gitlab"
+	AuthProviderTypeGoogle        = "google"
+	AuthProviderTypeDiscord       = "discord"
 )
 
 var authProviderDefaultLabels = map[string]string{
-	AuthProviderTypeOpenIDConnect:   "OpenID Connect",
-	AuthProviderTypeGitHub:          "GitHub",
-	AuthProviderTypeGitLab:          "GitLab",
-	AuthProviderTypeGoogle:          "Google",
-	AuthProviderTypeDiscord:         "Discord",
-	AuthProviderTypeMicrosoftOnline: "Microsoft",
+	AuthProviderTypeOpenIDConnect: "OpenID Connect",
+	AuthProviderTypeGitHub:        "GitHub",
+	AuthProviderTypeGitLab:        "GitLab",
+	AuthProviderTypeGoogle:        "Google",
+	AuthProviderTypeDiscord:       "Discord",
 }
 
 // AuthProviderConfig contains one configured external login provider. The ID is
@@ -312,7 +310,7 @@ var authProviderDefaultLabels = map[string]string{
 // changed after users link identities through it.
 type AuthProviderConfig struct {
 	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type            string            `toml:"type" comment:"Provider type: openid-connect, github, gitlab, google, discord, or microsoftonline."`
+	Type            string            `toml:"type" comment:"Provider type: openid-connect, github, gitlab, google, or discord."`
 	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
 	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
 	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
@@ -836,7 +834,7 @@ func (c *ChattoConfig) Validate() error {
 			seenProviderIDs[provider.ID] = struct{}{}
 		}
 		if !IsAllowedAuthProviderType(provider.Type) {
-			errs = append(errs, prefix+".type must be one of: openid-connect, github, gitlab, google, discord, microsoftonline")
+			errs = append(errs, prefix+".type must be one of: openid-connect, github, gitlab, google, discord")
 		}
 		if provider.ClientID == "" {
 			errs = append(errs, prefix+".client_id is required")

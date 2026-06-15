@@ -1397,7 +1397,6 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 			{ID: "gitlab-main", Type: AuthProviderTypeGitLab, ClientID: "id", ClientSecret: "secret"},
 			{ID: "google-main", Type: AuthProviderTypeGoogle, ClientID: "id", ClientSecret: "secret"},
 			{ID: "discord-main", Type: AuthProviderTypeDiscord, ClientID: "id", ClientSecret: "secret"},
-			{ID: "azure", Type: AuthProviderTypeMicrosoftOnline, ClientID: "id", ClientSecret: "secret"},
 		}
 		if err := cfg.Validate(); err != nil {
 			t.Fatalf("Validate() unexpected error = %v", err)
@@ -1407,6 +1406,15 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 	t.Run("rejects unknown provider", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.Auth.Providers = []AuthProviderConfig{{ID: "apple", Type: "apple", ClientID: "id", ClientSecret: "secret"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "auth.providers[0].type") {
+			t.Fatalf("Validate() error = %v, want provider type error", err)
+		}
+	})
+
+	t.Run("rejects microsoft provider for now", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "azure", Type: "microsoftonline", ClientID: "id", ClientSecret: "secret"}}
 		err := cfg.Validate()
 		if err == nil || !strings.Contains(err.Error(), "auth.providers[0].type") {
 			t.Fatalf("Validate() error = %v, want provider type error", err)

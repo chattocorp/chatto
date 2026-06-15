@@ -112,8 +112,6 @@
         return 'mdi--google';
       case 'discord':
         return 'mdi--discord';
-      case 'microsoftonline':
-        return 'mdi--microsoft';
       default:
         return 'mdi--shield-account';
     }

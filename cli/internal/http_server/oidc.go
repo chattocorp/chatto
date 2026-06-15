@@ -23,7 +23,6 @@ import (
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
-	"github.com/markbates/goth/providers/microsoftonline"
 	"golang.org/x/oauth2"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
@@ -279,8 +278,6 @@ func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackUR
 		runtime.goth = google.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
 	case config.AuthProviderTypeDiscord:
 		runtime.goth = discord.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
-	case config.AuthProviderTypeMicrosoftOnline:
-		runtime.goth = microsoftonline.New(providerConfig.ClientID, providerConfig.ClientSecret, callbackURL, scopes...)
 	default:
 		return nil, fmt.Errorf("unsupported auth provider type %q", providerConfig.Type)
 	}
@@ -311,7 +308,7 @@ func providerScopes(providerConfig config.AuthProviderConfig) []string {
 	switch providerConfig.Type {
 	case config.AuthProviderTypeGitHub:
 		return []string{"read:user", "user:email"}
-	case config.AuthProviderTypeGoogle, config.AuthProviderTypeMicrosoftOnline:
+	case config.AuthProviderTypeGoogle:
 		return []string{"openid", "profile", "email"}
 	case config.AuthProviderTypeDiscord:
 		return []string{discord.ScopeIdentify, discord.ScopeEmail}

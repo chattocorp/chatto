@@ -216,7 +216,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 ### External Login Providers
 
 External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.
-Supported provider types are `openid-connect`, `github`, `gitlab`, `google`, `discord`, and `microsoftonline`.
+Supported provider types are `openid-connect`, `github`, `gitlab`, `google`, and `discord`.
 
 ```toml
 [[auth.providers]]
@@ -229,6 +229,8 @@ client_secret = "..."
 ```
 
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
+
+See [External Login Providers](/guides/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 
 ## SMTP
 
