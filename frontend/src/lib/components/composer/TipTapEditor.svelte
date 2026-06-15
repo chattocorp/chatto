@@ -23,62 +23,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { Markdown } from '@tiptap/markdown';
   import Placeholder from '@tiptap/extension-placeholder';
-  import { createLowlight } from 'lowlight';
-  import bash from 'highlight.js/lib/languages/bash';
-  import css from 'highlight.js/lib/languages/css';
-  import go from 'highlight.js/lib/languages/go';
-  import graphql from 'highlight.js/lib/languages/graphql';
-  import javascript from 'highlight.js/lib/languages/javascript';
-  import json from 'highlight.js/lib/languages/json';
-  import markdown from 'highlight.js/lib/languages/markdown';
-  import python from 'highlight.js/lib/languages/python';
-  import rust from 'highlight.js/lib/languages/rust';
-  import sql from 'highlight.js/lib/languages/sql';
-  import typescript from 'highlight.js/lib/languages/typescript';
-  import xml from 'highlight.js/lib/languages/xml';
-  import yaml from 'highlight.js/lib/languages/yaml';
+  import { CODE_LANGUAGE_OPTIONS, createChattoLowlight } from '$lib/codeHighlighting';
 
-  const lowlight = createLowlight({
-    bash,
-    css,
-    go,
-    graphql,
-    javascript,
-    json,
-    markdown,
-    python,
-    rust,
-    sql,
-    typescript,
-    xml,
-    yaml
-  });
-
-  lowlight.registerAlias({
-    bash: ['sh', 'shell'],
-    javascript: ['js'],
-    markdown: ['md'],
-    python: ['py'],
-    typescript: ['ts'],
-    xml: ['html']
-  });
-
-  const CODE_LANGUAGE_OPTIONS = [
-    { value: 'text', label: 'TEXT' },
-    { value: 'ts', label: 'TS' },
-    { value: 'js', label: 'JS' },
-    { value: 'json', label: 'JSON' },
-    { value: 'html', label: 'HTML' },
-    { value: 'css', label: 'CSS' },
-    { value: 'bash', label: 'BASH' },
-    { value: 'py', label: 'PY' },
-    { value: 'go', label: 'GO' },
-    { value: 'rust', label: 'RUST' },
-    { value: 'sql', label: 'SQL' },
-    { value: 'yaml', label: 'YAML' },
-    { value: 'md', label: 'MD' },
-    { value: 'graphql', label: 'GRAPHQL' }
-  ];
+  const lowlight = createChattoLowlight();
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
   const codeFenceLineRegex = /^```([\w-]+)?$/;

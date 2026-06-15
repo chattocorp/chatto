@@ -20,7 +20,7 @@ function member(login: string): RoomMember {
 }
 
 describe('renderMarkdown', () => {
-  // Wait for Shiki to initialize before running tests
+  // Wait for the markdown renderer to initialize before running tests
   beforeAll(async () => {
     await rendererReady;
   });
@@ -79,7 +79,6 @@ describe('renderMarkdown', () => {
 
     it('renders code blocks with language hint', async () => {
       const html = await renderMarkdown('```javascript\nconst x = 1;\n```');
-      // Shiki uses language-* class on the code element
       expect(html).toContain('language-javascript');
     });
 
@@ -252,7 +251,7 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
-  // Wait for Shiki to initialize before running tests
+  // Wait for the markdown renderer to initialize before running tests
   beforeAll(async () => {
     await rendererReady;
   });

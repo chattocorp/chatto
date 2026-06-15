@@ -131,4 +131,25 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<code>*not bold*</code>');
     });
   });
+
+  describe('code blocks', () => {
+    it('renders fenced code blocks with lowlight classes', async () => {
+      const html = await renderMarkdown('```js\nconst x = 1;\n```');
+      expect(html).toContain('<pre class="hljs" data-language="js">');
+      expect(html).toContain('language-js');
+      expect(html).toContain('hljs-keyword');
+    });
+
+    it('does not render the fence delimiter newline as a blank code line', async () => {
+      const html = await renderMarkdown('```js\nconst x = 1;\n```');
+      expect(html.match(/class="line"/g)).toHaveLength(1);
+    });
+
+    it('preserves unsupported language labels while rendering plain code', async () => {
+      const html = await renderMarkdown('```toml\nname = "chatto"\n```');
+      expect(html).toContain('data-language="toml"');
+      expect(html).toContain('language-toml');
+      expect(html).toContain('name = &quot;chatto&quot;');
+    });
+  });
 });

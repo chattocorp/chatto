@@ -18,8 +18,8 @@ test.describe('Code block rendering', () => {
     await roomPage.messageInput.fill('```javascript\nconsole.log("hello");\n```');
     await roomPage.sendButton.click();
 
-    // The code block should render with Shiki styling
-    await expect(page.locator('pre.shiki')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // The code block should render with syntax highlighting
+    await expect(page.locator('pre.hljs')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Should NOT see raw markdown backticks
     await expect(page.getByText('```javascript')).not.toBeVisible();
@@ -60,8 +60,8 @@ test.describe('Code block rendering', () => {
     await roomPage.messageInput.fill('Check this out:\n```javascript\nconsole.log("hello");\n```');
     await roomPage.sendButton.click();
 
-    // Should render with Shiki
-    await expect(page.locator('pre.shiki')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // Should render with syntax highlighting
+    await expect(page.locator('pre.hljs')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
   test('language label stays fixed when code block is scrolled horizontally', async ({
@@ -79,7 +79,7 @@ test.describe('Code block rendering', () => {
     await roomPage.messageInput.fill('```javascript\n' + longLine + '\n```');
     await roomPage.sendButton.click();
 
-    const preBlock = page.locator('pre.shiki');
+    const preBlock = page.locator('pre.hljs');
     await expect(preBlock).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Get the code element inside the pre block (the scrollable container)
