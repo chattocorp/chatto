@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-06-14
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -12,7 +12,8 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 - Members of a room with the right permission see a "Join call" button in the room header.
 - Joining the call opens a panel showing each participant's avatar (with a speaking-indicator ring), a mute toggle, an audio device selector, and a hang-up button.
 - Other rooms with an active call show a small headphone icon in the sidebar so members know there's a conversation happening.
-- A member's join/leave is visible to the others in the call through durable room EVT facts. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection. The first join starts a call session; the final leave ends it.
+- A member's join/leave updates active call indicators and participant lists, but individual participant transitions are not shown as room timeline messages. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection.
+- The first join starts a call session and shows a room timeline notice that the member started a call. The final leave ends it and shows a room timeline notice that the active call ended.
 - Hanging up disconnects from LiveKit and clears the participant from everyone else's view.
 - New clients always enable LiveKit E2EE before connecting. Chatto distributes a KMS-backed per-call shared key with the LiveKit join token; the raw key is never written to EVT and is shredded when the call ends.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
@@ -21,7 +22,7 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 
 ### 1. Call lifecycle and join/leave are durable room facts with internal source
 
-**Decision:** `CallStartedEvent`, `CallParticipantJoinedEvent`, `CallParticipantLeftEvent`, and `CallEndedEvent` are persisted in the room EVT aggregate keyed by room ID, on `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. Explicit frontend join/leave writes use source `USER`; LiveKit webhook writes use source `LIVEKIT`; reconciliation writes use source `RECONCILIATION`. GraphQL exposes the same public event shape without the internal source or E2EE key ref.
+**Decision:** `CallStartedEvent`, `CallParticipantJoinedEvent`, `CallParticipantLeftEvent`, and `CallEndedEvent` are persisted in the room EVT aggregate keyed by room ID, on `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. Explicit frontend join/leave writes use source `USER`; LiveKit webhook writes use source `LIVEKIT`; reconciliation writes use source `RECONCILIATION`. GraphQL exposes the same public event shape without the internal source or E2EE key ref. Room history shows only call start/end notices; participant join/leave facts drive active call state and live indicators.
 **Why:** Calls are realtime/audit facts that should survive process restarts and be delivered through the same durable live EVT path as other room facts. Chatto's product model treats calls as always happening inside a room, with at most one active call per room. Rooms are intentionally cheap coordination spaces, so future private, temporary, or non-public calls can use short-lived rooms and inherit room membership, authorization, naming, visibility, and live-delivery behavior instead of introducing a separate call-membership model. Keeping source internal lets projections distinguish optimistic user intent from media-server observation without adding public API surface.
 **Tradeoff:** Duplicate user/LiveKit/reconciliation reports are collapsed at the call-state write boundary when they do not change participant state. A real join, leave, and later rejoin still records each transition as a distinct call session. The service uses the call projection's per-room applied sequence as the OCC token against `evt.room.{roomId}.>` so lifecycle and participant transitions are guarded by the room aggregate boundary across replicas. The design deliberately favors room-scoped calls over independent call aggregates; if calls later need their own durable lifecycle beyond the room boundary, new writes may need to move to a call aggregate while replaying legacy room-scoped facts.
 

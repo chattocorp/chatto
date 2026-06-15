@@ -50,7 +50,7 @@ function makeMessageEvent(
 }
 
 function makeSystemEvent(
-  typename: 'UserJoinedRoomEvent' | 'UserLeftRoomEvent',
+  typename: 'UserJoinedRoomEvent' | 'UserLeftRoomEvent' | 'CallStartedEvent' | 'CallEndedEvent',
   overrides: Partial<{
     id: string;
     actorId: string;
@@ -65,7 +65,8 @@ function makeSystemEvent(
     actor: { id: actorId, login: 'tester', avatarUrl: null },
     event: {
       __typename: typename,
-      roomId: 'r_test'
+      roomId: 'r_test',
+      callId: 'call_test'
     }
   } as unknown as RoomEventViewFragment;
 }
@@ -351,6 +352,20 @@ describe('buildVirtualItems', () => {
       const items = buildVirtualItems(meta([archive]), null, false);
       expect(items.find((i) => i.type === 'system-group')).toBeUndefined();
       expect(items.find((i) => i.type === 'event')).toMatchObject({ key: 'a1' });
+    });
+
+    it('keeps call lifecycle events as plain event rows', () => {
+      const events = [
+        makeSystemEvent('CallStartedEvent', { id: 'call-started' }),
+        makeSystemEvent('CallEndedEvent', { id: 'call-ended' })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      expect(items.find((i) => i.type === 'system-group')).toBeUndefined();
+      expect(items.filter((i) => i.type === 'event').map((i) => i.key)).toEqual([
+        'call-started',
+        'call-ended'
+      ]);
     });
 
     it('uses a stable, unique key for system-groups', () => {
