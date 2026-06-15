@@ -41,6 +41,7 @@ type HTTPServer struct {
 	addr       string
 	version    string
 	logger     *log.Logger
+	metrics    *processMetrics
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
@@ -82,6 +83,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		addr:       cfg.Addr,
 		version:    cfg.Version,
 		logger:     logger,
+		metrics:    newProcessMetrics(),
 	}
 
 	// Set up all routes
@@ -185,6 +187,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 
 	var servers []*http.Server
 	var tlsServer *http.Server
+	var metricsServer *http.Server
 
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
@@ -218,11 +221,24 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		servers = append(servers, newHTTPServer(s.addr, s.router))
 	}
 
+	if s.config.Metrics.Enabled {
+		var err error
+		metricsServer, err = s.newMetricsServer()
+		if err != nil {
+			return err
+		}
+		servers = append(servers, metricsServer)
+	}
+
 	serverErr := make(chan error, len(servers)+1)
 
 	// Start HTTP servers
 	for _, srv := range servers {
-		s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
+		if srv == metricsServer {
+			s.logger.Info("Starting metrics server", "addr", srv.Addr, "path", s.config.Metrics.PathOrDefault())
+		} else {
+			s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
+		}
 		go func(srv *http.Server) {
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				serverErr <- err

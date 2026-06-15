@@ -2,16 +2,7 @@
 
 [scripts]
 setup = "mise trust"
-run = """
-set -e
-export CHATTO_WEBSERVER_PORT="$CONDUCTOR_PORT"
-export CHATTO_WEBSERVER_URL="http://localhost:$CONDUCTOR_PORT"
-export CHATTO_NATS_EMBEDDED_PORT="$((CONDUCTOR_PORT+1))"
-export CHATTO_NATS_CLIENT_URL="nats://localhost:$((CONDUCTOR_PORT+1))"
-mise run build-dev-cli
-cd cli
-exec bin/chatto run
-"""
+run = "mise run dev-conductor"
 run_mode = "concurrent"
 
 [git]

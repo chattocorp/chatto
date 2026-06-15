@@ -708,6 +708,8 @@ type ProjectionMetric struct {
 
 // Point-in-time runtime state for one event-sourced projection.
 type ProjectionState struct {
+	// Stable machine-readable projection key, suitable for metric labels and automation.
+	Key string `json:"key"`
 	// Human-readable projection name.
 	Name string `json:"name"`
 	// Diagnostic storage subject filters consumed by this projection.

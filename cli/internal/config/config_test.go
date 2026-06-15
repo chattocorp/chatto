@@ -559,6 +559,88 @@ func TestWebserverConfig_WebSocketCompressionEnabled(t *testing.T) {
 	}
 }
 
+func TestMetricsConfig_Defaults(t *testing.T) {
+	cfg := MetricsConfig{}
+
+	if got := cfg.BindAddressOrDefault(); got != "127.0.0.1" {
+		t.Errorf("BindAddressOrDefault() = %q, want 127.0.0.1", got)
+	}
+	if got := cfg.PortOrDefault(); got != 9090 {
+		t.Errorf("PortOrDefault() = %d, want 9090", got)
+	}
+	if got := cfg.PathOrDefault(); got != "/metrics" {
+		t.Errorf("PathOrDefault() = %q, want /metrics", got)
+	}
+}
+
+func TestReadConfig_MetricsFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[metrics]
+enabled = true
+bind_address = "0.0.0.0"
+port = 9100
+path = "/internal/metrics"
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Metrics.Enabled {
+		t.Fatal("Metrics.Enabled = false, want true")
+	}
+	if got := cfg.Metrics.BindAddressOrDefault(); got != "0.0.0.0" {
+		t.Errorf("Metrics.BindAddress = %q, want 0.0.0.0", got)
+	}
+	if got := cfg.Metrics.PortOrDefault(); got != 9100 {
+		t.Errorf("Metrics.Port = %d, want 9100", got)
+	}
+	if got := cfg.Metrics.PathOrDefault(); got != "/internal/metrics" {
+		t.Errorf("Metrics.Path = %q, want /internal/metrics", got)
+	}
+
+	t.Setenv("CHATTO_METRICS_ENABLED", "false")
+	t.Setenv("CHATTO_METRICS_PORT", "9200")
+	t.Setenv("CHATTO_METRICS_PATH", "/metrics")
+
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if cfg.Metrics.Enabled {
+		t.Fatal("Metrics.Enabled = true, want env override false")
+	}
+	if got := cfg.Metrics.PortOrDefault(); got != 9200 {
+		t.Errorf("Metrics.Port env override = %d, want 9200", got)
+	}
+	if got := cfg.Metrics.PathOrDefault(); got != "/metrics" {
+		t.Errorf("Metrics.Path env override = %q, want /metrics", got)
+	}
+}
+
 func boolPtr(b bool) *bool {
 	return &b
 }
@@ -1117,6 +1199,64 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestChattoConfig_Validate_Metrics(t *testing.T) {
+	base := validTestConfig()
+
+	tests := []struct {
+		name     string
+		modify   func(*ChattoConfig)
+		errorMsg string
+	}{
+		{
+			name: "accepts enabled metrics with defaults",
+			modify: func(c *ChattoConfig) {
+				c.Metrics.Enabled = true
+			},
+		},
+		{
+			name: "rejects invalid port",
+			modify: func(c *ChattoConfig) {
+				c.Metrics.Enabled = true
+				c.Metrics.Port = 70000
+			},
+			errorMsg: "metrics.port must be between 0 and 65535",
+		},
+		{
+			name: "rejects relative path",
+			modify: func(c *ChattoConfig) {
+				c.Metrics.Enabled = true
+				c.Metrics.Path = "metrics"
+			},
+			errorMsg: "metrics.path must start with /",
+		},
+		{
+			name: "rejects query string in path",
+			modify: func(c *ChattoConfig) {
+				c.Metrics.Enabled = true
+				c.Metrics.Path = "/metrics?token=secret"
+			},
+			errorMsg: "metrics.path must not contain query strings or fragments",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := base
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if tt.errorMsg == "" {
+				if err != nil {
+					t.Fatalf("Validate() unexpected error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.errorMsg)
+			}
+		})
+	}
 }
 
 func TestChattoConfig_Validate_TLS(t *testing.T) {

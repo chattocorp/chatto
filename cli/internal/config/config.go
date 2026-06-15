@@ -78,6 +78,38 @@ type WebserverConfig struct {
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
 }
 
+// MetricsConfig controls the process-local Prometheus scrape endpoint.
+type MetricsConfig struct {
+	Enabled     bool   `toml:"enabled" env:"CHATTO_METRICS_ENABLED" comment:"Expose a Prometheus-compatible metrics endpoint on a separate internal HTTP listener. Default: false."`
+	BindAddress string `toml:"bind_address,commented" env:"CHATTO_METRICS_BIND_ADDRESS" comment:"Address to bind the metrics listener. Default: 127.0.0.1 (localhost only)."`
+	Port        int    `toml:"port,commented" env:"CHATTO_METRICS_PORT" comment:"Port for the metrics listener. Default: 9090."`
+	Path        string `toml:"path,commented" env:"CHATTO_METRICS_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
+}
+
+// BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
+func (c *MetricsConfig) BindAddressOrDefault() string {
+	if c.BindAddress == "" {
+		return "127.0.0.1"
+	}
+	return c.BindAddress
+}
+
+// PortOrDefault returns the metrics listener port, defaulting to 9090.
+func (c *MetricsConfig) PortOrDefault() int {
+	if c.Port == 0 {
+		return 9090
+	}
+	return c.Port
+}
+
+// PathOrDefault returns the metrics scrape path, defaulting to /metrics.
+func (c *MetricsConfig) PathOrDefault() string {
+	if c.Path == "" {
+		return "/metrics"
+	}
+	return c.Path
+}
+
 func validateHexSecret(name, value string, required bool) error {
 	if value == "" {
 		if required {
@@ -612,6 +644,7 @@ type ChattoConfig struct {
 	General   GeneralConfig   `toml:"general"`
 	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver WebserverConfig `toml:"webserver"`
+	Metrics   MetricsConfig   `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
 	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
 	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
@@ -698,6 +731,18 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if c.Webserver.Port == 0 && !c.Webserver.TLS.Enabled {
 		errs = append(errs, "webserver.port is required when TLS is disabled")
+	}
+	if c.Metrics.Enabled {
+		if c.Metrics.Port < 0 || c.Metrics.Port > 65535 {
+			errs = append(errs, "metrics.port must be between 0 and 65535")
+		}
+		metricsPath := c.Metrics.PathOrDefault()
+		if !strings.HasPrefix(metricsPath, "/") {
+			errs = append(errs, "metrics.path must start with /")
+		}
+		if strings.ContainsAny(metricsPath, "?#") {
+			errs = append(errs, "metrics.path must not contain query strings or fragments")
+		}
 	}
 	if c.NATS.Embedded.Enabled {
 		if c.NATS.Embedded.Port < 0 || c.NATS.Embedded.Port > 65535 {

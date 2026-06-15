@@ -75,6 +75,24 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   Port for the HTTP server (ACME challenges and HTTPS redirect). Use a higher port if running without elevated privileges.
 </EnvVar>
 
+## Metrics
+
+<EnvVar name="CHATTO_METRICS_ENABLED" toml="metrics.enabled" default="false">
+  Expose a Prometheus-compatible per-process metrics endpoint on a separate internal HTTP listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_BIND_ADDRESS" toml="metrics.bind_address" default="127.0.0.1">
+  Address to bind the metrics listener. Keep this on localhost unless a trusted internal network or sidecar needs direct scrape access.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PORT" toml="metrics.port" default="9090">
+  Port for the metrics listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PATH" toml="metrics.path" default="/metrics">
+  HTTP path for Prometheus scrapes.
+</EnvVar>
+
 ## Core
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>

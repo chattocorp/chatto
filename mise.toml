@@ -173,6 +173,22 @@ fi
 exec tilt up --stream
 """
 
+[tasks.dev-conductor]
+description = "Build and run Chatto with Conductor-style per-workspace ports"
+depends = ["build-dev-cli"]
+dir = "cli"
+env = {
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_METRICS_ENABLED = "true",
+  CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
+  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
+  CHATTO_METRICS_PATH = "/metrics",
+}
+run = "bin/chatto run"
+
 [tasks.chatto]
 description = "Runs the CLI app with the given arguments"
 depends = ["deps-cli"]

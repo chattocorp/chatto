@@ -8,6 +8,7 @@ import (
 )
 
 type projectionRegistration struct {
+	key       string
 	name      string
 	projector *events.Projector
 	estimate  func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)

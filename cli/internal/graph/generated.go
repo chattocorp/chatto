@@ -519,6 +519,7 @@ type ComplexityRoot struct {
 		Failed                 func(childComplexity int) int
 		FailedSequence         func(childComplexity int) int
 		Failure                func(childComplexity int) int
+		Key                    func(childComplexity int) int
 		Lag                    func(childComplexity int) int
 		LastAppliedSequence    func(childComplexity int) int
 		MatchingStreamSequence func(childComplexity int) int
@@ -3553,6 +3554,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProjectionState.Failure(childComplexity), true
+	case "ProjectionState.key":
+		if e.ComplexityRoot.ProjectionState.Key == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProjectionState.Key(childComplexity), true
 	case "ProjectionState.lag":
 		if e.ComplexityRoot.ProjectionState.Lag == nil {
 			break
@@ -6086,6 +6093,8 @@ func (ec *executionContext) childFields_ProjectionMetric(ctx context.Context, fi
 
 func (ec *executionContext) childFields_ProjectionState(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "key":
+		return ec.fieldContext_ProjectionState_key(ctx, field)
 	case "name":
 		return ec.fieldContext_ProjectionState_name(ctx, field)
 	case "subjects":
@@ -17175,6 +17184,29 @@ func (ec *executionContext) _ProjectionMetric_bytes(ctx context.Context, field g
 }
 func (ec *executionContext) fieldContext_ProjectionMetric_bytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ProjectionMetric", field, false, false, errors.New("field of type Int64 does not have child fields"))
+}
+
+func (ec *executionContext) _ProjectionState_key(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProjectionState_key(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProjectionState_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _ProjectionState_name(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
@@ -34692,6 +34724,11 @@ func (ec *executionContext) _ProjectionState(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ProjectionState")
+		case "key":
+			out.Values[i] = ec._ProjectionState_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "name":
 			out.Values[i] = ec._ProjectionState_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

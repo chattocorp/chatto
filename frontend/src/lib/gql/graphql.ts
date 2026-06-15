@@ -2132,6 +2132,8 @@ export type ProjectionState = {
   failedSequence: Scalars['String']['output'];
   /** Operator-facing failure summary. Empty when the projection has not failed. */
   failure: Scalars['String']['output'];
+  /** Stable machine-readable projection key, suitable for metric labels and automation. */
+  key: Scalars['String']['output'];
   /** Unapplied matching events, computed as matchingStreamSequence - lastAppliedSequence. */
   lag: Scalars['Int64']['output'];
   /** Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow. */

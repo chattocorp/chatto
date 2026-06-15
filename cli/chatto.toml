@@ -11,6 +11,12 @@ allowed_origins = []
 cookie_signing_secret = '3ad5f5f911b6865b1a729335f4544d102a99a2847a3d5076431ed43877dd6bd9'
 cookie_encryption_secret = 'f61dd5e478f0c494bd7cc1d6136d8fd9b1c9cde38677f5c3a04f2ae181fd8464'
 
+[metrics]
+enabled = true
+bind_address = '127.0.0.1'
+port = 9090
+path = '/metrics'
+
 [core]
 secret_key = '7f3e0d39031f4ee7e2078aafc785f1969b8f1d4a4ea178a4732cb2096fe7f3bb'
 

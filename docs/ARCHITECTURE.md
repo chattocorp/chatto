@@ -71,11 +71,12 @@ For connecting to an external NATS cluster:
 
 ## Architecture & APIs
 
-Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/)
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`cli/internal/http_server/metrics.go`](../cli/internal/http_server/metrics.go), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/)
 
 - **NATS**: At the core, Chatto uses a series of NATS JetStream streams, KV buckets and object storage. Data stored in these is defined as Protocol Buffers (see `proto/`).
 - **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets, object stores, and the `EVT` stream. `ChattoCore` remains the compatibility facade, while smaller services own projection readiness and domain-specific write concerns.
 - **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. Fields require authentication by default unless marked public in the schema; resolvers call Core methods directly and enforce operation-specific authorization before each call.
+- **Metrics**: Optional Prometheus-compatible per-process metrics run on a separate internal HTTP listener configured by `[metrics]`. The endpoint exposes Go/process collectors plus Chatto readiness, GraphQL WebSocket counts, `myEvents` stream counters, NATS client counters, and projection health/lag gauges.
 - **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to GraphQL API over HTTP/WebSocket.
 - **Email**: Optional SMTP integration for transactional emails (verification, password reset). Configured via `[smtp]` in config. The `internal/email` package provides a `Mailer` that returns `ErrSMTPDisabled` when SMTP is not configured, allowing callers to handle gracefully.
 
@@ -85,10 +86,12 @@ Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/in
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
+`ChattoCore` keeps a small runtime service registry with stable machine-readable keys such as `config_manager` and `my_events_service`. Per-process metrics use these keys as labels; display names remain operator-facing text only.
+
 | Service                 | Key files                                                                                                                    | Responsibility                                                                                                             |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `ChattoCore`            | [`core.go`](../cli/internal/core/core.go)                                                                                     | Application facade, resource initialization, lifecycle, GraphQL-facing operations                                            |
-| `MyEventsService`       | [`my_events_service.go`](../cli/internal/core/my_events_service.go)                                                           | `myEvents` live/reconnect delivery, projection readiness, replay planning, and per-user authorization                        |
+| `MyEventsService`       | [`my_events_service.go`](../cli/internal/core/my_events_service.go)                                                           | `myEvents` live/reconnect delivery, projection readiness, replay planning, per-user authorization, and process-local stream counters |
 | `events.Publisher`     | [`publisher.go`](../cli/internal/events/publisher.go)                                                                        | OCC-only writes to `EVT`, including atomic batches and filter-scoped concurrency guards                                     |
 | `ConfigService`         | [`config_service.go`](../cli/internal/core/config_service.go)                                                                | Semantic server/user config event writes plus `ConfigProjection` readiness                                                  |
 | `ConfigManager`         | [`config_manager.go`](../cli/internal/core/config_manager.go)                                                                | Compatibility facade for server config reads/writes backed by `ConfigService`                                               |
@@ -106,7 +109,7 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 
 Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../cli/internal/events/projector.go), [`cli/internal/core/projection_subjects_test.go`](../cli/internal/core/projection_subjects_test.go)
 
-Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` registers each top-level projector once; `ChattoCore.Run` starts every projector, waits for them to become current at boot, and writers wait for the relevant projector sequence before returning read-your-writes.
+Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` registers each top-level projector once with a stable machine-readable key such as `content_keys` plus a human display name such as `Content Keys`; `ChattoCore.Run` starts every projector, waits for them to become current at boot, and writers wait for the relevant projector sequence before returning read-your-writes.
 
 | Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -123,7 +126,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | RBAC               | RBAC                 | `evt.rbac.>`                                               | Roles, role order, assignments, scoped allow/deny decisions                                |
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
 
-Notes: "Registered projector" names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`.
+Notes: registered projector keys are used by metrics and automation; registered projector names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`.
 
 ## GraphQL API Overview
 
