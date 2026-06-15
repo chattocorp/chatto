@@ -59,8 +59,8 @@ Chatto supports embedded NATS for single-process/self-hosted installs and extern
 **Embedded NATS Setup:**
 
 When using embedded NATS (default), `chatto init` generates:
-- `chatto.toml` with `[nats.embedded]`, a local TCP listener, JetStream data directory, and generated `auth_token`
-- Derived `[nats.client]` connection defaults at config-load time so CLI commands can connect to the embedded server without duplicating the token in the file
+- `chatto.toml` with `[nats.embedded]`, in-process NATS enabled, JetStream data directory, and generated `auth_token`
+- A commented `nats.embedded.port` example; uncommenting the port enables a local TCP listener and derived `[nats.client]` connection defaults for CLI/admin commands
 
 **External NATS Setup:**
 
