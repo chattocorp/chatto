@@ -72,6 +72,15 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if !strings.Contains(rawText, "oauth_redirect_origins = []") {
 		t.Fatal("generated config should not allow additional OAuth redirect origins by default")
 	}
+	if strings.Contains(rawText, "\nproviders = []") {
+		t.Fatal("generated config should not include an active empty auth.providers array")
+	}
+	if !strings.Contains(rawText, "\n# [[auth.providers]]\n# id = 'chatto-hub'\n# type = 'oidc'") {
+		t.Fatal("generated config should include a commented OIDC auth provider example")
+	}
+	if !strings.Contains(rawText, "\n# [[auth.providers]]\n# id = 'github'\n# type = 'github'") {
+		t.Fatal("generated config should include a commented GitHub auth provider example")
+	}
 	if !strings.Contains(rawText, "\n# domain = ''") {
 		t.Fatal("generated config should comment out webserver.tls.domain by default")
 	}
