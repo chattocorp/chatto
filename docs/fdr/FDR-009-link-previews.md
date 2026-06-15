@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -11,6 +11,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 - The composer fetches a link preview as soon as the user has typed a complete URL.
 - Only the first URL in a message gets a preview. There is no multi-preview layout.
+- URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the message is sent, the preview data ships with it and is stored as part of the message body.

@@ -157,6 +157,50 @@ func leftEvent(envID, roomID, userID string, at int) *corev1.Event {
 	}
 }
 
+func callStartedTimelineEvent(envID, roomID, userID, callID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   userID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_VoiceCallStarted{
+			VoiceCallStarted: &corev1.CallStartedEvent{RoomId: roomID, CallId: callID},
+		},
+	}
+}
+
+func callParticipantJoinedTimelineEvent(envID, roomID, userID, callID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   userID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: roomID, CallId: callID},
+		},
+	}
+}
+
+func callParticipantLeftTimelineEvent(envID, roomID, userID, callID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   userID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_VoiceCallParticipantLeft{
+			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: roomID, CallId: callID},
+		},
+	}
+}
+
+func callEndedTimelineEvent(envID, roomID, userID, callID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   userID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_VoiceCallEnded{
+			VoiceCallEnded: &corev1.CallEndedEvent{RoomId: roomID, CallId: callID},
+		},
+	}
+}
+
 func roomCreatedTimelineEvent(envID, roomID, name string, at int) *corev1.Event {
 	return &corev1.Event{
 		Id:        envID,
@@ -457,6 +501,28 @@ func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
 	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
 	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-JOIN-U2", "ENV-ROOT"}) {
 		t.Fatalf("derived visible timeline = %v, want join and root only", got)
+	}
+}
+
+func TestRoomTimeline_CallLifecycleVisibility(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", body: "root", at: 1}),
+		callStartedTimelineEvent("ENV-CALL-STARTED", "R1", "U1", "CALL1", 2),
+		callParticipantJoinedTimelineEvent("ENV-CALL-JOINED", "R1", "U1", "CALL1", 3),
+		callParticipantLeftTimelineEvent("ENV-CALL-LEFT", "R1", "U1", "CALL1", 4),
+		callEndedTimelineEvent("ENV-CALL-ENDED", "R1", "U1", "CALL1", 5),
+	})
+
+	if got := p.RoomEventCount("R1"); got != 5 {
+		t.Fatalf("raw RoomEventCount = %d, want 5", got)
+	}
+	if got := p.VisibleRoomEventCount("R1"); got != 3 {
+		t.Fatalf("VisibleRoomEventCount = %d, want 3", got)
+	}
+	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
+	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-CALL-ENDED", "ENV-CALL-STARTED", "ENV-M1"}) {
+		t.Fatalf("derived visible timeline = %v, want call end, call start, and message only", got)
 	}
 }
 

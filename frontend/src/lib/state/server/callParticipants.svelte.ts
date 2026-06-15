@@ -25,6 +25,7 @@ const CallParticipantsQuery = graphql(`
 					...UserAvatarUser
 				}
 				joinedAt
+				callId
 			}
 		}
 	}
@@ -48,6 +49,7 @@ export class CallParticipantsState {
 
 	/** The room these participants are for. */
 	private currentRoomId: string | null = null;
+	private currentCallId: string | null = null;
 
 	constructor(client: Client) {
 		this.#client = client;
@@ -66,6 +68,7 @@ export class CallParticipantsState {
 
 		const participants = result.data?.room?.callParticipants;
 		if (participants) {
+			this.currentCallId = participants[0]?.callId ?? null;
 			this.participants = participants.map(toObserverParticipant);
 		}
 	}
@@ -74,9 +77,12 @@ export class CallParticipantsState {
 	 * Optimistically add a participant from a CallParticipantJoinedEvent.
 	 * Uses the actor data from the Event envelope.
 	 */
-	handleJoin(roomId: string, actor: UserAvatarUserFragment | null): void {
+	handleJoin(roomId: string, callId: string, actor: UserAvatarUserFragment | null): void {
 		if (roomId !== this.currentRoomId) return;
+		if (this.currentCallId && this.currentCallId !== callId) return;
 		if (!actor) return;
+
+		this.currentCallId = callId;
 
 		// Avoid duplicates
 		if (this.participants.some((p) => p.userId === actor.id)) return;
@@ -95,17 +101,26 @@ export class CallParticipantsState {
 	/**
 	 * Optimistically remove a participant from a CallParticipantLeftEvent.
 	 */
-	handleLeave(roomId: string, actorId: string | null): void {
+	handleLeave(roomId: string, callId: string | null, actorId: string | null): void {
 		if (roomId !== this.currentRoomId) return;
+		if (callId !== null && this.currentCallId !== callId) return;
 		if (!actorId) return;
 
 		this.participants = this.participants.filter((p) => p.userId !== actorId);
+	}
+
+	/** Clear observer participants when the room's call ends. */
+	handleEnd(roomId: string, callId: string): void {
+		if (roomId !== this.currentRoomId) return;
+		if (this.currentCallId !== callId) return;
+		this.clear();
 	}
 
 	/** Clear state (e.g., when leaving a room or call ends). */
 	clear(): void {
 		this.participants = [];
 		this.currentRoomId = null;
+		this.currentCallId = null;
 	}
 }
 

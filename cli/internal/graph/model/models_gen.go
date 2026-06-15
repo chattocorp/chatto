@@ -153,6 +153,8 @@ type CallParticipant struct {
 	User *corev1.User `json:"user"`
 	// When the user joined the call.
 	JoinedAt *timestamppb.Timestamp `json:"joinedAt"`
+	// The active call session ID this participant belongs to.
+	CallID string `json:"callId"`
 }
 
 // Input for clearing permission state on a role.

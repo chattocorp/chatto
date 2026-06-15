@@ -151,9 +151,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = serverEvent.actor ? useFragment(UserAvatarFragment, serverEvent.actor) : null;
-      activeCallRooms.handleJoin(event.roomId, actor);
+      activeCallRooms.handleJoin(event.roomId, event.callId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
-      activeCallRooms.handleLeave(event.roomId, serverEvent.actorId ?? null);
+      activeCallRooms.handleLeave(event.roomId, event.callId, serverEvent.actorId ?? null);
+      voiceCallState.handleParticipantLeftEvent(
+        event.roomId,
+        event.callId,
+        serverEvent.actorId ?? null,
+        roomsStore.currentUserId
+      );
+    } else if (event.__typename === 'CallEndedEvent') {
+      activeCallRooms.handleEnd(event.roomId, event.callId);
+      voiceCallState.handleCallEndedEvent(event.roomId, event.callId);
     }
   });
 
@@ -207,6 +216,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const livekitUrl = serverInfo.livekitUrl;
     if (livekitUrl) {
       voiceCallState.join(livekitUrl, roomId).catch(() => {
+        stores.handleVoiceCallJoinFailed(roomId);
         // Silently catch — VoiceCallPanel provides fallback Join button
       });
     }
@@ -229,7 +239,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved SvelteKit route.
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 
@@ -246,7 +256,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved SvelteKit route.
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 </script>

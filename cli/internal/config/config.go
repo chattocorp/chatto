@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -75,6 +76,73 @@ type WebserverConfig struct {
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
 	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+}
+
+func validateHexSecret(name, value string, required bool) error {
+	if value == "" {
+		if required {
+			return fmt.Errorf("%s is required", name)
+		}
+		return nil
+	}
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		return fmt.Errorf("%s must be hex-encoded: %w", name, err)
+	}
+	if len(decoded) != 32 {
+		return fmt.Errorf("%s must decode to 32 bytes (got %d)", name, len(decoded))
+	}
+	return nil
+}
+
+func validateAbsoluteHTTPURL(name, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%s is invalid: %w", name, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("%s must use http or https", name)
+	}
+	if u.Host == "" || u.User != nil {
+		return fmt.Errorf("%s must include a host and must not include user info", name)
+	}
+	return nil
+}
+
+func validateOrigin(name, raw string, allowWildcard bool, requireHTTPSExceptLoopback bool) error {
+	raw = strings.TrimSpace(raw)
+	if allowWildcard && raw == "*" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%s contains invalid origin %q: %w", name, raw, err)
+	}
+	if u.Scheme == "" || u.Host == "" || u.User != nil {
+		return fmt.Errorf("%s contains invalid origin %q: must include scheme and host only", name, raw)
+	}
+	if u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("%s contains invalid origin %q: origins must not include path, query, or fragment", name, raw)
+	}
+	if requireHTTPSExceptLoopback && !isLoopbackHost(u.Hostname()) {
+		if u.Scheme != "https" {
+			return fmt.Errorf("%s contains invalid origin %q: non-loopback OAuth redirect origins must use https", name, raw)
+		}
+		return nil
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("%s contains invalid origin %q: origin must use http or https", name, raw)
+	}
+	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // CookieEncryptionKey decodes the optional cookie encryption secret into an
@@ -164,19 +232,29 @@ func (c *S3Config) PathStyleOrDefault() bool {
 	return *c.PathStyle
 }
 
+// NormalizedPathPrefix returns PathPrefix with harmless leading/trailing slashes
+// removed. Empty and "/" both preserve the historical bucket-root layout.
+func (c *S3Config) NormalizedPathPrefix() string {
+	return strings.Trim(c.PathPrefix, "/")
+}
+
 // NormalizePathPrefix trims harmless leading/trailing slashes from the S3
 // object prefix. Empty and "/" both preserve the historical bucket-root layout.
 func (c *S3Config) NormalizePathPrefix() {
-	c.PathPrefix = strings.Trim(c.PathPrefix, "/")
+	c.PathPrefix = c.NormalizedPathPrefix()
 }
 
 // ValidatePathPrefix rejects ambiguous prefixes before they become physical
 // object keys. Call NormalizePathPrefix first so "/" is accepted as empty.
 func (c *S3Config) ValidatePathPrefix() error {
-	if strings.Contains(c.PathPrefix, "//") {
+	return validateS3PathPrefix(c.PathPrefix)
+}
+
+func validateS3PathPrefix(prefix string) error {
+	if strings.Contains(prefix, "//") {
 		return fmt.Errorf("core.assets.s3.path_prefix must not contain empty path segments")
 	}
-	for _, r := range c.PathPrefix {
+	for _, r := range prefix {
 		if r < 0x20 || r == 0x7f {
 			return fmt.Errorf("core.assets.s3.path_prefix must not contain control characters")
 		}
@@ -230,7 +308,7 @@ func (c *OIDCConfig) LabelOrDefault() string {
 
 // IsConfigured returns true if OIDC is enabled and all required fields are set.
 func (c *OIDCConfig) IsConfigured() bool {
-	return c.Enabled && c.IssuerURL != "" && c.ClientID != ""
+	return c.Enabled && c.IssuerURL != "" && c.ClientID != "" && c.ClientSecret != ""
 }
 
 type AuthConfig struct {
@@ -320,7 +398,7 @@ func (c *NATSClientConfig) NATSAuthConfig() natsauth.Config {
 
 type NATSConfig struct {
 	Replicas int                `toml:"replicas,commented" env:"CHATTO_NATS_REPLICAS" comment:"Number of replicas for JetStream streams, KV buckets, and object stores. Must be 1, 3, or 5 (odd numbers for quorum). Default: 1. Set to 3 or 5 when running a NATS cluster for fault tolerance."`
-	Client   NATSClientConfig   `toml:"client" comment:"Client settings for CLI commands to connect to NATS."`
+	Client   NATSClientConfig   `toml:"client,omitempty" comment:"Client settings for CLI commands to connect to NATS."`
 	Embedded EmbeddedNATSConfig `toml:"embedded"`
 }
 
@@ -459,8 +537,9 @@ type LiveKitConfig struct {
 	APIKey           string `toml:"api_key" env:"CHATTO_LIVEKIT_API_KEY" comment:"LiveKit API key."`
 	APISecret        string `toml:"api_secret" env:"CHATTO_LIVEKIT_API_SECRET" comment:"LiveKit API secret. NEVER SHARE THIS!"`
 	WebhookURL       string `toml:"webhook_url" env:"CHATTO_LIVEKIT_WEBHOOK_URL" comment:"URL where LiveKit sends webhook events. Defaults to {webserver.url}/webhooks/livekit."`
-	ServerID         string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Unique identifier for this instance, prefixed to LiveKit room names. Required when multiple Chatto instances share the same LiveKit cluster."`
-	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-instance API key."`
+	ServerID         string `toml:"server_id,commented" env:"CHATTO_LIVEKIT_SERVER_ID" comment:"Unique identifier for this server, prefixed to LiveKit room names. Required when multiple Chatto servers share the same LiveKit cluster."`
+	InstanceID       string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Deprecated alias for server_id. Prefer server_id / CHATTO_LIVEKIT_SERVER_ID."`
+	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-server API key."`
 	WebhookAPISecret string `toml:"webhook_api_secret,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_SECRET" comment:"API secret for webhook signature validation. Falls back to api_secret if not set."`
 }
 
@@ -486,22 +565,42 @@ func (c *LiveKitConfig) IsConfigured() bool {
 // binaries parse the section but ignore its contents. Plaintext passwords
 // are fine here for the same reason.
 type BootstrapConfig struct {
-	Users  []BootstrapUser  `toml:"users"`
-	Server *BootstrapServer `toml:"instance,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
+	Users          []BootstrapUser  `toml:"users"`
+	Server         *BootstrapServer `toml:"server,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
+	LegacyInstance *BootstrapServer `toml:"instance,commented" comment:"Deprecated alias for [bootstrap.server]. Prefer [bootstrap.server]."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
 type BootstrapUser struct {
-	Login       string `toml:"login" comment:"Required. The user's login (username)."`
-	DisplayName string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
-	Email       string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
-	Password    string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
-	ServerRole  string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
+	Login        string `toml:"login" comment:"Required. The user's login (username)."`
+	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
+	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
+	ServerRole   string `toml:"server_role,commented" comment:"Optional: owner | admin | moderator."`
+	InstanceRole string `toml:"instance_role,commented" comment:"Deprecated alias for server_role. Prefer server_role."`
 }
 
-// BootstrapServer describes the instance to seed on startup in bootstrap-tag
+// RoleOrDefault returns the normalized bootstrap role, honoring the deprecated
+// instance_role alias only when server_role is unset.
+func (u BootstrapUser) RoleOrDefault() string {
+	if u.ServerRole != "" {
+		return u.ServerRole
+	}
+	return u.InstanceRole
+}
+
+// ServerOrDefault returns the normalized bootstrap server, honoring the
+// deprecated [bootstrap.instance] alias only when [bootstrap.server] is unset.
+func (c BootstrapConfig) ServerOrDefault() *BootstrapServer {
+	if c.Server != nil {
+		return c.Server
+	}
+	return c.LegacyInstance
+}
+
+// BootstrapServer describes the server to seed on startup in bootstrap-tag
 // builds. Per ADR-027 there is no separate "space" concept any more — the
-// instance is the server. The bootstrap creates whatever underlying storage
+// server is the product surface. The bootstrap creates whatever underlying storage
 // records (notably a primary space) the data layer still needs, but those
 // are internal: operators only configure the server's name.
 type BootstrapServer struct {
@@ -524,19 +623,70 @@ type ChattoConfig struct {
 	Bootstrap BootstrapConfig `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
+// ApplyDefaults fills derived config values that are safe to compute from other
+// fields. Keep validation separate so Validate can remain a pure check.
+func (c *ChattoConfig) ApplyDefaults() {
+	if c.NATS.Embedded.Enabled && c.NATS.Embedded.Port > 0 {
+		if c.NATS.Client.URL == "" {
+			c.NATS.Client.URL = embeddedNATSClientURL(c.NATS.Embedded)
+		}
+		if c.NATS.Client.AuthMethod == "" {
+			if c.NATS.Embedded.AuthToken != "" {
+				c.NATS.Client.AuthMethod = NATSAuthToken
+			} else {
+				c.NATS.Client.AuthMethod = NATSAuthNone
+			}
+		}
+		if c.NATS.Client.AuthMethod == NATSAuthToken && c.NATS.Client.Token == "" {
+			c.NATS.Client.Token = c.NATS.Embedded.AuthToken
+		}
+	}
+
+	if c.LiveKit.ServerID == "" {
+		c.LiveKit.ServerID = c.LiveKit.InstanceID
+	}
+	if c.LiveKit.Enabled && c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
+		c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
+	}
+
+	for i := range c.Bootstrap.Users {
+		if c.Bootstrap.Users[i].ServerRole == "" {
+			c.Bootstrap.Users[i].ServerRole = c.Bootstrap.Users[i].InstanceRole
+		}
+	}
+	if c.Bootstrap.Server == nil {
+		c.Bootstrap.Server = c.Bootstrap.LegacyInstance
+	}
+}
+
+// Normalize canonicalizes harmless config spelling differences without applying
+// semantic defaults.
+func (c *ChattoConfig) Normalize() {
+	c.Core.Assets.S3.NormalizePathPrefix()
+}
+
+func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
+	host := cfg.BindAddressOrDefault()
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "127.0.0.1"
+	}
+	return fmt.Sprintf("nats://%s", net.JoinHostPort(host, fmt.Sprint(cfg.Port)))
+}
+
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
 func (c *ChattoConfig) Validate() error {
 	var errs []string
 
 	// Required fields
-	if c.Webserver.CookieSigningSecret == "" {
-		errs = append(errs, "webserver.cookie_signing_secret is required")
+	if err := validateHexSecret("webserver.cookie_signing_secret", c.Webserver.CookieSigningSecret, true); err != nil {
+		errs = append(errs, err.Error())
 	}
-	if c.Core.Assets.SigningSecret == "" {
-		errs = append(errs, "core.assets.signing_secret is required")
+	if err := validateHexSecret("core.assets.signing_secret", c.Core.Assets.SigningSecret, true); err != nil {
+		errs = append(errs, err.Error())
 	}
-	if c.Core.SecretKey == "" {
-		errs = append(errs, "core.secret_key is required")
+	if err := validateHexSecret("core.secret_key", c.Core.SecretKey, true); err != nil {
+		errs = append(errs, err.Error())
 	}
 	if _, err := c.Webserver.CookieEncryptionKey(); err != nil {
 		errs = append(errs, err.Error())
@@ -569,13 +719,23 @@ func (c *ChattoConfig) Validate() error {
 
 	// URL format
 	if c.Webserver.URL != "" {
-		if _, err := url.Parse(c.Webserver.URL); err != nil {
-			errs = append(errs, fmt.Sprintf("webserver.url is invalid: %v", err))
+		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 	if c.NATS.Client.URL != "" {
 		if _, err := url.Parse(c.NATS.Client.URL); err != nil {
 			errs = append(errs, fmt.Sprintf("nats.client.url is invalid: %v", err))
+		}
+	}
+	for _, origin := range c.Webserver.AllowedOrigins {
+		if err := validateOrigin("webserver.allowed_origins", origin, true, false); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	for _, origin := range c.Webserver.OAuthRedirectOrigins {
+		if err := validateOrigin("webserver.oauth_redirect_origins", origin, true, true); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 
@@ -610,6 +770,9 @@ func (c *ChattoConfig) Validate() error {
 		errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic")
 	}
 	if c.SMTP.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when SMTP is enabled")
+		}
 		if c.SMTP.Host == "" {
 			errs = append(errs, "smtp.host is required when SMTP is enabled")
 		}
@@ -621,8 +784,27 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
+	// OIDC configuration
+	if c.Auth.OIDC.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when OIDC is enabled")
+		}
+		if c.Auth.OIDC.IssuerURL == "" {
+			errs = append(errs, "auth.oidc.issuer_url is required when OIDC is enabled")
+		}
+		if c.Auth.OIDC.ClientID == "" {
+			errs = append(errs, "auth.oidc.client_id is required when OIDC is enabled")
+		}
+		if c.Auth.OIDC.ClientSecret == "" {
+			errs = append(errs, "auth.oidc.client_secret is required when OIDC is enabled")
+		}
+	}
+
 	// Push notification configuration
 	if c.Push.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when push is enabled")
+		}
 		if c.Push.VAPIDPublicKey == "" {
 			errs = append(errs, "push.vapid_public_key is required when push is enabled")
 		}
@@ -636,6 +818,9 @@ func (c *ChattoConfig) Validate() error {
 
 	// LiveKit configuration
 	if c.LiveKit.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when LiveKit is enabled")
+		}
 		if c.LiveKit.URL == "" {
 			errs = append(errs, "livekit.url is required when LiveKit is enabled")
 		}
@@ -644,10 +829,6 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.LiveKit.APISecret == "" {
 			errs = append(errs, "livekit.api_secret is required when LiveKit is enabled")
-		}
-		// Default webhook URL to {webserver.url}/webhooks/livekit
-		if c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
-			c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
 		}
 	}
 
@@ -670,7 +851,6 @@ func (c *ChattoConfig) Validate() error {
 
 	// S3 configuration (required when storage_backend = "s3")
 	if c.Core.Assets.StorageBackend == StorageBackendS3 {
-		c.Core.Assets.S3.NormalizePathPrefix()
 		if c.Core.Assets.S3.Endpoint == "" {
 			errs = append(errs, "core.assets.s3.endpoint is required when storage_backend = 's3'")
 		}
@@ -683,9 +863,18 @@ func (c *ChattoConfig) Validate() error {
 		if c.Core.Assets.S3.SecretAccessKey == "" {
 			errs = append(errs, "core.assets.s3.secret_access_key is required when storage_backend = 's3'")
 		}
-		if err := c.Core.Assets.S3.ValidatePathPrefix(); err != nil {
+		if err := validateS3PathPrefix(c.Core.Assets.S3.NormalizedPathPrefix()); err != nil {
 			errs = append(errs, err.Error())
 		}
+	}
+
+	if c.NATS.Embedded.Enabled &&
+		c.NATS.Embedded.Port > 0 &&
+		c.NATS.Embedded.AuthToken != "" &&
+		c.NATS.Client.AuthMethod == NATSAuthToken &&
+		c.NATS.Client.Token != "" &&
+		c.NATS.Client.Token != c.NATS.Embedded.AuthToken {
+		errs = append(errs, "nats.client.token must match nats.embedded.auth_token when embedded NATS uses token auth")
 	}
 
 	if len(errs) > 0 {
@@ -720,7 +909,11 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 		return cfg, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
-	// 3. Validate
+	// 3. Apply derived defaults and normalize harmless spelling differences
+	cfg.ApplyDefaults()
+	cfg.Normalize()
+
+	// 4. Validate
 	if err := cfg.Validate(); err != nil {
 		return cfg, err
 	}

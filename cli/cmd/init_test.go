@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"hmans.de/chatto/internal/config"
@@ -35,5 +36,18 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	}
 	if _, err := hex.DecodeString(cfg.Core.SecretKey); err != nil {
 		t.Fatalf("generated core secret should be hex: %v", err)
+	}
+	if cfg.NATS.Client.URL != "nats://127.0.0.1:4222" {
+		t.Fatalf("derived embedded NATS client URL = %q", cfg.NATS.Client.URL)
+	}
+	if cfg.NATS.Client.Token != cfg.NATS.Embedded.AuthToken {
+		t.Fatalf("derived embedded NATS client token should match embedded auth token")
+	}
+	raw, err := os.ReadFile(filepath.Join(tmpDir, "chatto.toml"))
+	if err != nil {
+		t.Fatalf("read generated raw config: %v", err)
+	}
+	if strings.Contains(string(raw), "[nats.client]") {
+		t.Fatal("generated embedded config should not include a duplicate [nats.client] table")
 	}
 }

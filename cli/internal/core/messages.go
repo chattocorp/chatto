@@ -381,7 +381,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 
 // PostMessage posts a message to a room. Publishes a
 // MessagePostedEvent on evt.room.{R}.message_posted with the
-// encrypted body embedded — no separate SERVER_BODIES write.
+// encrypted body in a companion MessageBodyEvent.
 //
 // Threading: inThread is the event ID of the thread root for replies,
 // empty for root posts. If inThread is empty but inReplyTo points at

@@ -19,10 +19,10 @@ cookie_signing_secret = '327201ce7e1a01980daac57c941f754a0fde9f08180d5e72599054d
 
 # Core service configuration.
 [core]
-secret_key = 'e2e-test-core-secret-do-not-use-in-production'
+secret_key = 'e2e0000000000000000000000000000000000000000000000000000000000001'
 
 [core.assets]
-signing_secret = 'e2e-test-signing-secret-do-not-use-in-production'
+signing_secret = 'e2e0000000000000000000000000000000000000000000000000000000000002'
 max_upload_size = '25 MB'
 
 # Authentication configuration.
@@ -54,12 +54,12 @@ login = 'e2eadmin'
 display_name = 'Admin User'
 email = 'e2eadmin@test.local'
 password = 'adminpassword123'
-instance_role = 'owner'
+server_role = 'owner'
 
-# Bootstrap the deployment's instance config (per ADR-027 the instance IS the
+# Bootstrap the deployment's server config (per ADR-027 the server is the
 # server — there is no separately-named "space" concept any more). New users
-# created during tests auto-join the instance, so most tests can drop their
+# created during tests auto-join the server, so most tests can drop their
 # per-test createSpace setup.
-[bootstrap.instance]
+[bootstrap.server]
 name = 'E2E Test Server'
-description = 'Bootstrap instance used by every e2e test.'
+description = 'Bootstrap server used by every e2e test.'

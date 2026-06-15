@@ -51,6 +51,7 @@ const VoiceCallTokenQuery = graphql(`
       voiceCallToken {
         token
         e2eeKey
+        callId
       }
     }
   }
@@ -101,8 +102,10 @@ export class VoiceCallState {
 
   // Internal LiveKit room instance
   private room: Room | null = null;
+  private activeCallId: string | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
+  private suppressDisconnectToast = false;
 
   // Non-reactive audio level cache — updated at 60ms by the polling interval,
   // read imperatively by VoiceCallPanel to drive the speaking ring animation.
@@ -178,9 +181,11 @@ export class VoiceCallState {
 
       const token = result.data?.room?.voiceCallToken?.token;
       const e2eeKey = result.data?.room?.voiceCallToken?.e2eeKey;
-      if (!token || !e2eeKey) {
+      const callId = result.data?.room?.voiceCallToken?.callId;
+      if (!token || !e2eeKey || !callId) {
         throw new Error('Failed to get voice call token');
       }
+      this.activeCallId = callId;
 
       const keyProvider = new ExternalE2EEKeyProvider();
       const { default: E2EEWorker } = await import('livekit-client/e2ee-worker?worker');
@@ -254,6 +259,40 @@ export class VoiceCallState {
 
     this.room.disconnect();
     this.cleanup();
+  }
+
+  /**
+   * Apply a backend-authored participant leave. Used for reconciliation and
+   * moderation paths where the server has already committed the leave fact.
+   */
+  handleParticipantLeftEvent(
+    roomId: string,
+    callId: string | null,
+    actorId: string | null,
+    currentUserId: string | null
+  ): void {
+    if (!actorId || !currentUserId || actorId !== currentUserId) return;
+    this.disconnectFromServerEvent(roomId, callId);
+  }
+
+  /**
+   * Apply a backend-authored call end. Does not record another leave intent.
+   */
+  handleCallEndedEvent(roomId: string, callId: string | null): void {
+    this.disconnectFromServerEvent(roomId, callId);
+  }
+
+  private disconnectFromServerEvent(roomId: string, callId: string | null): void {
+    if (this.roomId !== roomId) return;
+    if (!callId || this.activeCallId !== callId) return;
+
+    const room = this.room;
+    if (room) {
+      this.suppressDisconnectToast = true;
+      room.disconnect();
+    }
+    this.cleanup();
+    this.suppressDisconnectToast = false;
   }
 
   private async recordLeaveIntent(roomId: string): Promise<void> {
@@ -393,7 +432,7 @@ export class VoiceCallState {
 
     this.room.on(RoomEvent.Disconnected, () => {
       // Only show toast if we were in an active call (not a failed join attempt)
-      if (this.connected) {
+      if (this.connected && !this.suppressDisconnectToast) {
         toast.error('Voice call disconnected');
       }
       this.cleanup();
@@ -574,6 +613,8 @@ export class VoiceCallState {
     }
     this.e2eeWorker?.terminate();
     this.e2eeWorker = null;
+    this.activeCallId = null;
+    this.suppressDisconnectToast = false;
     this.connected = false;
     this.connecting = false;
     this.roomId = null;

@@ -18,7 +18,8 @@ States:
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const voiceCallState = serverRegistry.getStore(getActiveServer()).voiceCall;
+  const stores = serverRegistry.getStore(getActiveServer());
+  const voiceCallState = stores.voiceCall;
   import { toast } from '$lib/ui/toast';
 
   let {
@@ -37,6 +38,7 @@ States:
     try {
       await voiceCallState.join(livekitUrl, roomId);
     } catch {
+      stores.handleVoiceCallJoinFailed(roomId);
       toast.error('Failed to join voice call');
     }
   }

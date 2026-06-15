@@ -5,6 +5,7 @@
  * as the source of truth. Real-time updates come from room events:
  * - CallParticipantJoinedEvent → add participant to the room
  * - CallParticipantLeftEvent → remove participant; delete room if empty
+ * - CallEndedEvent → delete the room regardless of participant snapshot
  *
  * Also includes the local user's active call from VoiceCallState for instant feedback.
  */
@@ -29,6 +30,7 @@ const CallParticipantsQuery = graphql(`
 					...UserAvatarUser
 				}
 				joinedAt
+				callId
 			}
 		}
 	}
@@ -42,12 +44,17 @@ export type CallRoomParticipant = {
 	avatarUrl: string | null;
 };
 
+type ActiveCallRoomSnapshot = {
+	callId: string | null;
+	participants: CallRoomParticipant[];
+};
+
 export class ActiveCallRoomsState {
 	#client: Client;
 	#voiceCall: VoiceCallState;
 
-	/** Map of room ID → participants for rooms with active calls. */
-	private serverRooms = new SvelteMap<string, CallRoomParticipant[]>();
+	/** Map of room ID → server-observed active call snapshot. */
+	private serverRooms = new SvelteMap<string, ActiveCallRoomSnapshot>();
 
 	constructor(client: Client, voiceCall: VoiceCallState) {
 		this.#client = client;
@@ -69,7 +76,7 @@ export class ActiveCallRoomsState {
 	 * Get participants for a room's active call.
 	 */
 	getParticipants(roomId: string): CallRoomParticipant[] {
-		return this.serverRooms.get(roomId) ?? [];
+		return this.serverRooms.get(roomId)?.participants ?? [];
 	}
 
 	/**
@@ -98,19 +105,22 @@ export class ActiveCallRoomsState {
 				if (participants) {
 					this.serverRooms.set(
 						roomId,
-						participants.map((p) => {
-							const user = useFragment(UserAvatarUserFragmentDoc, p.user);
-							return {
-								userId: user.id,
-								displayName: user.displayName,
-								login: user.login,
-								avatarUrl: user.avatarUrl ?? null
-							};
-						})
+						{
+							callId: participants[0]?.callId ?? null,
+							participants: participants.map((p) => {
+								const user = useFragment(UserAvatarUserFragmentDoc, p.user);
+								return {
+									userId: user.id,
+									displayName: user.displayName,
+									login: user.login,
+									avatarUrl: user.avatarUrl ?? null
+								};
+							})
+						}
 					);
 				} else if (!this.serverRooms.has(roomId)) {
 					// Room is active but we couldn't fetch participants
-					this.serverRooms.set(roomId, []);
+					this.serverRooms.set(roomId, { callId: null, participants: [] });
 				}
 			})
 		);
@@ -119,25 +129,32 @@ export class ActiveCallRoomsState {
 	/**
 	 * Handle a CallParticipantJoinedEvent — add participant to the room.
 	 */
-	handleJoin(roomId: string, actor: UserAvatarUserFragment | null): void {
-		const existing = this.serverRooms.get(roomId) ?? [];
+	handleJoin(roomId: string, callId: string, actor: UserAvatarUserFragment | null): void {
+		const existing = this.serverRooms.get(roomId);
+		if (existing?.callId && existing.callId !== callId) return;
+
+		const snapshot = existing ?? { callId, participants: [] };
+		const participants = snapshot.participants;
 
 		if (actor) {
 			// Avoid duplicates
-			if (existing.some((p) => p.userId === actor.id)) return;
+			if (participants.some((p) => p.userId === actor.id)) return;
 
-			this.serverRooms.set(roomId, [
-				...existing,
-				{
-					userId: actor.id,
-					displayName: actor.displayName,
-					login: actor.login,
-					avatarUrl: actor.avatarUrl ?? null
-				}
-			]);
+			this.serverRooms.set(roomId, {
+				callId,
+				participants: [
+					...participants,
+					{
+						userId: actor.id,
+						displayName: actor.displayName,
+						login: actor.login,
+						avatarUrl: actor.avatarUrl ?? null
+					}
+				]
+			});
 		} else if (!this.serverRooms.has(roomId)) {
 			// No actor data but room is now active
-			this.serverRooms.set(roomId, []);
+			this.serverRooms.set(roomId, { callId, participants: [] });
 		}
 	}
 
@@ -145,18 +162,26 @@ export class ActiveCallRoomsState {
 	 * Handle a CallParticipantLeftEvent — remove participant from the room.
 	 * Deletes the room entry if no participants remain.
 	 */
-	handleLeave(roomId: string, actorId: string | null): void {
+	handleLeave(roomId: string, callId: string | null, actorId: string | null): void {
 		if (!actorId) return;
 
-		const existing = this.serverRooms.get(roomId);
-		if (!existing) return;
+		const snapshot = this.serverRooms.get(roomId);
+		if (!snapshot || (callId !== null && snapshot.callId !== callId)) return;
 
-		const updated = existing.filter((p) => p.userId !== actorId);
+		const updated = snapshot.participants.filter((p) => p.userId !== actorId);
 		if (updated.length > 0) {
-			this.serverRooms.set(roomId, updated);
+			this.serverRooms.set(roomId, { callId: snapshot.callId, participants: updated });
 		} else {
 			this.serverRooms.delete(roomId);
 		}
+	}
+
+	/**
+	 * Handle a CallEndedEvent — clear the room's server-side call snapshot.
+	 */
+	handleEnd(roomId: string, callId: string): void {
+		if (this.serverRooms.get(roomId)?.callId !== callId) return;
+		this.serverRooms.delete(roomId);
 	}
 
 	/**

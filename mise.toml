@@ -30,7 +30,9 @@ sources = ["go.mod", "go.sum"]
 description = "Install frontend dependencies"
 dir = "frontend"
 run = "pnpm install"
-sources = ["package.json", "pnpm-lock.yaml"]
+# package.json also contains app metadata and scripts; the lockfile is the
+# dependency-resolution input that should trigger installs.
+sources = ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc"]
 
 [tasks.deps]
 description = "Install all dependencies"
@@ -87,26 +89,43 @@ dir = "frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
+    "touch build/.mise-build-stamp",
     "rm -rf ../cli/internal/http_server/.client",
     "cp -r build ../cli/internal/http_server/.client",
     "touch ../cli/internal/http_server/.client/.gitkeep",
 ]
 sources = [
+    ".npmrc",
     "package.json",
     "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
     "src/**/*",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/*.stories.*",
+    "!src/**/*TestHarness.svelte",
     "static/**/*",
     "svelte.config.js",
     "tsconfig.json",
     "vite.config.ts",
 ]
+outputs = ["build/.mise-build-stamp", "../cli/internal/http_server/.client/.gitkeep"]
 
-[tasks.build-cli]
-description = "Build the CLI application for the current architecture"
+[tasks.build-dev-cli]
+description = "Build the development CLI application for the current architecture"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-run = "go build -o bin/chatto ."
-sources = ["**/*.go", "internal/http_server/.client/**/*"]
+run = "go build -tags bootstrap -o bin/chatto ."
+sources = [
+    "go.mod",
+    "go.sum",
+    "**/*.go",
+    "!**/*_test.go",
+    "cmd/LICENSE",
+    "cmd/NOTICE",
+    "internal/graph/*.graphqls",
+    "internal/http_server/.client/**/*",
+]
 outputs = ["bin/chatto"]
 
 [tasks.build-e2e-server]
@@ -218,8 +237,8 @@ run = "bin/chatto run"
 description = "Clean all build artifacts"
 run = [
     "rm -rf cli/bin/*",
-    "rm -rf cli/internal/http_server/.client/*",
-    "rm -rf frontend/build/*",
+    "rm -rf cli/internal/http_server/.client",
+    "rm -rf frontend/build",
 ]
 
 [tasks.reset-config]

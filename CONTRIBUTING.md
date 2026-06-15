@@ -11,7 +11,7 @@ Chatto is not accepting outside contributions at this time, but feedback, bug re
 | `$CONDUCTOR_PORT` | Chatto webserver (user-facing URL) |
 | `+1`              | Embedded NATS                      |
 
-The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command builds the frontend and CLI, then starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command builds the frontend and development CLI, then starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
 
 ## Developing Outside of Conductor
 
@@ -29,7 +29,7 @@ export CHATTO_WEBSERVER_PORT=4000
 export CHATTO_WEBSERVER_URL=http://localhost:4000
 export CHATTO_NATS_EMBEDDED_PORT=4555
 export CHATTO_NATS_CLIENT_URL=nats://localhost:4555
-mise run build-cli
+mise run build-dev-cli
 cd cli
 bin/chatto run
 ```

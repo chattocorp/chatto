@@ -171,6 +171,7 @@ type ComplexityRoot struct {
 	}
 
 	CallParticipant struct {
+		CallID   func(childComplexity int) int
 		JoinedAt func(childComplexity int) int
 		User     func(childComplexity int) int
 	}
@@ -968,6 +969,7 @@ type ComplexityRoot struct {
 	}
 
 	VoiceCallToken struct {
+		CallID  func(childComplexity int) int
 		E2EEKey func(childComplexity int) int
 		Token   func(childComplexity int) int
 	}
@@ -1740,6 +1742,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CallEndedEvent.RoomId(childComplexity), true
 
+	case "CallParticipant.callId":
+		if e.ComplexityRoot.CallParticipant.CallID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CallParticipant.CallID(childComplexity), true
 	case "CallParticipant.joinedAt":
 		if e.ComplexityRoot.CallParticipant.JoinedAt == nil {
 			break
@@ -5407,6 +5415,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ViewerNotificationPreference.Level(childComplexity), true
 
+	case "VoiceCallToken.callId":
+		if e.ComplexityRoot.VoiceCallToken.CallID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VoiceCallToken.CallID(childComplexity), true
 	case "VoiceCallToken.e2eeKey":
 		if e.ComplexityRoot.VoiceCallToken.E2EEKey == nil {
 			break
@@ -5750,6 +5764,8 @@ func (ec *executionContext) childFields_CallParticipant(ctx context.Context, fie
 		return ec.fieldContext_CallParticipant_user(ctx, field)
 	case "joinedAt":
 		return ec.fieldContext_CallParticipant_joinedAt(ctx, field)
+	case "callId":
+		return ec.fieldContext_CallParticipant_callId(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type CallParticipant", field.Name)
 }
@@ -6686,6 +6702,8 @@ func (ec *executionContext) childFields_VoiceCallToken(ctx context.Context, fiel
 		return ec.fieldContext_VoiceCallToken_token(ctx, field)
 	case "e2eeKey":
 		return ec.fieldContext_VoiceCallToken_e2eeKey(ctx, field)
+	case "callId":
+		return ec.fieldContext_VoiceCallToken_callId(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type VoiceCallToken", field.Name)
 }
@@ -10207,6 +10225,29 @@ func (ec *executionContext) _CallParticipant_joinedAt(ctx context.Context, field
 }
 func (ec *executionContext) fieldContext_CallParticipant_joinedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CallParticipant", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _CallParticipant_callId(ctx context.Context, field graphql.CollectedField, obj *model.CallParticipant) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CallParticipant_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CallParticipant_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CallParticipant", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _CallParticipantJoinedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.CallParticipantJoinedEvent) (ret graphql.Marshaler) {
@@ -24849,6 +24890,29 @@ func (ec *executionContext) fieldContext_VoiceCallToken_e2eeKey(_ context.Contex
 	return graphql.NewScalarFieldContext("VoiceCallToken", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _VoiceCallToken_callId(ctx context.Context, field graphql.CollectedField, obj *core.VoiceCallToken) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VoiceCallToken_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VoiceCallToken_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VoiceCallToken", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -30732,6 +30796,11 @@ func (ec *executionContext) _CallParticipant(ctx context.Context, sel ast.Select
 			}
 		case "joinedAt":
 			out.Values[i] = ec._CallParticipant_joinedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._CallParticipant_callId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -41498,6 +41567,11 @@ func (ec *executionContext) _VoiceCallToken(ctx context.Context, sel ast.Selecti
 			}
 		case "e2eeKey":
 			out.Values[i] = ec._VoiceCallToken_e2eeKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._VoiceCallToken_callId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

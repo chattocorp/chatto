@@ -170,7 +170,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_AUTH_TOKEN" toml="nats.embedded.auth_token">
-  Auth token for the embedded NATS server. Must match `CHATTO_NATS_CLIENT_TOKEN` when using token auth.
+  Auth token for the embedded NATS server. For embedded mode, Chatto derives matching `nats.client` defaults for CLI/admin commands unless you override them explicitly.
 </EnvVar>
 
 ### Client
@@ -184,7 +184,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_CLIENT_TOKEN" toml="nats.client.token">
-  NATS auth token (when using `token` auth method). Must match `CHATTO_NATS_EMBEDDED_AUTH_TOKEN` when using the embedded server.
+  NATS auth token (when using `token` auth method). When explicitly set alongside embedded NATS, it must match `CHATTO_NATS_EMBEDDED_AUTH_TOKEN`.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_CLIENT_USERNAME" toml="nats.client.username">
@@ -331,12 +331,12 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   URL where LiveKit sends webhook events. Defaults to `{webserver.url}/webhooks/livekit`.
 </EnvVar>
 
-<EnvVar name="CHATTO_LIVEKIT_INSTANCE_ID" toml="livekit.instance_id">
-  Unique identifier for this Chatto server process, prefixed to LiveKit room names. Required when multiple Chatto replicas share the same LiveKit cluster, so that webhook events can be routed correctly. When empty, room names use the unprefixed format.
+<EnvVar name="CHATTO_LIVEKIT_SERVER_ID" toml="livekit.server_id">
+  Unique identifier for this Chatto server, prefixed to deterministic LiveKit room names. This value must match across replicas of one Chatto server, and should differ only across different Chatto servers sharing the same LiveKit cluster. When empty, room names use the unprefixed format. The old `CHATTO_LIVEKIT_INSTANCE_ID` / `livekit.instance_id` name is still accepted as a deprecated alias.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_KEY" toml="livekit.webhook_api_key">
-  API key that LiveKit uses to sign webhook requests. When multiple Chatto replicas share a LiveKit cluster, the webhook signing key may differ from the per-replica API key. Falls back to `CHATTO_LIVEKIT_API_KEY` when not set.
+  API key that LiveKit uses to sign webhook requests. When multiple Chatto servers share a LiveKit cluster, the webhook signing key may differ from the per-server API key. Falls back to `CHATTO_LIVEKIT_API_KEY` when not set.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_SECRET" toml="livekit.webhook_api_secret">
