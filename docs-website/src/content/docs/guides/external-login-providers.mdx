@@ -53,6 +53,8 @@ https://chat.example.com/auth/providers/github-main/callback
 
 Chatto derives the callback from `webserver.url`, so set that value to the public HTTPS origin of your server.
 
+For older OIDC client registrations, Chatto also serves `/auth/oidc` and `/auth/oidc/callback` as compatibility aliases for the configured OIDC provider. New registrations should use the provider-specific callback URL.
+
 ## Configuration
 
 <Tabs>
