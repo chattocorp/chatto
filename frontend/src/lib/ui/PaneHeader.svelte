@@ -25,6 +25,7 @@ be set; if both are passed the button wins (it's the more deliberate
 choice).
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import type { Snippet } from 'svelte';
   import PaneHeaderSkeleton from './PaneHeaderSkeleton.svelte';
 
@@ -86,7 +87,7 @@ choice).
       </button>
     {:else if backHref}
       <a
-        href={backHref}
+        href={resolve(backHref as '/')}
         class="group/pane-header-icon-button pane-header-icon-button"
         title={backLabel}
         aria-label={backLabel}

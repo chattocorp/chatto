@@ -322,10 +322,12 @@ test.describe('Account Deletion', () => {
         await waitForRoomReady(page2, 'general');
 
         // User B should see e2eadmin + themselves (not 0, not 3)
-        await expect(roomPage2.memberCount).toHaveText('Members (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(roomPage2.memberCount).toHaveText('Members (2)', {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
         // User B's name should still be visible in the member list
-        await expect(page2.getByLabel('Room members').getByText(userB.login)).toBeVisible();
+        await expect(page2.getByLabel('Member list').getByText(userB.login)).toBeVisible();
 
         // User C joins to verify new members can still join and be listed
         const context3 = await browser!.newContext({ baseURL: serverURL });
@@ -352,8 +354,8 @@ test.describe('Account Deletion', () => {
           await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
           // Both User B and User C should be visible in the member list
-          await expect(page2.getByLabel('Room members').getByText(userB.login)).toBeVisible();
-          await expect(page2.getByLabel('Room members').getByText(userC.login)).toBeVisible();
+          await expect(page2.getByLabel('Member list').getByText(userB.login)).toBeVisible();
+          await expect(page2.getByLabel('Member list').getByText(userC.login)).toBeVisible();
         } finally {
           await context3.close();
         }

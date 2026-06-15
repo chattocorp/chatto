@@ -95,9 +95,9 @@ export class RoomPage {
     return this.page.getByText(/^Members \(\d+\)$/);
   }
 
-  /** The member list sidebar */
+  /** The member list inside the room extras pane */
   get memberList(): Locator {
-    return this.page.locator('aside[aria-label="Room members"]');
+    return this.page.locator('aside[aria-label="Room extras"] nav[aria-label="Member list"]');
   }
 
   /**
