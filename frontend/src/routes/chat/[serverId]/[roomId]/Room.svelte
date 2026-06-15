@@ -30,15 +30,15 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { getRoomSidebarPanel, setRoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
-  import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
+  import RoomSidebar from './RoomSidebar.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
+  import { RoomSidebarPanelsState } from './roomSidebarPanels.svelte';
   import ThreadPane from './ThreadPane.svelte';
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
@@ -279,52 +279,12 @@
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   // Channel rooms can always be left. DMs are permanent (no leave action).
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
-  let selectedRoomSidebarPanel = $state<RoomSidebarPanel>('members');
-  let selectedRoomSidebarScope = $state<string | null>(null);
-  let roomSidebarHidden = $state(false);
-  let mobileRoomSidebarOpen = $state(false);
-
-  const currentRoomSidebarScope = $derived(`${getActiveServer()}:${roomId}`);
-  const selectedRoomSidebarPanelForRoom = $derived.by(() => {
-    if (selectedRoomSidebarScope === currentRoomSidebarScope) {
-      return selectedRoomSidebarPanel;
-    }
-
-    return getRoomSidebarPanel(getActiveServer(), roomId);
-  });
-  const activeRoomSidebarPanel = $derived(
-    roomSidebarHidden ? null : selectedRoomSidebarPanelForRoom
+  const roomSidebarPanels = new RoomSidebarPanelsState(
+    () => getActiveServer(),
+    () => roomId
   );
-  const mobileRoomSidebarPanel = $derived(
-    mobileRoomSidebarOpen ? selectedRoomSidebarPanelForRoom : null
-  );
-
-  function selectRoomSidebarPanel(panel: RoomSidebarPanel) {
-    const serverId = getActiveServer();
-    setRoomSidebarPanel(serverId, roomId, panel);
-    selectedRoomSidebarScope = `${serverId}:${roomId}`;
-    selectedRoomSidebarPanel = panel;
-  }
-
-  function toggleRoomSidebarPanel(panel: RoomSidebarPanel) {
-    if (activeRoomSidebarPanel === panel) {
-      roomSidebarHidden = true;
-      return;
-    }
-
-    selectRoomSidebarPanel(panel);
-    roomSidebarHidden = false;
-  }
-
-  function toggleMobileRoomSidebarPanel(panel: RoomSidebarPanel) {
-    if (mobileRoomSidebarPanel === panel) {
-      mobileRoomSidebarOpen = false;
-      return;
-    }
-
-    selectRoomSidebarPanel(panel);
-    mobileRoomSidebarOpen = true;
-  }
+  const activeRoomSidebarPanel = $derived(roomSidebarPanels.activeDesktopPanel);
+  const mobileRoomSidebarPanel = $derived(roomSidebarPanels.mobilePanel);
 
   let leavingRoom = $state(false);
 
@@ -355,7 +315,7 @@
   onkeydown={(e) => {
     if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
       e.preventDefault();
-      mobileRoomSidebarOpen = false;
+      roomSidebarPanels.closeMobile();
       return;
     }
 
@@ -374,7 +334,7 @@
       ) {
         return;
       }
-      mobileRoomSidebarOpen = false;
+      roomSidebarPanels.closeMobile();
       return;
     }
 
@@ -425,12 +385,12 @@
               <RoomSidebarToggle
                 mode="mobile"
                 activePanel={mobileRoomSidebarPanel}
-                onToggle={toggleMobileRoomSidebarPanel}
+                onToggle={(panel) => roomSidebarPanels.toggleMobilePanel(panel)}
               />
               <RoomSidebarToggle
                 mode="desktop"
                 activePanel={activeRoomSidebarPanel}
-                onToggle={toggleRoomSidebarPanel}
+                onToggle={(panel) => roomSidebarPanels.toggleDesktopPanel(panel)}
               />
             {/if}
             {#if showVoiceCall}
@@ -503,7 +463,7 @@
           type="button"
           class="absolute inset-0 z-10 bg-transparent lg:hidden"
           aria-label="Close room extras"
-          onclick={() => (mobileRoomSidebarOpen = false)}
+          onclick={() => roomSidebarPanels.closeMobile()}
         ></button>
         <div
           class="absolute inset-y-0 right-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
@@ -518,7 +478,7 @@
             canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
             currentUserId={currentUser.user?.id ?? null}
             onLoadMoreMembers={roomMembers.loadMoreMembers}
-            onClose={() => (mobileRoomSidebarOpen = false)}
+            onClose={() => roomSidebarPanels.closeMobile()}
           />
         </div>
       {/if}
@@ -533,7 +493,7 @@
           canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
           currentUserId={currentUser.user?.id ?? null}
           onLoadMoreMembers={roomMembers.loadMoreMembers}
-          onClose={() => (roomSidebarHidden = true)}
+          onClose={() => roomSidebarPanels.closeDesktop()}
         />
       </div>
     {/if}
