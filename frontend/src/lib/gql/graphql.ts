@@ -309,7 +309,7 @@ export type AuthProvider = {
   label: Scalars['String']['output'];
   /** Relative URL that starts this provider's login flow. */
   loginUrl: Scalars['String']['output'];
-  /** Provider type, such as 'openid-connect', 'github', or 'google'. */
+  /** Provider type, such as 'oidc', 'github', or 'google'. */
   type: Scalars['String']['output'];
 };
 
@@ -2909,8 +2909,6 @@ export type Server = {
   availablePermissions: Array<Scalars['String']['output']>;
   /** True if direct (email/password) registration is enabled on this server. */
   directRegistrationEnabled: Scalars['Boolean']['output'];
-  /** List of enabled SSO provider IDs. Deprecated: use authProviders. */
-  enabledAuthProviders: Array<Scalars['String']['output']>;
   /** LiveKit WebSocket URL for voice calls. Null if voice calls are disabled. */
   livekitUrl?: Maybe<Scalars['String']['output']>;
   /** Maximum upload size for regular attachments (images, files) in bytes. */

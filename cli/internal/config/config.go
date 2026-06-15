@@ -292,7 +292,7 @@ type CoreConfig struct {
 }
 
 const (
-	AuthProviderTypeOpenIDConnect = "openid-connect"
+	AuthProviderTypeOpenIDConnect = "oidc"
 	AuthProviderTypeGitHub        = "github"
 	AuthProviderTypeGitLab        = "gitlab"
 	AuthProviderTypeGoogle        = "google"
@@ -312,11 +312,11 @@ var authProviderDefaultLabels = map[string]string{
 // changed after users link identities through it.
 type AuthProviderConfig struct {
 	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type            string            `toml:"type" comment:"Provider type: openid-connect, github, gitlab, google, or discord."`
+	Type            string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
 	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
 	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
 	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
-	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'openid-connect'."`
+	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
 	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
 	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
 	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
@@ -836,7 +836,7 @@ func (c *ChattoConfig) Validate() error {
 			seenProviderIDs[provider.ID] = struct{}{}
 		}
 		if !IsAllowedAuthProviderType(provider.Type) {
-			errs = append(errs, prefix+".type must be one of: openid-connect, github, gitlab, google, discord")
+			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord")
 		}
 		if provider.ClientID == "" {
 			errs = append(errs, prefix+".client_id is required")
@@ -845,7 +845,7 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, prefix+".client_secret is required")
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
-			errs = append(errs, prefix+".issuer_url is required when type = 'openid-connect'")
+			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
 		}
 		if provider.IssuerURL != "" {
 			if err := validateAbsoluteHTTPURL(prefix+".issuer_url", provider.IssuerURL); err != nil {

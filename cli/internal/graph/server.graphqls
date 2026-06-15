@@ -28,7 +28,7 @@ type AuthProvider {
   "Stable provider ID used in login URLs and external identity links."
   id: ID! @public
 
-  "Provider type, such as 'openid-connect', 'github', or 'google'."
+  "Provider type, such as 'oidc', 'github', or 'google'."
   type: String! @public
 
   "Human-readable label for login UI."
@@ -45,9 +45,6 @@ Some fields don't require authentication and are available on the login page.
 type Server {
   "The application version."
   version: String! @public
-
-  "List of enabled SSO provider methods. Deprecated: use authProviders."
-  enabledAuthProviders: [String!]! @public
 
   "External login providers enabled on this server."
   authProviders: [AuthProvider!]! @public

@@ -147,7 +147,7 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ID", "hub")
-	t.Setenv("CHATTO_AUTH_PROVIDERS_0_TYPE", "openid-connect")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_TYPE", "oidc")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_LABEL", "Chatto Hub")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ISSUER_URL", "https://id.example")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_CLIENT_ID", "chatto")

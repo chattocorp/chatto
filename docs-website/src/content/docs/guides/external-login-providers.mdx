@@ -15,13 +15,13 @@ Chatto can consume external OAuth and OIDC providers for sign-in. Providers are 
 
 | Type             | Use for                                      |
 | ---------------- | -------------------------------------------- |
-| `openid-connect` | Any standards-compatible OIDC provider       |
+| `oidc` | Any standards-compatible OIDC provider       |
 | `github`         | GitHub OAuth apps                            |
 | `gitlab`         | GitLab OAuth applications                    |
 | `google`         | Google OAuth clients                         |
 | `discord`        | Discord OAuth2 applications                  |
 
-Other provider types are not exposed as curated providers yet. Use `openid-connect` for standards-compatible OIDC providers.
+Other provider types are not exposed as curated providers yet. Use `oidc` for standards-compatible OIDC providers.
 
 ## Provider IDs
 
@@ -66,7 +66,7 @@ url = "https://chat.example.com"
 
 [[auth.providers]]
 id = "chatto-hub"
-type = "openid-connect"
+type = "oidc"
 label = "Chatto Hub"
 issuer_url = "https://hub.chatto.dev"
 client_id = "..."
@@ -82,7 +82,7 @@ For container platforms, configure providers with counted environment variables.
 
 ```bash
 CHATTO_AUTH_PROVIDERS_0_ID=chatto-hub
-CHATTO_AUTH_PROVIDERS_0_TYPE=openid-connect
+CHATTO_AUTH_PROVIDERS_0_TYPE=oidc
 CHATTO_AUTH_PROVIDERS_0_LABEL="Chatto Hub"
 CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://hub.chatto.dev
 CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=...
@@ -109,7 +109,7 @@ CHATTO_AUTH_OIDC_CLIENT_SECRET=...
 # CHATTO_AUTH_OIDC_LABEL="Chatto Hub"
 ```
 
-Those legacy variables create one `openid-connect` provider with `id = "oidc"`. Do not combine counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables with `CHATTO_AUTH_OIDC_ENABLED`.
+Those legacy variables create one `oidc` provider with `id = "oidc"`. Do not combine counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables with `CHATTO_AUTH_OIDC_ENABLED`.
 
 </TabItem>
 <TabItem label="GitHub">
@@ -180,7 +180,7 @@ Chatto requests provider-specific default scopes:
 
 | Type             | Default scopes                    |
 | ---------------- | --------------------------------- |
-| `openid-connect` | `openid`, `profile`, `email`      |
+| `oidc` | `openid`, `profile`, `email`      |
 | `github`         | `read:user`, `user:email`         |
 | `gitlab`         | `read_user`                       |
 | `google`         | `openid`, `profile`, `email`      |
@@ -191,7 +191,7 @@ You can override scopes per provider:
 ```toml
 [[auth.providers]]
 id = "chatto-hub"
-type = "openid-connect"
+type = "oidc"
 issuer_url = "https://id.example.com"
 client_id = "..."
 client_secret = "..."
@@ -219,4 +219,4 @@ Public clients can discover configured providers in two places:
 - GraphQL `Server.authProviders` returns provider IDs, types, labels, and login URLs.
 - `GET /api/server` returns the same metadata in `authProviders`.
 
-Older clients may still read GraphQL `enabledAuthProviders` or `/api/server.authMethods`. Those legacy fields stay method-oriented, so OIDC appears as `oidc` even when the configured provider ID is something like `chatto-hub`.
+Older clients may still read `/api/server.authMethods`. That legacy field stays method-oriented, so OIDC appears as `oidc` even when the configured provider ID is something like `chatto-hub`.

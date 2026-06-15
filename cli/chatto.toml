@@ -26,7 +26,7 @@ ttl = '7d'
 
 [[auth.providers]]
 id = 'chatto-hub'
-type = 'openid-connect'
+type = 'oidc'
 label = 'Chatto Hub'
 issuer_url = 'https://chatto.id/realms/chatto-hub'
 client_id = 'chatto-dev'

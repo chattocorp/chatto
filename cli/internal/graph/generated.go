@@ -758,7 +758,6 @@ type ComplexityRoot struct {
 		AuthProviders                func(childComplexity int) int
 		AvailablePermissions         func(childComplexity int) int
 		DirectRegistrationEnabled    func(childComplexity int) int
-		EnabledAuthProviders         func(childComplexity int) int
 		LivekitURL                   func(childComplexity int) int
 		MaxUploadSize                func(childComplexity int) int
 		MaxVideoUploadSize           func(childComplexity int) int
@@ -4551,12 +4550,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.DirectRegistrationEnabled(childComplexity), true
-	case "Server.enabledAuthProviders":
-		if e.ComplexityRoot.Server.EnabledAuthProviders == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Server.EnabledAuthProviders(childComplexity), true
 	case "Server.livekitUrl":
 		if e.ComplexityRoot.Server.LivekitURL == nil {
 			break
@@ -6439,8 +6432,6 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 	switch field.Name {
 	case "version":
 		return ec.fieldContext_Server_version(ctx, field)
-	case "enabledAuthProviders":
-		return ec.fieldContext_Server_enabledAuthProviders(ctx, field)
 	case "authProviders":
 		return ec.fieldContext_Server_authProviders(ctx, field)
 	case "profile":
@@ -21341,42 +21332,6 @@ func (ec *executionContext) _Server_version(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_Server_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Server", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Server_enabledAuthProviders(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Server_enabledAuthProviders(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.EnabledAuthProviders, nil
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Public == nil {
-					var zeroVal []string
-					return zeroVal, errors.New("directive public is not implemented")
-				}
-				return ec.Directives.Public(ctx, obj, directive0)
-			}
-
-			next = directive1
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
-			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Server_enabledAuthProviders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Server", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -38117,11 +38072,6 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = graphql.MarshalString("Server")
 		case "version":
 			out.Values[i] = ec._Server_version(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "enabledAuthProviders":
-			out.Values[i] = ec._Server_enabledAuthProviders(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

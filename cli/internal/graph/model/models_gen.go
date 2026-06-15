@@ -139,7 +139,7 @@ type AssignRoleInput struct {
 type AuthProvider struct {
 	// Stable provider ID used in login URLs and external identity links.
 	ID string `json:"id"`
-	// Provider type, such as 'openid-connect', 'github', or 'google'.
+	// Provider type, such as 'oidc', 'github', or 'google'.
 	Type string `json:"type"`
 	// Human-readable label for login UI.
 	Label string `json:"label"`
@@ -1001,8 +1001,6 @@ type SendTypingIndicatorInput struct {
 type Server struct {
 	// The application version.
 	Version string `json:"version"`
-	// List of enabled SSO provider methods. Deprecated: use authProviders.
-	EnabledAuthProviders []string `json:"enabledAuthProviders"`
 	// External login providers enabled on this server.
 	AuthProviders []*AuthProvider `json:"authProviders"`
 	// Public-facing identity and branding for this server.

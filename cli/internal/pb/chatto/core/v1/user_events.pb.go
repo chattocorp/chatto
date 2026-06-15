@@ -805,13 +805,18 @@ func (x *UserOIDCSubjectLinkedEvent) GetSubjectHash() string {
 type UserExternalIdentityLinkedEvent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// For OIDC providers this is the verified issuer URL. For OAuth-only
-	// providers this is the configured local provider ID.
+	// Durable identity namespace used for lookup. For OIDC providers this is the
+	// verified issuer URL from the ID token, which lets the link survive local
+	// provider ID or label changes. For OAuth-only providers this is the stable
+	// configured local provider ID because there is no verified issuer URL.
 	Issuer string `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	// Raw provider subjects are included only for events written after this
 	// field existed. Projections prefer subject_hash when present.
-	Subject       string `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
-	SubjectHash   string `protobuf:"bytes,4,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
+	Subject     string `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	SubjectHash string `protobuf:"bytes,4,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
+	// Event-time metadata about the configured provider that created the link.
+	// This is not dereferenced against current config during replay; providers
+	// may be renamed, removed, or reconfigured without changing existing links.
 	ProviderId    string `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	ProviderType  string `protobuf:"bytes,6,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
 	unknownFields protoimpl.UnknownFields

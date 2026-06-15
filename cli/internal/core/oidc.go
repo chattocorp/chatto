@@ -47,8 +47,10 @@ func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject s
 }
 
 // LinkExternalIdentity links a verified provider subject to a Chatto user.
-// The issuer is the verified OIDC issuer URL for OIDC providers and the stable
-// configured provider ID for OAuth-only providers. Idempotent for the same user.
+// The issuer is the durable identity namespace: the verified OIDC issuer URL
+// for OIDC providers and the stable configured provider ID for OAuth-only
+// providers. providerID/providerType are event-time metadata and are not used
+// for lookup, so config changes do not break existing links. Idempotent for the same user.
 func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, providerType, issuer, subject, userID string) error {
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
 		UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
@@ -73,7 +75,7 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 // LinkOIDCSubject links an OIDC subject to a Chatto user. Uses atomic create
 // to prevent race conditions. Idempotent if already linked to the same user.
 func (c *ChattoCore) LinkOIDCSubject(ctx context.Context, issuer, subject, userID string) error {
-	err := c.LinkExternalIdentity(ctx, "openid-connect", "openid-connect", issuer, subject, userID)
+	err := c.LinkExternalIdentity(ctx, "oidc", "oidc", issuer, subject, userID)
 	if errors.Is(err, ErrExternalIdentityAlreadyClaimed) {
 		return ErrOIDCSubjectAlreadyClaimed
 	}
