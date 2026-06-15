@@ -338,6 +338,6 @@ describe('RoomSidebar', () => {
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Files');
     expect(container.textContent).toContain('Files coming soon.');
-    expect(container.querySelector('[aria-label="Member list"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
   });
 });

@@ -206,7 +206,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   </PaneHeader>
 
   {#if activePanel === 'members'}
-    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Member list">
+    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Members">
       {#if loading}
         <ul role="list">
           {#each Array(8) as _, i (i)}

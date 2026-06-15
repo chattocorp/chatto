@@ -209,7 +209,7 @@ test.describe('Real-time synchronization', () => {
       // Note: Live events may take a few seconds to propagate across users
       // Poll for the update with a longer timeout since WebSocket events can be delayed
       await expect(async () => {
-        const memberListText = await page2.locator('[aria-label="Member list"]').textContent();
+        const memberListText = await page2.locator('[aria-label="Members"]').textContent();
         expect(memberListText).toContain(newDisplayName);
       }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 
@@ -283,7 +283,7 @@ test.describe('Real-time synchronization', () => {
       // Wait for the event to propagate to User 2
       // Check member list for the update
       await expect(async () => {
-        const memberListText = await page2.locator('[aria-label="Member list"]').textContent();
+        const memberListText = await page2.locator('[aria-label="Members"]').textContent();
         expect(memberListText).toContain(newDisplayName);
       }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 

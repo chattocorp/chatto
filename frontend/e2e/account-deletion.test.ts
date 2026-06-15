@@ -327,7 +327,7 @@ test.describe('Account Deletion', () => {
         });
 
         // User B's name should still be visible in the member list
-        await expect(page2.getByLabel('Member list').getByText(userB.login)).toBeVisible();
+        await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();
 
         // User C joins to verify new members can still join and be listed
         const context3 = await browser!.newContext({ baseURL: serverURL });
@@ -354,8 +354,8 @@ test.describe('Account Deletion', () => {
           await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
           // Both User B and User C should be visible in the member list
-          await expect(page2.getByLabel('Member list').getByText(userB.login)).toBeVisible();
-          await expect(page2.getByLabel('Member list').getByText(userC.login)).toBeVisible();
+          await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();
+          await expect(page2.getByLabel('Members').getByText(userC.login)).toBeVisible();
         } finally {
           await context3.close();
         }
