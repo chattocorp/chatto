@@ -68,9 +68,19 @@ buttons differ. This prevents layout shift when joining/leaving a call.
 
     if (event.__typename === 'CallParticipantJoinedEvent' && event.roomId === roomId) {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
-      callParticipantsState.handleJoin(event.roomId, actor);
+      callParticipantsState.handleJoin(event.roomId, event.callId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent' && event.roomId === roomId) {
-      callParticipantsState.handleLeave(event.roomId, spaceEvent.actorId ?? null);
+      callParticipantsState.handleLeave(event.roomId, event.callId, spaceEvent.actorId ?? null);
+      voiceCallState.handleParticipantLeftEvent(
+        event.roomId,
+        event.callId,
+        spaceEvent.actorId ?? null,
+        stores.rooms.currentUserId
+      );
+    } else if (event.__typename === 'CallEndedEvent' && event.roomId === roomId) {
+      callParticipantsState.handleEnd(event.roomId, event.callId);
+      activeCallRooms.handleEnd(event.roomId, event.callId);
+      voiceCallState.handleCallEndedEvent(event.roomId, event.callId);
     }
   });
 
@@ -213,6 +223,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
     try {
       await voiceCallState.join(livekitUrl, roomId);
     } catch {
+      stores.handleVoiceCallJoinFailed(roomId);
       toast.error('Failed to join voice call');
     }
   }

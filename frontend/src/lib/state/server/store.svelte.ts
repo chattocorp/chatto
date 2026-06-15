@@ -214,6 +214,13 @@ export class ServerStateStore {
     return null;
   }
 
+  /** Remove optimistic call UI state after a local join attempt fails. */
+  handleVoiceCallJoinFailed(roomId: string): void {
+    const currentUserId = this.rooms.currentUserId;
+    this.activeCallRooms.handleLeave(roomId, null, currentUserId);
+    this.callParticipants.handleLeave(roomId, null, currentUserId);
+  }
+
   /** Clean up resources. */
   dispose(): void {
     this.#disposeEffects();

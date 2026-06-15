@@ -328,6 +328,10 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 
 	avatarSize := 96
 	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize, "cover")
+	activeCall, ok := r.core.CallState.ActiveCall(obj.Id)
+	if !ok {
+		return nil, fmt.Errorf("no active voice call for room %s", obj.Id)
+	}
 	e2eeKey, err := r.core.GetVoiceCallE2EEKey(ctx, obj.Id)
 	if err != nil {
 		return nil, err
@@ -347,6 +351,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 	if err != nil {
 		return nil, err
 	}
+	token.CallID = activeCall.CallID
 
 	return token, nil
 }
@@ -380,6 +385,7 @@ func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) (
 		result = append(result, &model.CallParticipant{
 			User:     user,
 			JoinedAt: timestamppb.New(time.Unix(p.JoinedAt, 0)),
+			CallID:   p.CallID,
 		})
 	}
 	return result, nil

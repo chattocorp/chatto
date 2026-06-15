@@ -17,6 +17,7 @@ import (
 type VoiceCallToken struct {
 	Token   string
 	E2EEKey string
+	CallID  string
 }
 
 // participantMetadata is serialized as JSON and stored in the LiveKit token's

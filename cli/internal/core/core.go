@@ -20,6 +20,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -850,8 +851,20 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		bootDone:                 make(chan struct{}),
 	}
 
+	callReconcileLease, err := lease.New(js, storage.memoryCacheKV, lease.Options{
+		Name:       callReconcileLeaseName,
+		Bucket:     "MEMORY_CACHE",
+		TTL:        callReconcileLeaseTTL,
+		RenewEvery: callReconcileLeaseRenewEvery,
+		RetryEvery: callReconcileLeaseRetryEvery,
+		Logger:     logger.WithPrefix("core.CallReconcilerLease"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize call reconciler lease: %w", err)
+	}
+
 	core.mediaService = NewMediaService(core)
-	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, logger.WithPrefix("core.CallService"))
+	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallService"))
 	core.assetService = NewAssetService(core)
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {

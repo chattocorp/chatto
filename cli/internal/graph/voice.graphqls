@@ -10,6 +10,8 @@ type VoiceCallToken {
   token: String!
   "Shared LiveKit E2EE key for this active call. Distributed by Chatto, never by LiveKit."
   e2eeKey: String!
+  "The active call session ID this token joins."
+  callId: ID!
 }
 
 """
@@ -20,6 +22,8 @@ type CallParticipant {
   user: User!
   "When the user joined the call."
   joinedAt: Time!
+  "The active call session ID this participant belongs to."
+  callId: ID!
 }
 
 # ==============================================================================

@@ -122,9 +122,15 @@
         }
         ... on CallParticipantJoinedEvent {
           roomId
+          callId
         }
         ... on CallParticipantLeftEvent {
           roomId
+          callId
+        }
+        ... on CallEndedEvent {
+          roomId
+          callId
         }
       }
     }

@@ -145,9 +145,15 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         }
         ... on CallParticipantJoinedEvent {
           roomId
+          callId
         }
         ... on CallParticipantLeftEvent {
           roomId
+          callId
+        }
+        ... on CallEndedEvent {
+          roomId
+          callId
         }
         # Deployment-wide events.
         ... on ServerUpdatedEvent {

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,18 +13,26 @@ import (
 
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/twitchtv/twirp"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
-	callReconcileInterval   = 30 * time.Second
-	callReconcileAPITimeout = 10 * time.Second
-	callReconcileMaxRetries = 5
+	callReconcileInterval             = 30 * time.Second
+	callReconcileAPITimeout           = 10 * time.Second
+	callReconcileMaxRetries           = 5
+	callReconcileListFailureThreshold = 3
+	callReconcileLeaseName            = "livekit_reconciler"
+	callReconcileLeaseTTL             = 45 * time.Second
+	callReconcileLeaseRenewEvery      = 15 * time.Second
+	callReconcileLeaseRetryEvery      = 5 * time.Second
+	liveKitReconcileFailureKey        = "livekit.reconciliation.list_failures"
 )
 
 type liveKitParticipantSnapshot struct {
@@ -36,12 +45,14 @@ type liveKitParticipantLister interface {
 }
 
 type CallService struct {
-	publisher  *events.Publisher
-	projection *CallStateProjection
-	projector  *events.Projector
-	callKeys   kms.CallKeyStore
-	livekit    liveKitParticipantLister
-	logger     events.Logger
+	publisher      *events.Publisher
+	projection     *CallStateProjection
+	projector      *events.Projector
+	callKeys       kms.CallKeyStore
+	livekit        liveKitParticipantLister
+	reconcileLease *lease.Lease
+	memoryCacheKV  jetstream.KeyValue
+	logger         events.Logger
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -52,18 +63,29 @@ type liveKitFailureCleanupSummary struct {
 }
 
 type liveKitListFailureError struct {
-	err     error
-	cleanup liveKitFailureCleanupSummary
+	err                 error
+	cleanup             liveKitFailureCleanupSummary
+	consecutiveFailures int
+	threshold           int
+	cleanupAttempted    bool
+}
+
+type liveKitListFailureState struct {
+	Count     int       `json:"count"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 func (e *liveKitListFailureError) Error() string {
 	if e == nil {
 		return ""
 	}
+	if !e.cleanupAttempted {
+		return fmt.Sprintf("list LiveKit call participants: %v; end active calls deferred after %d/%d failures", e.err, e.consecutiveFailures, e.threshold)
+	}
 	if e.cleanup.err != nil {
 		return fmt.Sprintf("list LiveKit call participants: %v; end active calls after LiveKit reconciliation failure: %v", e.err, e.cleanup.err)
 	}
-	return fmt.Sprintf("list LiveKit call participants: %v", e.err)
+	return fmt.Sprintf("list LiveKit call participants: %v; ended active calls after %d/%d failures", e.err, e.consecutiveFailures, e.threshold)
 }
 
 func (e *liveKitListFailureError) Unwrap() error {
@@ -82,15 +104,19 @@ func NewCallService(
 	projector *events.Projector,
 	callKeys kms.CallKeyStore,
 	livekit liveKitParticipantLister,
+	reconcileLease *lease.Lease,
+	memoryCacheKV jetstream.KeyValue,
 	logger events.Logger,
 ) *CallService {
 	return &CallService{
-		publisher:  publisher,
-		projection: projection,
-		projector:  projector,
-		callKeys:   callKeys,
-		livekit:    livekit,
-		logger:     logger,
+		publisher:      publisher,
+		projection:     projection,
+		projector:      projector,
+		callKeys:       callKeys,
+		livekit:        livekit,
+		reconcileLease: reconcileLease,
+		memoryCacheKV:  memoryCacheKV,
+		logger:         logger,
 	}
 }
 
@@ -483,10 +509,28 @@ func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext f
 	}
 	snapshots, err := s.livekit.ListCallParticipants(ctx)
 	if err != nil {
+		counterCtx, counterCancel := cleanupContext()
+		failures, recordErr := s.recordLiveKitListFailure(counterCtx)
+		counterCancel()
+		if recordErr != nil {
+			return fmt.Errorf("record LiveKit listing failure: %w", recordErr)
+		}
+		listErr := &liveKitListFailureError{
+			err:                 err,
+			consecutiveFailures: failures,
+			threshold:           callReconcileListFailureThreshold,
+		}
+		if failures < callReconcileListFailureThreshold {
+			return listErr
+		}
 		cleanupCtx, cancel := cleanupContext()
 		defer cancel()
-		cleanup := s.endActiveCallsAfterLiveKitFailure(cleanupCtx)
-		return &liveKitListFailureError{err: err, cleanup: cleanup}
+		listErr.cleanup = s.endActiveCallsAfterLiveKitFailure(cleanupCtx)
+		listErr.cleanupAttempted = true
+		return listErr
+	}
+	if err := s.resetLiveKitListFailures(ctx); err != nil {
+		return fmt.Errorf("reset LiveKit listing failures: %w", err)
 	}
 	observedRooms := make(map[string]struct{}, len(snapshots))
 	for _, snapshot := range snapshots {
@@ -501,6 +545,65 @@ func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext f
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (s *CallService) recordLiveKitListFailure(ctx context.Context) (int, error) {
+	if s.memoryCacheKV == nil {
+		return 0, fmt.Errorf("memory cache KV is not configured")
+	}
+	// The failure threshold is shared across elected leaders, not process-local.
+	// A different replica may successfully reconcile and delete this key between
+	// failed passes, which makes the counter reflect consecutive failures at the
+	// reconciler role level.
+	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
+		entry, err := s.memoryCacheKV.Get(ctx, liveKitReconcileFailureKey)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+				state := liveKitListFailureState{Count: 1, UpdatedAt: time.Now().UTC()}
+				data, err := json.Marshal(state)
+				if err != nil {
+					return 0, err
+				}
+				if _, err := s.memoryCacheKV.Create(ctx, liveKitReconcileFailureKey, data); err != nil {
+					if errors.Is(err, jetstream.ErrKeyExists) {
+						continue
+					}
+					return 0, err
+				}
+				return state.Count, nil
+			}
+			return 0, err
+		}
+
+		var state liveKitListFailureState
+		if err := json.Unmarshal(entry.Value(), &state); err != nil {
+			return 0, err
+		}
+		state.Count++
+		state.UpdatedAt = time.Now().UTC()
+		data, err := json.Marshal(state)
+		if err != nil {
+			return 0, err
+		}
+		if _, err := s.memoryCacheKV.Update(ctx, liveKitReconcileFailureKey, data, entry.Revision()); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			}
+			return 0, err
+		}
+		return state.Count, nil
+	}
+	return 0, fmt.Errorf("LiveKit listing failure counter update failed after %d attempts", callReconcileMaxRetries)
+}
+
+func (s *CallService) resetLiveKitListFailures(ctx context.Context) error {
+	if s.memoryCacheKV == nil {
+		return nil
+	}
+	if err := s.memoryCacheKV.Delete(ctx, liveKitReconcileFailureKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		return err
 	}
 	return nil
 }
@@ -527,7 +630,16 @@ func (s *CallService) Run(ctx context.Context) error {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	s.reconcileBestEffort(ctx)
+	if s.reconcileLease != nil {
+		return s.reconcileLease.Run(ctx, s.runReconciliationLoop)
+	}
+	return s.runReconciliationLoop(ctx)
+}
+
+func (s *CallService) runReconciliationLoop(ctx context.Context) error {
+	if err := s.reconcileBestEffort(ctx); err != nil {
+		return err
+	}
 
 	ticker := time.NewTicker(callReconcileInterval)
 	defer ticker.Stop()
@@ -536,28 +648,48 @@ func (s *CallService) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			s.reconcileBestEffort(ctx)
+			if err := s.reconcileBestEffort(ctx); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-func (s *CallService) reconcileBestEffort(ctx context.Context) {
+func (s *CallService) reconcileBestEffort(ctx context.Context) error {
 	reconcileCtx, cancel := context.WithTimeout(ctx, callReconcileAPITimeout)
 	defer cancel()
 	if err := s.reconcileWithLiveKit(reconcileCtx, func() (context.Context, context.CancelFunc) {
 		return context.WithTimeout(ctx, callReconcileAPITimeout)
-	}); err != nil && s.logger != nil && !strings.Contains(err.Error(), context.Canceled.Error()) {
+	}); err != nil && !strings.Contains(err.Error(), context.Canceled.Error()) {
 		var listErr *liveKitListFailureError
 		if errors.As(err, &listErr) {
-			s.logger.Warn(
-				"LiveKit listing failed; ended projected active calls",
-				"error", listErr.err,
-				"active_rooms", listErr.cleanup.activeRooms,
-				"ended_rooms", listErr.cleanup.endedRooms,
-				"cleanup_errors", listErr.cleanup.cleanupErrors,
-			)
-			return
+			if !listErr.cleanupAttempted {
+				if s.logger != nil {
+					s.logger.Warn(
+						"LiveKit listing failed; active-call cleanup deferred",
+						"error", listErr.err,
+						"consecutive_failures", listErr.consecutiveFailures,
+						"threshold", listErr.threshold,
+					)
+				}
+				return nil
+			}
+			if s.logger != nil {
+				s.logger.Warn(
+					"LiveKit listing failed; threshold reached and ended projected active calls",
+					"error", listErr.err,
+					"consecutive_failures", listErr.consecutiveFailures,
+					"threshold", listErr.threshold,
+					"active_rooms", listErr.cleanup.activeRooms,
+					"ended_rooms", listErr.cleanup.endedRooms,
+					"cleanup_errors", listErr.cleanup.cleanupErrors,
+				)
+			}
+			return nil
 		}
-		s.logger.Warn("LiveKit call-state reconciliation failed", "error", err)
+		if s.logger != nil {
+			s.logger.Warn("LiveKit call-state reconciliation failed", "error", err)
+		}
 	}
+	return nil
 }
