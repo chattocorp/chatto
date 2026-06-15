@@ -15,7 +15,7 @@ there's also a Docker image available; we also have example configuration files 
 The fastest way to try Chatto:
 
 ```bash
-docker run -p 4000:4000 ghcr.io/hmans/chatto:latest
+docker run -p 4000:4000 ghcr.io/chattocorp/chatto:latest
 ```
 
 Open [http://localhost:4000](http://localhost:4000) in your browser.
@@ -41,7 +41,7 @@ To keep your configuration and data across container restarts, use a bind mount:
    ```bash
    docker run --rm \
      -v ./chatto-data:/data \
-     ghcr.io/hmans/chatto:latest \
+     ghcr.io/chattocorp/chatto:latest \
      init -c /data/chatto.toml
    ```
 
@@ -52,7 +52,7 @@ To keep your configuration and data across container restarts, use a bind mount:
    ```bash
    docker run -p 4000:4000 \
      -v ./chatto-data:/data \
-     ghcr.io/hmans/chatto:latest \
+     ghcr.io/chattocorp/chatto:latest \
      run -c /data/chatto.toml
    ```
 

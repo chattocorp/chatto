@@ -4,7 +4,7 @@ This example deploys a clustered Chatto setup with:
 
 - **NATS** - Message broker with JetStream persistence
 - **LiveKit** - WebRTC media server for voice calls
-- **Chatto** - 3 replicas connecting to external NATS
+- **Chatto** - App server connecting to external NATS
 - **Caddy** - Reverse proxy with automatic HTTPS and load balancing
 
 ## Prerequisites
@@ -30,18 +30,20 @@ This example deploys a clustered Chatto setup with:
 
    Key settings:
    - `PUBLIC_URL` - Your domain (e.g., `chat.example.com`)
+   - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
    - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` - Must match (shared auth token)
    - `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` - Session cookie signing
    - `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` - Session cookie encryption
    - `CHATTO_CORE_SECRET_KEY` - Bearer-token and account-flow verifier key
    - `CHATTO_CORE_ASSETS_SIGNING_SECRET` - Asset URL signing
+   - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset
    - `CHATTO_LIVEKIT_API_KEY` / `CHATTO_LIVEKIT_API_SECRET` - Must match the keys in `livekit.yaml`
 
 3. Edit `livekit.yaml` and update:
    - The API key/secret pair under `keys:` (must match the `.env` values)
    - The webhook URL to match your `PUBLIC_URL`
 
-4. Uncomment and configure SMTP settings if you need email verification.
+4. Configure SMTP settings if you use direct email/password registration.
 
 ## Usage
 
@@ -95,6 +97,10 @@ If you don't need voice calls, remove the `livekit` service from `compose.yml`, 
 ## Troubleshooting
 
 **Chatto can't connect to NATS**: Ensure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match in your `.env` file.
+
+**Registration says email delivery is not configured**: Configure the `CHATTO_SMTP_*` settings in `.env`. Direct email/password registration sends a code by email.
+
+**The first account is not an owner**: Ensure `CHATTO_OWNERS_EMAILS` contains that account's verified email address. Chatto assigns matching owner roles when the email is verified and on server boot.
 
 **Caddy not getting certificates**: Ensure your domain's DNS points to your server and ports 80/443 are open.
 
