@@ -40,7 +40,7 @@ vi.mock('livekit-client', () => {
 
     constructor(options: Record<string, unknown>) {
       lastRoomOptions = options;
-      lastRoom = this;
+      lastRoom = { disconnect: this.disconnect };
     }
 
     on = vi.fn();

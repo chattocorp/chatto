@@ -239,6 +239,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 
@@ -255,6 +256,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 </script>
