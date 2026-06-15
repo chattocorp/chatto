@@ -111,11 +111,11 @@ sources = [
 ]
 outputs = ["build/.mise-build-stamp", "../cli/internal/http_server/.client/.gitkeep"]
 
-[tasks.build-cli]
-description = "Build the CLI application for the current architecture"
+[tasks.build-dev-cli]
+description = "Build the development CLI application for the current architecture"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-run = "go build -o bin/chatto ."
+run = "go build -tags bootstrap -o bin/chatto ."
 sources = [
     "go.mod",
     "go.sum",
@@ -237,8 +237,8 @@ run = "bin/chatto run"
 description = "Clean all build artifacts"
 run = [
     "rm -rf cli/bin/*",
-    "rm -rf cli/internal/http_server/.client/*",
-    "rm -rf frontend/build/*",
+    "rm -rf cli/internal/http_server/.client",
+    "rm -rf frontend/build",
 ]
 
 [tasks.reset-config]
