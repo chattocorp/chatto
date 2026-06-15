@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderMarkdown } from './markdown';
+import { ensureCodeLanguageLoaded, isCodeLanguageLoaded, lowlight } from './codeHighlighting';
 
 describe('renderMarkdown', () => {
   describe('literal backslashes', () => {
@@ -145,10 +146,32 @@ describe('renderMarkdown', () => {
       expect(html.match(/class="line"/g)).toHaveLength(1);
     });
 
-    it('preserves unsupported language labels while rendering plain code', async () => {
+    it('loads alias languages on demand while preserving the original label', async () => {
       const html = await renderMarkdown('```toml\nname = "chatto"\n```');
       expect(html).toContain('data-language="toml"');
       expect(html).toContain('language-toml');
+      expect(html).toContain('hljs-attr');
+    });
+
+    it('registers aliases on the shared lowlight instance', async () => {
+      await ensureCodeLanguageLoaded('js');
+      expect(lowlight.registered('js')).toBe(true);
+    });
+
+    it('loads bundled languages lazily when they appear in a fence', async () => {
+      expect(isCodeLanguageLoaded('1c')).toBe(false);
+
+      const html = await renderMarkdown('```1c\nПроцедура Тест()\nКонецПроцедуры\n```');
+
+      expect(isCodeLanguageLoaded('1c')).toBe(true);
+      expect(html).toContain('data-language="1c"');
+      expect(html).toContain('language-1c');
+    });
+
+    it('preserves unsupported language labels while rendering plain code', async () => {
+      const html = await renderMarkdown('```notalanguage\nname = "chatto"\n```');
+      expect(html).toContain('data-language="notalanguage"');
+      expect(html).toContain('language-notalanguage');
       expect(html).toContain('name = &quot;chatto&quot;');
     });
   });

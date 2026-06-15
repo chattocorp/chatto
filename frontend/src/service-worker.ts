@@ -26,7 +26,10 @@ declare const self: ServiceWorkerGlobalScope;
 const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_ASSETS = Array.from(new Set([...SHELL_ASSETS, '/']));
+// `build` includes every generated Vite asset, including lazy route chunks and
+// on-demand feature bundles. Keep those eligible for runtime caching, but do
+// not download all of them during service worker installation.
+const PRECACHE_ASSETS = Array.from(new Set([...files, OFFLINE_SHELL_PATH, '/']));
 
 type BadgeCapableNavigator = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>;
@@ -95,7 +98,13 @@ self.addEventListener('fetch', (event) => {
         const cache = await caches.open(CACHE_NAME);
         const url = new URL(event.request.url);
         const cached = await cache.match(url.pathname);
-        return cached ?? fetch(event.request);
+        if (cached) return cached;
+
+        const response = await fetch(event.request);
+        if (response.ok) {
+          await cache.put(url.pathname, response.clone());
+        }
+        return response;
       })()
     );
     return;

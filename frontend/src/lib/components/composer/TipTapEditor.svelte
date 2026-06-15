@@ -23,9 +23,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { Markdown } from '@tiptap/markdown';
   import Placeholder from '@tiptap/extension-placeholder';
-  import { CODE_LANGUAGE_OPTIONS, createChattoLowlight } from '$lib/codeHighlighting';
-
-  const lowlight = createChattoLowlight();
+  import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded, lowlight } from '$lib/codeHighlighting';
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
   const codeFenceLineRegex = /^```([\w-]+)?$/;
@@ -333,6 +331,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let activeLinkRange = $state<{ from: number; to: number } | null>(null);
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
+  let codeLanguageLoadToken = 0;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -443,6 +442,52 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       .updateAttributes('codeBlock', { language: language || null })
       .run();
     updateActiveControls(editor);
+    ensureEditorCodeLanguages(editor);
+  }
+
+  function getEditorCodeBlockLanguages(e: Editor): string[] {
+    const languages: string[] = [];
+
+    e.state.doc.descendants((node) => {
+      if (node.type.name === 'codeBlock') {
+        const language = node.attrs.language || 'text';
+        if (!languages.includes(language)) {
+          languages.push(language);
+        }
+      }
+    });
+
+    return languages;
+  }
+
+  function refreshCodeBlockDecorations(e: Editor) {
+    if (e.isDestroyed) return;
+
+    let tr = e.state.tr;
+    e.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'codeBlock') {
+        tr = tr.setNodeMarkup(pos, undefined, node.attrs, node.marks);
+      }
+    });
+
+    if (tr.steps.length > 0) {
+      e.view.dispatch(tr);
+    }
+  }
+
+  function ensureEditorCodeLanguages(e: Editor) {
+    const languages = getEditorCodeBlockLanguages(e);
+    if (languages.length === 0) return;
+
+    const loadToken = ++codeLanguageLoadToken;
+    ensureCodeLanguagesLoaded(languages).then((loadedNewLanguage) => {
+      if (!loadedNewLanguage || e.isDestroyed || editor !== e || loadToken !== codeLanguageLoadToken) {
+        return;
+      }
+
+      refreshCodeBlockDecorations(e);
+      updateActiveControls(e);
+    });
   }
 
   function normalizeHref(href: string) {
@@ -509,6 +554,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       setContent: (markdown: string) => {
         if (e.isDestroyed) return;
         e.commands.setContent(markdown, { contentType: 'markdown' });
+        ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
 
@@ -589,6 +635,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           },
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
+            ensureEditorCodeLanguages(ed);
             onUpdate?.(ed.isEmpty ? '' : ed.getMarkdown());
           },
           onSelectionUpdate: ({ editor: ed }) => {

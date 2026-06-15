@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -14,25 +15,6 @@ const backendTarget =
   `http://localhost:${process.env.CHATTO_WEBSERVER_PORT || '4000'}`;
 const enableGraphqlCodegenClientOptimizer =
   process.env.CHATTO_DISABLE_GRAPHQL_CODEGEN_OPTIMIZER !== '1';
-const highlightLanguageDeps = [
-  'highlight.js/lib/languages/bash',
-  'highlight.js/lib/languages/css',
-  'highlight.js/lib/languages/dockerfile',
-  'highlight.js/lib/languages/go',
-  'highlight.js/lib/languages/graphql',
-  'highlight.js/lib/languages/javascript',
-  'highlight.js/lib/languages/json',
-  'highlight.js/lib/languages/markdown',
-  'highlight.js/lib/languages/plaintext',
-  'highlight.js/lib/languages/python',
-  'highlight.js/lib/languages/ruby',
-  'highlight.js/lib/languages/rust',
-  'highlight.js/lib/languages/shell',
-  'highlight.js/lib/languages/sql',
-  'highlight.js/lib/languages/typescript',
-  'highlight.js/lib/languages/xml',
-  'highlight.js/lib/languages/yaml'
-];
 const tiptapDeps = ['@tiptap/pm/state'];
 
 function graphqlCodegenClientOptimizer(): Plugin {
@@ -176,6 +158,14 @@ export default defineConfig({
       }
     }
   },
+  resolve: {
+    alias: {
+      // The lowlight package root re-exports `all`, which imports every
+      // highlight.js grammar. We only need createLowlight, so point bundling
+      // at the implementation module to keep language grammars lazy.
+      lowlight: fileURLToPath(new URL('./node_modules/lowlight/lib/index.js', import.meta.url))
+    }
+  },
   ssr: {
     // TipTap is browser-only but imported in Svelte components that are
     // compiled for SSR. Bundle them into the SSR output to avoid
@@ -190,7 +180,7 @@ export default defineConfig({
     ]
   },
   optimizeDeps: {
-    include: [...highlightLanguageDeps, ...tiptapDeps],
+    include: [...tiptapDeps],
     exclude: ['@urql/svelte']
   },
   server: {
@@ -254,7 +244,7 @@ export default defineConfig({
           deps: {
             optimizer: {
               web: {
-                include: [...highlightLanguageDeps, ...tiptapDeps]
+                include: [...tiptapDeps]
               }
             }
           }

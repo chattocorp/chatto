@@ -1,11 +1,8 @@
 import MarkdownIt from 'markdown-it';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import tlds from 'tlds';
-import {
-  canHighlightCodeLanguage,
-  createChattoLowlight,
-  normalizeCodeLanguage
-} from '$lib/codeHighlighting';
+
+type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
 /**
  * Disabled markdown-it rules - we only allow a subset of markdown syntax.
@@ -90,7 +87,7 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
 }
 
 let md: MarkdownIt | null = null;
-const lowlight = createChattoLowlight();
+let codeHighlighting: CodeHighlightingModule | null = null;
 
 type LowlightText = {
   type: 'text';
@@ -193,16 +190,59 @@ function renderLowlightLines(nodes: LowlightNode[]): string[] {
   return lines;
 }
 
+function renderPlainCodeLines(code: string): string[] {
+  return code.replaceAll('\t', '    ').split('\n').map(escapeHtml);
+}
+
 function renderCodeFence(code: string, rawLanguage: string): string {
   const displayLanguage = normalizeCodeLanguage(rawLanguage);
-  const highlightLanguage = canHighlightCodeLanguage(displayLanguage) ? displayLanguage : 'text';
+  const resolvedLanguage = codeHighlighting?.resolveCodeLanguage(displayLanguage);
   const displayCode = code.replace(/\r?\n$/, '');
-  const tree = lowlight.highlight(highlightLanguage, displayCode) as { children: LowlightNode[] };
-  const lineHtml = renderLowlightLines(tree.children)
+  const lines =
+    resolvedLanguage && codeHighlighting?.lowlight.registered(displayLanguage)
+      ? renderLowlightLines(
+          (codeHighlighting.lowlight.highlight(displayLanguage, displayCode) as {
+            children: LowlightNode[];
+          }).children
+        )
+      : resolvedLanguage && codeHighlighting?.lowlight.registered(resolvedLanguage)
+        ? renderLowlightLines(
+            (
+              codeHighlighting.lowlight.highlight(resolvedLanguage, displayCode) as {
+                children: LowlightNode[];
+              }
+            ).children
+          )
+        : renderPlainCodeLines(displayCode);
+  const lineHtml = lines
     .map((line) => `<span class="line">${line}</span>`)
     .join('\n');
 
   return `<pre class="hljs" data-language="${escapeAttribute(displayLanguage)}"><code class="language-${escapeAttribute(displayLanguage)}">${lineHtml}</code></pre>`;
+}
+
+function normalizeCodeLanguage(language: string | null | undefined): string {
+  const token = language?.trim().toLowerCase().match(/[a-z0-9+#_.-]+/)?.[0];
+  return token || 'text';
+}
+
+function extractFenceLanguages(markdown: string): string[] {
+  const languages = new Set<string>();
+  const fencePattern = /^[ \t]*(```|~~~)[ \t]*([^\s`~]*)/gm;
+  let match: RegExpExecArray | null;
+
+  while ((match = fencePattern.exec(markdown))) {
+    languages.add(normalizeCodeLanguage(match[2]));
+  }
+
+  return [...languages];
+}
+
+async function ensureFenceLanguagesLoaded(languages: string[]): Promise<void> {
+  if (languages.length === 0) return;
+
+  codeHighlighting ??= await import('$lib/codeHighlighting');
+  await codeHighlighting.ensureCodeLanguagesLoaded(languages);
 }
 
 /**
@@ -280,6 +320,7 @@ export const rendererReady = Promise.resolve().then(initialize);
  */
 export async function renderMarkdown(body: string): Promise<string> {
   try {
+    await ensureFenceLanguagesLoaded(extractFenceLanguages(body));
     initialize();
 
     return md!.render(body);
