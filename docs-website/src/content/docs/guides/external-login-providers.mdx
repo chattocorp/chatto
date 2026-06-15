@@ -76,29 +76,26 @@ client_secret = "..."
 </TabItem>
 <TabItem label="Environment">
 
-For container platforms, set `CHATTO_AUTH_PROVIDERS` to a JSON array. The field names match the TOML keys:
+For container platforms, configure providers with counted environment variables. Each provider uses `CHATTO_AUTH_PROVIDERS_<index>_<field>`, with indexes starting at `0` and no gaps:
 
 ```bash
-CHATTO_AUTH_PROVIDERS='[
-  {
-    "id": "chatto-hub",
-    "type": "openid-connect",
-    "label": "Chatto Hub",
-    "issuer_url": "https://hub.chatto.dev",
-    "client_id": "...",
-    "client_secret": "..."
-  },
-  {
-    "id": "github-main",
-    "type": "github",
-    "label": "GitHub",
-    "client_id": "...",
-    "client_secret": "..."
-  }
-]'
+CHATTO_AUTH_PROVIDERS_0_ID=chatto-hub
+CHATTO_AUTH_PROVIDERS_0_TYPE=openid-connect
+CHATTO_AUTH_PROVIDERS_0_LABEL="Chatto Hub"
+CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://hub.chatto.dev
+CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=...
+CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET=...
+
+CHATTO_AUTH_PROVIDERS_1_ID=github-main
+CHATTO_AUTH_PROVIDERS_1_TYPE=github
+CHATTO_AUTH_PROVIDERS_1_LABEL=GitHub
+CHATTO_AUTH_PROVIDERS_1_CLIENT_ID=...
+CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET=...
 ```
 
-`CHATTO_AUTH_PROVIDERS` replaces any providers from `chatto.toml`.
+Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, and `PROVIDER_OPTIONS_<KEY>`. `SCOPES` is comma-separated, for example `CHATTO_AUTH_PROVIDERS_0_SCOPES=openid,profile,groups`.
+
+Any `CHATTO_AUTH_PROVIDERS_<index>_*` variables replace providers from `chatto.toml`.
 
 Chatto also accepts the older single-provider OIDC variables for compatibility:
 
@@ -110,7 +107,7 @@ CHATTO_AUTH_OIDC_CLIENT_SECRET=...
 # CHATTO_AUTH_OIDC_LABEL="Chatto Hub"
 ```
 
-Those legacy variables create one `openid-connect` provider with `id = "oidc"`. Do not combine `CHATTO_AUTH_PROVIDERS` with `CHATTO_AUTH_OIDC_ENABLED`.
+Those legacy variables create one `openid-connect` provider with `id = "oidc"`. Do not combine counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables with `CHATTO_AUTH_OIDC_ENABLED`.
 
 </TabItem>
 <TabItem label="GitHub">

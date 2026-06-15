@@ -2,11 +2,11 @@ package config
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -311,15 +311,15 @@ var authProviderDefaultLabels = map[string]string{
 // a stable local issuer namespace for OAuth-only providers and must not be
 // changed after users link identities through it.
 type AuthProviderConfig struct {
-	ID              string            `toml:"id" json:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type            string            `toml:"type" json:"type" comment:"Provider type: openid-connect, github, gitlab, google, or discord."`
-	Label           string            `toml:"label,commented" json:"label,omitempty" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
-	ClientID        string            `toml:"client_id" json:"client_id" comment:"OAuth/OIDC client ID."`
-	ClientSecret    string            `toml:"client_secret" json:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
-	IssuerURL       string            `toml:"issuer_url,commented" json:"issuer_url,omitempty" comment:"OIDC issuer URL. Required when type = 'openid-connect'."`
-	Scopes          []string          `toml:"scopes,commented" json:"scopes,omitempty" comment:"Optional OAuth scopes. Defaults are provider-specific."`
-	RequestEmail    *bool             `toml:"request_email,commented" json:"request_email,omitempty" comment:"Whether to request email scopes for providers that support it. Default: true."`
-	ProviderOptions map[string]string `toml:"provider_options,commented" json:"provider_options,omitempty" comment:"Provider-specific options reserved for future use."`
+	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type            string            `toml:"type" comment:"Provider type: openid-connect, github, gitlab, google, or discord."`
+	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
+	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'openid-connect'."`
+	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
+	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.
@@ -1010,16 +1010,15 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 }
 
 func applyAuthProviderEnv(cfg *ChattoConfig) error {
-	providersJSON := strings.TrimSpace(os.Getenv("CHATTO_AUTH_PROVIDERS"))
+	providers, providersSet, err := authProvidersFromEnv()
+	if err != nil {
+		return err
+	}
 	legacyOIDCEnabled := strings.TrimSpace(os.Getenv("CHATTO_AUTH_OIDC_ENABLED"))
 
-	if providersJSON != "" {
+	if providersSet {
 		if legacyOIDCEnabled != "" {
-			return fmt.Errorf("CHATTO_AUTH_PROVIDERS cannot be combined with legacy CHATTO_AUTH_OIDC_ENABLED")
-		}
-		var providers []AuthProviderConfig
-		if err := json.Unmarshal([]byte(providersJSON), &providers); err != nil {
-			return fmt.Errorf("CHATTO_AUTH_PROVIDERS must be a JSON array of auth provider objects: %w", err)
+			return fmt.Errorf("CHATTO_AUTH_PROVIDERS_* cannot be combined with legacy CHATTO_AUTH_OIDC_ENABLED")
 		}
 		cfg.Auth.Providers = providers
 		return nil
@@ -1049,4 +1048,108 @@ func applyAuthProviderEnv(cfg *ChattoConfig) error {
 		ClientSecret: os.Getenv("CHATTO_AUTH_OIDC_CLIENT_SECRET"),
 	}}
 	return nil
+}
+
+func authProvidersFromEnv() ([]AuthProviderConfig, bool, error) {
+	const prefix = "CHATTO_AUTH_PROVIDERS_"
+	providersByIndex := make(map[int]*AuthProviderConfig)
+
+	for _, entry := range os.Environ() {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		rest := strings.TrimPrefix(name, prefix)
+		indexPart, field, ok := strings.Cut(rest, "_")
+		if !ok {
+			return nil, false, fmt.Errorf("%s must use CHATTO_AUTH_PROVIDERS_<index>_<field>", name)
+		}
+		index, err := strconv.Atoi(indexPart)
+		if err != nil || index < 0 {
+			return nil, false, fmt.Errorf("%s uses invalid provider index %q", name, indexPart)
+		}
+
+		provider := providersByIndex[index]
+		if provider == nil {
+			provider = &AuthProviderConfig{}
+			providersByIndex[index] = provider
+		}
+		if err := applyAuthProviderEnvField(provider, name, field, value); err != nil {
+			return nil, false, err
+		}
+	}
+
+	if len(providersByIndex) == 0 {
+		return nil, false, nil
+	}
+
+	indices := make([]int, 0, len(providersByIndex))
+	for index := range providersByIndex {
+		indices = append(indices, index)
+	}
+	sort.Ints(indices)
+	for expected, index := range indices {
+		if index != expected {
+			return nil, false, fmt.Errorf("CHATTO_AUTH_PROVIDERS_* indexes must be contiguous starting at 0; missing index %d", expected)
+		}
+	}
+
+	providers := make([]AuthProviderConfig, 0, len(indices))
+	for _, index := range indices {
+		providers = append(providers, *providersByIndex[index])
+	}
+	return providers, true, nil
+}
+
+func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value string) error {
+	switch field {
+	case "ID":
+		provider.ID = value
+	case "TYPE":
+		provider.Type = value
+	case "LABEL":
+		provider.Label = value
+	case "CLIENT_ID":
+		provider.ClientID = value
+	case "CLIENT_SECRET":
+		provider.ClientSecret = value
+	case "ISSUER_URL":
+		provider.IssuerURL = value
+	case "SCOPES":
+		provider.Scopes = splitCommaSeparatedEnv(value)
+	case "REQUEST_EMAIL":
+		requestEmail, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("%s must be a boolean: %w", name, err)
+		}
+		provider.RequestEmail = &requestEmail
+	default:
+		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
+		if strings.HasPrefix(field, providerOptionsPrefix) {
+			optionName := strings.ToLower(strings.TrimPrefix(field, providerOptionsPrefix))
+			if optionName == "" {
+				return fmt.Errorf("%s must include a provider option name", name)
+			}
+			if provider.ProviderOptions == nil {
+				provider.ProviderOptions = make(map[string]string)
+			}
+			provider.ProviderOptions[optionName] = value
+			return nil
+		}
+		return fmt.Errorf("%s uses unknown auth provider field %q", name, field)
+	}
+	return nil
+}
+
+func splitCommaSeparatedEnv(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }
