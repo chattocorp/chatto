@@ -409,7 +409,7 @@
           threadId ? 'opacity-30' : '',
           mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
-        inert={threadId ? true : undefined}
+        inert={threadId || mobileRoomSidebarPanel ? true : undefined}
         {@attach roomDropZone}
       >
         <DropZoneOverlay visible={isDraggingFiles} />
@@ -476,7 +476,7 @@
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
           onCancelReply={() => replyState.cancelReply()}
-          autoFocus={!threadId}
+          autoFocus={!threadId && !mobileRoomSidebarPanel}
           onReady={(api) => (composerApi = api)}
           onTyping={() => typingIndicator?.sendTypingIndicator()}
           onMessageSent={() => typingIndicator?.resetDebounce()}
@@ -499,8 +499,14 @@
       {/if}
 
       {#if !room.isDM && mobileRoomSidebarPanel}
+        <button
+          type="button"
+          class="absolute inset-0 z-10 bg-transparent lg:hidden"
+          aria-label="Close room extras"
+          onclick={() => (mobileRoomSidebarOpen = false)}
+        ></button>
         <div
-          class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
+          class="absolute inset-y-0 right-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
           data-testid="room-sidebar-mobile-pane"
           transition:fly={{ x: 300, duration: 200 }}
         >

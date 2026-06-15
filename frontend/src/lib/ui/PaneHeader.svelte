@@ -25,7 +25,7 @@ be set; if both are passed the button wins (it's the more deliberate
 choice).
 -->
 <script lang="ts">
-  import { resolve } from '$app/paths';
+  /* eslint-disable svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths or non-route hrefs */
   import type { Snippet } from 'svelte';
   import PaneHeaderSkeleton from './PaneHeaderSkeleton.svelte';
 
@@ -87,7 +87,7 @@ choice).
       </button>
     {:else if backHref}
       <a
-        href={resolve(backHref as '/')}
+        href={backHref}
         class="group/pane-header-icon-button pane-header-icon-button"
         title={backLabel}
         aria-label={backLabel}
