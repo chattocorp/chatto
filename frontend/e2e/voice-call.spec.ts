@@ -154,7 +154,7 @@ test.describe('Voice calls', () => {
 				async ({ roomId }) => {
 					const response = await fetch('/api/graphql', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
+						headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 						credentials: 'include',
 						body: JSON.stringify({
 							query: `query($roomId: ID!) {

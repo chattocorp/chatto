@@ -38,6 +38,48 @@ test.describe('Landing Page', () => {
 		await context.close();
 	});
 
+	test('fresh browser context accepts a valid session cookie without a CSRF cookie', async ({
+		browser,
+		page,
+		serverURL
+	}) => {
+		await createAndLoginTestUser(page);
+		const sessionCookie = (await page.context().cookies()).find(
+			(cookie) => cookie.name === 'chatto_session'
+		);
+		expect(sessionCookie).toBeDefined();
+
+		const context = await browser.newContext({ baseURL: serverURL });
+		await context.addCookies([sessionCookie!]);
+		const freshPage = await context.newPage();
+
+		try {
+			const rejectedResponse = await freshPage.request.post('/api/graphql', {
+				headers: { 'Content-Type': 'application/json' },
+				data: {
+					query: `query { viewer { user { id } } }`
+				}
+			});
+			expect(rejectedResponse.status()).toBe(403);
+
+			const acceptedResponse = await freshPage.request.post('/api/graphql', {
+				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+				data: {
+					query: `query { viewer { user { id } } }`
+				}
+			});
+			expect(acceptedResponse.ok()).toBe(true);
+			const acceptedBody = await acceptedResponse.json();
+			expect(acceptedBody.data.viewer.user.id).toBeTruthy();
+
+			await freshPage.goto(routes.settings);
+			await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();
+			await expect(freshPage).not.toHaveURL(routes.login);
+		} finally {
+			await context.close();
+		}
+	});
+
 	test('authenticated user with instances is redirected into the server', async ({
 		page
 	}) => {

@@ -161,6 +161,7 @@ func (s *HTTPServer) setupRoutes() error {
 
 	// CORS middleware for cross-origin API access (token-based auth)
 	s.router.Use(s.corsMiddleware(allowedOrigins))
+	s.router.Use(s.csrfMiddleware())
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()

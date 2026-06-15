@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
-import MembersPage from './+page.svelte';
+import EventLogPage from './+page.svelte';
 
-type Member = {
-  id: string;
-  login: string;
-  displayName: string;
-  avatarUrl: string | null;
-  roles: string[];
+type Entry = {
+  sequence: string;
+  subject: string;
+  aggregateType: string;
+  aggregateId: string;
+  eventType: string;
+  eventId: string;
+  actorId: string;
   createdAt: string;
 };
 
@@ -100,31 +102,38 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-function member(index: number, prefix = 'member'): Member {
+function entry(sequence: string, eventType: string): Entry {
   return {
-    id: `${prefix}-${index}`,
-    login: `${prefix}${index}`,
-    displayName: `${prefix} ${index}`,
-    avatarUrl: null,
-    roles: ['everyone'],
+    sequence,
+    subject: `evt.test.${sequence}`,
+    aggregateType: 'test',
+    aggregateId: sequence,
+    eventType,
+    eventId: `event-${sequence}`,
+    actorId: `actor-${sequence}`,
     createdAt: '2026-01-01T12:00:00Z'
   };
 }
 
-function result(users: Member[], totalCount = users.length, hasMore = false) {
+function result(
+  entries: Entry[],
+  totalCount = entries.length,
+  hasOlder = false,
+  endCursor?: string
+) {
   return {
-    server: {
-      roles: [{ name: 'admin', displayName: 'Admin' }],
-      members: {
-        users,
+    admin: {
+      eventLog: {
+        entries,
         totalCount,
-        hasMore
+        hasOlder,
+        endCursor: endCursor ?? entries.at(-1)?.sequence ?? null
       }
     }
   };
 }
 
-function queueResults(...results: ReturnType<typeof result>[]) {
+function queueResults(...results: Array<ReturnType<typeof result> | { admin: null }>) {
   mocks.query.mockImplementation(() => {
     const data = results.shift();
     return {
@@ -143,9 +152,8 @@ async function settle() {
   flushSync();
 }
 
-describe('server admin members pagination', () => {
+describe('server admin event log pagination', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     originalIntersectionObserver = globalThis.IntersectionObserver;
     observers = [];
     globalThis.IntersectionObserver =
@@ -156,72 +164,44 @@ describe('server admin members pagination', () => {
 
   afterEach(() => {
     globalThis.IntersectionObserver = originalIntersectionObserver;
-    vi.useRealTimers();
   });
 
-  it('loads the first offset page on mount and the next page when the table end intersects', async () => {
+  it('loads the first cursor page and auto-loads older entries from the table sentinel', async () => {
     queueResults(
-      result(
-        Array.from({ length: 20 }, (_, i) => member(i)),
-        21,
-        true
-      ),
-      result([member(20)], 21, false)
+      result([entry('102', 'user.created'), entry('101', 'room.created')], 3, true, '101'),
+      result([entry('101', 'room.created'), entry('100', 'auth.login')], 3, false, '100')
     );
 
-    const { container } = render(MembersPage);
+    const { container } = render(EventLogPage);
     await settle();
 
     expect(mocks.query).toHaveBeenNthCalledWith(1, expect.anything(), {
-      search: null,
-      limit: 20,
-      offset: 0
+      limit: 50,
+      before: null
     });
-    expect(container.textContent).toContain('Showing 20 of 21 member(s)');
+    expect(container.textContent).toContain('3 total events in stream');
+    expect(container.textContent).toContain('user.created');
+    expect(container.textContent).toContain('room.created');
 
     expect(observers).toHaveLength(1);
     observers[0].trigger(true);
     await settle();
 
     expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
-      search: null,
-      limit: 20,
-      offset: 20
+      limit: 50,
+      before: '101'
     });
-    expect(container.textContent).toContain('@member20');
-    expect(container.textContent).toContain('Showing 21 of 21 member(s)');
+    expect(container.textContent).toContain('auth.login');
+    expect(container.textContent?.match(/room.created/g)).toHaveLength(1);
   });
 
-  it('searches from offset zero and hides load-more when the filtered page is complete', async () => {
-    queueResults(
-      result([member(0, 'unrelated')], 42, true),
-      result([member(0, 'target')], 1, false)
-    );
+  it('renders the audit permission error when admin data is unavailable', async () => {
+    queueResults({ admin: null });
 
-    const { container } = render(MembersPage);
+    const { container } = render(EventLogPage);
     await settle();
 
-    const input = container.querySelector('input') as HTMLInputElement;
-    input.value = ' target ';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(300);
-    await settle();
-
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
-      search: 'target',
-      limit: 20,
-      offset: 0
-    });
-    expect(container.textContent).toContain('@target0');
-    expect(container.textContent).not.toContain('@unrelated0');
-  });
-
-  it('renders the members body as a scroll region', async () => {
-    queueResults(result([], 0, false));
-
-    const { container } = render(MembersPage);
-    await settle();
-
-    expect(container.querySelector('.min-h-0.flex-1.overflow-y-auto')).toBeTruthy();
+    expect(container.textContent).toContain('Event log unavailable (audit permission required)');
+    expect(observers).toHaveLength(0);
   });
 });

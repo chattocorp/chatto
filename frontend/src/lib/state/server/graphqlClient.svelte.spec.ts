@@ -116,6 +116,7 @@ describe('GraphQLClient', () => {
 		vi.clearAllMocks();
 		clientConfigs.length = 0;
 		wsConfigs.length = 0;
+		document.cookie = 'chatto_csrf=; Max-Age=0; path=/';
 	});
 
 	it('creates a client with the provided URL', () => {
@@ -130,20 +131,39 @@ describe('GraphQLClient', () => {
 		);
 	});
 
-	it('does not set fetchOptions when token is null (cookie auth)', () => {
+	it('sets CSRF header for cookie auth when the CSRF cookie exists', () => {
+		document.cookie = 'chatto_csrf=csrf-token; path=/';
 		new GraphQLClient(makeConfig({ token: null }));
-		expect(lastClientConfig()?.fetchOptions).toBeUndefined();
+		expect(lastClientConfig()?.fetchOptions).toBeDefined();
+		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
+		expect(opts).toEqual({
+			headers: { 'X-REQUEST-TYPE': 'GraphQL', 'X-CSRF-Token': 'csrf-token' }
+		});
+	});
+
+	it('sets GraphQL request type header for cookie auth when the CSRF cookie is missing', () => {
+		new GraphQLClient(makeConfig({ token: null }));
+		expect(lastClientConfig()?.fetchOptions).toBeDefined();
+		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
+		expect(opts).toEqual({ headers: { 'X-REQUEST-TYPE': 'GraphQL' } });
 	});
 
 	it('sets fetchOptions with Authorization header when token is provided', () => {
-		new GraphQLClient(makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' }));
+		document.cookie = 'chatto_csrf=csrf-token; path=/';
+		new GraphQLClient(
+			makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' })
+		);
 		expect(lastClientConfig()?.fetchOptions).toBeDefined();
 		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
-		expect(opts).toEqual({ headers: { Authorization: 'Bearer my-token' } });
+		expect(opts).toEqual({
+			headers: { 'X-REQUEST-TYPE': 'GraphQL', Authorization: 'Bearer my-token' }
+		});
 	});
 
 	it('sets connectionParams when token is provided', () => {
-		new GraphQLClient(makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' }));
+		new GraphQLClient(
+			makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' })
+		);
 		expect(createWSClient).toHaveBeenCalledWith(
 			expect.objectContaining({
 				connectionParams: expect.any(Function)

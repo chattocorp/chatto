@@ -66,6 +66,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Clear the session cookie
 		session.Clear()
 		session.Save()
+		clearCSRFCookie(c)
 
 		// Publish session terminated event so other tabs/devices disconnect
 		if userID != "" {
@@ -192,6 +193,19 @@ func (s *HTTPServer) setupAuthRoutes() {
 			bearerToken = token
 		}
 
+		if err := s.ensureCSRFToken(c, session); err != nil {
+			log.Error("Failed to create CSRF token", "error", err)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			if bearerToken != "" {
+				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_csrf_failed")
+			}
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
+		}
+
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
 			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
 			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
@@ -200,6 +214,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			}
 			session.Clear()
 			_ = session.Save()
+			clearCSRFCookie(c)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
@@ -444,6 +459,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Create server-side cookie session
 		if err := s.createCookieSession(c, user.Id, "registration_complete"); err != nil {
 			log.Error("Failed to save session", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
+		}
+		session := sessions.Default(c)
+		if err := s.ensureCSRFToken(c, session); err != nil {
+			log.Error("Failed to create CSRF token", "error", err)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
