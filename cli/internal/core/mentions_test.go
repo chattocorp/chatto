@@ -137,6 +137,86 @@ func TestExtractMentionUsernames(t *testing.T) {
 			body:     "Line one\n@alice line two",
 			expected: []string{"alice"},
 		},
+		{
+			name:     "mention does not cross emphasis boundary",
+			body:     "@al*ice*",
+			expected: []string{"al"},
+		},
+		{
+			name:     "mention does not start across emphasis boundary",
+			body:     "@*alice*",
+			expected: nil,
+		},
+		{
+			name:     "underscore in mention handle survives adjacent text nodes",
+			body:     "@user_name",
+			expected: []string{"user_name"},
+		},
+		{
+			name:     "inline code mention ignored",
+			body:     "`@alice` @bob",
+			expected: []string{"bob"},
+		},
+		{
+			name:     "escaped backticks still form inline code",
+			body:     "\\`@alice\\` @bob",
+			expected: []string{"bob"},
+		},
+		{
+			name:     "mention immediately after inline code at start",
+			body:     "`cmd`@alice",
+			expected: []string{"alice"},
+		},
+		{
+			name:     "mention immediately after escaped-backtick inline code",
+			body:     "\\`cmd\\`@alice",
+			expected: []string{"alice"},
+		},
+		{
+			name:     "mention immediately after inline code after prior text",
+			body:     "see`cmd`@alice",
+			expected: []string{"alice"},
+		},
+		{
+			name:     "mention immediately after inline code after prior whitespace",
+			body:     "see `cmd`@alice",
+			expected: []string{"alice"},
+		},
+		{
+			name:     "fenced code mention ignored",
+			body:     "```\n@all\n```\n@bob",
+			expected: []string{"bob"},
+		},
+		{
+			name:     "indented code mention ignored",
+			body:     "    @alice\n@bob",
+			expected: []string{"bob"},
+		},
+		{
+			name:     "blockquote mention ignored",
+			body:     "> @alice said hi\n\n@bob replied",
+			expected: []string{"bob"},
+		},
+		{
+			name:     "outside mentions around excluded regions preserve order",
+			body:     "@alice `@bob` @charlie\n> @dora\n```\n@erin\n```\n@frank",
+			expected: []string{"alice", "charlie", "frank"},
+		},
+		{
+			name:     "unmatched backtick does not suppress mention",
+			body:     "` @alice",
+			expected: []string{"alice"},
+		},
+		{
+			name:     "literal html code tag is plain markdown text",
+			body:     "<code>@alice</code>",
+			expected: []string{"alice"},
+		},
+		{
+			name:     "backslash before mention remains mention boundary",
+			body:     "\\@alice",
+			expected: []string{"alice"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -429,6 +509,10 @@ func TestChattoCore_LargeMentionConfirmation(t *testing.T) {
 		}
 	}
 
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "```\n@all\n```", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage with @all inside fenced code block: %v", err)
+	}
+
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all confirmed", nil, "", "", nil, false, WithLargeMentionConfirmed()); err != nil {
 		t.Fatalf("PostMessage with confirmation: %v", err)
 	}
@@ -467,5 +551,133 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	if len(notifications) != 1 || notifications[0].GetMention() == nil {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
+	}
+}
+
+func TestChattoCore_MentionInsideMarkdownCodeDoesNotNotify(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	mentioned, err := core.CreateUser(ctx, "system", "code-mentioned", "Code Mentioned", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser mentioned: %v", err)
+	}
+	mentioner, err := core.CreateUser(ctx, "system", "code-mentionauthor", "Code Mention Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser mentioner: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, mentioned.Id, KindChannel, "", "code-mentions", "Code Mentions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, mentioner.Id, KindChannel, mentioner.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom mentioner: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom mentioned: %v", err)
+	}
+
+	for _, body := range []string{"`@code-mentioned`", "\\`@code-mentioned\\`"} {
+		t.Run(body, func(t *testing.T) {
+			event, err := core.PostMessage(ctx, KindChannel, room.Id, mentioner.Id, body, nil, "", "", nil, false)
+			if err != nil {
+				t.Fatalf("PostMessage: %v", err)
+			}
+			if got := event.GetMessagePosted().GetMentionedUserIds(); len(got) != 0 {
+				t.Fatalf("mentioned_user_ids = %v, want none", got)
+			}
+
+			notifications, err := core.GetNotifications(ctx, mentioned.Id)
+			if err != nil {
+				t.Fatalf("GetNotifications: %v", err)
+			}
+			if len(notifications) != 0 {
+				t.Fatalf("expected no mention notification, got %#v", notifications)
+			}
+		})
+	}
+}
+
+func TestChattoCore_MentionImmediatelyAfterMarkdownCodeNotifies(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	mentioned, err := core.CreateUser(ctx, "system", "post-code-mentioned", "Post Code Mentioned", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser mentioned: %v", err)
+	}
+	mentioner, err := core.CreateUser(ctx, "system", "post-code-author", "Post Code Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser mentioner: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, mentioned.Id, KindChannel, "", "post-code-mentions", "Post Code Mentions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, mentioner.Id, KindChannel, mentioner.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom mentioner: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom mentioned: %v", err)
+	}
+
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, mentioner.Id, "`cmd`@post-code-mentioned", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	requireUserIDs(t, event.GetMessagePosted().GetMentionedUserIds(), mentioned.Id)
+
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+		t.Fatalf("expected one mention notification, got %#v", notifications)
+	}
+}
+
+func TestChattoCore_MentionSplitByMarkdownFormattingDoesNotNotify(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	alice, err := core.CreateUser(ctx, "system", "format-alice", "Format Alice", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	author, err := core.CreateUser(ctx, "system", "format-author", "Format Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, alice.Id, KindChannel, "", "format-mentions", "Format Mentions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, alice.Id, KindChannel, alice.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom alice: %v", err)
+	}
+
+	for _, body := range []string{"@format-al*ice*", "@*format-alice*"} {
+		t.Run(body, func(t *testing.T) {
+			event, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, body, nil, "", "", nil, false)
+			if err != nil {
+				t.Fatalf("PostMessage: %v", err)
+			}
+			for _, mentionedUserID := range event.GetMessagePosted().GetMentionedUserIds() {
+				if mentionedUserID == alice.Id {
+					t.Fatalf("mentioned_user_ids includes formatted handle target %s", alice.Id)
+				}
+			}
+
+			notifications, err := core.GetNotifications(ctx, alice.Id)
+			if err != nil {
+				t.Fatalf("GetNotifications: %v", err)
+			}
+			if len(notifications) != 0 {
+				t.Fatalf("expected no mention notification, got %#v", notifications)
+			}
+		})
 	}
 }

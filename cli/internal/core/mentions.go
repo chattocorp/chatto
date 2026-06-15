@@ -3,9 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -69,33 +73,145 @@ func (c *ChattoCore) requireRoleMentionHandleAvailable(roleName string) error {
 	return ErrRoleAlreadyExists
 }
 
-// mentionRegex matches @username patterns in message text.
-// Usernames can contain alphanumeric characters, underscores, hyphens, and dots.
-// Dots are only allowed as internal separators (not trailing) to avoid capturing
-// sentence punctuation like "Thanks @user." → captures "user" not "user."
-// The @ must be preceded by whitespace or start of string to avoid matching emails.
-// The pattern is case-insensitive for extraction, but lookup is also case-insensitive.
-var mentionRegex = regexp.MustCompile(`(?:^|[^a-zA-Z0-9])@([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*)`)
+var mentionNodeKind = ast.NewNodeKind("Mention")
+
+type mentionNode struct {
+	ast.BaseInline
+	Username string
+}
+
+func (n *mentionNode) Kind() ast.NodeKind {
+	return mentionNodeKind
+}
+
+func (n *mentionNode) Dump(source []byte, level int) {
+	ast.DumpHelper(n, source, level, map[string]string{
+		"Username": n.Username,
+	}, nil)
+}
+
+type mentionInlineParser struct{}
+
+func (p mentionInlineParser) Trigger() []byte {
+	return []byte{'@'}
+}
+
+func (p mentionInlineParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
+	line, segment := block.PeekLine()
+	if len(line) < 2 || line[0] != '@' {
+		return nil
+	}
+
+	source := block.Source()
+	if segment.Start > 0 && isMentionAlphanumeric(source[segment.Start-1]) {
+		return nil
+	}
+
+	stop := 1
+	for stop < len(line) && isMentionHandleChar(line[stop]) {
+		stop++
+	}
+	if stop == 1 {
+		return nil
+	}
+	for stop < len(line) && line[stop] == '.' {
+		next := stop + 1
+		if next >= len(line) || !isMentionHandleChar(line[next]) {
+			break
+		}
+		stop = next + 1
+		for stop < len(line) && isMentionHandleChar(line[stop]) {
+			stop++
+		}
+	}
+
+	username := string(line[1:stop])
+	block.Advance(stop)
+	return &mentionNode{Username: username}
+}
+
+func isMentionAlphanumeric(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+
+func isMentionHandleChar(c byte) bool {
+	return isMentionAlphanumeric(c) || c == '_' || c == '-'
+}
+
+var mentionMarkdown = goldmark.New(
+	goldmark.WithParser(parser.NewParser(
+		parser.WithBlockParsers(
+			util.Prioritized(parser.NewSetextHeadingParser(), 100),
+			util.Prioritized(parser.NewThematicBreakParser(), 200),
+			util.Prioritized(parser.NewListParser(), 300),
+			util.Prioritized(parser.NewListItemParser(), 400),
+			util.Prioritized(parser.NewCodeBlockParser(), 500),
+			util.Prioritized(parser.NewATXHeadingParser(), 600),
+			util.Prioritized(parser.NewFencedCodeBlockParser(), 700),
+			util.Prioritized(parser.NewBlockquoteParser(), 800),
+			util.Prioritized(parser.NewParagraphParser(), 1000),
+		),
+		parser.WithInlineParsers(
+			util.Prioritized(parser.NewCodeSpanParser(), 100),
+			util.Prioritized(parser.NewLinkParser(), 200),
+			util.Prioritized(parser.NewAutoLinkParser(), 300),
+			util.Prioritized(mentionInlineParser{}, 400),
+			util.Prioritized(parser.NewEmphasisParser(), 500),
+		),
+		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+	)),
+)
+
+func mentionMarkdownSource(body string) string {
+	// Chatto's message renderer disables Markdown backslash escapes, so
+	// \` still participates in code-span parsing and \@alice still contains
+	// a visible mention boundary. Goldmark's inline loop hardcodes backslash
+	// escaping, so normalize just those cases for mention extraction.
+	body = strings.ReplaceAll(body, "\\`", "`")
+	return strings.ReplaceAll(body, "\\@", "\\\\@")
+}
 
 // ExtractMentionUsernames extracts all unique @username mentions from a message body.
 // Returns a slice of usernames (without the @ prefix) in the order they appear.
-// Duplicate mentions are deduplicated.
+// Duplicate mentions are deduplicated. Mentions inside Markdown code spans,
+// code blocks, and blockquotes are ignored.
 func ExtractMentionUsernames(body string) []string {
-	matches := mentionRegex.FindAllStringSubmatch(body, -1)
-	if len(matches) == 0 {
+	if !strings.Contains(body, "@") {
 		return nil
 	}
 
 	// Deduplicate while preserving order
 	seen := make(map[string]bool)
 	var usernames []string
-	for _, match := range matches {
-		username := match[1]
-		if !seen[username] {
-			seen[username] = true
-			usernames = append(usernames, username)
+
+	add := func(username string) {
+		if username == "" {
+			return
 		}
+		if seen[username] {
+			return
+		}
+		seen[username] = true
+		usernames = append(usernames, username)
 	}
+
+	source := []byte(mentionMarkdownSource(body))
+	root := mentionMarkdown.Parser().Parse(text.NewReader(source))
+	_ = ast.Walk(root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		switch node.Kind() {
+		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote:
+			return ast.WalkSkipChildren, nil
+		case mentionNodeKind:
+			add(node.(*mentionNode).Username)
+		}
+
+		return ast.WalkContinue, nil
+	})
+
 	return usernames
 }
 
