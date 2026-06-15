@@ -27,9 +27,9 @@ Rooms support real-time voice conversations. A small phone icon in the room head
 
 ### 2. Active call state is projection-backed and reconciled
 
-**Decision:** Active participant snapshots and the active call session come from a call-state service/projection over durable call facts, not from `MEMORY_CACHE`. User joins can create pending/optimistic state; LiveKit and reconciliation facts confirm or correct it. On startup and periodically, Chatto compares active LiveKit rooms/participants to the projection and appends reconciliation facts for mismatches.
+**Decision:** Active participant snapshots and the active call session come from a call-state service/projection over durable call facts, not from `MEMORY_CACHE`. User joins can create pending/optimistic state; LiveKit and reconciliation facts confirm or correct it. On startup and periodically, Chatto compares active LiveKit rooms/participants to the projection and appends reconciliation facts for mismatches. If LiveKit cannot list rooms/participants, Chatto immediately ends all projected active calls with reconciliation facts.
 **Why:** The UI needs current participant state, but it should not depend only on volatile KV state or only on historical replay. EVT gives durable audit/live delivery, while LiveKit reconciliation keeps "who is connected now" grounded in the media server.
-**Tradeoff:** The projection can briefly show optimistic state before LiveKit or reconciliation corrects it. If LiveKit reports the same already-active transition, the duplicate report is skipped instead of appending another public call event. Multiple replicas may reconcile concurrently; call transition facts are OCC-gated on the room aggregate and rechecked after conflicts.
+**Tradeoff:** The projection can briefly show optimistic state before LiveKit or reconciliation corrects it. If LiveKit reports the same already-active transition, the duplicate report is skipped instead of appending another public call event. A LiveKit outage can end active calls on the first failed listing attempt, favoring quick UI recovery and unblocking new sessions over preserving possibly stale call state. Multiple replicas may reconcile concurrently; call transition facts are OCC-gated on the room aggregate and rechecked after conflicts.
 
 ### 3. Graceful degradation when LiveKit isn't configured
 

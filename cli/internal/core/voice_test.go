@@ -45,6 +45,29 @@ func (f failingShredCallKeyStore) ShredCallKey(context.Context, string) error {
 	return f.err
 }
 
+type recordingCallLogger struct {
+	warnMessage string
+	warnKeyvals []interface{}
+}
+
+func (l *recordingCallLogger) Debug(interface{}, ...interface{}) {}
+func (l *recordingCallLogger) Info(interface{}, ...interface{})  {}
+func (l *recordingCallLogger) Error(interface{}, ...interface{}) {}
+
+func (l *recordingCallLogger) Warn(msg interface{}, keyvals ...interface{}) {
+	l.warnMessage = msg.(string)
+	l.warnKeyvals = append([]interface{}(nil), keyvals...)
+}
+
+func loggedValue(keyvals []interface{}, key string) interface{} {
+	for i := 0; i+1 < len(keyvals); i += 2 {
+		if keyvals[i] == key {
+			return keyvals[i+1]
+		}
+	}
+	return nil
+}
+
 func TestLiveKitRoomName(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -829,7 +852,182 @@ func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
 	}
 }
 
-func TestCallState_ReconcileWithLiveKitErrorDoesNotClearProjection(t *testing.T) {
+func TestCallState_ReconcileWithLiveKitErrorEndsActiveCalls(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	started := callEvents[0].GetVoiceCallStarted()
+	if started == nil || started.GetE2EeKeyRef() == "" {
+		t.Fatalf("Expected started event with key ref")
+	}
+
+	liveKitErr := errors.New("livekit unavailable")
+	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	err = core.callService.ReconcileWithLiveKit(ctx)
+	if !errors.Is(err, liveKitErr) {
+		t.Fatalf("ReconcileWithLiveKit() error = %v, want %v", err, liveKitErr)
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected failed LiveKit reconciliation to clear participants, got %d", len(participants))
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected failed LiveKit reconciliation to end active call")
+	}
+	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 4 ||
+		callEvents[2].GetVoiceCallParticipantLeft() == nil ||
+		callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected failed LiveKit reconciliation to append start/join/left/end, got %d events", len(callEvents))
+	}
+	if got := callEvents[3].GetVoiceCallEnded().GetSource(); got != corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION {
+		t.Fatalf("Ended source = %v, want RECONCILIATION", got)
+	}
+	exists, err := core.encryption.callKeys.CallKeyExists(ctx, started.GetE2EeKeyRef())
+	if err != nil {
+		t.Fatalf("CallKeyExists() error = %v", err)
+	}
+	if exists {
+		t.Fatal("Expected failed LiveKit reconciliation to shred ended call key")
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitErrorEndsAllActiveRooms(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	rooms := []struct {
+		roomID string
+		userID string
+	}{
+		{roomID: "room1", userID: "user1"},
+		{roomID: "room2", userID: "user2"},
+	}
+
+	for _, room := range rooms {
+		if err := core.RecordCallParticipantJoined(ctx, KindChannel, room.roomID, room.userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+			t.Fatalf("RecordCallParticipantJoined(%s) error = %v", room.roomID, err)
+		}
+	}
+
+	liveKitErr := errors.New("livekit unavailable")
+	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	err := core.callService.ReconcileWithLiveKit(ctx)
+	if !errors.Is(err, liveKitErr) {
+		t.Fatalf("ReconcileWithLiveKit() error = %v, want %v", err, liveKitErr)
+	}
+
+	for _, room := range rooms {
+		participants, _ := core.GetCallParticipants(ctx, "channel", room.roomID)
+		if len(participants) != 0 {
+			t.Fatalf("Expected room %s participants to clear, got %d", room.roomID, len(participants))
+		}
+		if _, ok := core.CallState.ActiveCall(room.roomID); ok {
+			t.Fatalf("Expected room %s active call to end", room.roomID)
+		}
+		callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.roomID).AllEventsFilter())
+		if err != nil {
+			t.Fatalf("SubjectEvents(%s) error = %v", room.roomID, err)
+		}
+		if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
+			t.Fatalf("Expected room %s to append CallEndedEvent, got %d events", room.roomID, len(callEvents))
+		}
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitTimeoutUsesFreshCleanupContext(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+
+	listCtx, cancelList := context.WithCancel(ctx)
+	cancelList()
+	cleanupContextCreated := false
+	core.callService.livekit = fakeLiveKitParticipantLister{err: context.DeadlineExceeded}
+
+	err := core.callService.reconcileWithLiveKit(listCtx, func() (context.Context, context.CancelFunc) {
+		cleanupContextCreated = true
+		return context.WithCancel(ctx)
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("reconcileWithLiveKit() error = %v, want context deadline exceeded", err)
+	}
+	if !cleanupContextCreated {
+		t.Fatal("Expected reconciliation failure to create a cleanup context")
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected cleanup with fresh context to clear participants, got %d", len(participants))
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected cleanup with fresh context to end active call")
+	}
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		t.Fatalf("SubjectEvents() error = %v", err)
+	}
+	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected cleanup with fresh context to append CallEndedEvent, got %d events", len(callEvents))
+	}
+}
+
+func TestCallState_ReconcileBestEffortLogsLiveKitFailureCleanupSummary(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	rooms := []struct {
+		roomID string
+		userID string
+	}{
+		{roomID: "room1", userID: "user1"},
+		{roomID: "room2", userID: "user2"},
+	}
+	for _, room := range rooms {
+		if err := core.RecordCallParticipantJoined(ctx, KindChannel, room.roomID, room.userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+			t.Fatalf("RecordCallParticipantJoined(%s) error = %v", room.roomID, err)
+		}
+	}
+
+	liveKitErr := errors.New("livekit unavailable")
+	logger := &recordingCallLogger{}
+	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callService.logger = logger
+
+	core.callService.reconcileBestEffort(ctx)
+
+	if logger.warnMessage != "LiveKit listing failed; ended projected active calls" {
+		t.Fatalf("Warn message = %q", logger.warnMessage)
+	}
+	if got := loggedValue(logger.warnKeyvals, "error"); !errors.Is(got.(error), liveKitErr) {
+		t.Fatalf("Logged error = %v, want %v", got, liveKitErr)
+	}
+	if got := loggedValue(logger.warnKeyvals, "active_rooms"); got != 2 {
+		t.Fatalf("Logged active_rooms = %v, want 2", got)
+	}
+	if got := loggedValue(logger.warnKeyvals, "ended_rooms"); got != 2 {
+		t.Fatalf("Logged ended_rooms = %v, want 2", got)
+	}
+	if got := loggedValue(logger.warnKeyvals, "cleanup_errors"); got != 0 {
+		t.Fatalf("Logged cleanup_errors = %v, want 0", got)
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	roomID := "room1"
@@ -838,25 +1036,33 @@ func TestCallState_ReconcileWithLiveKitErrorDoesNotClearProjection(t *testing.T)
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
 	liveKitErr := errors.New("livekit unavailable")
+	shredErr := errors.New("kms shred unavailable")
 	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
-	err := core.callService.ReconcileWithLiveKit(ctx)
-	if !errors.Is(err, liveKitErr) {
-		t.Fatalf("ReconcileWithLiveKit() error = %v, want %v", err, liveKitErr)
+	core.callService.callKeys = failingShredCallKeyStore{
+		delegate: core.encryption.callKeys,
+		err:      shredErr,
 	}
 
-	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
-	if len(participants) != 1 {
-		t.Fatalf("Expected failed reconciliation to leave projection intact, got %d participants", len(participants))
+	err := core.callService.ReconcileWithLiveKit(ctx)
+	if !errors.Is(err, liveKitErr) {
+		t.Fatalf("ReconcileWithLiveKit() error = %v, want LiveKit error", err)
 	}
-	if _, ok := core.CallState.ActiveCall(roomID); !ok {
-		t.Fatal("Expected failed reconciliation to keep active call")
+	if !errors.Is(err, shredErr) {
+		t.Fatalf("ReconcileWithLiveKit() error = %v, want cleanup error", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+
+	callEvents, seq, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
-	if len(callEvents) != 2 {
-		t.Fatalf("Expected failed reconciliation to append no events, got %d", len(callEvents))
+	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
+		t.Fatalf("Expected cleanup failure to still append CallEndedEvent, got %d events", len(callEvents))
+	}
+	if err := core.CallStateProjector.WaitFor(ctx, events.SubjectPosition(events.RoomAggregate(roomID).AllEventsFilter(), seq)); err != nil {
+		t.Fatalf("CallStateProjector.WaitFor() error = %v", err)
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected active call to clear even when key shredding fails")
 	}
 }
 

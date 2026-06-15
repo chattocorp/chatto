@@ -44,6 +44,38 @@ type CallService struct {
 	logger     events.Logger
 }
 
+type liveKitFailureCleanupSummary struct {
+	activeRooms   int
+	endedRooms    int
+	cleanupErrors int
+	err           error
+}
+
+type liveKitListFailureError struct {
+	err     error
+	cleanup liveKitFailureCleanupSummary
+}
+
+func (e *liveKitListFailureError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.cleanup.err != nil {
+		return fmt.Sprintf("list LiveKit call participants: %v; end active calls after LiveKit reconciliation failure: %v", e.err, e.cleanup.err)
+	}
+	return fmt.Sprintf("list LiveKit call participants: %v", e.err)
+}
+
+func (e *liveKitListFailureError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	if e.cleanup.err != nil {
+		return errors.Join(e.err, e.cleanup.err)
+	}
+	return e.err
+}
+
 func NewCallService(
 	publisher *events.Publisher,
 	projection *CallStateProjection,
@@ -440,12 +472,21 @@ func (s *CallService) reconciliationMismatchResolved(roomID, userID string, join
 }
 
 func (s *CallService) ReconcileWithLiveKit(ctx context.Context) error {
+	return s.reconcileWithLiveKit(ctx, func() (context.Context, context.CancelFunc) {
+		return context.WithCancel(ctx)
+	})
+}
+
+func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext func() (context.Context, context.CancelFunc)) error {
 	if s.livekit == nil {
 		return nil
 	}
 	snapshots, err := s.livekit.ListCallParticipants(ctx)
 	if err != nil {
-		return err
+		cleanupCtx, cancel := cleanupContext()
+		defer cancel()
+		cleanup := s.endActiveCallsAfterLiveKitFailure(cleanupCtx)
+		return &liveKitListFailureError{err: err, cleanup: cleanup}
 	}
 	observedRooms := make(map[string]struct{}, len(snapshots))
 	for _, snapshot := range snapshots {
@@ -462,6 +503,23 @@ func (s *CallService) ReconcileWithLiveKit(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (s *CallService) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveKitFailureCleanupSummary {
+	summary := liveKitFailureCleanupSummary{}
+	var cleanupErr error
+	roomIDs := s.projection.ActiveRoomIDs()
+	summary.activeRooms = len(roomIDs)
+	for _, roomID := range roomIDs {
+		if err := s.ReconcileRoomParticipants(ctx, roomID, nil); err != nil {
+			summary.cleanupErrors++
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("room %s: %w", roomID, err))
+			continue
+		}
+		summary.endedRooms++
+	}
+	summary.err = cleanupErr
+	return summary
 }
 
 func (s *CallService) Run(ctx context.Context) error {
@@ -486,7 +544,20 @@ func (s *CallService) Run(ctx context.Context) error {
 func (s *CallService) reconcileBestEffort(ctx context.Context) {
 	reconcileCtx, cancel := context.WithTimeout(ctx, callReconcileAPITimeout)
 	defer cancel()
-	if err := s.ReconcileWithLiveKit(reconcileCtx); err != nil && s.logger != nil && !strings.Contains(err.Error(), context.Canceled.Error()) {
+	if err := s.reconcileWithLiveKit(reconcileCtx, func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(ctx, callReconcileAPITimeout)
+	}); err != nil && s.logger != nil && !strings.Contains(err.Error(), context.Canceled.Error()) {
+		var listErr *liveKitListFailureError
+		if errors.As(err, &listErr) {
+			s.logger.Warn(
+				"LiveKit listing failed; ended projected active calls",
+				"error", listErr.err,
+				"active_rooms", listErr.cleanup.activeRooms,
+				"ended_rooms", listErr.cleanup.endedRooms,
+				"cleanup_errors", listErr.cleanup.cleanupErrors,
+			)
+			return
+		}
 		s.logger.Warn("LiveKit call-state reconciliation failed", "error", err)
 	}
 }
