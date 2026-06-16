@@ -897,28 +897,23 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("DM boundary deny applies to owner too", func(t *testing.T) {
-		// Owner has every server-scope permission via enumerated grants —
-		// the boundary deny-list must still block DM moderation. The
-		// boundary check runs before Phase 1 (user-level) and Phase 2
-		// (role walk), so no role can sidestep it.
+	t.Run("owner override beats DM boundary deny", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx2 := testContext(t)
 		owner, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-owner", "Owner", "password123")
 		if err := c.AssignOwnerRole(ctx2, owner.Id); err != nil {
 			t.Fatalf("AssignOwnerRole: %v", err)
 		}
-		// Sanity: owner has the perms via the owner-role grants.
+		// Sanity: owner has server-scope permissions via the effective-owner override.
 		has, _ := c.HasServerPermission(ctx2, owner.Id, PermMessagePost)
 		if !has {
-			t.Fatal("baseline: owner should resolve allow for message.post via owner-role grant")
+			t.Fatal("baseline: owner should resolve allow for message.post")
 		}
-		// In DM context, the boundary deny-list still blocks.
 		dmRoomID := "R_dm_boundary_owner_test"
 		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomMemberBan} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
-			if has {
-				t.Errorf("expected DM boundary to block %s for owner, got allow", perm)
+			if !has {
+				t.Errorf("expected owner override to allow %s despite DM boundary", perm)
 			}
 		}
 	})

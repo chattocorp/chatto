@@ -313,8 +313,8 @@
       {#if canManageRoles && role}
         <Hint>
           {#if role.name === 'owner'}
-            Owners receive every RBAC permission automatically. The matrix is read-only because
-            owner permissions are not stored as editable grants or denials.
+            Owners are always granted all permissions. The matrix is read-only because owner
+            permissions are not stored as editable grants or denials.
           {:else}
             This role's grants and denials across every scope. Combined with the user's other roles
             at resolution time — use the per-user matrix to see what an individual user ends up with.

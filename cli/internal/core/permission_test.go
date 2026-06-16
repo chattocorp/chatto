@@ -2,6 +2,7 @@ package core
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -358,6 +359,20 @@ func TestPermissionConsistency(t *testing.T) {
 			if err := ValidatePermission(perm); err != nil {
 				t.Errorf("Invalid permission in admin defaults: %v", perm)
 			}
+		}
+	})
+
+	t.Run("admin defaults only grant room.create from room namespace", func(t *testing.T) {
+		for _, perm := range DefaultAdminPermissions() {
+			if !strings.HasPrefix(string(perm), "room.") {
+				continue
+			}
+			if perm != PermRoomCreate {
+				t.Errorf("admin server defaults must not include %v", perm)
+			}
+		}
+		if !slices.Contains(DefaultAdminPermissions(), PermRoomCreate) {
+			t.Error("admin server defaults should include room.create")
 		}
 	})
 }

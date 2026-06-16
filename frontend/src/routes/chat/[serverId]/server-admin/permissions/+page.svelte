@@ -78,13 +78,26 @@
         </Panel>
       {/if}
       <Hint>
-        This page is for <strong>server-wide</strong> role permissions and global overrides.
-        Room-tier permissions, including message posting policy, are primarily configured from the
-        <a
-          href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
-          class="link">Rooms</a
-        > page at the room or room-group level. Owners always receive every RBAC permission and are
-        shown as read-only green checks.
+        <div class="space-y-2">
+          <p>
+            This page is for <strong>server-tier</strong> role permissions: broad defaults and
+            global overrides that should apply everywhere.
+          </p>
+          <p>
+            Configure room behavior from the
+            <a
+              href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
+              class="link">Rooms</a
+            > page first. Posting, joining, discovering, moderating, and managing rooms should
+            normally be decided on the room or room-group tier so one room can differ from another.
+            Use server-tier room or message permissions only when you intentionally want a
+            server-wide default or global override.
+          </p>
+          <p>
+            For non-owners, any applicable deny anywhere cancels out grants from every role and
+            tier. Owners are always granted all permissions.
+          </p>
+        </div>
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}

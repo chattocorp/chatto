@@ -9,8 +9,8 @@ import (
 // PermissionResolver handles permission resolution using a deliberately small
 // model:
 //
-//  1. DM boundary denies win for category/privacy mismatches.
-//  2. Effective owners are allowed every known RBAC permission.
+//  1. Effective owners are allowed every known RBAC permission.
+//  2. For everyone else, DM boundary denies win for category/privacy mismatches.
 //  3. For everyone else, any applicable deny wins.
 //  4. If there is no deny, any applicable allow grants the permission.
 //  5. No decision is denied at the API boundary.
@@ -77,10 +77,10 @@ type visitFunc func(entry TraceEntry) visitOutcome
 //
 // Order of operations:
 //
-//  1. DM boundary deny-list (for kind == KindDM only) — permissions in
+//  1. Effective-owner override.
+//  2. DM boundary deny-list (for kind == KindDM only) — permissions in
 //     dmBoundaryDeniedPermissions are unconditionally denied regardless of
-//     grants. This is the privacy/category-mismatch floor.
-//  2. Effective-owner override.
+//     grants for non-owners. This is the privacy/category-mismatch floor.
 //  3. Collect applicable user and role decisions across all valid scopes.
 //     Any deny beats any allow; any allow beats no decision.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
@@ -94,10 +94,6 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		return DecisionDeny, nil
-	}
-
 	if _, known := GetPermissionMetadata(perm); known {
 		isOwner, err := r.core.IsServerOwner(ctx, userID)
 		if err != nil {
@@ -106,6 +102,10 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		if isOwner {
 			return DecisionAllow, nil
 		}
+	}
+
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		return DecisionDeny, nil
 	}
 
 	// For channel rooms with a room-scope permission, look up the room's group

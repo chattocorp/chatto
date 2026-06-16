@@ -16,7 +16,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Permissions gate capabilities, not every form of visibility. For example, DM read access comes from room membership, while `message.post` gates starting DMs and sending root DM messages.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
-- Effective owners pass every known RBAC permission check regardless of stored grants/denies. An effective owner is either assigned the durable `owner` role or has a verified email listed in `owners.emails` in `chatto.toml`. DM privacy/category boundary denies still apply.
+- Owners are always granted all permissions. An effective owner is either assigned the durable `owner` role or has a verified email listed in `owners.emails` in `chatto.toml`.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - GraphQL RBAC editor and inspection queries live under `Query.admin.rbac`. `Query.admin` is an authenticated namespace; the RBAC fields keep their narrower gates such as `role.manage` or `room.manage`.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
@@ -38,13 +38,13 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 3. Three permission scopes (server / group / room)
 
-**Decision:** Room checks consider room, group, and server-scope decisions. Server-scope message and room permissions act as global overrides/defaults; room-scope defaults are seeded for normal rooms and announcement rooms. Fresh dev/bootstrap servers do not grant `room.create` to `everyone` at server scope.
+**Decision:** Room checks consider room, group, and server-scope decisions. Server-scope message and room permissions act as global overrides/defaults; room-scope defaults are seeded for normal rooms and announcement rooms. Fresh dev/bootstrap servers do not grant `room.create` to `everyone` at server scope, and `room.create` is the only `room.*` permission granted to admins at server scope by default.
 **Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-040.
 **Tradeoff:** A broad server-scope deny blocks the permission everywhere for affected non-owner users. That is intentional, but operators should prefer room/group scope for local changes.
 
 ### 4. Owners are effective-owner overrides
 
-**Decision:** Durable owners and config-designated verified owners receive every known RBAC permission regardless of RBAC state. Owner role permission rows are not seeded on fresh servers and are not editable through the RBAC UI/API.
+**Decision:** Owners are always granted all permissions. Owner role permission rows are not seeded on fresh servers and are not editable through the RBAC UI/API.
 **Why:** Instance owners must not be able to lock themselves out through unusual role or per-user permission configuration. See ADR-040.
 **Tradeoff:** RBAC cannot be used to restrict owners, and owner permissions appear as virtual read-only allows rather than stored permission decisions. Restricting owner access requires changing ownership configuration or account state.
 

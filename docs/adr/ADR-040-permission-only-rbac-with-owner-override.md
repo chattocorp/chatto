@@ -25,10 +25,8 @@ The main pressure points were:
 Use a permission-only RBAC model for everyone except effective owners.
 
 - Effective owners are users with the durable `owner` role or a verified email
-  matching `owners.emails` in Chatto configuration. They receive every known
-  RBAC permission regardless of stored allow/deny state.
-- DM privacy/category boundary denies still apply to owners. Ownership is an
-  administration override, not a right to moderate private DMs.
+  matching `owners.emails` in Chatto configuration. Owners are always granted
+  all permissions regardless of stored allow/deny state.
 - For non-owners, permission resolution is deny-wins: any applicable user or
   role deny blocks the permission; otherwise any applicable allow grants it;
   otherwise the result is no decision and the API treats it as denied.

@@ -60,11 +60,11 @@ apply at that scope's tier).
     },
     room: {
       title: 'Room Permissions',
-      description: 'Control room creation globally; configure room access and management primarily from room settings'
+      description: 'Use this tier mainly for global room creation. Configure joining, visibility, moderation, and room management on rooms or room groups'
     },
     message: {
       title: 'Message Permissions',
-      description: 'Global message overrides. Prefer room or room-group settings for normal posting policy'
+      description: 'Global message defaults and overrides. Configure normal posting policy on rooms or room groups first'
     },
     member: {
       title: 'Member Permissions',
@@ -79,7 +79,10 @@ apply at that scope's tier).
       description: 'Control access to server-wide administrative views and diagnostics'
     },
     dm: { title: 'DM Permissions', description: 'Control access to direct messaging entry points' },
-    user: { title: 'User Permissions', description: 'Control user account and per-user permission operations' }
+    user: {
+      title: 'User Permissions',
+      description: 'Control user account and per-user permission operations. Any non-owner deny cancels grants'
+    }
   };
 
   let {
@@ -255,13 +258,13 @@ apply at that scope's tier).
                     {@const displayOverride = forceAllow ? 'allow' : ov}
                     {@const displayEffective = forceAllow ? 'neutral' : eff}
                     {@const ariaLabel = forceAllow
-                      ? `${subjectKind} has ${permission} at ${scope.label} via the effective-owner override`
+                      ? `${subjectKind} is always granted ${permission} at ${scope.label}`
                       : ov !== 'neutral'
                         ? `Override ${ov} for ${permission} at ${scope.label}`
                         : `No override for ${permission} at ${scope.label}, effective ${eff}`}
                     {@const titleParts = forceAllow
                       ? [
-                          'Allow (owners always have every RBAC permission)',
+                          'Allow (owners are always granted all permissions)',
                           'Owner permissions are not editable'
                         ]
                       : [

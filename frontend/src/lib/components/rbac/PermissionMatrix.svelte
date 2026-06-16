@@ -68,11 +68,11 @@ under it. Column headers are clickable when `onRoleClick` is provided
     },
     room: {
       title: 'Room Permissions',
-      description: 'Control room creation globally; configure room access and management primarily from room settings'
+      description: 'Use this tier mainly for global room creation. Configure joining, visibility, moderation, and room management on rooms or room groups'
     },
     message: {
       title: 'Message Permissions',
-      description: 'Global message overrides. Prefer room or room-group settings for normal posting policy'
+      description: 'Global message defaults and overrides. Configure normal posting policy on rooms or room groups first'
     },
     member: {
       title: 'Member Permissions',
@@ -87,7 +87,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
       description: 'Control access to server-wide administrative views and diagnostics'
     },
     dm: { title: 'DM Permissions', description: 'Control access to direct messaging entry points' },
-    user: { title: 'User Permissions', description: 'Control user account and per-user permission operations' }
+    user: {
+      title: 'User Permissions',
+      description: 'Control user account and per-user permission operations. Any non-owner deny cancels grants'
+    }
   };
 
   let {
@@ -374,7 +377,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                 {@const cellKey = `${role.roleName}::${permission}`}
                 {@const isUpdating = updating === cellKey}
                 {@const ariaParts = virtualOwner
-                  ? [`Owner has ${permission} via the effective-owner override`]
+                  ? [`Owner is always granted ${permission}`]
                   : [
                       ov !== 'neutral'
                         ? `Override ${ov} for ${role.displayName} on ${permission}`
@@ -385,7 +388,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                     ].filter(Boolean)}
                 {@const ariaLabel = ariaParts.join(', ')}
                 {@const titleParts = virtualOwner
-                  ? ['Allow (owners always have every RBAC permission)', 'Owner permissions are not editable']
+                  ? ['Allow (owners are always granted all permissions)', 'Owner permissions are not editable']
                   : [
                       ov !== 'neutral'
                         ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`

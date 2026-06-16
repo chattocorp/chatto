@@ -260,21 +260,26 @@ func DefaultModeratorPermissions() []Permission {
 	}
 }
 
-// DefaultAdminPermissions returns the permissions granted to admins by
-// default. Admins receive every non-message permission that can be configured
-// at server, group, or room scope. Message permissions are seeded at room tier
-// so individual rooms can be customized without fighting a broad server allow.
+// DefaultAdminPermissions returns the server-scope permissions granted to
+// admins by default. Room access, room moderation, and message behavior are
+// seeded at room tier so individual rooms can be customized without fighting
+// broad server allows. `room.create` is the only room.* default here because it
+// authorizes creating new rooms rather than operating inside an existing room.
 func DefaultAdminPermissions() []Permission {
 	seen := map[Permission]bool{}
 	var result []Permission
-	for _, scope := range []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom} {
-		for _, meta := range PermissionsForScope(scope) {
-			if meta.Category == CategoryMessage || seen[meta.Permission] {
-				continue
-			}
-			seen[meta.Permission] = true
-			result = append(result, meta.Permission)
+	for _, meta := range PermissionsForScope(ScopeServer) {
+		if seen[meta.Permission] {
+			continue
 		}
+		if meta.Category == CategoryMessage {
+			continue
+		}
+		if meta.Category == CategoryRoom && meta.Permission != PermRoomCreate {
+			continue
+		}
+		seen[meta.Permission] = true
+		result = append(result, meta.Permission)
 	}
 	return result
 }

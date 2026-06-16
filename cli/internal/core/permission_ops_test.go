@@ -362,15 +362,21 @@ func TestInitServerDefaults(t *testing.T) {
 
 	// InitServerDefaults is called during setupTestCore, so we can verify its effects
 
-	t.Run("admin has non-message server permissions", func(t *testing.T) {
+	t.Run("admin has expected server permissions", func(t *testing.T) {
 		// Message permissions are configured at room scope by default;
 		// server-scope message grants are explicit global overrides.
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			if perm.Category == CategoryMessage {
+			if perm.Category == CategoryMessage ||
+				(perm.Category == CategoryRoom && perm.Permission != PermRoomCreate) {
 				continue
 			}
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
 				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
+			}
+		}
+		for _, perm := range []Permission{PermRoomJoin, PermRoomList, PermRoomManage, PermRoomMemberBan} {
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
+				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
 			}
 		}
 	})
