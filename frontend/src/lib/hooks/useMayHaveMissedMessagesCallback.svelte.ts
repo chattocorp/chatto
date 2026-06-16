@@ -16,9 +16,11 @@ const DEDUPE_MS = 1_000;
  * unlock does not fan out several identical room refreshes.
  */
 export function useMayHaveMissedMessagesCallback(
-  callback: (reason: MayHaveMissedMessagesReason) => void | Promise<void>
+  callback: (reason: MayHaveMissedMessagesReason) => boolean | void | Promise<boolean | void>
 ): void {
-  let lastTriggeredAt = 0;
+  let lastSucceededAt = 0;
+  let inFlight = false;
+  let queuedReason: MayHaveMissedMessagesReason | null = null;
 
   function isEditableTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
@@ -31,15 +33,38 @@ export function useMayHaveMissedMessagesCallback(
     );
   }
 
+  async function run(reason: MayHaveMissedMessagesReason): Promise<void> {
+    inFlight = true;
+    console.debug('[room-refresh] maybe-missed signal', { reason });
+    try {
+      const refreshed = await callback(reason);
+      if (refreshed !== false) {
+        lastSucceededAt = Date.now();
+      }
+    } catch (error) {
+      console.debug('[room-refresh] maybe-missed callback failed', { reason, error });
+    } finally {
+      inFlight = false;
+      const nextReason = queuedReason;
+      queuedReason = null;
+      if (nextReason && Date.now() - lastSucceededAt >= DEDUPE_MS) {
+        void run(nextReason);
+      }
+    }
+  }
+
   function trigger(reason: MayHaveMissedMessagesReason): void {
     const now = Date.now();
-    if (now - lastTriggeredAt < DEDUPE_MS) {
+    if (inFlight) {
+      queuedReason = reason;
+      console.debug('[room-refresh] queued maybe-missed signal while refresh is running', { reason });
+      return;
+    }
+    if (now - lastSucceededAt < DEDUPE_MS) {
       console.debug('[room-refresh] skipped duplicate maybe-missed signal', { reason });
       return;
     }
-    lastTriggeredAt = now;
-    console.debug('[room-refresh] maybe-missed signal', { reason });
-    void callback(reason);
+    void run(reason);
   }
 
   useReconnectCallback(() => trigger('reconnect'));

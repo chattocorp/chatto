@@ -491,9 +491,9 @@
 
   let softRefreshInFlight = false;
 
-  async function refreshAfterPossibleMiss(reason: MayHaveMissedMessagesReason): Promise<void> {
-    if (softRefreshInFlight) return;
-    if (isLoading && virtualItems.length === 0) return;
+  async function refreshAfterPossibleMiss(reason: MayHaveMissedMessagesReason): Promise<boolean> {
+    if (softRefreshInFlight) return false;
+    if (isLoading && virtualItems.length === 0) return false;
 
     const bottomDistance = distanceFromBottom();
     const wasAtBottom =
@@ -511,6 +511,14 @@
         itemCount: virtualItems.length
       });
       const result = await messageStore.refreshCurrentWindow(anchor?.eventId ?? null);
+      if (!result.refreshed) {
+        console.debug('[room-refresh] event list refresh skipped after store refresh failed', {
+          roomId,
+          reason,
+          result
+        });
+        return false;
+      }
       onSoftRefresh?.(result, anchor !== null);
       await tick();
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -529,7 +537,7 @@
           result,
           itemCount: virtualItems.length
         });
-        return;
+        return true;
       }
 
       if (anchor && scrollContainer) {
@@ -554,14 +562,13 @@
           });
         }
       }
+      return true;
     } finally {
       softRefreshInFlight = false;
     }
   }
 
-  useMayHaveMissedMessagesCallback((reason) => {
-    void refreshAfterPossibleMiss(reason);
-  });
+  useMayHaveMissedMessagesCallback((reason) => refreshAfterPossibleMiss(reason));
 
   // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
   // browser may have throttled virtua's measurements or our auto-scroll effect

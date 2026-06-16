@@ -266,6 +266,17 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if !page.HasOlder || !page.HasNewer {
 			t.Fatalf("around page hasOlder/hasNewer = %v/%v, want true/true", page.HasOlder, page.HasNewer)
 		}
+
+		rootPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, rootEvent.Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround root anchor: %v", err)
+		}
+		if got := eventIDsForTest(rootPage.Events); len(got) != 3 || got[0] != replies[0].Id || got[1] != replies[1].Id || got[2] != replies[2].Id {
+			t.Fatalf("root anchor around page = %v, want [%s, %s, %s]", got, replies[0].Id, replies[1].Id, replies[2].Id)
+		}
+		if rootPage.HasOlder || !rootPage.HasNewer {
+			t.Fatalf("root anchor around page hasOlder/hasNewer = %v/%v, want false/true", rootPage.HasOlder, rootPage.HasNewer)
+		}
 	})
 
 	t.Run("GetThreadMetadata returns reply count and last reply time", func(t *testing.T) {

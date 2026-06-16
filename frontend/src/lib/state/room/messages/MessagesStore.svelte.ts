@@ -33,6 +33,7 @@ type MessageScope = 'room' | 'thread';
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
   hasNewer: boolean;
+  refreshed: boolean;
 };
 
 function eventCacheKey(roomId: string, eventId: string): string {
@@ -405,7 +406,7 @@ export class MessagesStore {
    * have missed subscription events.
    */
   async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
-    if (!this.scope || !this.roomId) return { hasOlder: false, hasNewer: false };
+    if (!this.scope || !this.roomId) return { hasOlder: false, hasNewer: false, refreshed: false };
 
     const thisLoad = this.startLoad();
     const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
@@ -467,9 +468,9 @@ export class MessagesStore {
       });
       return result;
     } catch (error) {
-      if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+      if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
       console.error('MessagesStore: refreshCurrentWindow failed:', error);
-      return { hasOlder: false, hasNewer: false };
+      return { hasOlder: false, hasNewer: false, refreshed: false };
     }
   }
 
@@ -792,16 +793,16 @@ export class MessagesStore {
       )
       .toPromise();
 
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
     if (result.error) {
       console.error('MessagesStore: refreshRoomLatest error:', result.error);
-      return { hasOlder: false, hasNewer: false };
+      return { hasOlder: false, hasNewer: false, refreshed: false };
     }
 
     const page = result.data?.room?.events;
-    if (!page) return { hasOlder: false, hasNewer: false };
+    if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer };
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
 
   private async refreshRoomAround(
@@ -821,7 +822,7 @@ export class MessagesStore {
       )
       .toPromise();
 
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
     if (result.error) {
       console.error('MessagesStore: refreshRoomAround error:', result.error);
       return null;
@@ -830,7 +831,7 @@ export class MessagesStore {
     const page = result.data?.room?.eventsAround;
     if (!page) return null;
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer };
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
 
   private async refreshThreadWindow(
@@ -838,10 +839,8 @@ export class MessagesStore {
     existingBeforeFetch: ReadonlySet<string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
-    const query = anchorEventId && anchorEventId !== this.threadRootEventId
-      ? ThreadEventsAroundQuery
-      : ThreadEventsQuery;
-    const variables = anchorEventId && anchorEventId !== this.threadRootEventId
+    const query = anchorEventId ? ThreadEventsAroundQuery : ThreadEventsQuery;
+    const variables = anchorEventId
       ? {
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
@@ -857,14 +856,14 @@ export class MessagesStore {
       .query(query, variables, { requestPolicy: 'network-only' })
       .toPromise();
 
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false };
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
     if (result.error) {
       console.error('MessagesStore: refreshThreadWindow error:', result.error);
-      return { hasOlder: false, hasNewer: false };
+      return { hasOlder: false, hasNewer: false, refreshed: false };
     }
 
     const root = result.data?.room?.event;
-    if (!root) return { hasOlder: false, hasNewer: false };
+    if (!root) return { hasOlder: false, hasNewer: false, refreshed: false };
 
     const page = threadRepliesConnection(root);
     const replies = page?.events ?? [];
@@ -878,7 +877,7 @@ export class MessagesStore {
       existingBeforeFetch
     );
     this.sortThreadEvents();
-    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false };
+    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false, refreshed: true };
   }
 
   private resetAndFetchLatest(): void {

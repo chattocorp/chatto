@@ -154,35 +154,42 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 	if roomIDOfEvent(rootEntry.Event) != roomID {
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
-	if anchorEventID == threadRootEventID {
-		return c.GetThreadReplyEvents(ctx, kind, roomID, threadRootEventID, limit, nil, nil)
-	}
 
 	entries := c.rooms().threadEvents(threadRootEventID)
 	replies := make([]*TimelineEntry, 0, len(entries))
-	targetIndex := -1
+	targetIndex := 0
+	foundAnchor := anchorEventID == threadRootEventID
 	for _, entry := range entries {
 		if !isThreadReplyEventForPage(entry) {
 			continue
 		}
 		if entry.Event.GetId() == anchorEventID {
 			targetIndex = len(replies)
+			foundAnchor = true
 		}
 		replies = append(replies, entry)
 	}
-	if targetIndex == -1 {
+	if !foundAnchor {
 		return nil, ErrMessageNotFound
 	}
 
-	beforeCount := (limit - 1) / 2
-	afterCount := limit - beforeCount - 1
-	start := targetIndex - beforeCount
-	if start < 0 {
-		start = 0
-	}
-	end := targetIndex + afterCount + 1
-	if end > len(replies) {
-		end = len(replies)
+	start := 0
+	end := len(replies)
+	if anchorEventID == threadRootEventID {
+		if end > limit {
+			end = limit
+		}
+	} else {
+		beforeCount := (limit - 1) / 2
+		afterCount := limit - beforeCount - 1
+		start = targetIndex - beforeCount
+		if start < 0 {
+			start = 0
+		}
+		end = targetIndex + afterCount + 1
+		if end > len(replies) {
+			end = len(replies)
+		}
 	}
 
 	raw := make([]*RoomEvent, 0, end-start)
