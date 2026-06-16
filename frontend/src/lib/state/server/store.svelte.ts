@@ -93,8 +93,8 @@ export class ServerStateStore {
     this.roomDirectory = new RoomDirectoryStore(client);
     this.adminRoomLayout = new AdminRoomLayoutStore(client);
 
-    // Gate session-revalidation and auth-failure dispatch to cookie-auth
-    // servers only. Bearer auth's `handleAuthFailure` would clear
+    // Gate auth-failure dispatch to cookie-auth servers only. Bearer auth's
+    // `handleAuthFailure` would clear
     // `currentUser.user` while leaving the bearer token intact, producing
     // an inconsistent state where `isAuthenticated` (token != null) is
     // still true but the user is gone. Until the data model has a clean
@@ -102,8 +102,7 @@ export class ServerStateStore {
     // behavior of letting the next failed query surface the error.
     if (cookieAuth) {
       gqlClient.setAuthHandlers({
-        onAuthFailure: () => this.currentUser.handleAuthFailure(),
-        onSessionValidation: () => this.currentUser.validateSession()
+        onAuthFailure: () => this.currentUser.handleAuthFailure()
       });
     }
 
@@ -224,10 +223,6 @@ export class ServerStateStore {
           ? run('active calls', () => this.activeCallRooms.load())
           : Promise.resolve()
       ];
-      if (this.#cookieAuth) {
-        tasks.unshift(run('session', () => this.currentUser.validateSession()));
-      }
-
       await Promise.all(tasks);
 
       if (!failed) {

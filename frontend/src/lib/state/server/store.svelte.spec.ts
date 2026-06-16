@@ -260,7 +260,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.activeCallRooms.load).toHaveBeenCalledOnce();
   });
 
-  it('validates cookie-auth sessions during projected-state catch-up', async () => {
+  it('does not validate cookie-auth sessions during projected-state catch-up', async () => {
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake, cookieRegistered);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
@@ -283,7 +283,7 @@ describe('ServerStateStore live server updates', () => {
     }
     await Promise.resolve();
 
-    expect(store.currentUser.validateSession).toHaveBeenCalledOnce();
+    expect(store.currentUser.validateSession).not.toHaveBeenCalled();
     expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
     expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
     expect(store.notifications.fetch).toHaveBeenCalledOnce();

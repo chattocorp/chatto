@@ -1,9 +1,9 @@
 import { Client, fetchExchange, subscriptionExchange, mapExchange } from '@urql/svelte';
 import { createClient as createWSClient } from 'graphql-ws';
+import { SvelteURL } from 'svelte/reactivity';
 import { serverRegistry } from './registry.svelte';
 import { csrfHeaders } from '$lib/auth/csrf';
 
-const SESSION_VALIDATION_COOLDOWN_MS = 5000;
 const GRAPHQL_REQUEST_HEADERS = { 'X-REQUEST-TYPE': 'GraphQL' };
 
 /**
@@ -25,8 +25,6 @@ export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 export interface AuthHandlers {
 	/** Called when an auth-failure error is detected in a GraphQL response. */
 	onAuthFailure?: () => void;
-	/** Called on reconnect or when the tab becomes visible (for session re-validation). */
-	onSessionValidation?: () => void;
 }
 
 export interface GraphQLClientConfig {
@@ -75,7 +73,6 @@ export class GraphQLClient {
 	#suspendDetectorInterval: ReturnType<typeof setInterval> | null = null;
 	#host: string;
 	#handlers: AuthHandlers = {};
-	#lastSessionValidation = 0;
 
 	get isConnected() {
 		return this.status === 'connected';
@@ -129,20 +126,11 @@ export class GraphQLClient {
 		this.#handlers = handlers;
 	}
 
-	#triggerSessionValidation() {
-		if (!this.#handlers.onSessionValidation) return;
-		const now = Date.now();
-		if (now - this.#lastSessionValidation < SESSION_VALIDATION_COOLDOWN_MS) return;
-		this.#lastSessionValidation = now;
-		this.#handlers.onSessionValidation();
-	}
-
 	constructor(config: GraphQLClientConfig) {
 		const { url, wsUrl, token } = config;
 		this.#host = url.startsWith('/')
 			? (typeof window !== 'undefined' ? window.location.host : 'localhost')
-			: // eslint-disable-next-line svelte/prefer-svelte-reactivity -- extracting host string, URL not stored
-				new URL(url).host;
+			: new SvelteURL(url).host;
 
 		// Client pings the server every 15s. The `ping` handler starts a 5s
 		// pong timeout; if the server doesn't respond, we close the socket.
@@ -240,7 +228,6 @@ export class GraphQLClient {
 							this.#host,
 							this.reconnectCount
 						);
-						this.#triggerSessionValidation();
 					}
 					this.status = 'connected';
 					this.#failedAttempts = 0;
@@ -326,8 +313,6 @@ export class GraphQLClient {
 			this.#visibilityHandler = () => {
 				if (document.visibilityState === 'visible') {
 					const hiddenDuration = Date.now() - this.#lastVisibleAt;
-
-					this.#triggerSessionValidation();
 
 					if (this.status === 'disconnected' || hiddenDuration > 30_000) {
 						console.debug(
