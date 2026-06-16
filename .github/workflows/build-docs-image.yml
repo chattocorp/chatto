@@ -24,15 +24,10 @@ jobs:
   build-docs-image:
     runs-on: ubicloud-standard-4
     steps:
-      - name: Checkout selected ref
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.ref != '' }}
+      - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
-
-      - name: Checkout
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.ref == '' }}
-        uses: actions/checkout@v6
+          ref: ${{ inputs.ref || github.ref_name }}
 
       - name: Resolve image metadata
         id: image
