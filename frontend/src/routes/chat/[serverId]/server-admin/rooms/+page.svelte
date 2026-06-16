@@ -7,9 +7,15 @@
 
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const layout = $derived(serverRegistry.getStore(activeServerId).adminRoomLayout);
+  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const layout = $derived(stores.adminRoomLayout);
+
+  function refreshServerRoomState() {
+    void stores.rooms.refresh();
+    void stores.roomDirectory.refresh();
+  }
 </script>
 
 <PageTitle title="Rooms | Space Admin" />
 
-<AdminRoomLayoutEditor {layout} {serverSegment} />
+<AdminRoomLayoutEditor {layout} {serverSegment} onroomcreated={refreshServerRoomState} />

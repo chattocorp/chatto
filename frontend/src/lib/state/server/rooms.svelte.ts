@@ -1,11 +1,7 @@
 import { untrack } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
-import {
-  RoomType,
-  UserAvatarUserFragmentDoc,
-  type UserAvatarUserFragment
-} from '$lib/gql/graphql';
+import { RoomType, UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
 
@@ -68,6 +64,21 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
   });
 }
 
+const roomStateRefreshEvents = new Set([
+  'RoomCreatedEvent',
+  'RoomDeletedEvent',
+  'RoomGroupsUpdatedEvent',
+  'RoomUpdatedEvent',
+  'RoomArchivedEvent',
+  'RoomUnarchivedEvent',
+  'UserJoinedRoomEvent',
+  'UserLeftRoomEvent'
+]);
+
+export function isRoomStateRefreshEvent(typename: string | undefined): boolean {
+  return !!typename && roomStateRefreshEvents.has(typename);
+}
+
 /**
  * Reactive store for a server's joined-room list, layout, and per-room
  * unread/mention state. One store per registered server, owned by
@@ -124,12 +135,14 @@ export class RoomsStore {
       }
 
       const visible = allRooms.filter((r: { archived: boolean }) => !r.archived);
-      this.rooms = visible.map((r: typeof allRooms[number]) => ({
+      this.rooms = visible.map((r: (typeof allRooms)[number]) => ({
         id: r.id,
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
-        members: r.members.users.map((m: typeof r.members.users[number]) => useFragment(UserAvatarUserFragmentDoc, m))
+        members: r.members.users.map((m: (typeof r.members.users)[number]) =>
+          useFragment(UserAvatarUserFragmentDoc, m)
+        )
       }));
       this.roomUnread.initRooms(visible);
     }
@@ -192,23 +205,19 @@ export class RoomsStore {
   // -------------------------------------------------------------------------
 
   /**
-   * Refresh the room list when membership or room metadata changes. Other
-   * event types (messages, reactions, presence) are no-ops at this level
-   * unless the message arrives for a room we don't yet know about — that's
-   * how a freshly-created empty DM (filtered from the active member-room DM
-   * list until its first message lands) shows up in the sidebar without a
-   * manual reload.
+   * Refresh the room list when membership, room metadata, or group layout
+   * changes. Other event types (messages, reactions, presence) are no-ops at
+   * this level unless the message arrives for a room we don't yet know about —
+   * that's how a freshly-created empty DM (filtered from the active
+   * member-room DM list until its first message lands) shows up in the
+   * sidebar without a manual reload.
    */
-  ingestServerEvent(serverEvent: { event?: { __typename?: string; roomId?: string } | null }): void {
+  ingestServerEvent(serverEvent: {
+    event?: { __typename?: string; roomId?: string } | null;
+  }): void {
     const event = serverEvent.event;
     if (!event) return;
-    if (
-      event.__typename === 'UserJoinedRoomEvent' ||
-      event.__typename === 'UserLeftRoomEvent' ||
-      event.__typename === 'RoomUpdatedEvent' ||
-      event.__typename === 'RoomArchivedEvent' ||
-      event.__typename === 'RoomUnarchivedEvent'
-    ) {
+    if (isRoomStateRefreshEvent(event.__typename)) {
       void this.refresh();
       return;
     }
