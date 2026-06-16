@@ -59,7 +59,11 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
 }
 
 async function logoutUser(page: Page): Promise<void> {
-  await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
+  const response = await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
+  expect(response.ok()).toBeTruthy();
+  // Unload the SPA before switching identities. Otherwise the old authenticated
+  // app can react to logout and race a later page.goto() with its own redirect.
+  await page.goto('about:blank');
 }
 
 async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
