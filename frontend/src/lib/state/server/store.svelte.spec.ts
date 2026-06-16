@@ -46,6 +46,11 @@ const registered: RegisteredServer = {
   addedAt: 1
 };
 
+const cookieRegistered: RegisteredServer = {
+  ...registered,
+  token: null
+};
+
 function deferred<T = void>(): {
   promise: Promise<T>;
   resolve: (value: T | PromiseLike<T>) => void;
@@ -62,8 +67,8 @@ function deferred<T = void>(): {
 
 const stores: ServerStateStore[] = [];
 
-function makeStore(fake: FakeGqlClient): ServerStateStore {
-  const store = new ServerStateStore(registered, fake as unknown as GraphQLClient);
+function makeStore(fake: FakeGqlClient, server: RegisteredServer = registered): ServerStateStore {
+  const store = new ServerStateStore(server, fake as unknown as GraphQLClient);
   stores.push(store);
   return store;
 }
@@ -222,7 +227,7 @@ describe('ServerStateStore live server updates', () => {
     ]);
   });
 
-  it('refreshes projected server state when the event bus may have missed events', async () => {
+  it('refreshes projected server state without validating bearer-auth sessions', async () => {
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake);
     store.serverInfo.livekitUrl = 'wss://livekit';
@@ -245,7 +250,7 @@ describe('ServerStateStore live server updates', () => {
     }
     await Promise.resolve();
 
-    expect(store.currentUser.validateSession).toHaveBeenCalledOnce();
+    expect(store.currentUser.validateSession).not.toHaveBeenCalled();
     expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
     expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
     expect(store.notifications.fetch).toHaveBeenCalledOnce();
@@ -253,6 +258,38 @@ describe('ServerStateStore live server updates', () => {
     expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
     expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
     expect(store.activeCallRooms.load).toHaveBeenCalledOnce();
+  });
+
+  it('validates cookie-auth sessions during projected-state catch-up', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake, cookieRegistered);
+    store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
+    await flushPromises();
+    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
+    expect(store.currentUser.validateSession).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
+    expect(store.notifications.fetch).toHaveBeenCalledOnce();
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
   });
 
   it('runs one queued projected-state refresh after an in-flight catch-up succeeds', async () => {
@@ -360,7 +397,7 @@ describe('ServerStateStore live server updates', () => {
     }
     await flushPromises();
 
-    expect(store.currentUser.validateSession).toHaveBeenCalledTimes(2);
+    expect(store.currentUser.validateSession).not.toHaveBeenCalled();
     expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
     expect(store.rooms.refresh).toHaveBeenCalledTimes(2);
     expect(consoleError).toHaveBeenCalledOnce();

@@ -213,8 +213,7 @@ export class ServerStateStore {
         }
       };
 
-      await Promise.all([
-        run('session', () => this.currentUser.validateSession()),
+      const tasks: Promise<void>[] = [
         run('server profile', () => this.serverInfo.refreshProfile()),
         run('authenticated settings', () => this.serverInfo.refreshAuthenticatedSettings()),
         run('notifications', () => this.notifications.fetch()),
@@ -224,7 +223,12 @@ export class ServerStateStore {
         this.serverInfo.livekitUrl
           ? run('active calls', () => this.activeCallRooms.load())
           : Promise.resolve()
-      ]);
+      ];
+      if (this.#cookieAuth) {
+        tasks.unshift(run('session', () => this.currentUser.validateSession()));
+      }
+
+      await Promise.all(tasks);
 
       if (!failed) {
         this.#lastSuccessfulCatchUpRefreshAt = Date.now();
