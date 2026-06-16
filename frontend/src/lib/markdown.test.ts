@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { renderMarkdown } from './markdown';
-import { ensureCodeLanguageLoaded, isCodeLanguageLoaded, lowlight } from './codeHighlighting';
+import {
+  canHighlightCodeLanguage,
+  ensureCodeLanguageLoaded,
+  isCodeLanguageLoaded,
+  lowlight
+} from './codeHighlighting';
 
 describe('renderMarkdown', () => {
   describe('literal backslashes', () => {
@@ -151,6 +156,11 @@ describe('renderMarkdown', () => {
       expect(html).toContain('data-language="toml"');
       expect(html).toContain('language-toml');
       expect(html).toContain('hljs-attr');
+    });
+
+    it('derives aliases from Highlight.js supported language metadata', () => {
+      expect(canHighlightCodeLanguage('pas')).toBe(true);
+      expect(canHighlightCodeLanguage('notalanguage')).toBe(false);
     });
 
     it('registers aliases on the shared lowlight instance', async () => {
