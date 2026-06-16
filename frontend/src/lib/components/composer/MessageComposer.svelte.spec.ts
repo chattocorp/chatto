@@ -362,9 +362,7 @@ describe('MessageComposer', () => {
         new Map([['$$_urql', mockClient]])
       );
 
-      await expect
-        .element(await findEditor(container))
-        .toHaveAttribute('contenteditable', 'true');
+      await expect.element(await findEditor(container)).toHaveAttribute('contenteditable', 'true');
     });
 
     it('attachment button is not disabled initially', async () => {
@@ -544,6 +542,252 @@ describe('MessageComposer', () => {
       );
     });
 
+    it('preserves literal HTML-looking text when restoring a draft', async () => {
+      const body = '<script>alert(1)</script> & <b>bold?</b>';
+      const editedBody = `${body}!`;
+      sessionStorage.setItem('chatto:draft:room_html_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_html_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_html_draft')).toBe(editedBody)
+      );
+    });
+
+    it('preserves literal entity-looking text when restoring a draft', async () => {
+      const body = 'AT&amp;T &gt; MCI';
+      const editedBody = `${body}!`;
+      sessionStorage.setItem('chatto:draft:room_entity_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_entity_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_entity_draft')).toBe(editedBody)
+      );
+    });
+
+    it('preserves literal less-than entities when restoring a draft', async () => {
+      const body = '&lt;x&gt;';
+      const editedBody = `${body}!`;
+      sessionStorage.setItem('chatto:draft:room_less_than_entity_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_less_than_entity_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_less_than_entity_draft')).toBe(editedBody)
+      );
+    });
+
+    it('preserves ampersands in restored markdown link URLs', async () => {
+      const body = '[search](https://example.com/?a=1&b=2)';
+      const editedBody = '[search](https://example.com/?a=1&b=3)';
+      sessionStorage.setItem('chatto:draft:room_link_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_link_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => {
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('search');
+        expect(link?.getAttribute('href')).toBe('https://example.com/?a=1&b=2');
+      });
+
+      const hrefInput = q(container, 'input[aria-label="Link URL"]') as HTMLInputElement;
+      await expect.element(hrefInput).toHaveValue('https://example.com/?a=1&b=2');
+      await changeInputValue(hrefInput, 'https://example.com/?a=1&b=3');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_link_draft')).toBe(editedBody)
+      );
+    });
+
+    it('preserves literal HTML-looking text in restored indented code blocks', async () => {
+      sessionStorage.setItem('chatto:draft:room_indented_code_draft', '    <b>x</b>');
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_indented_code_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() =>
+        expect(editor.querySelector('pre code')?.textContent).toBe('<b>x</b>')
+      );
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() => {
+        const draft = sessionStorage.getItem('chatto:draft:room_indented_code_draft') ?? '';
+        expect(draft).toContain('<b>x</b>');
+        expect(draft).not.toContain('&lt;b>x&lt;/b>');
+      });
+    });
+
+    it('escapes indented paragraph continuation lines as normal markdown text', async () => {
+      const body = 'before\n    <b>x</b>';
+      sessionStorage.setItem('chatto:draft:room_indented_continuation_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_indented_continuation_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent('before <b>x</b>');
+      expect(editor.querySelector('strong')).toBeNull();
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() => {
+        const draft = sessionStorage.getItem('chatto:draft:room_indented_continuation_draft') ?? '';
+        expect(draft).toContain('    <b>x</b>!');
+        expect(draft).not.toContain('**x**');
+      });
+    });
+
+    it('preserves literal HTML-looking text after unmatched backticks', async () => {
+      const body = '` <b>literal</b>';
+      const editedBody = `${body}!`;
+      sessionStorage.setItem('chatto:draft:room_unmatched_backtick_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_unmatched_backtick_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_unmatched_backtick_draft')).toBe(
+          editedBody
+        )
+      );
+    });
+
+    it('does not escape code after a non-closing fence marker line', async () => {
+      const body = '```md\n``` not a closing fence\n<b>code</b>\n```';
+      sessionStorage.setItem('chatto:draft:room_non_closing_fence_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_non_closing_fence_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() =>
+        expect(editor.querySelector('pre code')?.textContent).toBe(
+          '``` not a closing fence\n<b>code</b>'
+        )
+      );
+    });
+
+    it('does not escape code inside blockquoted fenced code blocks', async () => {
+      const body = '> ```\n> <b>x</b>\n> ```';
+      sessionStorage.setItem('chatto:draft:room_blockquoted_fence_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_blockquoted_fence_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() =>
+        expect(editor.querySelector('pre code')?.textContent).toBe('<b>x</b>')
+      );
+    });
+
+    it('does not escape multiline inline code spans', async () => {
+      const body = '`<b>\n</b>`';
+      sessionStorage.setItem('chatto:draft:room_multiline_inline_code_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_multiline_inline_code_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(editor.querySelector('code')?.textContent).toContain('<b>'));
+      expect(editor.querySelector('code')?.textContent).toContain('</b>');
+    });
+
+    it('does not treat unmatched closing link syntax as a markdown link destination', async () => {
+      const body = 'not a link](<b>x</b>)';
+      const editedBody = `${body}!`;
+      sessionStorage.setItem('chatto:draft:room_fake_link_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_fake_link_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      expect(editor.querySelector('strong')).toBeNull();
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_fake_link_draft')).toBe(editedBody)
+      );
+    });
+
+    it('restores markdown autolinks with ampersands intact', async () => {
+      const body = '<https://example.com/?a=1&b=2>';
+      sessionStorage.setItem('chatto:draft:room_autolink_text_draft', body);
+
+      const { container } = renderMessageComposer(
+        { roomId: 'room_autolink_text_draft' },
+        new Map([['$$_urql', mockClient]]),
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() =>
+        expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://example.com/?a=1&b=2')
+      );
+    });
+
     it('uses a separate thread draft key', async () => {
       sessionStorage.setItem('chatto:draft:room_draft', 'room draft');
       sessionStorage.setItem('chatto:draft:room_draft:thread:msg_root', 'thread draft');
@@ -610,6 +854,31 @@ describe('MessageComposer', () => {
 
       expect(roomStateMock.editState.cancelEdit).toHaveBeenCalledOnce();
       expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('preserves literal HTML-looking text when restoring and saving an edit', async () => {
+      const body = '<script>alert(1)</script> & <b>bold?</b>';
+      const editedBody = `${body}!`;
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = body;
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      editor.focus();
+      document.execCommand('insertText', false, '!');
+      await vi.waitFor(() => expect(editor.textContent).toBe(editedBody));
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        eventId: 'evt_edit',
+        body: editedBody
+      });
     });
 
     it('clears staged attachments when edit mode is active at mount', async () => {
@@ -703,6 +972,77 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '[example](https://example.com)'
+      });
+    });
+
+    it('posts fresh literal HTML-looking text without entity corruption', async () => {
+      const body = '<script>alert(1)</script> & <b>bold?</b> &lt;x&gt;';
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, body);
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body
+      });
+    });
+
+    it('posts fresh plain less-than text without entity corruption', async () => {
+      const body = 'x < 5';
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, body);
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body
+      });
+    });
+
+    it('posts fresh plain greater-than text without entity corruption', async () => {
+      const body = 'x > 5';
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, body);
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body
+      });
+    });
+
+    it('escapes fresh leading blockquote markers typed as literal text', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, '> not a quote');
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '&gt; not a quote'
       });
     });
 
@@ -921,7 +1261,10 @@ describe('MessageComposer', () => {
       );
       document.execCommand('insertText', false, 'const answer = 42;');
 
-      const languageSelect = q(container, 'select[aria-label="Code language"]') as HTMLSelectElement;
+      const languageSelect = q(
+        container,
+        'select[aria-label="Code language"]'
+      ) as HTMLSelectElement;
       await expect.element(languageSelect).toHaveValue('ts');
       await changeSelectValue(languageSelect, 'js');
 

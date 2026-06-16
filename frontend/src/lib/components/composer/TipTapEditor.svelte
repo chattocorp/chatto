@@ -23,7 +23,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { Markdown } from '@tiptap/markdown';
   import Placeholder from '@tiptap/extension-placeholder';
-  import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded, lowlight } from '$lib/codeHighlighting';
+  import {
+    CODE_LANGUAGE_OPTIONS,
+    ensureCodeLanguagesLoaded,
+    lowlight
+  } from '$lib/codeHighlighting';
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
   const codeFenceLineRegex = /^```([\w-]+)?$/;
@@ -250,7 +254,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
                     replacement.nodes
                   );
                   const codeEnd =
-                    currentParagraphPos + replacement.beforeNodeSize + replacement.codeNode.nodeSize;
+                    currentParagraphPos +
+                    replacement.beforeNodeSize +
+                    replacement.codeNode.nodeSize;
                   tr.setSelection(TextSelection.near(tr.doc.resolve(codeEnd + 1), 1));
                   return tr;
                 }
@@ -282,6 +288,247 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       ];
     }
   });
+
+  function encodeMarkdownTextHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  function decodeSerializedTextEntities(text: string): string {
+    return text
+      .split(/(\n)/)
+      .map((part) => {
+        if (part === '\n') return part;
+
+        const leadingBlockquoteMarker = part.match(/^( {0,3})&gt;(?=\s|$)/);
+        const protectedPart = leadingBlockquoteMarker
+          ? `${leadingBlockquoteMarker[1]}__CHATTO_LITERAL_BLOCKQUOTE_MARKER__${part.slice(leadingBlockquoteMarker[0].length)}`
+          : part;
+
+        return protectedPart
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace('__CHATTO_LITERAL_BLOCKQUOTE_MARKER__', '&gt;');
+      })
+      .join('');
+  }
+
+  function transformOutsideMarkdownLinkDestinations(
+    text: string,
+    transformText: (text: string) => string
+  ): string {
+    let result = '';
+    let index = 0;
+    let textStart = 0;
+    const bracketStack: number[] = [];
+
+    while (index < text.length) {
+      const char = text[index];
+      if (char === '\\') {
+        index += 2;
+        continue;
+      }
+
+      if (char === '[') {
+        bracketStack.push(index);
+        index += 1;
+        continue;
+      }
+
+      if (char !== ']' || text[index + 1] !== '(' || bracketStack.length === 0) {
+        index += 1;
+        continue;
+      }
+
+      bracketStack.pop();
+      const destinationStart = index;
+      const destinationContentStart = destinationStart + 2;
+      let destinationEnd = destinationContentStart;
+      let nestedParens = 0;
+      while (destinationEnd < text.length) {
+        const char = text[destinationEnd];
+        if (char === '\\') {
+          destinationEnd += 2;
+          continue;
+        }
+        if (char === '(') {
+          nestedParens += 1;
+        } else if (char === ')') {
+          if (nestedParens === 0) break;
+          nestedParens -= 1;
+        }
+        destinationEnd += 1;
+      }
+
+      if (destinationEnd >= text.length) {
+        result += transformOutsideMarkdownAutolinks(text.slice(textStart), transformText);
+        return result;
+      }
+
+      result += transformOutsideMarkdownAutolinks(
+        text.slice(textStart, destinationContentStart),
+        transformText
+      );
+      result += text.slice(destinationContentStart, destinationEnd + 1);
+      index = destinationEnd + 1;
+      textStart = index;
+    }
+
+    result += transformOutsideMarkdownAutolinks(text.slice(textStart), transformText);
+    return result;
+  }
+
+  function transformOutsideMarkdownAutolinks(
+    text: string,
+    transformText: (text: string) => string
+  ): string {
+    let result = '';
+    let index = 0;
+    const autolinkPattern = /<https?:\/\/[^\s<>]+>/gi;
+
+    for (const match of text.matchAll(autolinkPattern)) {
+      result += transformText(text.slice(index, match.index));
+      result += match[0];
+      index = match.index + match[0].length;
+    }
+
+    result += transformText(text.slice(index));
+    return result;
+  }
+
+  function transformMarkdownTextSegment(
+    text: string,
+    transformText: (text: string) => string,
+    { skipLinkDestinations = false }: { skipLinkDestinations?: boolean } = {}
+  ): string {
+    return skipLinkDestinations
+      ? transformOutsideMarkdownLinkDestinations(text, transformText)
+      : transformText(text);
+  }
+
+  function transformOutsideInlineCode(
+    line: string,
+    transformText: (text: string) => string,
+    options: { skipLinkDestinations?: boolean } = {}
+  ): string {
+    let result = '';
+    let index = 0;
+
+    while (index < line.length) {
+      const codeStart = line.indexOf('`', index);
+      if (codeStart === -1) {
+        result += transformMarkdownTextSegment(line.slice(index), transformText, options);
+        break;
+      }
+
+      result += transformMarkdownTextSegment(line.slice(index, codeStart), transformText, options);
+
+      let delimiterEnd = codeStart + 1;
+      while (line[delimiterEnd] === '`') delimiterEnd += 1;
+
+      const delimiter = line.slice(codeStart, delimiterEnd);
+      const codeEnd = line.indexOf(delimiter, delimiterEnd);
+      if (codeEnd === -1) {
+        result += transformMarkdownTextSegment(line.slice(codeStart), transformText, options);
+        break;
+      }
+
+      result += line.slice(codeStart, codeEnd + delimiter.length);
+      index = codeEnd + delimiter.length;
+    }
+
+    return result;
+  }
+
+  function transformMarkdownOutsideCode(
+    markdown: string,
+    transformText: (text: string) => string,
+    options: { skipLinkDestinations?: boolean } = {}
+  ): string {
+    const lines = markdown.match(/[^\n]*(?:\n|$)/g) ?? [];
+    if (lines[lines.length - 1] === '') {
+      lines.pop();
+    }
+
+    let result = '';
+    let pendingText = '';
+    let inFence = false;
+    let fenceChar = '';
+    let fenceLength = 0;
+    let canStartIndentedCode = true;
+
+    const flushPendingText = () => {
+      if (!pendingText) return;
+      result += transformOutsideInlineCode(pendingText, transformText, options);
+      pendingText = '';
+    };
+
+    for (const lineWithBreak of lines) {
+      const hasLineBreak = lineWithBreak.endsWith('\n');
+      const line = hasLineBreak ? lineWithBreak.slice(0, -1) : lineWithBreak;
+      const blockquoteContent = line.replace(/^(?: {0,3}> ?)+/, '');
+
+      if (/^ *$/.test(blockquoteContent)) {
+        if (inFence) {
+          result += lineWithBreak;
+        } else {
+          pendingText += lineWithBreak;
+        }
+        canStartIndentedCode = true;
+        continue;
+      }
+
+      const fence = blockquoteContent.match(/^ {0,3}(`{3,}|~{3,})/);
+      if (fence) {
+        flushPendingText();
+        const marker = fence[1];
+        if (!inFence) {
+          inFence = true;
+          fenceChar = marker[0];
+          fenceLength = marker.length;
+        } else if (
+          marker[0] === fenceChar &&
+          marker.length >= fenceLength &&
+          new RegExp(`^ {0,3}\\${fenceChar}{${fenceLength},} *$`).test(blockquoteContent)
+        ) {
+          inFence = false;
+          fenceChar = '';
+          fenceLength = 0;
+        }
+
+        result += lineWithBreak;
+        canStartIndentedCode = true;
+        continue;
+      }
+
+      if (inFence) {
+        result += lineWithBreak;
+        continue;
+      }
+
+      if (canStartIndentedCode && /^( {4,}|\t)/.test(blockquoteContent)) {
+        flushPendingText();
+        result += lineWithBreak;
+        continue;
+      }
+
+      pendingText += lineWithBreak;
+      canStartIndentedCode = false;
+    }
+
+    flushPendingText();
+    return result;
+  }
+
+  function escapeMarkdownHtml(markdown: string): string {
+    return transformMarkdownOutsideCode(markdown, encodeMarkdownTextHtml, {
+      skipLinkDestinations: true
+    });
+  }
+
+  function decodeSerializedMarkdownText(markdown: string): string {
+    return transformMarkdownOutsideCode(markdown, decodeSerializedTextEntities);
+  }
 
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
@@ -481,7 +728,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
     const loadToken = ++codeLanguageLoadToken;
     ensureCodeLanguagesLoaded(languages).then((loadedNewLanguage) => {
-      if (!loadedNewLanguage || e.isDestroyed || editor !== e || loadToken !== codeLanguageLoadToken) {
+      if (
+        !loadedNewLanguage ||
+        e.isDestroyed ||
+        editor !== e ||
+        loadToken !== codeLanguageLoadToken
+      ) {
         return;
       }
 
@@ -553,7 +805,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
       setContent: (markdown: string) => {
         if (e.isDestroyed) return;
-        e.commands.setContent(markdown, { contentType: 'markdown' });
+        e.commands.setContent(escapeMarkdownHtml(markdown), {
+          contentType: 'markdown',
+          emitUpdate: false
+        });
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -636,7 +891,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
             ensureEditorCodeLanguages(ed);
-            onUpdate?.(ed.isEmpty ? '' : ed.getMarkdown());
+            onUpdate?.(ed.isEmpty ? '' : decodeSerializedMarkdownText(ed.getMarkdown()));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
@@ -734,7 +989,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
     <div class="absolute z-10" style={codeLanguageSelectStyle}>
       <div
-        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-200 pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase hover:bg-surface-300 hover:text-text focus-within:bg-surface-300 focus-within:text-text focus-within:ring-1 focus-within:ring-accent"
+        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-200 pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-300 focus-within:text-text focus-within:ring-1 focus-within:ring-accent hover:bg-surface-300 hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
         <span class="iconify size-3 uil--angle-down"></span>

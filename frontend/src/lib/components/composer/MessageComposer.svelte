@@ -600,10 +600,9 @@
   function handleEditorUpdate(text: string) {
     const previousMessage = message;
     message = text;
-    // Only trigger typing indicator for actual user input. Programmatic
-    // setContent calls (drafts, edit mode) always set `message` before
-    // calling setContent, so by the time TipTap fires onUpdate, message
-    // already equals the new text — this guard skips those updates.
+    // Only trigger typing indicator for actual user input.
+    // Programmatic setContent calls suppress TipTap update events, but this
+    // guard still protects any same-value editor update from emitting typing.
     if (text !== previousMessage) {
       onTyping?.();
     }
