@@ -498,8 +498,9 @@ test.describe('Message editing', () => {
     await expect(message.locator).toBeVisible();
 
     // Snapshot the composer's visible state: rendered text, rendered height,
-    // and paragraph count. All three grew on every edit-save cycle pre-fix,
-    // so any of them changing across cycles signals the regression.
+    // and paragraph count. With the Markdown-backed composer, a blank line may
+    // be represented as two paragraphs rather than an empty paragraph between
+    // them; stability across edit cycles is the regression signal here.
     const composerSnapshot = async () => ({
       text: await roomPage.composer.evaluate((el: HTMLElement) => el.innerText),
       height: await roomPage.getComposerHeight(),
@@ -527,8 +528,11 @@ test.describe('Message editing', () => {
     };
 
     const firstEditState = await cycleAndSnapshot();
-    // Sanity-check the initial render: two content lines + one blank.
-    expect(firstEditState.paragraphs).toBe(3);
+    // Sanity-check the initial render preserves the blank line semantically.
+    expect(firstEditState.text.replace(/[ \t]+\n/g, '\n').replace(/\n+$/, '')).toBe(
+      'line1\n\nline2'
+    );
+    expect(firstEditState.paragraphs).toBeGreaterThanOrEqual(2);
 
     // Re-enter edit mode twice more. Pre-fix, each cycle would grow the
     // composer state (paragraph count, height, rendered text) because every
