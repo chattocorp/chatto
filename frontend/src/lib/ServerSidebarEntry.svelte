@@ -7,6 +7,7 @@
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
   import { graphql } from './gql';
+  import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
@@ -75,9 +76,6 @@
           logoUrl
         }
         viewerHasUnreadRooms
-        viewerNotifications(limit: 1) {
-          totalCount
-        }
         viewerNotificationPreference {
           level
           effectiveLevel
@@ -107,6 +105,16 @@
         canAdminManageRoles
         canAdminViewSystem
         canAdminViewAudit
+      }
+    }
+  `);
+
+  const ServerSidebarEntryNotificationCountQuery = graphql(`
+    query ServerSidebarEntryNotificationCount {
+      server {
+        viewerNotifications(limit: 1) {
+          totalCount
+        }
       }
     }
   `);
@@ -145,7 +153,8 @@
         }
         roomUnreadStore.clear();
         roomUnreadStore.setServerHasUnread(server.viewerHasUnreadRooms);
-        notificationStore.setUnreadNotificationCount(server.viewerNotifications.totalCount);
+        notificationStore.setUnreadNotificationCount(0);
+        void loadUnreadNotificationCount();
 
         // Populate DM unread status and notification preferences. Channel
         // and DM rooms now share the same per-room unread map.
@@ -167,6 +176,28 @@
       }
     } catch (err) {
       console.error(`[server:${serverId}] failed to load sidebar icon data`, err);
+    }
+  }
+
+  async function loadUnreadNotificationCount() {
+    try {
+      const client = getClient();
+      const result = await client.query(ServerSidebarEntryNotificationCountQuery, {}).toPromise();
+
+      if (result.error) {
+        if (!isUnsupportedGraphQLFieldError(result.error, 'viewerNotifications')) {
+          console.warn(`[server:${serverId}] failed to load notification count`, result.error);
+        }
+        notificationStore.setUnreadNotificationCount(0);
+        return;
+      }
+
+      notificationStore.setUnreadNotificationCount(
+        result.data?.server?.viewerNotifications.totalCount ?? 0
+      );
+    } catch (err) {
+      console.warn(`[server:${serverId}] failed to load notification count`, err);
+      notificationStore.setUnreadNotificationCount(0);
     }
   }
 
