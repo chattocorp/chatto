@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { onDestroy, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import { PresenceStatus } from '$lib/gql/graphql';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
@@ -46,6 +46,12 @@
   // svelte-ignore state_referenced_locally
   currentUserState.user = { ...user, presenceStatus: PresenceStatus.Online };
   currentUserState.loading = false;
+  onDestroy(() => {
+    if (currentUserState.user?.id === user.id) {
+      currentUserState.user = undefined;
+      currentUserState.loading = false;
+    }
+  });
   // svelte-ignore state_referenced_locally
   presenceCache.update(user.id, PresenceStatus.Online);
 

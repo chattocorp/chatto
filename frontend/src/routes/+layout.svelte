@@ -175,14 +175,16 @@
 {:else}
   <ConnectionProvider>
     {#if data.user && serverRegistry.originServer}
-      <AuthenticatedChatProvider
-        user={data.user}
-        {userSettings}
-        {profileCache}
-        {presenceCache}
-      >
-        {@render frame()}
-      </AuthenticatedChatProvider>
+      {#key data.user.id}
+        <AuthenticatedChatProvider
+          user={data.user}
+          {userSettings}
+          {profileCache}
+          {presenceCache}
+        >
+          {@render frame()}
+        </AuthenticatedChatProvider>
+      {/key}
     {:else}
       {@render frame()}
     {/if}
