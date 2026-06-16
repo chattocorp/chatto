@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/config"
 )
 
 func TestNewVerificationCode(t *testing.T) {
@@ -126,7 +127,7 @@ func TestChattoCore_VerifyRegistrationCodeInvalidAttemptsExhaust(t *testing.T) {
 		wrongCode = "111111"
 	}
 
-	for i := 1; i < emailOTPMaxAttempts; i++ {
+	for i := 1; i < core.emailOTPMaxAttempts(); i++ {
 		_, err := core.VerifyRegistrationCode(ctx, "attempts@example.com", wrongCode)
 		if !errors.Is(err, ErrRegistrationCodeInvalid) {
 			t.Fatalf("attempt %d error = %v, want ErrRegistrationCodeInvalid", i, err)
@@ -207,13 +208,78 @@ func TestChattoCore_RegistrationCodeActiveLimit(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	for i := 0; i < emailOTPMaxActiveCodes; i++ {
+	for i := 0; i < core.emailOTPMaxDeliveredCodes(); i++ {
 		if _, err := core.CreateRegistrationCode(ctx, "limit@example.com"); err != nil {
 			t.Fatalf("CreateRegistrationCode %d: %v", i+1, err)
 		}
 	}
 	if _, err := core.CreateRegistrationCode(ctx, "limit@example.com"); !errors.Is(err, ErrRegistrationCodeLimitExceeded) {
 		t.Fatalf("extra CreateRegistrationCode error = %v, want ErrRegistrationCodeLimitExceeded", err)
+	}
+}
+
+func TestChattoCore_RegistrationCodeUsesConfiguredOTPThrottle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	core.config.EmailOTP = config.EmailOTPConfig{
+		MaxDeliveredCodes: 2,
+		MaxWrongAttempts:  2,
+	}
+	ctx := testContext(t)
+
+	code, err := core.CreateRegistrationCode(ctx, "custom-throttle@example.com")
+	if err != nil {
+		t.Fatalf("CreateRegistrationCode: %v", err)
+	}
+	if _, err := core.CreateRegistrationCode(ctx, "custom-throttle@example.com"); err != nil {
+		t.Fatalf("second CreateRegistrationCode: %v", err)
+	}
+	if _, err := core.CreateRegistrationCode(ctx, "custom-throttle@example.com"); !errors.Is(err, ErrRegistrationCodeLimitExceeded) {
+		t.Fatalf("third CreateRegistrationCode error = %v, want ErrRegistrationCodeLimitExceeded", err)
+	}
+
+	wrongCode := "000000"
+	if code == wrongCode {
+		wrongCode = "111111"
+	}
+	if _, err := core.VerifyRegistrationCode(ctx, "custom-throttle@example.com", wrongCode); !errors.Is(err, ErrRegistrationCodeInvalid) {
+		t.Fatalf("first wrong-code error = %v, want ErrRegistrationCodeInvalid", err)
+	}
+	if _, err := core.VerifyRegistrationCode(ctx, "custom-throttle@example.com", wrongCode); !errors.Is(err, ErrRegistrationCodeExhausted) {
+		t.Fatalf("second wrong-code error = %v, want ErrRegistrationCodeExhausted", err)
+	}
+}
+
+func TestChattoCore_RegistrationCodeCanDisableOTPThrottle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	disabled := false
+	core.config.EmailOTP = config.EmailOTPConfig{
+		ThrottlingEnabled: &disabled,
+		MaxDeliveredCodes: 1,
+		MaxWrongAttempts:  1,
+	}
+	ctx := testContext(t)
+
+	code, err := core.CreateRegistrationCode(ctx, "disabled-throttle@example.com")
+	if err != nil {
+		t.Fatalf("CreateRegistrationCode: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := core.CreateRegistrationCode(ctx, "disabled-throttle@example.com"); err != nil {
+			t.Fatalf("extra CreateRegistrationCode %d with throttle disabled: %v", i+1, err)
+		}
+	}
+
+	wrongCode := "000000"
+	if code == wrongCode {
+		wrongCode = "111111"
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := core.VerifyRegistrationCode(ctx, "disabled-throttle@example.com", wrongCode); !errors.Is(err, ErrRegistrationCodeInvalid) {
+			t.Fatalf("wrong-code attempt %d error = %v, want ErrRegistrationCodeInvalid", i+1, err)
+		}
+	}
+	if _, err := core.VerifyRegistrationCode(ctx, "disabled-throttle@example.com", code); err != nil {
+		t.Fatalf("valid code should still verify after wrong attempts with throttle disabled: %v", err)
 	}
 }
 

@@ -76,6 +76,10 @@ const (
 	emailVerificationOTPScope = "email_verification"
 )
 
+func (c *ChattoCore) emailVerificationCodeTTL() time.Duration {
+	return c.config.EmailOTP.TTLOrDefault()
+}
+
 // emailVerificationCodeKey returns the HMAC-derived KV key for one email verification code.
 func (c *ChattoCore) emailVerificationCodeKey(userID, email, code string) string {
 	return c.emailOTPCodeKey(emailVerificationOTPScope, emailVerificationOTPSubject(userID, email), code)
@@ -135,7 +139,8 @@ func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, em
 		return "", fmt.Errorf("email is required")
 	}
 	subject := emailVerificationOTPSubject(userID, email)
-	code, err := c.createEmailOTP(ctx, emailVerificationOTPScope, subject, EmailVerificationCodeTTL, func(createdAt time.Time) ([]byte, error) {
+	ttl := c.emailVerificationCodeTTL()
+	code, err := c.createEmailOTP(ctx, emailVerificationOTPScope, subject, ttl, func(createdAt time.Time) ([]byte, error) {
 		return json.Marshal(EmailVerificationCode{
 			UserID:    userID,
 			Email:     email,
@@ -153,6 +158,16 @@ func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, em
 	return code, err
 }
 
+// CancelEmailVerificationCode removes an email-verification OTP that was
+// created but not delivered, so failed email sends do not consume throttle slots.
+func (c *ChattoCore) CancelEmailVerificationCode(ctx context.Context, userID, email, code string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if userID == "" || email == "" {
+		return nil
+	}
+	return c.cancelEmailOTP(ctx, emailVerificationOTPScope, emailVerificationOTPSubject(userID, email), code, c.emailVerificationCodeTTL())
+}
+
 // VerifyEmailCode verifies an email using a submitted code.
 func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
@@ -162,7 +177,8 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 	}
 
 	subject := emailVerificationOTPSubject(userID, email)
-	entry, err := c.getEmailOTPCode(ctx, emailVerificationOTPScope, subject, code, EmailVerificationCodeTTL)
+	ttl := c.emailVerificationCodeTTL()
+	entry, err := c.getEmailOTPCode(ctx, emailVerificationOTPScope, subject, code, ttl)
 	if err != nil {
 		switch {
 		case errors.Is(err, errEmailOTPNotFound):
@@ -183,7 +199,7 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 		return "", fmt.Errorf("failed to unmarshal email verification code: %w", err)
 	}
 
-	if time.Since(codeData.CreatedAt) > EmailVerificationCodeTTL {
+	if time.Since(codeData.CreatedAt) > ttl {
 		_ = c.storage.runtimeStateKV.Delete(ctx, entry.key, jetstream.LastRevision(entry.revision))
 		return "", ErrTokenExpired
 	}

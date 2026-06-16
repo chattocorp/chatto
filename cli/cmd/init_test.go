@@ -49,6 +49,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if cfg.NATS.Client.URL != "" {
 		t.Fatalf("generated embedded NATS client URL = %q, want empty when TCP listener is disabled", cfg.NATS.Client.URL)
 	}
+	if got := cfg.Auth.EmailOTP.ThrottlingEnabledOrDefault(); got != true {
+		t.Fatalf("generated email OTP throttling enabled = %v, want true", got)
+	}
 	raw, err := os.ReadFile(filepath.Join(tmpDir, "chatto.toml"))
 	if err != nil {
 		t.Fatalf("read generated raw config: %v", err)
@@ -80,6 +83,24 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	}
 	if !strings.Contains(rawText, "\n# [[auth.providers]]\n# id = 'github'\n# type = 'github'") {
 		t.Fatal("generated config should include a commented GitHub auth provider example")
+	}
+	if !strings.Contains(rawText, "\n[auth.email_otp]\n") {
+		t.Fatal("generated config should include an active auth.email_otp section")
+	}
+	if strings.Contains(rawText, "\n# [auth.email_otp]\n") {
+		t.Fatal("generated config should not comment out the auth.email_otp section")
+	}
+	if !strings.Contains(rawText, "\nthrottling_enabled = true\n") {
+		t.Fatal("generated config should explicitly enable email OTP throttling")
+	}
+	if !strings.Contains(rawText, "\n# ttl = '15m'\n") {
+		t.Fatal("generated config should include commented default email OTP TTL")
+	}
+	if !strings.Contains(rawText, "\n# max_delivered_codes = 10\n") {
+		t.Fatal("generated config should include commented default delivered-code limit")
+	}
+	if !strings.Contains(rawText, "\n# max_wrong_attempts = 5\n") {
+		t.Fatal("generated config should include commented default wrong-attempt limit")
 	}
 	if !strings.Contains(rawText, "\n# domain = ''") {
 		t.Fatal("generated config should comment out webserver.tls.domain by default")

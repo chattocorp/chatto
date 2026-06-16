@@ -307,6 +307,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 		})
 		if err != nil {
 			log.Error("Failed to send registration email", "error", err)
+			if cancelErr := s.core.CancelRegistrationCode(ctx, req.Email, code); cancelErr != nil {
+				log.Warn("Failed to cancel undelivered registration code", "error", cancelErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 			return
 		}
@@ -542,6 +545,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, code),
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
+			if cancelErr := s.core.CancelEmailVerificationCode(req.Context(), user.Id, body.Email, code); cancelErr != nil {
+				log.Warn("Failed to cancel undelivered email verification code", "userId", user.Id, "error", cancelErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}

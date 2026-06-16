@@ -666,6 +666,41 @@ func TestAuthRoutes_Register_RequiresMailer(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_Register_SendFailureDoesNotConsumeThrottle(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+	mockMailer.SendError = errors.New("smtp unavailable")
+
+	body, _ := json.Marshal(map[string]string{"email": "delivery-debug@example.com"})
+	for i := 0; i < 10; i++ {
+		resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("Failed to send register request %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("failed send %d status = %d, want 500", i+1, resp.StatusCode)
+		}
+	}
+
+	if msg := mockMailer.LastMessage(); msg != nil {
+		t.Fatalf("failed sends should not capture email, got %#v", msg)
+	}
+
+	mockMailer.SendError = nil
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request after SMTP recovery: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200 after SMTP recovery, got %d: %s", resp.StatusCode, string(respBody))
+	}
+	if msg := mockMailer.LastMessage(); msg == nil {
+		t.Fatal("expected registration email after SMTP recovery")
+	}
+}
+
 func TestAuthRoutes_Register_EmailEnumeration(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
@@ -1348,6 +1383,57 @@ func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
 		t.Fatalf("HasVerifiedEmail: %v", err)
 	} else if verified {
 		t.Fatal("request-code limit should not verify email")
+	}
+}
+
+func TestAuthRoutes_EmailVerification_SendFailureDoesNotConsumeThrottle(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "verify-delivery-debug", "Verify Delivery Debug", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	loginBody, _ := json.Marshal(map[string]string{"login": user.Login, "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
+	}
+
+	mockMailer.SendError = errors.New("smtp unavailable")
+	body, _ := json.Marshal(map[string]string{"email": "verify-delivery-debug@example.com"})
+	for i := 0; i < 10; i++ {
+		resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("Failed to request verification code %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("failed send %d status = %d, want 500", i+1, resp.StatusCode)
+		}
+	}
+
+	if msg := mockMailer.LastMessage(); msg != nil {
+		t.Fatalf("failed sends should not capture email, got %#v", msg)
+	}
+
+	mockMailer.SendError = nil
+	resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to request verification code after SMTP recovery: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200 after SMTP recovery, got %d: %s", resp.StatusCode, string(respBody))
+	}
+	if msg := mockMailer.LastMessage(); msg == nil {
+		t.Fatal("expected verification email after SMTP recovery")
 	}
 }
 

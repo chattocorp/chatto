@@ -14,8 +14,6 @@ import (
 const (
 	emailOTPKeyPrefix       = "email_otp."
 	emailOTPChallengeSuffix = "challenge"
-	emailOTPMaxAttempts     = 5
-	emailOTPMaxActiveCodes  = 10
 	emailOTPWriteMaxRetries = 16
 )
 
@@ -43,6 +41,18 @@ type emailOTPEntry struct {
 	revision uint64
 }
 
+func (c *ChattoCore) emailOTPMaxAttempts() int {
+	return c.config.EmailOTP.MaxWrongAttemptsOrDefault()
+}
+
+func (c *ChattoCore) emailOTPMaxDeliveredCodes() int {
+	return c.config.EmailOTP.MaxDeliveredCodesOrDefault()
+}
+
+func (c *ChattoCore) emailOTPThrottlingEnabled() bool {
+	return c.config.EmailOTP.ThrottlingEnabledOrDefault()
+}
+
 func (c *ChattoCore) emailOTPSubjectHash(scope, subject string) string {
 	return c.runtimeTokenHash("email_otp_subject."+scope, strings.TrimSpace(subject))
 }
@@ -66,12 +76,14 @@ func (c *ChattoCore) createEmailOTP(ctx context.Context, scope, subject string, 
 		return "", fmt.Errorf("email otp subject is required")
 	}
 
-	activeCodes, err := c.countEmailOTPActiveCodes(ctx, scope, subject)
-	if err != nil {
-		return "", err
-	}
-	if activeCodes >= emailOTPMaxActiveCodes {
-		return "", errEmailOTPTooManyCodes
+	if c.emailOTPThrottlingEnabled() {
+		activeCodes, err := c.countEmailOTPActiveCodes(ctx, scope, subject)
+		if err != nil {
+			return "", err
+		}
+		if activeCodes >= c.emailOTPMaxDeliveredCodes() {
+			return "", errEmailOTPTooManyCodes
+		}
 	}
 
 	createdAt := time.Now()
@@ -132,7 +144,7 @@ func (c *ChattoCore) getEmailOTPCode(ctx context.Context, scope, subject, code s
 	if err != nil {
 		return nil, err
 	}
-	if challenge.Exhausted || challenge.Attempts >= emailOTPMaxAttempts {
+	if c.emailOTPThrottlingEnabled() && (challenge.Exhausted || challenge.Attempts >= c.emailOTPMaxAttempts()) {
 		return nil, errEmailOTPExhausted
 	}
 
@@ -197,10 +209,10 @@ func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject
 		if err := json.Unmarshal(entry.Value(), &challenge); err != nil {
 			return "", 0, false, fmt.Errorf("failed to unmarshal email otp challenge: %w", err)
 		}
-		if challenge.Exhausted || challenge.Attempts >= emailOTPMaxAttempts {
+		if c.emailOTPThrottlingEnabled() && (challenge.Exhausted || challenge.Attempts >= c.emailOTPMaxAttempts()) {
 			return "", 0, false, errEmailOTPExhausted
 		}
-		if challenge.IssuedCount >= emailOTPMaxActiveCodes {
+		if c.emailOTPThrottlingEnabled() && challenge.IssuedCount >= c.emailOTPMaxDeliveredCodes() {
 			return "", 0, false, errEmailOTPTooManyCodes
 		}
 		challenge.IssuedCount++
@@ -256,6 +268,71 @@ func (c *ChattoCore) rollbackEmailOTPIssuance(ctx context.Context, key string, r
 	return nil
 }
 
+func (c *ChattoCore) cancelEmailOTP(ctx context.Context, scope, subject, code string, ttl time.Duration) error {
+	subject = strings.TrimSpace(subject)
+	code = strings.TrimSpace(code)
+	if subject == "" || !verificationCodePattern.MatchString(code) {
+		return nil
+	}
+
+	codeKey := c.emailOTPCodeKey(scope, subject, code)
+	if err := c.storage.runtimeStateKV.Delete(ctx, codeKey); err != nil {
+		if isRuntimeStateKeyAbsent(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete email otp code: %w", err)
+	}
+	return c.decrementEmailOTPIssuance(ctx, scope, subject, ttl)
+}
+
+func (c *ChattoCore) decrementEmailOTPIssuance(ctx context.Context, scope, subject string, ttl time.Duration) error {
+	key := c.emailOTPChallengeKey(scope, subject)
+	for i := 0; i < emailOTPWriteMaxRetries; i++ {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if isRuntimeStateKeyAbsent(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to get email otp challenge: %w", err)
+		}
+
+		var challenge emailOTPChallenge
+		if err := json.Unmarshal(entry.Value(), &challenge); err != nil {
+			return fmt.Errorf("failed to unmarshal email otp challenge: %w", err)
+		}
+		if challenge.IssuedCount > 0 {
+			challenge.IssuedCount--
+		}
+		challenge.UpdatedAt = time.Now()
+
+		if challenge.IssuedCount == 0 && challenge.Attempts == 0 && !challenge.Exhausted {
+			if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
+				if isRuntimeStateKeyAbsent(err) {
+					return nil
+				}
+				if isRuntimeStateRevisionConflict(err) {
+					continue
+				}
+				return fmt.Errorf("failed to delete email otp challenge: %w", err)
+			}
+			return nil
+		}
+
+		data, err := json.Marshal(challenge)
+		if err != nil {
+			return fmt.Errorf("failed to marshal email otp challenge: %w", err)
+		}
+		if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
+			if isRuntimeStateRevisionConflict(err) {
+				continue
+			}
+			return fmt.Errorf("failed to update email otp challenge: %w", err)
+		}
+		return nil
+	}
+	return fmt.Errorf("email otp challenge decrement conflict after %d retries", emailOTPWriteMaxRetries)
+}
+
 func (c *ChattoCore) getEmailOTPChallenge(ctx context.Context, scope, subject string) (*emailOTPChallenge, uint64, error) {
 	key := c.emailOTPChallengeKey(scope, subject)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -273,6 +350,16 @@ func (c *ChattoCore) getEmailOTPChallenge(ctx context.Context, scope, subject st
 }
 
 func (c *ChattoCore) recordEmailOTPFailure(ctx context.Context, scope, subject string, ttl time.Duration) error {
+	if !c.emailOTPThrottlingEnabled() {
+		if _, _, err := c.getEmailOTPChallenge(ctx, scope, subject); err != nil {
+			if errors.Is(err, errEmailOTPNotFound) {
+				return errEmailOTPNotFound
+			}
+			return err
+		}
+		return errEmailOTPInvalid
+	}
+
 	key := c.emailOTPChallengeKey(scope, subject)
 	for i := 0; i < emailOTPWriteMaxRetries; i++ {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -287,13 +374,13 @@ func (c *ChattoCore) recordEmailOTPFailure(ctx context.Context, scope, subject s
 		if err := json.Unmarshal(entry.Value(), &challenge); err != nil {
 			return fmt.Errorf("failed to unmarshal email otp challenge: %w", err)
 		}
-		if challenge.Exhausted || challenge.Attempts >= emailOTPMaxAttempts {
+		if challenge.Exhausted || challenge.Attempts >= c.emailOTPMaxAttempts() {
 			return errEmailOTPExhausted
 		}
 
 		challenge.Attempts++
 		challenge.UpdatedAt = time.Now()
-		if challenge.Attempts >= emailOTPMaxAttempts {
+		if challenge.Attempts >= c.emailOTPMaxAttempts() {
 			challenge.Exhausted = true
 		}
 
