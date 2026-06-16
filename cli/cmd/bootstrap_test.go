@@ -118,6 +118,9 @@ func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	if isOwner, err := c.IsServerOwner(ctx, alice.Id); err != nil || !isOwner {
 		t.Errorf("expected alice to have owner role (err=%v)", err)
 	}
+	if got := c.RBAC.GetDecision(core.ScopeServer, "", core.RoleEveryone, core.PermRoomCreate); got != core.DecisionNone {
+		t.Errorf("bootstrap should not grant server-tier room.create to everyone, got %s", got)
+	}
 
 	// The server config should carry the bootstrap name.
 	cm := c.ConfigManager()

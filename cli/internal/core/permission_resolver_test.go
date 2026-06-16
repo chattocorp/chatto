@@ -258,15 +258,13 @@ func TestPermissionResolver_HasSpacePermission_ServerFallback(t *testing.T) {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
 
-	t.Run("space member gets space-scoped permissions from space roles", func(t *testing.T) {
-		// User is a space member (creator) with owner role
-		// room.create is granted via space's everyone role defaults
+	t.Run("owner gets space-scoped permissions from effective-owner override", func(t *testing.T) {
 		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindChannel, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected space member to have room.create via space role")
+			t.Error("Expected owner to have room.create via effective-owner override")
 		}
 	})
 

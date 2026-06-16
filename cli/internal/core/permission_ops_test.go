@@ -399,16 +399,10 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner role has non-message server permissions enumerated", func(t *testing.T) {
-		// Message permissions are deliberately not seeded at server scope by
-		// default; they are room-tier defaults with server-scope decisions
-		// reserved as explicit global overrides.
+	t.Run("owner role stores no default server permissions", func(t *testing.T) {
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			if perm.Category == CategoryMessage {
-				continue
-			}
-			if got := core.RBAC.GetDecision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionAllow {
-				t.Errorf("owner decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionNone {
+				t.Errorf("owner decision for %s = %s, want %s", perm.Permission, got, DecisionNone)
 			}
 		}
 	})
@@ -531,11 +525,14 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("announcements room grants message.post to staff roles", func(t *testing.T) {
-		for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
+	t.Run("announcements room grants message.post to stored staff roles", func(t *testing.T) {
+		for _, roleName := range []string{RoleAdmin, RoleModerator} {
 			if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, roleName, PermMessagePost); got != DecisionAllow {
 				t.Errorf("room decision for %s = %s, want %s", roleName, got, DecisionAllow)
 			}
+		}
+		if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, RoleOwner, PermMessagePost); got != DecisionNone {
+			t.Errorf("owner room decision = %s, want %s", got, DecisionNone)
 		}
 	})
 

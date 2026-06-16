@@ -261,11 +261,9 @@ func DefaultModeratorPermissions() []Permission {
 }
 
 // DefaultAdminPermissions returns the permissions granted to admins by
-// default. Admins receive every server-scope permission plus every
-// channel-room permission (configured at group/room tier). They are
-// distinguished from owners by ownership status, not by any seeded
-// permission they lack: owners are non-lockoutable and are granted every known
-// permission by the resolver regardless of RBAC state.
+// default. Admins receive every non-message permission that can be configured
+// at server, group, or room scope. Message permissions are seeded at room tier
+// so individual rooms can be customized without fighting a broad server allow.
 func DefaultAdminPermissions() []Permission {
 	seen := map[Permission]bool{}
 	var result []Permission
@@ -281,13 +279,11 @@ func DefaultAdminPermissions() []Permission {
 	return result
 }
 
-// DefaultOwnerPermissions returns the permissions granted to owners by
-// default. Functionally identical to DefaultAdminPermissions — owners
-// and admins share the same enumerated capability set for persisted default
-// grants. Owners additionally receive an effective resolver override so they
-// cannot be locked out by stale or edited RBAC state.
+// DefaultOwnerPermissions returns the persisted permissions granted to owners
+// by default. Owners are resolved through the effective-owner override instead
+// of stored grants, so fresh servers do not materialize owner permission rows.
 func DefaultOwnerPermissions() []Permission {
-	return DefaultAdminPermissions()
+	return nil
 }
 
 // DefaultRoomEveryonePermissions returns the default room-scope permissions

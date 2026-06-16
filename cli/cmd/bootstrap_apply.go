@@ -264,13 +264,5 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 		}
 	}
 
-	// Dev/E2E test convenience: grant room.create to the everyone role so
-	// non-owner test users (created by createAndLoginTestUser etc.) can mint
-	// rooms via the API without per-test permission setup. This file is
-	// behind a `bootstrap` build tag, so production binaries never run this
-	// code and `everyone` does not get room.create on real deployments.
-	if err := c.GrantServerPermission(ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomCreate); err != nil {
-		logger.Warn("Failed to grant room.create to everyone on bootstrap server", "error", err)
-	}
 	return true
 }

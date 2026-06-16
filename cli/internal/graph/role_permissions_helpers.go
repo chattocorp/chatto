@@ -13,6 +13,13 @@ import (
 	"hmans.de/chatto/internal/graph/model"
 )
 
+func rejectOwnerRolePermissionEdit(roleName string) error {
+	if roleName == core.RoleOwner {
+		return fmt.Errorf("owner permissions are granted virtually and cannot be edited")
+	}
+	return nil
+}
+
 // authorizeRolePermissions enforces access for the tier matrix query.
 //
 //   - Server / group scope: requires role.manage at server scope.

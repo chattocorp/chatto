@@ -249,7 +249,8 @@ func (c *ChattoCore) GetUserExplicitRoomOverride(ctx context.Context, roomID, us
 const AnnouncementsRoomName = "announcements"
 
 // SetupAnnouncementsRoomPermissions configures an announcements room so that
-// owner, admin, and moderator roles can post new root messages. Everyone else
+// admin and moderator roles can post new root messages. Owners can post via
+// the effective-owner override and do not need stored grants. Everyone else
 // can read, join, post in threads, react, and echo, but cannot start new
 // conversations. This is idempotent and safe to call multiple times.
 func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, roomID string) error {
@@ -303,21 +304,21 @@ func (c *ChattoCore) EnsureDefaultChannelRoomPermissions(ctx context.Context) er
 }
 
 func (c *ChattoCore) seedDefaultRoomStaffPermissions(ctx context.Context, roomID string) error {
-	for _, roleName := range []string{RoleModerator, RoleAdmin, RoleOwner} {
+	for _, roleName := range []string{RoleModerator, RoleAdmin} {
 		for _, perm := range DefaultRoomModeratorPermissions() {
 			if err := c.grantRoomPermissionIfMissing(ctx, roomID, roleName, perm); err != nil {
 				return fmt.Errorf("seed room moderator permission %s %s: %w", roleName, perm, err)
 			}
 		}
 	}
-	for _, roleName := range []string{RoleAdmin, RoleOwner} {
+	for _, roleName := range []string{RoleAdmin} {
 		for _, perm := range DefaultRoomAdminPermissions() {
 			if err := c.grantRoomPermissionIfMissing(ctx, roomID, roleName, perm); err != nil {
 				return fmt.Errorf("seed room admin permission %s %s: %w", roleName, perm, err)
 			}
 		}
 	}
-	for _, roleName := range []string{RoleModerator, RoleAdmin, RoleOwner} {
+	for _, roleName := range []string{RoleModerator, RoleAdmin} {
 		for _, perm := range DefaultAnnouncementsPosterPermissions() {
 			if err := c.grantRoomPermissionIfMissing(ctx, roomID, roleName, perm); err != nil {
 				return fmt.Errorf("seed room poster permission %s %s: %w", roleName, perm, err)
@@ -334,21 +335,19 @@ func (c *ChattoCore) seedDefaultRoomStaffPermissions(ctx context.Context, roomID
 // InitDefaultPermissions seeds the system roles with their default permission
 // grants through RBAC events. Idempotent at the projection level.
 //
-// Owner and Admin receive the same enumerated permission set
-// (`DefaultOwnerPermissions` / `DefaultAdminPermissions`). They are
-// distinguished by rank, not capabilities. Moderator gets
-// `DefaultModeratorPermissions`, Everyone gets `DefaultEveryonePermissions`.
+// Owners receive no persisted permission grants here; effective owners are
+// granted every known permission by the resolver. Admin gets
+// `DefaultAdminPermissions`, Moderator gets `DefaultModeratorPermissions`,
+// Everyone gets `DefaultEveryonePermissions`.
 //
-// Permissions are written at server scope. Channel-room permissions
-// (those also marked ScopeGroup / ScopeRoom) cascade into groups and
-// rooms via the resolver, so they are configured once here and apply
-// everywhere unless an operator adds a per-group or per-room override.
+// Permissions are written at server scope. Room and message defaults are
+// seeded at room tier, while server-scope decisions remain explicit global
+// overrides.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	roleDefaults := []struct {
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},
@@ -377,7 +376,6 @@ func (c *ChattoCore) EnsureDefaultRolePermissions(ctx context.Context) error {
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},
@@ -416,7 +414,6 @@ func (c *ChattoCore) SeedDefaultRoomGroupPermissions(ctx context.Context, groupI
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},

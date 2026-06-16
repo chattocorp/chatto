@@ -152,3 +152,32 @@ func TestRolePermissionMatrix_UnknownRoleReturnsNil(t *testing.T) {
 		t.Errorf("expected nil for unknown role, got %+v", got)
 	}
 }
+
+func TestOwnerRolePermissionMutationsRejected(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+	ctx := env.authContext()
+
+	if _, err := mutation.GrantPermission(ctx, model.GrantPermissionInput{
+		RoleName:   core.RoleOwner,
+		Permission: string(core.PermServerManage),
+	}); err == nil {
+		t.Fatal("expected server owner-role grant to be rejected")
+	}
+
+	if _, err := mutation.DenyGroupPermission(ctx, model.GroupPermissionInput{
+		GroupID:    env.testRoom.GroupId,
+		Subject:    core.RoleOwner,
+		Permission: string(core.PermMessagePost),
+	}); err == nil {
+		t.Fatal("expected group owner-role deny to be rejected")
+	}
+
+	if _, err := mutation.ClearRoomPermission(ctx, model.ClearRoomPermissionInput{
+		RoomID:     env.testRoom.Id,
+		RoleName:   core.RoleOwner,
+		Permission: string(core.PermMessagePost),
+	}); err == nil {
+		t.Fatal("expected room owner-role clear to be rejected")
+	}
+}

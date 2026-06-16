@@ -24,6 +24,9 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err := r.requireRoomManageAuth(ctx, user.Id, input.RoomID); err != nil {
 		return false, err
 	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
+	}
 
 	if err := r.core.GrantRoomPermission(ctx, user.Id, input.RoomID, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
@@ -40,6 +43,9 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err := r.requireRoomManageAuth(ctx, user.Id, input.RoomID); err != nil {
 		return false, err
 	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
+	}
 
 	if err := r.core.DenyRoomPermission(ctx, user.Id, input.RoomID, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
@@ -54,6 +60,9 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 		return false, err
 	}
 	if err := r.requireRoomManageAuth(ctx, user.Id, input.RoomID); err != nil {
+		return false, err
+	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
 		return false, err
 	}
 

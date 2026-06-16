@@ -46,10 +46,14 @@
   }
 </script>
 
-<PageTitle title="Permissions | Space Admin" />
+<PageTitle title="Permissions | Server Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Permissions" subtitle="Manage space roles and permissions" showMobileNav />
+  <PaneHeader
+    title="Permissions"
+    subtitle="Manage server-wide role defaults and global overrides"
+    showMobileNav
+  />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
@@ -74,12 +78,13 @@
         </Panel>
       {/if}
       <Hint>
-        The settings on this page act as <strong>server-wide defaults</strong>. You can override individual permissions for each room
-        or room group via the
+        This page is for <strong>server-wide</strong> role permissions and global overrides.
+        Room-tier permissions, including message posting policy, are primarily configured from the
         <a
           href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
           class="link">Rooms</a
-        > page.
+        > page at the room or room-group level. Owners always receive every RBAC permission and are
+        shown as read-only green checks.
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}
