@@ -258,7 +258,7 @@ export async function startDMOnRemote(
 	const roomId = startData.data?.startDM?.id;
 	if (!roomId) throw new Error(`Failed to start DM on remote: ${JSON.stringify(startData)}`);
 
-	await postMessageOnRemote(remoteBaseURL, senderToken, 'DM', roomId, message);
+	await postMessageOnRemote(remoteBaseURL, senderToken, roomId, message);
 	return roomId;
 }
 
