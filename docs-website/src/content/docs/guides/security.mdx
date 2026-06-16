@@ -15,7 +15,9 @@ This page describes the security and privacy features built into Chatto today.
 
 ### Password storage
 
-Passwords are hashed with **bcrypt** at the library default cost. A minimum length of 8 characters is enforced at registration. Hashed passwords live in their own NATS KV bucket (`auth.{userID}.password`), separate from any event stream — they are never published to subscribers and are never written to the audit trail.
+Passwords are hashed with **bcrypt** at the library default cost. Chatto enforces a minimum length of 8 characters and a maximum length of 128 bytes so bcrypt never silently truncates user input.
+
+Password hash changes are durable user events in the `EVT` stream and are read through the user projection. Raw passwords are never written to storage, audit events, logs, or live subscriptions. Password changes and resets also advance the user's auth generation, so older cookie sessions, bearer tokens, and OAuth authorization codes are rejected.
 
 Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-only users so the response time is identical regardless of whether the account exists. This blocks the most basic form of user enumeration via timing.
 

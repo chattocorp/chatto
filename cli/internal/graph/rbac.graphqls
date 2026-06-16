@@ -27,8 +27,7 @@ type RbacQueries {
 
   """
   Permission matrix for a specific user. Authorization mirrors user-level
-  permission mutations: viewer must hold `role.manage` and strictly outrank
-  the target. Self-introspection is not allowed.
+  permission mutations: viewer must hold `user.manage-permissions`.
   """
   userPermissionMatrix(userId: ID!): UserPermissionMatrix
     @goField(forceResolver: true)

@@ -8,11 +8,11 @@ RBAC is a single flat tier of server roles, stored as durable facts in the
 an instance-vs-space tier split, and the legacy `instance-` prefix on role
 names is gone.
 
-- **`owner`** — full server control. Top of the hierarchy. Holders pass
-  every permission check, can edit every user, and can never be
-  demoted by an admin (rank-based hierarchy enforcement).
-- **`admin`** — full administrative access. Can do everything an owner
-  can except manage owner-rank users.
+- **`owner`** — full server control. Holders pass every permission check
+  through the effective-owner override and cannot lock themselves out through
+  RBAC state.
+- **`admin`** — broad administrative access through default permissions.
+  Admins are still ordinary non-owner RBAC subjects.
 - **`moderator`** — moderation permissions without administrative
   reach.
 - **`everyone`** — virtual role assigned to every authenticated user.
@@ -21,8 +21,8 @@ names is gone.
 ## Config-designated owner
 
 `owners.emails` in `chatto.toml` declares email addresses that confer
-ownership. The wiring is fully role-based — there is no longer a
-config-owner short-circuit in the permission resolver:
+ownership. Config-designated owners are effective owners at permission time,
+even if the durable `owner` role is missing:
 
 - On email verification (registration / OAuth / admin-direct),
   `addVerifiedEmail` checks the new email against `owners.emails` and
@@ -30,10 +30,8 @@ config-owner short-circuit in the permission resolver:
   chicken-and-egg case on a fresh deployment: the operator signs up,
   verifies their email, and immediately has owner permissions without
   needing a server restart.
-- For existing deployments, run `chatto reset rbac` after upgrading.
-  The command appends reset facts, re-seeds the system roles plus default
-  permissions from code, and assigns the `owner` role to every user whose
-  verified email matches `owners.emails`.
+- If the durable role assignment is removed, the verified config email still
+  grants effective owner access so the operator can recover.
 
 ## Privacy Boundary
 

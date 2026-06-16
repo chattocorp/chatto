@@ -118,7 +118,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.frontend.prebuilt
+          file: docker/Dockerfile.frontend.prebuilt
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.frontend_tags.outputs.tags }}

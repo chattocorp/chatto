@@ -51,6 +51,16 @@ Certain streams are intentionally excluded:
 
 Run `chatto backup` while your Chatto server is running. The command connects to NATS via the client configuration in `chatto.toml`.
 
+If you use embedded NATS from a fresh `chatto init` config, the NATS server runs in-process only and does not open a TCP listener. Uncomment `nats.embedded.port` before running CLI backup or key-export commands:
+
+```toml
+[nats.embedded]
+port = 4222
+bind_address = "127.0.0.1"
+```
+
+When the embedded TCP listener is enabled, Chatto derives matching `nats.client` settings automatically from `nats.embedded.auth_token`. Keep the listener bound to localhost unless you intentionally expose NATS on a trusted private network.
+
 ```bash
 # Default: saves to backups/<timestamp>.tar.gz
 chatto backup -c chatto.toml
@@ -121,7 +131,7 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
 3. **Start Chatto normally**
 
    ```bash
-   chatto start -c chatto.toml
+   chatto run -c chatto.toml
    ```
 
 </Steps>
@@ -150,7 +160,7 @@ By default, encryption key records are excluded from data backups. This keeps le
 
 Most small self-hosted servers should use `chatto backup --encrypt --include-keys` instead. Use separate key exports only when you intentionally want data archives and key material stored or retained separately.
 
-To fully restore accounts, profile indexes, and messages from a backup that does not include keys, export the KEK and wrapped-DEK records separately.
+To fully restore accounts, profile indexes, and messages from a backup that does not include keys, export the KEK records separately. The wrapped app DEK records live in `RUNTIME_STATE` and are included in the normal data backup.
 
 ### Exporting keys
 
@@ -194,7 +204,7 @@ For a full restore from a monolithic encrypted backup:
 2. **Start the server**
 
    ```bash
-   chatto start -c chatto.toml
+   chatto run -c chatto.toml
    ```
 
 </Steps>

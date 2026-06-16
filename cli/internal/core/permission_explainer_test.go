@@ -11,8 +11,9 @@ import (
 // from the bool path: both share the same walk*Permission function, but a future
 // refactor that breaks one must break the other equally.
 //
-// It also asserts trace structure: when bool is true the first entry is allow;
-// when bool is false but trace is non-empty, the first entry is deny.
+// It also asserts trace structure under the deny-wins model: if any trace
+// entry is a deny, the explanation state is deny; otherwise any allow trace
+// produces allow.
 func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -48,8 +49,8 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		t.Fatalf("regular joins room: %v", err)
 	}
 
-	// Room-level override: deny message.post for the everyone space role in this
-	// room. Higher-rank roles (owner) should still post via the hierarchy walk.
+	// Room-level override: deny message.post for the everyone role in this room.
+	// Owners should still post via the effective-owner override.
 	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, "everyone", PermMessagePost); err != nil {
 		t.Fatalf("deny room perm: %v", err)
 	}
@@ -159,28 +160,22 @@ func assertAgreement(
 			perm, userID, spaceID, roomID, hasResult, exp.State, exp.DecidedAt, exp.DecidedByRole)
 	}
 
-	// Trace structure invariants.
-	if hasResult {
-		if len(exp.Trace) == 0 {
-			t.Errorf("perm %s: Has=true but trace is empty", perm)
-		} else if exp.Trace[0].Decision != DecisionAllow {
-			t.Errorf("perm %s: Has=true but first trace entry is %s (expected allow)", perm, exp.Trace[0].Decision)
-		}
-	} else if len(exp.Trace) > 0 && exp.Trace[0].Decision != DecisionDeny {
-		t.Errorf("perm %s: Has=false but first trace entry is %s (expected deny when trace non-empty)", perm, exp.Trace[0].Decision)
-	}
-
-	// State / DecidedAt / DecidedByRole must match the first trace entry.
+	// State / DecidedAt / DecidedByRole must match the winning trace entry.
 	if len(exp.Trace) > 0 {
-		first := exp.Trace[0]
-		if exp.State != first.Decision {
-			t.Errorf("perm %s: State=%s but first trace decision=%s", perm, exp.State, first.Decision)
+		winning := exp.Trace[0]
+		for _, entry := range exp.Trace {
+			if entry.Decision == DecisionDeny {
+				winning = entry
+			}
 		}
-		if exp.DecidedAt != first.Level {
-			t.Errorf("perm %s: DecidedAt=%s but first trace level=%s", perm, exp.DecidedAt, first.Level)
+		if exp.State != winning.Decision {
+			t.Errorf("perm %s: State=%s but winning trace decision=%s", perm, exp.State, winning.Decision)
 		}
-		if exp.DecidedByRole != first.RoleName {
-			t.Errorf("perm %s: DecidedByRole=%s but first trace role=%s", perm, exp.DecidedByRole, first.RoleName)
+		if exp.DecidedAt != winning.Level {
+			t.Errorf("perm %s: DecidedAt=%s but winning trace level=%s", perm, exp.DecidedAt, winning.Level)
+		}
+		if exp.DecidedByRole != winning.RoleName {
+			t.Errorf("perm %s: DecidedByRole=%s but winning trace role=%s", perm, exp.DecidedByRole, winning.RoleName)
 		}
 	} else {
 		if exp.State != DecisionNone {

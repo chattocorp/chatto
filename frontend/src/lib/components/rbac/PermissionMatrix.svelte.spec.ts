@@ -25,6 +25,16 @@ const HAPPY_TIER_ROLES: TierRoles = {
   applicablePermissions: ['message.post', 'room.create'],
   roles: [
     {
+      roleName: 'owner',
+      displayName: 'Owner',
+      description: '',
+      isSystem: true,
+      position: 1000,
+      override: { permissions: [], permissionDenials: [] },
+      inheritedAllows: [],
+      inheritedDenials: []
+    },
+    {
       roleName: 'admin',
       displayName: 'Admin',
       description: '',
@@ -95,9 +105,9 @@ describe('PermissionMatrix', () => {
 
     const tables = container.querySelectorAll('table');
     expect(tables.length).toBeGreaterThan(0);
-    // "Permission" + "@admin" + "@moderator" per category panel; two
-    // categories ('message' and 'room'), so 6 header cells total.
-    expect(container.querySelectorAll('thead th').length).toBe(6);
+    // "Permission" + "@owner" + "@admin" + "@moderator" per category panel;
+    // two categories ('message' and 'room'), so 8 header cells total.
+    expect(container.querySelectorAll('thead th').length).toBe(8);
     expect(container.querySelectorAll('tbody tr').length).toBe(2);
   });
 
@@ -154,6 +164,19 @@ describe('PermissionMatrix', () => {
     const modTh = headerCells.find((th) => th.textContent?.includes('@moderator')) as HTMLElement;
     expect(adminTh.querySelector('button')).toBeNull();
     expect(modTh.querySelector('button')).not.toBeNull();
+  });
+
+  it('renders owner cells as read-only effective allows', async () => {
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const ownerMessagePost = container.querySelector(
+      'button[aria-label*="Owner"][aria-label*="message.post"]'
+    ) as HTMLButtonElement | null;
+    expect(ownerMessagePost).not.toBeNull();
+    expect(ownerMessagePost?.disabled).toBe(true);
+    expect(ownerMessagePost?.getAttribute('aria-pressed')).toBe('true');
+    expect(ownerMessagePost?.querySelector('.uil--check')).not.toBeNull();
   });
 
   it('shows the "no roles" hint when the resolver returns no roles', async () => {

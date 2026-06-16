@@ -82,7 +82,6 @@ func defaultRBACDecisions() []rbacSeedDecision {
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},

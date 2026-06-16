@@ -84,10 +84,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       getText: () => e.getText({ blockSeparator: '\n' }),
 
       setContent: (text: string) => {
+        if (e.isDestroyed) return;
         e.commands.setContent(plainTextToHtml(text));
       },
 
       focus: (position: 'start' | 'end' = 'end') => {
+        if (e.isDestroyed) return;
         e.commands.focus(position);
       },
 

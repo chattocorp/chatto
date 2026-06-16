@@ -142,6 +142,9 @@ class ServerRegistry {
 		if (typeof window === 'undefined') return;
 		if (this.originServer) {
 			this.originProbed = true;
+			if (!knownServer) {
+				this.settleOriginUnauthenticated();
+			}
 			return; // Already registered
 		}
 
@@ -167,6 +170,7 @@ class ServerRegistry {
 
 				const id = generateServerId(origin, this.servers.map((s) => s.id));
 				this.#registerOrigin(id, origin, data.name || 'Chatto', data.iconUrl ?? null);
+				this.settleOriginUnauthenticated();
 			})
 			.catch(() => {
 				// Not a Chatto server — ignore
@@ -189,6 +193,16 @@ class ServerRegistry {
 			userAvatarUrl: null,
 			addedAt: Date.now()
 		});
+	}
+
+	/** Settle the origin cookie-auth store when root load found no user. */
+	settleOriginUnauthenticated(): void {
+		const origin = this.originServer;
+		if (!origin) return;
+		const store = this.tryGetStore(origin.id);
+		if (!store) return;
+		store.currentUser.user = undefined;
+		store.currentUser.loading = false;
 	}
 
 	/**
@@ -215,7 +229,8 @@ class ServerRegistry {
 		// Start the event bus eagerly for already-authenticated servers so
 		// child components (ServerSidebarEntry) can register handlers during
 		// their mount lifecycle. For cookie-auth servers the user is loaded
-		// asynchronously by AuthenticatedChatProvider, so the layout's $effect
+		// asynchronously by AuthenticatedChatProvider, so the root layout's
+		// existing bus-start effect
 		// starts the bus once `isAuthenticated` flips true.
 		if (store.isAuthenticated) {
 			const gqlClient = graphqlClientManager.getClient(server.id);
@@ -321,8 +336,9 @@ class ServerRegistry {
 
 		if (server.token === null) {
 			// Cookie auth (origin) — the SvelteKit load function already determined
-			// auth state. AuthenticatedChatProvider will set the user if authenticated.
-			store.currentUser.loading = false;
+			// auth state. AuthenticatedChatProvider sets authenticated state;
+			// root load/probe settles unauthenticated state. Leave loading true
+			// here so route guards cannot observe a transient "no user" gap.
 		} else {
 			// Bearer auth (remote) — auto-load the authenticated user via the token.
 			// Catch failures (e.g. unreachable host, CORS) so they don't bubble up

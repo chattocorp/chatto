@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { onDestroy, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import { PresenceStatus } from '$lib/gql/graphql';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
@@ -34,11 +34,8 @@
   } = $props();
 
   // Populate the origin server's CurrentUserState from the load function
-  // data. The registry is the single source of truth — child routes read
-  // it via `serverRegistry.getStore(...).currentUser`, so writing through
-  // the registry instance is what propagates the user to the rest of the
-  // tree. Auth-failure and session-validation handlers are wired on the
-  // GraphQLClient by `ServerStateStore`'s constructor.
+  // data. Cookie-auth stores stay loading until this provider mounts, so
+  // route guards cannot observe a transient "not loading, no user" gap.
   const originServer = serverRegistry.originServer;
   if (!originServer) {
     throw new Error(
@@ -49,6 +46,12 @@
   // svelte-ignore state_referenced_locally
   currentUserState.user = { ...user, presenceStatus: PresenceStatus.Online };
   currentUserState.loading = false;
+  onDestroy(() => {
+    if (currentUserState.user?.id === user.id) {
+      currentUserState.user = undefined;
+      currentUserState.loading = false;
+    }
+  });
   // svelte-ignore state_referenced_locally
   presenceCache.update(user.id, PresenceStatus.Online);
 

@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
+import * as routes from './routes';
 
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
@@ -73,6 +74,31 @@ async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: str
   return { spaceId: 'server', roomId: match[1] };
 }
 
+async function clickReplyAttributionJump(page: Page, replyBody: string): Promise<void> {
+  const replyAttribution = page
+    .locator('[role="article"]', { hasText: replyBody })
+    .getByTestId('reply-attribution');
+
+  // The nested author button opens the user popover and stops propagation.
+  // Click the left edge of the attribution container, where the "in reply to"
+  // label lives, so the container's jump handler receives the event.
+  await replyAttribution.click({ position: { x: 8, y: 8 } });
+}
+
+async function gotoMessageAndWaitForTarget(
+  page: Page,
+  roomId: string,
+  eventId: string,
+  targetBody: string
+): Promise<void> {
+  await expect(async () => {
+    await page.goto(routes.messageLink(roomId, eventId));
+    await expect(page.locator('p', { hasText: targetBody })).toBeVisible({
+      timeout: TIMEOUTS.UI_FAST
+    });
+  }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+}
+
 test.describe('jump to message', () => {
   // These tests post 60+ messages via API — needs more time than the default
   test.describe.configure({ timeout: 60_000 });
@@ -114,12 +140,7 @@ test.describe('jump to message', () => {
     await expect(page.locator('p', { hasText: targetBody })).not.toBeVisible();
 
     // Click the reply link ("In reply to ...")
-    // Click the "in reply to" text specifically to avoid the nested author button,
-    // which has stopPropagation and opens a user popover instead of jumping.
-    const replyAttribution = page
-      .locator('[role="article"]', { hasText: replyBody })
-      .getByTestId('reply-attribution');
-    await replyAttribution.getByText('in reply to').click();
+    await clickReplyAttributionJump(page, replyBody);
 
     // The target message should now be visible after the jump
     await expect(page.locator('p', { hasText: targetBody })).toBeVisible({
@@ -168,14 +189,9 @@ test.describe('jump to message', () => {
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    // Jump to the old message via reply link
-    const replyAttribution = page
-      .locator('[role="article"]', { hasText: replyBody })
-      .getByTestId('reply-attribution');
-    await replyAttribution.getByText('in reply to').click();
-    await expect(page.locator('p', { hasText: targetBody })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
+    // Jump to the old message via the direct message route. The reply-link
+    // interaction is covered above; this test focuses on returning to present.
+    await gotoMessageAndWaitForTarget(page, roomId, targetEventId, targetBody);
 
     // Click "Jump to Present"
     await page.getByTestId('jump-to-present').click();
@@ -233,11 +249,7 @@ test.describe('jump to message', () => {
 
     // Click the reply link — this should use the in-DOM scroll path
     // (no API fetch needed since the message is in the loaded cache)
-    // Click the "in reply to" text specifically to avoid the nested author button.
-    const replyAttribution = page
-      .locator('[role="article"]', { hasText: replyBody })
-      .getByTestId('reply-attribution');
-    await replyAttribution.getByText('in reply to').click();
+    await clickReplyAttributionJump(page, replyBody);
 
     // The target should be scrolled into view and highlighted
     await expect(page.getByText(targetBody)).toBeVisible({
@@ -276,10 +288,7 @@ test.describe('jump to message', () => {
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    const replyAttribution = page
-      .locator('[role="article"]', { hasText: replyBody })
-      .getByTestId('reply-attribution');
-    await replyAttribution.getByText('in reply to').click();
+    await clickReplyAttributionJump(page, replyBody);
     await expect(page.getByTestId('jump-to-present')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });

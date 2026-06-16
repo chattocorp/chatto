@@ -33,7 +33,7 @@ type PermissionMatrixScope {
 }
 
 """
-Where a PermissionMatrixScope sits in the resolution hierarchy.
+Where a PermissionMatrixScope sits in the resolution scope tree.
 """
 enum PermissionMatrixScopeKind {
   "Server tier — no room/group context."

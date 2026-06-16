@@ -93,14 +93,14 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 		t.Errorf("Override = %v, want DENY", cell.Override)
 	}
 	if cell.Effective != model.PermissionMatrixDecisionDeny {
-		t.Errorf("Effective = %v, want DENY (user-level deny outranks role grants)", cell.Effective)
+		t.Errorf("Effective = %v, want DENY (any applicable deny wins over grants)", cell.Effective)
 	}
 }
 
 // TestUserPermissionMatrix_AuthorizationGate confirms only authorized
 // callers can read another user's matrix. Self-call is rejected (no
 // self-bypass on the user-permission target gate), peers are rejected,
-// and admins outranking the target succeed.
+// and admins with user.manage-permissions succeed.
 func TestUserPermissionMatrix_AuthorizationGate(t *testing.T) {
 	env := setupTestResolver(t)
 	rbac := env.resolver.RbacQueries()
@@ -129,7 +129,7 @@ func TestUserPermissionMatrix_AuthorizationGate(t *testing.T) {
 		}
 	})
 
-	t.Run("owner outranking target succeeds", func(t *testing.T) {
+	t.Run("owner succeeds", func(t *testing.T) {
 		_, err := rbac.UserPermissionMatrix(env.authContext(), nil, target.Id)
 		if err != nil {
 			t.Errorf("expected owner to read target's matrix, got %v", err)

@@ -29,87 +29,53 @@ Authorization is enforced at the **API boundary**, not in core:
 
 ## Permission System
 
-Permissions are granted through roles assigned to space members. Use `Can*` functions in `core/can.go` to check permissions.
+Permissions are granted through roles and direct per-user overrides. Use `Can*` functions in `core/can.go` to check permissions.
 
 ### Resolution Algorithm
 
-Permission resolution is a single unified walker. Position numbers run **everyone=0** at the bottom up to **owner=1000** at the top (higher number = more power). For each permission check, the resolver applies the following phases in order; the first decision wins.
+Chatto uses permission-only RBAC with a non-lockout owner override. See ADR-040.
 
-**Phase 0 — DM boundary deny-list.** In DM rooms, the permissions in `dmBoundaryDeniedPermissions` (privacy/category-mismatch) are denied unconditionally regardless of any grant. See "DM Privacy Boundary" below.
+Resolution order:
 
-**Phase 1 — User-level overrides.** Explicit grants/denies attached directly to the user (KV subject = the userID) are checked next. Room scope before server scope. **User-level decisions outrank every role grant.** Use these for:
-- *Suspension*: deny a perm directly to one user → they're blocked even if their roles grant it.
-- *Ad-hoc grants*: grant `message.delete-any` to one user in one room without inventing a role for it.
+1. **Effective-owner override.** A user with the durable `owner` role, or a verified email matching `owners.emails`, receives every known RBAC permission.
+2. **DM boundary deny-list for non-owners.** In DM rooms, privacy/category-mismatch permissions are denied regardless of grants for everyone else.
+3. **Deny-wins for non-owners.** Any applicable user or role deny blocks the permission.
+4. **Allow if any allow applies.** If no deny applies, any applicable user or role allow grants the permission.
+5. **Default deny.** If nothing applies, the API treats the result as denied.
 
-**Phase 2 — Role hierarchy walk.** Roles are walked in **descending position order** (highest rank first). For each role, room-scope decisions are probed before server-scope. The first allow/deny wins; lower-ranked roles aren't consulted further.
+Applicable decisions include direct user decisions and all roles assigned to the user, including implicit `everyone`. For room checks, room, group, and server scopes all contribute. Server-scope room/message decisions therefore work as broad defaults/global overrides, while room and group decisions are local exceptions.
 
-There is no "bypass" short-circuit. Owners pass permission checks because the owner role is seeded with every server-scope permission via `DefaultOwnerPermissions` (the same set as admin), not because the resolver special-cases them. Any deny configured by an operator applies uniformly — including to owners. The owner / admin distinction is enforced through rank, not through capability.
+### Role Positions
 
-Consequences worth knowing:
-
-- **A higher-ranked role's grant overrides a lower-ranked role's deny.** Patterns like an `#announcements` room (deny on `everyone`, grant on `moderator`) work because moderator is checked first.
-- **Within a single subject, room-scope overrides server-scope.** Same-subject specificity.
-- **There is no deny-always-wins floor at the role level.** An operator who wants to forbid an action across the board should deny on the highest-ranked role that should be affected — or attach a per-user deny.
-- **Default-deny.** If no phase emits a decision, the result is "no decision" — treated as deny at the API boundary.
-
-**Testing implication:** Denying a permission on `everyone` does NOT block users with higher-rank roles. To test permission denial, deny on the user's actual highest-rank role, attach a user-level deny, or deny on a higher-ranked role.
-
-### Position numbering
+Role `position` is ordering/display metadata and legacy event compatibility. It is not an authorization rank.
 
 | Role | Position | Notes |
 |---|---|---|
 | `everyone` | 0 | Implicit role every authenticated user holds |
-| custom roles | 1..99 | `GetNextAvailablePosition` and `ReorderRoles` slot custom roles below moderator by default; operators can promote them via reorder |
+| custom roles | 1..99 | Operators can reorder these for display |
 | `moderator` | 100 | System role |
 | `admin` | 900 | System role |
-| `owner` | 1000 | System role; holds the same enumerated permission set as `admin`. Distinct via rank only. |
-
-Wide gaps between system roles leave room for custom roles to be positioned at any rank without renumbering existing ones. Same-position roles resolve deterministically via stable sort + role-name secondary key. System roles can't be reordered or have their positions changed via the public API.
+| `owner` | 1000 | System role; effective owners also include verified `owners.emails` matches |
 
 ### DM Privacy Boundary
 
-DM rooms use the same hierarchy walker as channels, with one extra rule: a static set of permissions is *unconditionally denied* in DM contexts regardless of role grants. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`. Two reasons appear:
+DM rooms use the same permission resolver with one extra rule: a static set of permissions is denied in DM contexts regardless of role grants for non-owners. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`.
 
 - **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.manage`, `room.manage`, `room.ban-member`, `message.echo`).
-- **Category mismatch** — DMs have their own creation and fixed-membership APIs, so channel-style `room.create` / `room.ban-member` don't apply.
+- **Category mismatch** — DMs have fixed membership APIs, so channel-style `room.create` / `room.ban-member` do not apply.
 
-Access *to* DM rooms is gated by participation (`requireRoomMember`). There are no `dm.*` permissions; `message.post` gates starting DMs and root DM messages, while `message.post-in-thread` gates thread replies. The deny-list only constrains what a participant can do once inside.
+Access to DM rooms is gated by participation (`requireRoomMember`). There are no `dm.*` permissions; `message.post` gates starting DMs and root DM messages, while `message.post-in-thread` gates thread replies.
 
-### Rank vs Permission: the two-step rule
+### Targeted Operations
 
-RBAC has two distinct concepts that are easy to conflate:
+Targeted mutations are permission-gated, not rank-gated:
 
-- **Permission** — "is this role authorized to perform action X at all?" (capability gate)
-- **Rank** — "does the caller outrank the specific target user?" (hierarchy invariant)
+- `requireUserAdminTarget` — self is allowed; cross-user identity/role membership actions require `role.assign`.
+- `requireUserPermissionTarget` — direct per-user permission grant/deny/clear requires `user.manage-permissions`.
+- Message moderation of another user's message requires `message.manage` in the room. Authors can edit/delete their own messages without `message.manage`.
+- Room bans require `room.ban-member` in the room. DM rooms reject bans.
 
-**Any mutation that targets another user requires BOTH:**
-
-1. The relevant permission (e.g. `role.assign` for user-admin actions).
-2. `OutranksUser(actor, target)` — the actor's highest role must outrank the target's.
-
-Rank alone is **not** an authorization check. A function named `OutranksUser` answers a hierarchy question; it does not gate a capability. Conversely, a permission alone breaks the hierarchy invariant — a moderator with `admin.manage-users` should not be able to rename an owner.
-
-Both checks together: callers use `requireUserAdminTarget` (in `graph/authz.go`) for user-admin mutations like `updateProfile` / `uploadAvatar` / `updateSettings` / `AdminMutations.updateUser`. Self-actions bypass both for identity edits, but NOT for authorization edits — see below.
-
-**Identity edits vs. authorization edits.** A targeted user mutation falls into one of two categories, and the category determines whether self-action is allowed:
-
-- **Identity edits** change data the user could already change about themselves (display name, login, avatar, settings). Self-action is privilege-neutral, so the gate has a self-bypass.
-- **Authorization edits** change the user's permission set (`grantUserPermission` / `denyUserPermission` / `clearUserPermissionState`). Self-action would be a privilege boundary change, so the gate has NO self-bypass. The strict-outrank step fails on self by definition, so self-action is impossible by construction.
-
-Picking the wrong helper for an authz mutation is a privilege escalation — verify the category before reusing a helper.
-
-**Helpers:**
-
-- `requireUserAdminTarget` — for identity/role-membership mutations (`updateProfile`, `uploadAvatar`, `updateSettings`, `AdminMutations.updateUser`, `ClearUsernameCooldown`). Requires `role.assign` AND `OutranksUser`. **Has self-bypass.**
-- `requireUserPermissionTarget` — for per-user permission grants/denials (`grantUserPermission`, `denyUserPermission`, `clearUserPermissionState`). Requires `role.manage` AND `OutranksUser`. **No self-bypass.** Uses `role.manage` (not `role.assign`) because a direct user grant can attach any permission, including ones not in any role — same trust level as defining role permissions.
-- `requireOutranksAuthor` — for message-content moderation (`updateMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanManageOthersMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users. Authors editing or deleting their *own* messages do NOT go through this gate — that's always allowed, subject only to the edit window (for edits) and room membership.
-
-**Permitted single-step uses:**
-
-- **UI-hint resolvers** that only inform the frontend whether to show an admin affordance. `Server.viewerCanManageUser` is rank-only by design — the frontend uses it to hide buttons, not to permit operations. Backend mutations still enforce the two-step.
-- Permission-only checks for non-targeted actions (e.g. `createRoom` just needs `rooms.create`; there is no target user).
-
-**Anti-pattern (avoid):** a helper named `CanManageUser` or `CanAdminTargetUser` that internally implements only the rank check. Naming a function `Can…` implies authorization; the body must reflect that. If a function answers a hierarchy question, name it `OutranksUser`.
+Owners are protected from lockout by the effective-owner override, not by target-rank checks.
 
 ### Permission Constant Naming
 
@@ -130,13 +96,13 @@ Permission strings use **hyphens** as word separators (e.g., `message.post-in-th
 
 ### Permission Scopes (server / group / room)
 
-Most channel-room permissions are configurable at **three tiers** that
-the resolver walks in order (room → group → server) when checking
-permissions in a channel room. The first explicit allow/deny wins.
+Most channel-room permissions are configurable at **three tiers**. The
+resolver collects all applicable decisions from server, group, and room scope:
+any deny wins for non-owners, otherwise any allow grants the permission.
 
-- **Server scope** — the global default. Stored on the server RBAC bucket.
+- **Server scope** — the broad default. Stored on the server RBAC bucket.
   Used as-is for DM rooms (which aren't in any group) and as a fallback
-  for channel rooms with no per-group / per-room override.
+  for channel rooms unless a per-group / per-room deny narrows it.
 - **Group scope** — per-room-group config (ADR-031). Stored against a
   group ID. Overrides server-scope when present.
 - **Room scope** — per-room override. Stored against a room ID.
@@ -190,13 +156,14 @@ the ability to create rooms only in specific groups.
 | `role.assign` | Assign roles to users |
 | `room.create` | Create new rooms in a group |
 | `room.manage` | Edit, configure permissions on, and delete channel rooms |
-| `room.ban-member` | Ban lower-ranked members from channel rooms |
+| `room.ban-member` | Ban members from channel rooms |
 | `room.join` | Join existing rooms |
 | `message.post` | Post root messages in a room |
 | `message.post-in-thread` | Post messages inside a thread |
 | `message.react` | Add and remove reactions on messages |
 | `message.echo` | Echo a thread reply back to the main channel |
-| `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
+| `message.manage` | Edit and delete *other* users' messages. Authors editing or deleting their own messages don't need this. |
+| `user.manage-permissions` | Edit direct per-user permission overrides |
 | `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
 | `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel sub-view access tiers |
 
@@ -225,13 +192,13 @@ the ability to create rooms only in specific groups.
 | `updateSpace` | Yes | `space.manage` |
 | `joinSpace` | Yes | None |
 | `leaveSpace` | Yes | None |
-| `createRoom` | Yes | `rooms.create` |
-| `joinRoom` | Yes | Space membership + `rooms.join` |
+| `createRoom` | Yes | `room.create` |
+| `joinRoom` | Yes | Space membership + `room.join` |
 | `leaveRoom` | Yes | None |
-| `banRoomMember` | Yes | Channel rooms only; `room.ban-member` + actor strictly outranks target |
+| `banRoomMember` | Yes | Channel rooms only; `room.ban-member` |
 | `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
-| `updateMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
-| `deleteMessage` | Yes | Room membership + (author is allowed) OR (`message.manage` + outranks the author) |
+| `updateMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR `message.manage` |
+| `deleteMessage` | Yes | Room membership + (author is allowed) OR `message.manage` |
 | `markRoomAsRead` | Yes | Room membership |
 | `addReaction` | Yes | Room membership |
 | `removeReaction` | Yes | Room membership |
@@ -247,7 +214,7 @@ the ability to create rooms only in specific groups.
 
 | Field | Auth Required | Additional Check |
 |-------|---------------|------------------|
-| `Space.rooms` | Yes | Space membership + `rooms.browse` |
+| `Space.rooms` | Yes | Space membership + `room.list` |
 | `Space.memberCount` | No | Public count |
 | `Space.roomCount` | No | Public count |
 | `Space.assetCount` | No | Public count |
@@ -307,7 +274,7 @@ if caller.Id != obj.Id {
 
 ## Customizable Permissions
 
-Default member permissions (`rooms.browse`, `rooms.create`, `rooms.join`) can be revoked from the member role. When implementing or modifying permission checks:
+Default member permissions (`room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, and `user.delete-self`) can be denied or cleared from the `everyone` role. When implementing or modifying permission checks:
 
 1. **Always use RBAC resolution** - Never hardcode permission grants based on role names or "default" lists
 2. **Test both grant and revoke** - Permissions must work when granted AND when revoked
@@ -334,25 +301,23 @@ return canPost, nil
 ## Server Owner via Config
 
 Owners can be designated via `owners.emails` in `chatto.toml`. After
-Phase 5 of #330 there is no special-case fallthrough in the permission
-resolver — the config flow materialises a real `owner` role assignment:
+the RBAC simplification, this is both a runtime effective-owner path and a
+best-effort materialized role assignment:
 
 - On email verification (registration / OAuth / admin-direct add),
   `addVerifiedEmail` checks the new email against `owners.emails` and
   auto-assigns the `owner` role if it matches. Fresh deployments work
   without a restart.
-- For existing deployments, run `chatto reset rbac` after upgrading
-  the binary. The command appends reset facts, re-seeds the system roles plus
-  default permissions, and assigns `owner` to every user whose verified email
-  matches `owners.emails`.
+- If the durable role assignment is missing, the verified config email still
+  grants effective owner access.
 
-Owners pass every permission check through the standard hierarchy
-walk (owner is position 1000, the highest rank). They have access to:
+Owners pass every known permission check through the effective-owner override.
+They have access to:
 
 - `/admin` routes in the frontend
 - `Query.admin` in GraphQL; member-directory reads use authenticated `Server.members`
 - System monitoring data (NATS stats, streams, KV buckets)
-- Everything else (the owner role's grants cover all permissions)
+- Everything else (owners are virtual all-allow subjects)
 
 See `admin.md` for the role / config-owner narrative.
 

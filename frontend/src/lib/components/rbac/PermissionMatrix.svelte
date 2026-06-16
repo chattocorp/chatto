@@ -64,15 +64,15 @@ under it. Column headers are clickable when `onRoleClick` is provided
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
       title: 'Space Permissions',
-      description: 'Control who can browse, create, join, and manage spaces'
+      description: 'Legacy space-level capabilities kept for compatibility during the server model transition'
     },
     room: {
       title: 'Room Permissions',
-      description: 'Control who can create, join, and manage rooms'
+      description: 'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
     },
     message: {
       title: 'Message Permissions',
-      description: 'Control what users can do with messages'
+      description: 'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
     },
     member: {
       title: 'Member Permissions',
@@ -80,14 +80,17 @@ under it. Column headers are clickable when `onRoleClick` is provided
     },
     role: {
       title: 'Role Permissions',
-      description: 'Control who can create roles and assign them to users'
+      description: 'Control who can edit roles, assign roles, and manage permission presets'
     },
     admin: {
       title: 'Admin Permissions',
-      description: 'Access to server-wide admin functions'
+      description: 'Control access to server-wide administrative views and diagnostics'
     },
-    dm: { title: 'DM Permissions', description: 'Control access to direct messaging' },
-    user: { title: 'User Permissions', description: 'Control user account operations' }
+    dm: { title: 'DM Permissions', description: 'Control access to direct messaging entry points' },
+    user: {
+      title: 'User Permissions',
+      description: 'Control user account and per-user permission operations. Any non-owner deny cancels grants'
+    }
   };
 
   let {
@@ -249,6 +252,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
     return 'neutral';
   }
 
+  function roleIsVirtualOwner(role: TierRole): boolean {
+    return role.roleName === 'owner';
+  }
+
   // ----- Mutations --------------------------------------------------------
 
   function scopeFor(role: TierRole): MutationScope {
@@ -364,26 +371,33 @@ under it. Column headers are clickable when `onRoleClick` is provided
               {#each roles as role (role.roleName)}
                 {@const ov = overrideState(role, permission)}
                 {@const inh = inheritedState(role, permission)}
+                {@const virtualOwner = roleIsVirtualOwner(role)}
+                {@const displayOverride = virtualOwner ? 'allow' : ov}
+                {@const displayInherited = virtualOwner ? 'neutral' : inh}
                 {@const cellKey = `${role.roleName}::${permission}`}
                 {@const isUpdating = updating === cellKey}
-                {@const ariaParts = [
-                  ov !== 'neutral'
-                    ? `Override ${ov} for ${role.displayName} on ${permission}`
-                    : `No override for ${role.displayName} on ${permission}`,
-                  inh !== 'neutral' && inheritedFromLabel
-                    ? `inheriting ${inh} from ${inheritedFromLabel}`
-                    : null
-                ].filter(Boolean)}
+                {@const ariaParts = virtualOwner
+                  ? [`Owner is always granted ${permission}`]
+                  : [
+                      ov !== 'neutral'
+                        ? `Override ${ov} for ${role.displayName} on ${permission}`
+                        : `No override for ${role.displayName} on ${permission}`,
+                      inh !== 'neutral' && inheritedFromLabel
+                        ? `inheriting ${inh} from ${inheritedFromLabel}`
+                        : null
+                    ].filter(Boolean)}
                 {@const ariaLabel = ariaParts.join(', ')}
-                {@const titleParts = [
-                  ov !== 'neutral'
-                    ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`
-                    : null,
-                  inh !== 'neutral' && inheritedFromLabel
-                    ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
-                    : null,
-                  ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
-                ].filter(Boolean)}
+                {@const titleParts = virtualOwner
+                  ? ['Allow (owners are always granted all permissions)', 'Owner permissions are not editable']
+                  : [
+                      ov !== 'neutral'
+                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`
+                        : null,
+                      inh !== 'neutral' && inheritedFromLabel
+                        ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
+                        : null,
+                      ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
+                    ].filter(Boolean)}
                 <td
                   class="px-0 py-2 text-center"
                   style="width: 2rem; min-width: 2rem"
@@ -391,9 +405,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
                   data-permission={permission}
                 >
                   <MatrixCell
-                    override={ov}
-                    inherited={inh}
+                    override={displayOverride}
+                    inherited={displayInherited}
                     updating={isUpdating}
+                    disabled={virtualOwner}
                     {ariaLabel}
                     title={titleParts.join(' · ')}
                     onCycle={(next) => void cycle(role, permission, next)}

@@ -45,15 +45,14 @@ type Mutation {
 
   """
   Ban a target user from a channel room. Requires `room.ban-member` in the
-  room and the caller must strictly outrank the target user. DM rooms cannot
-  be moderated this way. The reason is required for moderation audit logs.
+  room. DM rooms cannot be moderated this way. The reason is required for
+  moderation audit logs.
   """
   banRoomMember(input: BanRoomMemberInput!): Boolean!
 
   """
-  Unban a user from a channel room. Requires `room.ban-member` in the room,
-  and the caller must strictly outrank the target user. The reason is required
-  for moderation audit logs.
+  Unban a user from a channel room. Requires `room.ban-member` in the room.
+  The reason is required for moderation audit logs.
   """
   unbanRoomMember(input: UnbanRoomMemberInput!): Boolean!
 
@@ -133,8 +132,7 @@ type Mutation {
   At least one field must be provided.
   Login changes are subject to a 30-day cooldown (admins can use
   `admin.updateUser` / `admin.clearUsernameCooldown` to bypass).
-  Authorization: caller is self, OR caller holds `role.assign` AND
-  either is an owner or outranks the target user by role hierarchy.
+  Authorization: caller is self, OR caller holds `role.assign`.
   Returns the updated user.
   """
   updateProfile(input: UpdateProfileInput!): User!
@@ -142,15 +140,13 @@ type Mutation {
   """
   Upload an avatar for a user. Image will be resized to 256x256 max
   and converted to WebP. Authorization: caller is self, OR caller
-  holds `role.assign` AND either is an owner or outranks the target
-  user by role hierarchy. Returns the updated user.
+  holds `role.assign`. Returns the updated user.
   """
   uploadAvatar(input: UploadAvatarInput!): User!
 
   """
   Delete a user's avatar. Authorization: caller is self, OR caller
-  holds `role.assign` AND either is an owner or outranks the target
-  user by role hierarchy. Returns the updated user.
+  holds `role.assign`. Returns the updated user.
   """
   deleteAvatar(input: DeleteAvatarInput!): User!
 
@@ -230,7 +226,7 @@ input PostMessageInput {
   body: String @length(max: 10000)
   "Optional file attachments (images, videos, etc.)."
   attachments: [Upload!]
-  "Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post)."
+  "Event ID of the thread root message. Determines thread membership and controls permission check (`message.post-in-thread` vs `message.post`)."
   threadRootEventId: ID
   "Event ID of the message this responds to (attribution only, does not affect routing or permissions)."
   inReplyTo: ID

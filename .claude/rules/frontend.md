@@ -126,6 +126,12 @@ useEvent((event) => onNewEvent(event));
 
 If you find yourself adding `$effect` because the warning "this reference only captures the initial value" fires on `$state(otherReactiveThing)`, the answer is almost never another `$effect` — re-shape the source so the read is non-reactive (capture a class instance into a plain `const`, then read its `$state` fields for init; see `routes/chat/[serverId]/settings/+page.svelte` for an example), or genuinely accept that you want a derived rather than a state.
 
+Do not mirror SvelteKit `load` data into global or per-server stores from a component `$effect`. That creates an easy read/write loop: the effect reads load-derived state, writes store state, and child/provider state changes can cause the same effect to run again. Instead, settle the store synchronously in the owner that already has the data:
+
+- authenticated cookie-user state belongs in the authenticated provider that receives `data.user`
+- unauthenticated cookie-user state belongs in the registry/bootstrap path that knows no user was loaded
+- route guards should wait on a store's explicit loading state, not infer auth from a brief missing user
+
 ## Context Getters Must Be Wrapped in `$derived`
 
 When reading a context value that depends on async data (e.g., `getRoomPermissions()`, `getRoomMembers()`), **always wrap the call in `$derived`**. A plain `const` snapshots the value at script init time — if the underlying data hasn't loaded yet, you get the default/empty value permanently.

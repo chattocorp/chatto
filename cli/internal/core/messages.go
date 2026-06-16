@@ -803,7 +803,8 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 // the same durable MessageRetractedEvent hides only the echo artifact from the
 // room timeline; the original thread reply remains readable.
 // The messageBodyKey parameter is the legacy body key or canonical event ID.
-// Authorization: Caller must verify the actor is the message author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
+// Authorization: Caller must verify the actor is the message author OR
+// CanManageOthersMessage before calling.
 func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
 	eventID := eventIDFromBodyKey(messageBodyKey)
 	if eventID == "" {
@@ -879,7 +880,8 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 // Business rule: Authors can only edit their own messages within MessageEditWindow (3 hours).
 // Non-authors (moderators with message.manage) can edit at any time.
 //
-// Authorization: Caller must verify the actor is the author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
+// Authorization: Caller must verify the actor is the author OR
+// CanManageOthersMessage before calling.
 func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string, opts ...EditMessageOption) error {
 	options := collectEditMessageOptions(opts)
 	if len(newBody) > MaxMessageBodyLength {

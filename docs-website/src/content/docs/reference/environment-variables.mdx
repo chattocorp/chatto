@@ -221,6 +221,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   NKey seed (when using `nkey` auth method).
 </EnvVar>
 
+<EnvVar name="CHATTO_NATS_CLIENT_CA_CERT" toml="nats.client.ca_cert">
+  PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the NATS client connection uses TLS.
+</EnvVar>
+
 ## Authentication
 
 <EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
@@ -354,6 +358,10 @@ See [External Login Providers](/guides/external-login-providers/) for callback U
 
 <EnvVar name="CHATTO_LIVEKIT_SERVER_ID" toml="livekit.server_id">
   Unique identifier for this Chatto server, prefixed to deterministic LiveKit room names. This value must match across replicas of one Chatto server, and should differ only across different Chatto servers sharing the same LiveKit cluster. When empty, room names use the unprefixed format. The old `CHATTO_LIVEKIT_INSTANCE_ID` / `livekit.instance_id` name is still accepted as a deprecated alias.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_INSTANCE_ID" toml="livekit.instance_id">
+  Deprecated alias for `CHATTO_LIVEKIT_SERVER_ID` / `livekit.server_id`. Prefer the server ID name in new deployments.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_KEY" toml="livekit.webhook_api_key">

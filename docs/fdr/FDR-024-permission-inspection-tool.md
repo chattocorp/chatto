@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-06-08
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -25,7 +25,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 2. Admin-only, no self-inspection
 
-**Decision:** The query requires RBAC-editor authority (`role.manage`, plus the existing target outrank rules for user-level inspection). Regular users can't run the inspector even against themselves.
+**Decision:** Role inspection requires RBAC-editor authority (`role.manage`). User-level inspection requires `user.manage-permissions`. Regular users can't run the inspector unless they have one of those admin capabilities.
 **Why:** The trace would leak which roles a user holds and the structure of the permission tree. Useful information to a malicious actor probing what they're up against. Restricting to admins keeps that surface inside the trust boundary.
 **Tradeoff:** Users who legitimately wonder "why can't I post here?" have to ask an admin. Acceptable; the failure mode is rare and the leak is real.
 
@@ -53,5 +53,5 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ## Related
 
-- **ADRs:** ADR-005 (hierarchy-wins RBAC), ADR-031 (room-group-centric ACL)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-040 (permission-only RBAC with owner override)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-017 (Room Groups & Sidebar Layout), FDR-021 (Admin Dashboard & System Monitoring)

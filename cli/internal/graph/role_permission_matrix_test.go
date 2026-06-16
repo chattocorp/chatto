@@ -62,7 +62,7 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 	env := setupTestResolver(t)
 	rbac := env.resolver.RbacQueries()
 
-	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, "moderator", core.PermMessageManage); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, "moderator", core.PermMessageEcho); err != nil {
 		t.Fatalf("GrantServerPermission: %v", err)
 	}
 
@@ -73,13 +73,13 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 
 	var server *model.PermissionMatrixCell
 	for _, c := range got.Cells {
-		if c.Permission == string(core.PermMessageManage) && c.ScopeID == "server" {
+		if c.Permission == string(core.PermMessageEcho) && c.ScopeID == "server" {
 			server = c
 			break
 		}
 	}
 	if server == nil {
-		t.Fatal("expected a cell for (message.manage, server)")
+		t.Fatal("expected a cell for (message.echo, server)")
 	}
 	if server.Override != model.PermissionMatrixDecisionAllow {
 		t.Errorf("server.Override = %v, want ALLOW", server.Override)
@@ -92,7 +92,7 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 	// ALLOW as effective even though it has no override of its own.
 	var roomCell *model.PermissionMatrixCell
 	for _, c := range got.Cells {
-		if c.Permission == string(core.PermMessageManage) &&
+		if c.Permission == string(core.PermMessageEcho) &&
 			c.ScopeID != "server" &&
 			c.ScopeID[:5] == "room:" {
 			roomCell = c
@@ -150,5 +150,34 @@ func TestRolePermissionMatrix_UnknownRoleReturnsNil(t *testing.T) {
 	}
 	if got != nil {
 		t.Errorf("expected nil for unknown role, got %+v", got)
+	}
+}
+
+func TestOwnerRolePermissionMutationsRejected(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+	ctx := env.authContext()
+
+	if _, err := mutation.GrantPermission(ctx, model.GrantPermissionInput{
+		RoleName:   core.RoleOwner,
+		Permission: string(core.PermServerManage),
+	}); err == nil {
+		t.Fatal("expected server owner-role grant to be rejected")
+	}
+
+	if _, err := mutation.DenyGroupPermission(ctx, model.GroupPermissionInput{
+		GroupID:    env.testRoom.GroupId,
+		Subject:    core.RoleOwner,
+		Permission: string(core.PermMessagePost),
+	}); err == nil {
+		t.Fatal("expected group owner-role deny to be rejected")
+	}
+
+	if _, err := mutation.ClearRoomPermission(ctx, model.ClearRoomPermissionInput{
+		RoomID:     env.testRoom.Id,
+		RoleName:   core.RoleOwner,
+		Permission: string(core.PermMessagePost),
+	}); err == nil {
+		t.Fatal("expected room owner-role clear to be rejected")
 	}
 }

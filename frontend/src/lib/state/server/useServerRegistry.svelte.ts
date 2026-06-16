@@ -11,7 +11,11 @@ import { serverRegistry } from './registry.svelte';
  */
 export function useServerRegistry(getUser: () => unknown): void {
 	serverRegistry.init();
-	serverRegistry.probeOrigin(!!getUser());
+	const hasUser = !!getUser();
+	serverRegistry.probeOrigin(hasUser);
+	if (!hasUser) {
+		serverRegistry.settleOriginUnauthenticated();
+	}
 
 	// Re-fetch server info when the tab becomes visible
 	$effect(() => {

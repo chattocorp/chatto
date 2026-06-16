@@ -1054,14 +1054,14 @@ export type Mutation = {
    * Assign an server role to a user. Idempotent - assigning an already-assigned
    * role succeeds silently. Returns true on success.
    * Note: The 'everyone' role is implicit for all users and cannot be assigned.
-   * Requires: role.assign permission and outranking the target user.
+   * Requires: role.assign permission.
    * Errors: If role doesn't exist or is 'everyone'.
    */
   assignRole: Scalars['Boolean']['output'];
   /**
    * Ban a target user from a channel room. Requires `room.ban-member` in the
-   * room and the caller must strictly outrank the target user. DM rooms cannot
-   * be moderated this way. The reason is required for moderation audit logs.
+   * room. DM rooms cannot be moderated this way. The reason is required for
+   * moderation audit logs.
    */
   banRoomMember: Scalars['Boolean']['output'];
   /**
@@ -1087,8 +1087,7 @@ export type Mutation = {
    * Clear both grant and denial of a permission on a user, restoring
    * normal role-based resolution. Idempotent.
    *
-   * Authorization and roomId semantics mirror grantUserPermission. In
-   * particular, self-clear is not permitted (no self-bypass).
+   * Authorization and roomId semantics mirror grantUserPermission.
    */
   clearUserPermissionState: Scalars['Boolean']['output'];
   /**
@@ -1110,8 +1109,7 @@ export type Mutation = {
   deleteAttachment: Scalars['Boolean']['output'];
   /**
    * Delete a user's avatar. Authorization: caller is self, OR caller
-   * holds `role.assign` AND either is an owner or outranks the target
-   * user by role hierarchy. Returns the updated user.
+   * holds `role.assign`. Returns the updated user.
    */
   deleteAvatar: User;
   /**
@@ -1172,13 +1170,11 @@ export type Mutation = {
    */
   denyRoomPermission: Scalars['Boolean']['output'];
   /**
-   * Deny a permission directly to a user. Beats any role grant —
-   * user-level decisions are checked before the role-hierarchy walk.
+   * Deny a permission directly to a user. Any applicable deny wins over grants.
    * Useful for one-off moderation like suspending a user from posting
    * without revoking their roles.
    *
-   * Authorization and roomId semantics mirror grantUserPermission. In
-   * particular, self-deny is not permitted (no self-bypass).
+   * Authorization and roomId semantics mirror grantUserPermission.
    */
   denyUserPermission: Scalars['Boolean']['output'];
   /** Dismiss all notifications for the current user. Returns count of dismissed notifications. */
@@ -1203,15 +1199,12 @@ export type Mutation = {
    */
   grantRoomPermission: Scalars['Boolean']['output'];
   /**
-   * Grant a permission directly to a user. Beats any role-level decision —
-   * user-level grants are checked before roles in the resolver. Useful for
+   * Grant a permission directly to a user. Explicit denies still win over
+   * grants, but user-level grants can add targeted privileges. Useful for
    * ad-hoc privileges like "let this one user moderate room X" without
    * inventing a custom role.
    *
-   * Authorization: caller needs role.manage AND must strictly outrank the
-   * target user. Self-action is NOT permitted — granting yourself a
-   * permission is a privilege boundary change, not an identity edit, so
-   * the strict-outrank step (which always fails on self) closes that path.
+   * Authorization: caller needs user.manage-permissions.
    *
    * Pass roomId to scope the grant to a specific room (room-scope perms
    * only). Omit roomId for a server-wide grant.
@@ -1298,7 +1291,7 @@ export type Mutation = {
    * role succeeds silently. Returns true on success.
    * Note: Users cannot revoke their own admin role (prevents self-lockout).
    * Note: The 'everyone' role is implicit and cannot be revoked.
-   * Requires: role.assign permission and outranking the target user.
+   * Requires: role.assign permission.
    * Errors: If role doesn't exist, is 'everyone', or user tries to revoke own admin role.
    */
   revokeRole: Scalars['Boolean']['output'];
@@ -1329,9 +1322,8 @@ export type Mutation = {
   /** Unarchive a previously archived room. Requires room.manage permission. */
   unarchiveRoom: Room;
   /**
-   * Unban a user from a channel room. Requires `room.ban-member` in the room,
-   * and the caller must strictly outrank the target user. The reason is required
-   * for moderation audit logs.
+   * Unban a user from a channel room. Requires `room.ban-member` in the room.
+   * The reason is required for moderation audit logs.
    */
   unbanRoomMember: Scalars['Boolean']['output'];
   /** Unfollow a thread to stop receiving reply notifications. Requires room membership. */
@@ -1360,8 +1352,7 @@ export type Mutation = {
    * At least one field must be provided.
    * Login changes are subject to a 30-day cooldown (admins can use
    * `admin.updateUser` / `admin.clearUsernameCooldown` to bypass).
-   * Authorization: caller is self, OR caller holds `role.assign` AND
-   * either is an owner or outranks the target user by role hierarchy.
+   * Authorization: caller is self, OR caller holds `role.assign`.
    * Returns the updated user.
    */
   updateProfile: User;
@@ -1380,15 +1371,13 @@ export type Mutation = {
   updateServerConfig: ServerProfile;
   /**
    * Update a user's display settings. Authorization: caller is self, OR
-   * caller holds `role.assign` AND either is an owner or outranks the
-   * target user by role hierarchy. Returns the updated settings.
+   * caller holds `role.assign`. Returns the updated settings.
    */
   updateSettings: UserSettings;
   /**
    * Upload an avatar for a user. Image will be resized to 256x256 max
    * and converted to WebP. Authorization: caller is self, OR caller
-   * holds `role.assign` AND either is an owner or outranks the target
-   * user by role hierarchy. Returns the updated user.
+   * holds `role.assign`. Returns the updated user.
    */
   uploadAvatar: User;
   /** Upload a banner for the server. Requires server.manage permission. */
@@ -2047,7 +2036,7 @@ export type PermissionMatrixScope = {
   parentGroupId: Scalars['ID']['output'];
 };
 
-/** Where a PermissionMatrixScope sits in the resolution hierarchy. */
+/** Where a PermissionMatrixScope sits in the resolution scope tree. */
 export enum PermissionMatrixScopeKind {
   /** A room group's scope (channel-room permissions). */
   Group = 'GROUP',
@@ -2090,7 +2079,7 @@ export type PostMessageInput = {
   mentionConfirmationToken?: InputMaybe<Scalars['String']['input']>;
   /** The ID of the room to post to. */
   roomId: Scalars['ID']['input'];
-  /** Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post). */
+  /** Event ID of the thread root message. Determines thread membership and controls permission check (`message.post-in-thread` vs `message.post`). */
   threadRootEventId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -2271,8 +2260,7 @@ export type RbacQueries = {
   rolePermissionTierMatrix?: Maybe<TierRoles>;
   /**
    * Permission matrix for a specific user. Authorization mirrors user-level
-   * permission mutations: viewer must hold `role.manage` and strictly outrank
-   * the target. Self-introspection is not allowed.
+   * permission mutations: viewer must hold `user.manage-permissions`.
    */
   userPermissionMatrix?: Maybe<UserPermissionMatrix>;
 };
@@ -2460,7 +2448,7 @@ export type Role = {
   permissions: Array<Scalars['String']['output']>;
   /** Whether @role pings notify users assigned to this role. */
   pingable: Scalars['Boolean']['output'];
-  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
+  /** Display/order position. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. Not an authorization rank. */
   position: Scalars['Int']['output'];
 };
 
@@ -2513,7 +2501,7 @@ export type RoleRoomPermissions = {
   permissionDenials: Array<Scalars['String']['output']>;
   /** Permissions granted at room level */
   permissions: Array<Scalars['String']['output']>;
-  /** Hierarchy position (higher = higher rank; see Role.position). */
+  /** Display/order position (higher sorts before lower; not an authorization rank). */
   position: Scalars['Int']['output'];
   /** Role identifier */
   roleName: Scalars['String']['output'];
@@ -2569,7 +2557,7 @@ export type Room = {
   roomPermissionOverrides: Array<RoleRoomPermissions>;
   /** Kind of room — distinguishes regular channels from direct-message conversations. */
   type: RoomType;
-  /** Whether the current user can ban lower-ranked members from this room. */
+  /** Whether the current user can ban members from this room. */
   viewerCanBanRoomMembers: Scalars['Boolean']['output'];
   /** Whether the current user can echo thread replies to the main channel. */
   viewerCanEchoMessage: Scalars['Boolean']['output'];
@@ -2585,8 +2573,8 @@ export type Room = {
   viewerCanListRoom: Scalars['Boolean']['output'];
   /**
    * Whether the current user can edit or delete other users' messages in
-   * this room (subject to also strictly outranking the author). Authors
-   * editing or deleting their own messages do not need this permission.
+   * this room. Authors editing or deleting their own messages do not need
+   * this permission.
    */
   viewerCanManageOthersMessage: Scalars['Boolean']['output'];
   /** Whether the current user can edit/configure this room (room.manage). */
@@ -2940,7 +2928,7 @@ export type Server = {
    * Search matches login and display name (case-insensitive partial match).
    */
   members: ServerMembersConnection;
-  /** Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window. */
+  /** Duration in seconds after posting during which a user can edit their own message. Moderators with `message.manage` are not bound by this window. */
   messageEditWindowSeconds: Scalars['Int']['output'];
   /** Public-facing identity and branding for this server. */
   profile: ServerProfile;
@@ -2998,15 +2986,10 @@ export type Server = {
   viewerCanManageRooms: Scalars['Boolean']['output'];
   /** Whether the current user can manage this server (has server.manage permission). */
   viewerCanManageServer: Scalars['Boolean']['output'];
-  /**
-   * UI hint reporting whether the viewer outranks the target user by role
-   * hierarchy. **This is a rank check only**, not an authorization gate —
-   * capabilities like "edit this user's profile" additionally require a
-   * permission (e.g. `role.assign`). Use this for showing/hiding admin UI
-   * affordances; never as the sole basis for permitting a mutation. See
-   * `.claude/rules/authorization.md` (`permission AND OutranksUser`).
-   */
+  /** Whether the current user can administer the target user's profile. Self is allowed; other users require role.assign. */
   viewerCanManageUser: Scalars['Boolean']['output'];
+  /** Whether the current user can edit direct per-user permission overrides (has user.manage-permissions permission). */
+  viewerCanManageUserPermissions: Scalars['Boolean']['output'];
   /** Whether the current user has any admin.* permission (for showing the Admin link). */
   viewerHasAnyAdminPermission: Scalars['Boolean']['output'];
   /** Whether the current user has any unread messages in rooms they've joined. */
@@ -3309,7 +3292,7 @@ export type TierRole = {
    * both be empty for a role with no override at this tier.
    */
   override: TierPermissions;
-  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
+  /** Display/order position. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. Not an authorization rank. */
   position: Scalars['Int']['output'];
   /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
@@ -3327,7 +3310,7 @@ export type TierRoles = {
    * entry in this list.
    */
   applicablePermissions: Array<Scalars['String']['output']>;
-  /** All roles ordered by position (lowest = highest rank first). */
+  /** All roles ordered by display position. */
   roles: Array<TierRole>;
 };
 
@@ -4006,7 +3989,7 @@ export type UserAvatarUserFragment = { __typename?: 'User', id: string, login: s
 export type ValidateSpaceAccessQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ValidateSpaceAccessQuery = { __typename?: 'Query', server: { __typename?: 'Server', viewerHasAnyAdminPermission: boolean, viewerCanManageServer: boolean, viewerCanManageRooms: boolean, viewerCanManageRoles: boolean, viewerCanAssignRoles: boolean, profile: { __typename?: 'ServerProfile', name: string, bannerUrl?: string | null } } };
+export type ValidateSpaceAccessQuery = { __typename?: 'Query', server: { __typename?: 'Server', viewerHasAnyAdminPermission: boolean, viewerCanManageServer: boolean, viewerCanManageRooms: boolean, viewerCanManageRoles: boolean, viewerCanAssignRoles: boolean, viewerCanManageUserPermissions: boolean, profile: { __typename?: 'ServerProfile', name: string, bannerUrl?: string | null } } };
 
 export type PostMessageMutationVariables = Exact<{
   input: PostMessageInput;
@@ -4935,7 +4918,7 @@ export type SpaceMemberDetailsQueryVariables = Exact<{
 }>;
 
 
-export type SpaceMemberDetailsQuery = { __typename?: 'Query', viewer?: { __typename?: 'Viewer', user: { __typename?: 'User', id: string, roles: Array<string> } } | null, user?: { __typename?: 'User', lastLoginChange?: any | null } | null, server: { __typename?: 'Server', viewerCanAssignRoles: boolean, viewerCanManageRoles: boolean, availablePermissions: Array<string>, roles: Array<{ __typename?: 'Role', name: string, displayName: string, position: number, permissions: Array<string>, permissionDenials: Array<string> }>, member?: { __typename?: 'User', id: string, login: string, displayName: string, avatarUrl?: string | null, roles: Array<string> } | null } };
+export type SpaceMemberDetailsQuery = { __typename?: 'Query', user?: { __typename?: 'User', lastLoginChange?: any | null } | null, server: { __typename?: 'Server', viewerCanAssignRoles: boolean, viewerCanManageRoles: boolean, viewerCanManageUserPermissions: boolean, availablePermissions: Array<string>, roles: Array<{ __typename?: 'Role', name: string, displayName: string, position: number, permissions: Array<string>, permissionDenials: Array<string> }>, member?: { __typename?: 'User', id: string, login: string, displayName: string, avatarUrl?: string | null, roles: Array<string> } | null } };
 
 export type AdminUpdateUserMutationVariables = Exact<{
   input: AdminUpdateUserInput;
@@ -5138,7 +5121,7 @@ export const QuickSwitcherServerDocument = {"kind":"Document","definitions":[{"k
 export const QuickSwitcherRoomsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"QuickSwitcherRooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"members"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"100"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"users"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}}]}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}}]} as unknown as DocumentNode<QuickSwitcherRoomsQuery, QuickSwitcherRoomsQueryVariables>;
 export const QuickSwitcherMembersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"QuickSwitcherMembers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canStartDMs"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"members"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"20"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"users"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}}]} as unknown as DocumentNode<QuickSwitcherMembersQuery, QuickSwitcherMembersQueryVariables>;
 export const QuickSwitcherStartDmDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"QuickSwitcherStartDM"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StartDMInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"startDM"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<QuickSwitcherStartDmMutation, QuickSwitcherStartDmMutationVariables>;
-export const ValidateSpaceAccessDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ValidateSpaceAccess"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"profile"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"bannerUrl"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerHasAnyAdminPermission"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageServer"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRooms"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}}]}}]}}]} as unknown as DocumentNode<ValidateSpaceAccessQuery, ValidateSpaceAccessQueryVariables>;
+export const ValidateSpaceAccessDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ValidateSpaceAccess"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"profile"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"bannerUrl"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerHasAnyAdminPermission"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageServer"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRooms"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageUserPermissions"}}]}}]}}]} as unknown as DocumentNode<ValidateSpaceAccessQuery, ValidateSpaceAccessQueryVariables>;
 export const PostMessageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PostMessage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PostMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"postMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<PostMessageMutation, PostMessageMutationVariables>;
 export const ComposerMentionRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ComposerMentionRoles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"pingable"}}]}}]}}]}}]} as unknown as DocumentNode<ComposerMentionRolesQuery, ComposerMentionRolesQueryVariables>;
 export const UpdateMessageFromInputDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateMessageFromInput"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<UpdateMessageFromInputMutation, UpdateMessageFromInputMutationVariables>;
@@ -5226,7 +5209,7 @@ export const ResolveMessageLinkDocument = {"kind":"Document","definitions":[{"ki
 export const AdminEventLogDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminEventLog"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"before"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"eventLog"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"before"},"value":{"kind":"Variable","name":{"kind":"Name","value":"before"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"entries"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequence"}},{"kind":"Field","name":{"kind":"Name","value":"subject"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateType"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateId"}},{"kind":"Field","name":{"kind":"Name","value":"eventType"}},{"kind":"Field","name":{"kind":"Name","value":"eventId"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"hasOlder"}},{"kind":"Field","name":{"kind":"Name","value":"endCursor"}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}}]}}]}}]}}]} as unknown as DocumentNode<AdminEventLogQuery, AdminEventLogQueryVariables>;
 export const AdminEventLogEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminEventLogEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sequence"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"eventLogEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"sequence"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sequence"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequence"}},{"kind":"Field","name":{"kind":"Name","value":"subject"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateType"}},{"kind":"Field","name":{"kind":"Name","value":"aggregateId"}},{"kind":"Field","name":{"kind":"Name","value":"eventType"}},{"kind":"Field","name":{"kind":"Name","value":"eventId"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"payloadJson"}}]}}]}}]}}]} as unknown as DocumentNode<AdminEventLogEntryQuery, AdminEventLogEntryQueryVariables>;
 export const ServerAdminMembersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ServerAdminMembers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"members"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"users"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"hasMore"}}]}}]}}]}}]} as unknown as DocumentNode<ServerAdminMembersQuery, ServerAdminMembersQueryVariables>;
-export const SpaceMemberDetailsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceMemberDetails"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"user"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"lastLoginChange"}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"availablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"member"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}}]}}]}}]} as unknown as DocumentNode<SpaceMemberDetailsQuery, SpaceMemberDetailsQueryVariables>;
+export const SpaceMemberDetailsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceMemberDetails"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"lastLoginChange"}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageUserPermissions"}},{"kind":"Field","name":{"kind":"Name","value":"availablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"member"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}}]}}]}}]} as unknown as DocumentNode<SpaceMemberDetailsQuery, SpaceMemberDetailsQueryVariables>;
 export const AdminUpdateUserDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateUser"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AdminUpdateUserInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateUser"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}}]}}]} as unknown as DocumentNode<AdminUpdateUserMutation, AdminUpdateUserMutationVariables>;
 export const AdminClearUsernameCooldownDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminClearUsernameCooldown"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearUsernameCooldownInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearUsernameCooldown"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]} as unknown as DocumentNode<AdminClearUsernameCooldownMutation, AdminClearUsernameCooldownMutationVariables>;
 export const RevokeRoleFromMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RevokeRoleFromMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RevokeRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"revokeRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RevokeRoleFromMemberMutation, RevokeRoleFromMemberMutationVariables>;

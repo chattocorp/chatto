@@ -30,7 +30,6 @@ class FakeGqlClient {
     } as unknown as Client;
   }
 
-  setAuthHandlers = vi.fn();
 }
 
 const registered: RegisteredServer = {
@@ -227,11 +226,10 @@ describe('ServerStateStore live server updates', () => {
     ]);
   });
 
-  it('refreshes projected server state without validating bearer-auth sessions', async () => {
+  it('refreshes projected server state for bearer-auth sessions', async () => {
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake);
     store.serverInfo.livekitUrl = 'wss://livekit';
-    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
     store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
@@ -250,7 +248,6 @@ describe('ServerStateStore live server updates', () => {
     }
     await Promise.resolve();
 
-    expect(store.currentUser.validateSession).not.toHaveBeenCalled();
     expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
     expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
     expect(store.notifications.fetch).toHaveBeenCalledOnce();
@@ -260,12 +257,11 @@ describe('ServerStateStore live server updates', () => {
     expect(store.activeCallRooms.load).toHaveBeenCalledOnce();
   });
 
-  it('does not validate cookie-auth sessions during projected-state catch-up', async () => {
+  it('refreshes projected server state for cookie-auth sessions', async () => {
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake, cookieRegistered);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
     await flushPromises();
-    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
     store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
@@ -283,7 +279,6 @@ describe('ServerStateStore live server updates', () => {
     }
     await Promise.resolve();
 
-    expect(store.currentUser.validateSession).not.toHaveBeenCalled();
     expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
     expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
     expect(store.notifications.fetch).toHaveBeenCalledOnce();
@@ -296,7 +291,6 @@ describe('ServerStateStore live server updates', () => {
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake);
     const rooms = deferred();
-    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
     store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
@@ -332,7 +326,6 @@ describe('ServerStateStore live server updates', () => {
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake);
     const rooms = deferred();
-    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
     store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
@@ -371,7 +364,6 @@ describe('ServerStateStore live server updates', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fake = new FakeGqlClient([]);
     const store = makeStore(fake);
-    store.currentUser.validateSession = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
     store.notifications.fetch = vi
@@ -397,7 +389,6 @@ describe('ServerStateStore live server updates', () => {
     }
     await flushPromises();
 
-    expect(store.currentUser.validateSession).not.toHaveBeenCalled();
     expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
     expect(store.rooms.refresh).toHaveBeenCalledTimes(2);
     expect(consoleError).toHaveBeenCalledOnce();

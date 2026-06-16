@@ -188,6 +188,9 @@ func (r *mutationResolver) GrantGroupPermission(ctx context.Context, input model
 	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
+	if err := rejectOwnerRolePermissionEdit(input.Subject); err != nil {
+		return false, err
+	}
 	perm := core.Permission(input.Permission)
 	if err := r.core.GrantGroupPermission(ctx, user.Id, input.GroupID, input.Subject, perm); err != nil {
 		return false, err
@@ -204,6 +207,9 @@ func (r *mutationResolver) DenyGroupPermission(ctx context.Context, input model.
 	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
+	if err := rejectOwnerRolePermissionEdit(input.Subject); err != nil {
+		return false, err
+	}
 	perm := core.Permission(input.Permission)
 	if err := r.core.DenyGroupPermission(ctx, user.Id, input.GroupID, input.Subject, perm); err != nil {
 		return false, err
@@ -218,6 +224,9 @@ func (r *mutationResolver) ClearGroupPermissionState(ctx context.Context, input 
 		return false, err
 	}
 	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+		return false, err
+	}
+	if err := rejectOwnerRolePermissionEdit(input.Subject); err != nil {
 		return false, err
 	}
 	perm := core.Permission(input.Permission)
