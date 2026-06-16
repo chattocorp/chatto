@@ -5,6 +5,7 @@ Room header affordance for opening or hiding room extras panels.
 
 **Props:**
 - `activePanel` - Currently visible room sidebar panel, or `null` when hidden.
+- `panels` - Panel buttons to show. Defaults to every room sidebar panel.
 - `onToggle` - Called with the panel requested by the user.
 - `mode` - Responsive visibility for the toggle group.
 -->
@@ -13,15 +14,17 @@ Room header affordance for opening or hiding room extras panels.
 
   let {
     activePanel,
+    panels,
     onToggle,
     mode = 'desktop'
   }: {
     activePanel: RoomSidebarPanel | null;
+    panels?: RoomSidebarPanel[];
     onToggle: (panel: RoomSidebarPanel) => void;
     mode?: 'desktop' | 'mobile' | 'always';
   } = $props();
 
-  const panels: {
+  const panelDefinitions: {
     id: RoomSidebarPanel;
     icon: string;
     showLabel: string;
@@ -41,6 +44,10 @@ Room header affordance for opening or hiding room extras panels.
     }
   ];
 
+  const visiblePanels = $derived(
+    panels ? panelDefinitions.filter((panel) => panels.includes(panel.id)) : panelDefinitions
+  );
+
   const visibilityClass = $derived.by(() => {
     switch (mode) {
       case 'mobile':
@@ -57,7 +64,7 @@ Room header affordance for opening or hiding room extras panels.
   class={['group/badges items-center gap-1', visibilityClass]}
   data-testid="room-sidebar-toggle"
 >
-  {#each panels as panel (panel.id)}
+  {#each visiblePanels as panel (panel.id)}
     {@const isActive = activePanel === panel.id}
     <button
       type="button"

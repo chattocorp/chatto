@@ -12,6 +12,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 - A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks).
 - Starting a DM with a user (or set of users) navigates to the resulting DM room. If a DM with the same participant set already exists, the user lands in that room rather than creating a duplicate.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - Maximum 10 participants per DM.
 - A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
 - Operators can prevent a user from starting new DMs or sending root messages in existing DMs by revoking `message.post`; thread replies follow `message.post-in-thread`.

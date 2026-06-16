@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -672,6 +673,43 @@ func TestDMUnreadStatus(t *testing.T) {
 			t.Error("Expected user2 to NOT have unread after marking as read")
 		}
 	})
+}
+
+func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user1, err := core.CreateUser(ctx, "system", "dm-ban-core-1", "DM Ban Core 1", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser user1: %v", err)
+	}
+	user2, err := core.CreateUser(ctx, "system", "dm-ban-core-2", "DM Ban Core 2", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser user2: %v", err)
+	}
+
+	room, _, err := core.FindOrCreateDM(ctx, user1.Id, []string{user2.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	if _, err := core.BanRoomMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotBanDMRoomMember) {
+		t.Fatalf("expected ErrCannotBanDMRoomMember from BanRoomMember, got %v", err)
+	}
+	if err := core.UnbanRoomMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotBanDMRoomMember) {
+		t.Fatalf("expected ErrCannotBanDMRoomMember from UnbanRoomMember, got %v", err)
+	}
+
+	isMember, err := core.RoomMembershipExists(ctx, KindDM, user2.Id, room.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists: %v", err)
+	}
+	if !isMember {
+		t.Fatal("expected DM membership to remain after rejected ban")
+	}
+	if _, ok := core.RoomBans.ActiveBan(room.Id, user2.Id, time.Now()); ok {
+		t.Fatal("expected rejected DM ban not to create an active ban")
+	}
 }
 
 func TestDMReactions(t *testing.T) {
