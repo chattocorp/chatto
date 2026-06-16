@@ -30,11 +30,6 @@ type Subscription {
   - Presence is refreshed every 30s (60s TTL); expires after the subscription
     closes.
   - A SessionTerminatedEvent closes the subscription.
-
-  When `after` is supplied, durable EVT room events newer than that
-  server-signed cursor are replayed before live delivery continues. Invalid,
-  expired, or over-budget cursors fail with a full-refresh-required error.
-  Transient sync signals and presence changes are not replayed.
   """
-  myEvents(after: String): Event!
+  myEvents: Event!
 }

@@ -216,12 +216,11 @@ type ComplexityRoot struct {
 	}
 
 	Event struct {
-		Actor          func(childComplexity int) int
-		ActorID        func(childComplexity int) int
-		CreatedAt      func(childComplexity int) int
-		DeliveryCursor func(childComplexity int) int
-		Event          func(childComplexity int) int
-		ID             func(childComplexity int) int
+		Actor     func(childComplexity int) int
+		ActorID   func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Event     func(childComplexity int) int
+		ID        func(childComplexity int) int
 	}
 
 	EventLogConnection struct {
@@ -327,6 +326,7 @@ type ComplexityRoot struct {
 		RoomID                    func(childComplexity int) int
 		ThreadParticipants        func(childComplexity int, first *int32) int
 		ThreadReplies             func(childComplexity int, limit *int32, before *string, after *string) int
+		ThreadRepliesAround       func(childComplexity int, eventID string, limit *int32) int
 		ThreadRootEventID         func(childComplexity int) int
 		UpdatedAt                 func(childComplexity int) int
 		ViewerIsFollowingThread   func(childComplexity int) int
@@ -834,7 +834,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		MyEvents func(childComplexity int, after *string) int
+		MyEvents func(childComplexity int) int
 	}
 
 	SystemInfo struct {
@@ -1038,7 +1038,6 @@ type EventResolver interface {
 	CreatedAt(ctx context.Context, obj core.EventEnvelope) (*timestamppb.Timestamp, error)
 	ActorID(ctx context.Context, obj core.EventEnvelope) (*string, error)
 	Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error)
-	DeliveryCursor(ctx context.Context, obj core.EventEnvelope) (*string, error)
 	Event(ctx context.Context, obj core.EventEnvelope) (model.EventType, error)
 }
 type FollowedThreadResolver interface {
@@ -1085,6 +1084,7 @@ type MessagePostedEventResolver interface {
 	ThreadParticipants(ctx context.Context, obj *model.MessagePostedEvent, first *int32) ([]*corev1.User, error)
 	ViewerIsFollowingThread(ctx context.Context, obj *model.MessagePostedEvent) (*bool, error)
 	ThreadReplies(ctx context.Context, obj *model.MessagePostedEvent, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error)
+	ThreadRepliesAround(ctx context.Context, obj *model.MessagePostedEvent, eventID string, limit *int32) (*model.RoomEventsConnection, error)
 	LinkPreview(ctx context.Context, obj *model.MessagePostedEvent) (*corev1.LinkPreview, error)
 }
 type MessageRetractedEventResolver interface {
@@ -1308,7 +1308,7 @@ type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyEvents(ctx context.Context, after *string) (<-chan core.EventEnvelope, error)
+	MyEvents(ctx context.Context) (<-chan core.EventEnvelope, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32, fit *model.FitMode) (*string, error)
@@ -1921,12 +1921,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Event.CreatedAt(childComplexity), true
-	case "Event.deliveryCursor":
-		if e.ComplexityRoot.Event.DeliveryCursor == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Event.DeliveryCursor(childComplexity), true
 	case "Event.event":
 		if e.ComplexityRoot.Event.Event == nil {
 			break
@@ -2368,6 +2362,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MessagePostedEvent.ThreadReplies(childComplexity, args["limit"].(*int32), args["before"].(*string), args["after"].(*string)), true
+	case "MessagePostedEvent.threadRepliesAround":
+		if e.ComplexityRoot.MessagePostedEvent.ThreadRepliesAround == nil {
+			break
+		}
+
+		args, err := ec.field_MessagePostedEvent_threadRepliesAround_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.MessagePostedEvent.ThreadRepliesAround(childComplexity, args["eventId"].(string), args["limit"].(*int32)), true
 	case "MessagePostedEvent.threadRootEventId":
 		if e.ComplexityRoot.MessagePostedEvent.ThreadRootEventID == nil {
 			break
@@ -4918,12 +4923,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		args, err := ec.field_Subscription_myEvents_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Subscription.MyEvents(childComplexity, args["after"].(*string)), true
+		return e.ComplexityRoot.Subscription.MyEvents(childComplexity), true
 
 	case "SystemInfo.account":
 		if e.ComplexityRoot.SystemInfo.Account == nil {
@@ -5859,8 +5859,6 @@ func (ec *executionContext) childFields_Event(ctx context.Context, field graphql
 		return ec.fieldContext_Event_actorId(ctx, field)
 	case "actor":
 		return ec.fieldContext_Event_actor(ctx, field)
-	case "deliveryCursor":
-		return ec.fieldContext_Event_deliveryCursor(ctx, field)
 	case "event":
 		return ec.fieldContext_Event_event(ctx, field)
 	}
@@ -7233,6 +7231,28 @@ func (ec *executionContext) field_MessagePostedEvent_threadParticipants_args(ctx
 	return args, nil
 }
 
+func (ec *executionContext) field_MessagePostedEvent_threadRepliesAround_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "eventId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["eventId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_MessagePostedEvent_threadReplies_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8552,20 +8572,6 @@ func (ec *executionContext) field_Server_viewerCanManageUser_args(ctx context.Co
 		return nil, err
 	}
 	args["userId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Subscription_myEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "after",
-		func(ctx context.Context, v any) (*string, error) {
-			return ec.unmarshalOString2ᚖstring(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["after"] = arg0
 	return args, nil
 }
 
@@ -10969,29 +10975,6 @@ func (ec *executionContext) fieldContext_Event_actor(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Event_deliveryCursor(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Event_deliveryCursor(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Event().DeliveryCursor(ctx, obj)
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_Event_deliveryCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Event", field, true, true, errors.New("field of type String does not have child fields"))
-}
-
 func (ec *executionContext) _Event_event(ctx context.Context, field graphql.CollectedField, obj core.EventEnvelope) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12765,6 +12748,50 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_threadReplies(ctx co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_MessagePostedEvent_threadReplies_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MessagePostedEvent_threadRepliesAround(ctx context.Context, field graphql.CollectedField, obj *model.MessagePostedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MessagePostedEvent_threadRepliesAround(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.MessagePostedEvent().ThreadRepliesAround(ctx, obj, fc.Args["eventId"].(string), fc.Args["limit"].(*int32))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomEventsConnection) graphql.Marshaler {
+			return ec.marshalNRoomEventsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomEventsConnection(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MessagePostedEvent_threadRepliesAround(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessagePostedEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RoomEventsConnection(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_MessagePostedEvent_threadRepliesAround_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -22967,8 +22994,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 			return ec.fieldContext_Subscription_myEvents(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Subscription().MyEvents(ctx, fc.Args["after"].(*string))
+			return ec.Resolvers.Subscription().MyEvents(ctx)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {
@@ -22978,7 +23004,7 @@ func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field gr
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Subscription_myEvents(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -22987,17 +23013,6 @@ func (ec *executionContext) fieldContext_Subscription_myEvents(ctx context.Conte
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Event(ctx, field)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Subscription_myEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -31652,39 +31667,6 @@ func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, ob
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "deliveryCursor":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Event_deliveryCursor(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "event":
 			field := field
 
@@ -33292,6 +33274,42 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 					}
 				}()
 				res = ec._MessagePostedEvent_threadReplies(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "threadRepliesAround":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessagePostedEvent_threadRepliesAround(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

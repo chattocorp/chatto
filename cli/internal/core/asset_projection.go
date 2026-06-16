@@ -1,8 +1,6 @@
 package core
 
 import (
-	"sort"
-
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -19,12 +17,6 @@ type AssetProjection struct {
 	videoManifests   map[string]*VideoAttachmentManifest
 	deletedAssets    map[string]struct{}
 	deletedAssetRoom map[string]string
-	entries          []*AssetTimelineEntry
-}
-
-type AssetTimelineEntry struct {
-	StreamSeq uint64
-	Event     *corev1.Event
 }
 
 func NewAssetProjection() *AssetProjection {
@@ -49,7 +41,7 @@ func (p *AssetProjection) Subjects() []string {
 	}
 }
 
-func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *AssetProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil || !isAssetLifecycleEvent(event) {
 		return nil
 	}
@@ -59,8 +51,6 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	if p.appliedEventIDs.seenOrMark(event) {
 		return nil
 	}
-
-	p.entries = append(p.entries, &AssetTimelineEntry{StreamSeq: seq, Event: event})
 
 	switch ev := event.GetEvent().(type) {
 	case *corev1.Event_AssetCreated:
@@ -224,55 +214,6 @@ func (p *AssetProjection) AssetSubtreeIDs(assetID string) []string {
 	return out
 }
 
-func (p *AssetProjection) AssetEventsBetween(afterSeq, throughSeq uint64, predicate func(*corev1.Event) bool, limit int) []*AssetTimelineEntry {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assetEventsBetweenLocked(afterSeq, throughSeq, predicate, limit)
-}
-
-func (p *AssetProjection) AssetEventsBetweenForRooms(afterSeq, throughSeq uint64, memberRooms map[string]struct{}, predicate func(*corev1.Event) bool, limit int) []*AssetTimelineEntry {
-	p.RLock()
-	defer p.RUnlock()
-	roomPredicate := func(event *corev1.Event) bool {
-		if predicate != nil && !predicate(event) {
-			return false
-		}
-		roomID := p.assetRoomIDLocked(assetIDOfLifecycleEvent(event))
-		if roomID == "" {
-			return false
-		}
-		_, ok := memberRooms[roomID]
-		return ok
-	}
-	return p.assetEventsBetweenLocked(afterSeq, throughSeq, roomPredicate, limit)
-}
-
-func (p *AssetProjection) assetEventsBetweenLocked(afterSeq, throughSeq uint64, predicate func(*corev1.Event) bool, limit int) []*AssetTimelineEntry {
-	if limit <= 0 {
-		return nil
-	}
-	out := make([]*AssetTimelineEntry, 0)
-	for _, entry := range p.entries {
-		if entry == nil || entry.Event == nil {
-			continue
-		}
-		if entry.StreamSeq <= afterSeq {
-			continue
-		}
-		if throughSeq > 0 && entry.StreamSeq > throughSeq {
-			continue
-		}
-		if predicate != nil && !predicate(entry.Event) {
-			continue
-		}
-		out = append(out, &AssetTimelineEntry{StreamSeq: entry.StreamSeq, Event: entry.Event})
-		if len(out) >= limit {
-			break
-		}
-	}
-	return out
-}
-
 func (p *AssetProjection) assetRoomIDLocked(assetID string) string {
 	if roomID := p.deletedAssetRoom[assetID]; roomID != "" {
 		return roomID
@@ -325,13 +266,4 @@ func (p *AssetProjection) adminProjectionEstimate() (int64, int64, []ProjectionA
 		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: manifestBytes},
 		{Name: "deleted_assets", Value: int64(len(p.deletedAssets)), Bytes: deletedBytes},
 	}
-}
-
-func sortAssetReplayCandidates(candidates []myEventsReplayCandidate) {
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].seq == candidates[j].seq {
-			return candidates[i].event.GetId() < candidates[j].event.GetId()
-		}
-		return candidates[i].seq < candidates[j].seq
-	})
 }

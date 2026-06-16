@@ -674,7 +674,6 @@
                 <strong class="font-medium">{replyPreview.name}</strong>
               </button>
             {:else}
-              <div class="skeleton h-5 w-5 shrink-0 rounded-full"></div>
               <strong class="shrink-0 font-medium">{replyPreview.name}</strong>
             {/if}
             {#if replyPreview.body}

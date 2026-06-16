@@ -108,52 +108,12 @@ func TestAssetAggregateSubjectHelpers(t *testing.T) {
 	}
 }
 
-func TestAssetProjectionReplayLimitCountsOnlyMemberRoomEvents(t *testing.T) {
-	projection := NewAssetProjection()
-	eventsToApply := []*corev1.Event{
-		testCoreAssetCreatedEvent("R-other", "A-other", "video/mp4"),
-		testCoreAssetProcessingStartedEvent("E-start-other", "A-other"),
-		testCoreAssetCreatedEvent("R-member", "A-member", "video/mp4"),
-		testCoreAssetProcessingStartedEvent("E-start-member", "A-member"),
-	}
-	for i, event := range eventsToApply {
-		if err := projection.Apply(event, uint64(i+1)); err != nil {
-			t.Fatalf("Apply event %d: %v", i, err)
-		}
-	}
-
-	entries := projection.AssetEventsBetweenForRooms(
-		0,
-		4,
-		map[string]struct{}{"R-member": {}},
-		isDeliverableLiveEVTAssetEvent,
-		1,
-	)
-	if len(entries) != 1 {
-		t.Fatalf("AssetEventsBetweenForRooms entries = %d, want 1", len(entries))
-	}
-	if got := assetIDOfLifecycleEvent(entries[0].Event); got != "A-member" {
-		t.Fatalf("replayed asset id = %q, want A-member", got)
-	}
-}
-
 func TestAssetProjectionApplyDoesNotMutateInputEvents(t *testing.T) {
 	projection := NewAssetProjection()
 	created := testCoreAssetCreatedEvent("R-assets", "A-source", "video/mp4")
 	started := testCoreAssetProcessingStartedEvent("E-start-source", "A-source")
 	assertApplyDoesNotMutateEvent(t, projection, created, 1)
 	assertApplyDoesNotMutateEvent(t, projection, started, 2)
-
-	entries := projection.AssetEventsBetween(0, 2, isDeliverableLiveEVTAssetEvent, 1)
-	if len(entries) != 1 {
-		t.Fatalf("AssetEventsBetween entries = %d, want 1", len(entries))
-	}
-	if got := entries[0].Event.GetId(); got != "E-start-source" {
-		t.Fatalf("replay event id = %q, want E-start-source", got)
-	}
-	if got := assetIDOfLifecycleEvent(entries[0].Event); got != "A-source" {
-		t.Fatalf("replay asset id = %q, want A-source", got)
-	}
 }
 
 func testCoreAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1.Event {

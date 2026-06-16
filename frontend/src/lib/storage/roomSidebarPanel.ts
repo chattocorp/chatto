@@ -6,16 +6,14 @@ export type RoomSidebarPanel = (typeof ROOM_SIDEBAR_PANELS)[number];
 export type RoomSidebarPanelState = RoomSidebarPanel | null;
 
 export const ROOM_SIDEBAR_DEFAULT_PANEL: RoomSidebarPanel = 'members';
-const ROOM_SIDEBAR_CLOSED_VALUE = 'closed';
 
 function isRoomSidebarPanel(value: unknown): value is RoomSidebarPanel {
   return typeof value === 'string' && ROOM_SIDEBAR_PANELS.includes(value as RoomSidebarPanel);
 }
 
-const codec: Codec<RoomSidebarPanelState> = {
-  serialize: (value) => value ?? ROOM_SIDEBAR_CLOSED_VALUE,
+const codec: Codec<RoomSidebarPanel> = {
+  serialize: (value) => value,
   parse: (raw) => {
-    if (raw === ROOM_SIDEBAR_CLOSED_VALUE) return null;
     if (isRoomSidebarPanel(raw)) return raw;
     return undefined;
   }
@@ -39,6 +37,8 @@ export function setRoomSidebarPanelState(
   roomId: string,
   panel: RoomSidebarPanelState
 ): void {
+  if (panel === null) return;
+
   serverSlot(
     serverId,
     roomSidebarPanelStorageSuffix(roomId),

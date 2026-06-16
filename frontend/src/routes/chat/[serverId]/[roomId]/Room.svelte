@@ -346,11 +346,9 @@
 />
 
 <!--
-  Render the layout shell whether or not roomData has loaded. EventList
-  already manages its own skeleton via the messages store's
-  isInitialLoading flag, and stays mounted across roomId changes — so it
-  becomes the single skeleton element throughout the loading transition,
-  with no remount and no shimmer-phase reset.
+  Render the layout shell whether or not roomData has loaded. EventList stays
+  mounted across roomId changes, so scroll and virtualization state can settle
+  without remounting the whole room body.
 
   roomData === null triggers a redirect via $effect.pre above, so we skip
   rendering in that case to avoid a flash of the previous room's UI under

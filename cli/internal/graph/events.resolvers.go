@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
@@ -217,23 +216,6 @@ func (r *eventResolver) ActorID(ctx context.Context, obj core.EventEnvelope) (*s
 // Actor is the resolver for the actor field.
 func (r *eventResolver) Actor(ctx context.Context, obj core.EventEnvelope) (*corev1.User, error) {
 	return r.resolveEventActor(ctx, obj)
-}
-
-// DeliveryCursor is the resolver for the deliveryCursor field.
-func (r *eventResolver) DeliveryCursor(ctx context.Context, obj core.EventEnvelope) (*string, error) {
-	if obj == nil {
-		return nil, nil
-	}
-	seq := obj.DeliverySeq()
-	if seq == 0 {
-		return nil, nil
-	}
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	cursor := r.core.FormatEventDeliveryCursor(user.Id, seq, time.Now())
-	return nilIfEmpty(cursor), nil
 }
 
 // Event is the resolver for the event field.
@@ -647,6 +629,47 @@ func (r *messagePostedEventResolver) ThreadReplies(ctx context.Context, obj *mod
 		beforeSeq = &seq
 	}
 	result, err := r.core.GetThreadReplyEvents(ctx, kind, payload.RoomId, eventID, fetchLimit, beforeSeq, nil)
+	if err != nil {
+		return nil, err
+	}
+	return buildRoomEventsConnection(result), nil
+}
+
+// ThreadRepliesAround is the resolver for the threadRepliesAround field.
+func (r *messagePostedEventResolver) ThreadRepliesAround(ctx context.Context, obj *model.MessagePostedEvent, eventID string, limit *int32) (*model.RoomEventsConnection, error) {
+	payload := messagePostedPayload(obj)
+	if payload == nil || payload.InThread != "" {
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
+	}
+	threadRootEventID := messagePostedEventID(obj)
+	if threadRootEventID == "" {
+		return buildRoomEventsConnection(&core.RoomEventsResult{}), nil
+	}
+
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind, err := r.core.FindRoomKind(ctx, payload.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, payload.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	result, err := r.core.GetThreadReplyEventsAround(
+		ctx,
+		kind,
+		payload.RoomId,
+		threadRootEventID,
+		eventID,
+		roomEventsLimit(limit),
+	)
 	if err != nil {
 		return nil, err
 	}
