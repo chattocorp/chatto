@@ -18,33 +18,6 @@ export function normalizeSameOriginUrl(value: string | undefined, origin: string
   }
 }
 
-export function extractSameOriginShellAssetPaths(
-  html: string,
-  shellAssetPaths: ReadonlySet<string>,
-  origin: string
-): string[] {
-  const paths = new Set<string>();
-  const assetReferencePattern =
-    /(?:\b(?:href|src)=["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\))/g;
-
-  for (const match of html.matchAll(assetReferencePattern)) {
-    const rawReference = match[1] ?? match[2];
-    if (!rawReference) continue;
-
-    let url: URL;
-    try {
-      url = new URL(rawReference, origin);
-    } catch {
-      continue;
-    }
-
-    if (url.origin !== origin || !shellAssetPaths.has(url.pathname)) continue;
-    paths.add(url.pathname);
-  }
-
-  return Array.from(paths);
-}
-
 export function classifyServiceWorkerRequest(
   request: Pick<Request, 'method' | 'mode' | 'destination'>,
   requestUrl: string,

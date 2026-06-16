@@ -13,7 +13,6 @@ import { build, files, version } from '$service-worker';
 import {
   OFFLINE_SHELL_PATH,
   classifyServiceWorkerRequest,
-  extractSameOriginShellAssetPaths,
   normalizeSameOriginUrl
 } from '$lib/pwa/serviceWorkerPolicy';
 import {
@@ -27,8 +26,7 @@ declare const self: ServiceWorkerGlobalScope;
 const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_STATIC_ASSETS = Array.from(new Set(files));
-const PRECACHE_SHELL_DOCUMENTS = [OFFLINE_SHELL_PATH, '/'];
+const PRECACHE_ASSETS = Array.from(new Set([...build, ...files, OFFLINE_SHELL_PATH, '/']));
 
 type BadgeCapableNavigator = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>;
@@ -42,12 +40,9 @@ type BadgeCapableNavigator = Navigator & {
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      await Promise.all(PRECACHE_STATIC_ASSETS.map((path) => cacheShellAsset(cache, path)));
-      await Promise.all(
-        PRECACHE_SHELL_DOCUMENTS.map((path) => cacheShellDocumentAndReferences(cache, path))
-      );
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => Promise.all(PRECACHE_ASSETS.map((path) => cacheShellAsset(cache, path))))
   );
 });
 
@@ -128,31 +123,15 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-async function cacheShellAsset(cache: Cache, path: string): Promise<Response | undefined> {
+async function cacheShellAsset(cache: Cache, path: string): Promise<void> {
   try {
     const response = await fetch(path, { cache: 'reload' });
-    if (!response.ok) return undefined;
-    await cache.put(path, response.clone());
-    return response;
+    if (!response.ok) return;
+    await cache.put(path, response);
   } catch {
     // A missing static fallback in local preview must not invalidate the whole
     // service worker. Production nginx serves the same shell through /200.html.
-    return undefined;
   }
-}
-
-async function cacheShellDocumentAndReferences(cache: Cache, path: string): Promise<void> {
-  const response = await cacheShellAsset(cache, path);
-  if (!response) return;
-
-  const html = await response.text();
-  const referencedAssets = extractSameOriginShellAssetPaths(
-    html,
-    SHELL_ASSETS,
-    self.location.origin
-  );
-
-  await Promise.all(referencedAssets.map((assetPath) => cacheShellAsset(cache, assetPath)));
 }
 
 async function getCachedOfflineShell(cache: Cache): Promise<Response | undefined> {
