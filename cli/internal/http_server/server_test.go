@@ -253,6 +253,10 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 // setupTestHTTPServerWithMailer creates an HTTPServer with MockSender enabled.
 // Returns the test server, client, ChattoCore, and the MockSender for inspection.
 func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client, *core.ChattoCore, *email.MockSender) {
+	return setupTestHTTPServerWithMailerConfig(t, config.EmailOTPConfig{})
+}
+
+func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPConfig) (*httptest.Server, *http.Client, *core.ChattoCore, *email.MockSender) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -261,7 +265,7 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 	ctx := testContext(t)
 
 	// Create ChattoCore
-	coreConfig := config.CoreConfig{}
+	coreConfig := config.CoreConfig{EmailOTP: emailOTP}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
@@ -287,7 +291,9 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 	// Create HTTPServer with mailer enabled
 	s := &HTTPServer{
 		config: config.ChattoConfig{
-			Auth: config.AuthConfig{},
+			Auth: config.AuthConfig{
+				EmailOTP: emailOTP,
+			},
 			Webserver: config.WebserverConfig{
 				URL:                 "http://localhost:4000",
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
@@ -646,6 +652,33 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	}
 	if strings.Contains(email.Body, "/register/complete") {
 		t.Errorf("Expected email body not to contain completion URL, got: %s", email.Body)
+	}
+}
+
+func TestAuthRoutes_Register_EmailUsesConfiguredOTPExpiration(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailerConfig(t, config.EmailOTPConfig{
+		TTL: config.Duration(30 * time.Minute),
+	})
+
+	body, _ := json.Marshal(map[string]string{"email": "custom-ttl@example.com"})
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected registration email to be sent")
+	}
+	if !strings.Contains(msg.Body, "This code will expire in 30 minutes.") {
+		t.Fatalf("Expected email body to mention configured 30-minute expiration, got: %s", msg.Body)
+	}
+	if strings.Contains(msg.Body, "15 minutes") {
+		t.Fatalf("Expected email body not to mention default expiration, got: %s", msg.Body)
 	}
 }
 
@@ -1335,6 +1368,49 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 	}
 	if len(verifiedEmails) > 0 && verifiedEmails[0].Email != "verify@example.com" {
 		t.Errorf("Expected verified email verify@example.com, got %s", verifiedEmails[0].Email)
+	}
+}
+
+func TestAuthRoutes_EmailVerification_EmailUsesConfiguredOTPExpiration(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailerConfig(t, config.EmailOTPConfig{
+		TTL: config.Duration(2 * time.Hour),
+	})
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "verify-custom-ttl", "Verify Custom TTL", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	loginBody, _ := json.Marshal(map[string]string{"login": user.Login, "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
+	}
+
+	requestBody, _ := json.Marshal(map[string]string{"email": "verify-custom-ttl@example.com"})
+	requestResp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(requestBody))
+	if err != nil {
+		t.Fatalf("Failed to request verification code: %v", err)
+	}
+	requestResp.Body.Close()
+	if requestResp.StatusCode != http.StatusOK {
+		t.Fatalf("Verification code request failed with status %d", requestResp.StatusCode)
+	}
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected verification email to be sent")
+	}
+	if !strings.Contains(msg.Body, "This code will expire in 2 hours.") {
+		t.Fatalf("Expected email body to mention configured 2-hour expiration, got: %s", msg.Body)
+	}
+	if strings.Contains(msg.Body, "15 minutes") {
+		t.Fatalf("Expected email body not to mention default expiration, got: %s", msg.Body)
 	}
 }
 

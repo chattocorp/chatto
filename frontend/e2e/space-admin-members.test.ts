@@ -7,6 +7,7 @@ import {
 } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
 import { csrfHeaders } from './fixtures/csrf';
+import { unloadPageForIdentitySwitch } from './fixtures/navigation';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -80,7 +81,7 @@ async function logoutUser(page: Page): Promise<void> {
   expect(response.ok()).toBeTruthy();
   // Unload the SPA before switching identities. Otherwise the old authenticated
   // app can react to logout and race a later page.goto() with its own redirect.
-  await page.goto('about:blank');
+  await unloadPageForIdentitySwitch(page);
 }
 
 /**
