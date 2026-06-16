@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref || github.ref_name }}
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Resolve image metadata
         id: image
