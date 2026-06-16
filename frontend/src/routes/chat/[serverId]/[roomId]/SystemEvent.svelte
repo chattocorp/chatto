@@ -36,17 +36,33 @@
         return 'archived the room';
       case 'RoomUnarchivedEvent':
         return 'unarchived the room';
+      case 'CallStartedEvent':
+        return 'started a call';
       default:
         return null;
     }
   });
+
+  const message = $derived.by(() => {
+    if (event?.event?.__typename === 'CallEndedEvent') {
+      return 'The active call has ended';
+    }
+    if (!action) return null;
+    return `${subject.name} ${action}`;
+  });
 </script>
 
-{#if action}
+{#if message}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4">
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
-      {#if subject.user}
+      {#if event.event.__typename === 'CallEndedEvent'}
+        <div
+          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted"
+        >
+          <span class="iconify text-xs uil--phone-slash"></span>
+        </div>
+      {:else if subject.user}
         <UserAvatar user={subject.user} size="xs" showPresence={false} />
       {:else}
         <!-- Deleted user placeholder -->
@@ -58,6 +74,6 @@
       {/if}
     </div>
 
-    <span class="text-sm text-muted">{subject.name} {action}</span>
+    <span class="text-sm text-muted">{message}</span>
   </div>
 {/if}

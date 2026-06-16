@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-
 	"hmans.de/chatto/internal/encryption"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -172,65 +169,3 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 // publish path. Body keys have the legacy format {userId}.{eventId};
 // the projection-backed body readers in this file consult it to
 // extract the event-id portion.)
-
-// deleteUserMessageBodiesInSpace deletes all message bodies authored
-// by a user in a specific space's legacy SERVER_BODIES bucket.
-//
-// This is retained for GDPR / account-deletion cleanup of the legacy
-// bucket during the migration window. Once ADR-035 phase 7
-// decommissions SERVER_BODIES, this becomes a no-op and can be
-// removed alongside the bucket. New posts (post-cutover) don't write
-// to SERVER_BODIES at all, so this function only touches data
-// imported from before the cutover.
-//
-// Returns the number of legacy body entries deleted.
-func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID string, kind RoomKind) (int, error) {
-	bucket := c.storage.serverBodiesKV
-	if bucket == nil {
-		return 0, nil
-	}
-
-	lister, err := bucket.ListKeysFiltered(ctx, userID+".>")
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("failed to list message body keys: %w", err)
-	}
-
-	var keys []string
-	for key := range lister.Keys() {
-		keys = append(keys, key)
-	}
-
-	deleted := 0
-	for _, key := range keys {
-		entry, err := bucket.Get(ctx, key)
-		if err != nil {
-			c.logger.Debug("Failed to get message body during deletion", "key", key, "error", err)
-			continue
-		}
-
-		var messageBody corev1.MessageBody
-		if err := proto.Unmarshal(entry.Value(), &messageBody); err != nil {
-			c.logger.Debug("Failed to unmarshal message body during deletion", "key", key, "error", err)
-			continue
-		}
-
-		for _, attachment := range c.MessageBodyAttachments(&messageBody) {
-			if err := c.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
-				c.logger.Warn("Failed to delete attachment during user deletion",
-					"attachment_id", attachment.Id,
-					"message_body_key", key,
-					"error", err)
-			}
-		}
-
-		if err := bucket.Delete(ctx, key); err != nil {
-			c.logger.Warn("Failed to delete message body during user deletion", "key", key, "error", err)
-			continue
-		}
-		deleted++
-	}
-	return deleted, nil
-}

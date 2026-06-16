@@ -30,6 +30,9 @@ Chatto is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)]
 
 For full details, see the [LICENSE](LICENSE) file or run `chatto license`.
 
+The AGPL-3.0 license does not grant permission to use Chatto names or logos as
+official branding for a fork or modified version; see [NOTICE](NOTICE).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local development notes. This project is **not accepting outside contributions** at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik@mans.de).

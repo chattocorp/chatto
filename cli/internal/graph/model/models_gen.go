@@ -135,6 +135,18 @@ type AssignRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
+// External login provider metadata safe to expose before authentication.
+type AuthProvider struct {
+	// Stable provider ID used in login URLs and external identity links.
+	ID string `json:"id"`
+	// Provider type, such as 'oidc', 'github', or 'google'.
+	Type string `json:"type"`
+	// Human-readable label for login UI.
+	Label string `json:"label"`
+	// Relative URL that starts this provider's login flow.
+	LoginURL string `json:"loginUrl"`
+}
+
 // Input for banning another member from a channel room.
 type BanRoomMemberInput struct {
 	// The ID of the channel room to ban the member from.
@@ -153,6 +165,8 @@ type CallParticipant struct {
 	User *corev1.User `json:"user"`
 	// When the user joined the call.
 	JoinedAt *timestamppb.Timestamp `json:"joinedAt"`
+	// The active call session ID this participant belongs to.
+	CallID string `json:"callId"`
 }
 
 // Input for clearing permission state on a role.
@@ -706,6 +720,8 @@ type ProjectionMetric struct {
 
 // Point-in-time runtime state for one event-sourced projection.
 type ProjectionState struct {
+	// Stable machine-readable projection key, suitable for metric labels and automation.
+	Key string `json:"key"`
 	// Human-readable projection name.
 	Name string `json:"name"`
 	// Diagnostic storage subject filters consumed by this projection.
@@ -986,8 +1002,8 @@ type SendTypingIndicatorInput struct {
 type Server struct {
 	// The application version.
 	Version string `json:"version"`
-	// List of enabled SSO provider names (e.g., 'google', 'github').
-	EnabledAuthProviders []string `json:"enabledAuthProviders"`
+	// External login providers enabled on this server.
+	AuthProviders []*AuthProvider `json:"authProviders"`
 	// Public-facing identity and branding for this server.
 	Profile *ServerProfile `json:"profile"`
 	// True if Web Push notifications are enabled on this server.

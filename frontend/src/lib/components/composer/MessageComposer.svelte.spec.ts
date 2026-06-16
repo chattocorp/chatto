@@ -509,6 +509,20 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    it('does not start editing on ArrowUp when no editable message is available', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = q(container, '[data-testid="message-input"]')!;
+
+      await pressEditorKey(editor, 'ArrowUp');
+
+      expect(roomStateMock.lastEditableMessage.getLastEditableMessage).toHaveBeenCalledOnce();
+      expect(roomStateMock.editState.startEdit).not.toHaveBeenCalled();
+      await expect.element(editor).toHaveTextContent('');
+    });
+
     it('prefills edit text, hides attachment controls, and cancels on Escape', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';

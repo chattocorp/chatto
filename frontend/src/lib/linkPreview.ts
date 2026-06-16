@@ -6,11 +6,20 @@
  */
 
 import LinkifyIt from 'linkify-it';
+import MarkdownIt from 'markdown-it';
 import tlds from 'tlds';
 
 /** Shared linkify-it instance configured with the full IANA TLD list. */
 export const linkify = new LinkifyIt();
 linkify.tlds(tlds);
+
+const markdown = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true
+});
+markdown.linkify.tlds(tlds);
+markdown.disable(['escape']);
 
 /**
  * Extracts unique URLs from text, including bare-domain URLs (e.g. www.hmans.dev).
@@ -18,25 +27,58 @@ linkify.tlds(tlds);
  * Bare-domain URLs are normalized to https://.
  */
 export function extractURLs(text: string, maxURLs = 1): string[] {
-  const matches = linkify.match(text);
-  if (!matches) return [];
+  if (maxURLs <= 0 || !text) return [];
 
   const seen = new Set<string>();
   const result: string[] = [];
 
-  for (const match of matches) {
-    // linkify-it adds http:// to bare domains (schema === '');
-    // upgrade those to https:// since it's the safer default.
-    // Explicit http:// URLs (schema === 'http://') are kept as-is.
-    const url = match.schema === '' ? match.url.replace(/^http:\/\//, 'https://') : match.url;
+  const addURL = (rawUrl: string, rawText = '') => {
+    if (result.length >= maxURLs) return;
+
+    let url = rawUrl;
+    if (
+      rawText &&
+      !/^[a-z][a-z0-9+.-]*:/i.test(rawText) &&
+      /^http:\/\//i.test(url)
+    ) {
+      // linkify-it adds http:// to bare domains; upgrade those to https://.
+      url = url.replace(/^http:\/\//i, 'https://');
+    }
+
+    if (!/^https?:\/\//i.test(url)) return;
+
     const normalized = normalizeURL(url);
 
     if (!seen.has(normalized)) {
       seen.add(normalized);
       result.push(url);
-      if (result.length >= maxURLs) {
-        break;
-      }
+    }
+  };
+
+  let blockquoteDepth = 0;
+  for (const token of markdown.parse(text, {})) {
+    if (token.type === 'blockquote_open') {
+      blockquoteDepth++;
+      continue;
+    }
+    if (token.type === 'blockquote_close') {
+      blockquoteDepth = Math.max(0, blockquoteDepth - 1);
+      continue;
+    }
+    if (blockquoteDepth > 0) continue;
+    if (token.type === 'fence' || token.type === 'code_block') continue;
+    if (token.type !== 'inline') continue;
+
+    const children = token.children ?? [];
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (child.type !== 'link_open') continue;
+
+      const href = child.attrGet('href');
+      if (!href) continue;
+
+      const rawText = child.markup === 'linkify' ? (children[i + 1]?.content ?? '') : '';
+      addURL(href, rawText);
     }
   }
 
@@ -78,6 +120,9 @@ export function parseYouTubeVideoID(rawUrl: string): string | null {
   try {
     parsed = new URL(rawUrl);
   } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     return null;
   }
 

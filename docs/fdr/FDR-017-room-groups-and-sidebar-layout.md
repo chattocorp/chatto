@@ -48,7 +48,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** Moving a room from group A to group B requires `room.manage` in *both* A and B. The UI previews affected users before confirming.
 **Why:** Moving across groups changes the effective permission set for everyone using the room. An admin authorized only in A shouldn't be able to dump rooms into B and grant a different audience access. Requiring both ends makes the privilege boundary symmetric.
-**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential.
+**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch.
 
 ### 6. DMs are outside the group system
 

@@ -90,6 +90,28 @@ function messageWithReaction(id: string, emoji: string) {
 	};
 }
 
+function callEvent(
+	typename:
+		| 'CallStartedEvent'
+		| 'CallEndedEvent'
+		| 'CallParticipantJoinedEvent'
+		| 'CallParticipantLeftEvent',
+	id: string,
+	roomId = 'room-1'
+) {
+	return {
+		id,
+		createdAt: '2026-05-27T00:00:01Z',
+		actorId: 'u1',
+		actor: null,
+		event: {
+			__typename: typename,
+			roomId,
+			callId: 'call-1'
+		}
+	};
+}
+
 function threadQueryResult({
 	replies,
 	startCursor,
@@ -350,6 +372,32 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			body: null,
 			attachments: []
 		});
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('treats call start and end as root timeline system events', async () => {
+		const fake = new FakeGqlClient(
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent(callEvent('CallStartedEvent', 'call-started') as never);
+		store.ingestServerEvent(callEvent('CallParticipantJoinedEvent', 'call-joined') as never);
+		store.ingestServerEvent(callEvent('CallParticipantLeftEvent', 'call-left') as never);
+		store.ingestServerEvent(callEvent('CallEndedEvent', 'call-ended') as never);
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['call-started', 'call-ended']);
 		expect(fake.queryMock).not.toHaveBeenCalled();
 		store.dispose();
 	});

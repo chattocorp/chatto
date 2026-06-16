@@ -19,8 +19,8 @@ import (
 // No authentication required - needed on login page.
 func (r *queryResolver) Server(ctx context.Context) (*model.Server, error) {
 	return &model.Server{
-		Version:              r.version,
-		EnabledAuthProviders: r.authConfig.EnabledProviders(),
+		Version:       r.version,
+		AuthProviders: authProviderModels(r.authConfig.PublicProviders()),
 	}, nil
 }
 

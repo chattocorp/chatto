@@ -19,12 +19,19 @@ import (
 type RoomGroupProjection struct {
 	events.MemoryProjection
 	groups map[string]*roomGroupEntry
+	seq    uint64
 }
 
 type roomGroupEntry struct {
 	name        string
 	description string
 	roomIDs     []string
+}
+
+type RoomGroupMoveSnapshot struct {
+	TargetExists  bool
+	SourceGroupID string
+	Seq           uint64
 }
 
 // NewRoomGroupProjection returns an empty projection.
@@ -45,12 +52,13 @@ func (p *RoomGroupProjection) Subjects() []string {
 // RoomGroupCreated, RoomGroupUpdated, RoomGroupDeleted,
 // RoomAddedToGroup, RoomRemovedFromGroup, RoomsInGroupReordered.
 // Unrecognised variants are silently ignored.
-func (p *RoomGroupProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RoomGroupProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
+	p.noteSeq(seq)
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RoomGroupCreated:
 		c := e.RoomGroupCreated
@@ -100,6 +108,12 @@ func (p *RoomGroupProjection) Apply(event *corev1.Event, _ uint64) error {
 	return nil
 }
 
+func (p *RoomGroupProjection) noteSeq(seq uint64) {
+	if seq > p.seq {
+		p.seq = seq
+	}
+}
+
 // Get returns the group's data, or (nil, false) if no such group has
 // been projected. The returned proto is a fresh value — including a
 // cloned room_ids slice — so callers may mutate freely.
@@ -138,14 +152,26 @@ func (p *RoomGroupProjection) All() []*corev1.RoomGroup {
 // given room, or "" if the room isn't in any group. Linear scan;
 // fine for the small group counts we expect on a server.
 func (p *RoomGroupProjection) GroupForRoom(roomID string) string {
+	return p.MoveSnapshot(roomID, "").SourceGroupID
+}
+
+func (p *RoomGroupProjection) MoveSnapshot(roomID, targetGroupID string) RoomGroupMoveSnapshot {
 	p.RLock()
 	defer p.RUnlock()
+	snapshot := RoomGroupMoveSnapshot{
+		TargetExists: targetGroupID == "",
+		Seq:          p.seq,
+	}
+	if targetGroupID != "" {
+		_, snapshot.TargetExists = p.groups[targetGroupID]
+	}
 	for groupID, entry := range p.groups {
 		if slices.Contains(entry.roomIDs, roomID) {
-			return groupID
+			snapshot.SourceGroupID = groupID
+			return snapshot
 		}
 	}
-	return ""
+	return snapshot
 }
 
 // Count returns the number of groups projected. Useful for

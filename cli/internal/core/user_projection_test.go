@@ -194,6 +194,19 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	byOIDC, ok := p.GetByOIDCSubject("https://issuer.example", "subject-1")
 	require.True(t, ok)
 	require.Equal(t, "U1", byOIDC.GetId())
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "E5b",
+		Event: &corev1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+			UserId:       "U1",
+			Issuer:       "github-main",
+			Subject:      "12345",
+			ProviderId:   "github-main",
+			ProviderType: "github",
+		}},
+	}, 5))
+	byExternal, ok := p.GetByExternalIdentity("github-main", "12345")
+	require.True(t, ok)
+	require.Equal(t, "U1", byExternal.GetId())
 	avatar, ok := p.Avatar("U1")
 	require.True(t, ok)
 	require.Equal(t, "avatars/U1", avatar.GetS3().GetKey())
@@ -214,5 +227,7 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	require.False(t, p.LoginExists("alice"))
 	require.False(t, p.EmailClaimed("Alice@Example.com"))
 	_, ok = p.GetByOIDCSubject("https://issuer.example", "subject-1")
+	require.False(t, ok)
+	_, ok = p.GetByExternalIdentity("github-main", "12345")
 	require.False(t, ok)
 }

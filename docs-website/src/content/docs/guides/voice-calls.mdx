@@ -14,11 +14,11 @@ LiveKit runs as a **separate service** alongside Chatto. Chatto handles authenti
 1. A user clicks the phone icon in a room header to join a call.
 2. Chatto verifies the user's room membership and generates a short-lived LiveKit JWT token.
 3. The user's browser connects directly to the LiveKit server using the token and a per-call E2EE key from Chatto.
-4. Other room members see a real-time notification that someone joined a call.
+4. Other room members see active call indicators update in real time.
 
 Calls are **implicit** — there's no "start call" action. The first person to join creates the call and a fresh E2EE key; when the last person leaves, the call ends and Chatto shreds that key.
 
-Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
+Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. Room history shows when a call starts and when the active call ends; individual participant joins and leaves update the active call UI without appearing as timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
 ## Requirements
 
@@ -118,7 +118,7 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 - **Audio device selection** — Switch between microphones without leaving the call
 - **Active call indicators** — Rooms with active calls show a phone icon in the room list
 - **Audio level visualization** — Participant avatars pulse with accent-colored rings based on speaking volume
-- **Real-time join/leave notifications** — Room members see when others join or leave a call
+- **Call history notices** — Room history shows when a call starts and when the active call ends
 
 ## Disabling Voice & Video Calls
 

@@ -23,8 +23,8 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	t.Cleanup(cancel)
 
 	cfg := config.CoreConfig{
-		SecretKey: "test-core-secret",
-		Assets:    config.AssetsConfig{SigningSecret: "test-secret"},
+		SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+		Assets:    config.AssetsConfig{SigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
 	}
 	c, err := core.NewChattoCore(ctx, nc, cfg)
 	if err != nil {

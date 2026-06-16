@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { serverStorageKey } from './serverStorage';
 import {
   getRoomSidebarPanel,
+  getRoomSidebarPanelState,
+  ROOM_SIDEBAR_DEFAULT_PANEL,
   roomSidebarPanelStorageSuffix,
-  setRoomSidebarPanel
+  setRoomSidebarPanel,
+  setRoomSidebarPanelState
 } from './roomSidebarPanel';
 
 const storage = new Map<string, string>();
@@ -26,6 +29,7 @@ beforeEach(() => {
 describe('room sidebar panel storage', () => {
   it('defaults to members', () => {
     expect(getRoomSidebarPanel('server-a', 'room-1')).toBe('members');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe(ROOM_SIDEBAR_DEFAULT_PANEL);
   });
 
   it('persists the selected panel per server and room', () => {
@@ -36,6 +40,25 @@ describe('room sidebar panel storage', () => {
     expect(getRoomSidebarPanel('server-a', 'room-1')).toBe('files');
     expect(getRoomSidebarPanel('server-a', 'room-2')).toBe('members');
     expect(getRoomSidebarPanel('server-b', 'room-1')).toBe('members');
+  });
+
+  it('persists closed state per server and room', () => {
+    setRoomSidebarPanelState('server-a', 'room-1', null);
+    setRoomSidebarPanelState('server-a', 'room-2', 'files');
+    setRoomSidebarPanelState('server-b', 'room-1', 'members');
+
+    const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
+
+    expect(localStorage.getItem(key)).toBe('closed');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeNull();
+    expect(getRoomSidebarPanelState('server-a', 'room-2')).toBe('files');
+    expect(getRoomSidebarPanelState('server-b', 'room-1')).toBe('members');
+  });
+
+  it('keeps panel-only reads compatible when the sidebar is closed', () => {
+    setRoomSidebarPanelState('server-a', 'room-1', null);
+
+    expect(getRoomSidebarPanel('server-a', 'room-1')).toBe('members');
   });
 
   it('falls back to members for unknown stored values', () => {

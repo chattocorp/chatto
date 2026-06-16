@@ -175,3 +175,27 @@ func TestRoomCatalogProjection_IgnoresMembershipEvents(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "general", got.Name)
 }
+
+func TestRoomCatalogProjection_NameClaimSnapshotTracksRoomSeq(t *testing.T) {
+	p := NewRoomCatalogProjection()
+	require.NoError(t, p.Apply(roomCreatedEvent("R1", "general", "", corev1.RoomKind_ROOM_KIND_CHANNEL), 10))
+
+	snapshot := p.NameClaimSnapshot("General")
+	require.Equal(t, "R1", snapshot.OwnerRoomID)
+	require.Equal(t, uint64(10), snapshot.Seq)
+
+	join := &corev1.Event{
+		ActorId: "U1",
+		Event:   &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}},
+	}
+	require.NoError(t, p.Apply(join, 11))
+
+	snapshot = p.NameClaimSnapshot("general")
+	require.Equal(t, "R1", snapshot.OwnerRoomID)
+	require.Equal(t, uint64(11), snapshot.Seq)
+
+	require.NoError(t, p.Apply(roomCreatedEvent("DM1", "general", "", corev1.RoomKind_ROOM_KIND_DM), 12))
+	snapshot = p.NameClaimSnapshot("general")
+	require.Equal(t, "R1", snapshot.OwnerRoomID)
+	require.Equal(t, uint64(12), snapshot.Seq)
+}

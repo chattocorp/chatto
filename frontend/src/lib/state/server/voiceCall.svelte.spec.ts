@@ -4,6 +4,7 @@ import { VoiceCallState } from './voiceCall.svelte';
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
 let lastKeyProvider: { setKey: ReturnType<typeof vi.fn> } | null = null;
+let lastRoom: { disconnect: ReturnType<typeof vi.fn> } | null = null;
 let connectFailure: Error | null = null;
 
 vi.mock('livekit-client', () => {
@@ -39,6 +40,7 @@ vi.mock('livekit-client', () => {
 
     constructor(options: Record<string, unknown>) {
       lastRoomOptions = options;
+      lastRoom = { disconnect: this.disconnect };
     }
 
     on = vi.fn();
@@ -91,6 +93,7 @@ describe('VoiceCallState', () => {
     calls.length = 0;
     lastRoomOptions = null;
     lastKeyProvider = null;
+    lastRoom = null;
     connectFailure = null;
   });
 
@@ -109,7 +112,8 @@ describe('VoiceCallState', () => {
             room: {
               voiceCallToken: {
                 token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key'
+                e2eeKey: 'shared-e2ee-key',
+                callId: 'call-1'
               }
             }
           }
@@ -143,7 +147,8 @@ describe('VoiceCallState', () => {
             room: {
               voiceCallToken: {
                 token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key'
+                e2eeKey: 'shared-e2ee-key',
+                callId: 'call-1'
               }
             }
           }
@@ -159,6 +164,77 @@ describe('VoiceCallState', () => {
 
     expect(client.mutation).toHaveBeenCalledTimes(2);
     expect(client.mutation).toHaveBeenNthCalledWith(2, expect.anything(), { roomId: 'R1' });
+    expect(state.isInAnyCall).toBe(false);
+  });
+
+  it('disconnects without recording leave when the backend ends the current call', async () => {
+    const client = {
+      mutation: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+      })),
+      query: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({
+          data: {
+            room: {
+              voiceCallToken: {
+                token: 'livekit-token',
+                e2eeKey: 'shared-e2ee-key',
+                callId: 'call-1'
+              }
+            }
+          }
+        }))
+      }))
+    };
+
+    const state = new VoiceCallState(client as never);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    state.handleCallEndedEvent('R1', 'old-call');
+    expect(lastRoom?.disconnect).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(true);
+
+    state.handleCallEndedEvent('R1', 'call-1');
+
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(client.mutation).toHaveBeenCalledTimes(1);
+    expect(state.isInAnyCall).toBe(false);
+  });
+
+  it('disconnects only for the current user participant leave event', async () => {
+    const client = {
+      mutation: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+      })),
+      query: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({
+          data: {
+            room: {
+              voiceCallToken: {
+                token: 'livekit-token',
+                e2eeKey: 'shared-e2ee-key',
+                callId: 'call-1'
+              }
+            }
+          }
+        }))
+      }))
+    };
+
+    const state = new VoiceCallState(client as never);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    state.handleParticipantLeftEvent('R1', 'call-1', 'remote-user', 'local-user');
+    expect(lastRoom?.disconnect).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(true);
+
+    state.handleParticipantLeftEvent('R1', 'old-call', 'local-user', 'local-user');
+    expect(lastRoom?.disconnect).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(true);
+
+    state.handleParticipantLeftEvent('R1', 'call-1', 'local-user', 'local-user');
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(client.mutation).toHaveBeenCalledTimes(1);
     expect(state.isInAnyCall).toBe(false);
   });
 });

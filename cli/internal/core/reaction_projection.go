@@ -9,43 +9,61 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ReactionProjection derives current reaction state from durable
-// room-aggregate reaction events. v1 intentionally keeps the whole
-// current reaction set in RAM; bounded/windowed variants can build on
-// this once real access patterns are known.
+// ReactionProjection derives current reaction state from durable room
+// aggregate events. It consumes the full room namespace so mutation snapshots
+// can carry the per-room OCC position even when the latest room fact is not a
+// reaction. v1 intentionally keeps the whole current reaction set in RAM;
+// bounded/windowed variants can build on this once real access patterns are
+// known.
 type ReactionProjection struct {
 	events.MemoryProjection
-	byMessage map[string]map[string]map[string]int64 // message event ID -> emoji -> user ID -> added timestamp
-	seen      eventIDSet
+	byMessage   map[string]map[string]map[string]int64 // message event ID -> emoji -> user ID -> added timestamp
+	roomSeq     map[string]uint64
+	messageRoom map[string]string
+	assetRoom   map[string]string
+	seen        eventIDSet
+}
+
+type ReactionMutationSnapshot struct {
+	Exists bool
+	Seq    uint64
 }
 
 func NewReactionProjection() *ReactionProjection {
 	return &ReactionProjection{
-		byMessage: make(map[string]map[string]map[string]int64),
-		seen:      newEventIDSet(),
+		byMessage:   make(map[string]map[string]map[string]int64),
+		roomSeq:     make(map[string]uint64),
+		messageRoom: make(map[string]string),
+		assetRoom:   make(map[string]string),
+		seen:        newEventIDSet(),
 	}
 }
 
 func (p *ReactionProjection) Subjects() []string {
-	return []string{
-		events.RoomEventTypeFilter(events.EventReactionAdded),
-		events.RoomEventTypeFilter(events.EventReactionRemoved),
-	}
+	return []string{events.RoomSubjectFilter()}
 }
 
-func (p *ReactionProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
+
+	p.Lock()
+	defer p.Unlock()
+
+	roomID := p.roomSeqIDLocked(event)
+	if roomID == "" {
+		return nil
+	}
+	p.noteRoomSeqLocked(roomID, seq)
+	p.noteRoomOwnershipLocked(event, roomID)
+
 	payload := event.GetEvent()
 	switch payload.(type) {
 	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
 	default:
 		return nil
 	}
-
-	p.Lock()
-	defer p.Unlock()
 
 	if p.seen.seenOrMark(event) {
 		return nil
@@ -58,6 +76,63 @@ func (p *ReactionProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyRemoved(e.ReactionRemoved, event.GetActorId())
 	}
 	return nil
+}
+
+func (p *ReactionProjection) roomSeqIDLocked(event *corev1.Event) string {
+	if roomID := roomIDOfEvent(event); roomID != "" {
+		return roomID
+	}
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_AssetCreated:
+		return assetCreatedRoomID(e.AssetCreated)
+	case *corev1.Event_AssetProcessingStarted:
+		if roomID := p.messageRoom[e.AssetProcessingStarted.GetMessageEventId()]; roomID != "" {
+			return roomID
+		}
+		return p.assetRoom[e.AssetProcessingStarted.GetAssetId()]
+	case *corev1.Event_AssetProcessingSucceeded:
+		if roomID := p.messageRoom[e.AssetProcessingSucceeded.GetMessageEventId()]; roomID != "" {
+			return roomID
+		}
+		return p.assetRoom[e.AssetProcessingSucceeded.GetAssetId()]
+	case *corev1.Event_AssetProcessingFailed:
+		if roomID := p.messageRoom[e.AssetProcessingFailed.GetMessageEventId()]; roomID != "" {
+			return roomID
+		}
+		return p.assetRoom[e.AssetProcessingFailed.GetAssetId()]
+	case *corev1.Event_AssetDeleted:
+		return p.assetRoom[e.AssetDeleted.GetAssetId()]
+	default:
+		return ""
+	}
+}
+
+func (p *ReactionProjection) noteRoomSeqLocked(roomID string, seq uint64) {
+	if seq > p.roomSeq[roomID] {
+		p.roomSeq[roomID] = seq
+	}
+}
+
+func (p *ReactionProjection) noteRoomOwnershipLocked(event *corev1.Event, roomID string) {
+	if roomID == "" {
+		return
+	}
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted:
+		if event.GetId() != "" {
+			p.messageRoom[event.GetId()] = roomID
+		}
+	case *corev1.Event_MessageBody:
+		if e.MessageBody.GetEventId() != "" {
+			p.messageRoom[e.MessageBody.GetEventId()] = roomID
+		}
+	case *corev1.Event_AssetCreated:
+		if assetID := e.AssetCreated.GetAsset().GetId(); assetID != "" {
+			p.assetRoom[assetID] = roomID
+		}
+	case *corev1.Event_AssetDeleted:
+		delete(p.assetRoom, e.AssetDeleted.GetAssetId())
+	}
 }
 
 func (p *ReactionProjection) applyAdded(e *corev1.ReactionAddedEvent, userID string, nanos int64) {
@@ -108,19 +183,24 @@ func eventCreatedNanos(event *corev1.Event) int64 {
 }
 
 func (p *ReactionProjection) HasReaction(messageEventID, emoji, userID string) bool {
+	return p.ReactionMutationSnapshot("", messageEventID, emoji, userID).Exists
+}
+
+func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, emoji, userID string) ReactionMutationSnapshot {
 	p.RLock()
 	defer p.RUnlock()
 
+	snapshot := ReactionMutationSnapshot{Seq: p.roomSeq[roomID]}
 	byEmoji := p.byMessage[messageEventID]
 	if byEmoji == nil {
-		return false
+		return snapshot
 	}
 	byUser := byEmoji[emoji]
 	if byUser == nil {
-		return false
+		return snapshot
 	}
-	_, ok := byUser[userID]
-	return ok
+	_, snapshot.Exists = byUser[userID]
+	return snapshot
 }
 
 func (p *ReactionProjection) Reactions(messageEventID string) []ReactionSummary {

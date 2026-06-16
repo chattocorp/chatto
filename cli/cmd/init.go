@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/charmbracelet/log"
@@ -72,7 +73,7 @@ var initCmd = &cobra.Command{
 		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
-				LogLevel:  "debug",
+				LogLevel:  "info",
 				LogFormat: "auto",
 			},
 			Auth: config.AuthConfig{
@@ -84,22 +85,24 @@ var initCmd = &cobra.Command{
 			Webserver: config.WebserverConfig{
 				Port:                   4000,
 				URL:                    "http://localhost:4000",
+				AllowedOrigins:         []string{"*"},
 				CookieSigningSecret:    sessionSecretString,
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
 			Core: config.CoreConfig{
 				SecretKey: coreSecretString,
 				Assets: config.AssetsConfig{
-					SigningSecret: signingSecretString,
-					MaxUploadSize: 25 * datasize.MB,
+					SigningSecret:  signingSecretString,
+					MaxUploadSize:  25 * datasize.MB,
+					StorageBackend: config.StorageBackendNATS,
 				},
 			},
 			NATS: config.NATSConfig{
-				// Client config for CLI commands to connect to the embedded server
+				Replicas: 1,
 				Client: config.NATSClientConfig{
-					URL:        "nats://localhost:4222",
+					URL:        "nats://nats.example.com:4222",
 					AuthMethod: config.NATSAuthToken,
-					Token:      authTokenString,
+					Token:      "replace-me",
 				},
 				Embedded: config.EmbeddedNATSConfig{
 					Enabled:     true,
@@ -118,16 +121,35 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("Failed to marshal config", "error", err)
 		}
+		text := addAuthProviderExamples(string(b))
 
-		if err := os.WriteFile(configPath, b, 0600); err != nil {
+		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
 			log.Fatal("Failed to write config file", "error", err)
 		}
 		fmt.Printf("Configuration written to %s\n", configPath)
-		fmt.Printf("\nSetup complete! Run 'chatto run -c %s' to start the server.\n", configPath)
-		fmt.Println("\nTo connect with NATS CLI for debugging:")
-		fmt.Printf("  nats context save chatto --server localhost:4222 --token %s\n", authTokenString)
-		fmt.Println("  nats context select chatto")
 	},
+}
+
+func addAuthProviderExamples(tomlText string) string {
+	const generatedEmptyProviders = "# External login providers. Configure as repeated [[auth.providers]] tables.\nproviders = []"
+	const providerExamples = `# External login providers. Uncomment and adapt one or more [[auth.providers]] tables.
+#
+# [[auth.providers]]
+# id = 'chatto-hub'
+# type = 'oidc'
+# label = 'Chatto Hub'
+# issuer_url = 'https://id.example.com/realms/chatto'
+# client_id = 'chatto'
+# client_secret = 'replace-me'
+# scopes = ['openid', 'profile', 'email']
+#
+# [[auth.providers]]
+# id = 'github'
+# type = 'github'
+# client_id = 'replace-me'
+# client_secret = 'replace-me'`
+
+	return strings.Replace(tomlText, generatedEmptyProviders, providerExamples, 1)
 }
 
 func init() {

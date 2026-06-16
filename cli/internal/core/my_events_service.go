@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -29,7 +30,12 @@ const liveEVTProjectionWaitTimeout = 2 * time.Second
 // planning, live root filtering, projection readiness, and per-subscription
 // room membership state together.
 type MyEventsService struct {
-	core *ChattoCore
+	core              *ChattoCore
+	activeStreams     atomic.Int64
+	deliveredEvents   atomic.Uint64
+	slowDisconnects   atomic.Uint64
+	presenceRefreshes atomic.Uint64
+	presenceFailures  atomic.Uint64
 }
 
 func NewMyEventsService(core *ChattoCore) *MyEventsService {
@@ -41,6 +47,34 @@ func (c *ChattoCore) myEvents() *MyEventsService {
 		c.myEventsService = NewMyEventsService(c)
 	}
 	return c.myEventsService
+}
+
+// MyEventsMetrics is a process-local snapshot of the GraphQL live-event stream.
+type MyEventsMetrics struct {
+	ActiveStreams     int64
+	DeliveredEvents   uint64
+	SlowDisconnects   uint64
+	PresenceRefreshes uint64
+	PresenceFailures  uint64
+}
+
+// MyEventsMetrics returns process-local live-event stream counters.
+func (c *ChattoCore) MyEventsMetrics() MyEventsMetrics {
+	if c.myEventsService == nil {
+		return MyEventsMetrics{}
+	}
+	return c.myEventsService.Metrics()
+}
+
+// Metrics returns process-local live-event stream counters.
+func (s *MyEventsService) Metrics() MyEventsMetrics {
+	return MyEventsMetrics{
+		ActiveStreams:     s.activeStreams.Load(),
+		DeliveredEvents:   s.deliveredEvents.Load(),
+		SlowDisconnects:   s.slowDisconnects.Load(),
+		PresenceRefreshes: s.presenceRefreshes.Load(),
+		PresenceFailures:  s.presenceFailures.Load(),
+	}
 }
 
 // StreamMyEvents creates a unified stream of every event on this deployment
@@ -151,6 +185,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, aft
 
 	eventChan := make(chan EventEnvelope)
 
+	s.activeStreams.Add(1)
 	go func() {
 		c.logger.Debug("Server event stream started", "user_id", userID, "member_rooms", len(memberRooms))
 
@@ -171,6 +206,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, aft
 		}
 
 		defer func() {
+			s.activeStreams.Add(-1)
 			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
@@ -183,6 +219,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, aft
 			case <-ctx.Done():
 				return false
 			case eventChan <- event:
+				s.deliveredEvents.Add(1)
 				return true
 			}
 		}
@@ -200,19 +237,24 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, aft
 
 			case <-slowEVTConsumerCh:
 				dropped, _ := liveEVTSub.Dropped()
+				s.slowDisconnects.Add(1)
 				c.logger.Warn("Slow consumer on live EVT subscription - tearing down",
 					"user_id", userID, "dropped", dropped)
 				return
 
 			case <-slowSyncConsumerCh:
 				dropped, _ := liveSyncSub.Dropped()
+				s.slowDisconnects.Add(1)
 				c.logger.Warn("Slow consumer on live sync subscription - tearing down",
 					"user_id", userID, "dropped", dropped)
 				return
 
 			case <-presenceTicker.C:
 				if err := c.refreshPresence(ctx, userID); err != nil {
+					s.presenceFailures.Add(1)
 					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID)
+				} else {
+					s.presenceRefreshes.Add(1)
 				}
 
 			case <-heartbeatTicker.C:

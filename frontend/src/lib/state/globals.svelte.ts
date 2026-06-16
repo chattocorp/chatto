@@ -5,6 +5,8 @@
  * are not scoped to an instance or room, and don't use Svelte context.
  */
 
+import { getMainSidebarOpen, setMainSidebarOpen } from '$lib/storage/mainSidebarOpen';
+
 // ---------------------------------------------------------------------------
 // AppState — browser focus tracking
 // ---------------------------------------------------------------------------
@@ -91,7 +93,7 @@ export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
  * finger delta (relative to the open position). Templates should disable
  * CSS transitions while dragging and apply the transform from `progress`.
  */
-class SidebarNavState {
+export class SidebarNavState {
   isOpen = $state(true);
   /**
    * Live drag offset in px relative to the *open* position. Negative values
@@ -102,6 +104,11 @@ class SidebarNavState {
   private desktopOpen = $state(true);
   private _isMobile = $state(false);
   private dragBaselineOpen = false;
+
+  constructor(initialDesktopOpen = getMainSidebarOpen()) {
+    this.isOpen = initialDesktopOpen;
+    this.desktopOpen = initialDesktopOpen;
+  }
 
   setMobile(isMobile: boolean) {
     if (this._isMobile === isMobile) return;
@@ -117,10 +124,12 @@ class SidebarNavState {
   }
 
   toggle() {
-    this.isOpen = !this.isOpen;
-    if (!this._isMobile) {
-      this.desktopOpen = this.isOpen;
+    if (this._isMobile) {
+      this.isOpen = !this.isOpen;
+      return;
     }
+
+    this.setDesktopOpen(!this.isOpen);
   }
 
   get isMobile(): boolean {
@@ -143,6 +152,9 @@ class SidebarNavState {
 
   close() {
     this.isOpen = false;
+    if (!this._isMobile) {
+      this.setDesktopOpen(false);
+    }
   }
 
   startDrag() {
@@ -182,6 +194,12 @@ class SidebarNavState {
     const handler = (e: MediaQueryListEvent) => this.setMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
+  }
+
+  private setDesktopOpen(open: boolean) {
+    this.desktopOpen = open;
+    this.isOpen = open;
+    setMainSidebarOpen(open);
   }
 }
 

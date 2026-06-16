@@ -35,6 +35,9 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	if s.logger == nil {
 		s.logger = log.WithPrefix("server.HTTP")
 	}
+	if s.metrics == nil {
+		s.metrics = newProcessMetrics()
+	}
 
 	// Configure GraphQL server with injected dependencies
 	resolver := graph.NewResolver(s.core, s.config.Owners, s.config.Auth, s.config.Push, s.config.Video, s.config.LiveKit, s.version)
@@ -199,6 +202,12 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	})
 
 	s.router.Any("/api/graphql", func(c *gin.Context) {
+		var closeWebSocketMetric func()
+		if websocket.IsWebSocketUpgrade(c.Request) {
+			closeWebSocketMetric = s.metrics.openGraphQLWebSocket()
+			defer closeWebSocketMetric()
+		}
+
 		s.requestContextWithAuditMetadata(c)
 
 		if !limitGraphQLJSONRequestBody(c) {

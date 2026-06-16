@@ -1,6 +1,11 @@
 package core
 
-import "testing"
+import (
+	"regexp"
+	"testing"
+)
+
+var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -10,7 +15,14 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
+	registryKeys := make(map[string]string, len(core.projections))
 	for _, projection := range core.projections {
+		if projection.key == "" {
+			t.Fatal("registered projection has empty key")
+		}
+		if !registryKeyPattern.MatchString(projection.key) {
+			t.Fatalf("registered projection %q has invalid key %q", projection.name, projection.key)
+		}
 		if projection.name == "" {
 			t.Fatal("registered projection has empty name")
 		}
@@ -23,9 +35,16 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 		if _, exists := registryNames[projection.name]; exists {
 			t.Fatalf("duplicate projection registration name %q", projection.name)
 		}
+		if existingName, exists := registryKeys[projection.key]; exists {
+			t.Fatalf("duplicate projection registration key %q for %q and %q", projection.key, existingName, projection.name)
+		}
 		registryNames[projection.name] = struct{}{}
+		registryKeys[projection.key] = projection.name
 	}
 
+	if got, ok := registryKeys["content_keys"]; !ok || got != "Content Keys" {
+		t.Fatalf("content_keys projection registration = %q, %v; want Content Keys, true", got, ok)
+	}
 	if _, ok := registryNames["Content Keys"]; !ok {
 		t.Fatal("Content Keys projection is not registered")
 	}
@@ -53,6 +72,15 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 		t.Fatalf("admin states = %d, registered projections = %d", len(states), len(core.projections))
 	}
 	for _, state := range states {
+		if state.Key == "" {
+			t.Fatalf("admin state %q has empty key", state.Name)
+		}
+		if !registryKeyPattern.MatchString(state.Key) {
+			t.Fatalf("admin state %q has invalid key %q", state.Name, state.Key)
+		}
+		if gotName, ok := registryKeys[state.Key]; !ok || gotName != state.Name {
+			t.Fatalf("admin state key/name %q/%q not found in projection registry", state.Key, state.Name)
+		}
 		if _, ok := registryNames[state.Name]; !ok {
 			t.Fatalf("admin state %q not found in projection registry", state.Name)
 		}

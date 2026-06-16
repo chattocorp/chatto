@@ -30,7 +30,9 @@ sources = ["go.mod", "go.sum"]
 description = "Install frontend dependencies"
 dir = "frontend"
 run = "pnpm install"
-sources = ["package.json", "pnpm-lock.yaml"]
+# package.json also contains app metadata and scripts; the lockfile is the
+# dependency-resolution input that should trigger installs.
+sources = ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc"]
 
 [tasks.deps]
 description = "Install all dependencies"
@@ -87,26 +89,43 @@ dir = "frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
+    "touch build/.mise-build-stamp",
     "rm -rf ../cli/internal/http_server/.client",
     "cp -r build ../cli/internal/http_server/.client",
     "touch ../cli/internal/http_server/.client/.gitkeep",
 ]
 sources = [
+    ".npmrc",
     "package.json",
     "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
     "src/**/*",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/*.stories.*",
+    "!src/**/*TestHarness.svelte",
     "static/**/*",
     "svelte.config.js",
     "tsconfig.json",
     "vite.config.ts",
 ]
+outputs = ["build/.mise-build-stamp", "../cli/internal/http_server/.client/.gitkeep"]
 
-[tasks.build-cli]
-description = "Build the CLI application for the current architecture"
+[tasks.build-dev-cli]
+description = "Build the development CLI application for the current architecture"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-run = "go build -o bin/chatto ."
-sources = ["**/*.go", "internal/http_server/.client/**/*"]
+run = "go build -tags bootstrap -o bin/chatto ."
+sources = [
+    "go.mod",
+    "go.sum",
+    "**/*.go",
+    "!**/*_test.go",
+    "cmd/LICENSE",
+    "cmd/NOTICE",
+    "internal/graph/*.graphqls",
+    "internal/http_server/.client/**/*",
+]
 outputs = ["bin/chatto"]
 
 [tasks.build-e2e-server]
@@ -153,6 +172,22 @@ fi
 
 exec tilt up --stream
 """
+
+[tasks.dev-conductor]
+description = "Build and run Chatto with Conductor-style per-workspace ports"
+depends = ["build-dev-cli"]
+dir = "cli"
+env = {
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_METRICS_ENABLED = "true",
+  CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
+  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
+  CHATTO_METRICS_PATH = "/metrics",
+}
+run = "bin/chatto run"
 
 [tasks.chatto]
 description = "Runs the CLI app with the given arguments"
@@ -218,8 +253,8 @@ run = "bin/chatto run"
 description = "Clean all build artifacts"
 run = [
     "rm -rf cli/bin/*",
-    "rm -rf cli/internal/http_server/.client/*",
-    "rm -rf frontend/build/*",
+    "rm -rf cli/internal/http_server/.client",
+    "rm -rf frontend/build",
 ]
 
 [tasks.reset-config]

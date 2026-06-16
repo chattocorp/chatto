@@ -26,6 +26,11 @@ func (p *RoomGroupLayoutProjection) Subjects() []string {
 }
 
 func (p *RoomGroupLayoutProjection) Apply(event *corev1.Event, seq uint64) error {
+	if event != nil {
+		if _, ok := event.GetEvent().(*corev1.Event_RoomGroupsReordered); ok {
+			return p.Layout.Apply(event, seq)
+		}
+	}
 	if err := p.Groups.Apply(event, seq); err != nil {
 		return err
 	}

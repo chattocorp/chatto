@@ -62,7 +62,7 @@ Out of scope (deferred):
 - **`space.{spaceId}` KV record**: stays as orphan. One small entry per deployment, no readers post-Phase-1.
 - **`ServerMemberDeletedEvent` proto message** (`corev1.Event` field 320): renamed during the 0.1 protobuf cleanup while preserving the field number. No 0.1 servers had been deployed yet, and 0.0 import remains field-number based, so the source name could still be corrected before beta.
 - **`space_id` fields on other persisted event payloads** (e.g. message events): stay for the same reason — wire format must decode existing stored events.
-- **`KV_INSTANCE*` bucket names, `instance.logo`/`instance.banner` KV keys, `/api/instance` REST endpoint, `livekit.instance_id` config**: stay. Already covered by ADR-029.
+- **`KV_INSTANCE*` bucket names, `instance.logo`/`instance.banner` KV keys, `/api/instance` REST endpoint**: stay. Already covered by ADR-029. The public LiveKit config key was later renamed from `livekit.instance_id` to `livekit.server_id`, with the old name retained as a deprecated alias for existing configs.
 
 ### Phases (PR boundaries)
 

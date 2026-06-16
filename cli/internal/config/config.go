@@ -3,8 +3,11 @@ package config
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,8 +46,8 @@ type GeneralConfig struct {
 // Note: Default ports 80/443 require elevated privileges (sudo, CAP_NET_BIND_SERVICE, or root).
 type TLSConfig struct {
 	Enabled  bool   `toml:"enabled" env:"CHATTO_WEBSERVER_TLS_ENABLED" comment:"Enable automatic TLS via Let's Encrypt. Note: default ports 80/443 require elevated privileges."`
-	Domain   string `toml:"domain" env:"CHATTO_WEBSERVER_TLS_DOMAIN" comment:"Domain name for the TLS certificate. Required when TLS is enabled."`
-	Email    string `toml:"email" env:"CHATTO_WEBSERVER_TLS_EMAIL" comment:"Email address for Let's Encrypt notifications. Required when TLS is enabled."`
+	Domain   string `toml:"domain,commented" env:"CHATTO_WEBSERVER_TLS_DOMAIN" comment:"Domain name for the TLS certificate. Required when TLS is enabled."`
+	Email    string `toml:"email,commented" env:"CHATTO_WEBSERVER_TLS_EMAIL" comment:"Email address for Let's Encrypt notifications. Required when TLS is enabled."`
 	CacheDir string `toml:"cache_dir,commented" env:"CHATTO_WEBSERVER_TLS_CACHE_DIR" comment:"Directory to cache TLS certificates. Default: .chatto/certs"`
 	HTTPPort int    `toml:"http_port,commented" env:"CHATTO_WEBSERVER_TLS_HTTP_PORT" comment:"Port for HTTP server (ACME challenges and HTTPS redirect). Default: 80. Use a higher port if running without elevated privileges."`
 }
@@ -68,13 +71,112 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 type WebserverConfig struct {
 	URL                    string    `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
 	Port                   int       `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional origins allowed for CORS and WebSocket connections. Exact non-wildcard entries also trust OAuth redirect callbacks for backward compatibility, but allowed_origins = [\"*\"] is CORS-only."`
-	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted for OAuth redirect callbacks. Use exact HTTPS origins in production. Temporarily, [\"*\"] allows any valid HTTPS origin; loopback development origins may use HTTP."`
+	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks."`
+	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP."`
 	WebSocketCompression   *bool     `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression for GraphQL connections. Reduces bandwidth but uses more CPU. Default: true."`
 	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Useful for debugging but can be noisy in production. Default: false."`
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
 	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+}
+
+// MetricsConfig controls the process-local Prometheus scrape endpoint.
+type MetricsConfig struct {
+	Enabled     bool   `toml:"enabled" env:"CHATTO_METRICS_ENABLED" comment:"Expose a Prometheus-compatible metrics endpoint on a separate internal HTTP listener. Default: false."`
+	BindAddress string `toml:"bind_address,commented" env:"CHATTO_METRICS_BIND_ADDRESS" comment:"Address to bind the metrics listener. Default: 127.0.0.1 (localhost only)."`
+	Port        int    `toml:"port,commented" env:"CHATTO_METRICS_PORT" comment:"Port for the metrics listener. Default: 9090."`
+	Path        string `toml:"path,commented" env:"CHATTO_METRICS_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
+}
+
+// BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
+func (c *MetricsConfig) BindAddressOrDefault() string {
+	if c.BindAddress == "" {
+		return "127.0.0.1"
+	}
+	return c.BindAddress
+}
+
+// PortOrDefault returns the metrics listener port, defaulting to 9090.
+func (c *MetricsConfig) PortOrDefault() int {
+	if c.Port == 0 {
+		return 9090
+	}
+	return c.Port
+}
+
+// PathOrDefault returns the metrics scrape path, defaulting to /metrics.
+func (c *MetricsConfig) PathOrDefault() string {
+	if c.Path == "" {
+		return "/metrics"
+	}
+	return c.Path
+}
+
+func validateHexSecret(name, value string, required bool) error {
+	if value == "" {
+		if required {
+			return fmt.Errorf("%s is required", name)
+		}
+		return nil
+	}
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		return fmt.Errorf("%s must be hex-encoded: %w", name, err)
+	}
+	if len(decoded) != 32 {
+		return fmt.Errorf("%s must decode to 32 bytes (got %d)", name, len(decoded))
+	}
+	return nil
+}
+
+func validateAbsoluteHTTPURL(name, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%s is invalid: %w", name, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("%s must use http or https", name)
+	}
+	if u.Host == "" || u.User != nil {
+		return fmt.Errorf("%s must include a host and must not include user info", name)
+	}
+	return nil
+}
+
+func validateOrigin(name, raw string, allowWildcard bool, requireHTTPSExceptLoopback bool) error {
+	raw = strings.TrimSpace(raw)
+	if allowWildcard && raw == "*" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%s contains invalid origin %q: %w", name, raw, err)
+	}
+	if u.Scheme == "" || u.Host == "" || u.User != nil {
+		return fmt.Errorf("%s contains invalid origin %q: must include scheme and host only", name, raw)
+	}
+	if u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("%s contains invalid origin %q: origins must not include path, query, or fragment", name, raw)
+	}
+	if requireHTTPSExceptLoopback && !isLoopbackHost(u.Hostname()) {
+		if u.Scheme != "https" {
+			return fmt.Errorf("%s contains invalid origin %q: non-loopback OAuth redirect origins must use https", name, raw)
+		}
+		return nil
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("%s contains invalid origin %q: origin must use http or https", name, raw)
+	}
+	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // CookieEncryptionKey decodes the optional cookie encryption secret into an
@@ -164,19 +266,29 @@ func (c *S3Config) PathStyleOrDefault() bool {
 	return *c.PathStyle
 }
 
+// NormalizedPathPrefix returns PathPrefix with harmless leading/trailing slashes
+// removed. Empty and "/" both preserve the historical bucket-root layout.
+func (c *S3Config) NormalizedPathPrefix() string {
+	return strings.Trim(c.PathPrefix, "/")
+}
+
 // NormalizePathPrefix trims harmless leading/trailing slashes from the S3
 // object prefix. Empty and "/" both preserve the historical bucket-root layout.
 func (c *S3Config) NormalizePathPrefix() {
-	c.PathPrefix = strings.Trim(c.PathPrefix, "/")
+	c.PathPrefix = c.NormalizedPathPrefix()
 }
 
 // ValidatePathPrefix rejects ambiguous prefixes before they become physical
 // object keys. Call NormalizePathPrefix first so "/" is accepted as empty.
 func (c *S3Config) ValidatePathPrefix() error {
-	if strings.Contains(c.PathPrefix, "//") {
+	return validateS3PathPrefix(c.PathPrefix)
+}
+
+func validateS3PathPrefix(prefix string) error {
+	if strings.Contains(prefix, "//") {
 		return fmt.Errorf("core.assets.s3.path_prefix must not contain empty path segments")
 	}
-	for _, r := range c.PathPrefix {
+	for _, r := range prefix {
 		if r < 0x20 || r == 0x7f {
 			return fmt.Errorf("core.assets.s3.path_prefix must not contain control characters")
 		}
@@ -211,32 +323,64 @@ type CoreConfig struct {
 	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
-// OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
-type OIDCConfig struct {
-	Enabled      bool   `toml:"enabled" env:"CHATTO_AUTH_OIDC_ENABLED" comment:"Enable OIDC login (e.g. via Chatto Hub)."`
-	IssuerURL    string `toml:"issuer_url" env:"CHATTO_AUTH_OIDC_ISSUER_URL" comment:"OIDC issuer URL. Used for discovery (/.well-known/openid-configuration)."`
-	ClientID     string `toml:"client_id" env:"CHATTO_AUTH_OIDC_CLIENT_ID" comment:"OIDC client ID, obtained from Chatto Hub or your OIDC provider."`
-	ClientSecret string `toml:"client_secret" env:"CHATTO_AUTH_OIDC_CLIENT_SECRET" comment:"OIDC client secret. NEVER SHARE THIS!"`
-	Label        string `toml:"label,commented" env:"CHATTO_AUTH_OIDC_LABEL" comment:"Button label shown on the login page. Default: 'Chatto Hub'."`
+const (
+	AuthProviderTypeOpenIDConnect = "oidc"
+	AuthProviderTypeGitHub        = "github"
+	AuthProviderTypeGitLab        = "gitlab"
+	AuthProviderTypeGoogle        = "google"
+	AuthProviderTypeDiscord       = "discord"
+)
+
+var authProviderDefaultLabels = map[string]string{
+	AuthProviderTypeOpenIDConnect: "OpenID Connect",
+	AuthProviderTypeGitHub:        "GitHub",
+	AuthProviderTypeGitLab:        "GitLab",
+	AuthProviderTypeGoogle:        "Google",
+	AuthProviderTypeDiscord:       "Discord",
 }
 
-// LabelOrDefault returns the configured label, or "Chatto Hub" if not set.
-func (c *OIDCConfig) LabelOrDefault() string {
-	if c.Label == "" {
-		return "Chatto Hub"
+// AuthProviderConfig contains one configured external login provider. The ID is
+// a stable local issuer namespace for OAuth-only providers and must not be
+// changed after users link identities through it.
+type AuthProviderConfig struct {
+	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type            string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
+	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
+	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
+	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
+	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+}
+
+// LabelOrDefault returns the configured label, or a provider-specific default.
+func (c AuthProviderConfig) LabelOrDefault() string {
+	if c.Label != "" {
+		return c.Label
 	}
-	return c.Label
+	if label, ok := authProviderDefaultLabels[c.Type]; ok {
+		return label
+	}
+	return c.ID
 }
 
-// IsConfigured returns true if OIDC is enabled and all required fields are set.
-func (c *OIDCConfig) IsConfigured() bool {
-	return c.Enabled && c.IssuerURL != "" && c.ClientID != ""
+func (c AuthProviderConfig) RequestEmailOrDefault() bool {
+	if c.RequestEmail == nil {
+		return true
+	}
+	return *c.RequestEmail
+}
+
+func IsAllowedAuthProviderType(providerType string) bool {
+	_, ok := authProviderDefaultLabels[providerType]
+	return ok
 }
 
 type AuthConfig struct {
-	DirectRegistration *bool      `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
-	TokenTTL           Duration   `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
-	OIDC               OIDCConfig `toml:"oidc,commented" comment:"OIDC provider configuration (e.g. Chatto Hub)."`
+	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
 }
 
 // TokenTTLOrDefault returns the configured bearer token TTL, or 90 days if not set.
@@ -255,18 +399,50 @@ func (c *AuthConfig) DirectRegistrationOrDefault() bool {
 	return *c.DirectRegistration
 }
 
-// EnabledProviders returns a list of enabled SSO provider names.
+// EnabledProviders returns a list of configured SSO provider IDs.
 func (c *AuthConfig) EnabledProviders() []string {
-	var providers []string
-	if c.OIDC.IsConfigured() {
-		providers = append(providers, "oidc")
+	providers := make([]string, 0, len(c.Providers))
+	for _, provider := range c.Providers {
+		providers = append(providers, provider.ID)
+	}
+	return providers
+}
+
+// EnabledProviderMethods returns legacy method-oriented SSO provider names.
+// Provider-specific IDs are exposed through PublicProviders/AuthProvider.
+func (c *AuthConfig) EnabledProviderMethods() []string {
+	methods := make([]string, 0, len(c.Providers))
+	seen := make(map[string]struct{}, len(c.Providers))
+	for _, provider := range c.Providers {
+		method := provider.Type
+		if provider.Type == AuthProviderTypeOpenIDConnect {
+			method = "oidc"
+		}
+		if _, ok := seen[method]; ok {
+			continue
+		}
+		seen[method] = struct{}{}
+		methods = append(methods, method)
+	}
+	return methods
+}
+
+// PublicProviders returns login metadata safe to expose before authentication.
+func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
+	providers := make([]AuthProviderConfig, 0, len(c.Providers))
+	for _, provider := range c.Providers {
+		providers = append(providers, AuthProviderConfig{
+			ID:    provider.ID,
+			Type:  provider.Type,
+			Label: provider.LabelOrDefault(),
+		})
 	}
 	return providers
 }
 
 type EmbeddedNATSConfig struct {
 	Enabled     bool   `toml:"enabled" env:"CHATTO_NATS_EMBEDDED_ENABLED" comment:"Enable embedded NATS server."`
-	Port        int    `toml:"port" env:"CHATTO_NATS_EMBEDDED_PORT" comment:"NATS server port. Required for CLI commands to connect."`
+	Port        int    `toml:"port,commented" env:"CHATTO_NATS_EMBEDDED_PORT" comment:"Uncomment to expose embedded NATS over TCP for nats CLI/admin commands. When left commented, Chatto connects in-process and no NATS port is opened."`
 	BindAddress string `toml:"bind_address,commented" env:"CHATTO_NATS_EMBEDDED_BIND_ADDRESS" comment:"Address to bind NATS ports. Default: 127.0.0.1 (localhost only)."`
 	HTTPPort    int    `toml:"http_port,commented" env:"CHATTO_NATS_EMBEDDED_HTTP_PORT" comment:"NATS monitoring/stats HTTP port. Set to 0 to disable."`
 	DataDir     string `toml:"data_dir" env:"CHATTO_NATS_EMBEDDED_DATA_DIR" comment:"Directory where the embedded NATS server stores its data."`
@@ -295,14 +471,14 @@ const (
 // NATSClientConfig contains settings for connecting to an external NATS server.
 // Also used for CLI commands (like chatto admin) to connect to the embedded server.
 type NATSClientConfig struct {
-	URL             string         `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. For embedded server, use nats://localhost:4222."`
-	AuthMethod      NATSAuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method: none, token, userpass, credentials, nkey"`
-	Token           string         `toml:"token" env:"CHATTO_NATS_CLIENT_TOKEN" comment:"Token for token auth. NEVER SHARE THIS!"`
-	Username        string         `toml:"username,commented" env:"CHATTO_NATS_CLIENT_USERNAME" comment:"Username for userpass auth."`
-	Password        string         `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. NEVER SHARE THIS!"`
-	CredentialsFile string         `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to .creds file for credentials auth."`
-	NKeySeed        string         `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed for nkey auth. NEVER SHARE THIS!"`
-	CACert          string         `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS cert. When set, the connection uses TLS."`
+	URL             string         `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. Use a comma-separated list for cluster failover, e.g. nats://n1:4222,nats://n2:4222."`
+	AuthMethod      NATSAuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method for the external NATS server: none, token, userpass, credentials, or nkey."`
+	Token           string         `toml:"token" env:"CHATTO_NATS_CLIENT_TOKEN" comment:"Token for token auth. Only used when auth_method = 'token'. NEVER SHARE THIS!"`
+	Username        string         `toml:"username,commented" env:"CHATTO_NATS_CLIENT_USERNAME" comment:"Username for userpass auth. Only used when auth_method = 'userpass'."`
+	Password        string         `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. Only used when auth_method = 'userpass'. NEVER SHARE THIS!"`
+	CredentialsFile string         `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to a NATS .creds file. Only used when auth_method = 'credentials'."`
+	NKeySeed        string         `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed. Only used when auth_method = 'nkey'. NEVER SHARE THIS!"`
+	CACert          string         `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the connection uses TLS."`
 }
 
 // NATSAuthConfig returns the auth configuration suitable for natsauth.ConnectOptions.
@@ -319,8 +495,8 @@ func (c *NATSClientConfig) NATSAuthConfig() natsauth.Config {
 }
 
 type NATSConfig struct {
-	Replicas int                `toml:"replicas,commented" env:"CHATTO_NATS_REPLICAS" comment:"Number of replicas for JetStream streams, KV buckets, and object stores. Must be 1, 3, or 5 (odd numbers for quorum). Default: 1. Set to 3 or 5 when running a NATS cluster for fault tolerance."`
-	Client   NATSClientConfig   `toml:"client" comment:"Client settings for CLI commands to connect to NATS."`
+	Replicas int                `toml:"replicas" env:"CHATTO_NATS_REPLICAS" comment:"Number of replicas for JetStream streams, KV buckets, and object stores. Must be 1, 3, or 5 (odd numbers for quorum). Use 3 or 5 only with a matching NATS cluster."`
+	Client   NATSClientConfig   `toml:"client,commented" comment:"External NATS client settings. To use an external server or cluster, set nats.embedded.enabled = false, then uncomment and update this section. Embedded NATS derives its client settings automatically."`
 	Embedded EmbeddedNATSConfig `toml:"embedded"`
 }
 
@@ -459,8 +635,9 @@ type LiveKitConfig struct {
 	APIKey           string `toml:"api_key" env:"CHATTO_LIVEKIT_API_KEY" comment:"LiveKit API key."`
 	APISecret        string `toml:"api_secret" env:"CHATTO_LIVEKIT_API_SECRET" comment:"LiveKit API secret. NEVER SHARE THIS!"`
 	WebhookURL       string `toml:"webhook_url" env:"CHATTO_LIVEKIT_WEBHOOK_URL" comment:"URL where LiveKit sends webhook events. Defaults to {webserver.url}/webhooks/livekit."`
-	ServerID         string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Unique identifier for this instance, prefixed to LiveKit room names. Required when multiple Chatto instances share the same LiveKit cluster."`
-	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-instance API key."`
+	ServerID         string `toml:"server_id,commented" env:"CHATTO_LIVEKIT_SERVER_ID" comment:"Unique identifier for this server, prefixed to LiveKit room names. Required when multiple Chatto servers share the same LiveKit cluster."`
+	InstanceID       string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Deprecated alias for server_id. Prefer server_id / CHATTO_LIVEKIT_SERVER_ID."`
+	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-server API key."`
 	WebhookAPISecret string `toml:"webhook_api_secret,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_SECRET" comment:"API secret for webhook signature validation. Falls back to api_secret if not set."`
 }
 
@@ -486,22 +663,42 @@ func (c *LiveKitConfig) IsConfigured() bool {
 // binaries parse the section but ignore its contents. Plaintext passwords
 // are fine here for the same reason.
 type BootstrapConfig struct {
-	Users  []BootstrapUser  `toml:"users"`
-	Server *BootstrapServer `toml:"instance,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
+	Users          []BootstrapUser  `toml:"users"`
+	Server         *BootstrapServer `toml:"server,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
+	LegacyInstance *BootstrapServer `toml:"instance,commented" comment:"Deprecated alias for [bootstrap.server]. Prefer [bootstrap.server]."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
 type BootstrapUser struct {
-	Login       string `toml:"login" comment:"Required. The user's login (username)."`
-	DisplayName string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
-	Email       string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
-	Password    string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
-	ServerRole  string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
+	Login        string `toml:"login" comment:"Required. The user's login (username)."`
+	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
+	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
+	ServerRole   string `toml:"server_role,commented" comment:"Optional: owner | admin | moderator."`
+	InstanceRole string `toml:"instance_role,commented" comment:"Deprecated alias for server_role. Prefer server_role."`
 }
 
-// BootstrapServer describes the instance to seed on startup in bootstrap-tag
+// RoleOrDefault returns the normalized bootstrap role, honoring the deprecated
+// instance_role alias only when server_role is unset.
+func (u BootstrapUser) RoleOrDefault() string {
+	if u.ServerRole != "" {
+		return u.ServerRole
+	}
+	return u.InstanceRole
+}
+
+// ServerOrDefault returns the normalized bootstrap server, honoring the
+// deprecated [bootstrap.instance] alias only when [bootstrap.server] is unset.
+func (c BootstrapConfig) ServerOrDefault() *BootstrapServer {
+	if c.Server != nil {
+		return c.Server
+	}
+	return c.LegacyInstance
+}
+
+// BootstrapServer describes the server to seed on startup in bootstrap-tag
 // builds. Per ADR-027 there is no separate "space" concept any more — the
-// instance is the server. The bootstrap creates whatever underlying storage
+// server is the product surface. The bootstrap creates whatever underlying storage
 // records (notably a primary space) the data layer still needs, but those
 // are internal: operators only configure the server's name.
 type BootstrapServer struct {
@@ -511,10 +708,11 @@ type BootstrapServer struct {
 
 type ChattoConfig struct {
 	General   GeneralConfig   `toml:"general"`
+	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver WebserverConfig `toml:"webserver"`
+	Metrics   MetricsConfig   `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
 	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
-	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
 	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP      SMTPConfig      `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push      PushConfig      `toml:"push,commented" comment:"Web Push notification configuration."`
@@ -524,19 +722,70 @@ type ChattoConfig struct {
 	Bootstrap BootstrapConfig `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
+// ApplyDefaults fills derived config values that are safe to compute from other
+// fields. Keep validation separate so Validate can remain a pure check.
+func (c *ChattoConfig) ApplyDefaults() {
+	if c.NATS.Embedded.Enabled && c.NATS.Embedded.Port > 0 {
+		if c.NATS.Client.URL == "" {
+			c.NATS.Client.URL = embeddedNATSClientURL(c.NATS.Embedded)
+		}
+		if c.NATS.Client.AuthMethod == "" {
+			if c.NATS.Embedded.AuthToken != "" {
+				c.NATS.Client.AuthMethod = NATSAuthToken
+			} else {
+				c.NATS.Client.AuthMethod = NATSAuthNone
+			}
+		}
+		if c.NATS.Client.AuthMethod == NATSAuthToken && c.NATS.Client.Token == "" {
+			c.NATS.Client.Token = c.NATS.Embedded.AuthToken
+		}
+	}
+
+	if c.LiveKit.ServerID == "" {
+		c.LiveKit.ServerID = c.LiveKit.InstanceID
+	}
+	if c.LiveKit.Enabled && c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
+		c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
+	}
+
+	for i := range c.Bootstrap.Users {
+		if c.Bootstrap.Users[i].ServerRole == "" {
+			c.Bootstrap.Users[i].ServerRole = c.Bootstrap.Users[i].InstanceRole
+		}
+	}
+	if c.Bootstrap.Server == nil {
+		c.Bootstrap.Server = c.Bootstrap.LegacyInstance
+	}
+}
+
+// Normalize canonicalizes harmless config spelling differences without applying
+// semantic defaults.
+func (c *ChattoConfig) Normalize() {
+	c.Core.Assets.S3.NormalizePathPrefix()
+}
+
+func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
+	host := cfg.BindAddressOrDefault()
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "127.0.0.1"
+	}
+	return fmt.Sprintf("nats://%s", net.JoinHostPort(host, fmt.Sprint(cfg.Port)))
+}
+
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
 func (c *ChattoConfig) Validate() error {
 	var errs []string
 
 	// Required fields
-	if c.Webserver.CookieSigningSecret == "" {
-		errs = append(errs, "webserver.cookie_signing_secret is required")
+	if err := validateHexSecret("webserver.cookie_signing_secret", c.Webserver.CookieSigningSecret, true); err != nil {
+		errs = append(errs, err.Error())
 	}
-	if c.Core.Assets.SigningSecret == "" {
-		errs = append(errs, "core.assets.signing_secret is required")
+	if err := validateHexSecret("core.assets.signing_secret", c.Core.Assets.SigningSecret, true); err != nil {
+		errs = append(errs, err.Error())
 	}
-	if c.Core.SecretKey == "" {
-		errs = append(errs, "core.secret_key is required")
+	if err := validateHexSecret("core.secret_key", c.Core.SecretKey, true); err != nil {
+		errs = append(errs, err.Error())
 	}
 	if _, err := c.Webserver.CookieEncryptionKey(); err != nil {
 		errs = append(errs, err.Error())
@@ -548,6 +797,18 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if c.Webserver.Port == 0 && !c.Webserver.TLS.Enabled {
 		errs = append(errs, "webserver.port is required when TLS is disabled")
+	}
+	if c.Metrics.Enabled {
+		if c.Metrics.Port < 0 || c.Metrics.Port > 65535 {
+			errs = append(errs, "metrics.port must be between 0 and 65535")
+		}
+		metricsPath := c.Metrics.PathOrDefault()
+		if !strings.HasPrefix(metricsPath, "/") {
+			errs = append(errs, "metrics.path must start with /")
+		}
+		if strings.ContainsAny(metricsPath, "?#") {
+			errs = append(errs, "metrics.path must not contain query strings or fragments")
+		}
 	}
 	if c.NATS.Embedded.Enabled {
 		if c.NATS.Embedded.Port < 0 || c.NATS.Embedded.Port > 65535 {
@@ -569,13 +830,23 @@ func (c *ChattoConfig) Validate() error {
 
 	// URL format
 	if c.Webserver.URL != "" {
-		if _, err := url.Parse(c.Webserver.URL); err != nil {
-			errs = append(errs, fmt.Sprintf("webserver.url is invalid: %v", err))
+		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 	if c.NATS.Client.URL != "" {
 		if _, err := url.Parse(c.NATS.Client.URL); err != nil {
 			errs = append(errs, fmt.Sprintf("nats.client.url is invalid: %v", err))
+		}
+	}
+	for _, origin := range c.Webserver.AllowedOrigins {
+		if err := validateOrigin("webserver.allowed_origins", origin, true, false); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	for _, origin := range c.Webserver.OAuthRedirectOrigins {
+		if err := validateOrigin("webserver.oauth_redirect_origins", origin, true, true); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 
@@ -590,6 +861,41 @@ func (c *ChattoConfig) Validate() error {
 		validFormats := map[string]bool{"auto": true, "text": true, "json": true, "logfmt": true}
 		if !validFormats[strings.ToLower(c.General.LogFormat)] {
 			errs = append(errs, "general.log_format must be one of: auto, text, json, logfmt")
+		}
+	}
+
+	// External auth providers
+	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
+	for i, provider := range c.Auth.Providers {
+		prefix := fmt.Sprintf("auth.providers[%d]", i)
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when auth providers are configured")
+		}
+		if provider.ID == "" {
+			errs = append(errs, prefix+".id is required")
+		} else if strings.ContainsAny(provider.ID, "/?#") || strings.TrimSpace(provider.ID) != provider.ID {
+			errs = append(errs, prefix+".id must be a stable URL-safe identifier without spaces or path separators")
+		} else if _, exists := seenProviderIDs[provider.ID]; exists {
+			errs = append(errs, fmt.Sprintf("auth provider id %q is configured more than once", provider.ID))
+		} else {
+			seenProviderIDs[provider.ID] = struct{}{}
+		}
+		if !IsAllowedAuthProviderType(provider.Type) {
+			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord")
+		}
+		if provider.ClientID == "" {
+			errs = append(errs, prefix+".client_id is required")
+		}
+		if provider.ClientSecret == "" {
+			errs = append(errs, prefix+".client_secret is required")
+		}
+		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
+			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
+		}
+		if provider.IssuerURL != "" {
+			if err := validateAbsoluteHTTPURL(prefix+".issuer_url", provider.IssuerURL); err != nil {
+				errs = append(errs, err.Error())
+			}
 		}
 	}
 
@@ -610,6 +916,9 @@ func (c *ChattoConfig) Validate() error {
 		errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic")
 	}
 	if c.SMTP.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when SMTP is enabled")
+		}
 		if c.SMTP.Host == "" {
 			errs = append(errs, "smtp.host is required when SMTP is enabled")
 		}
@@ -623,6 +932,9 @@ func (c *ChattoConfig) Validate() error {
 
 	// Push notification configuration
 	if c.Push.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when push is enabled")
+		}
 		if c.Push.VAPIDPublicKey == "" {
 			errs = append(errs, "push.vapid_public_key is required when push is enabled")
 		}
@@ -636,6 +948,9 @@ func (c *ChattoConfig) Validate() error {
 
 	// LiveKit configuration
 	if c.LiveKit.Enabled {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when LiveKit is enabled")
+		}
 		if c.LiveKit.URL == "" {
 			errs = append(errs, "livekit.url is required when LiveKit is enabled")
 		}
@@ -644,10 +959,6 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.LiveKit.APISecret == "" {
 			errs = append(errs, "livekit.api_secret is required when LiveKit is enabled")
-		}
-		// Default webhook URL to {webserver.url}/webhooks/livekit
-		if c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
-			c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
 		}
 	}
 
@@ -670,7 +981,6 @@ func (c *ChattoConfig) Validate() error {
 
 	// S3 configuration (required when storage_backend = "s3")
 	if c.Core.Assets.StorageBackend == StorageBackendS3 {
-		c.Core.Assets.S3.NormalizePathPrefix()
 		if c.Core.Assets.S3.Endpoint == "" {
 			errs = append(errs, "core.assets.s3.endpoint is required when storage_backend = 's3'")
 		}
@@ -683,9 +993,18 @@ func (c *ChattoConfig) Validate() error {
 		if c.Core.Assets.S3.SecretAccessKey == "" {
 			errs = append(errs, "core.assets.s3.secret_access_key is required when storage_backend = 's3'")
 		}
-		if err := c.Core.Assets.S3.ValidatePathPrefix(); err != nil {
+		if err := validateS3PathPrefix(c.Core.Assets.S3.NormalizedPathPrefix()); err != nil {
 			errs = append(errs, err.Error())
 		}
+	}
+
+	if c.NATS.Embedded.Enabled &&
+		c.NATS.Embedded.Port > 0 &&
+		c.NATS.Embedded.AuthToken != "" &&
+		c.NATS.Client.AuthMethod == NATSAuthToken &&
+		c.NATS.Client.Token != "" &&
+		c.NATS.Client.Token != c.NATS.Embedded.AuthToken {
+		errs = append(errs, "nats.client.token must match nats.embedded.auth_token when embedded NATS uses token auth")
 	}
 
 	if len(errs) > 0 {
@@ -719,11 +1038,163 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	if err := env.Parse(&cfg); err != nil {
 		return cfg, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
+	if err := applyAuthProviderEnv(&cfg); err != nil {
+		return cfg, err
+	}
 
-	// 3. Validate
+	// 3. Apply derived defaults and normalize harmless spelling differences
+	cfg.ApplyDefaults()
+	cfg.Normalize()
+
+	// 4. Validate
 	if err := cfg.Validate(); err != nil {
 		return cfg, err
 	}
 
 	return cfg, nil
+}
+
+func applyAuthProviderEnv(cfg *ChattoConfig) error {
+	providers, providersSet, err := authProvidersFromEnv()
+	if err != nil {
+		return err
+	}
+	legacyOIDCEnabled := strings.TrimSpace(os.Getenv("CHATTO_AUTH_OIDC_ENABLED"))
+
+	if providersSet {
+		if legacyOIDCEnabled != "" {
+			return fmt.Errorf("CHATTO_AUTH_PROVIDERS_* cannot be combined with legacy CHATTO_AUTH_OIDC_ENABLED")
+		}
+		cfg.Auth.Providers = providers
+		return nil
+	}
+
+	if legacyOIDCEnabled == "" {
+		return nil
+	}
+	enabled, err := strconv.ParseBool(legacyOIDCEnabled)
+	if err != nil {
+		return fmt.Errorf("CHATTO_AUTH_OIDC_ENABLED must be a boolean: %w", err)
+	}
+	if !enabled {
+		cfg.Auth.Providers = nil
+		return nil
+	}
+	label := os.Getenv("CHATTO_AUTH_OIDC_LABEL")
+	if label == "" {
+		label = "Chatto Hub"
+	}
+	cfg.Auth.Providers = []AuthProviderConfig{{
+		ID:           "oidc",
+		Type:         AuthProviderTypeOpenIDConnect,
+		Label:        label,
+		IssuerURL:    os.Getenv("CHATTO_AUTH_OIDC_ISSUER_URL"),
+		ClientID:     os.Getenv("CHATTO_AUTH_OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("CHATTO_AUTH_OIDC_CLIENT_SECRET"),
+	}}
+	return nil
+}
+
+func authProvidersFromEnv() ([]AuthProviderConfig, bool, error) {
+	const prefix = "CHATTO_AUTH_PROVIDERS_"
+	providersByIndex := make(map[int]*AuthProviderConfig)
+
+	for _, entry := range os.Environ() {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		rest := strings.TrimPrefix(name, prefix)
+		indexPart, field, ok := strings.Cut(rest, "_")
+		if !ok {
+			return nil, false, fmt.Errorf("%s must use CHATTO_AUTH_PROVIDERS_<index>_<field>", name)
+		}
+		index, err := strconv.Atoi(indexPart)
+		if err != nil || index < 0 {
+			return nil, false, fmt.Errorf("%s uses invalid provider index %q", name, indexPart)
+		}
+
+		provider := providersByIndex[index]
+		if provider == nil {
+			provider = &AuthProviderConfig{}
+			providersByIndex[index] = provider
+		}
+		if err := applyAuthProviderEnvField(provider, name, field, value); err != nil {
+			return nil, false, err
+		}
+	}
+
+	if len(providersByIndex) == 0 {
+		return nil, false, nil
+	}
+
+	indices := make([]int, 0, len(providersByIndex))
+	for index := range providersByIndex {
+		indices = append(indices, index)
+	}
+	sort.Ints(indices)
+	for expected, index := range indices {
+		if index != expected {
+			return nil, false, fmt.Errorf("CHATTO_AUTH_PROVIDERS_* indexes must be contiguous starting at 0; missing index %d", expected)
+		}
+	}
+
+	providers := make([]AuthProviderConfig, 0, len(indices))
+	for _, index := range indices {
+		providers = append(providers, *providersByIndex[index])
+	}
+	return providers, true, nil
+}
+
+func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value string) error {
+	switch field {
+	case "ID":
+		provider.ID = value
+	case "TYPE":
+		provider.Type = value
+	case "LABEL":
+		provider.Label = value
+	case "CLIENT_ID":
+		provider.ClientID = value
+	case "CLIENT_SECRET":
+		provider.ClientSecret = value
+	case "ISSUER_URL":
+		provider.IssuerURL = value
+	case "SCOPES":
+		provider.Scopes = splitCommaSeparatedEnv(value)
+	case "REQUEST_EMAIL":
+		requestEmail, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("%s must be a boolean: %w", name, err)
+		}
+		provider.RequestEmail = &requestEmail
+	default:
+		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
+		if strings.HasPrefix(field, providerOptionsPrefix) {
+			optionName := strings.ToLower(strings.TrimPrefix(field, providerOptionsPrefix))
+			if optionName == "" {
+				return fmt.Errorf("%s must include a provider option name", name)
+			}
+			if provider.ProviderOptions == nil {
+				provider.ProviderOptions = make(map[string]string)
+			}
+			provider.ProviderOptions[optionName] = value
+			return nil
+		}
+		return fmt.Errorf("%s uses unknown auth provider field %q", name, field)
+	}
+	return nil
+}
+
+func splitCommaSeparatedEnv(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }

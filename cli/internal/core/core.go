@@ -20,6 +20,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -47,6 +48,7 @@ type ChattoCore struct {
 	mediaService       *MediaService
 	callService        *CallService
 	assetService       *AssetService
+	services           []serviceRegistration
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -731,10 +733,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// record. Runtime lifecycle and admin diagnostics both consume this
 	// same list, so adding a projection has a single wiring point.
 	var projections []projectionRegistration
-	newProjector := func(p events.Projection, name string, estimate func() (int64, int64, []ProjectionAdminMetric)) *events.Projector {
+	newProjector := func(p events.Projection, key string, name string, estimate func() (int64, int64, []ProjectionAdminMetric)) *events.Projector {
 		loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
 		pr := events.NewProjector(js, storage.serverEvtStream, p, logger.WithPrefix("core."+loggerName))
 		projections = append(projections, projectionRegistration{
+			key:       key,
 			name:      name,
 			projector: pr,
 			estimate:  estimate,
@@ -743,17 +746,17 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	roomDirectory := NewRoomDirectoryProjection()
-	roomDirectoryProjector := newProjector(roomDirectory, "Room Directory", roomDirectory.adminProjectionEstimate)
+	roomDirectoryProjector := newProjector(roomDirectory, "room_directory", "Room Directory", roomDirectory.adminProjectionEstimate)
 	roomMembership := roomDirectory.Membership
 	roomBans := roomDirectory.Bans
 
 	serverConfigProjection := NewConfigProjection()
-	serverConfigProjector := newProjector(serverConfigProjection, "Server Config", serverConfigProjection.adminProjectionEstimate)
+	serverConfigProjector := newProjector(serverConfigProjection, "server_config", "Server Config", serverConfigProjection.adminProjectionEstimate)
 
 	roomCatalog := roomDirectory.Catalog
 
 	roomGroupLayout := NewRoomGroupLayoutProjection()
-	roomGroupLayoutProjector := newProjector(roomGroupLayout, "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
+	roomGroupLayoutProjector := newProjector(roomGroupLayout, "room_group_layout", "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
 	roomGroups := roomGroupLayout.Groups
 	roomLayout := roomGroupLayout.Layout
 
@@ -762,31 +765,31 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// do all filtering and rendering at query time. v1 shape — we
 	// iterate significantly on this once we observe read patterns.
 	roomTimeline := NewRoomTimelineProjection()
-	roomTimelineProjector := newProjector(roomTimeline, "Room Timeline", roomTimeline.adminProjectionEstimate)
+	roomTimelineProjector := newProjector(roomTimeline, "room_timeline", "Room Timeline", roomTimeline.adminProjectionEstimate)
 
 	callState := NewCallStateProjection()
-	callStateProjector := newProjector(callState, "Call State", callState.adminProjectionEstimate)
+	callStateProjector := newProjector(callState, "call_state", "Call State", callState.adminProjectionEstimate)
 
 	assetProjection := NewAssetProjection()
-	assetProjector := newProjector(assetProjection, "Assets", assetProjection.adminProjectionEstimate)
+	assetProjector := newProjector(assetProjection, "assets", "Assets", assetProjection.adminProjectionEstimate)
 
 	threads := NewThreadProjection()
-	threadsProjector := newProjector(threads, "Threads", threads.adminProjectionEstimate)
+	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
 
 	reactions := NewReactionProjection()
-	reactionsProjector := newProjector(reactions, "Reactions", reactions.adminProjectionEstimate)
+	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
 
 	users := NewUserProjection(encMgr.keyWrapper, encMgr.contentKeys)
-	usersProjector := newProjector(users, "Users", users.adminProjectionEstimate)
+	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
-	contentKeysProjector := newProjector(contentKeys, "Content Keys", contentKeys.adminProjectionEstimate)
+	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
 
 	rbac := NewRBACProjection()
-	rbacProjector := newProjector(rbac, "RBAC", rbac.adminProjectionEstimate)
+	rbacProjector := newProjector(rbac, "rbac", "RBAC", rbac.adminProjectionEstimate)
 
 	mentionables := NewMentionablesProjection(encMgr.keyWrapper, encMgr.contentKeys)
-	mentionablesProjector := newProjector(mentionables, "Mentionables", mentionables.adminProjectionEstimate)
+	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
 
 	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configService, serverConfigProjection)
@@ -853,8 +856,20 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		bootDone:                 make(chan struct{}),
 	}
 
+	callReconcileLease, err := lease.New(js, storage.memoryCacheKV, lease.Options{
+		Name:       callReconcileLeaseName,
+		Bucket:     "MEMORY_CACHE",
+		TTL:        callReconcileLeaseTTL,
+		RenewEvery: callReconcileLeaseRenewEvery,
+		RetryEvery: callReconcileLeaseRetryEvery,
+		Logger:     logger.WithPrefix("core.CallReconcilerLease"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize call reconciler lease: %w", err)
+	}
+
 	core.mediaService = NewMediaService(core)
-	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, logger.WithPrefix("core.CallService"))
+	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallService"))
 	core.assetService = NewAssetService(core)
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
@@ -880,6 +895,21 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.presenceService = NewPresenceService(js, storage.memoryCacheKV, logger)
 	core.PresenceHub = core.presenceService.hub
 	core.myEventsService = NewMyEventsService(core)
+	core.services = []serviceRegistration{
+		{key: "chatto_core", name: "Chatto Core"},
+		{key: "event_publisher", name: "Event Publisher"},
+		{key: "config_service", name: "Config Service"},
+		{key: "config_manager", name: "Config Manager"},
+		{key: "room_service", name: "Room Service"},
+		{key: "user_service", name: "User Service"},
+		{key: "rbac_service", name: "RBAC Service"},
+		{key: "mentionables_service", name: "Mentionables Service"},
+		{key: "presence_service", name: "Presence Service"},
+		{key: "my_events_service", name: "My Events Service"},
+		{key: "call_service", name: "Call Service"},
+		{key: "media_service", name: "Media Service"},
+		{key: "asset_service", name: "Asset Service"},
+	}
 
 	return core, nil
 }
@@ -901,7 +931,6 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 type storage struct {
 	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
 	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
-	serverBodiesKV jetstream.KeyValue // SERVER_BODIES    - legacy message bodies retained for cleanup
 
 	serverAssets    jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
@@ -968,11 +997,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	serverBodiesKV, err := openLegacyKeyValue(ctx, js, "SERVER_BODIES")
-	if err != nil {
-		return nil, fmt.Errorf("failed to open legacy SERVER_BODIES KV bucket: %w", err)
-	}
-
 	serverAssets, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
 		Bucket:      "SERVER_ASSETS",
 		Description: "Server asset binaries (avatars, branding, link previews, attachments)",
@@ -1013,23 +1037,11 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	return &storage{
 		encryptionKV:    encryptionKV,
 		runtimeStateKV:  runtimeStateKV,
-		serverBodiesKV:  serverBodiesKV,
 		serverAssets:    serverAssets,
 		serverEvtStream: serverEvtStream,
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
-}
-
-func openLegacyKeyValue(ctx context.Context, js jetstream.JetStream, bucket string) (jetstream.KeyValue, error) {
-	kv, err := js.KeyValue(ctx, bucket)
-	if err == nil {
-		return kv, nil
-	}
-	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return nil, nil
-	}
-	return nil, err
 }
 
 // ============================================================================
@@ -1083,13 +1095,6 @@ func roomKeyPrefix(kind RoomKind) string {
 // trying again).
 func roomNameIndexKey(name string) string {
 	return fmt.Sprintf("room_name_index.%s", strings.ToLower(strings.TrimSpace(name)))
-}
-
-// messageBodyKey returns the KV key for a message body in a bodies bucket.
-// The key format is {userID}.{bodyID} to enable efficient prefix-based filtering
-// when deleting all message bodies for a specific user.
-func messageBodyKey(userID, messageBodyID string) string {
-	return userID + "." + messageBodyID
 }
 
 // eventIDFromBodyKey extracts the event ID portion from a message body key.

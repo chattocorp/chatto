@@ -176,23 +176,29 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 	occFilter := agg.AllEventsFilter()
 
 	for attempt := 0; attempt < maxReactionMutationRetries; attempt++ {
-		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, occFilter)
-		if err != nil {
-			return false, fmt.Errorf("read OCC filter seq: %w", err)
+		snapshot := c.rooms().reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
+		if add && snapshot.Exists {
+			var err error
+			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
+			if err != nil {
+				return false, err
+			}
+			if snapshot.Exists {
+				return false, nil
+			}
 		}
-		if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
-			return false, err
+		if remove && !snapshot.Exists {
+			var err error
+			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
+			if err != nil {
+				return false, err
+			}
+			if !snapshot.Exists {
+				return false, nil
+			}
 		}
 
-		exists := c.rooms().hasReaction(messageEventID, emoji, userID)
-		if add && exists {
-			return false, nil
-		}
-		if remove && !exists {
-			return false, nil
-		}
-
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, filterSeq)
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
 		if err == nil {
 			if err := c.rooms().waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
 				return false, fmt.Errorf("wait for reactions projection: %w", err)
@@ -203,6 +209,10 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 			return false, err
 		}
 
+		if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+			return false, err
+		}
+
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
@@ -210,4 +220,11 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 		}
 	}
 	return false, fmt.Errorf("reaction OCC retry exhausted after %d attempts: %w", maxReactionMutationRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) currentReactionMutationSnapshot(ctx context.Context, roomID, messageEventID, emoji, userID string) (ReactionMutationSnapshot, error) {
+	if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+		return ReactionMutationSnapshot{}, err
+	}
+	return c.rooms().reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
 }

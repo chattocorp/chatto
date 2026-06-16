@@ -17,6 +17,7 @@ func projectionStateToModel(state core.ProjectionAdminState) *model.ProjectionSt
 		})
 	}
 	return &model.ProjectionState{
+		Key:                    state.Key,
 		Name:                   state.Name,
 		Subjects:               append([]string(nil), state.Subjects...),
 		Started:                state.Started,

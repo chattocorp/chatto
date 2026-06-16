@@ -75,6 +75,24 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   Port for the HTTP server (ACME challenges and HTTPS redirect). Use a higher port if running without elevated privileges.
 </EnvVar>
 
+## Metrics
+
+<EnvVar name="CHATTO_METRICS_ENABLED" toml="metrics.enabled" default="false">
+  Expose a Prometheus-compatible per-process metrics endpoint on a separate internal HTTP listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_BIND_ADDRESS" toml="metrics.bind_address" default="127.0.0.1">
+  Address to bind the metrics listener. Keep this on localhost unless a trusted internal network or sidecar needs direct scrape access.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PORT" toml="metrics.port" default="9090">
+  Port for the metrics listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PATH" toml="metrics.path" default="/metrics">
+  HTTP path for Prometheus scrapes.
+</EnvVar>
+
 ## Core
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
@@ -153,8 +171,8 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Enable the embedded NATS server. Set to `false` when connecting to an external NATS server.
 </EnvVar>
 
-<EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="4222">
-  Embedded NATS server port. Set to `0` to disable the TCP listener (in-process only).
+<EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="0">
+  Embedded NATS server port. Leave unset or set to `0` for in-process only mode. Set to `4222` or another port to expose a TCP listener for NATS CLI/admin commands.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_BIND_ADDRESS" toml="nats.embedded.bind_address" default="127.0.0.1">
@@ -170,21 +188,21 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_AUTH_TOKEN" toml="nats.embedded.auth_token">
-  Auth token for the embedded NATS server. Must match `CHATTO_NATS_CLIENT_TOKEN` when using token auth.
+  Auth token for the embedded NATS server. When the embedded TCP port is enabled, Chatto derives matching `nats.client` defaults for CLI/admin commands unless you override them explicitly.
 </EnvVar>
 
 ### Client
 
-<EnvVar name="CHATTO_NATS_CLIENT_URL" toml="nats.client.url" default="nats://localhost:4222">
-  NATS server URL to connect to. Supports comma-separated URLs for cluster failover (e.g., `nats://n1:4222,nats://n2:4222`).
+<EnvVar name="CHATTO_NATS_CLIENT_URL" toml="nats.client.url">
+  NATS server URL to connect to when using external NATS or an exposed embedded TCP listener. Supports comma-separated URLs for cluster failover (e.g., `nats://n1:4222,nats://n2:4222`).
 </EnvVar>
 
-<EnvVar name="CHATTO_NATS_CLIENT_AUTH_METHOD" toml="nats.client.auth_method" default="token">
-  NATS authentication method. Values: `none`, `token`, `userpass`, `credentials`, `nkey`.
+<EnvVar name="CHATTO_NATS_CLIENT_AUTH_METHOD" toml="nats.client.auth_method">
+  NATS authentication method for external NATS or an exposed embedded TCP listener. Values: `none`, `token`, `userpass`, `credentials`, `nkey`.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_CLIENT_TOKEN" toml="nats.client.token">
-  NATS auth token (when using `token` auth method). Must match `CHATTO_NATS_EMBEDDED_AUTH_TOKEN` when using the embedded server.
+  NATS auth token (when using `token` auth method). When explicitly set alongside embedded NATS, it must match `CHATTO_NATS_EMBEDDED_AUTH_TOKEN`.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_CLIENT_USERNAME" toml="nats.client.username">
@@ -213,27 +231,30 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
 </EnvVar>
 
-### OIDC
+### External Login Providers
 
-<EnvVar name="CHATTO_AUTH_OIDC_ENABLED" toml="auth.oidc.enabled" default="false">
-  Enable OIDC sign-in (e.g. via Chatto Hub).
+External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.
+Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
+
+<EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, and `PROVIDER_OPTIONS_<KEY>`.
 </EnvVar>
 
-<EnvVar name="CHATTO_AUTH_OIDC_ISSUER_URL" toml="auth.oidc.issuer_url">
-  OIDC issuer URL. Used for discovery via `/.well-known/openid-configuration`.
-</EnvVar>
+For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
 
-<EnvVar name="CHATTO_AUTH_OIDC_CLIENT_ID" toml="auth.oidc.client_id">
-  OIDC client ID, obtained from your OIDC provider.
-</EnvVar>
+```toml
+[[auth.providers]]
+id = "chatto-hub"
+type = "oidc"
+label = "Chatto Hub"
+issuer_url = "https://hub.chatto.dev"
+client_id = "..."
+client_secret = "..."
+```
 
-<EnvVar name="CHATTO_AUTH_OIDC_CLIENT_SECRET" toml="auth.oidc.client_secret">
-  OIDC client secret.
-</EnvVar>
+Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
-<EnvVar name="CHATTO_AUTH_OIDC_LABEL" toml="auth.oidc.label" default="Chatto Hub">
-  Button label shown on the login page for the OIDC provider.
-</EnvVar>
+See [External Login Providers](/guides/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 
 ## SMTP
 
@@ -331,12 +352,12 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   URL where LiveKit sends webhook events. Defaults to `{webserver.url}/webhooks/livekit`.
 </EnvVar>
 
-<EnvVar name="CHATTO_LIVEKIT_INSTANCE_ID" toml="livekit.instance_id">
-  Unique identifier for this Chatto server process, prefixed to LiveKit room names. Required when multiple Chatto replicas share the same LiveKit cluster, so that webhook events can be routed correctly. When empty, room names use the unprefixed format.
+<EnvVar name="CHATTO_LIVEKIT_SERVER_ID" toml="livekit.server_id">
+  Unique identifier for this Chatto server, prefixed to deterministic LiveKit room names. This value must match across replicas of one Chatto server, and should differ only across different Chatto servers sharing the same LiveKit cluster. When empty, room names use the unprefixed format. The old `CHATTO_LIVEKIT_INSTANCE_ID` / `livekit.instance_id` name is still accepted as a deprecated alias.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_KEY" toml="livekit.webhook_api_key">
-  API key that LiveKit uses to sign webhook requests. When multiple Chatto replicas share a LiveKit cluster, the webhook signing key may differ from the per-replica API key. Falls back to `CHATTO_LIVEKIT_API_KEY` when not set.
+  API key that LiveKit uses to sign webhook requests. When multiple Chatto servers share a LiveKit cluster, the webhook signing key may differ from the per-server API key. Falls back to `CHATTO_LIVEKIT_API_KEY` when not set.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_SECRET" toml="livekit.webhook_api_secret">

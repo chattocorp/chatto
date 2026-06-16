@@ -5,7 +5,32 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func groupIDOfTestGroupEvent(t *testing.T, event *corev1.Event) string {
+	t.Helper()
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_RoomGroupCreated:
+		return e.RoomGroupCreated.GetGroupId()
+	case *corev1.Event_RoomGroupUpdated:
+		return e.RoomGroupUpdated.GetGroupId()
+	case *corev1.Event_RoomGroupDeleted:
+		return e.RoomGroupDeleted.GetGroupId()
+	case *corev1.Event_RoomAddedToGroup:
+		return e.RoomAddedToGroup.GetGroupId()
+	case *corev1.Event_RoomRemovedFromGroup:
+		return e.RoomRemovedFromGroup.GetGroupId()
+	case *corev1.Event_RoomsInGroupReordered:
+		return e.RoomsInGroupReordered.GetGroupId()
+	default:
+		t.Fatalf("unsupported test group event %T", event.GetEvent())
+		return ""
+	}
+}
 
 func TestCreateRoomGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -229,6 +254,132 @@ func TestMoveRoomToSet_TargetNotFound(t *testing.T) {
 	err := core.MoveRoomToGroup(ctx, "actor", room.Id, "nonexistent")
 	if !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Errorf("err = %v, want ErrRoomGroupNotFound", err)
+	}
+}
+
+func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	groupLayout := NewRoomGroupLayoutProjection()
+	groupLayoutProjector := harness.projector(groupLayout)
+	core := &ChattoCore{
+		nc:                       harness.nc,
+		logger:                   testServiceLogger(),
+		EventPublisher:           harness.publisher,
+		RoomGroupLayout:          groupLayout,
+		RoomGroupLayoutProjector: groupLayoutProjector,
+		RoomGroups:               groupLayout.Groups,
+		RoomLayout:               groupLayout.Layout,
+	}
+	core.roomService = newRoomService(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+
+	created := newEvent("actor", &corev1.Event{
+		Event: &corev1.Event_RoomGroupCreated{
+			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G-late", Name: "Late"},
+		},
+	})
+	if _, err := harness.publisher.AppendEventually(ctx, events.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
+		t.Fatalf("append group-created event: %v", err)
+	}
+	if core.RoomGroups.Exists("G-late") {
+		t.Fatal("test setup expected group projection to start stale")
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- core.MoveRoomToGroup(ctx, "actor", "R-late", "G-late")
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("MoveRoomToGroup returned before projection catch-up: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startTestProjector(t, groupLayoutProjector)
+	if err := <-errCh; err != nil {
+		t.Fatalf("MoveRoomToGroup after projection catch-up: %v", err)
+	}
+
+	group, ok := core.RoomGroups.Get("G-late")
+	if !ok {
+		t.Fatal("target group missing after catch-up")
+	}
+	if len(group.RoomIds) != 1 || group.RoomIds[0] != "R-late" {
+		t.Fatalf("group room IDs = %v, want [R-late]", group.RoomIds)
+	}
+}
+
+func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	groupLayout := NewRoomGroupLayoutProjection()
+	groupLayoutProjector := harness.projector(groupLayout)
+	core := &ChattoCore{
+		nc:                       harness.nc,
+		logger:                   testServiceLogger(),
+		EventPublisher:           harness.publisher,
+		RoomGroupLayout:          groupLayout,
+		RoomGroupLayoutProjector: groupLayoutProjector,
+		RoomGroups:               groupLayout.Groups,
+		RoomLayout:               groupLayout.Layout,
+	}
+	core.roomService = newRoomService(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+
+	eventsToAppend := []*corev1.Event{
+		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
+		newEvent("actor", groupCreatedEvent("G-other", "Other", "")),
+		newEvent("actor", roomAddedToGroupEvent("G-target", "R1")),
+		newEvent("actor", roomRemovedFromGroupEvent("G-target", "R1")),
+		newEvent("actor", roomAddedToGroupEvent("G-other", "R1")),
+	}
+	for i, event := range eventsToAppend {
+		subject := events.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append setup event %d: %v", i, err)
+		}
+		if i < 3 {
+			if err := groupLayout.Apply(event, seq); err != nil {
+				t.Fatalf("seed stale group projection event %d: %v", i, err)
+			}
+		}
+	}
+	if got := core.RoomGroups.GroupForRoom("R1"); got != "G-target" {
+		t.Fatalf("test setup source group = %q, want stale G-target", got)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- core.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("MoveRoomToGroup returned before stale no-op catch-up: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startTestProjector(t, groupLayoutProjector)
+	if err := <-errCh; err != nil {
+		t.Fatalf("MoveRoomToGroup after stale no-op catch-up: %v", err)
+	}
+
+	target, ok := core.RoomGroups.Get("G-target")
+	if !ok {
+		t.Fatal("target group missing after catch-up")
+	}
+	if len(target.RoomIds) != 1 || target.RoomIds[0] != "R1" {
+		t.Fatalf("target room IDs = %v, want [R1]", target.RoomIds)
+	}
+	other, ok := core.RoomGroups.Get("G-other")
+	if !ok {
+		t.Fatal("other group missing after catch-up")
+	}
+	if len(other.RoomIds) != 0 {
+		t.Fatalf("other room IDs = %v, want empty", other.RoomIds)
 	}
 }
 

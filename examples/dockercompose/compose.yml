@@ -28,7 +28,7 @@ services:
       retries: 3
 
   chatto:
-    image: ghcr.io/hmans/chatto:latest
+    image: ghcr.io/chattocorp/chatto:latest
     env_file: .env
     depends_on:
       nats:

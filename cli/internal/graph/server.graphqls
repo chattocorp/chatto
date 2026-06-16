@@ -22,6 +22,23 @@ type ServerProfile {
 }
 
 """
+External login provider metadata safe to expose before authentication.
+"""
+type AuthProvider {
+  "Stable provider ID used in login URLs and external identity links."
+  id: ID! @public
+
+  "Provider type, such as 'oidc', 'github', or 'google'."
+  type: String! @public
+
+  "Human-readable label for login UI."
+  label: String! @public
+
+  "Relative URL that starts this provider's login flow."
+  loginUrl: String! @public
+}
+
+"""
 Information about this Chatto server.
 Some fields don't require authentication and are available on the login page.
 """
@@ -29,8 +46,8 @@ type Server {
   "The application version."
   version: String! @public
 
-  "List of enabled SSO provider names (e.g., 'google', 'github')."
-  enabledAuthProviders: [String!]! @public
+  "External login providers enabled on this server."
+  authProviders: [AuthProvider!]! @public
 
   "Public-facing identity and branding for this server."
   profile: ServerProfile! @public @goField(forceResolver: true)

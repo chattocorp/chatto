@@ -53,12 +53,9 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			},
 		},
 		{
-			name: "reactions remain focused",
+			name: "reactions use room aggregate namespace",
 			got:  NewReactionProjection().Subjects(),
-			want: []string{
-				events.RoomEventTypeFilter(events.EventReactionAdded),
-				events.RoomEventTypeFilter(events.EventReactionRemoved),
-			},
+			want: []string{events.RoomSubjectFilter()},
 		},
 		{
 			name: "assets use canonical asset namespace plus legacy beta room asset lanes",
@@ -98,7 +95,6 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 
 func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 	for name, subjects := range map[string][]string{
-		"reactions":    NewReactionProjection().Subjects(),
 		"content keys": NewContentKeyProjection().Subjects(),
 	} {
 		t.Run(name, func(t *testing.T) {

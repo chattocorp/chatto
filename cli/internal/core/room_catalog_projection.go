@@ -22,6 +22,12 @@ import (
 type RoomCatalogProjection struct {
 	events.MemoryProjection
 	rooms map[string]*roomCatalogEntry
+	seq   uint64
+}
+
+type RoomNameClaimSnapshot struct {
+	OwnerRoomID string
+	Seq         uint64
 }
 
 // roomCatalogEntry is the in-memory shape held per room. Not exposed
@@ -54,12 +60,15 @@ func (p *RoomCatalogProjection) Subjects() []string {
 // RoomArchived, RoomUnarchived, RoomDeleted. Membership events
 // (UserJoinedRoom, UserLeftRoom) and any other variants under
 // evt.room.> are silently ignored.
-func (p *RoomCatalogProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
+	if seq > p.seq {
+		p.seq = seq
+	}
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_RoomCreated:
 		c := e.RoomCreated
@@ -141,21 +150,27 @@ func (p *RoomCatalogProjection) Count() int {
 // Includes archived rooms — operators must rename them before
 // reclaiming the slot, matching the previous KV-index semantics.
 func (p *RoomCatalogProjection) FindByName(name string) string {
+	return p.NameClaimSnapshot(name).OwnerRoomID
+}
+
+func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnapshot {
 	target := strings.ToLower(strings.TrimSpace(name))
 	if target == "" {
-		return ""
+		return RoomNameClaimSnapshot{}
 	}
 	p.RLock()
 	defer p.RUnlock()
+	snapshot := RoomNameClaimSnapshot{Seq: p.seq}
 	for id, entry := range p.rooms {
 		if entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
 			continue
 		}
 		if strings.ToLower(entry.name) == target {
-			return id
+			snapshot.OwnerRoomID = id
+			return snapshot
 		}
 	}
-	return ""
+	return snapshot
 }
 
 // entryToRoom converts a private catalog entry into the public

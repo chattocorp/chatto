@@ -1,4 +1,6 @@
+import MarkdownIt from 'markdown-it';
 import type { RoomMember } from '$lib/state/room';
+import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 
 // Re-export for convenience
 export type { RoomMember };
@@ -9,23 +11,88 @@ export type { RoomMember };
  *
  * Pattern matches @username where username contains alphanumeric, underscores, hyphens, and dots.
  * Dots are only allowed as internal separators (not trailing).
- * Same pattern as backend (mentions.go:21).
+ * Used for wrapping mentions in already-rendered DOM text nodes.
  */
 function createMentionRegex(): RegExp {
   return /(^|[^a-zA-Z0-9])@([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*)/g;
 }
 
+function isMentionAlphanumeric(value: string): boolean {
+  return /^[a-zA-Z0-9]$/.test(value);
+}
+
+function isMentionHandleChar(value: string): boolean {
+  return /^[a-zA-Z0-9_-]$/.test(value);
+}
+
+function mentionRule(state: StateInline, silent: boolean): boolean {
+  const start = state.pos;
+  if (state.src[start] !== '@') return false;
+  if (start > 0 && isMentionAlphanumeric(state.src[start - 1])) return false;
+
+  let stop = start + 1;
+  while (stop < state.posMax && isMentionHandleChar(state.src[stop])) {
+    stop++;
+  }
+  if (stop === start + 1) return false;
+
+  while (stop < state.posMax && state.src[stop] === '.') {
+    const next = stop + 1;
+    if (next >= state.posMax || !isMentionHandleChar(state.src[next])) break;
+    stop = next + 1;
+    while (stop < state.posMax && isMentionHandleChar(state.src[stop])) {
+      stop++;
+    }
+  }
+
+  if (!silent) {
+    const token = state.push('mention', '', 0);
+    token.content = state.src.slice(start + 1, stop);
+    token.markup = '@';
+  }
+  state.pos = stop;
+  return true;
+}
+
+const mentionMarkdown = new MarkdownIt({
+  html: false,
+  linkify: false,
+  breaks: true
+});
+mentionMarkdown.disable(['escape']);
+mentionMarkdown.inline.ruler.before('emphasis', 'mention', mentionRule);
+
 /**
  * Extract @usernames from text (without validation).
  * Returns deduplicated list of usernames in order of appearance.
+ * Ignores mentions inside Markdown code spans, code blocks, and blockquotes.
  */
 export function extractMentions(text: string): string[] {
+  if (!text.includes('@')) return [];
+
   const mentions: string[] = [];
-  const regex = createMentionRegex();
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    mentions.push(match[2]); // Capture group 2 is the username
+
+  let blockquoteDepth = 0;
+  for (const token of mentionMarkdown.parse(text, {})) {
+    if (token.type === 'blockquote_open') {
+      blockquoteDepth++;
+      continue;
+    }
+    if (token.type === 'blockquote_close') {
+      blockquoteDepth = Math.max(0, blockquoteDepth - 1);
+      continue;
+    }
+    if (blockquoteDepth > 0) continue;
+    if (token.type === 'fence' || token.type === 'code_block') continue;
+    if (token.type === 'inline') {
+      for (const child of token.children ?? []) {
+        if (child.type === 'mention') {
+          mentions.push(child.content);
+        }
+      }
+    }
   }
+
   return [...new Set(mentions)]; // Deduplicate
 }
 

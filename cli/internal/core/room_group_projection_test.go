@@ -206,3 +206,40 @@ func TestRoomGroupProjection_UnrelatedEventsIgnored(t *testing.T) {
 	require.NoError(t, p.Apply(other, 1))
 	require.Equal(t, 0, p.Count())
 }
+
+func TestRoomGroupProjection_MoveSnapshotTracksIgnoredGroupSeq(t *testing.T) {
+	p := NewRoomGroupProjection()
+	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Target", ""), 10))
+
+	ignoredGroupEvent := &corev1.Event{}
+	require.NoError(t, p.Apply(ignoredGroupEvent, 11))
+
+	snapshot := p.MoveSnapshot("R1", "G1")
+	require.True(t, snapshot.TargetExists)
+	require.Equal(t, uint64(11), snapshot.Seq)
+}
+
+func TestRoomGroupProjection_MoveSnapshotTracksGroupSeq(t *testing.T) {
+	p := NewRoomGroupProjection()
+	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Source", ""), 10))
+	require.NoError(t, p.Apply(groupCreatedEvent("G2", "Target", ""), 11))
+	require.NoError(t, p.Apply(roomAddedToGroupEvent("G1", "R1"), 12))
+
+	snapshot := p.MoveSnapshot("R1", "G2")
+	require.True(t, snapshot.TargetExists)
+	require.Equal(t, "G1", snapshot.SourceGroupID)
+	require.Equal(t, uint64(12), snapshot.Seq)
+
+	require.NoError(t, p.Apply(roomRemovedFromGroupEvent("G1", "R1"), 13))
+	require.NoError(t, p.Apply(roomAddedToGroupEvent("G2", "R1"), 14))
+
+	snapshot = p.MoveSnapshot("R1", "G2")
+	require.True(t, snapshot.TargetExists)
+	require.Equal(t, "G2", snapshot.SourceGroupID)
+	require.Equal(t, uint64(14), snapshot.Seq)
+
+	snapshot = p.MoveSnapshot("R1", "Gmissing")
+	require.False(t, snapshot.TargetExists)
+	require.Equal(t, "G2", snapshot.SourceGroupID)
+	require.Equal(t, uint64(14), snapshot.Seq)
+}

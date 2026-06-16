@@ -2,22 +2,32 @@ package http_server
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"hmans.de/chatto/internal/config"
 )
 
 // serverInfoResponse is the JSON response for GET /api/server.
 type serverInfoResponse struct {
-	Name             string   `json:"name"`
-	Version          string   `json:"version"`
-	AuthMethods      []string `json:"authMethods"`
-	RegistrationOpen bool     `json:"registrationOpen"`
-	WelcomeMessage   string   `json:"welcomeMessage,omitempty"`
-	AuthorizeURL     string   `json:"authorizeUrl,omitempty"`
-	Description      string   `json:"description,omitempty"`
-	IconURL          string   `json:"iconUrl,omitempty"`
-	BannerURL        string   `json:"bannerUrl,omitempty"`
+	Name             string                   `json:"name"`
+	Version          string                   `json:"version"`
+	AuthMethods      []string                 `json:"authMethods"`
+	AuthProviders    []serverInfoAuthProvider `json:"authProviders"`
+	RegistrationOpen bool                     `json:"registrationOpen"`
+	WelcomeMessage   string                   `json:"welcomeMessage,omitempty"`
+	AuthorizeURL     string                   `json:"authorizeUrl,omitempty"`
+	Description      string                   `json:"description,omitempty"`
+	IconURL          string                   `json:"iconUrl,omitempty"`
+	BannerURL        string                   `json:"bannerUrl,omitempty"`
+}
+
+type serverInfoAuthProvider struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Label    string `json:"label"`
+	LoginURL string `json:"loginUrl"`
 }
 
 // setupServerInfoRoutes registers the server discovery endpoint.
@@ -52,14 +62,16 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 		}
 	}
 
-	// Build auth methods list
-	authMethods := s.config.Auth.EnabledProviders()
+	// Build compatibility auth methods list. Provider-specific IDs are exposed
+	// through authProviders; authMethods stays method-oriented for older clients.
+	authMethods := s.config.Auth.EnabledProviderMethods()
 	if s.config.Auth.DirectRegistrationOrDefault() {
 		authMethods = append([]string{"password"}, authMethods...)
 	}
 	if authMethods == nil {
 		authMethods = []string{}
 	}
+	authProviders := serverInfoAuthProviders(s.config.Auth.PublicProviders())
 
 	// Get welcome message
 	var welcomeMessage string
@@ -98,6 +110,7 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 		Name:             name,
 		Version:          s.version,
 		AuthMethods:      authMethods,
+		AuthProviders:    authProviders,
 		RegistrationOpen: s.config.Auth.DirectRegistrationOrDefault(),
 		WelcomeMessage:   welcomeMessage,
 		AuthorizeURL:     "/oauth/authorize",
@@ -105,6 +118,19 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 		IconURL:          iconURL,
 		BannerURL:        bannerURL,
 	})
+}
+
+func serverInfoAuthProviders(providers []config.AuthProviderConfig) []serverInfoAuthProvider {
+	result := make([]serverInfoAuthProvider, 0, len(providers))
+	for _, provider := range providers {
+		result = append(result, serverInfoAuthProvider{
+			ID:       provider.ID,
+			Type:     provider.Type,
+			Label:    provider.LabelOrDefault(),
+			LoginURL: "/auth/providers/" + url.PathEscape(provider.ID),
+		})
+	}
+	return result
 }
 
 // absolutizeAssetURL turns a relative asset path into a fully-qualified URL

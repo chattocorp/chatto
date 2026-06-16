@@ -66,6 +66,129 @@ func TestReactionProjection_IgnoresDuplicateEventID(t *testing.T) {
 	}
 }
 
+func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
+	p := NewReactionProjection()
+
+	roomEvent := &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: "R1", Name: "general"},
+		},
+	}
+	if err := p.Apply(roomEvent, 7); err != nil {
+		t.Fatalf("apply room event: %v", err)
+	}
+
+	snapshot := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1")
+	if snapshot.Exists {
+		t.Fatal("fresh reaction snapshot unexpectedly exists")
+	}
+	if snapshot.Seq != 7 {
+		t.Fatalf("fresh reaction snapshot seq = %d, want 7", snapshot.Seq)
+	}
+
+	event := reactionAddedProjectionEvent("E1", "M1", "U1", "heart", 1)
+	if err := p.Apply(event, 8); err != nil {
+		t.Fatalf("apply reaction event: %v", err)
+	}
+
+	snapshot = p.ReactionMutationSnapshot("R1", "M1", "heart", "U1")
+	if !snapshot.Exists {
+		t.Fatal("reaction snapshot should report existing reaction")
+	}
+	if snapshot.Seq != 8 {
+		t.Fatalf("reaction snapshot seq = %d, want 8", snapshot.Seq)
+	}
+
+	otherRoomEvent := &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: "R2", Name: "other"},
+		},
+	}
+	if err := p.Apply(otherRoomEvent, 9); err != nil {
+		t.Fatalf("apply other room event: %v", err)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1").Seq; got != 8 {
+		t.Fatalf("R1 reaction snapshot seq after R2 event = %d, want 8", got)
+	}
+	if got := p.ReactionMutationSnapshot("R2", "M1", "heart", "U1").Seq; got != 9 {
+		t.Fatalf("R2 reaction snapshot seq = %d, want 9", got)
+	}
+}
+
+func TestReactionProjection_IgnoresNonRoomEventsForSnapshotSeq(t *testing.T) {
+	p := NewReactionProjection()
+
+	assetEvent := &corev1.Event{
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				Asset: &corev1.AssetRecord{Id: "A1"},
+			},
+		},
+	}
+	if err := p.Apply(assetEvent, 10); err != nil {
+		t.Fatalf("apply asset aggregate event: %v", err)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1").Seq; got != 0 {
+		t.Fatalf("snapshot seq after asset aggregate event = %d, want 0", got)
+	}
+}
+
+func TestReactionProjection_MutationSnapshotTracksLegacyRoomAssetEvents(t *testing.T) {
+	p := NewReactionProjection()
+
+	message := &corev1.Event{
+		Id: "M1",
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+		},
+	}
+	if err := p.Apply(message, 9); err != nil {
+		t.Fatalf("apply message event: %v", err)
+	}
+
+	assetCreated := &corev1.Event{
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				RoomId: "R1",
+				Asset:  &corev1.AssetRecord{Id: "A1"},
+			},
+		},
+	}
+	if err := p.Apply(assetCreated, 10); err != nil {
+		t.Fatalf("apply legacy room asset-created event: %v", err)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1").Seq; got != 10 {
+		t.Fatalf("snapshot seq after legacy asset-created event = %d, want 10", got)
+	}
+
+	assetStarted := &corev1.Event{
+		Event: &corev1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+				AssetId:        "A2",
+				MessageEventId: "M1",
+			},
+		},
+	}
+	if err := p.Apply(assetStarted, 11); err != nil {
+		t.Fatalf("apply legacy room asset-processing event: %v", err)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1").Seq; got != 11 {
+		t.Fatalf("snapshot seq after legacy asset-processing event = %d, want 11", got)
+	}
+
+	assetDeleted := &corev1.Event{
+		Event: &corev1.Event_AssetDeleted{
+			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A1"},
+		},
+	}
+	if err := p.Apply(assetDeleted, 12); err != nil {
+		t.Fatalf("apply legacy room asset-deleted event: %v", err)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1").Seq; got != 12 {
+		t.Fatalf("snapshot seq after legacy asset-deleted event = %d, want 12", got)
+	}
+}
+
 func TestRoomLayoutProjection_ReorderCloneAndIgnore(t *testing.T) {
 	p := NewRoomLayoutProjection()
 

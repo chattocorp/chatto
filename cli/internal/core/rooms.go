@@ -121,12 +121,12 @@ const maxRoomNameClaimRetries = 5
 //
 // ADR-035 phase 6: event-only. Name uniqueness is enforced via
 // JetStream wildcard OCC against `evt.room.>` — the room service
-// reads its projection's LastSeq, checks the name is unused, then
-// publishes RoomCreatedEvent with that seq as the expected-last for
-// the filter. Concurrent room mutations from any process (this one
-// or another replica) advance the filter's seq and cause our publish
-// to fail; we re-check uniqueness from the (now-caught-up) projection
-// and retry.
+// reads a catalog snapshot containing both the name owner and the
+// applied evt.room.> sequence, then publishes RoomCreatedEvent with
+// that seq as the expected-last for the filter. Concurrent room
+// mutations from any process (this one or another replica) advance the
+// filter's seq and cause our publish to fail; we re-check uniqueness
+// from the (now-caught-up) projection and retry.
 func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string) (*corev1.Room, error) {
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
@@ -211,12 +211,12 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 // enforced via JetStream wildcard OCC against `evt.room.>`.
 //
 // The flow per attempt:
-//  1. Check the catalog for the desired `name`; if any other room
-//     holds it, return ErrRoomNameExists immediately.
-//  2. Read the stream's actual last seq for the OCC filter directly.
-//     This keeps the uniqueness check tied to JetStream's aggregate
-//     scope rather than to any projection's local catch-up state.
-//  3. Publish the event with the freshly-read filter seq. JetStream
+//  1. Read the catalog name-claim snapshot for the desired `name`;
+//     if any other room holds it, return ErrRoomNameExists immediately.
+//  2. Publish the event with the snapshot's applied evt.room.> seq.
+//     The projected state and OCC token describe the same observed
+//     event-log prefix.
+//  3. JetStream
 //     rejects with ErrConflict if any evt.room.> message landed in the
 //     read-publish window — backoff briefly and retry.
 //
@@ -240,16 +240,12 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 	occFilter := events.RoomSubjectFilter()
 
 	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
-		if owner := c.rooms().roomIDByName(name); owner != "" && owner != excludeRoomID {
+		snapshot := c.rooms().nameClaimSnapshot(name)
+		if owner := snapshot.OwnerRoomID; owner != "" && owner != excludeRoomID {
 			return 0, ErrRoomNameExists
 		}
 
-		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, occFilter)
-		if err != nil {
-			return 0, fmt.Errorf("read OCC filter seq: %w", err)
-		}
-
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, filterSeq)
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
 		if err == nil {
 			return seq, nil
 		}
@@ -257,9 +253,12 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 			return 0, err
 		}
 
-		// Filter advanced under us between LastSubjectSeq and the
-		// publish. Backoff briefly and retry — the next attempt's
-		// fresh LastSubjectSeq read will see the landed event.
+		if err := c.rooms().waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
+			return 0, fmt.Errorf("wait for room directory after OCC conflict: %w", err)
+		}
+
+		// Filter advanced under us after the snapshot. Backoff briefly
+		// and retry — the next attempt reads a fresh projection snapshot.
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
