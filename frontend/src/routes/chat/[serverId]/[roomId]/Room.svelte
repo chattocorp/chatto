@@ -189,12 +189,10 @@
   });
 
   // Remember this room as the last visited (for the chat-root → last-room
-  // auto-redirect). DM rooms are deliberately excluded: their lifecycle is
-  // user-driven (start a conversation, post a message), not "the room I was
-  // last in," and auto-landing on a DM after returning to the instance is
-  // surprising — channels are the implicit destination.
+  // auto-redirect). Room.svelte is reused across roomId changes, so wait for
+  // the loaded room data to catch up to the current route before writing.
   $effect(() => {
-    if (room.roomData && !room.isDM) {
+    if (room.roomData?.room.id === roomId) {
       setLastRoom(getActiveServer(), roomId);
     }
   });
