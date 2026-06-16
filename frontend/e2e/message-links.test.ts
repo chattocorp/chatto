@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
@@ -10,6 +10,17 @@ import {
 } from './fixtures/graphqlHelpers';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
+
+async function clickReplyAttributionJump(page: Page, replyBody: string): Promise<void> {
+  const replyAttribution = page
+    .locator('[role="article"]', { hasText: replyBody })
+    .getByTestId('reply-attribution');
+
+  // The nested author button opens the user popover and stops propagation.
+  // Click the label area so the attribution container's jump handler receives
+  // the event.
+  await replyAttribution.click({ position: { x: 8, y: 8 } });
+}
 
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
@@ -177,7 +188,7 @@ test.describe('Message links', () => {
     await postMessagesViaAPI(page, roomId, fillerMessages);
 
     // Post a reply referencing the old target (same pattern as jump-to-message tests)
-    const replyBody = `Reply to old target - ${timestamp}`;
+    const replyBody = `Reply referencing earliest message - ${timestamp}`;
     await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload for clean state, wait for reply to be visible
@@ -185,11 +196,9 @@ test.describe('Message links', () => {
     await page.waitForURL(routes.patterns.anyRoomWithQuery);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    // Jump to the old message via the reply link
-    const replyAttribution = page
-      .locator('[role="article"]', { hasText: replyBody })
-      .getByTestId('reply-attribution');
-    await replyAttribution.getByText('in reply to').click();
+    // Jump to the old message via the reply attribution.
+    await expect(page.locator('p', { hasText: targetBody })).not.toBeVisible();
+    await clickReplyAttributionJump(page, replyBody);
 
     // The old target should be visible after jump
     await expect(page.locator('p', { hasText: targetBody })).toBeVisible({

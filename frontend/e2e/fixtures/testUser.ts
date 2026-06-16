@@ -7,38 +7,38 @@ export interface TestUser {
   password: string;
 }
 
+export type BootstrapPersona = 'admin' | 'alice' | 'bob' | 'carol';
+
+const BOOTSTRAP_USERS: Record<BootstrapPersona, TestUser> = {
+  admin: {
+    login: 'e2eadmin',
+    displayName: 'Admin User',
+    password: 'adminpassword123'
+  },
+  alice: {
+    login: 'e2eu1',
+    displayName: 'User One Test',
+    password: 'testpassword123'
+  },
+  bob: {
+    login: 'e2eu2',
+    displayName: 'User Two Test',
+    password: 'testpassword123'
+  },
+  carol: {
+    login: 'e2eu3',
+    displayName: 'User Three Test',
+    password: 'testpassword123'
+  }
+};
+
 /**
  * The admin email used for granting admin access in E2E tests.
  * Must match what's configured in e2e/fixtures/chatto.toml
  */
 const ADMIN_EMAIL = 'admin@e2e-test.example.com';
 
-/**
- * Logs in as the bootstrap admin user.
- * The admin user is created during server startup via the [bootstrap]
- * section in fixtures/chatto.toml, which assigns the owner role.
- *
- * Note: You must also verify the admin email to get config-based admin access
- * (for admin panel). Use verifyAdminEmail() after calling this if needed.
- */
-export async function loginAsAdmin(page: Page): Promise<TestUser> {
-  const adminUser: TestUser = {
-    login: 'e2eadmin',
-    displayName: 'Admin User',
-    password: 'adminpassword123'
-  };
-
-  // Login via HTTP endpoint (user already created by bootstrap)
-  const loginResponse = await page.request.post('/auth/login', {
-    data: {
-      login: adminUser.login,
-      password: adminUser.password
-    }
-  });
-
-  expect(loginResponse.ok()).toBeTruthy();
-
-  // Get the user ID from the viewer query
+async function fetchCurrentUserId(page: Page): Promise<string> {
   const meResponse = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -51,9 +51,45 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
 
   expect(meResponse.ok()).toBeTruthy();
   const meData = await meResponse.json();
-  adminUser.id = meData.data.viewer.user.id;
+  return meData.data.viewer.user.id;
+}
 
-  return adminUser;
+/**
+ * Logs in as one of the stable bootstrap users from fixtures/chatto.toml.
+ * Prefer this for tests that only need a generic user and do not mutate that
+ * user's account-level state.
+ */
+export async function loginAsBootstrapUser(
+  page: Page,
+  persona: BootstrapPersona = 'alice'
+): Promise<TestUser> {
+  const user: TestUser = { ...BOOTSTRAP_USERS[persona] };
+
+  const loginResponse = await page.request.post('/auth/login', {
+    data: {
+      login: user.login,
+      password: user.password
+    }
+  });
+
+  expect(loginResponse.ok()).toBeTruthy();
+  const loginData = await loginResponse.json();
+  expect(loginData.success).toBe(true);
+
+  user.id = await fetchCurrentUserId(page);
+  return user;
+}
+
+/**
+ * Logs in as the bootstrap admin user.
+ * The admin user is created during server startup via the [bootstrap]
+ * section in fixtures/chatto.toml, which assigns the owner role.
+ *
+ * Note: You must also verify the admin email to get config-based admin access
+ * (for admin panel). Use verifyAdminEmail() after calling this if needed.
+ */
+export async function loginAsAdmin(page: Page): Promise<TestUser> {
+  return loginAsBootstrapUser(page, 'admin');
 }
 
 /**
@@ -296,7 +332,7 @@ export async function clearUserPermissionOverride(
 }
 
 /**
- * Logs in an existing test user (created by createAndLoginTestUser).
+ * Logs in an existing test user.
  * Useful for multi-tab tests where the same user needs to be logged into multiple pages.
  */
 export async function loginTestUser(page: Page, user: TestUser): Promise<void> {
